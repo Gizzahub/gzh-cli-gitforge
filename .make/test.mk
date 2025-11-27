@@ -25,9 +25,13 @@ test-unit: ## run only unit tests (exclude integration and e2e)
 	go tool cover -func=coverage-unit.out | sort -rnk3
 	@echo -e "$(GREEN)✅ Unit tests completed$(RESET)"
 
-test-integration-only: ## run only integration tests with build tag
+test-integration-only: build ## run only integration tests with build tag
 	@echo -e "$(CYAN)Running integration tests...$(RESET)"
-	go test -tags=integration -v ./test/integration/...
+	@if [ -d "./test/integration" ]; then \
+		cd test/integration && go test -v .; \
+	else \
+		echo -e "$(YELLOW)No integration tests found$(RESET)"; \
+	fi
 	@echo -e "$(GREEN)✅ Integration tests completed$(RESET)"
 
 test-e2e-only: ## run only e2e tests with build tag
