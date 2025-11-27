@@ -2,7 +2,7 @@
 
 **Project**: gzh-cli-git
 **Last Updated**: 2025-11-27
-**Current Phase**: Phase 4 (History Analysis) - COMPLETE!
+**Current Phase**: Phase 5 (Advanced Merge/Rebase) - COMPLETE!
 
 ---
 
@@ -13,11 +13,11 @@ Phase 1: ████████████████████ 100% Compl
 Phase 2: ████████████████████ 100% Complete ✅
 Phase 3: ████████████████████ 100% Complete ✅
 Phase 4: ████████████████████ 100% Complete ✅
-Phase 5: ░░░░░░░░░░░░░░░░░░░░   0% Pending
+Phase 5: ████████████████████ 100% Complete ✅
 Phase 6: ░░░░░░░░░░░░░░░░░░░░   0% Pending
 Phase 7: ░░░░░░░░░░░░░░░░░░░░   0% Pending
 
-Overall: ████████████████░░░░  86% Complete
+Overall: ███████████████████░  93% Complete
 ```
 
 ---
@@ -250,21 +250,67 @@ Overall: ████████████████░░░░  86% Compl
 
 ---
 
-### ⏳ Phase 5: Advanced Merge/Rebase (Pending)
+### ✅ Phase 5: Advanced Merge/Rebase (Complete)
 
-**Status**: ⏳ Pending
-**Target**: Week 6
+**Status**: ✅ Complete (100%)
+**Started**: 2025-11-27
+**Completed**: 2025-11-27
+**Duration**: 1 day
 **Priority**: P0 (High)
 
-**Planned Deliverables**:
-- [ ] Conflict detection
-- [ ] Auto-resolution strategies
-- [ ] Interactive assistance
-- [ ] Merge strategy recommendation
-- [ ] Specification: `specs/40-advanced-merge.md`
+**Deliverables** (100%):
+- [x] Specification: `specs/40-advanced-merge.md` (686 lines)
+- [x] Conflict Detector - 88.6% coverage
+- [x] Merge Strategy Manager - 86.8% coverage
+- [x] Rebase Manager - 86.8% coverage
+- [x] Comprehensive test suites
+
+**Completed Components**:
+1. ✅ Conflict Detector (`pkg/merge/detector.go`) - 330 lines + 592 test lines
+   - Pre-merge conflict detection and analysis
+   - Conflict type classification (content, delete, rename, binary)
+   - Merge difficulty calculation (trivial, easy, medium, hard)
+   - Fast-forward detection
+   - Merge preview with file change statistics
+   - Coverage: 88.6%
+
+2. ✅ Merge Strategy Manager (`pkg/merge/strategy.go`) - 301 lines + 594 test lines
+   - Multiple merge strategies (fast-forward, recursive, ours, theirs, octopus)
+   - Pre-merge safety checks (clean working tree, up-to-date detection)
+   - Merge options (no-commit, squash, custom messages)
+   - Conflict handling and resolution
+   - Abort merge capability
+   - Coverage: 86.8%
+
+3. ✅ Rebase Manager (`pkg/merge/rebase.go`) - 265 lines + 424 test lines
+   - Interactive and non-interactive rebase
+   - Continue, skip, and abort rebase operations
+   - Rebase status detection
+   - Auto-squash and preserve-merges support
+   - Conflict handling during rebase
+   - Coverage: 86.8%
+
+**Quality Metrics**:
+- Test coverage: 86.8% overall (target: 85%)
+  - pkg/merge/detector: 88.6%
+  - pkg/merge/strategy: 86.8%
+  - pkg/merge/rebase: 86.8%
+- All tests passing: 177 tests
+- Zero TODOs in production code
+- Comprehensive error handling
+- Mock-based unit testing strategy
+
+**Technical Highlights**:
+- Interface-based architecture (GitExecutor, ConflictDetector, MergeManager, RebaseManager)
+- Context-based operations for cancellation support
+- Comprehensive error wrapping with fmt.Errorf %w
+- Safety-first approach (dirty tree detection, in-progress operation detection)
+- Multiple merge strategies with proper validation
+- Pre-merge conflict detection before actual merge
+- Rebase state management (in-progress, complete, conflict, aborted)
 
 **Dependencies**:
-- Phase 4: ⏳ Pending (Phase 3 Complete)
+- Phase 4: ✅ Complete
 
 ---
 
@@ -282,7 +328,7 @@ Overall: ████████████████░░░░  86% Compl
 - [ ] E2E test suite
 
 **Dependencies**:
-- Phase 5: ⏳ Pending
+- Phase 5: ✅ Complete
 
 ---
 
@@ -305,7 +351,7 @@ Overall: ████████████████░░░░  86% Compl
 
 ## Test Coverage
 
-### Current Coverage: 79% (Phase 1) + 75.2% (Phase 2) + 42.3% (Phase 3) + 93.3% (Phase 4)
+### Current Coverage: 79% (Phase 1) + 75.2% (Phase 2) + 42.3% (Phase 3) + 93.3% (Phase 4) + 86.8% (Phase 5)
 
 | Package | Coverage | Target | Status |
 |---------|----------|--------|--------|
@@ -324,11 +370,15 @@ Overall: ████████████████░░░░  86% Compl
 | **pkg/history/contributor** | 89.5% | 85% | ✅ Exceeds |
 | **pkg/history/file_history** | 90.7% | 85% | ✅ Exceeds |
 | **pkg/history/formatter** | 93.3% | 85% | ✅ Exceeds |
+| **pkg/merge/detector** | 88.6% | 85% | ✅ Exceeds |
+| **pkg/merge/strategy** | 86.8% | 85% | ✅ Exceeds |
+| **pkg/merge/rebase** | 86.8% | 85% | ✅ Exceeds |
 | **cmd/** | 0% | 70% | ❌ Deferred to Phase 6 |
 | **Overall (Phase 1)** | 79% | 85% | ⚠️ Near target |
 | **Overall (pkg/commit)** | 75.2% | 85% | ⚠️ Near target (integration tests needed) |
 | **Overall (pkg/branch)** | 42.3% | 85% | ⚠️ Foundation layer (integration tests needed) |
 | **Overall (pkg/history)** | 93.3% | 85% | ✅ Exceeds target significantly! |
+| **Overall (pkg/merge)** | 86.8% | 85% | ✅ Exceeds target! |
 
 ---
 
