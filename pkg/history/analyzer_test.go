@@ -278,10 +278,10 @@ func TestHistoryAnalyzer_ValidateOptions(t *testing.T) {
 
 func TestHistoryAnalyzer_ParseShortstat(t *testing.T) {
 	tests := []struct {
-		name             string
-		line             string
-		wantAdditions    int
-		wantDeletions    int
+		name          string
+		line          string
+		wantAdditions int
+		wantDeletions int
 	}{
 		{
 			name:          "both insertions and deletions",
@@ -493,10 +493,10 @@ hash4|Author|author@example.com|%d
 hash5|Author|author@example.com|%d
 
  1 file changed, 1 insertion(+)`,
-		baseTime,      // Day 1: 1 commit
-		baseTime,      // Day 1: 2 commits
-		baseTime,      // Day 1: 3 commits (peak)
-		baseTime+86400, // Day 2: 1 commit
+		baseTime,        // Day 1: 1 commit
+		baseTime,        // Day 1: 2 commits
+		baseTime,        // Day 1: 3 commits (peak)
+		baseTime+86400,  // Day 2: 1 commit
 		baseTime+172800) // Day 3: 1 commit
 
 	analyzer := &historyAnalyzer{}

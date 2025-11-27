@@ -12,13 +12,13 @@ import (
 
 func TestFileHistoryTracker_GetHistory(t *testing.T) {
 	tests := []struct {
-		name       string
-		path       string
-		output     string
-		opts       HistoryOptions
-		wantCount  int
-		wantFirst  *FileCommit
-		wantErr    error
+		name      string
+		path      string
+		output    string
+		opts      HistoryOptions
+		wantCount int
+		wantFirst *FileCommit
+		wantErr   error
 	}{
 		{
 			name: "basic file history",
@@ -252,12 +252,12 @@ func TestFileHistoryTracker_GetHistoryWithOptions(t *testing.T) {
 
 func TestFileHistoryTracker_GetBlame(t *testing.T) {
 	tests := []struct {
-		name         string
-		path         string
-		output       string
+		name          string
+		path          string
+		output        string
 		wantLineCount int
 		wantFirstLine *BlameLine
-		wantErr      error
+		wantErr       error
 	}{
 		{
 			name: "basic blame",
@@ -274,11 +274,11 @@ def456 (Jane Smith <jane@example.com> 2025-11-27 13:00:00 +0000 2) import "fmt"`
 			},
 		},
 		{
-			name:         "empty path",
-			path:         "",
-			output:       "",
+			name:          "empty path",
+			path:          "",
+			output:        "",
 			wantLineCount: 0,
-			wantErr:      ErrFileNotFound,
+			wantErr:       ErrFileNotFound,
 		},
 	}
 

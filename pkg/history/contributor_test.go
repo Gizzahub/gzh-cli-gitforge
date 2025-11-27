@@ -330,12 +330,12 @@ func TestContributorAnalyzer_ParseNameEmail(t *testing.T) {
 
 func TestContributorAnalyzer_ParseContributorStats(t *testing.T) {
 	tests := []struct {
-		name              string
-		output            string
-		wantLinesAdded    int
-		wantLinesDeleted  int
-		wantFilesTouched  int
-		wantActiveDays    int
+		name             string
+		output           string
+		wantLinesAdded   int
+		wantLinesDeleted int
+		wantFilesTouched int
+		wantActiveDays   int
 	}{
 		{
 			name: "basic stats",
@@ -365,12 +365,12 @@ func TestContributorAnalyzer_ParseContributorStats(t *testing.T) {
 			wantActiveDays:   1, // Same day
 		},
 		{
-			name:              "empty output",
-			output:            "",
-			wantLinesAdded:    0,
-			wantLinesDeleted:  0,
-			wantFilesTouched:  0,
-			wantActiveDays:    0,
+			name:             "empty output",
+			output:           "",
+			wantLinesAdded:   0,
+			wantLinesDeleted: 0,
+			wantFilesTouched: 0,
+			wantActiveDays:   0,
 		},
 	}
 
