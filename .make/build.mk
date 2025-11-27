@@ -5,15 +5,8 @@
 # Build Configuration
 # ==============================================================================
 
-# Go environment configuration for crypto/mlkem and iter package support
-# Use system Go if asdf golang is not available
-ASDF_GOLANG_PATH := $(shell asdf where golang 2>/dev/null || echo "")
-ifneq ($(ASDF_GOLANG_PATH),)
-export GOROOT := $(ASDF_GOLANG_PATH)/go
-else
+# Go environment configuration
 # Use system Go installation
-export GOROOT := $(shell go env GOROOT)
-endif
 export GOEXPERIMENT := rangefunc
 
 # Detect OS-specific executable extension (e.g., .exe on Windows)
@@ -47,7 +40,7 @@ endif
 
 build: ## build golang binary
 	@printf "$(CYAN)Building %s...$(RESET)\n" "$(BINARY)"
-	@go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/gz
+	@go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) ./cmd/gzh-git
 	@printf "$(GREEN)Built %s successfully$(RESET)\n" "$(BINARY)"
 
 
@@ -61,12 +54,12 @@ run: ## run the application (usage: make run [args...] or ARGS="args" make run)
 	@if [ "$(words $(MAKECMDGOALS))" -gt 1 ]; then \
 		ARGS="$(filter-out run,$(MAKECMDGOALS))"; \
 		echo -e "$(YELLOW)Arguments: $$ARGS$(RESET)"; \
-		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gz $$ARGS; \
+		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gzh-git $$ARGS; \
 	elif [ -n "$(ARGS)" ]; then \
 		echo -e "$(YELLOW)Arguments: $(ARGS)$(RESET)"; \
-		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gz $(ARGS); \
+		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gzh-git $(ARGS); \
 	else \
-		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gz; \
+		go run -ldflags "-X main.version=$(VERSION)" ./cmd/gzh-git; \
 	fi
 
 # Prevent make from interpreting arguments as targets
