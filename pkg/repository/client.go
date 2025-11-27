@@ -369,8 +369,8 @@ func parseStatus(output string) (*Status, error) {
 
 	lines := strings.Split(output, "\n")
 	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		// Don't trim the line itself as git status --porcelain has specific format
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
