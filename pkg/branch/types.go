@@ -159,3 +159,41 @@ type RemoveOptions struct {
 	Path  string // Worktree path (required)
 	Force bool   // Force removal (even with uncommitted changes)
 }
+
+// AnalyzeOptions configures branch cleanup analysis.
+type AnalyzeOptions struct {
+	IncludeMerged  bool          // Include fully merged branches
+	IncludeStale   bool          // Include stale branches (no activity)
+	StaleThreshold time.Duration // Threshold for stale (default: 30 days)
+	IncludeRemote  bool          // Include remote branches
+	Exclude        []string      // Patterns to exclude
+	BaseBranch     string        // Base branch for merge detection (default: main/master)
+}
+
+// ExecuteOptions configures branch cleanup execution.
+type ExecuteOptions struct {
+	DryRun  bool     // Preview only, don't delete
+	Force   bool     // Force delete unmerged branches
+	Remote  bool     // Also delete remote branches
+	Confirm bool     // Skip confirmation prompts
+	Exclude []string // Additional patterns to exclude
+}
+
+// CleanupReport summarizes branches eligible for cleanup.
+type CleanupReport struct {
+	Merged    []*Branch // Fully merged branches
+	Stale     []*Branch // Stale branches
+	Orphaned  []*Branch // Orphaned tracking branches
+	Protected []*Branch // Protected (won't delete)
+	Total     int       // Total branches analyzed
+}
+
+// CleanupStrategy defines cleanup approach.
+type CleanupStrategy string
+
+const (
+	StrategyMerged   CleanupStrategy = "merged"   // Only merged branches
+	StrategyStale    CleanupStrategy = "stale"    // Only stale branches
+	StrategyOrphaned CleanupStrategy = "orphaned" // Only orphaned branches
+	StrategyAll      CleanupStrategy = "all"      // All eligible branches
+)
