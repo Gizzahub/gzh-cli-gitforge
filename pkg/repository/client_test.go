@@ -517,3 +517,53 @@ func stringSliceEqual(a, b []string) bool {
 	}
 	return true
 }
+
+// TestCloneOptions tests all CloneOption functions
+func TestCloneOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		opt  CloneOption
+	}{
+		{"WithBranch", WithBranch("main")},
+		{"WithDepth", WithDepth(1)},
+		{"WithSingleBranch", WithSingleBranch()},
+		{"WithRecursive", WithRecursive()},
+		{"WithProgress", WithProgress(&testProgressReporter{})},
+		{"WithLogger", WithLogger(&testLogger{})},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &CloneOptions{}
+			tt.opt(opts)
+			// Just verify the option can be applied without error
+		})
+	}
+}
+
+// TestWithExecutor tests WithExecutor client option
+func TestWithExecutor(t *testing.T) {
+	// This is a simple test to just cover the function
+	client := NewClient(WithExecutor(nil))
+	if client == nil {
+		t.Error("NewClient() with WithExecutor returned nil")
+	}
+}
+
+// TestNoopLogger tests NoopLogger
+func TestNoopLogger(t *testing.T) {
+	logger := NewNoopLogger()
+	
+	// These should not panic
+	logger.Debug("test")
+	logger.Info("test")
+	logger.Warn("test")
+	logger.Error("test")
+}
+
+// testProgressReporter is a simple progress reporter for testing
+type testProgressReporter struct{}
+
+func (p *testProgressReporter) Start(total int64) {}
+func (p *testProgressReporter) Update(current int64) {}
+func (p *testProgressReporter) Done() {}
