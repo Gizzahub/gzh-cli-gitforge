@@ -1,0 +1,48 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+      - id: check-json
+      - id: pretty-format-json
+        args: ['--autofix']
+      - id: check-toml
+      - id: check-xml
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  - repo: local
+    hooks:
+      - id: fast-format-check
+        name: Fast Go format check
+        entry: bash -c 'make fmt-diff'
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: fast-lint-check
+        name: Fast Go lint check
+        entry: bash -c 'make lint-diff'
+        language: system
+        types: [go]
+        pass_filenames: false
+
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go mod tidy
+        language: system
+        pass_filenames: false
+        files: ^go\.(mod|sum)$
+
+      - id: markdown-format
+        name: Format markdown files
+        entry: mdformat
+        language: system
+        types: [markdown]
+        require_serial: true
