@@ -187,6 +187,15 @@ type CloneOptions struct {
 	// Recursive clones submodules recursively.
 	Recursive bool
 
+	// Bare creates a bare repository (no working directory).
+	Bare bool
+
+	// Mirror creates a mirror repository (all refs are copied).
+	Mirror bool
+
+	// Quiet suppresses progress output.
+	Quiet bool
+
 	// Progress is an optional progress reporter.
 	// If provided, clone progress will be reported.
 	Progress ProgressReporter
