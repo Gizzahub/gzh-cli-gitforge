@@ -91,15 +91,27 @@
 - **Dependencies**: pkg/branch package (already implemented)
 - **Estimated Effort**: 4-6 hours
 
-### 6. History CLI Commands (0% Complete)
-- **Priority**: High
-- **Subcommands Needed**:
-  - `gzh-git history stats` - Commit statistics
-  - `gzh-git history contributors` - Contributor analysis
-  - `gzh-git history file <path>` - File history
-  - `gzh-git history blame <file>` - Git blame
-- **Dependencies**: pkg/history package (already implemented)
-- **Estimated Effort**: 3-4 hours
+### 6. History CLI Commands (100% Complete)
+- **Status**: ✅ Complete and Tested
+- **Commit**: `19654b5`
+- **Files Created**:
+  - `cmd/gzh-git/cmd/history.go` - Root command ✅
+  - `cmd/gzh-git/cmd/history_stats.go` - Statistics ✅
+  - `cmd/gzh-git/cmd/history_contributors.go` - Contributors ✅
+  - `cmd/gzh-git/cmd/history_file.go` - File history and blame ✅
+
+**Security Enhancements**:
+- Updated gitcmd sanitization to support history-specific flags
+- Allow --shortstat, --max-count, --follow, --date flags
+- Allow pipe characters in --format= values (safe for git format strings)
+- Allow -- separator flag
+- Fixed -sne combined flag issue (split into -s -n -e)
+
+**Verified Working**:
+- ✅ `gzh-git history stats` - Shows commit statistics
+- ✅ `gzh-git history contributors --top N` - Shows top contributors
+- ✅ `gzh-git history file <path>` - Shows file commit history
+- ✅ `gzh-git history blame <file>` - Shows line-by-line authorship
 
 ### 7. Merge CLI Commands (0% Complete)
 - **Priority**: High
@@ -157,29 +169,23 @@
 
 | Category | Progress | Target | Status |
 |----------|----------|--------|--------|
-| **CLI Commands** | 5/7 groups | 7 groups | 🟢 71% |
+| **CLI Commands** | 6/7 groups | 7 groups | 🟢 86% |
 | - status, clone, info | ✅ Complete | - | ✅ Done |
 | - commit | ✅ Complete | - | ✅ Done |
 | - branch | ✅ Complete | - | ✅ Done |
-| - history | ⏸️ 0% | - | ⏸️ Pending |
+| - history | ✅ Complete | - | ✅ Done |
 | - merge | ⏸️ 0% | - | ⏸️ Pending |
 | **Integration Tests** | 0% | 100% | ⏸️ Pending |
 | **E2E Tests** | 0% | 100% | ⏸️ Pending |
 | **Benchmarks** | 0% | 100% | ⏸️ Pending |
 | **Documentation** | 20% | 100% | ⏸️ Pending |
-| **Overall Phase 6** | **35%** | **100%** | 🔄 **In Progress** |
+| **Overall Phase 6** | **43%** | **100%** | 🔄 **In Progress** |
 
 ---
 
 ## 🎯 Immediate Next Steps (Priority Order)
 
-1. **Implement history commands** (2-3 hours) ← NEXT
-   - Create `cmd/gzh-git/cmd/history.go` and subcommands
-   - Integrate with pkg/history (93.3% coverage - excellent!)
-   - Test output formats (table, JSON, CSV, markdown)
-   - Commands: stats, contributors, file, blame
-
-2. **Implement merge commands** (3-4 hours)
+1. **Implement merge commands** (3-4 hours) ← NEXT
    - Create `cmd/gzh-git/cmd/merge.go` and subcommands
    - Integrate with pkg/merge (86.8% coverage)
    - Test conflict detection
@@ -240,8 +246,9 @@
 - `c82c9b1` - fix(cmd): fix commit command API mismatches (WORKING ✅)
 - `d57b634` - wip(cmd): add branch command infrastructure
 - `6227614` - fix(cmd): fix branch command API mismatches (WORKING ✅)
+- `19654b5` - feat(cmd): implement history CLI commands with security fixes (WORKING ✅)
 
 ---
 
-**Current Session**: Implemented and tested commit + branch commands (5/7 CLI groups done)
-**Next Session Focus**: Implement history and merge CLI commands
+**Current Session**: Implemented and tested commit + branch + history commands (6/7 CLI groups done)
+**Next Session Focus**: Implement merge CLI commands
