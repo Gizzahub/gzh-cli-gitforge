@@ -12,7 +12,7 @@
 .PHONY: test test-unit test-integration test-integration-only test-e2e test-e2e-only test-all
 .PHONY: cover cover-html cover-report bench test-coverage test-docker
 
-test: clean ## run all tests with coverage
+test: clean build ## run all tests with coverage (requires binary for integration tests)
 	@echo -e "$(CYAN)Running all tests with coverage...$(RESET)"
 	go test --cover -parallel=1 -v -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3

@@ -58,8 +58,12 @@ func init() {
 }
 
 // initConfig reads in config file and ENV variables if set.
-// This can be implemented later for configuration file support.
+// Configuration file support is deferred to Phase 2 (Commit Automation).
+// See: specs/10-commit-automation.md for configuration requirements
 func initConfig() {
-	// TODO: Add configuration file support
-	// For example: viper.SetConfigName(".gzh-git")
+	// Configuration file support deferred to Phase 2
+	// Will implement with Viper when needed for:
+	// - Commit message templates
+	// - Default Git options
+	// - User preferences
 }
