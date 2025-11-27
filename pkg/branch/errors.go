@@ -36,4 +36,25 @@ var (
 
 	// ErrOperationCancelled indicates user cancelled the operation.
 	ErrOperationCancelled = errors.New("operation cancelled by user")
+
+	// ErrWorktreeExists indicates worktree path already exists.
+	ErrWorktreeExists = errors.New("worktree path already exists")
+
+	// ErrWorktreeNotFound indicates worktree doesn't exist.
+	ErrWorktreeNotFound = errors.New("worktree not found")
+
+	// ErrWorktreeDirty indicates worktree has uncommitted changes.
+	ErrWorktreeDirty = errors.New("worktree has uncommitted changes")
+
+	// ErrWorktreeMain indicates operation on main worktree.
+	ErrWorktreeMain = errors.New("cannot remove main worktree")
+
+	// ErrWorktreeLocked indicates worktree is locked.
+	ErrWorktreeLocked = errors.New("worktree is locked")
+
+	// ErrBranchInUse indicates branch is checked out in another worktree.
+	ErrBranchInUse = errors.New("branch is checked out in another worktree")
+
+	// ErrInvalidPath indicates invalid worktree path.
+	ErrInvalidPath = errors.New("invalid worktree path")
 )

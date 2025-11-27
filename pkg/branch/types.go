@@ -131,3 +131,31 @@ func InferType(name string) BranchType {
 		return BranchTypeOther
 	}
 }
+
+// Worktree represents a Git worktree.
+type Worktree struct {
+	Path       string // Worktree path
+	Branch     string // Branch name
+	Ref        string // Full ref (HEAD or commit SHA)
+	IsMain     bool   // Is the main worktree
+	IsLocked   bool   // Is locked
+	IsPrunable bool   // Can be pruned
+	IsBare     bool   // Is bare repository
+	IsDetached bool   // Is detached HEAD
+}
+
+// AddOptions configures worktree addition.
+type AddOptions struct {
+	Path         string // Worktree path (required)
+	Branch       string // Branch name (required)
+	CreateBranch bool   // Create new branch
+	Force        bool   // Overwrite existing
+	Detach       bool   // Detached HEAD
+	Checkout     string // Specific commit to checkout
+}
+
+// RemoveOptions configures worktree removal.
+type RemoveOptions struct {
+	Path  string // Worktree path (required)
+	Force bool   // Force removal (even with uncommitted changes)
+}
