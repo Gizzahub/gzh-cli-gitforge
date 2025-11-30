@@ -303,7 +303,7 @@ func main() {
 - 📋 [Product Requirements](PRD.md)
 - 🔧 [Technical Requirements](REQUIREMENTS.md)
 - 📚 [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
-- 🤝 [Contributing Guide](CONTRIBUTING.md) *(coming soon)*
+- 🤝 [Contributing Guide](CONTRIBUTING.md)
 
 ### Feature Specifications
 
@@ -492,7 +492,7 @@ repo, _ := client.Open(ctx, repoPath)
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. *(coming soon)*
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
 ### Development Workflow
 
