@@ -2,6 +2,7 @@ package watch
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -203,6 +204,99 @@ func BenchmarkWatcherCreation(b *testing.B) {
 			b.Fatalf("NewWatcher() error = %v", err)
 		}
 		watcher.Stop()
+	}
+}
+
+// BenchmarkEventDetection benchmarks change detection logic.
+func BenchmarkEventDetection(b *testing.B) {
+	client := repository.NewClient()
+	wtchr, err := NewWatcher(client, WatchOptions{})
+	if err != nil {
+		b.Fatalf("NewWatcher() error = %v", err)
+	}
+	defer wtchr.Stop()
+
+	w := wtchr.(*watcher)
+
+	oldStatus := &repository.Status{
+		IsClean:       false,
+		ModifiedFiles: []string{"file1.go", "file2.go"},
+		StagedFiles:   []string{},
+	}
+
+	newStatus := &repository.Status{
+		IsClean:       false,
+		ModifiedFiles: []string{"file1.go", "file2.go", "file3.go"},
+		StagedFiles:   []string{"file1.go"},
+	}
+
+	state := &repoState{
+		path:          "/test/repo",
+		lastStatus:    oldStatus,
+		currentBranch: "main",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = w.detectChanges(state, newStatus, "main")
+	}
+}
+
+// BenchmarkEqualStringSlices benchmarks string slice comparison.
+func BenchmarkEqualStringSlices(b *testing.B) {
+	slice1 := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+	slice2 := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "k"}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = equalStringSlices(slice1, slice2)
+	}
+}
+
+// BenchmarkWatcherWithMultipleRepos benchmarks watching multiple repositories.
+func BenchmarkWatcherWithMultipleRepos(b *testing.B) {
+	client := repository.NewClient()
+
+	// Benchmark with different repository counts
+	for _, repoCount := range []int{1, 5, 10, 20} {
+		b.Run(fmt.Sprintf("repos=%d", repoCount), func(b *testing.B) {
+			wtchr, err := NewWatcher(client, WatchOptions{
+				Interval: 100 * time.Millisecond,
+			})
+			if err != nil {
+				b.Fatalf("NewWatcher() error = %v", err)
+			}
+			defer wtchr.Stop()
+
+			w := wtchr.(*watcher)
+
+			// Setup: Create mock repository states
+			for i := 0; i < repoCount; i++ {
+				path := fmt.Sprintf("/test/repo%d", i)
+				w.watching[path] = &repoState{
+					path: path,
+					lastStatus: &repository.Status{
+						IsClean: true,
+					},
+					currentBranch: "main",
+				}
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			// Memory usage per operation
+			for i := 0; i < b.N; i++ {
+				// Simulate event generation for all repos
+				for path, state := range w.watching {
+					newStatus := &repository.Status{
+						IsClean:       false,
+						ModifiedFiles: []string{fmt.Sprintf("%s/file.go", path)},
+					}
+					_ = w.detectChanges(state, newStatus, "main")
+				}
+			}
+		})
 	}
 }
 
