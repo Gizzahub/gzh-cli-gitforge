@@ -104,7 +104,7 @@ func init() {
 	pullCmd.Flags().StringVar(&pullExclude, "exclude", "", "regex pattern to exclude repositories")
 	pullCmd.Flags().StringVar(&pullFormat, "format", "default", "output format: default, compact")
 	pullCmd.Flags().BoolVar(&pullWatch, "watch", false, "continuously pull at intervals")
-	pullCmd.Flags().DurationVar(&pullInterval, "interval", 10*time.Minute, "pull interval when watching")
+	pullCmd.Flags().DurationVar(&pullInterval, "interval", 1*time.Minute, "pull interval when watching")
 }
 
 func runPull(cmd *cobra.Command, args []string) error {

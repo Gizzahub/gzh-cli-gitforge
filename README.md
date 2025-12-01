@@ -225,8 +225,8 @@ gz-git pull --exclude "test.*" ~/projects
 # Compact output format
 gz-git pull --format compact ~/projects
 
-# Watch mode: continuously pull at intervals
-gz-git pull -d 2 --watch --interval 10m ~/projects
+# Watch mode: continuously pull at intervals (default: 1m)
+gz-git pull -d 2 --watch ~/projects
 gz-git pull --watch --interval 5m ~/work
 ```
 

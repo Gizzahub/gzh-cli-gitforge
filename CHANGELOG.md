@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `-d, --depth` flag for directory depth scanning
   - `--strategy` flag: merge, rebase, ff-only
   - `--stash` flag: auto-stash local changes before pull
-  - `--watch` mode: continuous pulling at intervals (default: 10m)
+  - `--watch` mode: continuous pulling at intervals (default: 1m)
   - `--dry-run`: preview without actual pull
   - `--parallel`: concurrent pull operations (default: 5)
   - `--include/--exclude`: regex filtering
