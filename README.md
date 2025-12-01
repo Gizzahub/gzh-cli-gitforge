@@ -3,7 +3,7 @@
 > Advanced Git automation CLI and Go library for developers
 
 [![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
-[![Version](https://img.shields.io/badge/version-v0.1.0--alpha-orange)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.1.0-alpha)
+[![Version](https://img.shields.io/badge/version-v0.2.0-blue)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.2.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/COVERAGE.md)
 [![Tests](https://img.shields.io/badge/tests-141%20passing-brightgreen)](#testing)
@@ -15,7 +15,7 @@
 
 ## Features
 
-### ✅ Fully Implemented & Available (v0.1.0-alpha)
+### ✅ Fully Implemented & Available (v0.2.0)
 
 📦 **Repository Operations**
 - Clone repositories with advanced options (branch, depth, single-branch, recursive)
@@ -23,6 +23,7 @@
 - Get repository information (branch, remote, upstream, ahead/behind counts)
 - Bulk operations (clone-or-update multiple repos in parallel)
 - Flexible clone strategies (always-clone, update-if-exists, skip-if-exists)
+- **Real-time monitoring** (watch repositories for changes)
 
 🚀 **Commit Automation**
 - Template-based commit messages (Conventional Commits support)
@@ -61,7 +62,7 @@
 - Comprehensive integration tests
 - Well-documented codebase
 
-> **Note**: Despite the v0.1.0-alpha version number, this project has substantially more features than typically expected from an alpha release. See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for details.
+> **Note**: Version v0.2.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for details.
 
 ---
 
@@ -108,6 +109,24 @@ gzh-git status /path/to/repo
 
 # Quiet mode (exit code 1 if dirty)
 gzh-git status -q
+```
+
+**Monitor Repositories for Changes:**
+```bash
+# Watch current directory for changes
+gzh-git watch
+
+# Watch multiple repositories
+gzh-git watch /path/to/repo1 /path/to/repo2
+
+# Custom polling interval
+gzh-git watch --interval 5s
+
+# Compact output format
+gzh-git watch --format compact
+
+# JSON output for automation
+gzh-git watch --format json
 ```
 
 **View Repository Information:**
@@ -335,12 +354,12 @@ All major packages are fully implemented. See [Library Documentation](docs/LIBRA
 
 ## Project Status
 
-**Current Version**: v0.1.0-alpha
-**Status**: Active Development
+**Current Version**: v0.2.0
+**Status**: Feature Complete - Documentation & Testing Phase
 
 ### Roadmap
 
-- [x] **Phase 1-5**: Core Features *(Completed - v0.1.0-alpha)*
+- [x] **Phase 1-5**: Core Features *(Completed - v0.2.0)*
   - [x] Project structure and architecture
   - [x] Core documentation (PRD, REQUIREMENTS, ARCHITECTURE)
   - [x] Repository operations (clone, status, info, update)

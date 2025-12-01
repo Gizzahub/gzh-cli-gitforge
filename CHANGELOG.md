@@ -7,10 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Watch Command**: Real-time repository monitoring with `gzh-git watch`
+  - Multiple output formats: default (detailed), compact, JSON
+  - Configurable polling interval (default: 2s)
+  - Detects: modified, staged, untracked, deleted files, branch changes
+  - Multi-repository support (watch multiple repos simultaneously)
+  - Debouncing to prevent duplicate events
+  - File system integration with fsnotify
+- **Watch Package** (`pkg/watch`): Library API for repository monitoring
+  - Event-driven architecture with channels
+  - Context-aware cancellation support
+  - Comprehensive test coverage
+
 ### Planned
 - gzh-cli integration (Phase 7.2)
 - v1.0.0 production release
 - Additional test coverage improvements
+
+## [0.2.0] - 2025-12-01
+
+### Changed
+- **Version Update**: Updated from v0.1.0-alpha to v0.2.0 to reflect actual feature completeness
+- **Documentation Overhaul**: Complete rewrite of user-facing documentation to accurately represent implemented features
+- **Status Clarification**: All features previously marked as "Planned" (v0.2.0-v0.5.0) are now correctly documented as "Implemented"
+
+### Added
+
+**Documentation Improvements**:
+- `docs/IMPLEMENTATION_STATUS.md`: Comprehensive analysis documenting actual vs. claimed implementation status
+- `docs/user/guides/faq.md`: Complete FAQ with 400+ lines covering all implemented features
+- `docs/user/getting-started/first-steps.md`: 10-minute tutorial with working examples for all features
+- `docs/llm/CONTEXT.md`: LLM-optimized context document (12KB, token-efficient)
+- `docs/DOCUMENTATION_PLAN.md`: Future documentation structure and migration strategy
+
+**Feature Documentation**:
+- All CLI commands now documented with working examples
+- Library usage examples for all 6 pkg/ packages
+- Production readiness guidance and API stability policy
+- Troubleshooting guide with common issues
+
+### Fixed
+- **Critical Documentation Bug**: README.md and other docs incorrectly stated that commit automation, branch management, history analysis, and merge/rebase features were "planned" when they were fully implemented
+- Updated feature availability across all user-facing documentation
+- Corrected version references throughout documentation
+- Fixed roadmap to show Phases 1-5 as completed
+
+### Notes
+- **No Code Changes**: All functionality was already present in v0.1.0-alpha
+- **Version Rationale**: v0.2.0 accurately represents the maturity level with all major features implemented, tested (69.1% coverage), and functional
+- **Breaking Changes**: None - This is a documentation and version number correction only
 
 ## [0.1.0-alpha] - 2025-12-01
 
@@ -314,5 +360,6 @@ N/A - Initial release
 
 ---
 
-[Unreleased]: https://github.com/gizzahub/gzh-cli-git/compare/v0.1.0-alpha...HEAD
+[Unreleased]: https://github.com/gizzahub/gzh-cli-git/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.2.0
 [0.1.0-alpha]: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.1.0-alpha
