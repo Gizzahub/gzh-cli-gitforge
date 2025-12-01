@@ -192,6 +192,44 @@ gz-git fetch -d 2 --watch --interval 5m ~/projects
 gz-git fetch --watch --interval 1m ~/work
 ```
 
+**Bulk Pull Multiple Repositories:**
+```bash
+# Pull all repositories in current directory (1-depth)
+gz-git pull -d 1
+
+# Pull repositories up to 2 levels deep
+gz-git pull -d 2 ~/projects
+
+# Pull with rebase strategy
+gz-git pull --strategy rebase -d 2 ~/projects
+
+# Pull with fast-forward only (fail if can't fast-forward)
+gz-git pull --strategy ff-only ~/projects
+
+# Pull with custom parallelism
+gz-git pull --parallel 10 ~/workspace
+
+# Pull and automatically stash local changes
+gz-git pull --stash -d 2 ~/projects
+
+# Pull and prune deleted remote branches
+gz-git pull --prune ~/repos
+
+# Dry run to see what would be pulled
+gz-git pull --dry-run ~/projects
+
+# Filter by pattern
+gz-git pull --include "myproject.*" ~/workspace
+gz-git pull --exclude "test.*" ~/projects
+
+# Compact output format
+gz-git pull --format compact ~/projects
+
+# Watch mode: continuously pull at intervals
+gz-git pull -d 2 --watch --interval 10m ~/projects
+gz-git pull --watch --interval 5m ~/work
+```
+
 **Global Options:**
 ```bash
 # Verbose output

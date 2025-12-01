@@ -107,6 +107,109 @@ type RepositoryFetchResult struct {
 	FetchedObjects int
 }
 
+// BulkPullOptions configures bulk repository pull operations
+type BulkPullOptions struct {
+	// Directory is the root directory to scan for repositories
+	Directory string
+
+	// Parallel is the number of concurrent workers (default: 5)
+	Parallel int
+
+	// MaxDepth is the maximum directory depth to scan (default: 5)
+	MaxDepth int
+
+	// DryRun performs simulation without actual changes
+	DryRun bool
+
+	// Verbose enables detailed logging
+	Verbose bool
+
+	// Strategy defines how to merge changes (merge, rebase, ff-only)
+	Strategy string
+
+	// Prune removes remote-tracking branches that no longer exist
+	Prune bool
+
+	// Tags fetches all tags from remote
+	Tags bool
+
+	// Stash automatically stashes local changes before pull
+	Stash bool
+
+	// IncludeSubmodules includes git submodules in the scan (default: false)
+	// When false, only scans for independent nested repositories
+	IncludeSubmodules bool
+
+	// IncludePattern is a regex pattern for repositories to include
+	IncludePattern string
+
+	// ExcludePattern is a regex pattern for repositories to exclude
+	ExcludePattern string
+
+	// Logger for operation feedback
+	Logger Logger
+
+	// ProgressCallback is called for each processed repository
+	ProgressCallback func(current, total int, repo string)
+}
+
+// BulkPullResult contains the results of a bulk pull operation
+type BulkPullResult struct {
+	// TotalScanned is the number of repositories found
+	TotalScanned int
+
+	// TotalProcessed is the number of repositories processed
+	TotalProcessed int
+
+	// Repositories contains individual repository results
+	Repositories []RepositoryPullResult
+
+	// Duration is the total operation time
+	Duration time.Duration
+
+	// Summary contains status counts
+	Summary map[string]int
+}
+
+// RepositoryPullResult represents the result for a single repository pull
+type RepositoryPullResult struct {
+	// Path is the repository path
+	Path string
+
+	// RelativePath is the path relative to scan root
+	RelativePath string
+
+	// Status is the operation status (success, skipped, error, etc.)
+	Status string
+
+	// Message is a human-readable status message
+	Message string
+
+	// Error if the operation failed
+	Error error
+
+	// Duration is how long this repository took to process
+	Duration time.Duration
+
+	// Branch is the current branch name
+	Branch string
+
+	// RemoteURL is the remote origin URL
+	RemoteURL string
+
+	// CommitsBehind is the number of commits behind remote before pull
+	CommitsBehind int
+
+	// CommitsAhead is the number of commits ahead of remote before pull
+	CommitsAhead int
+
+	// UpdatedFiles is the number of files changed
+	UpdatedFiles int
+
+	// Stashed indicates if local changes were stashed
+	Stashed bool
+}
+
 // BulkUpdateOptions configures bulk repository update operations
 type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -885,6 +988,317 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 
 // calculateFetchSummary creates a summary of fetch results by status
 func calculateFetchSummary(results []RepositoryFetchResult) map[string]int {
+	summary := make(map[string]int)
+
+	for _, result := range results {
+		summary[result.Status]++
+	}
+
+	return summary
+}
+
+// BulkPull scans for repositories and pulls them in parallel
+func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullResult, error) {
+	startTime := time.Now()
+
+	// Validate options
+	if opts.Directory == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+		opts.Directory = cwd
+	}
+
+	// Set defaults
+	if opts.Parallel <= 0 {
+		opts.Parallel = 5
+	}
+	if opts.MaxDepth <= 0 {
+		opts.MaxDepth = 5
+	}
+	if opts.Strategy == "" {
+		opts.Strategy = "merge" // Default to merge strategy
+	}
+
+	// Validate strategy
+	validStrategies := map[string]bool{
+		"merge":   true,
+		"rebase":  true,
+		"ff-only": true,
+	}
+	if !validStrategies[opts.Strategy] {
+		return nil, fmt.Errorf("invalid strategy: %s (valid: merge, rebase, ff-only)", opts.Strategy)
+	}
+
+	// Use logger
+	logger := opts.Logger
+	if logger == nil {
+		logger = &noopLogger{}
+	}
+
+	// Resolve absolute path
+	absPath, err := filepath.Abs(opts.Directory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+	opts.Directory = absPath
+
+	logger.Info("scanning for repositories", "directory", opts.Directory, "maxDepth", opts.MaxDepth)
+
+	// Scan for repositories
+	repos, err := c.scanRepositoriesWithConfig(ctx, opts.Directory, opts.MaxDepth, logger, walkDirectoryConfig{
+		includeSubmodules: opts.IncludeSubmodules,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan repositories: %w", err)
+	}
+
+	logger.Info("scan complete", "found", len(repos))
+
+	// Filter repositories
+	filteredRepos, err := filterRepositories(repos, opts.IncludePattern, opts.ExcludePattern, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter repositories: %w", err)
+	}
+
+	if len(filteredRepos) < len(repos) {
+		logger.Info("filtered repositories", "total", len(repos), "selected", len(filteredRepos))
+	}
+
+	if len(filteredRepos) == 0 {
+		return &BulkPullResult{
+			TotalScanned:   len(repos),
+			TotalProcessed: 0,
+			Repositories:   []RepositoryPullResult{},
+			Duration:       time.Since(startTime),
+			Summary:        map[string]int{},
+		}, nil
+	}
+
+	// Process repositories in parallel
+	results, err := c.processPullRepositories(ctx, opts.Directory, filteredRepos, opts, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process repositories: %w", err)
+	}
+
+	// Calculate summary
+	summary := calculatePullSummary(results)
+
+	return &BulkPullResult{
+		TotalScanned:   len(repos),
+		TotalProcessed: len(filteredRepos),
+		Repositories:   results,
+		Duration:       time.Since(startTime),
+		Summary:        summary,
+	}, nil
+}
+
+// processPullRepositories processes repositories in parallel for pull
+func (c *client) processPullRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPullOptions, logger Logger) ([]RepositoryPullResult, error) {
+	results := make([]RepositoryPullResult, len(repos))
+	var mu sync.Mutex
+
+	// Create error group with concurrency limit
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.Parallel)
+
+	for i, repoPath := range repos {
+		i, repoPath := i, repoPath // capture loop variables
+
+		g.Go(func() error {
+			// Call progress callback
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(i+1, len(repos), repoPath)
+			}
+
+			result := c.processPullRepository(gctx, rootDir, repoPath, opts, logger)
+
+			mu.Lock()
+			results[i] = result
+			mu.Unlock()
+
+			return nil // Don't fail entire operation on single repo error
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// processPullRepository processes a single repository pull
+func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath string, opts BulkPullOptions, logger Logger) RepositoryPullResult {
+	startTime := time.Now()
+
+	result := RepositoryPullResult{
+		Path:         repoPath,
+		RelativePath: getRelativePath(rootDir, repoPath),
+		Duration:     0,
+	}
+
+	// Open repository
+	repo, err := c.Open(ctx, repoPath)
+	if err != nil {
+		result.Status = "error"
+		result.Message = "Failed to open repository"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Get repository info
+	info, err := c.GetInfo(ctx, repo)
+	if err != nil {
+		result.Status = "error"
+		result.Message = "Failed to get repository info"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Branch = info.Branch
+	result.RemoteURL = info.RemoteURL
+	result.CommitsBehind = info.BehindBy
+	result.CommitsAhead = info.AheadBy
+
+	// Check if repository has remote
+	if info.RemoteURL == "" {
+		result.Status = "no-remote"
+		result.Message = "No remote configured"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check if repository has upstream
+	if info.Upstream == "" {
+		result.Status = "no-upstream"
+		result.Message = "No upstream branch configured"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check repository status
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		result.Status = "error"
+		result.Message = "Failed to get repository status"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Handle local changes with stash
+	if !status.IsClean && opts.Stash {
+		stashArgs := []string{"stash", "push", "-m", "Auto-stash by gz-git pull"}
+		stashResult, err := c.executor.Run(ctx, repoPath, stashArgs...)
+		if err != nil || stashResult.ExitCode != 0 {
+			result.Status = "error"
+			result.Message = "Failed to stash local changes"
+			if err != nil {
+				result.Error = err
+			} else {
+				result.Error = fmt.Errorf("stash exited with code %d: %s", stashResult.ExitCode, stashResult.Error)
+			}
+			result.Duration = time.Since(startTime)
+			return result
+		}
+		result.Stashed = true
+		logger.Info("stashed local changes", "path", result.RelativePath)
+	}
+
+	// Dry run - don't actually pull
+	if opts.DryRun {
+		if result.CommitsBehind > 0 {
+			result.Status = "would-pull"
+			result.Message = fmt.Sprintf("Would pull %d commit(s) from remote", result.CommitsBehind)
+		} else {
+			result.Status = "up-to-date"
+			result.Message = "Already up to date"
+		}
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check if already up to date
+	if result.CommitsBehind == 0 {
+		result.Status = "up-to-date"
+		result.Message = "Already up to date"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Build pull command based on strategy
+	pullArgs := []string{"pull"}
+
+	switch opts.Strategy {
+	case "rebase":
+		pullArgs = append(pullArgs, "--rebase")
+	case "ff-only":
+		pullArgs = append(pullArgs, "--ff-only")
+	// "merge" is default, no extra flag needed
+	}
+
+	if opts.Prune {
+		pullArgs = append(pullArgs, "--prune")
+	}
+
+	if opts.Tags {
+		pullArgs = append(pullArgs, "--tags")
+	}
+
+	if opts.Verbose {
+		pullArgs = append(pullArgs, "--verbose")
+	} else {
+		pullArgs = append(pullArgs, "--quiet")
+	}
+
+	// Perform pull
+	pullResult, err := c.executor.Run(ctx, repoPath, pullArgs...)
+	if err != nil || pullResult.ExitCode != 0 {
+		result.Status = "error"
+		result.Message = "Pull failed"
+		if err != nil {
+			result.Error = err
+		} else {
+			result.Error = fmt.Errorf("pull exited with code %d: %s", pullResult.ExitCode, pullResult.Error)
+		}
+		result.Duration = time.Since(startTime)
+
+		// Try to pop stash if we stashed earlier
+		if result.Stashed {
+			popArgs := []string{"stash", "pop"}
+			_, _ = c.executor.Run(ctx, repoPath, popArgs...) // Best effort, ignore errors
+		}
+
+		return result
+	}
+
+	result.Status = "success"
+	result.Message = fmt.Sprintf("Successfully pulled %d commit(s) from remote", result.CommitsBehind)
+	result.Duration = time.Since(startTime)
+
+	// Pop stash if we stashed earlier
+	if result.Stashed {
+		popArgs := []string{"stash", "pop"}
+		popResult, err := c.executor.Run(ctx, repoPath, popArgs...)
+		if err != nil || popResult.ExitCode != 0 {
+			logger.Warn("failed to pop stash", "path", result.RelativePath)
+			// Don't fail the pull operation, just warn
+		} else {
+			logger.Info("popped stashed changes", "path", result.RelativePath)
+		}
+	}
+
+	logger.Info("repository pulled", "path", result.RelativePath)
+
+	return result
+}
+
+// calculatePullSummary creates a summary of pull results by status
+func calculatePullSummary(results []RepositoryPullResult) map[string]int {
 	summary := make(map[string]int)
 
 	for _, result := range results {
