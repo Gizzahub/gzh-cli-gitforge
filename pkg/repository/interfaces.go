@@ -33,6 +33,10 @@ type Client interface {
 	// This is useful for updating multiple repositories at once.
 	BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkUpdateResult, error)
 
+	// BulkFetch scans for repositories and fetches them in parallel.
+	// This is useful for fetching updates from multiple repositories at once.
+	BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFetchResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

@@ -13,6 +13,96 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// BulkFetchOptions configures bulk repository fetch operations
+type BulkFetchOptions struct {
+	// Directory is the root directory to scan for repositories
+	Directory string
+
+	// Parallel is the number of concurrent workers (default: 5)
+	Parallel int
+
+	// MaxDepth is the maximum directory depth to scan (default: 5)
+	MaxDepth int
+
+	// DryRun performs simulation without actual changes
+	DryRun bool
+
+	// Verbose enables detailed logging
+	Verbose bool
+
+	// AllRemotes fetches from all remotes (default: origin only)
+	AllRemotes bool
+
+	// Prune removes remote-tracking branches that no longer exist
+	Prune bool
+
+	// Tags fetches all tags from remote
+	Tags bool
+
+	// IncludePattern is a regex pattern for repositories to include
+	IncludePattern string
+
+	// ExcludePattern is a regex pattern for repositories to exclude
+	ExcludePattern string
+
+	// Logger for operation feedback
+	Logger Logger
+
+	// ProgressCallback is called for each processed repository
+	ProgressCallback func(current, total int, repo string)
+}
+
+// BulkFetchResult contains the results of a bulk fetch operation
+type BulkFetchResult struct {
+	// TotalScanned is the number of repositories found
+	TotalScanned int
+
+	// TotalProcessed is the number of repositories processed
+	TotalProcessed int
+
+	// Repositories contains individual repository results
+	Repositories []RepositoryFetchResult
+
+	// Duration is the total operation time
+	Duration time.Duration
+
+	// Summary contains status counts
+	Summary map[string]int
+}
+
+// RepositoryFetchResult represents the result for a single repository fetch
+type RepositoryFetchResult struct {
+	// Path is the repository path
+	Path string
+
+	// RelativePath is the path relative to scan root
+	RelativePath string
+
+	// Status is the operation status (success, skipped, error, etc.)
+	Status string
+
+	// Message is a human-readable status message
+	Message string
+
+	// Error if the operation failed
+	Error error
+
+	// Duration is how long this repository took to process
+	Duration time.Duration
+
+	// Branch is the current branch name
+	Branch string
+
+	// RemoteURL is the remote origin URL
+	RemoteURL string
+
+	// FetchedRefs is the number of refs fetched
+	FetchedRefs int
+
+	// FetchedObjects is the number of objects fetched
+	FetchedObjects int
+}
+
 // BulkUpdateOptions configures bulk repository update operations
 type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -474,6 +564,227 @@ func getRelativePath(root, target string) string {
 
 // calculateSummary creates a summary of results by status
 func calculateSummary(results []RepositoryUpdateResult) map[string]int {
+	summary := make(map[string]int)
+
+	for _, result := range results {
+		summary[result.Status]++
+	}
+
+	return summary
+}
+
+// BulkFetch scans for repositories and fetches them in parallel
+func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFetchResult, error) {
+	startTime := time.Now()
+
+	// Validate options
+	if opts.Directory == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+		opts.Directory = cwd
+	}
+
+	// Set defaults
+	if opts.Parallel <= 0 {
+		opts.Parallel = 5
+	}
+	if opts.MaxDepth <= 0 {
+		opts.MaxDepth = 5
+	}
+
+	// Use logger
+	logger := opts.Logger
+	if logger == nil {
+		logger = &noopLogger{}
+	}
+
+	// Resolve absolute path
+	absPath, err := filepath.Abs(opts.Directory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+	opts.Directory = absPath
+
+	logger.Info("scanning for repositories", "directory", opts.Directory, "maxDepth", opts.MaxDepth)
+
+	// Scan for repositories
+	repos, err := c.scanRepositories(ctx, opts.Directory, opts.MaxDepth, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan repositories: %w", err)
+	}
+
+	logger.Info("scan complete", "found", len(repos))
+
+	// Filter repositories
+	filteredRepos, err := filterRepositories(repos, opts.IncludePattern, opts.ExcludePattern, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter repositories: %w", err)
+	}
+
+	if len(filteredRepos) < len(repos) {
+		logger.Info("filtered repositories", "total", len(repos), "selected", len(filteredRepos))
+	}
+
+	if len(filteredRepos) == 0 {
+		return &BulkFetchResult{
+			TotalScanned:   len(repos),
+			TotalProcessed: 0,
+			Repositories:   []RepositoryFetchResult{},
+			Duration:       time.Since(startTime),
+			Summary:        map[string]int{},
+		}, nil
+	}
+
+	// Process repositories in parallel
+	results, err := c.processFetchRepositories(ctx, opts.Directory, filteredRepos, opts, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process repositories: %w", err)
+	}
+
+	// Calculate summary
+	summary := calculateFetchSummary(results)
+
+	return &BulkFetchResult{
+		TotalScanned:   len(repos),
+		TotalProcessed: len(filteredRepos),
+		Repositories:   results,
+		Duration:       time.Since(startTime),
+		Summary:        summary,
+	}, nil
+}
+
+// processFetchRepositories processes repositories in parallel for fetch
+func (c *client) processFetchRepositories(ctx context.Context, rootDir string, repos []string, opts BulkFetchOptions, logger Logger) ([]RepositoryFetchResult, error) {
+	results := make([]RepositoryFetchResult, len(repos))
+	var mu sync.Mutex
+
+	// Create error group with concurrency limit
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.Parallel)
+
+	for i, repoPath := range repos {
+		i, repoPath := i, repoPath // capture loop variables
+
+		g.Go(func() error {
+			// Call progress callback
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(i+1, len(repos), repoPath)
+			}
+
+			result := c.processFetchRepository(gctx, rootDir, repoPath, opts, logger)
+
+			mu.Lock()
+			results[i] = result
+			mu.Unlock()
+
+			return nil // Don't fail entire operation on single repo error
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// processFetchRepository processes a single repository fetch
+func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath string, opts BulkFetchOptions, logger Logger) RepositoryFetchResult {
+	startTime := time.Now()
+
+	result := RepositoryFetchResult{
+		Path:         repoPath,
+		RelativePath: getRelativePath(rootDir, repoPath),
+		Duration:     0,
+	}
+
+	// Open repository
+	repo, err := c.Open(ctx, repoPath)
+	if err != nil {
+		result.Status = "error"
+		result.Message = "Failed to open repository"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Get repository info
+	info, err := c.GetInfo(ctx, repo)
+	if err != nil {
+		result.Status = "error"
+		result.Message = "Failed to get repository info"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Branch = info.Branch
+	result.RemoteURL = info.RemoteURL
+
+	// Check if repository has remote
+	if info.RemoteURL == "" {
+		result.Status = "no-remote"
+		result.Message = "No remote configured"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Dry run - don't actually fetch
+	if opts.DryRun {
+		result.Status = "would-fetch"
+		result.Message = "Would fetch from remote"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Build fetch command
+	fetchArgs := []string{"fetch"}
+
+	if opts.AllRemotes {
+		fetchArgs = append(fetchArgs, "--all")
+	}
+
+	if opts.Prune {
+		fetchArgs = append(fetchArgs, "--prune")
+	}
+
+	if opts.Tags {
+		fetchArgs = append(fetchArgs, "--tags")
+	}
+
+	if opts.Verbose {
+		fetchArgs = append(fetchArgs, "--verbose")
+	} else {
+		fetchArgs = append(fetchArgs, "--quiet")
+	}
+
+	// Perform fetch
+	fetchResult, err := c.executor.Run(ctx, repoPath, fetchArgs...)
+	if err != nil || fetchResult.ExitCode != 0 {
+		result.Status = "error"
+		result.Message = "Fetch failed"
+		if err != nil {
+			result.Error = err
+		} else {
+			result.Error = fmt.Errorf("fetch exited with code %d: %s", fetchResult.ExitCode, fetchResult.Error)
+		}
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Status = "success"
+	result.Message = "Successfully fetched from remote"
+	result.Duration = time.Since(startTime)
+
+	logger.Info("repository fetched", "path", result.RelativePath)
+
+	return result
+}
+
+// calculateFetchSummary creates a summary of fetch results by status
+func calculateFetchSummary(results []RepositoryFetchResult) map[string]int {
 	summary := make(map[string]int)
 
 	for _, result := range results {

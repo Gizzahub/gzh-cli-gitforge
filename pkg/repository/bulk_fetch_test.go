@@ -1,0 +1,344 @@
+package repository
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+// initGitRepo initializes a git repository at the given path
+func initGitRepo(path string) error {
+	cmd := exec.Command("git", "init")
+	cmd.Dir = path
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	// Configure git for testing
+	configCmds := [][]string{
+		{"config", "user.name", "Test User"},
+		{"config", "user.email", "test@example.com"},
+	}
+
+	for _, args := range configCmds {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = path
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func TestBulkFetch(t *testing.T) {
+	// Create temporary test directory
+	tmpDir := t.TempDir()
+
+	// Create test repositories
+	repo1Path := filepath.Join(tmpDir, "repo1")
+	repo2Path := filepath.Join(tmpDir, "repo2")
+
+	// Initialize git repositories
+	if err := os.MkdirAll(repo1Path, 0755); err != nil {
+		t.Fatalf("Failed to create repo1: %v", err)
+	}
+	if err := os.MkdirAll(repo2Path, 0755); err != nil {
+		t.Fatalf("Failed to create repo2: %v", err)
+	}
+
+	// Initialize actual git repositories
+	if err := initGitRepo(repo1Path); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init repo1: %v", err)
+	}
+	if err := initGitRepo(repo2Path); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init repo2: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		Parallel:  2,
+		MaxDepth:  1,
+		DryRun:    true, // Use dry-run for test
+		Verbose:   false,
+		Logger:    NewNoopLogger(),
+	}
+
+	result, err := client.BulkFetch(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkFetch failed: %v", err)
+	}
+
+	// Verify results
+	if result.TotalScanned != 2 {
+		t.Errorf("Expected 2 scanned repositories, got %d", result.TotalScanned)
+	}
+
+	if result.TotalProcessed != 2 {
+		t.Errorf("Expected 2 processed repositories, got %d", result.TotalProcessed)
+	}
+
+	if len(result.Repositories) != 2 {
+		t.Errorf("Expected 2 repository results, got %d", len(result.Repositories))
+	}
+
+	// Check that duration was recorded
+	if result.Duration == 0 {
+		t.Error("Expected non-zero duration")
+	}
+
+	// Verify summary contains results
+	if len(result.Summary) == 0 {
+		t.Error("Expected non-empty summary")
+	}
+}
+
+func TestBulkFetchWithFilters(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test repositories
+	repo1Path := filepath.Join(tmpDir, "myproject-api")
+	repo2Path := filepath.Join(tmpDir, "test-repo")
+
+	for _, path := range []string{repo1Path, repo2Path} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create directory: %v", err)
+		}
+		if err := initGitRepo(path); err != nil {
+			t.Skipf("Skipping test: git not available: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	t.Run("Include pattern", func(t *testing.T) {
+		opts := BulkFetchOptions{
+			Directory:      tmpDir,
+			MaxDepth:       1,
+			DryRun:         true,
+			IncludePattern: "myproject.*",
+			Logger:         NewNoopLogger(),
+		}
+
+		result, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkFetch failed: %v", err)
+		}
+
+		if result.TotalProcessed != 1 {
+			t.Errorf("Expected 1 processed repository with include pattern, got %d", result.TotalProcessed)
+		}
+	})
+
+	t.Run("Exclude pattern", func(t *testing.T) {
+		opts := BulkFetchOptions{
+			Directory:      tmpDir,
+			MaxDepth:       1,
+			DryRun:         true,
+			ExcludePattern: "test.*",
+			Logger:         NewNoopLogger(),
+		}
+
+		result, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkFetch failed: %v", err)
+		}
+
+		if result.TotalProcessed != 1 {
+			t.Errorf("Expected 1 processed repository with exclude pattern, got %d", result.TotalProcessed)
+		}
+	})
+}
+
+func TestBulkFetchOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+	client := NewClient()
+
+	t.Run("Default options", func(t *testing.T) {
+		opts := BulkFetchOptions{
+			Directory: tmpDir,
+			// No parallel or maxDepth set - should use defaults
+		}
+
+		_, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkFetch with default options failed: %v", err)
+		}
+	})
+
+	t.Run("Empty directory uses current directory", func(t *testing.T) {
+		opts := BulkFetchOptions{
+			Directory: "",
+			MaxDepth:  1,
+			DryRun:    true,
+		}
+
+		result, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkFetch with empty directory failed: %v", err)
+		}
+
+		if result.Duration == 0 {
+			t.Error("Expected operation to complete with duration")
+		}
+	})
+}
+
+func TestBulkFetchProgressCallback(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test repository
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	callbackCalled := false
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Logger:    NewNoopLogger(),
+		ProgressCallback: func(current, total int, repo string) {
+			callbackCalled = true
+			if current < 1 || current > total {
+				t.Errorf("Invalid progress: current=%d, total=%d", current, total)
+			}
+		},
+	}
+
+	_, err := client.BulkFetch(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkFetch failed: %v", err)
+	}
+
+	if !callbackCalled {
+		t.Error("Progress callback was not called")
+	}
+}
+
+func TestBulkFetchContextCancellation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test repository
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	// Create cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Logger:    NewNoopLogger(),
+	}
+
+	_, err := client.BulkFetch(ctx, opts)
+	// Should handle cancelled context gracefully
+	// The error may or may not be returned depending on timing
+	if err != nil && err != context.Canceled {
+		t.Logf("BulkFetch with cancelled context returned: %v", err)
+	}
+}
+
+func TestBulkFetchEmptyDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ctx := context.Background()
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Logger:    NewNoopLogger(),
+	}
+
+	result, err := client.BulkFetch(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkFetch on empty directory failed: %v", err)
+	}
+
+	if result.TotalScanned != 0 {
+		t.Errorf("Expected 0 scanned repositories in empty directory, got %d", result.TotalScanned)
+	}
+
+	if result.TotalProcessed != 0 {
+		t.Errorf("Expected 0 processed repositories in empty directory, got %d", result.TotalProcessed)
+	}
+}
+
+func TestRepositoryFetchResult(t *testing.T) {
+	result := RepositoryFetchResult{
+		Path:         "/tmp/test",
+		RelativePath: "test",
+		Status:       "success",
+		Message:      "Test message",
+		Duration:     100 * time.Millisecond,
+		Branch:       "main",
+		RemoteURL:    "https://github.com/test/repo.git",
+	}
+
+	if result.Path != "/tmp/test" {
+		t.Errorf("Expected path /tmp/test, got %s", result.Path)
+	}
+
+	if result.Status != "success" {
+		t.Errorf("Expected status success, got %s", result.Status)
+	}
+
+	if result.Duration != 100*time.Millisecond {
+		t.Errorf("Expected duration 100ms, got %v", result.Duration)
+	}
+}
+
+func TestCalculateFetchSummary(t *testing.T) {
+	results := []RepositoryFetchResult{
+		{Status: "success"},
+		{Status: "success"},
+		{Status: "error"},
+		{Status: "no-remote"},
+		{Status: "would-fetch"},
+	}
+
+	summary := calculateFetchSummary(results)
+
+	if summary["success"] != 2 {
+		t.Errorf("Expected 2 success, got %d", summary["success"])
+	}
+
+	if summary["error"] != 1 {
+		t.Errorf("Expected 1 error, got %d", summary["error"])
+	}
+
+	if summary["no-remote"] != 1 {
+		t.Errorf("Expected 1 no-remote, got %d", summary["no-remote"])
+	}
+
+	if summary["would-fetch"] != 1 {
+		t.Errorf("Expected 1 would-fetch, got %d", summary["would-fetch"])
+	}
+}

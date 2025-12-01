@@ -21,7 +21,8 @@
 - Clone repositories with advanced options (branch, depth, single-branch, recursive)
 - Check repository status (clean/dirty, modified/staged/untracked files)
 - Get repository information (branch, remote, upstream, ahead/behind counts)
-- Bulk operations (clone-or-update multiple repos in parallel)
+- Bulk operations (clone-or-update, bulk-fetch multiple repos in parallel)
+- **Bulk fetch** from multiple repositories by depth (1-depth, 2-depth scanning)
 - Flexible clone strategies (always-clone, update-if-exists, skip-if-exists)
 - **Real-time monitoring** (watch repositories for changes)
 
@@ -154,6 +155,31 @@ gzh-git clone --recursive https://github.com/user/repo.git
 
 # Clone to specific directory
 gzh-git clone https://github.com/user/repo.git my-project
+```
+
+**Bulk Fetch Multiple Repositories:**
+```bash
+# Fetch all repositories in current directory (1-depth)
+gzh-git fetch --max-depth 1
+
+# Fetch repositories up to 2 levels deep
+gzh-git fetch --max-depth 2 ~/projects
+
+# Fetch with custom parallelism
+gzh-git fetch --parallel 10 ~/workspace
+
+# Fetch from all remotes (not just origin)
+gzh-git fetch --all ~/projects
+
+# Fetch and prune deleted remote branches
+gzh-git fetch --prune ~/repos
+
+# Dry run to see what would be fetched
+gzh-git fetch --dry-run ~/projects
+
+# Filter by pattern
+gzh-git fetch --include "myproject.*" ~/workspace
+gzh-git fetch --exclude "test.*" ~/projects
 ```
 
 **Global Options:**
