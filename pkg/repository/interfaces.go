@@ -29,6 +29,10 @@ type Client interface {
 	// This is a high-level convenience method for repository synchronization.
 	CloneOrUpdate(ctx context.Context, opts CloneOrUpdateOptions) (*CloneOrUpdateResult, error)
 
+	// BulkUpdate scans for repositories and updates them in parallel.
+	// This is useful for updating multiple repositories at once.
+	BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkUpdateResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool
