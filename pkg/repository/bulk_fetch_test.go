@@ -464,3 +464,172 @@ func TestCalculateFetchSummary(t *testing.T) {
 		t.Errorf("Expected 1 would-fetch, got %d", summary["would-fetch"])
 	}
 }
+
+// Benchmark tests for bulk fetch performance
+
+func BenchmarkBulkFetchSingleRepo(b *testing.B) {
+	tmpDir := b.TempDir()
+	repoPath := filepath.Join(tmpDir, "repo")
+
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		b.Fatalf("Failed to create repo: %v", err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		b.Skipf("Skipping benchmark: git not available: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Logger:    NewNoopLogger(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			b.Fatalf("BulkFetch failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkBulkFetchMultipleRepos(b *testing.B) {
+	tmpDir := b.TempDir()
+
+	// Create 10 test repositories
+	for i := 0; i < 10; i++ {
+		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i)))
+		if err := os.MkdirAll(repoPath, 0755); err != nil {
+			b.Fatalf("Failed to create repo%d: %v", i, err)
+		}
+		if err := initGitRepo(repoPath); err != nil {
+			b.Skipf("Skipping benchmark: git not available: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Parallel:  5,
+		Logger:    NewNoopLogger(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			b.Fatalf("BulkFetch failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkBulkFetchNestedRepos(b *testing.B) {
+	tmpDir := b.TempDir()
+
+	// Create parent repository
+	parentPath := filepath.Join(tmpDir, "parent")
+	if err := os.MkdirAll(parentPath, 0755); err != nil {
+		b.Fatalf("Failed to create parent: %v", err)
+	}
+	if err := initGitRepo(parentPath); err != nil {
+		b.Skipf("Skipping benchmark: git not available: %v", err)
+	}
+
+	// Create 5 nested repositories
+	for i := 0; i < 5; i++ {
+		nestedPath := filepath.Join(parentPath, filepath.Base(tmpDir)+"-nested-"+string(rune('0'+i)))
+		if err := os.MkdirAll(nestedPath, 0755); err != nil {
+			b.Fatalf("Failed to create nested%d: %v", i, err)
+		}
+		if err := initGitRepo(nestedPath); err != nil {
+			b.Skipf("Skipping benchmark: git not available: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	opts := BulkFetchOptions{
+		Directory:         tmpDir,
+		MaxDepth:          3,
+		DryRun:            true,
+		Parallel:          5,
+		IncludeSubmodules: false,
+		Logger:            NewNoopLogger(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := client.BulkFetch(ctx, opts)
+		if err != nil {
+			b.Fatalf("BulkFetch failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkIsSubmodule(b *testing.B) {
+	tmpDir := b.TempDir()
+
+	// Create independent repository
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		b.Fatalf("Failed to create repo: %v", err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		b.Skipf("Skipping benchmark: git not available: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = isSubmodule(repoPath)
+	}
+}
+
+func BenchmarkParallelProcessing(b *testing.B) {
+	tmpDir := b.TempDir()
+
+	// Create 20 repositories
+	for i := 0; i < 20; i++ {
+		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i/10))+string(rune('0'+i%10)))
+		if err := os.MkdirAll(repoPath, 0755); err != nil {
+			b.Fatalf("Failed to create repo: %v", err)
+		}
+		if err := initGitRepo(repoPath); err != nil {
+			b.Skipf("Skipping benchmark: git not available: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	// Benchmark different parallelism levels
+	parallelLevels := []int{1, 5, 10, 20}
+
+	for _, parallel := range parallelLevels {
+		b.Run("Parallel"+string(rune('0'+parallel/10))+string(rune('0'+parallel%10)), func(b *testing.B) {
+			opts := BulkFetchOptions{
+				Directory: tmpDir,
+				MaxDepth:  1,
+				DryRun:    true,
+				Parallel:  parallel,
+				Logger:    NewNoopLogger(),
+			}
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_, err := client.BulkFetch(ctx, opts)
+				if err != nil {
+					b.Fatalf("BulkFetch failed: %v", err)
+				}
+			}
+		})
+	}
+}

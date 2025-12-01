@@ -7,7 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**Nested Repository Scanning** - Intelligent Multi-Level Repository Discovery:
+
+- `--include-submodules` flag for bulk fetch operations
+  - **Default behavior**: Scans independent nested repositories, excludes git submodules
+  - **With flag**: Includes git submodules in the scan
+- Smart submodule detection using `.git` file vs directory differentiation
+- Recursive scanning of nested repository structures at any depth level
+- Respects `--max-depth` limit to prevent infinite recursion
+
+**Submodule Detection**:
+
+- Distinguishes between git submodules and independent nested repositories
+- Submodules identified by `.git` file (not directory) pointing to parent's `.git/modules/`
+- Independent nested repos have their own `.git` directory with complete object database
+- Configurable scanning strategy via `IncludeSubmodules` option in both `BulkFetchOptions` and `BulkUpdateOptions`
+
+**Scanning Strategy**:
+
+- Always scans root directory (depth 0) and its children
+- For repositories at depth > 0:
+  - Skips submodules by default (unless `--include-submodules` is set)
+  - Continues scanning independent nested repos to find more nested structures
+  - Properly handles deeply nested repository hierarchies
+- Skips hidden directories (`.git`, `node_modules`, etc.) for performance
+
+### Testing
+
+**Nested Repository Tests** (2 comprehensive scenarios):
+
+- `TestBulkFetchNestedRepositories`: Tests multi-level nested repo discovery
+  - Verifies 4-level nested repository structure detection (parent → nested1 → nested2 → deep-nested)
+  - Tests max-depth limiting (stops at configured depth)
+  - All nested repos correctly found and processed
+- Integration with existing 8 bulk fetch tests (all passing)
+
+### Fixed
+
+**Bug Fixes**:
+
+- Fixed `isSubmodule()` false positive detection
+  - Previous: Incorrectly identified independent nested repos as submodules when parent had `.gitmodules`
+  - Fixed: Now only checks `.git` file type, not parent `.gitmodules` existence
+- Fixed `walkDirectoryWithConfig()` early return preventing nested repo discovery
+  - Previous: Returned early when finding independent nested repos, preventing child scanning
+  - Fixed: Continues scanning to find deeply nested structures
+
+### Documentation
+
+**Comprehensive Documentation**:
+
+- Added godoc for `isSubmodule()` explaining .git file vs directory detection (15 lines)
+- Documented `walkDirectoryWithConfig()` scanning strategy (13 lines)
+- Added README examples for `--include-submodules` flag usage
+- Clear explanation of design decisions and submodule detection logic
+
+### Performance
+
+**Benchmarks** (Apple M1 Ultra):
+
+- Single repository scan: 31.3ms (167KB, 606 allocs)
+- Multiple repos (10): 115ms (1.5MB, 4,895 allocs)
+- Nested repos (6 total): 84.6ms (912KB, 2,985 allocs)
+- Submodule detection: 2.0µs (400B, 3 allocs)
+- Parallel processing scaling:
+  - 1 worker: 537ms (2.7MB, 9,594 allocs)
+  - 5 workers: 229ms (3.1MB, 9,652 allocs) - 2.3x faster
+  - 10 workers: 209ms (3.8MB, 9,737 allocs) - 2.6x faster
+  - 20 workers: 224ms (3.9MB, 9,726 allocs) - 2.4x faster
+
+**Real-World Validation**:
+
+- Successfully tested with 29 repositories in production environment
+- Detected all nested repositories including 4 main nested projects
+- Performance: 4.7s for 29 repos with parallel fetching
+- All repositories fetched without errors
+- Optimal parallelism: 10-20 workers for large repository sets
+
 ### Planned
+
 - gzh-cli integration (Phase 7.2)
 - Watch enhancements (v0.4.0):
   - Smart filtering (`--files`, `--ignore` patterns)
