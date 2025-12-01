@@ -22,19 +22,42 @@ gzh-cli-git doesn't replace Git—it enhances it:
 
 ### What features are currently available?
 
-**Current Version (v0.1.0-alpha):**
-- ✅ Repository operations (clone, status, info)
-- ✅ Basic clone functionality with options (branch, depth, single-branch)
-- ✅ Repository status checking
-- ✅ Go library API for repository management
+**All Major Features Implemented (v0.1.0-alpha):**
 
-**Planned Features (Coming Soon):**
-- ⏳ Commit automation with templates
-- ⏳ Branch and worktree management
-- ⏳ History analysis and statistics
-- ⏳ Advanced merge/rebase operations
+✅ **Repository Operations**
+- Clone with advanced options (branch, depth, single-branch, recursive)
+- Status checking (clean/dirty, modified/staged/untracked files)
+- Repository information (branch, remote, upstream, ahead/behind)
+- Bulk clone-or-update operations
 
-See [ROADMAP](../../PRD.md#roadmap) for detailed timeline.
+✅ **Commit Automation**
+- Auto-generate commit messages from changes
+- Template-based commits (Conventional Commits support)
+- Commit message validation
+- Template management (list, show, validate)
+
+✅ **Branch & Worktree Management**
+- Create, list, and delete branches
+- Worktree-based parallel development
+- Branch creation with linked worktrees
+
+✅ **History Analysis**
+- Commit statistics and trends
+- Contributor analysis with metrics
+- File change tracking and history
+- Multiple output formats (Table, JSON, CSV)
+
+✅ **Advanced Merge/Rebase**
+- Pre-merge conflict detection
+- Merge execution with strategies
+- Abort and rebase operations
+
+✅ **Go Library API**
+- All 6 pkg/ packages fully implemented
+- Clean APIs with zero CLI dependencies
+- Context-aware operations
+
+> **Note**: Despite the v0.1.0-alpha version number, all major planned features are implemented. See [IMPLEMENTATION_STATUS](../../IMPLEMENTATION_STATUS.md) for details.
 
 ## Installation & Setup
 
@@ -189,28 +212,38 @@ See [Library Integration Guide](../LIBRARY.md) for more examples.
 ### Is the library API stable?
 
 Current status (v0.1.0-alpha):
-- **Core APIs**: Stable (repository, clone, status)
-- **Advanced features**: Not yet implemented
+- **All major APIs**: Implemented and functional
+- **Core packages**: repository, operations, commit, branch, history, merge
+- **Stability**: Alpha - API may change before v1.0.0
 
 API stability guarantees:
 - Patch versions (0.1.x): No breaking changes
 - Minor versions (0.x.0): May have breaking changes
-- Major versions (x.0.0): Full stability guarantee
+- Major versions (v1.0.0+): Full stability guarantee
+
+All packages work correctly with comprehensive test coverage (69.1%).
 
 See [API Stability Policy](../API_STABILITY.md) for details.
 
 ### Can I use this in production?
 
-**Current version (v0.1.0-alpha)**: Not recommended for production
-- Alpha status indicates API may change
-- Limited feature set
-- Still under active development
+**Current version (v0.1.0-alpha)**: Use with caution
+- ✅ All major features implemented and functional
+- ✅ Good test coverage (69.1%, 141 tests passing)
+- ✅ Comprehensive error handling
+- ⚠️ API may change before v1.0.0
+- ⚠️ Alpha versioning indicates ongoing development
 
-**When ready for production:**
-- Wait for v1.0.0 release
-- Full test coverage (target: 90%+)
-- Stable API with compatibility guarantees
-- Production-ready documentation
+**Considerations:**
+- **For personal/internal projects**: Generally safe to use
+- **For production systems**: Wait for v1.0.0 or pin to specific version
+- **For libraries**: Pin exact version to avoid breaking changes
+
+**When fully production-ready (v1.0.0):**
+- API stability guarantees
+- 90%+ test coverage
+- Security audit completion
+- Production deployment guides
 
 ### How do I integrate with gzh-cli?
 
@@ -298,7 +331,20 @@ Git hooks work normally with gzh-git since it uses standard Git repositories. Fu
 
 ### Can I use custom commit templates?
 
-Commit templates feature is planned for v0.2.0. Current alpha version doesn't support this yet.
+Yes! gzh-git supports custom commit templates:
+
+```bash
+# List available templates
+gzh-git commit template list
+
+# Show template details
+gzh-git commit template show conventional
+
+# Use auto-commit (uses default template)
+gzh-git commit auto
+```
+
+You can create custom templates in `~/.config/gzh-git/templates/` directory.
 
 ### What about submodules?
 
