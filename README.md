@@ -186,6 +186,10 @@ gz-git fetch --include-submodules ~/projects
 
 # Exclude submodules (default behavior)
 gz-git fetch ~/projects
+
+# Watch mode: continuously fetch at intervals
+gz-git fetch -d 2 --watch --interval 5m ~/projects
+gz-git fetch --watch --interval 1m ~/work
 ```
 
 **Global Options:**

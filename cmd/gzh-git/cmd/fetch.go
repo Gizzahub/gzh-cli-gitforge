@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -21,6 +24,8 @@ var (
 	fetchInclude          string
 	fetchExclude          string
 	fetchFormat           string
+	fetchWatch            bool
+	fetchInterval         time.Duration
 )
 
 // fetchCmd represents the fetch command
@@ -68,7 +73,13 @@ It only updates remote-tracking branches.`,
   gz-git fetch --exclude "test.*" ~/projects
 
   # Compact output format
-  gz-git fetch --format compact ~/projects`,
+  gz-git fetch --format compact ~/projects
+
+  # Continuously fetch at intervals (watch mode)
+  gz-git fetch -d 2 --watch --interval 5m ~/projects
+
+  # Watch with shorter interval
+  gz-git fetch --watch --interval 1m ~/work`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runFetch,
 }
@@ -87,6 +98,8 @@ func init() {
 	fetchCmd.Flags().StringVar(&fetchInclude, "include", "", "regex pattern to include repositories")
 	fetchCmd.Flags().StringVar(&fetchExclude, "exclude", "", "regex pattern to exclude repositories")
 	fetchCmd.Flags().StringVar(&fetchFormat, "format", "default", "output format: default, compact")
+	fetchCmd.Flags().BoolVar(&fetchWatch, "watch", false, "continuously fetch at intervals")
+	fetchCmd.Flags().DurationVar(&fetchInterval, "interval", 5*time.Minute, "fetch interval when watching")
 }
 
 func runFetch(cmd *cobra.Command, args []string) error {
@@ -101,10 +114,6 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	// Validate directory exists
 	if _, err := os.Stat(directory); err != nil {
 		return fmt.Errorf("directory does not exist: %s", directory)
-	}
-
-	if !quiet {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, fetchDepth)
 	}
 
 	// Create client
@@ -137,7 +146,77 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	// Execute bulk fetch
+	// Watch mode: continuously fetch at intervals
+	if fetchWatch {
+		return runFetchWatch(ctx, client, opts)
+	}
+
+	// One-time fetch
+	if !quiet {
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, fetchDepth)
+	}
+
+	result, err := client.BulkFetch(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk fetch failed: %w", err)
+	}
+
+	// Display results
+	if !quiet {
+		displayFetchResults(result)
+	}
+
+	return nil
+}
+
+func runFetchWatch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {
+	if !quiet {
+		fmt.Printf("Starting watch mode: fetching every %s\n", fetchInterval)
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
+		fmt.Println("Press Ctrl+C to stop...")
+		fmt.Println()
+	}
+
+	// Setup signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Create ticker for periodic fetching
+	ticker := time.NewTicker(fetchInterval)
+	defer ticker.Stop()
+
+	// Perform initial fetch immediately
+	if err := executeFetch(ctx, client, opts); err != nil {
+		return err
+	}
+
+	// Watch loop
+	for {
+		select {
+		case <-sigChan:
+			if !quiet {
+				fmt.Println("\nStopping watch...")
+			}
+			return nil
+
+		case <-ticker.C:
+			if !quiet && fetchFormat != "compact" {
+				fmt.Printf("\n[%s] Running scheduled fetch...\n", time.Now().Format("15:04:05"))
+			}
+			if err := executeFetch(ctx, client, opts); err != nil {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "Fetch error: %v\n", err)
+				}
+				// Continue watching even on error
+			}
+
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func executeFetch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {
 	result, err := client.BulkFetch(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("bulk fetch failed: %w", err)
