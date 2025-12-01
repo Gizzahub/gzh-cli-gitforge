@@ -8,7 +8,7 @@
 
 # Project metadata
 projectname := gzh-cli-git
-executablename := gzh-git
+executablename := gz-git
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0-alpha")
 
 # Go configuration

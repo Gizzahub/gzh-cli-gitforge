@@ -78,15 +78,15 @@ go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
 
 **Via Homebrew (macOS/Linux):**
 ```bash
-brew install gzh-git  # Coming soon
+brew install gz-git  # Coming soon
 ```
 
 **From Source:**
 ```bash
 git clone https://github.com/gizzahub/gzh-cli-git.git
 cd gzh-cli-git
-make build
-make install
+make build    # Builds as 'gz-git'
+make install  # Installs to $GOPATH/bin
 ```
 
 ### Requirements
@@ -103,98 +103,98 @@ make install
 **Check Repository Status:**
 ```bash
 # Show working tree status
-gzh-git status
+gz-git status
 
 # Show status for specific repository
-gzh-git status /path/to/repo
+gz-git status /path/to/repo
 
 # Quiet mode (exit code 1 if dirty)
-gzh-git status -q
+gz-git status -q
 ```
 
 **Monitor Repositories for Changes:**
 ```bash
 # Watch current directory for changes
-gzh-git watch
+gz-git watch
 
 # Watch multiple repositories
-gzh-git watch /path/to/repo1 /path/to/repo2
+gz-git watch /path/to/repo1 /path/to/repo2
 
 # Custom polling interval
-gzh-git watch --interval 5s
+gz-git watch --interval 5s
 
 # Compact output format
-gzh-git watch --format compact
+gz-git watch --format compact
 
 # JSON output for automation
-gzh-git watch --format json
+gz-git watch --format json
 ```
 
 **View Repository Information:**
 ```bash
 # Show detailed repository information
-gzh-git info
+gz-git info
 
 # Displays: branch, remote URL, upstream, ahead/behind counts, dirty/clean status
-gzh-git info /path/to/repo
+gz-git info /path/to/repo
 ```
 
 **Clone Repositories:**
 ```bash
 # Basic clone
-gzh-git clone https://github.com/user/repo.git
+gz-git clone https://github.com/user/repo.git
 
 # Clone specific branch
-gzh-git clone -b develop https://github.com/user/repo.git
+gz-git clone -b develop https://github.com/user/repo.git
 
 # Shallow clone (faster)
-gzh-git clone --depth 1 https://github.com/user/repo.git
+gz-git clone --depth 1 https://github.com/user/repo.git
 
 # Clone with submodules
-gzh-git clone --recursive https://github.com/user/repo.git
+gz-git clone --recursive https://github.com/user/repo.git
 
 # Clone to specific directory
-gzh-git clone https://github.com/user/repo.git my-project
+gz-git clone https://github.com/user/repo.git my-project
 ```
 
 **Bulk Fetch Multiple Repositories:**
 ```bash
 # Fetch all repositories in current directory (1-depth)
-gzh-git fetch --max-depth 1
+gz-git fetch --max-depth 1
 
 # Fetch repositories up to 2 levels deep
-gzh-git fetch --max-depth 2 ~/projects
+gz-git fetch --max-depth 2 ~/projects
 
 # Fetch with custom parallelism
-gzh-git fetch --parallel 10 ~/workspace
+gz-git fetch --parallel 10 ~/workspace
 
 # Fetch from all remotes (not just origin)
-gzh-git fetch --all ~/projects
+gz-git fetch --all ~/projects
 
 # Fetch and prune deleted remote branches
-gzh-git fetch --prune ~/repos
+gz-git fetch --prune ~/repos
 
 # Dry run to see what would be fetched
-gzh-git fetch --dry-run ~/projects
+gz-git fetch --dry-run ~/projects
 
 # Filter by pattern
-gzh-git fetch --include "myproject.*" ~/workspace
-gzh-git fetch --exclude "test.*" ~/projects
+gz-git fetch --include "myproject.*" ~/workspace
+gz-git fetch --exclude "test.*" ~/projects
 ```
 
 **Global Options:**
 ```bash
 # Verbose output
-gzh-git -v status
+gz-git -v status
 
 # Quiet mode (errors only)
-gzh-git -q clone https://github.com/user/repo.git
+gz-git -q clone https://github.com/user/repo.git
 
 # Show version
-gzh-git --version
+gz-git --version
 
 # Show help
-gzh-git --help
+gz-git --help
 ```
 
 ---
@@ -204,58 +204,58 @@ gzh-git --help
 **Commit Automation:**
 ```bash
 # Auto-generate and create commit
-gzh-git commit auto
+gz-git commit auto
 
 # Validate commit message
-gzh-git commit validate "feat(cli): add new command"
+gz-git commit validate "feat(cli): add new command"
 
 # List available templates
-gzh-git commit template list
+gz-git commit template list
 
 # Show template details
-gzh-git commit template show conventional
+gz-git commit template show conventional
 ```
 
 **Branch & Worktree Management:**
 ```bash
 # List all branches
-gzh-git branch list --all
+gz-git branch list --all
 
 # Create new branch
-gzh-git branch create feature/new-feature
+gz-git branch create feature/new-feature
 
 # Create branch with worktree
-gzh-git branch create feature/auth --worktree ~/work/auth
+gz-git branch create feature/auth --worktree ~/work/auth
 
 # Delete branch
-gzh-git branch delete old-feature
+gz-git branch delete old-feature
 ```
 
 **History Analysis:**
 ```bash
 # Show commit statistics
-gzh-git history stats --since "1 month ago"
+gz-git history stats --since "1 month ago"
 
 # Analyze contributors
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # View file history
-gzh-git history file src/main.go
+gz-git history file src/main.go
 ```
 
 **Advanced Merge/Rebase:**
 ```bash
 # Detect conflicts before merging
-gzh-git merge detect feature/new-feature main
+gz-git merge detect feature/new-feature main
 
 # Execute merge
-gzh-git merge do feature/new-feature
+gz-git merge do feature/new-feature
 
 # Abort merge if needed
-gzh-git merge abort
+gz-git merge abort
 
 # Rebase current branch
-gzh-git merge rebase main
+gz-git merge rebase main
 ```
 
 ### As Go Library
