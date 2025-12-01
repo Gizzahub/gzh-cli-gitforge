@@ -2,9 +2,12 @@
 
 > Advanced Git automation CLI and Go library for developers
 
-[![Go Version](https://img.shields.io/badge/go-1.24%2B-blue)](https://go.dev)
+[![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
+[![Version](https://img.shields.io/badge/version-v0.1.0--alpha-orange)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.1.0-alpha)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/gizzahub/gzh-cli-git)
+[![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/COVERAGE.md)
+[![Tests](https://img.shields.io/badge/tests-141%20passing-brightgreen)](#testing)
+[![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-git.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
 
 **gzh-cli-git** is a Git-specialized CLI tool and Go library that provides advanced Git automation capabilities. It serves dual purposes: a powerful standalone CLI for developers and a reusable library for embedding in other Go projects.
 

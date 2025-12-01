@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v1.0.0 production release
 - Additional test coverage improvements
 
-## [0.1.0-alpha] - 2025-11-30
+## [0.1.0-alpha] - 2025-12-01
 
 ### Added
 
@@ -224,10 +224,11 @@ cmd/gzh-git/           # CLI application
 ### Dependencies
 
 **External Dependencies** (minimal):
-- github.com/spf13/cobra v1.8.0 (CLI framework)
+- github.com/spf13/cobra v1.10.1 (CLI framework)
 - gopkg.in/yaml.v3 v3.0.1 (YAML parsing)
+- golang.org/x/sync v0.18.0 (Concurrency utilities for bulk operations)
 
-**Go Version**: Requires Go 1.24+
+**Go Version**: Requires Go 1.24.0+
 
 ### Known Issues
 

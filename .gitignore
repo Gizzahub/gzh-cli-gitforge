@@ -76,9 +76,6 @@ test/integration/repos/
 test/e2e/repos/
 configs/templates/*.local.yaml
 
-# Go module cache
-go.sum
-
 # Release artifacts
 *.tar.gz
 *.zip
