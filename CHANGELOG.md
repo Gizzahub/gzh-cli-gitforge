@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**Improved CLI Output** - Enhanced Status Display:
+
+- `branch list`: Show upstream tracking status with `↑`/`↓` indicators
+  - `(origin/main) ✓` - up-to-date with upstream
+  - `(origin/main) 3↑` - 3 commits ahead
+  - `(origin/main) 2↓` - 2 commits behind
+  - `(origin/main) 3↑ 2↓` - diverged (ahead and behind)
+
+- `fetch`: Compact one-line output with behind/ahead status
+  - Shows `N↓` for commits behind remote after fetch
+  - Shows `N↑` for commits ahead of remote
+
+- `pull`: Compact one-line output with status indicators
+  - Shows pulled commits count
+  - `[stash]` indicator when auto-stash was used
+
+### Fixed
+
+- **History contributors**: Fixed Additions/Deletions showing 0
+  - Root cause: Parser broke on empty line between timestamp and numstat
+  - Now correctly parses `git log --format=%ct --numstat` output
+
+### Testing
+
+- Added 16 unit tests for branch ahead/behind parsing functions
+
 ## [0.3.0] - 2025-12-02
 
 ### Added
