@@ -3,7 +3,7 @@
 > Advanced Git automation CLI and Go library for developers
 
 [![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
-[![Version](https://img.shields.io/badge/version-v0.2.0-blue)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.3.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/COVERAGE.md)
 [![Tests](https://img.shields.io/badge/tests-141%20passing-brightgreen)](#testing)
@@ -15,7 +15,7 @@
 
 ## Features
 
-### ✅ Fully Implemented & Available (v0.2.0)
+### ✅ Fully Implemented & Available (v0.3.0)
 
 📦 **Repository Operations**
 - Clone repositories with advanced options (branch, depth, single-branch, recursive)
