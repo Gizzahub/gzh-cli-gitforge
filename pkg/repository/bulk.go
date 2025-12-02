@@ -422,10 +422,10 @@ func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkU
 
 	// Set defaults
 	if opts.Parallel <= 0 {
-		opts.Parallel = 5
+		opts.Parallel = DefaultBulkParallel
 	}
 	if opts.MaxDepth <= 0 {
-		opts.MaxDepth = 5
+		opts.MaxDepth = DefaultBulkMaxDepth
 	}
 
 	// Use logger
@@ -889,10 +889,10 @@ func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFet
 
 	// Set defaults
 	if opts.Parallel <= 0 {
-		opts.Parallel = 5
+		opts.Parallel = DefaultBulkParallel
 	}
 	if opts.MaxDepth <= 0 {
-		opts.MaxDepth = 5
+		opts.MaxDepth = DefaultBulkMaxDepth
 	}
 
 	// Use logger
@@ -1137,10 +1137,10 @@ func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullR
 
 	// Set defaults
 	if opts.Parallel <= 0 {
-		opts.Parallel = 5
+		opts.Parallel = DefaultBulkParallel
 	}
 	if opts.MaxDepth <= 0 {
-		opts.MaxDepth = 5
+		opts.MaxDepth = DefaultBulkMaxDepth
 	}
 	if opts.Strategy == "" {
 		opts.Strategy = "merge" // Default to merge strategy
@@ -1448,10 +1448,10 @@ func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushR
 
 	// Set defaults
 	if opts.Parallel <= 0 {
-		opts.Parallel = 5
+		opts.Parallel = DefaultBulkParallel
 	}
 	if opts.MaxDepth <= 0 {
-		opts.MaxDepth = 5
+		opts.MaxDepth = DefaultBulkMaxDepth
 	}
 
 	// Use logger

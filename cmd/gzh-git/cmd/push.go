@@ -87,8 +87,8 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 
 	// Flags
-	pushCmd.Flags().IntVarP(&pushDepth, "depth", "d", 1, "directory depth to scan")
-	pushCmd.Flags().IntVarP(&pushParallel, "parallel", "j", 5, "number of parallel push operations")
+	pushCmd.Flags().IntVarP(&pushDepth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	pushCmd.Flags().IntVarP(&pushParallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel push operations")
 	pushCmd.Flags().BoolVarP(&pushDryRun, "dry-run", "n", false, "show what would be pushed without pushing")
 	pushCmd.Flags().BoolVarP(&pushForce, "force", "f", false, "force push (use with caution!)")
 	pushCmd.Flags().BoolVarP(&pushSetUpstream, "set-upstream", "u", false, "set upstream for new branches")

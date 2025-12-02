@@ -3,6 +3,15 @@ package repository
 // This file contains additional type definitions that support the repository package.
 // Types in this file are supplementary to the main interfaces defined in interfaces.go
 
+// Default values for bulk operations
+const (
+	// DefaultBulkParallel is the default number of parallel workers
+	DefaultBulkParallel = 5
+
+	// DefaultBulkMaxDepth is the default maximum directory depth to scan
+	DefaultBulkMaxDepth = 1
+)
+
 // OperationType represents the type of Git operation being performed.
 type OperationType string
 

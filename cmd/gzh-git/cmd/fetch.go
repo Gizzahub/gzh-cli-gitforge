@@ -88,8 +88,8 @@ func init() {
 	rootCmd.AddCommand(fetchCmd)
 
 	// Flags
-	fetchCmd.Flags().IntVarP(&fetchDepth, "depth", "d", 5, "directory depth to scan")
-	fetchCmd.Flags().IntVarP(&fetchParallel, "parallel", "j", 5, "number of parallel fetch operations")
+	fetchCmd.Flags().IntVarP(&fetchDepth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	fetchCmd.Flags().IntVarP(&fetchParallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel fetch operations")
 	fetchCmd.Flags().BoolVarP(&fetchDryRun, "dry-run", "n", false, "show what would be fetched without fetching")
 	fetchCmd.Flags().BoolVar(&fetchAllRemotes, "all", false, "fetch from all remotes (not just origin)")
 	fetchCmd.Flags().BoolVar(&fetchPrune, "prune", false, "prune remote-tracking branches that no longer exist")

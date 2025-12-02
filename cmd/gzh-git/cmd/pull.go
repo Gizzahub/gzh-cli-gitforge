@@ -92,8 +92,8 @@ func init() {
 	rootCmd.AddCommand(pullCmd)
 
 	// Flags
-	pullCmd.Flags().IntVarP(&pullDepth, "depth", "d", 1, "directory depth to scan")
-	pullCmd.Flags().IntVarP(&pullParallel, "parallel", "j", 5, "number of parallel pull operations")
+	pullCmd.Flags().IntVarP(&pullDepth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	pullCmd.Flags().IntVarP(&pullParallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel pull operations")
 	pullCmd.Flags().BoolVarP(&pullDryRun, "dry-run", "n", false, "show what would be pulled without pulling")
 	pullCmd.Flags().StringVarP(&pullStrategy, "strategy", "s", "merge", "pull strategy: merge, rebase, ff-only")
 	pullCmd.Flags().BoolVarP(&pullPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
