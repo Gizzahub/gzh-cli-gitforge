@@ -7,7 +7,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -218,11 +220,13 @@ func (e *Executor) RunLines(ctx context.Context, dir string, args ...string) ([]
 	return filtered, nil
 }
 
-// IsGitRepository checks if the directory is a Git repository.
-// This is a convenience wrapper around git rev-parse --git-dir.
+// IsGitRepository checks if the directory is a Git repository root.
+// It verifies that the directory itself contains a .git directory or file,
+// not just that it's inside a Git repository (which git rev-parse would detect).
 func (e *Executor) IsGitRepository(ctx context.Context, dir string) bool {
-	success, _ := e.RunQuiet(ctx, dir, "rev-parse", "--git-dir")
-	return success
+	gitPath := filepath.Join(dir, ".git")
+	_, err := os.Stat(gitPath)
+	return err == nil
 }
 
 // GetGitVersion returns the Git version string.

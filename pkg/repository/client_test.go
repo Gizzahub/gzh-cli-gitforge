@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -12,11 +14,20 @@ func TestNewClient(t *testing.T) {
 		t.Fatal("NewClient() returned nil")
 	}
 
+	// Find project root by looking for .git directory
+	projectRoot := "."
+	for i := 0; i < 5; i++ {
+		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
+			break
+		}
+		projectRoot = filepath.Join("..", projectRoot)
+	}
+
 	// Verify client can perform basic operations
 	ctx := context.Background()
-	result := client.IsRepository(ctx, ".")
+	result := client.IsRepository(ctx, projectRoot)
 	if !result {
-		t.Error("expected current directory to be a git repository")
+		t.Errorf("expected %s to be a git repository", projectRoot)
 	}
 }
 
@@ -28,13 +39,22 @@ func TestNewClientWithOptions(t *testing.T) {
 		WithClientLogger(testLogger),
 	)
 
+	// Find project root by looking for .git directory
+	projectRoot := "."
+	for i := 0; i < 5; i++ {
+		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
+			break
+		}
+		projectRoot = filepath.Join("..", projectRoot)
+	}
+
 	// Verify client works with custom logger
 	ctx := context.Background()
 
 	// Open will call logger.Debug and logger.Info on success
-	_, err := client.Open(ctx, ".")
+	_, err := client.Open(ctx, projectRoot)
 	if err != nil {
-		t.Skipf("Skipping test: current directory is not a git repo: %v", err)
+		t.Skipf("Skipping test: %s is not a git repo: %v", projectRoot, err)
 	}
 
 	// Verify logger received messages
@@ -47,6 +67,15 @@ func TestNewClientWithOptions(t *testing.T) {
 func TestIsRepository(t *testing.T) {
 	client := NewClient()
 
+	// Find project root by looking for .git directory
+	projectRoot := "."
+	for i := 0; i < 5; i++ {
+		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
+			break
+		}
+		projectRoot = filepath.Join("..", projectRoot)
+	}
+
 	tests := []struct {
 		name     string
 		path     string
@@ -58,9 +87,14 @@ func TestIsRepository(t *testing.T) {
 			wantBool: false,
 		},
 		{
-			name:     "current directory (likely a git repo)",
-			path:     ".",
-			wantBool: true, // This test assumes we're in gzh-cli-git repo
+			name:     "project root directory (git repo)",
+			path:     projectRoot,
+			wantBool: true,
+		},
+		{
+			name:     "subdirectory without .git",
+			path:     ".", // pkg/repository/ has no .git
+			wantBool: false,
 		},
 		{
 			name:     "non-existent path",
