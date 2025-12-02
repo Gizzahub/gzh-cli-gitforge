@@ -277,19 +277,45 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	icon := getStatusIcon(repo.Status)
 
-	// Format: icon path (branch) - message [duration]
-	line := fmt.Sprintf("  %s %s", icon, repo.RelativePath)
+	// Build compact one-line format: icon path (branch) status duration
+	parts := []string{icon}
 
+	// Path with branch
+	pathPart := repo.RelativePath
 	if repo.Branch != "" {
-		line += fmt.Sprintf(" (%s)", repo.Branch)
+		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
 	}
+	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
 
-	line += fmt.Sprintf(" - %s", repo.Message)
+	// Show behind/ahead status compactly
+	statusStr := ""
+	if repo.CommitsBehind > 0 && repo.CommitsAhead > 0 {
+		statusStr = fmt.Sprintf("%d↓ %d↑", repo.CommitsBehind, repo.CommitsAhead)
+	} else if repo.CommitsBehind > 0 {
+		statusStr = fmt.Sprintf("%d↓", repo.CommitsBehind)
+	} else if repo.CommitsAhead > 0 {
+		statusStr = fmt.Sprintf("%d↑", repo.CommitsAhead)
+	} else if repo.Status == "up-to-date" {
+		statusStr = "up-to-date"
+	} else if repo.Status == "error" {
+		statusStr = "failed"
+	} else if repo.Status == "no-remote" {
+		statusStr = "no remote"
+	} else {
+		statusStr = repo.Status
+	}
+	parts = append(parts, fmt.Sprintf("%-15s", statusStr))
 
+	// Duration
 	if repo.Duration > 0 {
-		line += fmt.Sprintf(" [%s]", repo.Duration.Round(10_000_000)) // Round to 0.01s
+		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
 	}
 
+	// Build output line safely
+	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
+	if len(parts) > 3 {
+		line += " " + parts[3]
+	}
 	fmt.Println(line)
 
 	// Show error details if present
@@ -302,6 +328,10 @@ func getStatusIcon(status string) string {
 	switch status {
 	case "success":
 		return "✓"
+	case "updated":
+		return "↓"
+	case "up-to-date":
+		return "="
 	case "error":
 		return "✗"
 	case "skipped":
@@ -310,12 +340,8 @@ func getStatusIcon(status string) string {
 		return "→"
 	case "no-remote":
 		return "⚠"
-	case "up-to-date":
-		return "="
 	case "no-upstream":
 		return "⚠"
-	case "updated":
-		return "↓"
 	default:
 		return "•"
 	}

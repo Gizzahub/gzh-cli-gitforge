@@ -40,7 +40,7 @@ for Git repositories and pulls updates (fetch + merge/rebase) from their remotes
 in parallel.
 
 By default:
-  - Scans up to 5 directory levels deep
+  - Scans 1 directory level deep
   - Processes 5 repositories in parallel
   - Uses merge strategy (can use rebase or ff-only)
   - Skips repositories without remotes or upstreams
@@ -92,7 +92,7 @@ func init() {
 	rootCmd.AddCommand(pullCmd)
 
 	// Flags
-	pullCmd.Flags().IntVarP(&pullDepth, "depth", "d", 5, "directory depth to scan")
+	pullCmd.Flags().IntVarP(&pullDepth, "depth", "d", 1, "directory depth to scan")
 	pullCmd.Flags().IntVarP(&pullParallel, "parallel", "j", 5, "number of parallel pull operations")
 	pullCmd.Flags().BoolVarP(&pullDryRun, "dry-run", "n", false, "show what would be pulled without pulling")
 	pullCmd.Flags().StringVarP(&pullStrategy, "strategy", "s", "merge", "pull strategy: merge, rebase, ff-only")
@@ -283,29 +283,71 @@ func displayPullResults(result *repository.BulkPullResult) {
 func displayPullRepositoryResult(repo repository.RepositoryPullResult) {
 	icon := getPullStatusIcon(repo.Status)
 
-	// Format: icon path (branch) - message [duration]
-	line := fmt.Sprintf("  %s %s", icon, repo.RelativePath)
+	// Build compact one-line format: icon path (branch) status duration
+	parts := []string{icon}
 
+	// Path with branch
+	pathPart := repo.RelativePath
 	if repo.Branch != "" {
-		line += fmt.Sprintf(" (%s)", repo.Branch)
+		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
+	}
+	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
+
+	// Show status compactly
+	statusStr := ""
+	switch repo.Status {
+	case "success":
+		if repo.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("%d↓ pulled", repo.CommitsBehind)
+		} else {
+			statusStr = "pulled"
+		}
+	case "up-to-date":
+		if repo.CommitsAhead > 0 {
+			statusStr = fmt.Sprintf("up-to-date %d↑", repo.CommitsAhead)
+		} else {
+			statusStr = "up-to-date"
+		}
+	case "would-pull":
+		if repo.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("would pull %d↓", repo.CommitsBehind)
+		} else {
+			statusStr = "would pull"
+		}
+	case "error":
+		statusStr = "failed"
+	case "no-remote":
+		statusStr = "no remote"
+	case "no-upstream":
+		statusStr = "no upstream"
+	case "skipped":
+		statusStr = "skipped"
+	default:
+		statusStr = repo.Status
 	}
 
-	line += fmt.Sprintf(" - %s", repo.Message)
+	// Add stash indicator
+	if repo.Stashed {
+		statusStr += " [stash]"
+	}
 
+	parts = append(parts, fmt.Sprintf("%-18s", statusStr))
+
+	// Duration
 	if repo.Duration > 0 {
-		line += fmt.Sprintf(" [%s]", repo.Duration.Round(10_000_000)) // Round to 0.01s
+		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
 	}
 
+	// Build output line safely
+	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
+	if len(parts) > 3 {
+		line += " " + parts[3]
+	}
 	fmt.Println(line)
 
 	// Show error details if present
 	if repo.Error != nil && verbose {
 		fmt.Printf("    Error: %v\n", repo.Error)
-	}
-
-	// Show stash info if stashed
-	if repo.Stashed && verbose {
-		fmt.Printf("    Stashed: local changes were automatically stashed\n")
 	}
 }
 
@@ -313,6 +355,8 @@ func getPullStatusIcon(status string) string {
 	switch status {
 	case "success":
 		return "✓"
+	case "up-to-date":
+		return "="
 	case "error":
 		return "✗"
 	case "skipped":
@@ -323,8 +367,6 @@ func getPullStatusIcon(status string) string {
 		return "⚠"
 	case "no-upstream":
 		return "⚠"
-	case "up-to-date":
-		return "="
 	default:
 		return "•"
 	}

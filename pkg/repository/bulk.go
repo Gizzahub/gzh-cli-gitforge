@@ -105,6 +105,12 @@ type RepositoryFetchResult struct {
 
 	// FetchedObjects is the number of objects fetched
 	FetchedObjects int
+
+	// CommitsBehind is the number of commits behind remote after fetch
+	CommitsBehind int
+
+	// CommitsAhead is the number of commits ahead of remote after fetch
+	CommitsAhead int
 }
 
 // BulkPullOptions configures bulk repository pull operations
@@ -977,11 +983,36 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 		return result
 	}
 
-	result.Status = "success"
-	result.Message = "Successfully fetched from remote"
+	// Get updated info after fetch to check behind/ahead status
+	updatedInfo, err := c.GetInfo(ctx, repo)
+	if err == nil {
+		result.CommitsBehind = updatedInfo.BehindBy
+		result.CommitsAhead = updatedInfo.AheadBy
+
+		// Update status based on behind/ahead state
+		if result.CommitsBehind > 0 {
+			result.Status = "updated"
+			if result.CommitsAhead > 0 {
+				result.Message = fmt.Sprintf("Fetched updates: %d behind, %d ahead", result.CommitsBehind, result.CommitsAhead)
+			} else {
+				result.Message = fmt.Sprintf("Fetched updates: %d behind", result.CommitsBehind)
+			}
+		} else if result.CommitsAhead > 0 {
+			result.Status = "up-to-date"
+			result.Message = fmt.Sprintf("Up to date: %d ahead", result.CommitsAhead)
+		} else {
+			result.Status = "up-to-date"
+			result.Message = "Already up to date"
+		}
+	} else {
+		// Fallback if GetInfo fails
+		result.Status = "success"
+		result.Message = "Successfully fetched from remote"
+	}
+
 	result.Duration = time.Since(startTime)
 
-	logger.Info("repository fetched", "path", result.RelativePath)
+	logger.Info("repository fetched", "path", result.RelativePath, "branch", result.Branch, "behind", result.CommitsBehind, "ahead", result.CommitsAhead)
 
 	return result
 }

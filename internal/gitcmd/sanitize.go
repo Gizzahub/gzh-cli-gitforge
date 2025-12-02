@@ -105,17 +105,22 @@ var safeGitFlags = map[string]bool{
 	"--rename":     true,
 
 	// Branch flags
-	"--delete":     true,
+	"--delete":       true,
 	"--force-delete": true,
-	"--list":       true,
-	"--remote":     true,
-	"--merged":     true,
-	"--no-merged":  true,
+	"--list":         true,
+	"--remote":       true,
+	"--merged":       true,
+	"--no-merged":    true,
+	"--show-current": true,
 
 	// Other safe flags
-	"--abbrev-ref": true,
-	"--show-toplevel": true,
+	"--abbrev-ref":          true,
+	"--show-toplevel":       true,
 	"--is-inside-work-tree": true,
+
+	// Rev-list flags
+	"--left-right": true,
+	"--count":      true,
 }
 
 // SanitizeArgs validates and sanitizes Git command arguments.
