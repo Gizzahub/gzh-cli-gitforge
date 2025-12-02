@@ -216,6 +216,100 @@ type RepositoryPullResult struct {
 	Stashed bool
 }
 
+// BulkPushOptions configures bulk repository push operations
+type BulkPushOptions struct {
+	// Directory is the root directory to scan for repositories
+	Directory string
+
+	// Parallel is the number of concurrent workers (default: 5)
+	Parallel int
+
+	// MaxDepth is the maximum directory depth to scan (default: 5)
+	MaxDepth int
+
+	// DryRun performs simulation without actual changes
+	DryRun bool
+
+	// Verbose enables detailed logging
+	Verbose bool
+
+	// Force forces the push (use with caution)
+	Force bool
+
+	// SetUpstream sets upstream for new branches
+	SetUpstream bool
+
+	// Tags pushes all tags
+	Tags bool
+
+	// IncludeSubmodules includes git submodules in the scan (default: false)
+	// When false, only scans for independent nested repositories
+	IncludeSubmodules bool
+
+	// IncludePattern is a regex pattern for repositories to include
+	IncludePattern string
+
+	// ExcludePattern is a regex pattern for repositories to exclude
+	ExcludePattern string
+
+	// Logger for operation feedback
+	Logger Logger
+
+	// ProgressCallback is called for each processed repository
+	ProgressCallback func(current, total int, repo string)
+}
+
+// BulkPushResult contains the results of a bulk push operation
+type BulkPushResult struct {
+	// TotalScanned is the number of repositories found
+	TotalScanned int
+
+	// TotalProcessed is the number of repositories processed
+	TotalProcessed int
+
+	// Repositories contains individual repository results
+	Repositories []RepositoryPushResult
+
+	// Duration is the total operation time
+	Duration time.Duration
+
+	// Summary contains status counts
+	Summary map[string]int
+}
+
+// RepositoryPushResult represents the result for a single repository push
+type RepositoryPushResult struct {
+	// Path is the repository path
+	Path string
+
+	// RelativePath is the path relative to scan root
+	RelativePath string
+
+	// Status is the operation status (success, skipped, error, etc.)
+	Status string
+
+	// Message is a human-readable status message
+	Message string
+
+	// Error if the operation failed
+	Error error
+
+	// Duration is how long this repository took to process
+	Duration time.Duration
+
+	// Branch is the current branch name
+	Branch string
+
+	// RemoteURL is the remote origin URL
+	RemoteURL string
+
+	// CommitsAhead is the number of commits ahead of remote before push
+	CommitsAhead int
+
+	// PushedCommits is the number of commits pushed
+	PushedCommits int
+}
+
 // BulkUpdateOptions configures bulk repository update operations
 type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -1330,6 +1424,256 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 
 // calculatePullSummary creates a summary of pull results by status
 func calculatePullSummary(results []RepositoryPullResult) map[string]int {
+	summary := make(map[string]int)
+
+	for _, result := range results {
+		summary[result.Status]++
+	}
+
+	return summary
+}
+
+// BulkPush scans for repositories and pushes them in parallel
+func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushResult, error) {
+	startTime := time.Now()
+
+	// Validate options
+	if opts.Directory == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+		opts.Directory = cwd
+	}
+
+	// Set defaults
+	if opts.Parallel <= 0 {
+		opts.Parallel = 5
+	}
+	if opts.MaxDepth <= 0 {
+		opts.MaxDepth = 5
+	}
+
+	// Use logger
+	logger := opts.Logger
+	if logger == nil {
+		logger = &noopLogger{}
+	}
+
+	// Resolve absolute path
+	absPath, err := filepath.Abs(opts.Directory)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+	opts.Directory = absPath
+
+	logger.Info("scanning for repositories", "directory", opts.Directory, "maxDepth", opts.MaxDepth)
+
+	// Scan for repositories
+	repos, err := c.scanRepositoriesWithConfig(ctx, opts.Directory, opts.MaxDepth, logger, walkDirectoryConfig{
+		includeSubmodules: opts.IncludeSubmodules,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan repositories: %w", err)
+	}
+
+	logger.Info("scan complete", "found", len(repos))
+
+	// Filter repositories
+	filteredRepos, err := filterRepositories(repos, opts.IncludePattern, opts.ExcludePattern, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter repositories: %w", err)
+	}
+
+	if len(filteredRepos) < len(repos) {
+		logger.Info("filtered repositories", "total", len(repos), "selected", len(filteredRepos))
+	}
+
+	if len(filteredRepos) == 0 {
+		return &BulkPushResult{
+			TotalScanned:   len(repos),
+			TotalProcessed: 0,
+			Repositories:   []RepositoryPushResult{},
+			Duration:       time.Since(startTime),
+			Summary:        map[string]int{},
+		}, nil
+	}
+
+	// Process repositories in parallel
+	results, err := c.processPushRepositories(ctx, opts.Directory, filteredRepos, opts, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process repositories: %w", err)
+	}
+
+	// Calculate summary
+	summary := calculatePushSummary(results)
+
+	return &BulkPushResult{
+		TotalScanned:   len(repos),
+		TotalProcessed: len(filteredRepos),
+		Repositories:   results,
+		Duration:       time.Since(startTime),
+		Summary:        summary,
+	}, nil
+}
+
+// processPushRepositories processes repositories in parallel for push
+func (c *client) processPushRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPushOptions, logger Logger) ([]RepositoryPushResult, error) {
+	results := make([]RepositoryPushResult, len(repos))
+	var mu sync.Mutex
+
+	// Create error group with concurrency limit
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.Parallel)
+
+	for i, repoPath := range repos {
+		i, repoPath := i, repoPath // capture loop variables
+
+		g.Go(func() error {
+			// Call progress callback
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(i+1, len(repos), repoPath)
+			}
+
+			result := c.processPushRepository(gctx, rootDir, repoPath, opts, logger)
+
+			mu.Lock()
+			results[i] = result
+			mu.Unlock()
+
+			return nil // Don't fail entire operation on single repo error
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// processPushRepository processes a single repository push
+func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath string, opts BulkPushOptions, logger Logger) RepositoryPushResult {
+	startTime := time.Now()
+
+	result := RepositoryPushResult{
+		Path:         repoPath,
+		RelativePath: getRelativePath(rootDir, repoPath),
+		Duration:     0,
+	}
+
+	// Open repository
+	repo, err := c.Open(ctx, repoPath)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to open repository"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Get repository info
+	info, err := c.GetInfo(ctx, repo)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to get repository info"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Branch = info.Branch
+	result.RemoteURL = info.RemoteURL
+	result.CommitsAhead = info.AheadBy
+
+	// Check if repository has remote
+	if info.RemoteURL == "" {
+		result.Status = StatusNoRemote
+		result.Message = "No remote configured"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check if repository has upstream (unless we're setting it)
+	if info.Upstream == "" && !opts.SetUpstream {
+		result.Status = StatusNoUpstream
+		result.Message = "No upstream branch configured (use --set-upstream to set)"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check if there are commits to push
+	if info.AheadBy == 0 && !opts.Tags {
+		result.Status = StatusNothingToPush
+		result.Message = "Nothing to push"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Dry run - don't actually push
+	if opts.DryRun {
+		if info.AheadBy > 0 {
+			result.Status = StatusWouldPush
+			result.Message = fmt.Sprintf("Would push %d commit(s) to remote", info.AheadBy)
+		} else {
+			result.Status = StatusWouldPush
+			result.Message = "Would push tags to remote"
+		}
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Build push command
+	pushArgs := []string{"push"}
+
+	if opts.Force {
+		pushArgs = append(pushArgs, "--force")
+	}
+
+	if opts.SetUpstream {
+		pushArgs = append(pushArgs, "--set-upstream", "origin", info.Branch)
+	}
+
+	if opts.Tags {
+		pushArgs = append(pushArgs, "--tags")
+	}
+
+	if opts.Verbose {
+		pushArgs = append(pushArgs, "--verbose")
+	} else {
+		pushArgs = append(pushArgs, "--quiet")
+	}
+
+	// Perform push
+	pushResult, err := c.executor.Run(ctx, repoPath, pushArgs...)
+	if err != nil || pushResult.ExitCode != 0 {
+		result.Status = StatusError
+		result.Message = "Push failed"
+		if err != nil {
+			result.Error = err
+		} else {
+			result.Error = fmt.Errorf("push exited with code %d: %s", pushResult.ExitCode, pushResult.Error)
+		}
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Status = StatusSuccess
+	result.PushedCommits = info.AheadBy
+	if info.AheadBy > 0 {
+		result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to remote", info.AheadBy)
+	} else {
+		result.Message = "Successfully pushed to remote"
+	}
+	result.Duration = time.Since(startTime)
+
+	logger.Info("repository pushed", "path", result.RelativePath, "commits", result.PushedCommits)
+
+	return result
+}
+
+// calculatePushSummary creates a summary of push results by status
+func calculatePushSummary(results []RepositoryPushResult) map[string]int {
 	summary := make(map[string]int)
 
 	for _, result := range results {

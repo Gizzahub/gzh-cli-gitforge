@@ -41,6 +41,10 @@ type Client interface {
 	// This is useful for pulling updates (fetch + merge/rebase) from multiple repositories at once.
 	BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullResult, error)
 
+	// BulkPush scans for repositories and pushes them in parallel.
+	// This is useful for pushing local commits from multiple repositories at once.
+	BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

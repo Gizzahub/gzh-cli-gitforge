@@ -33,6 +33,12 @@ const (
 
 	// StatusWouldPull indicates the operation would pull (dry-run mode).
 	StatusWouldPull = "would-pull"
+
+	// StatusWouldPush indicates the operation would push (dry-run mode).
+	StatusWouldPush = "would-push"
+
+	// StatusNothingToPush indicates there are no commits to push.
+	StatusNothingToPush = "nothing-to-push"
 )
 
 // IsSuccessStatus returns true if the status indicates a successful operation.
@@ -48,7 +54,7 @@ func IsSuccessStatus(status string) bool {
 // IsDryRunStatus returns true if the status indicates a dry-run simulation.
 func IsDryRunStatus(status string) bool {
 	switch status {
-	case StatusWouldUpdate, StatusWouldFetch, StatusWouldPull:
+	case StatusWouldUpdate, StatusWouldFetch, StatusWouldPull, StatusWouldPush:
 		return true
 	default:
 		return false
