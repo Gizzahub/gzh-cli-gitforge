@@ -320,13 +320,14 @@ func (m *manager) Exists(ctx context.Context, repo *repository.Repository, name 
 	}
 
 	// Try to get branch ref
-	_, err := m.executor.Run(ctx, repo.Path, "rev-parse", "--verify", fmt.Sprintf("refs/heads/%s", name))
+	result, err := m.executor.Run(ctx, repo.Path, "rev-parse", "--verify", fmt.Sprintf("refs/heads/%s", name))
 	if err != nil {
-		// Branch doesn't exist
-		return false, nil
+		// Sanitization or other error
+		return false, err
 	}
 
-	return true, nil
+	// Check exit code - non-zero means branch doesn't exist
+	return result.ExitCode == 0, nil
 }
 
 // parseBranchList parses git branch -vv output.

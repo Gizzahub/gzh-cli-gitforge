@@ -117,6 +117,8 @@ var safeGitFlags = map[string]bool{
 	"--abbrev-ref":          true,
 	"--show-toplevel":       true,
 	"--is-inside-work-tree": true,
+	"--verify":              true,
+	"--track":               true,
 
 	// Rev-list flags
 	"--left-right": true,
