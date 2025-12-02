@@ -161,6 +161,11 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("bulk fetch failed: %w", err)
 	}
 
+	// Display scan completion message
+	if !quiet && result.TotalScanned == 0 {
+		fmt.Printf("Scan complete: no repositories found\n")
+	}
+
 	// Display results
 	if !quiet {
 		displayFetchResults(result)
