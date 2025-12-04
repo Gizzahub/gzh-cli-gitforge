@@ -1646,6 +1646,48 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
+	// Check detailed repository state before pushing
+	repoState, err := c.checkRepositoryState(ctx, repoPath)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to check repository state"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Handle repositories with conflicts
+	if repoState.HasConflicts {
+		result.Status = StatusConflict
+		result.Message = fmt.Sprintf("Repository has conflicts in %d file(s): %s",
+			len(repoState.ConflictedFiles),
+			strings.Join(repoState.ConflictedFiles, ", "))
+		result.Error = fmt.Errorf("cannot push: repository has unresolved conflicts")
+		result.Duration = time.Since(startTime)
+		logger.Warn("repository has conflicts", "path", result.RelativePath, "files", repoState.ConflictedFiles)
+		return result
+	}
+
+	// Handle repositories with ongoing rebase
+	if repoState.RebaseInProgress {
+		result.Status = StatusRebaseInProgress
+		result.Message = "Repository has rebase in progress - skipping"
+		result.Error = fmt.Errorf("rebase in progress, run 'git rebase --continue' or 'git rebase --abort'")
+		result.Duration = time.Since(startTime)
+		logger.Warn("rebase in progress", "path", result.RelativePath)
+		return result
+	}
+
+	// Handle repositories with ongoing merge
+	if repoState.MergeInProgress {
+		result.Status = StatusMergeInProgress
+		result.Message = "Repository has merge in progress - skipping"
+		result.Error = fmt.Errorf("merge in progress, resolve conflicts and commit")
+		result.Duration = time.Since(startTime)
+		logger.Warn("merge in progress", "path", result.RelativePath)
+		return result
+	}
+
 	// Check if repository has upstream (unless we're setting it)
 	if info.Upstream == "" && !opts.SetUpstream {
 		result.Status = StatusNoUpstream

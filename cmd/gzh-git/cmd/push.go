@@ -269,7 +269,8 @@ func displayPushResults(result *repository.BulkPushResult) {
 	if pushFormat == "compact" {
 		hasIssues := false
 		for _, repo := range result.Repositories {
-			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" {
+			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
+				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" {
 				if !hasIssues {
 					fmt.Println("Issues found:")
 					hasIssues = true
@@ -319,6 +320,12 @@ func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 		statusStr = "no remote"
 	case "no-upstream":
 		statusStr = "no upstream"
+	case "conflict":
+		statusStr = "CONFLICT"
+	case "rebase-in-progress":
+		statusStr = "REBASE"
+	case "merge-in-progress":
+		statusStr = "MERGE"
 	case "skipped":
 		statusStr = "skipped"
 	default:
@@ -353,6 +360,12 @@ func getPushStatusIcon(status string) string {
 		return "="
 	case "error":
 		return "✗"
+	case "conflict":
+		return "⚡"
+	case "rebase-in-progress":
+		return "↻"
+	case "merge-in-progress":
+		return "⇄"
 	case "skipped":
 		return "⊘"
 	case "would-push":
