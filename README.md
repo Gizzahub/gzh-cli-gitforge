@@ -25,6 +25,10 @@
 - **Bulk fetch** from multiple repositories by depth (1-depth, 2-depth scanning)
 - Flexible clone strategies (always-clone, update-if-exists, skip-if-exists)
 - **Real-time monitoring** (watch repositories for changes)
+- **Smart state detection** (conflicts, rebase/merge in progress)
+  - Auto-detect repository problems before operations
+  - Auto-abort on conflicts to prevent incomplete states
+  - Clear error messages with actionable guidance
 
 🚀 **Commit Automation**
 - Template-based commit messages (Conventional Commits support)
@@ -102,8 +106,14 @@ make install  # Installs to $GOPATH/bin
 
 **Check Repository Status:**
 ```bash
-# Show working tree status
+# Show working tree status with smart state detection
 gz-git status
+
+# Displays:
+# - ↻ Rebase in progress (with recovery commands)
+# - ⇄ Merge in progress (with resolution guidance)
+# - ⚡ Unresolved conflicts (with file list)
+# - Modified, staged, untracked files
 
 # Show status for specific repository
 gz-git status /path/to/repo
@@ -194,7 +204,10 @@ gz-git fetch --watch --interval 1m ~/work
 
 **Bulk Pull Multiple Repositories:**
 ```bash
-# Pull all repositories in current directory (1-depth)
+# Pull all repositories with smart state detection
+# - Skips repos with conflicts, rebase/merge in progress
+# - Auto-aborts conflicted rebases to restore clean state
+# - Shows clear status: ⚡ conflict, ↻ rebase, ⇄ merge
 gz-git pull -d 1
 
 # Pull repositories up to 2 levels deep
