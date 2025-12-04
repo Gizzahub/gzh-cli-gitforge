@@ -504,6 +504,9 @@ func (c *client) scanRepositoriesWithConfig(ctx context.Context, dir string, max
 	var repos []string
 	var mu sync.Mutex
 
+	// Start depth at 0 (root directory is depth 0)
+	// maxDepth=1 means scan only direct children of root directory (depth 0 -> depth 1)
+	// maxDepth=2 means scan root's children + their children (depth 0 -> depth 1 -> depth 2)
 	err := c.walkDirectoryWithConfig(ctx, dir, 0, maxDepth, &repos, &mu, logger, config)
 	if err != nil {
 		return nil, err
@@ -615,11 +618,11 @@ func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth,
 	}
 
 	// Check depth limit before scanning subdirectories
-	// depth starts at 0 (root directory)
-	// maxDepth=1 means only scan the root directory (depth 0)
-	// maxDepth=2 means scan root (depth 0) + immediate children (depth 1)
-	// So we stop scanning children when depth+1 >= maxDepth
-	if depth+1 >= maxDepth {
+	// depth starts at 0 for the root directory
+	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)
+	// maxDepth=2 means scan 2 levels (depth 0 -> depth 1 -> depth 2)
+	// We continue scanning subdirectories only if depth < maxDepth
+	if depth >= maxDepth {
 		return nil
 	}
 

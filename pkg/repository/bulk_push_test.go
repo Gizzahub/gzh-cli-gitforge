@@ -705,3 +705,97 @@ func BenchmarkPushParallelProcessing(b *testing.B) {
 		})
 	}
 }
+
+func TestBulkPushDepthBehavior(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create nested repository structure:
+	// tmpDir/
+	//   repo1/
+	//   subdir/
+	//     repo2/
+	//     nested/
+	//       repo3/
+
+	repo1Path := filepath.Join(tmpDir, "repo1")
+	repo2Path := filepath.Join(tmpDir, "subdir", "repo2")
+	repo3Path := filepath.Join(tmpDir, "subdir", "nested", "repo3")
+
+	for _, path := range []string{repo1Path, repo2Path, repo3Path} {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			t.Fatalf("Failed to create directory %s: %v", path, err)
+		}
+		if err := initGitRepo(path); err != nil {
+			t.Skipf("Skipping test: git not available: %v", err)
+		}
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	t.Run("depth=1 scans only root directory", func(t *testing.T) {
+		opts := BulkPushOptions{
+			Directory: tmpDir,
+			MaxDepth:  1,
+			DryRun:    true,
+			Logger:    NewNoopLogger(),
+		}
+
+		result, err := client.BulkPush(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkPush failed: %v", err)
+		}
+
+		// Should only find repo1 (direct child of tmpDir)
+		// Should NOT find repo2 or repo3 (they are deeper)
+		if result.TotalScanned != 1 {
+			t.Errorf("depth=1 should scan only 1 repository (repo1), got %d", result.TotalScanned)
+		}
+
+		// Verify it's repo1
+		if len(result.Repositories) == 1 {
+			if result.Repositories[0].RelativePath != "repo1" {
+				t.Errorf("Expected to find repo1, got %s", result.Repositories[0].RelativePath)
+			}
+		}
+	})
+
+	t.Run("depth=2 scans root + 1 level", func(t *testing.T) {
+		opts := BulkPushOptions{
+			Directory: tmpDir,
+			MaxDepth:  2,
+			DryRun:    true,
+			Logger:    NewNoopLogger(),
+		}
+
+		result, err := client.BulkPush(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkPush failed: %v", err)
+		}
+
+		// Should find repo1 and repo2
+		// Should NOT find repo3 (it's at depth 3)
+		if result.TotalScanned != 2 {
+			t.Errorf("depth=2 should scan 2 repositories (repo1, repo2), got %d", result.TotalScanned)
+		}
+	})
+
+	t.Run("depth=3 scans root + 2 levels", func(t *testing.T) {
+		opts := BulkPushOptions{
+			Directory: tmpDir,
+			MaxDepth:  3,
+			DryRun:    true,
+			Logger:    NewNoopLogger(),
+		}
+
+		result, err := client.BulkPush(ctx, opts)
+		if err != nil {
+			t.Fatalf("BulkPush failed: %v", err)
+		}
+
+		// Should find all 3 repositories
+		if result.TotalScanned != 3 {
+			t.Errorf("depth=3 should scan 3 repositories (repo1, repo2, repo3), got %d", result.TotalScanned)
+		}
+	})
+}
