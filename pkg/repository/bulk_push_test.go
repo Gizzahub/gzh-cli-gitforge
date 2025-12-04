@@ -372,11 +372,11 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 		//     │   └── deep-nested/   (depth 3, repo)
 		//     └── nested-repo2/      (depth 2, repo)
 		//
-		// maxDepth=3 should find: parent (d1), nested-repo1 (d2), nested-repo2 (d2)
-		// but NOT deep-nested (d3) because we only scan UP TO depth 2 (maxDepth-1)
+		// maxDepth=3 scans up to and including depth 3
+		// Should find: parent (d1), nested-repo1 (d2), deep-nested (d3), nested-repo2 (d2)
 		opts := BulkPushOptions{
 			Directory:         tmpDir,
-			MaxDepth:          3, // Scan depths 0, 1, 2 (not 3)
+			MaxDepth:          3, // Scan depths 0, 1, 2, 3
 			DryRun:            true,
 			IncludeSubmodules: false,
 			Logger:            NewNoopLogger(),
@@ -387,9 +387,9 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 			t.Fatalf("BulkPush failed: %v", err)
 		}
 
-		// Should find parent, nested-repo1, nested-repo2 but NOT deep-nested
-		if result.TotalScanned != 3 {
-			t.Errorf("Expected 3 repositories with max-depth 3, got %d", result.TotalScanned)
+		// Should find all 4 repos: parent, nested-repo1, deep-nested, nested-repo2
+		if result.TotalScanned != 4 {
+			t.Errorf("Expected 4 repositories with max-depth 3, got %d", result.TotalScanned)
 			for _, repo := range result.Repositories {
 				t.Logf("Found: %s", repo.RelativePath)
 			}
@@ -399,7 +399,8 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 	t.Run("Depth 0 uses default depth", func(t *testing.T) {
 		// depth=0 should use default depth at package level (DefaultBulkMaxDepth=2)
 		// CLI level validation prevents users from explicitly passing 0
-		// maxDepth=2 scans depths 0 and 1, so finds parent repo at depth 1
+		// maxDepth=2 scans depths 0, 1, and 2
+		// Finds: parent (d1), nested-repo1 (d2), nested-repo2 (d2)
 		opts := BulkPushOptions{
 			Directory:         tmpDir,
 			MaxDepth:          0, // Will be set to default (DefaultBulkMaxDepth=2)
@@ -413,10 +414,10 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 			t.Fatalf("BulkPush with depth=0 failed: %v", err)
 		}
 
-		// depth=0 is set to DefaultBulkMaxDepth (2), which scans depths 0 and 1
-		// parent repo is at depth 1, so 1 repo is found
-		if result.TotalScanned != 1 {
-			t.Errorf("Expected 1 repository with default depth=2, got %d", result.TotalScanned)
+		// depth=0 is set to DefaultBulkMaxDepth (2), which scans up to depth 2
+		// Finds: parent (d1), nested-repo1 (d2), nested-repo2 (d2) = 3 repos
+		if result.TotalScanned != 3 {
+			t.Errorf("Expected 3 repositories with default depth=2, got %d", result.TotalScanned)
 			for _, repo := range result.Repositories {
 				t.Logf("Found: %s", repo.RelativePath)
 			}
