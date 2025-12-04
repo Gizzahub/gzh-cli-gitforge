@@ -1456,20 +1456,10 @@ func (c *client) checkRepositoryState(ctx context.Context, repoPath string) (*re
 	state := &repositoryState{}
 
 	// Check for rebase in progress
-	rebaseDir := filepath.Join(repoPath, ".git", "rebase-merge")
-	if _, err := os.Stat(rebaseDir); err == nil {
-		state.RebaseInProgress = true
-	}
-	rebaseApplyDir := filepath.Join(repoPath, ".git", "rebase-apply")
-	if _, err := os.Stat(rebaseApplyDir); err == nil {
-		state.RebaseInProgress = true
-	}
+	state.RebaseInProgress = IsRebaseInProgress(repoPath)
 
 	// Check for merge in progress
-	mergeHead := filepath.Join(repoPath, ".git", "MERGE_HEAD")
-	if _, err := os.Stat(mergeHead); err == nil {
-		state.MergeInProgress = true
-	}
+	state.MergeInProgress = IsMergeInProgress(repoPath)
 
 	// Check status for conflicts and uncommitted changes
 	statusResult, err := c.executor.Run(ctx, repoPath, "status", "--porcelain")

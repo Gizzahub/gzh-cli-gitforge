@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gizzahub/gzh-cli-git/pkg/repository"
 )
 
 func TestCheckRebaseInProgress(t *testing.T) {
@@ -14,7 +16,7 @@ func TestCheckRebaseInProgress(t *testing.T) {
 	}
 
 	t.Run("no rebase in progress", func(t *testing.T) {
-		if checkRebaseInProgress(tmpDir) {
+		if repository.IsRebaseInProgress(tmpDir) {
 			t.Error("Expected no rebase in progress")
 		}
 	})
@@ -25,7 +27,7 @@ func TestCheckRebaseInProgress(t *testing.T) {
 			t.Fatalf("Failed to create rebase-merge dir: %v", err)
 		}
 
-		if !checkRebaseInProgress(tmpDir) {
+		if !repository.IsRebaseInProgress(tmpDir) {
 			t.Error("Expected rebase in progress")
 		}
 
@@ -38,7 +40,7 @@ func TestCheckRebaseInProgress(t *testing.T) {
 			t.Fatalf("Failed to create rebase-apply dir: %v", err)
 		}
 
-		if !checkRebaseInProgress(tmpDir) {
+		if !repository.IsRebaseInProgress(tmpDir) {
 			t.Error("Expected rebase in progress")
 		}
 
@@ -54,7 +56,7 @@ func TestCheckMergeInProgress(t *testing.T) {
 	}
 
 	t.Run("no merge in progress", func(t *testing.T) {
-		if checkMergeInProgress(tmpDir) {
+		if repository.IsMergeInProgress(tmpDir) {
 			t.Error("Expected no merge in progress")
 		}
 	})
@@ -65,7 +67,7 @@ func TestCheckMergeInProgress(t *testing.T) {
 			t.Fatalf("Failed to create MERGE_HEAD: %v", err)
 		}
 
-		if !checkMergeInProgress(tmpDir) {
+		if !repository.IsMergeInProgress(tmpDir) {
 			t.Error("Expected merge in progress")
 		}
 

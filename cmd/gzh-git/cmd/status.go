@@ -83,8 +83,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check for special repository states
-	rebaseInProgress := checkRebaseInProgress(absPath)
-	mergeInProgress := checkMergeInProgress(absPath)
+	rebaseInProgress := repository.IsRebaseInProgress(absPath)
+	mergeInProgress := repository.IsMergeInProgress(absPath)
 
 	// Get repository info
 	info, err := client.GetInfo(ctx, repo)
@@ -208,24 +208,4 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// checkRebaseInProgress checks if a rebase operation is in progress
-func checkRebaseInProgress(repoPath string) bool {
-	rebaseMerge := filepath.Join(repoPath, ".git", "rebase-merge")
-	if _, err := os.Stat(rebaseMerge); err == nil {
-		return true
-	}
-	rebaseApply := filepath.Join(repoPath, ".git", "rebase-apply")
-	if _, err := os.Stat(rebaseApply); err == nil {
-		return true
-	}
-	return false
-}
-
-// checkMergeInProgress checks if a merge operation is in progress
-func checkMergeInProgress(repoPath string) bool {
-	mergeHead := filepath.Join(repoPath, ".git", "MERGE_HEAD")
-	_, err := os.Stat(mergeHead)
-	return err == nil
 }
