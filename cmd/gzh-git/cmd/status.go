@@ -82,6 +82,10 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 
+	// Check for special repository states
+	rebaseInProgress := checkRebaseInProgress(absPath)
+	mergeInProgress := checkMergeInProgress(absPath)
+
 	// Get repository info
 	info, err := client.GetInfo(ctx, repo)
 	if err != nil {
@@ -98,6 +102,21 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			os.Exit(1)
 		}
 		return nil
+	}
+
+	// Show special states first (rebase/merge in progress)
+	if rebaseInProgress {
+		fmt.Println("\x1b[33m↻ Rebase in progress\x1b[0m")
+		fmt.Println("  (use \"git rebase --continue\" to continue)")
+		fmt.Println("  (use \"git rebase --abort\" to abort)")
+		fmt.Println()
+	}
+
+	if mergeInProgress {
+		fmt.Println("\x1b[33m⇄ Merge in progress\x1b[0m")
+		fmt.Println("  (fix conflicts and run \"git commit\")")
+		fmt.Println("  (use \"git merge --abort\" to abort)")
+		fmt.Println()
 	}
 
 	// Print repository info
@@ -179,7 +198,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Conflict files
 	if len(status.ConflictFiles) > 0 {
-		fmt.Println("\x1b[31mConflict files (merge conflicts):\x1b[0m")
+		fmt.Printf("\x1b[31m⚡ Unresolved conflicts (%d file(s)):\x1b[0m\n", len(status.ConflictFiles))
+		fmt.Println("  (fix conflicts and run \"git add <file>...\")")
+		fmt.Println()
 		for _, file := range status.ConflictFiles {
 			fmt.Printf("  \x1b[31mboth modified:   %s\x1b[0m\n", file)
 		}
@@ -187,4 +208,24 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// checkRebaseInProgress checks if a rebase operation is in progress
+func checkRebaseInProgress(repoPath string) bool {
+	rebaseMerge := filepath.Join(repoPath, ".git", "rebase-merge")
+	if _, err := os.Stat(rebaseMerge); err == nil {
+		return true
+	}
+	rebaseApply := filepath.Join(repoPath, ".git", "rebase-apply")
+	if _, err := os.Stat(rebaseApply); err == nil {
+		return true
+	}
+	return false
+}
+
+// checkMergeInProgress checks if a merge operation is in progress
+func checkMergeInProgress(repoPath string) bool {
+	mergeHead := filepath.Join(repoPath, ".git", "MERGE_HEAD")
+	_, err := os.Stat(mergeHead)
+	return err == nil
 }

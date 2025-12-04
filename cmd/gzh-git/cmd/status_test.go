@@ -1,0 +1,74 @@
+package cmd
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestCheckRebaseInProgress(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitDir := filepath.Join(tmpDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git dir: %v", err)
+	}
+
+	t.Run("no rebase in progress", func(t *testing.T) {
+		if checkRebaseInProgress(tmpDir) {
+			t.Error("Expected no rebase in progress")
+		}
+	})
+
+	t.Run("rebase-merge exists", func(t *testing.T) {
+		rebaseMergeDir := filepath.Join(gitDir, "rebase-merge")
+		if err := os.MkdirAll(rebaseMergeDir, 0755); err != nil {
+			t.Fatalf("Failed to create rebase-merge dir: %v", err)
+		}
+
+		if !checkRebaseInProgress(tmpDir) {
+			t.Error("Expected rebase in progress")
+		}
+
+		os.RemoveAll(rebaseMergeDir)
+	})
+
+	t.Run("rebase-apply exists", func(t *testing.T) {
+		rebaseApplyDir := filepath.Join(gitDir, "rebase-apply")
+		if err := os.MkdirAll(rebaseApplyDir, 0755); err != nil {
+			t.Fatalf("Failed to create rebase-apply dir: %v", err)
+		}
+
+		if !checkRebaseInProgress(tmpDir) {
+			t.Error("Expected rebase in progress")
+		}
+
+		os.RemoveAll(rebaseApplyDir)
+	})
+}
+
+func TestCheckMergeInProgress(t *testing.T) {
+	tmpDir := t.TempDir()
+	gitDir := filepath.Join(tmpDir, ".git")
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Fatalf("Failed to create .git dir: %v", err)
+	}
+
+	t.Run("no merge in progress", func(t *testing.T) {
+		if checkMergeInProgress(tmpDir) {
+			t.Error("Expected no merge in progress")
+		}
+	})
+
+	t.Run("MERGE_HEAD exists", func(t *testing.T) {
+		mergeHeadFile := filepath.Join(gitDir, "MERGE_HEAD")
+		if err := os.WriteFile(mergeHeadFile, []byte("fake-commit-hash"), 0644); err != nil {
+			t.Fatalf("Failed to create MERGE_HEAD: %v", err)
+		}
+
+		if !checkMergeInProgress(tmpDir) {
+			t.Error("Expected merge in progress")
+		}
+
+		os.Remove(mergeHeadFile)
+	})
+}
