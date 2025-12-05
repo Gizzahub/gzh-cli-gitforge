@@ -1,0 +1,218 @@
+version: "2"
+run:
+  go: "1.24"
+  modules-download-mode: readonly
+  issues-exit-code: 1
+  tests: true
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - tagliatelle
+    - thelper
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: Use stdlib errors instead
+            - pkg: io/ioutil
+              desc: Deprecated. Use io or os package instead
+    dupl:
+      threshold: 100
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions:
+        - fmt.Print
+        - fmt.Println
+        - fmt.Printf
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*os.File).Close
+        - (*text/tabwriter.Writer).Flush
+        - (*os.File).Sync
+        - os.Remove
+        - os.RemoveAll
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    exhaustive:
+      default-signifies-exhaustive: false
+    funlen:
+      lines: 100
+      statements: 50
+    gocognit:
+      min-complexity: 30
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - commentedOutCode
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - experimental
+        - opinionated
+    gocyclo:
+      min-complexity: 25
+    godot:
+      scope: declarations
+      exclude:
+        - ^TODO
+        - ^FIXME
+        - ^NOTE
+    gosec:
+      excludes:
+        - G104
+        - G204
+        - G304
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+    lll:
+      line-length: 180
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+    nestif:
+      min-complexity: 4
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: true
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: package-comments
+          disabled: true
+        - name: var-naming
+          disabled: false
+        - name: indent-error-flow
+          disabled: false
+        - name: unnecessary-stmt
+          disabled: false
+        - name: unreachable-code
+          disabled: false
+        - name: early-return
+          disabled: false
+        - name: blank-imports
+          disabled: false
+        - name: context-as-argument
+          disabled: false
+        - name: context-keys-type
+          disabled: false
+        - name: dot-imports
+          disabled: false
+        - name: error-return
+          disabled: false
+        - name: error-strings
+          disabled: false
+        - name: error-naming
+          disabled: false
+        - name: increment-decrement
+          disabled: false
+        - name: receiver-naming
+          disabled: false
+        - name: struct-tag
+          disabled: false
+        - name: time-naming
+          disabled: false
+    staticcheck:
+      checks:
+        - all
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          yaml: camel
+        use-field-name: true
+    unparam:
+      check-exported: false
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - funlen
+          - gocognit
+          - gocyclo
+          - gosec
+          - revive
+        path: _test\.go
+      - linters:
+          - all
+        path: .*\.pb\.go$
+      - linters:
+          - all
+        path: .*\.gen\.go$
+      - linters:
+          - errcheck
+        text: Error return value of.*Close.*is not checked
+      - linters:
+          - errcheck
+        text: Error return value of.*Flush.*is not checked
+      - linters:
+          - contextcheck
+          - funlen
+          - gocognit
+          - gocyclo
+          - varnamelen
+        path: _test\.go
+      - linters:
+          - contextcheck
+        path: (main\.go|.*_test\.go)
+      - linters:
+          - testpackage
+        path: cmd/
+    paths:
+      - vendor
+      - .git
+      - tmp
+      - examples$
+issues:
+  max-issues-per-linter: 10
+  max-same-issues: 5
+  uniq-by-line: true
+  new: false
