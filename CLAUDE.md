@@ -17,8 +17,30 @@ This file provides LLM-optimized guidance for Claude Code when working with this
 - **Direct constructors**: No DI containers, simple factory pattern
 - **Multi-forge support**: GitHub, GitLab, Gitea with unified interface
 - **Rate limiting**: Respect API rate limits for all forges
-- **Structured errors**: Use `internal/errors` for forge-specific errors
-- **Structured logging**: Use `internal/logger` for consistent logging
+- **Use shared library**: Common utilities from `gzh-cli-core`
+
+---
+
+## Shared Library (gzh-cli-core)
+
+**IMPORTANT**: Use `gzh-cli-core` for common utilities. DO NOT create local duplicates.
+
+| Package | Import | Purpose |
+|---------|--------|---------|
+| logger | `gzh-cli-core/logger` | Structured logging |
+| testutil | `gzh-cli-core/testutil` | Test helpers (TempDir, Assert*, Capture) |
+| errors | `gzh-cli-core/errors` | Error types and wrapping |
+| config | `gzh-cli-core/config` | Config loading utilities |
+| cli | `gzh-cli-core/cli` | CLI flags and output |
+| version | `gzh-cli-core/version` | Version info |
+
+```go
+import (
+    "github.com/gizzahub/gzh-cli-core/logger"
+    "github.com/gizzahub/gzh-cli-core/errors"
+    "github.com/gizzahub/gzh-cli-core/testutil"
+)
+```
 
 ---
 
@@ -38,11 +60,8 @@ This file provides LLM-optimized guidance for Claude Code when working with this
 | Package | Purpose | Key Functions |
 |---------|---------|---------------|
 | `internal/config` | Configuration management | Forge credentials, settings |
-| `internal/errors` | Forge-specific errors | GitHub, GitLab, Gitea errors |
 | `internal/httpclient` | HTTP client wrapper | Rate-limited requests |
-| `internal/logger` | Structured logging | `logger.Info()`, `logger.Error()` |
 | `internal/ratelimit` | Rate limit handling | API quota management |
-| `internal/testutil` | Test utilities | Mocks, fixtures, helpers |
 
 ## Public Packages (pkg/)
 
