@@ -83,6 +83,7 @@ var safeGitFlags = map[string]bool{
 	"--no-ff":      true,
 	"--ff-only":    true,
 	"--squash":     true,
+	"--rebase":     true,
 	"--abort":      true,
 	"--continue":   true,
 	"--skip":       true,
