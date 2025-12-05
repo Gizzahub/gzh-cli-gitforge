@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	mergeStrategy     string
-	mergeFastForward  bool
-	mergeNoCommit     bool
-	mergeSquash       bool
-	mergeMessage      string
+	mergeStrategy    string
+	mergeFastForward bool
+	mergeNoCommit    bool
+	mergeSquash      bool
+	mergeMessage     string
 )
 
 // doCmd represents the merge do command

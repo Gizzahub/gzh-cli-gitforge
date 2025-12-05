@@ -338,8 +338,8 @@ func TestCleanupService_Execute_SkipsProtected(t *testing.T) {
 
 	report := &CleanupReport{
 		Merged: []*Branch{
-			{Name: "main"},     // protected - should be skipped
-			{Name: "master"},   // protected - should be skipped
+			{Name: "main"},      // protected - should be skipped
+			{Name: "master"},    // protected - should be skipped
 			{Name: "feature/x"}, // not protected
 		},
 		Stale:    []*Branch{},

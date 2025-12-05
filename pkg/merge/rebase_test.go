@@ -11,14 +11,14 @@ import (
 
 func TestRebaseManager_Rebase(t *testing.T) {
 	tests := []struct {
-		name          string
-		opts          RebaseOptions
-		cleanTree     bool
-		inProgress    bool
+		name           string
+		opts           RebaseOptions
+		cleanTree      bool
+		inProgress     bool
 		rebaseExitCode int
-		rebaseOutput  string
-		wantSuccess   bool
-		wantError     error
+		rebaseOutput   string
+		wantSuccess    bool
+		wantError      error
 	}{
 		{
 			name: "successful rebase",
@@ -60,8 +60,8 @@ func TestRebaseManager_Rebase(t *testing.T) {
 			wantSuccess:    false,
 		},
 		{
-			name: "missing required options",
-			opts: RebaseOptions{},
+			name:      "missing required options",
+			opts:      RebaseOptions{},
 			wantError: errors.New("branch, onto, or upstream is required"),
 		},
 	}
@@ -136,12 +136,12 @@ func TestRebaseManager_Rebase(t *testing.T) {
 
 func TestRebaseManager_Continue(t *testing.T) {
 	tests := []struct {
-		name         string
-		inProgress   bool
-		exitCode     int
-		output       string
-		wantSuccess  bool
-		wantError    error
+		name        string
+		inProgress  bool
+		exitCode    int
+		output      string
+		wantSuccess bool
+		wantError   error
 	}{
 		{
 			name:        "successful continue",
@@ -503,10 +503,10 @@ func TestRebaseManager_BuildRebaseArgs(t *testing.T) {
 
 func TestRebaseManager_ParseRebaseResult(t *testing.T) {
 	tests := []struct {
-		name           string
-		result         *gitcmd.Result
-		wantSuccess    bool
-		wantCommits    int
+		name        string
+		result      *gitcmd.Result
+		wantSuccess bool
+		wantCommits int
 	}{
 		{
 			name: "successful rebase",

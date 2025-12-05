@@ -10,9 +10,9 @@ import (
 
 // E2ERepo represents an E2E test repository
 type E2ERepo struct {
-	t        *testing.T
-	rootDir  string // Original working directory
-	repoDir  string // Test repository directory
+	t          *testing.T
+	rootDir    string // Original working directory
+	repoDir    string // Test repository directory
 	binaryPath string
 }
 
@@ -125,11 +125,11 @@ func (r *E2ERepo) WriteFile(path, content string) {
 	fullPath := filepath.Join(r.repoDir, path)
 	dir := filepath.Dir(fullPath)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		r.t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 		r.t.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }

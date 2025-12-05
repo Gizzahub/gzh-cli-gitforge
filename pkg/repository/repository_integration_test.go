@@ -21,7 +21,7 @@ func initTestGitRepo(t *testing.T, dir string) string {
 
 	// Create a file first
 	testFile := filepath.Join(realDir, "README.md")
-	if err := os.WriteFile(testFile, []byte("# Test Repository\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("# Test Repository\n"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -192,7 +192,7 @@ func TestIntegration_Client_GetStatus(t *testing.T) {
 
 	// Create an untracked file
 	testFile := filepath.Join(repoDir, "untracked.txt")
-	if err := os.WriteFile(testFile, []byte("untracked content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("untracked content"), 0o644); err != nil {
 		t.Fatalf("Failed to create untracked file: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestIntegration_Client_GetStatus_Modified(t *testing.T) {
 
 	// Modify existing file
 	readmeFile := filepath.Join(repoDir, "README.md")
-	if err := os.WriteFile(readmeFile, []byte("# Modified\n"), 0644); err != nil {
+	if err := os.WriteFile(readmeFile, []byte("# Modified\n"), 0o644); err != nil {
 		t.Fatalf("Failed to modify file: %v", err)
 	}
 
@@ -273,7 +273,7 @@ func TestIntegration_Client_GetStatus_Staged(t *testing.T) {
 
 	// Create and stage a new file
 	testFile := filepath.Join(repoDir, "staged.txt")
-	if err := os.WriteFile(testFile, []byte("staged content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("staged content"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 

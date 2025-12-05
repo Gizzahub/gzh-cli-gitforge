@@ -84,10 +84,10 @@ func TestConflictDetector_Detect(t *testing.T) {
 				Source: "feature",
 				Target: "main",
 			},
-			mergeBase:     "abc123",
-			sourceChanges: "M\tfile1.go\nM\tfile2.go\nM\tfile3.go\nM\tfile4.go\nM\tfile5.go\nM\tfile6.go\n",
-			targetChanges: "M\tfile1.go\nM\tfile2.go\nM\tfile3.go\nM\tfile4.go\nM\tfile5.go\nM\tfile6.go\n",
-			wantConflicts: 6,
+			mergeBase:      "abc123",
+			sourceChanges:  "M\tfile1.go\nM\tfile2.go\nM\tfile3.go\nM\tfile4.go\nM\tfile5.go\nM\tfile6.go\n",
+			targetChanges:  "M\tfile1.go\nM\tfile2.go\nM\tfile3.go\nM\tfile4.go\nM\tfile5.go\nM\tfile6.go\n",
+			wantConflicts:  6,
 			wantDifficulty: DifficultyHard,
 		},
 	}
@@ -155,42 +155,42 @@ func TestConflictDetector_Detect(t *testing.T) {
 
 func TestConflictDetector_Preview(t *testing.T) {
 	tests := []struct {
-		name           string
-		source         string
-		target         string
-		canFF          bool
-		changes        string
-		wantFilesAdd   int
+		name            string
+		source          string
+		target          string
+		canFF           bool
+		changes         string
+		wantFilesAdd    int
 		wantFilesChange int
 		wantFilesDelete int
 	}{
 		{
-			name:           "simple preview",
-			source:         "feature",
-			target:         "main",
-			canFF:          false,
-			changes:        "A\tfile1.go\nM\tfile2.go\nD\tfile3.go\n",
-			wantFilesAdd:   1,
+			name:            "simple preview",
+			source:          "feature",
+			target:          "main",
+			canFF:           false,
+			changes:         "A\tfile1.go\nM\tfile2.go\nD\tfile3.go\n",
+			wantFilesAdd:    1,
 			wantFilesChange: 1,
 			wantFilesDelete: 1,
 		},
 		{
-			name:           "fast-forward possible",
-			source:         "feature",
-			target:         "main",
-			canFF:          true,
-			changes:        "A\tfile1.go\n",
-			wantFilesAdd:   1,
+			name:            "fast-forward possible",
+			source:          "feature",
+			target:          "main",
+			canFF:           true,
+			changes:         "A\tfile1.go\n",
+			wantFilesAdd:    1,
 			wantFilesChange: 0,
 			wantFilesDelete: 0,
 		},
 		{
-			name:           "with renames",
-			source:         "feature",
-			target:         "main",
-			canFF:          false,
-			changes:        "R100\told.go\tnew.go\n",
-			wantFilesAdd:   0,
+			name:            "with renames",
+			source:          "feature",
+			target:          "main",
+			canFF:           false,
+			changes:         "R100\told.go\tnew.go\n",
+			wantFilesAdd:    0,
 			wantFilesChange: 1,
 			wantFilesDelete: 0,
 		},

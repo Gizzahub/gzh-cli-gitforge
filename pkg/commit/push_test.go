@@ -107,7 +107,7 @@ func TestPushOptions_Defaults(t *testing.T) {
 
 func TestProtectedBranches(t *testing.T) {
 	tests := []struct {
-		branch     string
+		branch      string
 		isProtected bool
 	}{
 		{"main", true},

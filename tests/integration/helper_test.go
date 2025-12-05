@@ -56,11 +56,11 @@ func (r *TestRepo) WriteFile(path, content string) {
 	fullPath := filepath.Join(r.Path, path)
 	dir := filepath.Dir(fullPath)
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		r.T.Fatalf("Failed to create directory: %v", err)
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 		r.T.Fatalf("Failed to write file: %v", err)
 	}
 }
@@ -202,10 +202,10 @@ func findGzhGitBinary(t *testing.T) string {
 
 	// Check if binary exists in various locations
 	candidates := []string{
-		"../../gzh-git",        // Root directory (where make build creates it)
-		"../../build/gzh-git",  // Build directory (alternative location)
-		"../../tmp/gzh-git",    // Tmp directory (alternative location)
-		"gzh-git",              // In PATH
+		"../../gzh-git",       // Root directory (where make build creates it)
+		"../../build/gzh-git", // Build directory (alternative location)
+		"../../tmp/gzh-git",   // Tmp directory (alternative location)
+		"gzh-git",             // In PATH
 	}
 
 	for _, candidate := range candidates {

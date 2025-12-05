@@ -11,9 +11,7 @@ import (
 	"github.com/gizzahub/gzh-cli-git/pkg/repository"
 )
 
-var (
-	statusPath string
-)
+var statusPath string
 
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{

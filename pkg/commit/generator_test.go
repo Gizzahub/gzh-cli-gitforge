@@ -127,7 +127,7 @@ func TestGenerator_InferType(t *testing.T) {
 		{
 			name: "predominantly test files",
 			changes: &DiffSummary{
-				AddedFiles: []string{"foo_test.go", "bar_test.go"},
+				AddedFiles:    []string{"foo_test.go", "bar_test.go"},
 				ModifiedFiles: []string{"main.go"},
 			},
 			wantType:    "test",
@@ -137,7 +137,7 @@ func TestGenerator_InferType(t *testing.T) {
 			name: "predominantly docs",
 			changes: &DiffSummary{
 				ModifiedFiles: []string{"README.md", "CONTRIBUTING.md"},
-				AddedFiles: []string{"main.go"},
+				AddedFiles:    []string{"main.go"},
 			},
 			wantType:    "docs",
 			wantMinConf: 0.8,
@@ -251,9 +251,9 @@ func TestGenerator_GenerateDescription(t *testing.T) {
 	g := &generator{}
 
 	tests := []struct {
-		name       string
-		changes    *DiffSummary
-		commitType string
+		name         string
+		changes      *DiffSummary
+		commitType   string
 		wantContains string
 	}{
 		{
@@ -336,10 +336,10 @@ func TestGenerator_ParseStats(t *testing.T) {
 	g := &generator{}
 
 	tests := []struct {
-		name            string
-		output          string
-		wantInsertions  int
-		wantDeletions   int
+		name           string
+		output         string
+		wantInsertions int
+		wantDeletions  int
 	}{
 		{
 			name:           "insertions and deletions",

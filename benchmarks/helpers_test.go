@@ -12,7 +12,7 @@ import (
 func setupGitRepo(b *testing.B, path string) {
 	b.Helper()
 
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		b.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -80,11 +80,11 @@ func writeFile(b *testing.B, path, content string) {
 	b.Helper()
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		b.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		b.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }

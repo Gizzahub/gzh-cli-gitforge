@@ -42,7 +42,7 @@ func TestWatchIntegration_UntrackedFile(t *testing.T) {
 
 	// Make change: Create new file
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestWatchIntegration_ModifiedFile(t *testing.T) {
 
 	// Create and commit a file first
 	testFile := filepath.Join(tmpDir, "existing.txt")
-	if err := os.WriteFile(testFile, []byte("initial"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("initial"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 	gitAdd(t, tmpDir, "existing.txt")
@@ -113,7 +113,7 @@ func TestWatchIntegration_ModifiedFile(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 
 	// Modify the file
-	if err := os.WriteFile(testFile, []byte("modified content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("modified content"), 0o644); err != nil {
 		t.Fatalf("Failed to modify file: %v", err)
 	}
 
@@ -159,7 +159,7 @@ func TestWatchIntegration_StagedFile(t *testing.T) {
 
 	// Create file
 	testFile := filepath.Join(tmpDir, "staged.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -225,13 +225,13 @@ func TestWatchIntegration_MultipleRepositories(t *testing.T) {
 
 	// Make change in repo1
 	file1 := filepath.Join(tmpDir1, "file1.txt")
-	if err := os.WriteFile(file1, []byte("content1"), 0644); err != nil {
+	if err := os.WriteFile(file1, []byte("content1"), 0o644); err != nil {
 		t.Fatalf("Failed to create file in repo1: %v", err)
 	}
 
 	// Make change in repo2
 	file2 := filepath.Join(tmpDir2, "file2.txt")
-	if err := os.WriteFile(file2, []byte("content2"), 0644); err != nil {
+	if err := os.WriteFile(file2, []byte("content2"), 0o644); err != nil {
 		t.Fatalf("Failed to create file in repo2: %v", err)
 	}
 
@@ -275,7 +275,7 @@ func TestWatchIntegration_CleanState(t *testing.T) {
 
 	// Create initial clean state
 	initFile := filepath.Join(tmpDir, "init.txt")
-	if err := os.WriteFile(initFile, []byte("init"), 0644); err != nil {
+	if err := os.WriteFile(initFile, []byte("init"), 0o644); err != nil {
 		t.Fatalf("Failed to create init file: %v", err)
 	}
 	gitAdd(t, tmpDir, "init.txt")
@@ -304,7 +304,7 @@ func TestWatchIntegration_CleanState(t *testing.T) {
 
 	// Create and immediately commit a file (transition to dirty and back to clean)
 	testFile := filepath.Join(tmpDir, "temp.txt")
-	if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("content"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 

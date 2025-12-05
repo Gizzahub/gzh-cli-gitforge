@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	rebaseOnto      string
-	rebaseContinue  bool
-	rebaseSkip      bool
-	rebaseAbort     bool
+	rebaseOnto     string
+	rebaseContinue bool
+	rebaseSkip     bool
+	rebaseAbort    bool
 )
 
 // rebaseCmd represents the merge rebase command

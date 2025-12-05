@@ -543,9 +543,9 @@ func (c *client) walkDirectory(ctx context.Context, dir string, depth, maxDepth 
 // Scanning Strategy:
 //   - Always scans the root directory (depth 0) and its children
 //   - For repositories found at depth > 0:
-//     * If it's a submodule and config.includeSubmodules==false: skip its children
-//     * If it's a submodule and config.includeSubmodules==true: scan its children
-//     * If it's an independent nested repo: scan its children to find more nested repos
+//   - If it's a submodule and config.includeSubmodules==false: skip its children
+//   - If it's a submodule and config.includeSubmodules==true: scan its children
+//   - If it's an independent nested repo: scan its children to find more nested repos
 //   - Respects maxDepth limit to prevent infinite recursion
 //   - Skips hidden directories (.git, node_modules, etc.) to improve performance
 //
@@ -553,7 +553,6 @@ func (c *client) walkDirectory(ctx context.Context, dir string, depth, maxDepth 
 //   - Independent nested repositories are always discovered
 //   - Submodules are only scanned when explicitly requested
 //   - Deeply nested repository structures are properly handled
-//
 func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth, maxDepth int, repos *[]string, mu *sync.Mutex, logger Logger, config walkDirectoryConfig) error {
 	// Check context cancellation
 	select {
@@ -1340,7 +1339,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		pullArgs = append(pullArgs, "--rebase")
 	case "ff-only":
 		pullArgs = append(pullArgs, "--ff-only")
-	// "merge" is default, no extra flag needed
+		// "merge" is default, no extra flag needed
 	}
 
 	if opts.Prune {
@@ -1443,12 +1442,12 @@ func calculatePullSummary(results []RepositoryPullResult) map[string]int {
 
 // repositoryState represents the current state of a git repository
 type repositoryState struct {
-	HasConflicts      bool
-	RebaseInProgress  bool
-	MergeInProgress   bool
-	IsDirty           bool
-	ConflictedFiles   []string
-	UncommittedFiles  int
+	HasConflicts     bool
+	RebaseInProgress bool
+	MergeInProgress  bool
+	IsDirty          bool
+	ConflictedFiles  []string
+	UncommittedFiles int
 }
 
 // checkRepositoryState checks the detailed state of a repository

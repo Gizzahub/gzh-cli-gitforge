@@ -28,10 +28,10 @@ type ParallelWorkflow interface {
 
 // WorkContext represents a development context (worktree).
 type WorkContext struct {
-	Path         string   // Worktree path
-	Branch       string   // Current branch
-	IsMain       bool     // Is main worktree
-	HasChanges   bool     // Has uncommitted changes
+	Path          string   // Worktree path
+	Branch        string   // Current branch
+	IsMain        bool     // Is main worktree
+	HasChanges    bool     // Has uncommitted changes
 	ModifiedFiles []string // List of modified files
 }
 

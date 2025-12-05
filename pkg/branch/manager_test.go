@@ -325,10 +325,10 @@ func isError(err, target error) bool {
 
 func TestParseAheadBehindFromStatus(t *testing.T) {
 	tests := []struct {
-		name        string
-		status      string
-		wantAhead   int
-		wantBehind  int
+		name       string
+		status     string
+		wantAhead  int
+		wantBehind int
 	}{
 		{
 			name:       "ahead only",
@@ -434,12 +434,12 @@ func TestManager_ParseBranchLine_AheadBehind(t *testing.T) {
 	mgr := &manager{}
 
 	tests := []struct {
-		name        string
-		line        string
-		wantName    string
+		name         string
+		line         string
+		wantName     string
 		wantUpstream string
-		wantAhead   int
-		wantBehind  int
+		wantAhead    int
+		wantBehind   int
 	}{
 		{
 			name:         "branch ahead of upstream",

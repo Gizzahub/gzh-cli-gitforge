@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	watchPaths          []string
-	watchInterval       time.Duration
-	watchIncludeClean   bool
-	watchOutputFormat   string
-	watchNotifySound    bool
+	watchPaths        []string
+	watchInterval     time.Duration
+	watchIncludeClean bool
+	watchOutputFormat string
+	watchNotifySound  bool
 )
 
 // watchCmd represents the watch command
@@ -328,8 +328,9 @@ func pluralize(count int, singular, plural string) string {
 // - Windows: Use Windows Beep API via syscall
 //
 // Example:
-//   macOS: exec.Command("afplay", "/System/Library/Sounds/Ping.aiff").Run()
-//   Linux: exec.Command("paplay", "/usr/share/sounds/freedesktop/stereo/message.oga").Run()
+//
+//	macOS: exec.Command("afplay", "/System/Library/Sounds/Ping.aiff").Run()
+//	Linux: exec.Command("paplay", "/usr/share/sounds/freedesktop/stereo/message.oga").Run()
 //
 // Reference: docs/design/WATCH_OUTPUT_IMPROVEMENTS.md (Phase 1)
 // Priority: Medium (P2) - Planned for v0.3.0

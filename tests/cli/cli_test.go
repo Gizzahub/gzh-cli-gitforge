@@ -149,7 +149,7 @@ func TestCLIStatusQuietClean(t *testing.T) {
 
 	// Create and commit a file to have a clean state
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -168,7 +168,6 @@ func TestCLIStatusQuietClean(t *testing.T) {
 	// Run status command with --quiet flag
 	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir)
 	output, err := cmd.CombinedOutput()
-
 	// For a clean repository, exit code should be 0
 	if err != nil {
 		t.Errorf("Expected exit code 0 for clean repository, got error: %v\nOutput: %s", err, output)
@@ -196,7 +195,7 @@ func TestCLIStatusQuietDirty(t *testing.T) {
 
 	// Create an untracked file (dirty state)
 	testFile := filepath.Join(tmpDir, "untracked.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 

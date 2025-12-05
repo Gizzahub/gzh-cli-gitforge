@@ -128,10 +128,10 @@ func (g *generator) Suggest(ctx context.Context, changes *DiffSummary) (*Suggest
 	}
 
 	suggestion := &Suggestion{
-		Type:       "chore",
-		Scope:      "",
+		Type:        "chore",
+		Scope:       "",
 		Description: "update files",
-		Confidence: 0.5,
+		Confidence:  0.5,
 	}
 
 	// Analyze file patterns to determine type

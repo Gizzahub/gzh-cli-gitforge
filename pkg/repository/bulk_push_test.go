@@ -17,7 +17,7 @@ func initGitRepoWithCommit(path string) error {
 
 	// Create a file and commit
 	testFile := filepath.Join(path, "README.md")
-	if err := os.WriteFile(testFile, []byte("# Test Repository\n"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("# Test Repository\n"), 0o644); err != nil {
 		return err
 	}
 
@@ -45,10 +45,10 @@ func TestBulkPush(t *testing.T) {
 	repo2Path := filepath.Join(tmpDir, "repo2")
 
 	// Initialize git repositories
-	if err := os.MkdirAll(repo1Path, 0755); err != nil {
+	if err := os.MkdirAll(repo1Path, 0o755); err != nil {
 		t.Fatalf("Failed to create repo1: %v", err)
 	}
-	if err := os.MkdirAll(repo2Path, 0755); err != nil {
+	if err := os.MkdirAll(repo2Path, 0o755); err != nil {
 		t.Fatalf("Failed to create repo2: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestBulkPush(t *testing.T) {
 	opts := BulkPushOptions{
 		Directory: tmpDir,
 		Parallel:  2,
-		MaxDepth:  2, // Scan tmpDir (depth 0) + immediate children (depth 1)
+		MaxDepth:  2,    // Scan tmpDir (depth 0) + immediate children (depth 1)
 		DryRun:    true, // Use dry-run for test
 		Verbose:   false,
 		Logger:    NewNoopLogger(),
@@ -109,7 +109,7 @@ func TestBulkPushWithFilters(t *testing.T) {
 	repo2Path := filepath.Join(tmpDir, "test-repo")
 
 	for _, path := range []string{repo1Path, repo2Path} {
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatalf("Failed to create directory: %v", err)
 		}
 		if err := initGitRepo(path); err != nil {
@@ -199,7 +199,7 @@ func TestBulkPushProgressCallback(t *testing.T) {
 
 	// Create test repository
 	repoPath := filepath.Join(tmpDir, "repo")
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 	if err := initGitRepo(repoPath); err != nil {
@@ -238,7 +238,7 @@ func TestBulkPushContextCancellation(t *testing.T) {
 
 	// Create test repository
 	repoPath := filepath.Join(tmpDir, "repo")
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 	if err := initGitRepo(repoPath); err != nil {
@@ -271,7 +271,7 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 
 	// Create parent repository
 	parentPath := filepath.Join(tmpDir, "parent")
-	if err := os.MkdirAll(parentPath, 0755); err != nil {
+	if err := os.MkdirAll(parentPath, 0o755); err != nil {
 		t.Fatalf("Failed to create parent: %v", err)
 	}
 	if err := initGitRepo(parentPath); err != nil {
@@ -280,7 +280,7 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 
 	// Create first nested independent repository (not a submodule)
 	nested1Path := filepath.Join(parentPath, "nested-repo1")
-	if err := os.MkdirAll(nested1Path, 0755); err != nil {
+	if err := os.MkdirAll(nested1Path, 0o755); err != nil {
 		t.Fatalf("Failed to create nested repo1: %v", err)
 	}
 	if err := initGitRepo(nested1Path); err != nil {
@@ -289,7 +289,7 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 
 	// Create second nested independent repository
 	nested2Path := filepath.Join(parentPath, "nested-repo2")
-	if err := os.MkdirAll(nested2Path, 0755); err != nil {
+	if err := os.MkdirAll(nested2Path, 0o755); err != nil {
 		t.Fatalf("Failed to create nested repo2: %v", err)
 	}
 	if err := initGitRepo(nested2Path); err != nil {
@@ -298,7 +298,7 @@ func TestBulkPushNestedRepositories(t *testing.T) {
 
 	// Create deeply nested repository (inside nested-repo1)
 	deepNestedPath := filepath.Join(nested1Path, "deep-nested")
-	if err := os.MkdirAll(deepNestedPath, 0755); err != nil {
+	if err := os.MkdirAll(deepNestedPath, 0o755); err != nil {
 		t.Fatalf("Failed to create deep nested: %v", err)
 	}
 	if err := initGitRepo(deepNestedPath); err != nil {
@@ -524,7 +524,7 @@ func TestBulkPushNoRemote(t *testing.T) {
 
 	// Create test repository without remote
 	repoPath := filepath.Join(tmpDir, "repo-no-remote")
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 	if err := initGitRepoWithCommit(repoPath); err != nil {
@@ -562,7 +562,7 @@ func BenchmarkBulkPushSingleRepo(b *testing.B) {
 	tmpDir := b.TempDir()
 	repoPath := filepath.Join(tmpDir, "repo")
 
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		b.Fatalf("Failed to create repo: %v", err)
 	}
 	if err := initGitRepo(repoPath); err != nil {
@@ -594,7 +594,7 @@ func BenchmarkBulkPushMultipleRepos(b *testing.B) {
 	// Create 10 test repositories
 	for i := 0; i < 10; i++ {
 		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i)))
-		if err := os.MkdirAll(repoPath, 0755); err != nil {
+		if err := os.MkdirAll(repoPath, 0o755); err != nil {
 			b.Fatalf("Failed to create repo%d: %v", i, err)
 		}
 		if err := initGitRepo(repoPath); err != nil {
@@ -627,7 +627,7 @@ func BenchmarkBulkPushNestedRepos(b *testing.B) {
 
 	// Create parent repository
 	parentPath := filepath.Join(tmpDir, "parent")
-	if err := os.MkdirAll(parentPath, 0755); err != nil {
+	if err := os.MkdirAll(parentPath, 0o755); err != nil {
 		b.Fatalf("Failed to create parent: %v", err)
 	}
 	if err := initGitRepo(parentPath); err != nil {
@@ -637,7 +637,7 @@ func BenchmarkBulkPushNestedRepos(b *testing.B) {
 	// Create 5 nested repositories
 	for i := 0; i < 5; i++ {
 		nestedPath := filepath.Join(parentPath, filepath.Base(tmpDir)+"-nested-"+string(rune('0'+i)))
-		if err := os.MkdirAll(nestedPath, 0755); err != nil {
+		if err := os.MkdirAll(nestedPath, 0o755); err != nil {
 			b.Fatalf("Failed to create nested%d: %v", i, err)
 		}
 		if err := initGitRepo(nestedPath); err != nil {
@@ -672,7 +672,7 @@ func BenchmarkPushParallelProcessing(b *testing.B) {
 	// Create 20 repositories
 	for i := 0; i < 20; i++ {
 		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i/10))+string(rune('0'+i%10)))
-		if err := os.MkdirAll(repoPath, 0755); err != nil {
+		if err := os.MkdirAll(repoPath, 0o755); err != nil {
 			b.Fatalf("Failed to create repo: %v", err)
 		}
 		if err := initGitRepo(repoPath); err != nil {
@@ -723,7 +723,7 @@ func TestBulkPushDepthBehavior(t *testing.T) {
 	repo3Path := filepath.Join(tmpDir, "subdir", "nested", "repo3")
 
 	for _, path := range []string{repo1Path, repo2Path, repo3Path} {
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatalf("Failed to create directory %s: %v", path, err)
 		}
 		if err := initGitRepo(path); err != nil {

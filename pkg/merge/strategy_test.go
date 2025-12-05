@@ -11,7 +11,7 @@ import (
 )
 
 type mockConflictDetector struct {
-	detectFunc        func(ctx context.Context, repo *repository.Repository, opts DetectOptions) (*ConflictReport, error)
+	detectFunc         func(ctx context.Context, repo *repository.Repository, opts DetectOptions) (*ConflictReport, error)
 	canFastForwardFunc func(ctx context.Context, repo *repository.Repository, source, target string) (bool, error)
 }
 
@@ -86,13 +86,13 @@ func TestMergeManager_Merge(t *testing.T) {
 				Source: "feature",
 				Target: "main",
 			},
-			cleanTree:      true,
-			canFF:          false,
-			upToDate:       false,
-			mergeExitCode:  1,
-			mergeOutput:    "CONFLICT",
-			wantSuccess:    false,
-			wantError:      ErrMergeConflict,
+			cleanTree:     true,
+			canFF:         false,
+			upToDate:      false,
+			mergeExitCode: 1,
+			mergeOutput:   "CONFLICT",
+			wantSuccess:   false,
+			wantError:     ErrMergeConflict,
 		},
 	}
 

@@ -23,11 +23,11 @@ func TestIsRebaseInProgress(t *testing.T) {
 			name: "Rebase merge in progress",
 			setup: func(repoPath string) error {
 				gitDir := filepath.Join(repoPath, ".git")
-				if err := os.MkdirAll(gitDir, 0755); err != nil {
+				if err := os.MkdirAll(gitDir, 0o755); err != nil {
 					return err
 				}
 				rebaseMerge := filepath.Join(gitDir, "rebase-merge")
-				return os.MkdirAll(rebaseMerge, 0755)
+				return os.MkdirAll(rebaseMerge, 0o755)
 			},
 			expected: true,
 		},
@@ -35,11 +35,11 @@ func TestIsRebaseInProgress(t *testing.T) {
 			name: "Rebase apply in progress",
 			setup: func(repoPath string) error {
 				gitDir := filepath.Join(repoPath, ".git")
-				if err := os.MkdirAll(gitDir, 0755); err != nil {
+				if err := os.MkdirAll(gitDir, 0o755); err != nil {
 					return err
 				}
 				rebaseApply := filepath.Join(gitDir, "rebase-apply")
-				return os.MkdirAll(rebaseApply, 0755)
+				return os.MkdirAll(rebaseApply, 0o755)
 			},
 			expected: true,
 		},
@@ -81,11 +81,11 @@ func TestIsMergeInProgress(t *testing.T) {
 			name: "Merge in progress",
 			setup: func(repoPath string) error {
 				gitDir := filepath.Join(repoPath, ".git")
-				if err := os.MkdirAll(gitDir, 0755); err != nil {
+				if err := os.MkdirAll(gitDir, 0o755); err != nil {
 					return err
 				}
 				mergeHead := filepath.Join(gitDir, "MERGE_HEAD")
-				return os.WriteFile(mergeHead, []byte("commit-hash"), 0644)
+				return os.WriteFile(mergeHead, []byte("commit-hash"), 0o644)
 			},
 			expected: true,
 		},

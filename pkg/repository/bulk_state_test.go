@@ -15,7 +15,7 @@ func TestCheckRepositoryState(t *testing.T) {
 	repoPath := filepath.Join(tmpDir, "test-repo")
 
 	// Initialize git repository
-	if err := os.MkdirAll(repoPath, 0755); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		t.Fatalf("Failed to create repo: %v", err)
 	}
 
@@ -41,7 +41,7 @@ func TestCheckRepositoryState(t *testing.T) {
 
 	// Create initial commit
 	testFile := filepath.Join(repoPath, "test.txt")
-	if err := os.WriteFile(testFile, []byte("initial content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("initial content"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestCheckRepositoryState(t *testing.T) {
 
 	t.Run("dirty repository", func(t *testing.T) {
 		// Modify file
-		if err := os.WriteFile(testFile, []byte("modified content"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("modified content"), 0o644); err != nil {
 			t.Fatalf("Failed to modify test file: %v", err)
 		}
 
@@ -109,7 +109,7 @@ func TestCheckRepositoryState(t *testing.T) {
 	t.Run("rebase marker detection", func(t *testing.T) {
 		// Simulate rebase in progress by creating .git/rebase-merge directory
 		rebaseMergeDir := filepath.Join(repoPath, ".git", "rebase-merge")
-		if err := os.MkdirAll(rebaseMergeDir, 0755); err != nil {
+		if err := os.MkdirAll(rebaseMergeDir, 0o755); err != nil {
 			t.Fatalf("Failed to create rebase-merge dir: %v", err)
 		}
 
@@ -129,7 +129,7 @@ func TestCheckRepositoryState(t *testing.T) {
 	t.Run("merge marker detection", func(t *testing.T) {
 		// Simulate merge in progress by creating MERGE_HEAD file
 		mergeHeadFile := filepath.Join(repoPath, ".git", "MERGE_HEAD")
-		if err := os.WriteFile(mergeHeadFile, []byte("fake-commit-hash"), 0644); err != nil {
+		if err := os.WriteFile(mergeHeadFile, []byte("fake-commit-hash"), 0o644); err != nil {
 			t.Fatalf("Failed to create MERGE_HEAD: %v", err)
 		}
 

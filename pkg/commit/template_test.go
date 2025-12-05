@@ -12,9 +12,9 @@ func TestTemplateManager_Load(t *testing.T) {
 	mgr := NewTemplateManager()
 
 	tests := []struct {
-		name    string
+		name     string
 		tmplName string
-		wantErr error
+		wantErr  error
 	}{
 		{
 			name:     "load conventional template",
@@ -90,20 +90,20 @@ examples:
   - "CUSTOM: My custom message"
 `
 
-	if err := os.WriteFile(tmplPath, []byte(customTemplate), 0644); err != nil {
+	if err := os.WriteFile(tmplPath, []byte(customTemplate), 0o644); err != nil {
 		t.Fatalf("Failed to create test template file: %v", err)
 	}
 
 	// Create invalid YAML file
 	invalidYamlPath := filepath.Join(tmpDir, "invalid.yaml")
-	if err := os.WriteFile(invalidYamlPath, []byte("invalid: [yaml: content"), 0644); err != nil {
+	if err := os.WriteFile(invalidYamlPath, []byte("invalid: [yaml: content"), 0o644); err != nil {
 		t.Fatalf("Failed to create invalid YAML file: %v", err)
 	}
 
 	// Create relative path template
 	relPath := "custom.yaml"
 	relFullPath := filepath.Join(tmpDir, relPath)
-	if err := os.WriteFile(relFullPath, []byte(customTemplate), 0644); err != nil {
+	if err := os.WriteFile(relFullPath, []byte(customTemplate), 0o644); err != nil {
 		t.Fatalf("Failed to create relative path template: %v", err)
 	}
 

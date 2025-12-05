@@ -12,9 +12,9 @@ import (
 // TestNewExecutor tests executor creation with options
 func TestNewExecutor(t *testing.T) {
 	tests := []struct {
-		name    string
-		opts    []Option
-		want    *Executor
+		name string
+		opts []Option
+		want *Executor
 	}{
 		{
 			name: "default executor",
@@ -93,27 +93,27 @@ func TestExecutorRun(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr bool
+		name         string
+		args         []string
+		wantErr      bool
 		wantExitCode int
 	}{
 		{
-			name: "git version succeeds",
-			args: []string{"version"},
-			wantErr: false,
+			name:         "git version succeeds",
+			args:         []string{"version"},
+			wantErr:      false,
 			wantExitCode: 0,
 		},
 		{
-			name: "git help succeeds",
-			args: []string{"help"},
-			wantErr: false,
+			name:         "git help succeeds",
+			args:         []string{"help"},
+			wantErr:      false,
 			wantExitCode: 0,
 		},
 		{
-			name: "dangerous args rejected",
-			args: []string{"status", "; rm -rf /"},
-			wantErr: true,
+			name:         "dangerous args rejected",
+			args:         []string{"status", "; rm -rf /"},
+			wantErr:      true,
 			wantExitCode: -1,
 		},
 	}
@@ -176,29 +176,29 @@ func TestExecutorRunInRepo(t *testing.T) {
 	executor.Run(ctx, tmpDir, "config", "user.email", "test@example.com")
 
 	tests := []struct {
-		name    string
-		setup   func() // Setup function to run before test
-		args    []string
-		wantErr bool
+		name        string
+		setup       func() // Setup function to run before test
+		args        []string
+		wantErr     bool
 		checkStdout func(string) bool // Optional stdout validation
 	}{
 		{
-			name: "git status in clean repo",
-			args: []string{"status", "--porcelain"},
-			wantErr: false,
+			name:        "git status in clean repo",
+			args:        []string{"status", "--porcelain"},
+			wantErr:     false,
 			checkStdout: func(s string) bool { return true }, // Clean repo
 		},
 		{
-			name: "git branch list",
-			args: []string{"branch"},
+			name:    "git branch list",
+			args:    []string{"branch"},
 			wantErr: false,
 		},
 		{
 			name: "create test file and check status",
 			setup: func() {
-				os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+				os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0o644)
 			},
-			args: []string{"status", "--porcelain"},
+			args:    []string{"status", "--porcelain"},
 			wantErr: false,
 			checkStdout: func(s string) bool {
 				return strings.Contains(s, "test.txt")
@@ -253,15 +253,15 @@ func TestExecutorRunQuiet(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "successful command",
-			args: []string{"version"},
-			want: true,
+			name:    "successful command",
+			args:    []string{"version"},
+			want:    true,
 			wantErr: false,
 		},
 		{
-			name: "dangerous args",
-			args: []string{"; whoami"},
-			want: false,
+			name:    "dangerous args",
+			args:    []string{"; whoami"},
+			want:    false,
 			wantErr: true,
 		},
 	}
@@ -299,15 +299,15 @@ func TestExecutorRunOutput(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr bool
+		name     string
+		args     []string
+		wantErr  bool
 		contains string // Expected substring in output
 	}{
 		{
-			name: "git version output",
-			args: []string{"version"},
-			wantErr: false,
+			name:     "git version output",
+			args:     []string{"version"},
+			wantErr:  false,
 			contains: "git version",
 		},
 	}

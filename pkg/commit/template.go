@@ -34,7 +34,7 @@ type TemplateVariable struct {
 	Type        string   `yaml:"type"` // string, enum, bool
 	Required    bool     `yaml:"required"`
 	Default     string   `yaml:"default"`
-	Options     []string `yaml:"options"`     // for enum types
+	Options     []string `yaml:"options"` // for enum types
 	Description string   `yaml:"description"`
 }
 

@@ -181,32 +181,42 @@ func TestFileHistoryTracker_GetHistoryWithOptions(t *testing.T) {
 		{
 			name: "with follow",
 			opts: HistoryOptions{Follow: true},
-			wantArgs: []string{"log", "--format=%H|%an|%ae|%ct|%s", "--numstat", "--follow", "--",
-				"file.go"},
+			wantArgs: []string{
+				"log", "--format=%H|%an|%ae|%ct|%s", "--numstat", "--follow", "--",
+				"file.go",
+			},
 		},
 		{
 			name: "with max count",
 			opts: HistoryOptions{MaxCount: 10},
-			wantArgs: []string{"log", "--format=%H|%an|%ae|%ct|%s", "--numstat", "--max-count=10",
-				"--", "file.go"},
+			wantArgs: []string{
+				"log", "--format=%H|%an|%ae|%ct|%s", "--numstat", "--max-count=10",
+				"--", "file.go",
+			},
 		},
 		{
 			name: "with since",
 			opts: HistoryOptions{Since: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
-			wantArgs: []string{"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
-				"--since=2025-01-01T00:00:00Z", "--", "file.go"},
+			wantArgs: []string{
+				"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
+				"--since=2025-01-01T00:00:00Z", "--", "file.go",
+			},
 		},
 		{
 			name: "with until",
 			opts: HistoryOptions{Until: time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC)},
-			wantArgs: []string{"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
-				"--until=2025-12-31T23:59:59Z", "--", "file.go"},
+			wantArgs: []string{
+				"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
+				"--until=2025-12-31T23:59:59Z", "--", "file.go",
+			},
 		},
 		{
 			name: "with author",
 			opts: HistoryOptions{Author: "John Doe"},
-			wantArgs: []string{"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
-				"--author=John Doe", "--", "file.go"},
+			wantArgs: []string{
+				"log", "--format=%H|%an|%ae|%ct|%s", "--numstat",
+				"--author=John Doe", "--", "file.go",
+			},
 		},
 	}
 

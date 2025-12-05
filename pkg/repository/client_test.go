@@ -266,9 +266,9 @@ func TestParseStatus(t *testing.T) {
 			name:   "renamed file",
 			output: "R  old.txt -> new.txt",
 			want: &Status{
-				IsClean:       false,
-				ModifiedFiles: []string{},
-				StagedFiles:   []string{"new.txt"},
+				IsClean:        false,
+				ModifiedFiles:  []string{},
+				StagedFiles:    []string{"new.txt"},
 				UntrackedFiles: []string{},
 				ConflictFiles:  []string{},
 				DeletedFiles:   []string{},
@@ -587,7 +587,7 @@ func TestWithExecutor(t *testing.T) {
 // TestNoopLogger tests NoopLogger
 func TestNoopLogger(t *testing.T) {
 	logger := NewNoopLogger()
-	
+
 	// These should not panic
 	logger.Debug("test")
 	logger.Info("test")
@@ -598,6 +598,6 @@ func TestNoopLogger(t *testing.T) {
 // testProgressReporter is a simple progress reporter for testing
 type testProgressReporter struct{}
 
-func (p *testProgressReporter) Start(total int64) {}
+func (p *testProgressReporter) Start(total int64)    {}
 func (p *testProgressReporter) Update(current int64) {}
-func (p *testProgressReporter) Done() {}
+func (p *testProgressReporter) Done()                {}

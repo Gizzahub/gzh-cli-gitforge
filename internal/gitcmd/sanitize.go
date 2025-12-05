@@ -8,13 +8,13 @@ import (
 
 // Dangerous patterns that could enable command injection or path traversal.
 var dangerousPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`[;&|><$]`),         // Command separators and redirections
-	regexp.MustCompile(`\$\(`),             // Command substitution $(...)
-	regexp.MustCompile("`"),                // Backtick command substitution
-	regexp.MustCompile(`\.\./`),            // Path traversal (relative)
+	regexp.MustCompile(`[;&|><$]`),                // Command separators and redirections
+	regexp.MustCompile(`\$\(`),                    // Command substitution $(...)
+	regexp.MustCompile("`"),                       // Backtick command substitution
+	regexp.MustCompile(`\.\./`),                   // Path traversal (relative)
 	regexp.MustCompile(`^/(?:etc|usr|bin|sbin)/`), // System directories
-	regexp.MustCompile(`\x00`),             // Null bytes
-	regexp.MustCompile(`\r|\n`),            // Newlines (could break parsing)
+	regexp.MustCompile(`\x00`),                    // Null bytes
+	regexp.MustCompile(`\r|\n`),                   // Newlines (could break parsing)
 }
 
 // Safe Git flags that are known to be secure.
@@ -32,78 +32,78 @@ var safeGitFlags = map[string]bool{
 	"--bare":      true,
 
 	// Clone flags
-	"--branch":        true,
-	"--depth":         true,
-	"--single-branch": true,
+	"--branch":           true,
+	"--depth":            true,
+	"--single-branch":    true,
 	"--no-single-branch": true,
-	"--recursive":     true,
-	"--shallow-since": true,
-	"--shallow-exclude": true,
+	"--recursive":        true,
+	"--shallow-since":    true,
+	"--shallow-exclude":  true,
 
 	// Status flags
-	"--porcelain":  true,
-	"--short":      true,
-	"--long":       true,
+	"--porcelain":       true,
+	"--short":           true,
+	"--long":            true,
 	"--untracked-files": true,
-	"--ignored":    true,
+	"--ignored":         true,
 
 	// Log flags
-	"--oneline":    true,
-	"--graph":      true,
-	"--decorate":   true,
-	"--all":        true,
-	"--stat":       true,
-	"--shortstat":  true,
-	"--format":     true,
-	"--pretty":     true,
-	"--since":      true,
-	"--until":      true,
-	"--author":     true,
-	"--committer":  true,
-	"--max-count":  true,
-	"--follow":     true,
-	"--date":       true,
+	"--oneline":   true,
+	"--graph":     true,
+	"--decorate":  true,
+	"--all":       true,
+	"--stat":      true,
+	"--shortstat": true,
+	"--format":    true,
+	"--pretty":    true,
+	"--since":     true,
+	"--until":     true,
+	"--author":    true,
+	"--committer": true,
+	"--max-count": true,
+	"--follow":    true,
+	"--date":      true,
 
 	// Commit flags
-	"--message":    true,
-	"--amend":      true,
-	"--no-verify":  true,
+	"--message":     true,
+	"--amend":       true,
+	"--no-verify":   true,
 	"--allow-empty": true,
 
 	// Fetch/Pull/Push flags
-	"--force":      true,
-	"--dry-run":    true,
-	"--tags":       true,
-	"--no-tags":    true,
-	"--prune":      true,
+	"--force":        true,
+	"--dry-run":      true,
+	"--tags":         true,
+	"--no-tags":      true,
+	"--prune":        true,
 	"--set-upstream": true,
 
 	// Merge/Rebase flags
-	"--ff":         true,
-	"--no-ff":      true,
-	"--ff-only":    true,
-	"--squash":     true,
-	"--rebase":     true,
-	"--abort":      true,
-	"--continue":   true,
-	"--skip":       true,
+	"--ff":       true,
+	"--no-ff":    true,
+	"--ff-only":  true,
+	"--squash":   true,
+	"--rebase":   true,
+	"--abort":    true,
+	"--continue": true,
+	"--skip":     true,
 
 	// Diff flags
-	"--cached":     true,
-	"--staged":     true,
-	"--name-only":  true,
+	"--cached":      true,
+	"--staged":      true,
+	"--name-only":   true,
 	"--name-status": true,
-	"--numstat":    true,
+	"--numstat":     true,
 
 	// Reset flags
-	"--hard":       true,
-	"--soft":       true,
-	"--mixed":      true,
+	"--hard":  true,
+	"--soft":  true,
+	"--mixed": true,
 
 	// Remote flags
-	"--add":        true,
-	"--remove":     true,
-	"--rename":     true,
+	"--add":    true,
+	"--remove": true,
+	"--rename": true,
 
 	// Branch flags
 	"--delete":       true,
@@ -244,11 +244,11 @@ func SanitizeURL(url string) error {
 		"http://",
 		"ssh://",
 		"git://",
-		"git@",   // SSH format (git@github.com:...)
+		"git@", // SSH format (git@github.com:...)
 		"file://",
-		"/",      // Local path
-		"./",     // Relative path
-		"../",    // Relative path (though discouraged)
+		"/",   // Local path
+		"./",  // Relative path
+		"../", // Relative path (though discouraged)
 	}
 
 	isValid := false

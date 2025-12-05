@@ -117,9 +117,9 @@ func TestParseStatus(t *testing.T) {
 			name:   "renamed file",
 			output: "R  old.txt -> new.txt",
 			want: &repository.Status{
-				IsClean:       false,
-				ModifiedFiles: []string{},
-				StagedFiles:   []string{"new.txt"},
+				IsClean:        false,
+				ModifiedFiles:  []string{},
+				StagedFiles:    []string{"new.txt"},
 				UntrackedFiles: []string{},
 				ConflictFiles:  []string{},
 				DeletedFiles:   []string{},

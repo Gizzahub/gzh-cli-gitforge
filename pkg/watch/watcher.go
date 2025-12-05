@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
 	"github.com/gizzahub/gzh-cli-git/pkg/repository"
 )
 
@@ -26,9 +27,9 @@ type watcher struct {
 
 // repoState tracks the state of a watched repository.
 type repoState struct {
-	path         string
-	lastStatus   *repository.Status
-	lastEventAt  time.Time
+	path          string
+	lastStatus    *repository.Status
+	lastEventAt   time.Time
 	currentBranch string
 }
 

@@ -39,11 +39,10 @@ func main() {
 	repo, err := client.Clone(ctx, repository.CloneOptions{
 		URL:          url,
 		Destination:  destination,
-		Depth:        1,     // Shallow clone for speed
-		SingleBranch: true,  // Only clone default branch
+		Depth:        1,    // Shallow clone for speed
+		SingleBranch: true, // Only clone default branch
 		Quiet:        false,
 	})
-
 	if err != nil {
 		log.Fatalf("Failed to clone: %v", err)
 	}

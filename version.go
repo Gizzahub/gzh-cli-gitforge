@@ -41,10 +41,10 @@ var (
 //	fmt.Printf("Commit: %s\n", info["gitCommit"])
 func VersionInfo() map[string]string {
 	return map[string]string{
-		"version":    Version,
-		"gitCommit":  GitCommit,
-		"buildDate":  BuildDate,
-		"goVersion":  runtime.Version(),
+		"version":   Version,
+		"gitCommit": GitCommit,
+		"buildDate": BuildDate,
+		"goVersion": runtime.Version(),
 	}
 }
 

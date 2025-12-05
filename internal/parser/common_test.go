@@ -470,25 +470,25 @@ func TestParseFileMode(t *testing.T) {
 		{
 			name:    "regular file",
 			s:       "100644",
-			want:    0100644,
+			want:    0o100644,
 			wantErr: false,
 		},
 		{
 			name:    "executable file",
 			s:       "100755",
-			want:    0100755,
+			want:    0o100755,
 			wantErr: false,
 		},
 		{
 			name:    "directory",
 			s:       "040000",
-			want:    0040000,
+			want:    0o040000,
 			wantErr: false,
 		},
 		{
 			name:    "with whitespace",
 			s:       "  100644  ",
-			want:    0100644,
+			want:    0o100644,
 			wantErr: false,
 		},
 		{
