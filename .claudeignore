@@ -1,0 +1,56 @@
+# .claudeignore - Files AI should not modify
+# Similar to .gitignore syntax
+
+# Build artifacts
+build/
+dist/
+bin/
+gz-git
+gzh-git
+
+# Dependencies
+vendor/
+node_modules/
+
+# Generated files
+*.gen.go
+*.pb.go
+*_mock.go
+mocks/
+
+# Coverage and test artifacts
+coverage.out
+coverage*.out
+coverage.html
+*.coverprofile
+bench.txt
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets and credentials
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# Lock files (managed by tools)
+go.sum
+
+# Third-party code
+third_party/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Temporary files
+tmp/
