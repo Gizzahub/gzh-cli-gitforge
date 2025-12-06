@@ -397,8 +397,8 @@ func TestBulkFetchNestedRepositories(t *testing.T) {
 	t.Run("Depth 0 uses default depth", func(t *testing.T) {
 		// depth=0 should use default depth at package level (DefaultBulkMaxDepth=1)
 		// CLI level validation prevents users from explicitly passing 0
-		// maxDepth=1 scans depth 0 only (current directory)
-		// Finds: parent (d0)
+		// maxDepth=1 scans depth 0 and 1 (tmpDir is at depth 0, parent at depth 1)
+		// Finds: parent (d1)
 		opts := BulkFetchOptions{
 			Directory:         tmpDir,
 			MaxDepth:          0, // Will be set to default (DefaultBulkMaxDepth=1)
@@ -412,8 +412,8 @@ func TestBulkFetchNestedRepositories(t *testing.T) {
 			t.Fatalf("BulkFetch with depth=0 failed: %v", err)
 		}
 
-		// depth=0 is set to DefaultBulkMaxDepth (1), which scans depth 0 only
-		// Finds: parent (d0) = 1 repo
+		// depth=0 is set to DefaultBulkMaxDepth (1), which scans depth 0 and 1
+		// Finds: parent (d1) = 1 repo
 		if result.TotalScanned != 1 {
 			t.Errorf("Expected 1 repository with default depth=1, got %d", result.TotalScanned)
 			for _, repo := range result.Repositories {

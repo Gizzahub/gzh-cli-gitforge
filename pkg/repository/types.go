@@ -9,9 +9,9 @@ const (
 	DefaultBulkParallel = 5
 
 	// DefaultBulkMaxDepth is the default maximum directory depth to scan
-	// maxDepth=1 scans only the root directory (depth 0)
-	// maxDepth=2 scans root + immediate children (depth 0, 1)
-	// Default is 1 to scan only the current directory
+	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)
+	// maxDepth=2 means scan root + 2 levels (depth 0 -> depth 1 -> depth 2)
+	// Default is 1 to scan current directory and immediate subdirectories
 	DefaultBulkMaxDepth = 1
 )
 
