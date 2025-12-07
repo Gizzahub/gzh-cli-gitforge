@@ -243,6 +243,15 @@ type BulkPushOptions struct {
 	// Tags pushes all tags
 	Tags bool
 
+	// Refspec is a custom refspec for branch mapping (e.g., "develop:master")
+	Refspec string
+
+	// Remotes is a list of remotes to push to (empty = use origin)
+	Remotes []string
+
+	// AllRemotes pushes to all configured remotes
+	AllRemotes bool
+
 	// IncludeSubmodules includes git submodules in the scan (default: false)
 	// When false, only scans for independent nested repositories
 	IncludeSubmodules bool
@@ -1706,15 +1715,76 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
+	// Determine target remotes
+	remotes := opts.Remotes
+	if len(remotes) == 0 {
+		if opts.AllRemotes {
+			// Get all configured remotes
+			remotesResult, err := c.executor.Run(ctx, repoPath, "remote")
+			if err != nil || remotesResult.ExitCode != 0 {
+				result.Status = StatusError
+				result.Message = "Failed to get remotes"
+				result.Error = fmt.Errorf("failed to get remotes: %w", err)
+				result.Duration = time.Since(startTime)
+				return result
+			}
+			for _, line := range strings.Split(strings.TrimSpace(remotesResult.Stdout), "\n") {
+				if remote := strings.TrimSpace(line); remote != "" {
+					remotes = append(remotes, remote)
+				}
+			}
+			if len(remotes) == 0 {
+				result.Status = StatusNoRemote
+				result.Message = "No remotes configured"
+				result.Duration = time.Since(startTime)
+				return result
+			}
+		} else {
+			remotes = []string{"origin"}
+		}
+	}
+
+	// Push to each remote
+	var pushErrors []string
+	for _, remote := range remotes {
+		if err := c.pushToRemote(ctx, repoPath, remote, info.Branch, opts); err != nil {
+			pushErrors = append(pushErrors, fmt.Sprintf("%s: %v", remote, err))
+		}
+	}
+
+	if len(pushErrors) > 0 {
+		result.Status = StatusError
+		result.Message = "Push failed for some remotes"
+		result.Error = fmt.Errorf("%s", strings.Join(pushErrors, "; "))
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Status = StatusSuccess
+	result.PushedCommits = info.AheadBy
+	if info.AheadBy > 0 {
+		result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to %d remote(s)", info.AheadBy, len(remotes))
+	} else {
+		result.Message = fmt.Sprintf("Successfully pushed to %d remote(s)", len(remotes))
+	}
+	result.Duration = time.Since(startTime)
+
+	logger.Info("repository pushed", "path", result.RelativePath, "commits", result.PushedCommits, "remotes", len(remotes))
+
+	return result
+}
+
+// pushToRemote performs the actual push to a single remote
+func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch string, opts BulkPushOptions) error {
 	// Build push command
 	pushArgs := []string{"push"}
 
 	if opts.Force {
-		pushArgs = append(pushArgs, "--force")
+		pushArgs = append(pushArgs, "--force-with-lease")
 	}
 
 	if opts.SetUpstream {
-		pushArgs = append(pushArgs, "--set-upstream", "origin", info.Branch)
+		pushArgs = append(pushArgs, "--set-upstream")
 	}
 
 	if opts.Tags {
@@ -1727,32 +1797,25 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		pushArgs = append(pushArgs, "--quiet")
 	}
 
+	pushArgs = append(pushArgs, remote)
+
+	// Add refspec or branch
+	if opts.Refspec != "" {
+		pushArgs = append(pushArgs, opts.Refspec)
+	} else {
+		pushArgs = append(pushArgs, branch)
+	}
+
 	// Perform push
 	pushResult, err := c.executor.Run(ctx, repoPath, pushArgs...)
 	if err != nil || pushResult.ExitCode != 0 {
-		result.Status = StatusError
-		result.Message = "Push failed"
 		if err != nil {
-			result.Error = err
-		} else {
-			result.Error = fmt.Errorf("push exited with code %d: %s", pushResult.ExitCode, pushResult.Error)
+			return err
 		}
-		result.Duration = time.Since(startTime)
-		return result
+		return fmt.Errorf("push exited with code %d: %s", pushResult.ExitCode, pushResult.Error)
 	}
 
-	result.Status = StatusSuccess
-	result.PushedCommits = info.AheadBy
-	if info.AheadBy > 0 {
-		result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to remote", info.AheadBy)
-	} else {
-		result.Message = "Successfully pushed to remote"
-	}
-	result.Duration = time.Since(startTime)
-
-	logger.Info("repository pushed", "path", result.RelativePath, "commits", result.PushedCommits)
-
-	return result
+	return nil
 }
 
 // calculatePushSummary creates a summary of push results by status

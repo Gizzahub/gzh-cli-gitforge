@@ -91,6 +91,15 @@ func TestPushOptions_Defaults(t *testing.T) {
 	if opts.Branch != "" {
 		t.Errorf("default Branch should be empty, got %q", opts.Branch)
 	}
+	if opts.Refspec != "" {
+		t.Errorf("default Refspec should be empty, got %q", opts.Refspec)
+	}
+	if len(opts.Remotes) != 0 {
+		t.Errorf("default Remotes should be empty, got %d items", len(opts.Remotes))
+	}
+	if opts.AllRemotes {
+		t.Error("default AllRemotes should be false")
+	}
 	if opts.Force {
 		t.Error("default Force should be false")
 	}
@@ -102,6 +111,45 @@ func TestPushOptions_Defaults(t *testing.T) {
 	}
 	if opts.SkipChecks {
 		t.Error("default SkipChecks should be false")
+	}
+}
+
+func TestPushOptions_WithRefspec(t *testing.T) {
+	opts := PushOptions{
+		Refspec: "develop:master",
+	}
+
+	if opts.Refspec != "develop:master" {
+		t.Errorf("Refspec = %q, want %q", opts.Refspec, "develop:master")
+	}
+}
+
+func TestPushOptions_WithMultipleRemotes(t *testing.T) {
+	opts := PushOptions{
+		Remotes: []string{"origin", "backup", "mirror"},
+	}
+
+	if len(opts.Remotes) != 3 {
+		t.Errorf("Remotes length = %d, want 3", len(opts.Remotes))
+	}
+	if opts.Remotes[0] != "origin" {
+		t.Errorf("Remotes[0] = %q, want %q", opts.Remotes[0], "origin")
+	}
+	if opts.Remotes[1] != "backup" {
+		t.Errorf("Remotes[1] = %q, want %q", opts.Remotes[1], "backup")
+	}
+	if opts.Remotes[2] != "mirror" {
+		t.Errorf("Remotes[2] = %q, want %q", opts.Remotes[2], "mirror")
+	}
+}
+
+func TestPushOptions_WithAllRemotes(t *testing.T) {
+	opts := PushOptions{
+		AllRemotes: true,
+	}
+
+	if !opts.AllRemotes {
+		t.Error("AllRemotes should be true")
 	}
 }
 

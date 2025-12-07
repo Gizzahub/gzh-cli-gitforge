@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 Interface-driven design with strict input sanitization for security.
 
----
+______________________________________________________________________
 
 ## Top 10 Commands
 
@@ -30,11 +30,12 @@ Interface-driven design with strict input sanitization for security.
 | `make install` | Install binary | Local testing |
 | `make clean` | Clean artifacts | Fresh start |
 
----
+______________________________________________________________________
 
 ## Absolute Rules (DO/DON'T)
 
 ### DO
+
 - ✅ Use `gzh-cli-core` for common utilities
 - ✅ Read `cmd/AGENTS_COMMON.md` before ANY modification
 - ✅ Run `make quality` before every commit
@@ -43,13 +44,14 @@ Interface-driven design with strict input sanitization for security.
 - ✅ Use git-specific test helpers from `internal/testutil`
 
 ### DON'T
+
 - ❌ Use shell execution (`sh -c`) - command injection risk
 - ❌ Concatenate user input into commands
 - ❌ Skip input validation
 - ❌ Log credentials or sensitive data
 - ❌ Commit without security tests
 
----
+______________________________________________________________________
 
 ## Directory Structure
 
@@ -70,7 +72,7 @@ Interface-driven design with strict input sanitization for security.
 └── docs/.claude-context/   # Context docs
 ```
 
----
+______________________________________________________________________
 
 ## Context Documentation
 
@@ -80,23 +82,27 @@ Interface-driven design with strict input sanitization for security.
 | [Security Guide](docs/.claude-context/security-guide.md) | Input sanitization, safe execution |
 
 **CRITICAL**: Read before modifying:
+
 - `cmd/AGENTS_COMMON.md` - Project-wide conventions
 - `cmd/gzh-git/AGENTS.md` - CLI-specific rules
 - [Security Guide](docs/.claude-context/security-guide.md) - Security requirements
 
----
+______________________________________________________________________
 
 ## Common Mistakes (Top 3)
 
 1. **Not sanitizing git inputs**
+
    - ⚠️ Command injection vulnerability
    - ✅ Always validate inputs, use `internal/gitcmd`
 
-2. **Using shell execution**
+1. **Using shell execution**
+
    - ⚠️ Security risk (`sh -c`)
    - ✅ Use `exec.Command("git", args...)` with separate args
 
-3. **Logging credentials**
+1. **Logging credentials**
+
    - ⚠️ URLs may contain credentials
    - ✅ Strip credentials before logging
 
@@ -115,6 +121,7 @@ import (
 ```
 
 **Git-specific test helpers**:
+
 ```go
 import "github.com/gizzahub/gzh-cli-git/internal/testutil"
 
@@ -176,7 +183,7 @@ A: `internal/gitcmd/` - safe command execution
 **Q: Where to add output parsing?**
 A: `internal/parser/` - git output parsing
 
----
+______________________________________________________________________
 
 **Last Updated**: 2025-12-06
 **Previous**: 234 lines → **Current**: 153 lines (35% reduction)

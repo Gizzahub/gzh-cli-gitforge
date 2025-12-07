@@ -18,6 +18,9 @@ var (
 	pushForce       bool
 	pushSetUpstream bool
 	pushTags        bool
+	pushRefspec     string
+	pushRemotes     []string
+	pushAllRemotes  bool
 )
 
 // pushCmd represents the push command
@@ -54,6 +57,18 @@ The command pushes your local commits to remote repositories.`,
   # Push all tags
   gz-git push --tags ~/repos
 
+  # Push with custom refspec (local:remote branch mapping)
+  gz-git push --refspec develop:master ~/projects
+
+  # Push to multiple remotes
+  gz-git push --remote origin --remote backup ~/projects
+
+  # Push to all configured remotes
+  gz-git push --all-remotes ~/projects
+
+  # Combine refspec with multiple remotes
+  gz-git push --refspec develop:master --remote origin --remote backup ~/work
+
   # Dry run to see what would be pushed
   gz-git push --dry-run ~/projects
 
@@ -85,6 +100,9 @@ func init() {
 	pushCmd.Flags().BoolVarP(&pushForce, "force", "f", false, "force push (use with caution!)")
 	pushCmd.Flags().BoolVarP(&pushSetUpstream, "set-upstream", "u", false, "set upstream for new branches")
 	pushCmd.Flags().BoolVarP(&pushTags, "tags", "t", false, "push all tags to remote")
+	pushCmd.Flags().StringVar(&pushRefspec, "refspec", "", "custom refspec (e.g., 'develop:master' to push local develop to remote master)")
+	pushCmd.Flags().StringSliceVar(&pushRemotes, "remote", []string{}, "remote(s) to push to (can be specified multiple times)")
+	pushCmd.Flags().BoolVar(&pushAllRemotes, "all-remotes", false, "push to all configured remotes")
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
@@ -117,6 +135,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 		Force:             pushForce,
 		SetUpstream:       pushSetUpstream,
 		Tags:              pushTags,
+		Refspec:           pushRefspec,
+		Remotes:           pushRemotes,
+		AllRemotes:        pushAllRemotes,
 		IncludeSubmodules: pushFlags.IncludeSubmodules,
 		IncludePattern:    pushFlags.Include,
 		ExcludePattern:    pushFlags.Exclude,

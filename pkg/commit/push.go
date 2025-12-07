@@ -21,9 +21,12 @@ type SmartPush interface {
 // PushOptions configures push behavior.
 type PushOptions struct {
 	Remote      string
+	Remotes     []string // Multiple remotes for multi-push
 	Branch      string
+	Refspec     string // Custom refspec (e.g., "develop:master")
 	Force       bool
 	SetUpstream bool
+	AllRemotes  bool // Push to all configured remotes
 	DryRun      bool
 	SkipChecks  bool // For emergency use
 }
@@ -75,11 +78,14 @@ func (p *smartPush) Push(ctx context.Context, repo *repository.Repository, opts 
 		return fmt.Errorf("repository cannot be nil")
 	}
 
-	// Set defaults
-	if opts.Remote == "" {
-		opts.Remote = "origin"
+	// Determine target remotes
+	remotes, err := p.getTargetRemotes(ctx, repo, opts)
+	if err != nil {
+		return fmt.Errorf("failed to determine target remotes: %w", err)
 	}
-	if opts.Branch == "" {
+
+	// Set default branch if not using custom refspec
+	if opts.Branch == "" && opts.Refspec == "" {
 		// Get current branch
 		currentBranch, err := p.getCurrentBranch(ctx, repo)
 		if err != nil {
@@ -114,6 +120,66 @@ func (p *smartPush) Push(ctx context.Context, repo *repository.Repository, opts 
 		}
 	}
 
+	// Push to each remote
+	var errors []string
+	for _, remote := range remotes {
+		if err := p.pushToRemote(ctx, repo, remote, opts); err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", remote, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("push failed for some remotes: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// getTargetRemotes determines which remotes to push to based on options.
+func (p *smartPush) getTargetRemotes(ctx context.Context, repo *repository.Repository, opts PushOptions) ([]string, error) {
+	// Priority: Remotes array > AllRemotes > Single Remote
+	if len(opts.Remotes) > 0 {
+		return opts.Remotes, nil
+	}
+
+	if opts.AllRemotes {
+		return p.getAllRemotes(ctx, repo)
+	}
+
+	remote := opts.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+	return []string{remote}, nil
+}
+
+// getAllRemotes retrieves all configured remotes for the repository.
+func (p *smartPush) getAllRemotes(ctx context.Context, repo *repository.Repository) ([]string, error) {
+	result, err := p.executor.Run(ctx, repo.Path, "remote")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get remotes: %w", err)
+	}
+
+	if result.ExitCode != 0 {
+		return nil, fmt.Errorf("failed to get remotes: %s", result.Stderr)
+	}
+
+	remotes := []string{}
+	for _, line := range strings.Split(strings.TrimSpace(result.Stdout), "\n") {
+		if remote := strings.TrimSpace(line); remote != "" {
+			remotes = append(remotes, remote)
+		}
+	}
+
+	if len(remotes) == 0 {
+		return nil, fmt.Errorf("no remotes configured")
+	}
+
+	return remotes, nil
+}
+
+// pushToRemote performs the actual push to a single remote.
+func (p *smartPush) pushToRemote(ctx context.Context, repo *repository.Repository, remote string, opts PushOptions) error {
 	// Build push command
 	args := []string{"push"}
 
@@ -123,11 +189,19 @@ func (p *smartPush) Push(ctx context.Context, repo *repository.Repository, opts 
 
 	if opts.Force {
 		// Additional check for force push to protected branches
-		if protectedBranches[opts.Branch] && !opts.SkipChecks {
+		branchName := opts.Branch
+		if opts.Refspec != "" {
+			// Extract local branch from refspec (format: local:remote)
+			parts := strings.Split(opts.Refspec, ":")
+			if len(parts) > 0 {
+				branchName = parts[0]
+			}
+		}
+		if protectedBranches[branchName] && !opts.SkipChecks {
 			return &CommitError{
 				Op:      "push",
 				Cause:   ErrPushBlocked,
-				Message: fmt.Sprintf("force push to protected branch '%s' is not allowed", opts.Branch),
+				Message: fmt.Sprintf("force push to protected branch '%s' is not allowed", branchName),
 				Hints:   []string{"use --skip-checks flag only if absolutely necessary"},
 			}
 		}
@@ -138,7 +212,14 @@ func (p *smartPush) Push(ctx context.Context, repo *repository.Repository, opts 
 		args = append(args, "--set-upstream")
 	}
 
-	args = append(args, opts.Remote, opts.Branch)
+	args = append(args, remote)
+
+	// Add refspec or branch
+	if opts.Refspec != "" {
+		args = append(args, opts.Refspec)
+	} else {
+		args = append(args, opts.Branch)
+	}
 
 	// Execute push
 	result, err := p.executor.Run(ctx, repo.Path, args...)

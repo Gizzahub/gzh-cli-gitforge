@@ -3,6 +3,7 @@
 ## Input Sanitization (Critical)
 
 ### Why It Matters
+
 Git commands can be exploited through command injection if inputs aren't sanitized.
 
 ### Dangerous Patterns to Avoid
@@ -24,9 +25,9 @@ func goodExample(url string) error {
 ### Sanitization Rules
 
 1. **Never use shell execution** (`sh -c`)
-2. **Always pass arguments separately** (not concatenated)
-3. **Validate input format** before execution
-4. **Use allowlists** for known-safe values
+1. **Always pass arguments separately** (not concatenated)
+1. **Validate input format** before execution
+1. **Use allowlists** for known-safe values
 
 ### Validation Functions
 

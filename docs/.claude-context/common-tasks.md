@@ -3,9 +3,11 @@
 ## Adding New Git Commands
 
 ### Where to add
+
 `cmd/gzh-git/` - create new command file
 
 ### Example
+
 ```go
 // cmd/gzh-git/status.go
 var statusCmd = &cobra.Command{
@@ -27,9 +29,11 @@ func init() {
 ## Adding Git Execution Logic
 
 ### Where to add
+
 `internal/gitcmd/` - safe command execution
 
 ### Example
+
 ```go
 // internal/gitcmd/executor.go
 func (e *Executor) Run(ctx context.Context, args ...string) error {
@@ -44,9 +48,11 @@ func (e *Executor) Run(ctx context.Context, args ...string) error {
 ## Adding Output Parsing
 
 ### Where to add
+
 `internal/parser/` - git output parsing
 
 ### Example
+
 ```go
 // internal/parser/status.go
 func ParseStatus(output string) (*Status, error) {
@@ -59,9 +65,11 @@ func ParseStatus(output string) (*Status, error) {
 ## Adding Public APIs
 
 ### Where to add
+
 `pkg/{feature}/` directory
 
 ### Example
+
 ```go
 // pkg/branch/branch.go
 package branch
