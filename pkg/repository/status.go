@@ -40,6 +40,9 @@ const (
 	// StatusNothingToPush indicates there are no commits to push.
 	StatusNothingToPush = "nothing-to-push"
 
+	// StatusClean indicates the repository working tree is clean.
+	StatusClean = "clean"
+
 	// StatusDirty indicates the repository has uncommitted changes.
 	StatusDirty = "dirty"
 

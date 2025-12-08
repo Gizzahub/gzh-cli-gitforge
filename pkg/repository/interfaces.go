@@ -45,6 +45,10 @@ type Client interface {
 	// This is useful for pushing local commits from multiple repositories at once.
 	BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushResult, error)
 
+	// BulkStatus scans for repositories and checks their status in parallel.
+	// This is useful for checking the working tree status of multiple repositories at once.
+	BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkStatusResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

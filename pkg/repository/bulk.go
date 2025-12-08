@@ -320,6 +320,103 @@ type RepositoryPushResult struct {
 	PushedCommits int
 }
 
+// BulkStatusOptions configures bulk repository status check operations
+type BulkStatusOptions struct {
+	// Directory is the root directory to scan for repositories
+	Directory string
+
+	// Parallel is the number of concurrent workers (default: 5)
+	Parallel int
+
+	// MaxDepth is the maximum directory depth to scan (default: 5)
+	MaxDepth int
+
+	// Verbose enables detailed logging for all repositories (including clean ones)
+	Verbose bool
+
+	// IncludeSubmodules includes git submodules in the scan (default: false)
+	// When false, only scans for independent nested repositories
+	IncludeSubmodules bool
+
+	// IncludePattern is a regex pattern for repositories to include
+	IncludePattern string
+
+	// ExcludePattern is a regex pattern for repositories to exclude
+	ExcludePattern string
+
+	// Logger for operation feedback
+	Logger Logger
+
+	// ProgressCallback is called for each processed repository
+	ProgressCallback func(current, total int, repo string)
+}
+
+// BulkStatusResult contains the results of a bulk status operation
+type BulkStatusResult struct {
+	// TotalScanned is the number of repositories found
+	TotalScanned int
+
+	// TotalProcessed is the number of repositories processed
+	TotalProcessed int
+
+	// Repositories contains individual repository results
+	Repositories []RepositoryStatusResult
+
+	// Duration is the total operation time
+	Duration time.Duration
+
+	// Summary contains status counts
+	Summary map[string]int
+}
+
+// RepositoryStatusResult represents the status result for a single repository
+type RepositoryStatusResult struct {
+	// Path is the repository path
+	Path string
+
+	// RelativePath is the path relative to scan root
+	RelativePath string
+
+	// Status is the operation status (clean, dirty, conflict, error, etc.)
+	Status string
+
+	// Message is a human-readable status message
+	Message string
+
+	// Error if the operation failed
+	Error error
+
+	// Duration is how long this repository took to process
+	Duration time.Duration
+
+	// Branch is the current branch name
+	Branch string
+
+	// RemoteURL is the remote origin URL
+	RemoteURL string
+
+	// CommitsBehind is how many commits behind remote
+	CommitsBehind int
+
+	// CommitsAhead is how many commits ahead of remote
+	CommitsAhead int
+
+	// UncommittedFiles is the number of uncommitted files (modified/staged)
+	UncommittedFiles int
+
+	// UntrackedFiles is the number of untracked files
+	UntrackedFiles int
+
+	// ConflictFiles is the list of files with conflicts
+	ConflictFiles []string
+
+	// RebaseInProgress indicates if repository is in rebase state
+	RebaseInProgress bool
+
+	// MergeInProgress indicates if repository is in merge state
+	MergeInProgress bool
+}
+
 // BulkUpdateOptions configures bulk repository update operations
 type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -1332,13 +1429,10 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
-	// Check if already up to date
-	if result.CommitsBehind == 0 {
-		result.Status = StatusUpToDate
-		result.Message = "Already up to date"
-		result.Duration = time.Since(startTime)
-		return result
-	}
+	// Note: We don't check CommitsBehind here because:
+	// 1. GetInfo() uses local remote-tracking branches which may be stale
+	// 2. git pull internally does fetch first, so it will check the real remote state
+	// 3. git pull will return "Already up to date" if there's nothing to pull
 
 	// Build pull command based on strategy
 	pullArgs := []string{"pull"}
@@ -1417,8 +1511,19 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
-	result.Status = StatusSuccess
-	result.Message = fmt.Sprintf("Successfully pulled %d commit(s) from remote", result.CommitsBehind)
+	// Check if git pull reported "Already up to date"
+	outputStr := strings.ToLower(pullResult.Stdout + pullResult.Stderr)
+	if strings.Contains(outputStr, "already up to date") || strings.Contains(outputStr, "already up-to-date") {
+		result.Status = StatusUpToDate
+		result.Message = "Already up to date"
+	} else {
+		result.Status = StatusSuccess
+		if result.CommitsBehind > 0 {
+			result.Message = fmt.Sprintf("Successfully pulled %d commit(s) from remote", result.CommitsBehind)
+		} else {
+			result.Message = "Successfully pulled from remote"
+		}
+	}
 	result.Duration = time.Since(startTime)
 
 	// Pop stash if we stashed earlier
@@ -1820,6 +1925,222 @@ func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch stri
 
 // calculatePushSummary creates a summary of push results by status
 func calculatePushSummary(results []RepositoryPushResult) map[string]int {
+	summary := make(map[string]int)
+
+	for _, result := range results {
+		summary[result.Status]++
+	}
+
+	return summary
+}
+
+// BulkStatus scans for repositories and checks their status in parallel
+func (c *client) BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkStatusResult, error) {
+	startTime := time.Now()
+
+	// Initialize common settings
+	common, err := initializeBulkOperation(
+		opts.Directory,
+		opts.Parallel,
+		opts.MaxDepth,
+		opts.IncludeSubmodules,
+		opts.IncludePattern,
+		opts.ExcludePattern,
+		opts.Logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update opts with initialized values
+	opts.Directory = common.Directory
+	opts.Parallel = common.Parallel
+	opts.MaxDepth = common.MaxDepth
+	opts.Logger = common.Logger
+
+	// Scan and filter repositories
+	filteredRepos, totalScanned, err := c.scanAndFilterRepositories(ctx, common)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle empty result
+	if len(filteredRepos) == 0 {
+		return &BulkStatusResult{
+			TotalScanned:   totalScanned,
+			TotalProcessed: 0,
+			Repositories:   []RepositoryStatusResult{},
+			Duration:       time.Since(startTime),
+			Summary:        map[string]int{},
+		}, nil
+	}
+
+	// Process repositories in parallel
+	results, err := c.processStatusRepositories(ctx, opts.Directory, filteredRepos, opts, common.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process repositories: %w", err)
+	}
+
+	// Calculate summary
+	summary := calculateStatusSummary(results)
+
+	return &BulkStatusResult{
+		TotalScanned:   totalScanned,
+		TotalProcessed: len(filteredRepos),
+		Repositories:   results,
+		Duration:       time.Since(startTime),
+		Summary:        summary,
+	}, nil
+}
+
+// processStatusRepositories processes repositories in parallel for status check
+func (c *client) processStatusRepositories(ctx context.Context, rootDir string, repos []string, opts BulkStatusOptions, logger Logger) ([]RepositoryStatusResult, error) {
+	results := make([]RepositoryStatusResult, len(repos))
+	var mu sync.Mutex
+
+	// Create error group with concurrency limit
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.Parallel)
+
+	for i, repoPath := range repos {
+		i, repoPath := i, repoPath // capture loop variables
+
+		g.Go(func() error {
+			// Call progress callback
+			if opts.ProgressCallback != nil {
+				opts.ProgressCallback(i+1, len(repos), repoPath)
+			}
+
+			result := c.processStatusRepository(gctx, rootDir, repoPath, opts, logger)
+
+			mu.Lock()
+			results[i] = result
+			mu.Unlock()
+
+			return nil // Don't fail entire operation on single repo error
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// processStatusRepository processes a single repository status check
+func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath string, opts BulkStatusOptions, logger Logger) RepositoryStatusResult {
+	startTime := time.Now()
+
+	result := RepositoryStatusResult{
+		Path:         repoPath,
+		RelativePath: getRelativePath(rootDir, repoPath),
+		Duration:     0,
+	}
+
+	// Open repository
+	repo, err := c.Open(ctx, repoPath)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to open repository"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Get repository info
+	info, err := c.GetInfo(ctx, repo)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to get repository info"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.Branch = info.Branch
+	result.RemoteURL = info.RemoteURL
+	result.CommitsBehind = info.BehindBy
+	result.CommitsAhead = info.AheadBy
+
+	// Get status
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to get repository status"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	// Check detailed repository state
+	repoState, err := c.checkRepositoryState(ctx, repoPath)
+	if err != nil {
+		result.Status = StatusError
+		result.Message = "Failed to check repository state"
+		result.Error = err
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	result.RebaseInProgress = repoState.RebaseInProgress
+	result.MergeInProgress = repoState.MergeInProgress
+	result.ConflictFiles = repoState.ConflictedFiles
+	result.UncommittedFiles = repoState.UncommittedFiles
+	result.UntrackedFiles = len(status.UntrackedFiles)
+
+	// Determine status
+	if repoState.HasConflicts {
+		result.Status = StatusConflict
+		result.Message = fmt.Sprintf("Repository has conflicts in %d file(s)", len(repoState.ConflictedFiles))
+	} else if repoState.RebaseInProgress {
+		result.Status = StatusRebaseInProgress
+		result.Message = "Rebase in progress"
+	} else if repoState.MergeInProgress {
+		result.Status = StatusMergeInProgress
+		result.Message = "Merge in progress"
+	} else if info.RemoteURL == "" {
+		if status.IsClean {
+			result.Status = StatusNoRemote
+			result.Message = "No remote configured (clean)"
+		} else {
+			result.Status = StatusDirty
+			result.Message = "Working tree has uncommitted changes (no remote)"
+		}
+	} else if info.Upstream == "" {
+		if status.IsClean {
+			result.Status = StatusNoUpstream
+			result.Message = "No upstream branch configured (clean)"
+		} else {
+			result.Status = StatusDirty
+			result.Message = "Working tree has uncommitted changes (no upstream)"
+		}
+	} else if !status.IsClean {
+		result.Status = StatusDirty
+		result.Message = fmt.Sprintf("Working tree has %d uncommitted file(s), %d untracked file(s)",
+			result.UncommittedFiles, result.UntrackedFiles)
+	} else {
+		result.Status = StatusClean
+		if info.AheadBy > 0 && info.BehindBy > 0 {
+			result.Message = fmt.Sprintf("Clean (%d ahead, %d behind)", info.AheadBy, info.BehindBy)
+		} else if info.AheadBy > 0 {
+			result.Message = fmt.Sprintf("Clean (%d ahead)", info.AheadBy)
+		} else if info.BehindBy > 0 {
+			result.Message = fmt.Sprintf("Clean (%d behind)", info.BehindBy)
+		} else {
+			result.Message = "Clean and up to date"
+		}
+	}
+
+	result.Duration = time.Since(startTime)
+
+	logger.Info("repository status checked", "path", result.RelativePath, "status", result.Status)
+
+	return result
+}
+
+// calculateStatusSummary creates a summary of status results by status
+func calculateStatusSummary(results []RepositoryStatusResult) map[string]int {
 	summary := make(map[string]int)
 
 	for _, result := range results {
