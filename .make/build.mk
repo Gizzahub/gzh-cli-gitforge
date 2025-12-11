@@ -22,6 +22,8 @@ else
 SEP := /
 endif
 
+USERBIN := $(HOME)$(SEP).local$(SEP)bin
+
 ifeq ($(strip $(GOBIN)),)
   ifeq ($(OS),Windows_NT)
     BINDIR := $(GOPATH)$(SEP)bin
@@ -46,6 +48,11 @@ build: ## build golang binary
 
 install: build ## install golang binary
 	@printf "$(CYAN)Installing $(BINARY) $(VERSION) to %s$(RESET)\n" "$(BINDIR)$(SEP)$(BINARY)"
+	@mkdir -p "$(BINDIR)"
+	@mkdir -p "$(USERBIN)"
+	@echo @mkdir -p "$(USERBIN)"
+	@cp $(BINARY) "$(USERBIN)"/"$(BINARY)"
+	@echo @cp $(BINARY) "$(USERBIN)"/"$(BINARY)"
 	@mv $(BINARY) "$(BINDIR)"/
 	@printf "$(GREEN)✅ Installed $(BINARY) $(VERSION) to %s$(RESET)\n" "$(BINDIR)$(SEP)$(BINARY)"
 	@echo ""
