@@ -32,22 +32,22 @@ Supported URL formats:
 
 If directory is not specified, the repository name is used.`,
 	Example: `  # Clone a repository
-  gzh-git clone https://github.com/user/repo.git
+  gz-git clone https://github.com/user/repo.git
 
   # Clone into specific directory
-  gzh-git clone https://github.com/user/repo.git my-repo
+  gz-git clone https://github.com/user/repo.git my-repo
 
   # Clone specific branch
-  gzh-git clone -b develop https://github.com/user/repo.git
+  gz-git clone -b develop https://github.com/user/repo.git
 
   # Shallow clone (only latest commit)
-  gzh-git clone --depth 1 https://github.com/user/repo.git
+  gz-git clone --depth 1 https://github.com/user/repo.git
 
   # Clone with submodules
-  gzh-git clone --recursive https://github.com/user/repo.git
+  gz-git clone --recursive https://github.com/user/repo.git
 
   # Clone only single branch (faster)
-  gzh-git clone --single-branch https://github.com/user/repo.git`,
+  gz-git clone --single-branch https://github.com/user/repo.git`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runClone,
 }

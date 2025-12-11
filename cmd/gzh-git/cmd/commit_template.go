@@ -19,13 +19,13 @@ var templateCmd = &cobra.Command{
 Templates define the format and validation rules for commit messages.
 Built-in templates: conventional, semantic`,
 	Example: `  # List all templates
-  gzh-git commit template list
+  gz-git commit template list
 
   # Show template details
-  gzh-git commit template show conventional
+  gz-git commit template show conventional
 
   # Validate custom template file
-  gzh-git commit template validate mytemplate.yaml`,
+  gz-git commit template validate mytemplate.yaml`,
 }
 
 // templateListCmd lists all available templates

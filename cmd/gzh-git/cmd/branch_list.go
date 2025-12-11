@@ -28,19 +28,19 @@ var listCmd = &cobra.Command{
 By default, shows only local branches. Use flags to show remote branches,
 merged branches, or unmerged branches.`,
 	Example: `  # List local branches
-  gzh-git branch list
+  gz-git branch list
 
   # List all branches (local and remote)
-  gzh-git branch list --all
+  gz-git branch list --all
 
   # List only remote branches
-  gzh-git branch list --remote
+  gz-git branch list --remote
 
   # List only merged branches
-  gzh-git branch list --merged
+  gz-git branch list --merged
 
   # List only unmerged branches
-  gzh-git branch list --no-merged`,
+  gz-git branch list --no-merged`,
 	RunE: runBranchList,
 }
 

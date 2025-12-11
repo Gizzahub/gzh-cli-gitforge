@@ -27,16 +27,16 @@ var createCmd = &cobra.Command{
 The branch is created from the current HEAD or a specified base branch.
 Optionally create a worktree for parallel development.`,
 	Example: `  # Create a new branch
-  gzh-git branch create feature/new-feature
+  gz-git branch create feature/new-feature
 
   # Create from specific base
-  gzh-git branch create feature/auth --base main
+  gz-git branch create feature/auth --base main
 
   # Create with worktree
-  gzh-git branch create feature/auth --worktree ./worktrees/auth
+  gz-git branch create feature/auth --worktree ./worktrees/auth
 
   # Create and track upstream
-  gzh-git branch create feature/api --track`,
+  gz-git branch create feature/api --track`,
 	Args: cobra.ExactArgs(1),
 	RunE: runBranchCreate,
 }

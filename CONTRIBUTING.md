@@ -765,7 +765,7 @@ Follow these conventions:
 
 Never commit build artifacts:
 
-- Binaries: `gzh-git`, `*.exe`
+- Binaries: `gz-git`, `*.exe`
 - Coverage: `coverage.out`, `coverage.html`
 - Temporary: `tmp/`, `*.tmp`
 

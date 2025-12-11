@@ -22,10 +22,10 @@ var infoCmd = &cobra.Command{
 
 If no path is specified, the current directory is used.`,
 	Example: `  # Show info for current directory
-  gzh-git info
+  gz-git info
 
   # Show info for specific repository
-  gzh-git info /path/to/repo`,
+  gz-git info /path/to/repo`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInfo,
 }

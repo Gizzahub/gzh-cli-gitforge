@@ -292,19 +292,19 @@ ______________________________________________________________________
 **US-1**: As a developer, I want to create commits using templates so that my commit messages follow team conventions.
 
 ```bash
-gzh-git commit --template conventional --type feat --scope cli
+gz-git commit --template conventional --type feat --scope cli
 ```
 
 **US-2**: As a developer, I want to auto-generate commit messages from my changes so that I save time writing messages.
 
 ```bash
-gzh-git commit --auto
+gz-git commit --auto
 ```
 
 **US-3**: As a team lead, I want to prevent accidental force pushes so that we don't lose history.
 
 ```bash
-gzh-git push --smart  # Blocks force push to main
+gz-git push --smart  # Blocks force push to main
 ```
 
 ### 5.2 Branch Management
@@ -312,14 +312,14 @@ gzh-git push --smart  # Blocks force push to main
 **US-4**: As a developer, I want to work on multiple features in parallel using worktrees so that I don't lose context switching.
 
 ```bash
-gzh-git worktree add ~/work/feature-auth feature/auth
-gzh-git worktree add ~/work/feature-api feature/api
+gz-git worktree add ~/work/feature-auth feature/auth
+gz-git worktree add ~/work/feature-api feature/api
 ```
 
 **US-5**: As a developer, I want to clean up merged branches automatically so that my branch list stays manageable.
 
 ```bash
-gzh-git branch cleanup --merged --dry-run
+gz-git branch cleanup --merged --dry-run
 ```
 
 ### 5.3 History Analysis
@@ -327,13 +327,13 @@ gzh-git branch cleanup --merged --dry-run
 **US-6**: As a project manager, I want to see commit statistics so that I can track team velocity.
 
 ```bash
-gzh-git stats commits --since 2025-01-01 --format table
+gz-git stats commits --since 2025-01-01 --format table
 ```
 
 **US-7**: As a developer, I want to see who contributed to a file so that I know who to ask questions.
 
 ```bash
-gzh-git history file src/main.go --contributors
+gz-git history file src/main.go --contributors
 ```
 
 ### 5.4 Advanced Merge/Rebase
@@ -341,13 +341,13 @@ gzh-git history file src/main.go --contributors
 **US-8**: As a developer, I want to detect conflicts before merging so that I can prepare resolution strategies.
 
 ```bash
-gzh-git merge --detect-conflicts feature/auth
+gz-git merge --detect-conflicts feature/auth
 ```
 
 **US-9**: As a DevOps engineer, I want to auto-resolve non-critical conflicts in CI so that builds don't block on trivial merges.
 
 ```bash
-gzh-git merge --auto-resolve feature/auth --strategy theirs --policy safe
+gz-git merge --auto-resolve feature/auth --strategy theirs --policy safe
 ```
 
 ### 5.5 Library Integration

@@ -15,13 +15,13 @@ This command provides subcommands for:
   - Commit message validation against templates
   - Template management (list, show, validate)`,
 	Example: `  # Auto-generate and commit with conventional commits
-  gzh-git commit auto
+  gz-git commit auto
 
   # Validate a commit message
-  gzh-git commit validate "feat(auth): add login endpoint"
+  gz-git commit validate "feat(auth): add login endpoint"
 
   # List available templates
-  gzh-git commit template list`,
+  gz-git commit template list`,
 }
 
 func init() {

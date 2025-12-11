@@ -1354,14 +1354,14 @@ go get github.com/gizzahub/gzh-cli-git@latest
 **Homebrew (macOS/Linux):**
 
 ```bash
-brew install gzh-git
+brew install gz-git
 ```
 
 **Direct Download:**
 
 ```bash
-curl -sL https://github.com/gizzahub/gzh-cli-git/releases/latest/download/gzh-git-linux-amd64 -o gzh-git
-chmod +x gzh-git
+curl -sL https://github.com/gizzahub/gzh-cli-git/releases/latest/download/gzh-git-linux-amd64 -o gz-git
+chmod +x gz-git
 ```
 
 ______________________________________________________________________

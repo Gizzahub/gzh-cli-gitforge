@@ -37,16 +37,16 @@ This command will:
 6. Create the commit (unless --dry-run)`,
 	Example: `  # Auto-commit staged changes
   git add .
-  gzh-git commit auto
+  gz-git commit auto
 
   # Preview message without committing
-  gzh-git commit auto --dry-run
+  gz-git commit auto --dry-run
 
   # Override detected type and scope
-  gzh-git commit auto --type feat --scope auth
+  gz-git commit auto --type feat --scope auth
 
   # Use different template
-  gzh-git commit auto --template semantic`,
+  gz-git commit auto --template semantic`,
 	RunE: runCommitAuto,
 }
 

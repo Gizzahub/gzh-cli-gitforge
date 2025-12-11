@@ -42,25 +42,25 @@ changes as they happen, including:
 By default, it monitors the current directory. You can specify multiple
 repository paths to monitor them simultaneously.`,
 	Example: `  # Watch current directory
-  gzh-git watch
+  gz-git watch
 
   # Watch specific repository
-  gzh-git watch /path/to/repo
+  gz-git watch /path/to/repo
 
   # Watch multiple repositories
-  gzh-git watch /path/to/repo1 /path/to/repo2
+  gz-git watch /path/to/repo1 /path/to/repo2
 
   # Watch with custom interval (default: 2s)
-  gzh-git watch --interval 5s
+  gz-git watch --interval 5s
 
   # Include notifications when repository becomes clean
-  gzh-git watch --include-clean
+  gz-git watch --include-clean
 
   # Compact output format
-  gzh-git watch --format compact
+  gz-git watch --format compact
 
   # JSON output format (machine-readable)
-  gzh-git watch --format json`,
+  gz-git watch --format json`,
 	RunE: runWatch,
 }
 

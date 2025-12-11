@@ -34,19 +34,19 @@ Supports various merge strategies and options:
 - Squash merge (combine all commits)
 - No-commit merge (stage without committing)`,
 	Example: `  # Merge feature branch
-  gzh-git merge do feature/new-feature
+  gz-git merge do feature/new-feature
 
   # Fast-forward only
-  gzh-git merge do feature/new-feature --ff-only
+  gz-git merge do feature/new-feature --ff-only
 
   # Squash merge
-  gzh-git merge do feature/new-feature --squash
+  gz-git merge do feature/new-feature --squash
 
   # Merge without committing
-  gzh-git merge do feature/new-feature --no-commit
+  gz-git merge do feature/new-feature --no-commit
 
   # Merge with custom message
-  gzh-git merge do feature/new-feature --message "Merge feature X"`,
+  gz-git merge do feature/new-feature --message "Merge feature X"`,
 	Args: cobra.ExactArgs(1),
 	RunE: runMergeDo,
 }
@@ -159,7 +159,7 @@ func runMergeDo(cmd *cobra.Command, args []string) error {
 				fmt.Printf("  - %s\n", conflict.FilePath)
 			}
 			fmt.Println()
-			fmt.Println("Resolve conflicts and commit, or run 'gzh-git merge abort' to cancel.")
+			fmt.Println("Resolve conflicts and commit, or run 'gz-git merge abort' to cancel.")
 		}
 	}
 

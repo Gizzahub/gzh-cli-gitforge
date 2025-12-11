@@ -165,7 +165,7 @@ func (c *client) CloneOrUpdate(ctx context.Context, opts CloneOrUpdateOptions) (
 			}
 			return c.performCloneOperation(ctx, opts, logger)
 		}
-		return nil, fmt.Errorf("target directory exists but is not a git repository (use Strategy=Clone or Force=true to replace)")
+		return nil, fmt.Errorf("target directory '%s' exists but is not a git repository (use --strategy=clone or --force to replace)", opts.Destination)
 
 	case exists && isGitRepo:
 		// Directory exists and is a git repo - apply update strategy

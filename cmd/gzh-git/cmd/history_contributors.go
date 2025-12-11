@@ -32,19 +32,19 @@ var contributorsCmd = &cobra.Command{
 Shows contributor statistics including total commits, lines added/removed,
 first and last commit dates, and activity trends.`,
 	Example: `  # List all contributors
-  gzh-git history contributors
+  gz-git history contributors
 
   # Top 10 contributors
-  gzh-git history contributors --top 10
+  gz-git history contributors --top 10
 
   # Contributors with at least 5 commits
-  gzh-git history contributors --min-commits 5
+  gz-git history contributors --min-commits 5
 
   # Contributors since last month
-  gzh-git history contributors --since "2024-10-01"
+  gz-git history contributors --since "2024-10-01"
 
   # Export as JSON
-  gzh-git history contributors --format json > contributors.json`,
+  gz-git history contributors --format json > contributors.json`,
 	RunE: runHistoryContributors,
 }
 

@@ -16,16 +16,16 @@ This command provides subcommands for:
   - File history tracking
   - Line-by-line authorship (blame)`,
 	Example: `  # Show commit statistics
-  gzh-git history stats
+  gz-git history stats
 
   # List top contributors
-  gzh-git history contributors --top 10
+  gz-git history contributors --top 10
 
   # View file history
-  gzh-git history file src/main.go
+  gz-git history file src/main.go
 
   # Show line-by-line authorship
-  gzh-git history blame src/main.go`,
+  gz-git history blame src/main.go`,
 }
 
 func init() {

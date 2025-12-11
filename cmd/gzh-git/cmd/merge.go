@@ -16,16 +16,16 @@ This command provides subcommands for:
   - Aborting in-progress merges
   - Rebasing branches with conflict handling`,
 	Example: `  # Merge a branch
-  gzh-git merge do feature/new-feature
+  gz-git merge do feature/new-feature
 
   # Detect conflicts before merging
-  gzh-git merge detect feature/new-feature main
+  gz-git merge detect feature/new-feature main
 
   # Abort an in-progress merge
-  gzh-git merge abort
+  gz-git merge abort
 
   # Rebase current branch
-  gzh-git merge rebase main`,
+  gz-git merge rebase main`,
 }
 
 func init() {

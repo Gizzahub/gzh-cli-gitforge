@@ -31,25 +31,25 @@ Available Strategies:
 
 Examples:
   # Clone into directory named from repository (e.g., 'repo')
-  gzh-git update https://github.com/user/repo.git
+  gz-git update https://github.com/user/repo.git
 
   # Clone or rebase existing repository with explicit path
-  gzh-git update https://github.com/user/repo.git ./my-repo
+  gz-git update https://github.com/user/repo.git ./my-repo
 
   # Force fresh clone by removing existing directory
-  gzh-git update --strategy clone https://github.com/user/repo.git
+  gz-git update --strategy clone https://github.com/user/repo.git
 
   # Update existing repository with hard reset (discard local changes)
-  gzh-git update --strategy reset https://github.com/user/repo.git ./repo
+  gz-git update --strategy reset https://github.com/user/repo.git ./repo
 
   # Skip existing repositories (useful for automation)
-  gzh-git update --strategy skip https://github.com/user/repo.git
+  gz-git update --strategy skip https://github.com/user/repo.git
 
   # Clone specific branch with shallow history
-  gzh-git update --branch develop --depth 1 https://github.com/user/repo.git
+  gz-git update --branch develop --depth 1 https://github.com/user/repo.git
 
   # Create branch if it doesn't exist on remote
-  gzh-git update --branch develop --create-branch https://github.com/user/repo.git`,
+  gz-git update --branch develop --create-branch https://github.com/user/repo.git`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runUpdate,
 }
@@ -61,6 +61,7 @@ var updateOpts struct {
 	force        bool
 	verbose      bool
 	createBranch bool
+	batch        bool
 }
 
 func init() {
@@ -76,6 +77,8 @@ func init() {
 		"Enable verbose logging")
 	updateCmd.Flags().BoolVarP(&updateOpts.createBranch, "create-branch", "c", false,
 		"Create branch if it doesn't exist on remote (only effective with --branch)")
+	updateCmd.Flags().BoolVar(&updateOpts.batch, "batch", false,
+		"Batch mode: suppress usage message on errors (for use in scripts/automation)")
 
 	rootCmd.AddCommand(updateCmd)
 }
@@ -135,6 +138,13 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Execute clone-or-update
 	result, err := client.CloneOrUpdate(ctx, opts)
 	if err != nil {
+		fmt.Printf("❌ Failed to clone or update repository: %s\n", opts.Destination)
+		if updateOpts.batch {
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
 		return fmt.Errorf("failed to clone or update repository: %w", err)
 	}
 

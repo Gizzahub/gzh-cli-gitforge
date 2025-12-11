@@ -29,19 +29,19 @@ var rebaseCmd = &cobra.Command{
 Rebasing rewrites commit history by replaying commits on top of another branch.
 This creates a linear history without merge commits.`,
 	Example: `  # Rebase onto main
-  gzh-git merge rebase main
+  gz-git merge rebase main
 
   # Rebase onto specific commit
-  gzh-git merge rebase --onto abc123 main
+  gz-git merge rebase --onto abc123 main
 
   # Continue after resolving conflicts
-  gzh-git merge rebase --continue
+  gz-git merge rebase --continue
 
   # Skip current commit
-  gzh-git merge rebase --skip
+  gz-git merge rebase --skip
 
   # Abort rebase
-  gzh-git merge rebase --abort`,
+  gz-git merge rebase --abort`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runMergeRebase,
 }
@@ -172,13 +172,13 @@ func displayRebaseResult(result *merge.RebaseResult) {
 			fmt.Printf("   Conflicts: %d\n", result.ConflictsFound)
 			fmt.Println()
 			fmt.Println("Resolve conflicts, stage changes, then run:")
-			fmt.Println("  gzh-git merge rebase --continue")
+			fmt.Println("  gz-git merge rebase --continue")
 			fmt.Println()
 			fmt.Println("Or skip this commit:")
-			fmt.Println("  gzh-git merge rebase --skip")
+			fmt.Println("  gz-git merge rebase --skip")
 			fmt.Println()
 			fmt.Println("Or abort the rebase:")
-			fmt.Println("  gzh-git merge rebase --abort")
+			fmt.Println("  gz-git merge rebase --abort")
 		}
 	}
 }

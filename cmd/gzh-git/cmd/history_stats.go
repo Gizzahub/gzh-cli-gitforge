@@ -32,16 +32,16 @@ lines changed, and activity trends.
 Statistics can be filtered by date range, branch, and author.
 Output can be formatted as table, JSON, CSV, or markdown.`,
 	Example: `  # Show overall statistics
-  gzh-git history stats
+  gz-git history stats
 
   # Statistics for last month
-  gzh-git history stats --since "1 month ago"
+  gz-git history stats --since "1 month ago"
 
   # Statistics for specific branch
-  gzh-git history stats --branch feature/new-feature
+  gz-git history stats --branch feature/new-feature
 
   # Export as JSON
-  gzh-git history stats --format json > stats.json`,
+  gz-git history stats --format json > stats.json`,
 	RunE: runHistoryStats,
 }
 

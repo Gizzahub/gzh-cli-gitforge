@@ -19,9 +19,9 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gzh-git",
+	Use:   "gz-git",
 	Short: "Advanced Git operations CLI",
-	Long: `gzh-git is a CLI tool that provides advanced Git operations including:
+	Long: `gz-git is a CLI tool that provides advanced Git operations including:
   - Commit automation with templates
   - Branch and worktree management
   - Git history analysis

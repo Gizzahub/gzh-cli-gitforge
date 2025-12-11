@@ -26,13 +26,13 @@ var deleteCmd = &cobra.Command{
 Protected branches (main, master, develop, release/*, hotfix/*) cannot be deleted
 unless --force is used.`,
 	Example: `  # Delete a local branch
-  gzh-git branch delete feature/old-feature
+  gz-git branch delete feature/old-feature
 
   # Force delete (even if not merged)
-  gzh-git branch delete feature/experimental --force
+  gz-git branch delete feature/experimental --force
 
   # Delete remote branch
-  gzh-git branch delete feature/done --remote`,
+  gz-git branch delete feature/done --remote`,
 	Args: cobra.ExactArgs(1),
 	RunE: runBranchDelete,
 }

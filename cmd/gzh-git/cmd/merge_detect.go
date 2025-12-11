@@ -27,13 +27,13 @@ var detectCmd = &cobra.Command{
 This command performs a dry-run merge analysis to identify files that would
 conflict during an actual merge, without modifying your working directory.`,
 	Example: `  # Detect conflicts between branches
-  gzh-git merge detect feature/new-feature main
+  gz-git merge detect feature/new-feature main
 
   # Include binary file conflicts
-  gzh-git merge detect feature/new-feature main --include-binary
+  gz-git merge detect feature/new-feature main --include-binary
 
   # Detect with specific base commit
-  gzh-git merge detect feature/new-feature main --base abc123`,
+  gz-git merge detect feature/new-feature main --base abc123`,
 	Args: cobra.ExactArgs(2),
 	RunE: runMergeDetect,
 }

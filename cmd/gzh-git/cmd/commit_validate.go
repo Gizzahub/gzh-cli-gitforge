@@ -29,13 +29,13 @@ The message is validated for:
 
 Returns exit code 0 if valid, 1 if invalid.`,
 	Example: `  # Validate a message
-  gzh-git commit validate "feat(auth): add login"
+  gz-git commit validate "feat(auth): add login"
 
   # Validate from file
-  gzh-git commit validate --file .git/COMMIT_EDITMSG
+  gz-git commit validate --file .git/COMMIT_EDITMSG
 
   # Use different template
-  gzh-git commit validate "Version 1.0.0" --template semantic`,
+  gz-git commit validate "Version 1.0.0" --template semantic`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCommitValidate,
 }
@@ -61,7 +61,7 @@ func runCommitValidate(cmd *cobra.Command, args []string) error {
 	} else if len(args) > 0 {
 		message = args[0]
 	} else {
-		return fmt.Errorf("no message provided\nUse: gzh-git commit validate <message> or --file <path>")
+		return fmt.Errorf("no message provided\nUse: gz-git commit validate <message> or --file <path>")
 	}
 
 	// Load template

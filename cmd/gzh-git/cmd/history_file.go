@@ -31,16 +31,16 @@ var fileCmd = &cobra.Command{
 Displays all commits that modified the file, including commit hash, author,
 date, and commit message.`,
 	Example: `  # Show file history
-  gzh-git history file src/main.go
+  gz-git history file src/main.go
 
   # Follow renames
-  gzh-git history file --follow src/main.go
+  gz-git history file --follow src/main.go
 
   # Limit to 10 commits
-  gzh-git history file --max 10 src/main.go
+  gz-git history file --max 10 src/main.go
 
   # Export as JSON
-  gzh-git history file --format json src/main.go > history.json`,
+  gz-git history file --format json src/main.go > history.json`,
 	Args: cobra.ExactArgs(1),
 	RunE: runHistoryFile,
 }
@@ -54,10 +54,10 @@ var blameCmd = &cobra.Command{
 Displays the commit hash, author, date, and line number for each line,
 showing who is responsible for the current content.`,
 	Example: `  # Show blame for a file
-  gzh-git history blame src/main.go
+  gz-git history blame src/main.go
 
   # Export as JSON
-  gzh-git history blame --format json src/main.go`,
+  gz-git history blame --format json src/main.go`,
 	Args: cobra.ExactArgs(1),
 	RunE: runHistoryBlame,
 }

@@ -16,16 +16,16 @@ This command provides subcommands for:
   - Cleaning up merged and stale branches
   - Analyzing branch conflicts`,
 	Example: `  # List all branches
-  gzh-git branch list
+  gz-git branch list
 
   # Create a new branch
-  gzh-git branch create feature/new-feature
+  gz-git branch create feature/new-feature
 
   # Create branch with worktree
-  gzh-git branch create feature/auth --worktree ./worktrees/auth
+  gz-git branch create feature/auth --worktree ./worktrees/auth
 
   # Clean up merged branches
-  gzh-git branch cleanup --strategy merged`,
+  gz-git branch cleanup --strategy merged`,
 }
 
 func init() {

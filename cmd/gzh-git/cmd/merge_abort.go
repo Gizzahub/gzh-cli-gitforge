@@ -23,7 +23,7 @@ This command is useful when a merge results in conflicts and you decide
 not to resolve them. It will restore your working directory to the state
 before the merge began.`,
 	Example: `  # Abort current merge
-  gzh-git merge abort`,
+  gz-git merge abort`,
 	Args: cobra.NoArgs,
 	RunE: runMergeAbort,
 }
