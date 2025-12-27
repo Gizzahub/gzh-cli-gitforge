@@ -71,6 +71,7 @@ Thumbs.db
 .Trash-*
 
 # Project specific
+.serena/
 examples/**/output/
 test/integration/repos/
 test/e2e/repos/
