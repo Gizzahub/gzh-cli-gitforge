@@ -339,6 +339,11 @@ func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	}
 	fmt.Println(line)
 
+	// Show fix hint for no-upstream status
+	if repo.Status == "no-upstream" && repo.Branch != "" {
+		fmt.Printf("    → Fix: git branch --set-upstream-to=origin/%s %s\n", repo.Branch, repo.Branch)
+	}
+
 	// Show error details if present
 	if repo.Error != nil && verbose {
 		fmt.Printf("    Error: %v\n", repo.Error)
@@ -379,10 +384,10 @@ func getStatusIcon(status string) string {
 
 // FetchJSONOutput represents the JSON output structure for fetch command
 type FetchJSONOutput struct {
-	TotalScanned   int                        `json:"total_scanned"`
-	TotalProcessed int                        `json:"total_processed"`
-	DurationMs     int64                      `json:"duration_ms"`
-	Summary        map[string]int             `json:"summary"`
+	TotalScanned   int                         `json:"total_scanned"`
+	TotalProcessed int                         `json:"total_processed"`
+	DurationMs     int64                       `json:"duration_ms"`
+	Summary        map[string]int              `json:"summary"`
 	Repositories   []FetchRepositoryJSONOutput `json:"repositories"`
 }
 

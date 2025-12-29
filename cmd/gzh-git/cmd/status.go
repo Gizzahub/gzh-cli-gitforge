@@ -371,6 +371,11 @@ func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
 	}
 	fmt.Println(line)
 
+	// Show fix hint for no-upstream status
+	if repo.Status == "no-upstream" && repo.Branch != "" {
+		fmt.Printf("    → Fix: git branch --set-upstream-to=origin/%s %s\n", repo.Branch, repo.Branch)
+	}
+
 	// Show error details if present
 	if repo.Error != nil && verbose {
 		fmt.Printf("    Error: %v\n", repo.Error)
