@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -16,9 +18,11 @@ import (
 )
 
 var (
-	commitBulkFlags   BulkCommandFlags
-	commitBulkMessage string
-	commitBulkYes     bool
+	commitBulkFlags        BulkCommandFlags
+	commitBulkMessage      string
+	commitBulkYes          bool
+	commitBulkEdit         bool
+	commitBulkMessagesFile string
 )
 
 // bulkCmd represents the commit bulk command
@@ -39,8 +43,13 @@ By default:
 The workflow is:
   1. Scan repositories and identify dirty ones
   2. Show preview table with repositories and suggested messages
-  3. Ask for confirmation (Y/n)
+  3. Ask for confirmation (Y/n/e)
   4. Execute commits in parallel
+
+Confirmation options:
+  Y - commit all with suggested messages (default)
+  n - cancel
+  e - edit messages in editor ($EDITOR or vim)
 
 Use --yes to skip confirmation, --dry-run to preview without committing.`,
 	Example: `  # Commit all dirty repositories in current directory
@@ -54,6 +63,12 @@ Use --yes to skip confirmation, --dry-run to preview without committing.`,
 
   # Skip confirmation
   gz-git commit bulk --yes ~/workspace
+
+  # Edit messages in editor before committing
+  gz-git commit bulk -e ~/projects
+
+  # Use messages from JSON file
+  gz-git commit bulk --messages-file /tmp/messages.json ~/projects
 
   # Filter by pattern
   gz-git commit bulk --include "myproject.*" ~/workspace
@@ -79,6 +94,8 @@ func init() {
 	// Commit-specific flags
 	bulkCmd.Flags().StringVarP(&commitBulkMessage, "message", "m", "", "common commit message for all repositories")
 	bulkCmd.Flags().BoolVarP(&commitBulkYes, "yes", "y", false, "auto-approve without confirmation")
+	bulkCmd.Flags().BoolVarP(&commitBulkEdit, "edit", "e", false, "edit messages in $EDITOR before committing")
+	bulkCmd.Flags().StringVar(&commitBulkMessagesFile, "messages-file", "", "JSON file with custom messages per repository")
 }
 
 func runCommitBulk(cmd *cobra.Command, args []string) error {
@@ -137,12 +154,22 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		ProgressCallback:  createProgressCallback("Analyzing", commitBulkFlags.Format, quiet),
 	}
 
+	// Load messages from file if provided
+	var customMessages map[string]string
+	if commitBulkMessagesFile != "" {
+		var err error
+		customMessages, err = loadMessagesFile(commitBulkMessagesFile)
+		if err != nil {
+			return fmt.Errorf("failed to load messages file: %w", err)
+		}
+	}
+
 	// Scanning phase
 	if shouldShowProgress(commitBulkFlags.Format, quiet) {
 		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, commitBulkFlags.Depth)
 	}
 
-	// Execute bulk commit
+	// Execute bulk commit (analysis phase)
 	result, err := client.BulkCommit(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("bulk commit failed: %w", err)
@@ -153,24 +180,67 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Scan complete: no repositories found\n")
 	}
 
+	// Apply custom messages from file
+	if customMessages != nil {
+		applyCustomMessages(result, customMessages)
+	}
+
 	// For non-dry-run, interactive confirmation
 	if !opts.DryRun && !opts.Yes && result.TotalDirty > 0 && commitBulkFlags.Format != "json" {
 		// Show preview
 		displayCommitPreview(result)
 
-		// Ask for confirmation
-		confirmed, err := askConfirmation()
-		if err != nil {
-			return err
-		}
-		if !confirmed {
-			fmt.Println("Cancelled.")
-			return nil
+		// If -e flag is set, open editor directly
+		if commitBulkEdit {
+			editedMessages, err := editMessagesInEditor(result)
+			if err != nil {
+				return fmt.Errorf("editor failed: %w", err)
+			}
+			if editedMessages == nil {
+				fmt.Println("Cancelled (empty file).")
+				return nil
+			}
+			applyCustomMessages(result, editedMessages)
+		} else {
+			// Ask for confirmation with Y/n/e options
+			choice, err := askConfirmationWithEdit()
+			if err != nil {
+				return err
+			}
+			switch choice {
+			case "cancel":
+				fmt.Println("Cancelled.")
+				return nil
+			case "edit":
+				editedMessages, err := editMessagesInEditor(result)
+				if err != nil {
+					return fmt.Errorf("editor failed: %w", err)
+				}
+				if editedMessages == nil {
+					fmt.Println("Cancelled (empty file).")
+					return nil
+				}
+				applyCustomMessages(result, editedMessages)
+			}
+			// "confirm" falls through to commit
 		}
 
 		// Re-run with actual commits
 		opts.Yes = true
 		opts.DryRun = false
+		// Pass the custom messages via MessageGenerator
+		opts.MessageGenerator = func(ctx context.Context, repoPath string, files []string) (string, error) {
+			// Find repo in result and return its (possibly edited) message
+			for _, repo := range result.Repositories {
+				if repo.Path == repoPath {
+					if repo.Message != "" {
+						return repo.Message, nil
+					}
+					return repo.SuggestedMessage, nil
+				}
+			}
+			return "", nil
+		}
 		result, err = client.BulkCommit(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("bulk commit failed: %w", err)
@@ -187,51 +257,218 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 
 func displayCommitPreview(result *repository.BulkCommitResult) {
 	fmt.Println()
-	fmt.Println("=== Repositories to Commit ===")
-	fmt.Printf("Found %d repositories with uncommitted changes\n\n", result.TotalDirty)
+	fmt.Println("=== Bulk Commit Preview ===")
+	fmt.Printf("Found %d dirty repositories\n\n", result.TotalDirty)
 
 	// Table header
-	fmt.Printf("%-40s %-15s %-6s %s\n", "Repository", "Branch", "Files", "Suggested Message")
-	fmt.Println(strings.Repeat("-", 100))
+	fmt.Printf(" # | %-30s | %-10s | Files | %-10s | %s\n", "Repository", "Branch", "+/-", "Message (suggested)")
+	fmt.Println(strings.Repeat("-", 105))
+
+	// Calculate totals
+	totalFiles := 0
+	totalAdditions := 0
+	totalDeletions := 0
+	rowNum := 0
 
 	for _, repo := range result.Repositories {
 		if repo.Status != "dirty" && repo.Status != "would-commit" {
 			continue
 		}
+		rowNum++
 
 		// Truncate path if too long
 		path := repo.RelativePath
-		if len(path) > 38 {
-			path = "..." + path[len(path)-35:]
+		if len(path) > 28 {
+			path = "..." + path[len(path)-25:]
 		}
+
+		// Truncate branch if too long
+		branch := repo.Branch
+		if len(branch) > 10 {
+			branch = branch[:7] + "..."
+		}
+
+		// Format +/-
+		plusMinus := fmt.Sprintf("+%d/-%d", repo.Additions, repo.Deletions)
 
 		// Truncate message if too long
 		msg := repo.SuggestedMessage
-		if len(msg) > 40 {
-			msg = msg[:37] + "..."
+		if repo.Message != "" {
+			msg = repo.Message
+		}
+		if len(msg) > 35 {
+			msg = msg[:32] + "..."
 		}
 
-		fmt.Printf("%-40s %-15s %6d %s\n",
+		fmt.Printf("%2d | %-30s | %-10s | %5d | %-10s | %s\n",
+			rowNum,
 			path,
-			repo.Branch,
+			branch,
 			repo.FilesChanged,
+			plusMinus,
 			msg,
 		)
+
+		totalFiles += repo.FilesChanged
+		totalAdditions += repo.Additions
+		totalDeletions += repo.Deletions
 	}
-	fmt.Println()
+
+	fmt.Println(strings.Repeat("-", 105))
+	fmt.Printf("Total: %d repositories, %d files, +%d/-%d lines\n\n", result.TotalDirty, totalFiles, totalAdditions, totalDeletions)
 }
 
-func askConfirmation() (bool, error) {
-	fmt.Print("Proceed with commit? [Y/n] ")
+// askConfirmationWithEdit asks for confirmation with Y/n/e options
+// Returns: "confirm", "cancel", or "edit"
+func askConfirmationWithEdit() (string, error) {
+	fmt.Println("Proceed? [Y/n/e]")
+	fmt.Println("  Y - commit all with suggested messages (default)")
+	fmt.Println("  n - cancel")
+	fmt.Println("  e - edit messages in editor")
+	fmt.Print("> ")
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	input = strings.TrimSpace(strings.ToLower(input))
-	return input == "" || input == "y" || input == "yes", nil
+	switch input {
+	case "", "y", "yes":
+		return "confirm", nil
+	case "n", "no":
+		return "cancel", nil
+	case "e", "edit":
+		return "edit", nil
+	default:
+		return "confirm", nil // Default to confirm
+	}
+}
+
+// loadMessagesFile loads commit messages from a JSON file
+func loadMessagesFile(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read file: %w", err)
+	}
+
+	var messages map[string]string
+	if err := json.Unmarshal(data, &messages); err != nil {
+		return nil, fmt.Errorf("invalid JSON format: %w", err)
+	}
+
+	return messages, nil
+}
+
+// applyCustomMessages applies custom messages to repository results
+func applyCustomMessages(result *repository.BulkCommitResult, messages map[string]string) {
+	for i := range result.Repositories {
+		repo := &result.Repositories[i]
+		// Try to match by relative path or full path
+		if msg, ok := messages[repo.RelativePath]; ok {
+			repo.Message = msg
+		} else if msg, ok := messages[filepath.Base(repo.RelativePath)]; ok {
+			repo.Message = msg
+		} else if msg, ok := messages[repo.Path]; ok {
+			repo.Message = msg
+		}
+	}
+}
+
+// editMessagesInEditor opens an editor for bulk message editing
+// Returns nil if the user cancelled (empty file)
+func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]string, error) {
+	// Create temp file
+	tmpFile, err := os.CreateTemp("", "gz-git-commit-*.txt")
+	if err != nil {
+		return nil, fmt.Errorf("cannot create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	// Write template
+	var content strings.Builder
+	content.WriteString("# Bulk Commit Messages\n")
+	content.WriteString("# Edit messages below. Lines starting with # are ignored.\n")
+	content.WriteString("# Format: repository: commit message\n")
+	content.WriteString("# Save and close to proceed. Delete all lines to cancel.\n")
+	content.WriteString("#\n")
+
+	for _, repo := range result.Repositories {
+		if repo.Status != "dirty" && repo.Status != "would-commit" {
+			continue
+		}
+		msg := repo.SuggestedMessage
+		if repo.Message != "" {
+			msg = repo.Message
+		}
+		content.WriteString(fmt.Sprintf("%s: %s\n", repo.RelativePath, msg))
+	}
+
+	if _, err := tmpFile.WriteString(content.String()); err != nil {
+		tmpFile.Close()
+		return nil, fmt.Errorf("cannot write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Get editor
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = os.Getenv("VISUAL")
+	}
+	if editor == "" {
+		editor = "vim"
+	}
+
+	// Open editor
+	cmd := exec.Command(editor, tmpPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("editor failed: %w", err)
+	}
+
+	// Read edited content
+	editedData, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read edited file: %w", err)
+	}
+
+	// Parse edited content
+	messages := make(map[string]string)
+	lines := strings.Split(string(editedData), "\n")
+	hasContent := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse "repo: message" format
+		idx := strings.Index(line, ":")
+		if idx == -1 {
+			continue
+		}
+
+		repo := strings.TrimSpace(line[:idx])
+		msg := strings.TrimSpace(line[idx+1:])
+
+		if repo != "" && msg != "" {
+			messages[repo] = msg
+			hasContent = true
+		}
+	}
+
+	if !hasContent {
+		return nil, nil // Cancelled
+	}
+
+	return messages, nil
 }
 
 func displayCommitResults(result *repository.BulkCommitResult) {
