@@ -336,21 +336,26 @@ Failed repositories:
 
 ### MVP (Phase 1)
 
-- [ ] `gz-git commit bulk` 기본 동작
-- [ ] 테이블 형식 출력
-- [ ] Y/n 확인
-- [ ] 병렬 커밋 실행
+- [x] `gz-git commit bulk` 기본 동작
+- [x] 테이블 형식 출력 (# 컬럼, +/- 표시 포함)
+- [x] ~~Y/n 확인~~ → `-y` 플래그로 대체 (비대화형)
+- [x] 병렬 커밋 실행
 
 ### Phase 2
 
-- [ ] `--dry-run`
-- [ ] `-m` 공통 메시지
-- [ ] `-y` 자동 승인
-- [ ] `--include/exclude` 필터
+- [x] `--dry-run`
+- [x] `-m` 공통 메시지
+- [x] `-y` 자동 승인
+- [x] `--include/exclude` 필터
 
 ### Phase 3
 
-- [ ] `-e` 에디터 연동
-- [ ] `--format json`
-- [ ] `--messages-file` 입력
-- [ ] `--depth` 깊이 조절
+- [x] `-e` 에디터 연동 (개선된 에러 처리 포함)
+- [x] `--format json`
+- [x] `--messages-file` 입력
+- [x] `--depth` 깊이 조절
+
+### 추가 구현
+
+- [x] 문서화 (docs/commands/README.md)
+- [x] 단위 테스트 (bulk_commit_test.go, bulk_diff_test.go)
