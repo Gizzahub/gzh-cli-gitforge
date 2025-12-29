@@ -359,23 +359,42 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 	}
 	tmpFile.Close()
 
-	// Get editor
+	// Get editor from environment
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = os.Getenv("VISUAL")
 	}
 	if editor == "" {
-		editor = "vim"
+		// Try common editors in order of preference
+		for _, candidate := range []string{"vim", "vi", "nano", "notepad"} {
+			if _, err := exec.LookPath(candidate); err == nil {
+				editor = candidate
+				break
+			}
+		}
+	}
+	if editor == "" {
+		return nil, fmt.Errorf("no editor found: set EDITOR or VISUAL environment variable, or install vim/nano")
+	}
+
+	// Verify editor exists (in case $EDITOR is set but invalid)
+	editorPath, err := exec.LookPath(editor)
+	if err != nil {
+		return nil, fmt.Errorf("editor '%s' not found: %w (set EDITOR or VISUAL to a valid editor)", editor, err)
 	}
 
 	// Open editor
-	cmd := exec.Command(editor, tmpPath)
+	cmd := exec.Command(editorPath, tmpPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("editor failed: %w", err)
+		// Check for specific error types
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("editor exited with code %d: consider using --messages-file instead", exitErr.ExitCode())
+		}
+		return nil, fmt.Errorf("failed to run editor '%s': %w", editor, err)
 	}
 
 	// Read edited content
