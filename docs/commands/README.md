@@ -170,6 +170,155 @@ gzh-git commit template show conventional
 gzh-git commit template validate my-template.yaml
 ```
 
+### commit bulk
+
+Bulk commit across multiple repositories with auto-generated messages.
+
+```bash
+gzh-git commit bulk [flags]
+```
+
+**Flags:**
+
+| Flag              | Short | Description                       | Default    |
+| ----------------- | ----- | --------------------------------- | ---------- |
+| `--dry-run`       |       | Preview only, don't commit        | false      |
+| `--message`       | `-m`  | Common message for all repos      | (auto)     |
+| `--edit`          | `-e`  | Edit messages in editor           | false      |
+| `--yes`           | `-y`  | Execute commits without preview   | false      |
+| `--depth`         | `-d`  | Scan depth for repositories       | 1          |
+| `--include`       |       | Include repos matching pattern    | *          |
+| `--exclude`       |       | Exclude repos matching pattern    |            |
+| `--parallel`      | `-p`  | Parallel execution count          | (CPU num)  |
+| `--format`        | `-f`  | Output format (text/json)         | text       |
+| `--messages-file` |       | Load messages from JSON file      |            |
+
+**Examples:**
+
+```bash
+# Preview dirty repositories
+gzh-git commit bulk
+
+# Commit all with auto-generated messages
+gzh-git commit bulk -y
+
+# Use common message for all
+gzh-git commit bulk -y -m "chore: sync all repos"
+
+# Edit messages in editor before committing
+gzh-git commit bulk -e
+
+# Filter repositories
+gzh-git commit bulk --include "myproject-*" --exclude "*-test*"
+
+# Load messages from JSON file
+gzh-git commit bulk --messages-file /tmp/messages.json -y
+
+# JSON output for CI/automation
+gzh-git commit bulk --dry-run --format json
+```
+
+**Workflow:**
+
+1. **Preview mode** (default, no `-y`): Scans and shows dirty repos
+2. **Execute mode** (`-y`): Commits with auto-generated messages
+3. **Editor mode** (`-e`): Opens editor to customize messages
+
+**Messages File JSON Schema:**
+
+```json
+{
+  "repo-name": "commit message for repo-name",
+  "another-repo": "feat(scope): description"
+}
+```
+
+Keys can be:
+- Relative path: `myproject-api`
+- Base name: `api`
+- Full path: `/path/to/myproject-api`
+
+**JSON Output Schema (--format json):**
+
+Preview output:
+```json
+{
+  "scan_depth": 1,
+  "total_repositories": 3,
+  "total_files": 15,
+  "total_additions": 100,
+  "total_deletions": 50,
+  "repositories": [
+    {
+      "path": "/full/path/repo1",
+      "relative_path": "repo1",
+      "branch": "main",
+      "status": "dirty",
+      "files_changed": 5,
+      "additions": 30,
+      "deletions": 10,
+      "suggested_message": "fix(cmd): update handler"
+    }
+  ]
+}
+```
+
+Result output:
+```json
+{
+  "success": true,
+  "total_scanned": 3,
+  "total_dirty": 2,
+  "total_committed": 2,
+  "total_failed": 0,
+  "duration_ms": 1250,
+  "repositories": [
+    {
+      "path": "repo1",
+      "status": "success",
+      "commit_hash": "abc1234",
+      "message": "fix(cmd): update handler"
+    }
+  ]
+}
+```
+
+### diff
+
+Show diffs for multiple repositories at once.
+
+```bash
+gzh-git diff [flags]
+```
+
+**Flags:**
+
+| Flag              | Short | Description                       | Default    |
+| ----------------- | ----- | --------------------------------- | ---------- |
+| `--staged`        |       | Show only staged changes          | false      |
+| `--depth`         | `-d`  | Scan depth for repositories       | 1          |
+| `--include`       |       | Include repos matching pattern    | *          |
+| `--exclude`       |       | Exclude repos matching pattern    |            |
+| `--context`       | `-c`  | Context lines around changes      | 3          |
+| `--max-size`      |       | Max diff size per repo (bytes)    | 102400     |
+| `--format`        | `-f`  | Output format (text/json)         | text       |
+
+**Examples:**
+
+```bash
+# Show all diffs
+gzh-git diff
+
+# Show only staged changes
+gzh-git diff --staged
+
+# Filter repositories
+gzh-git diff --include "myproject-*"
+
+# JSON output
+gzh-git diff --format json
+```
+
 ## Branch Commands
 
 ### branch list
