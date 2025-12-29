@@ -53,6 +53,14 @@ type Client interface {
 	// This is useful for switching branches across multiple repositories at once.
 	BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkSwitchResult, error)
 
+	// BulkCommit scans for repositories with uncommitted changes and commits them in parallel.
+	// This is useful for batch committing across multiple repositories at once.
+	BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkCommitResult, error)
+
+	// BulkDiff scans for repositories and gets their diffs in parallel.
+	// This is useful for reviewing changes across multiple repositories or for LLM-based commit message generation.
+	BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

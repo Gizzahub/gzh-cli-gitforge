@@ -94,6 +94,9 @@ var safeGitFlags = map[string]bool{
 	"--name-only":   true,
 	"--name-status": true,
 	"--numstat":     true,
+	"--unified":     true,
+	"--no-color":    true,
+	"--color":       true,
 
 	// Reset flags
 	"--hard":  true,
