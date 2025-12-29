@@ -101,6 +101,9 @@ type RepositoryFetchResult struct {
 	// RemoteURL is the remote origin URL
 	RemoteURL string
 
+	// Remote is the remote name (e.g., "origin")
+	Remote string
+
 	// FetchedRefs is the number of refs fetched
 	FetchedRefs int
 
@@ -203,6 +206,9 @@ type RepositoryPullResult struct {
 
 	// RemoteURL is the remote origin URL
 	RemoteURL string
+
+	// Remote is the remote name (e.g., "origin")
+	Remote string
 
 	// CommitsBehind is the number of commits behind remote before pull
 	CommitsBehind int
@@ -313,6 +319,9 @@ type RepositoryPushResult struct {
 	// RemoteURL is the remote origin URL
 	RemoteURL string
 
+	// Remote is the remote name (e.g., "origin")
+	Remote string
+
 	// CommitsAhead is the number of commits ahead of remote before push
 	CommitsAhead int
 
@@ -394,6 +403,9 @@ type RepositoryStatusResult struct {
 
 	// RemoteURL is the remote origin URL
 	RemoteURL string
+
+	// Remote is the remote name (e.g., "origin")
+	Remote string
 
 	// CommitsBehind is how many commits behind remote
 	CommitsBehind int
@@ -497,6 +509,9 @@ type RepositoryUpdateResult struct {
 
 	// RemoteURL is the remote origin URL
 	RemoteURL string
+
+	// Remote is the remote name (e.g., "origin")
+	Remote string
 
 	// CommitsBehind is how many commits behind remote
 	CommitsBehind int
@@ -605,6 +620,9 @@ type RepositorySwitchResult struct {
 
 	// RemoteURL is the remote origin URL
 	RemoteURL string
+
+	// Remote is the remote name (e.g., "origin")
+	Remote string
 
 	// HasUncommittedChanges indicates if there were local changes preventing switch
 	HasUncommittedChanges bool
@@ -970,6 +988,7 @@ func (c *client) processRepository(ctx context.Context, rootDir, repoPath string
 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
+	result.Remote = info.Remote
 	result.CommitsBehind = info.BehindBy
 	result.CommitsAhead = info.AheadBy
 
@@ -1184,6 +1203,7 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
+	result.Remote = info.Remote
 
 	// Check if repository has remote
 	if info.RemoteURL == "" {
@@ -1423,6 +1443,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
+	result.Remote = info.Remote
 	result.CommitsBehind = info.BehindBy
 	result.CommitsAhead = info.AheadBy
 
@@ -1838,6 +1859,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
+	result.Remote = info.Remote
 	result.CommitsAhead = info.AheadBy
 
 	// Check if repository has remote
@@ -2161,6 +2183,7 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
+	result.Remote = info.Remote
 	result.CommitsBehind = info.BehindBy
 	result.CommitsAhead = info.AheadBy
 

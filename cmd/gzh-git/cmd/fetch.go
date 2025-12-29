@@ -341,7 +341,7 @@ func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 
 	// Show fix hint for no-upstream status
 	if repo.Status == "no-upstream" {
-		fmt.Print(FormatUpstreamFixHint(repo.Branch))
+		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
 	}
 
 	// Show error details if present

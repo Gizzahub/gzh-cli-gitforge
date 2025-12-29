@@ -373,7 +373,7 @@ func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
 
 	// Show fix hint for no-upstream status
 	if repo.Status == "no-upstream" {
-		fmt.Print(FormatUpstreamFixHint(repo.Branch))
+		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
 	}
 
 	// Show error details if present
@@ -407,9 +407,13 @@ func getStatusIconForStatus(status string) string {
 
 // FormatUpstreamFixHint returns a formatted fix hint for no-upstream status.
 // Returns empty string if branch is empty.
-func FormatUpstreamFixHint(branch string) string {
+// If remote is empty, defaults to "origin".
+func FormatUpstreamFixHint(branch, remote string) string {
 	if branch == "" {
 		return ""
 	}
-	return fmt.Sprintf("    → Fix: git branch --set-upstream-to=origin/%s %s\n", branch, branch)
+	if remote == "" {
+		remote = "origin"
+	}
+	return fmt.Sprintf("    → Fix: git branch --set-upstream-to=%s/%s %s\n", remote, branch, branch)
 }
