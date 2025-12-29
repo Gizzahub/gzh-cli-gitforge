@@ -8,9 +8,9 @@ Keep CLAUDE.md under 300 lines while maintaining comprehensive guidance through 
 
 ## Files
 
-| File | Purpose | When to Read |
-|------|---------|--------------|
-| [common-tasks.md](common-tasks.md) | Adding commands, testing git operations | Daily development |
+| File                                   | Purpose                                       | When to Read                         |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------ |
+| [common-tasks.md](common-tasks.md)     | Adding commands, testing git operations       | Daily development                    |
 | [security-guide.md](security-guide.md) | Input sanitization, safe execution (CRITICAL) | ALWAYS - before any git command code |
 
 ## Quick Access

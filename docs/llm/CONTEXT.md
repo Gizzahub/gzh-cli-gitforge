@@ -179,13 +179,13 @@ Clone(ctx, url, path,
 
 ## Critical Files
 
-| File | Purpose | Importance |
-|------|---------|------------|
-| `pkg/repository/interfaces.go` | Core API contracts | CRITICAL |
-| `pkg/repository/client.go` | Repository client implementation | CRITICAL |
-| `pkg/operations/clone.go` | Clone operations | HIGH |
-| `internal/gitcmd/executor.go` | Git command wrapper | CRITICAL |
-| `cmd/gzh-git/main.go` | CLI entry point | MEDIUM |
+| File                           | Purpose                          | Importance |
+| ------------------------------ | -------------------------------- | ---------- |
+| `pkg/repository/interfaces.go` | Core API contracts               | CRITICAL   |
+| `pkg/repository/client.go`     | Repository client implementation | CRITICAL   |
+| `pkg/operations/clone.go`      | Clone operations                 | HIGH       |
+| `internal/gitcmd/executor.go`  | Git command wrapper              | CRITICAL   |
+| `cmd/gzh-git/main.go`          | CLI entry point                  | MEDIUM     |
 
 ## Key Types
 
@@ -292,12 +292,12 @@ docs/
 
 ## Performance Characteristics
 
-| Operation | Target (p95) | Notes |
-|-----------|--------------|-------|
-| `Open` | < 10ms | Fast path validation |
-| `GetStatus` | < 50ms | Calls `git status --porcelain` |
-| `Clone` | Network-bound | Depends on repo size |
-| Bulk ops (100 repos) | < 30s | Parallel execution |
+| Operation            | Target (p95)  | Notes                          |
+| -------------------- | ------------- | ------------------------------ |
+| `Open`               | < 10ms        | Fast path validation           |
+| `GetStatus`          | < 50ms        | Calls `git status --porcelain` |
+| `Clone`              | Network-bound | Depends on repo size           |
+| Bulk ops (100 repos) | < 30s         | Parallel execution             |
 
 ## Security Considerations
 

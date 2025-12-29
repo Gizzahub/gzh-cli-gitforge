@@ -73,12 +73,12 @@ ______________________________________________________________________
 
 ### 2.2 User Segments
 
-| Segment | Size | Priority | Needs |
-|---------|------|----------|-------|
-| Individual Developers | Large | P0 | CLI ease-of-use, quick operations |
-| DevOps Teams | Medium | P0 | Automation, consistency enforcement |
-| Tool Developers | Small | P1 | Library stability, clean APIs |
-| Open Source Contributors | Large | P1 | Conventional commits, contributor stats |
+| Segment                  | Size   | Priority | Needs                                   |
+| ------------------------ | ------ | -------- | --------------------------------------- |
+| Individual Developers    | Large  | P0       | CLI ease-of-use, quick operations       |
+| DevOps Teams             | Medium | P0       | Automation, consistency enforcement     |
+| Tool Developers          | Small  | P1       | Library stability, clean APIs           |
+| Open Source Contributors | Large  | P1       | Conventional commits, contributor stats |
 
 ______________________________________________________________________
 
@@ -132,14 +132,14 @@ ______________________________________________________________________
 
 ### 4.1 Feature Priority Matrix
 
-| Feature | Priority | Effort | Impact | Release |
-|---------|----------|--------|--------|---------|
-| Commit Automation | P0 | M | High | v1.0 |
-| Branch Management | P0 | M | High | v1.0 |
-| History Analysis | P0 | L | Medium | v1.0 |
-| Advanced Merge/Rebase | P0 | L | High | v1.0 |
-| Template System | P0 | S | High | v1.0 |
-| Library API | P0 | M | Critical | v1.0 |
+| Feature               | Priority | Effort | Impact   | Release |
+| --------------------- | -------- | ------ | -------- | ------- |
+| Commit Automation     | P0       | M      | High     | v1.0    |
+| Branch Management     | P0       | M      | High     | v1.0    |
+| History Analysis      | P0       | L      | Medium   | v1.0    |
+| Advanced Merge/Rebase | P0       | L      | High     | v1.0    |
+| Template System       | P0       | S      | High     | v1.0    |
+| Library API           | P0       | M      | Critical | v1.0    |
 
 ### 4.2 Commit Automation Features
 
@@ -556,21 +556,21 @@ ______________________________________________________________________
 
 ### 11.1 Technical Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| API design instability | Medium | High | Design review checkpoints; SemVer |
-| Performance issues | Low | Medium | Early benchmarking; profiling |
-| Git version compatibility | Low | High | Support Git 2.30+; CI matrix testing |
-| Library adoption low | Medium | Medium | Excellent docs; gzh-cli proves value |
+| Risk                      | Probability | Impact | Mitigation                           |
+| ------------------------- | ----------- | ------ | ------------------------------------ |
+| API design instability    | Medium      | High   | Design review checkpoints; SemVer    |
+| Performance issues        | Low         | Medium | Early benchmarking; profiling        |
+| Git version compatibility | Low         | High   | Support Git 2.30+; CI matrix testing |
+| Library adoption low      | Medium      | Medium | Excellent docs; gzh-cli proves value |
 
 ### 11.2 Product Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Feature scope creep | High | Medium | Strict phase boundaries; MVP focus |
-| User adoption slow | Medium | High | Clear value prop; gzh-cli integration |
-| Competition (existing tools) | Medium | Low | Unique library-first approach |
-| Documentation lag | Medium | Medium | Document-per-phase requirement |
+| Risk                         | Probability | Impact | Mitigation                            |
+| ---------------------------- | ----------- | ------ | ------------------------------------- |
+| Feature scope creep          | High        | Medium | Strict phase boundaries; MVP focus    |
+| User adoption slow           | Medium      | High   | Clear value prop; gzh-cli integration |
+| Competition (existing tools) | Medium      | Low    | Unique library-first approach         |
+| Documentation lag            | Medium      | Medium | Document-per-phase requirement        |
 
 ______________________________________________________________________
 
@@ -604,12 +604,12 @@ ______________________________________________________________________
 
 ## 13. Approval & Sign-off
 
-| Role | Name | Status | Date |
-|------|------|--------|------|
-| Product Manager | TBD | ⏳ Pending | - |
-| Technical Lead | TBD | ⏳ Pending | - |
-| Engineering Manager | TBD | ⏳ Pending | - |
-| Security Lead | TBD | ⏳ Pending | - |
+| Role                | Name | Status     | Date |
+| ------------------- | ---- | ---------- | ---- |
+| Product Manager     | TBD  | ⏳ Pending | -    |
+| Technical Lead      | TBD  | ⏳ Pending | -    |
+| Engineering Manager | TBD  | ⏳ Pending | -    |
+| Security Lead       | TBD  | ⏳ Pending | -    |
 
 ______________________________________________________________________
 
@@ -632,9 +632,9 @@ ______________________________________________________________________
 
 ### A.3 Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-27 | Claude (AI) | Initial PRD draft |
+| Version | Date       | Author      | Changes           |
+| ------- | ---------- | ----------- | ----------------- |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial PRD draft |
 
 ______________________________________________________________________
 

@@ -156,17 +156,17 @@ ______________________________________________________________________
 
 **Performance Metrics**:
 
-| Command | Avg Time | Memory | Status |
-|---------|----------|--------|--------|
-| commit validate | 4.4ms | 17KB | ✅ Excellent |
-| commit template list | 5.0ms | 17KB | ✅ Excellent |
-| history file | 24ms | 20KB | ✅ Fast |
-| history blame | 25ms | 20KB | ✅ Fast |
-| info | 39ms | 20KB | ✅ Fast |
-| history stats | 56ms | 20KB | ✅ Good |
-| status | 62ms | 20KB | ✅ Good |
-| history contributors | 68ms | 20KB | ✅ Good |
-| branch list | 107ms | 20KB | ⚠️ Acceptable |
+| Command              | Avg Time | Memory | Status        |
+| -------------------- | -------- | ------ | ------------- |
+| commit validate      | 4.4ms    | 17KB   | ✅ Excellent  |
+| commit template list | 5.0ms    | 17KB   | ✅ Excellent  |
+| history file         | 24ms     | 20KB   | ✅ Fast       |
+| history blame        | 25ms     | 20KB   | ✅ Fast       |
+| info                 | 39ms     | 20KB   | ✅ Fast       |
+| history stats        | 56ms     | 20KB   | ✅ Good       |
+| status               | 62ms     | 20KB   | ✅ Good       |
+| history contributors | 68ms     | 20KB   | ✅ Good       |
+| branch list          | 107ms    | 20KB   | ⚠️ Acceptable |
 
 **Performance Targets Met**:
 
@@ -190,15 +190,15 @@ ______________________________________________________________________
 
 **Package Coverage**:
 
-| Package | Coverage | Target | Status |
-|---------|----------|--------|--------|
-| internal/parser | 95.7% | 80% | ✅ Exceeds |
-| internal/gitcmd | 89.5% | 80% | ✅ Exceeds |
-| pkg/history | 87.7% | 85% | ✅ Exceeds |
-| pkg/merge | 82.9% | 85% | ⚠️ Near Target |
-| pkg/commit | 66.3% | 85% | ⚠️ Below Target |
-| pkg/branch | 48.1% | 85% | ❌ Below Target |
-| pkg/repository | 39.2% | 85% | ❌ Below Target |
+| Package         | Coverage | Target | Status          |
+| --------------- | -------- | ------ | --------------- |
+| internal/parser | 95.7%    | 80%    | ✅ Exceeds      |
+| internal/gitcmd | 89.5%    | 80%    | ✅ Exceeds      |
+| pkg/history     | 87.7%    | 85%    | ✅ Exceeds      |
+| pkg/merge       | 82.9%    | 85%    | ⚠️ Near Target  |
+| pkg/commit      | 66.3%    | 85%    | ⚠️ Below Target |
+| pkg/branch      | 48.1%    | 85%    | ❌ Below Target |
+| pkg/repository  | 39.2%    | 85%    | ❌ Below Target |
 
 **Quality Score**: B+
 
@@ -282,32 +282,32 @@ ______________________________________________________________________
 
 ### Test Quality
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Integration tests | 40+ | 51 | ✅ Exceeds |
-| E2E test scenarios | 80+ | 90 | ✅ Exceeds |
-| Benchmarks | 10+ | 11 | ✅ Meets |
-| Test coverage | 65%+ | 69.1% | ✅ Exceeds |
-| All tests passing | 100% | 100% | ✅ Perfect |
+| Metric             | Target | Actual | Status     |
+| ------------------ | ------ | ------ | ---------- |
+| Integration tests  | 40+    | 51     | ✅ Exceeds |
+| E2E test scenarios | 80+    | 90     | ✅ Exceeds |
+| Benchmarks         | 10+    | 11     | ✅ Meets   |
+| Test coverage      | 65%+   | 69.1%  | ✅ Exceeds |
+| All tests passing  | 100%   | 100%   | ✅ Perfect |
 
 ### Performance Quality
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| 95% ops < 100ms | 95% | 91% | ⚠️ Near |
-| 99% ops < 500ms | 99% | 100% | ✅ Exceeds |
-| No op > 2s | 0 | 0 | ✅ Perfect |
-| Memory < 50MB | < 50MB | < 1MB | ✅ Excellent |
+| Metric          | Target | Actual | Status       |
+| --------------- | ------ | ------ | ------------ |
+| 95% ops < 100ms | 95%    | 91%    | ⚠️ Near      |
+| 99% ops < 500ms | 99%    | 100%   | ✅ Exceeds   |
+| No op > 2s      | 0      | 0      | ✅ Perfect   |
+| Memory < 50MB   | < 50MB | < 1MB  | ✅ Excellent |
 
 ### Documentation Quality
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| User docs | 5+ files | 6 | ✅ Exceeds |
-| Code examples | 20+ | 30+ | ✅ Exceeds |
-| Troubleshooting | 30+ | 50+ | ✅ Exceeds |
-| GoDoc coverage | 100% | 100% | ✅ Perfect |
-| Contributor guide | Yes | Yes | ✅ Complete |
+| Metric            | Target   | Actual | Status      |
+| ----------------- | -------- | ------ | ----------- |
+| User docs         | 5+ files | 6      | ✅ Exceeds  |
+| Code examples     | 20+      | 30+    | ✅ Exceeds  |
+| Troubleshooting   | 30+      | 50+    | ✅ Exceeds  |
+| GoDoc coverage    | 100%     | 100%   | ✅ Perfect  |
+| Contributor guide | Yes      | Yes    | ✅ Complete |
 
 ______________________________________________________________________
 

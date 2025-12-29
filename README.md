@@ -313,15 +313,15 @@ gz-git push -j 10 -n --set-upstream -r -d 2 ~/projects
 
 **Shorthand Flags Reference:**
 
-| Flag | Short | Description | Commands |
-|------|-------|-------------|----------|
-| `--depth` | `-d` | Directory depth to scan | fetch, pull, push |
-| `--parallel` | `-j` | Parallel operations (make -j convention) | fetch, pull, push |
-| `--dry-run` | `-n` | Preview without executing (GNU convention) | fetch, pull, push |
-| `--strategy` | `-s` | Pull strategy (merge/rebase/ff-only) | pull |
-| `--tags` | `-t` | Fetch/push all tags (git convention) | fetch, pull, push |
-| `--prune` | `-p` | Prune deleted remote branches (git convention) | pull |
-| `--recursive` | `-r` | Include nested repos/submodules (GNU convention) | fetch, pull, push |
+| Flag          | Short | Description                                      | Commands          |
+| ------------- | ----- | ------------------------------------------------ | ----------------- |
+| `--depth`     | `-d`  | Directory depth to scan                          | fetch, pull, push |
+| `--parallel`  | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push |
+| `--dry-run`   | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push |
+| `--strategy`  | `-s`  | Pull strategy (merge/rebase/ff-only)             | pull              |
+| `--tags`      | `-t`  | Fetch/push all tags (git convention)             | fetch, pull, push |
+| `--prune`     | `-p`  | Prune deleted remote branches (git convention)   | pull              |
+| `--recursive` | `-r`  | Include nested repos/submodules (GNU convention) | fetch, pull, push |
 
 **Global Options:**
 

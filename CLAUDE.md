@@ -17,18 +17,18 @@ ______________________________________________________________________
 
 ## Top 10 Commands
 
-| Command | Purpose | When to Use |
-|---------|---------|-------------|
-| `make quality` | fmt + lint + test | Pre-commit (CRITICAL) |
-| `make dev-fast` | format + unit tests | Quick dev cycle |
-| `make build` | Build binary | After changes |
-| `make test` | All tests | Validation |
-| `make test-coverage` | Coverage report | Check coverage |
-| `make fmt` | Format code | Fix formatting |
-| `make lint` | Run linters | Fix lint issues |
-| `make pr-check` | Pre-PR verification | Before PR |
-| `make install` | Install binary | Local testing |
-| `make clean` | Clean artifacts | Fresh start |
+| Command              | Purpose             | When to Use           |
+| -------------------- | ------------------- | --------------------- |
+| `make quality`       | fmt + lint + test   | Pre-commit (CRITICAL) |
+| `make dev-fast`      | format + unit tests | Quick dev cycle       |
+| `make build`         | Build binary        | After changes         |
+| `make test`          | All tests           | Validation            |
+| `make test-coverage` | Coverage report     | Check coverage        |
+| `make fmt`           | Format code         | Fix formatting        |
+| `make lint`          | Run linters         | Fix lint issues       |
+| `make pr-check`      | Pre-PR verification | Before PR             |
+| `make install`       | Install binary      | Local testing         |
+| `make clean`         | Clean artifacts     | Fresh start           |
 
 ______________________________________________________________________
 
@@ -76,9 +76,9 @@ ______________________________________________________________________
 
 ## Context Documentation
 
-| Guide | Purpose |
-|-------|---------|
-| [Common Tasks](docs/.claude-context/common-tasks.md) | Adding commands, testing git ops |
+| Guide                                                    | Purpose                            |
+| -------------------------------------------------------- | ---------------------------------- |
+| [Common Tasks](docs/.claude-context/common-tasks.md)     | Adding commands, testing git ops   |
 | [Security Guide](docs/.claude-context/security-guide.md) | Input sanitization, safe execution |
 
 **CRITICAL**: Read before modifying:

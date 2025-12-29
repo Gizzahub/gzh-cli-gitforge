@@ -407,24 +407,24 @@ ______________________________________________________________________
 
 ### Essential Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `gzh-git clone <url>` | Clone repository | `gzh-git clone https://github.com/user/repo.git` |
-| `gzh-git status [path]` | Check repository status | `gzh-git status` |
-| `gzh-git info [path]` | Show repository information | `gzh-git info` |
-| `gzh-git --version` | Show version | `gzh-git --version` |
-| `gzh-git --help` | Show help | `gzh-git --help` |
+| Command                 | Description                 | Example                                          |
+| ----------------------- | --------------------------- | ------------------------------------------------ |
+| `gzh-git clone <url>`   | Clone repository            | `gzh-git clone https://github.com/user/repo.git` |
+| `gzh-git status [path]` | Check repository status     | `gzh-git status`                                 |
+| `gzh-git info [path]`   | Show repository information | `gzh-git info`                                   |
+| `gzh-git --version`     | Show version                | `gzh-git --version`                              |
+| `gzh-git --help`        | Show help                   | `gzh-git --help`                                 |
 
 ### Common Flags
 
-| Flag | Description | Works With |
-|------|-------------|------------|
-| `-q, --quiet` | Quiet mode (errors only) | All commands |
-| `-v, --verbose` | Verbose output | All commands |
-| `-b <branch>` | Specific branch | `clone` |
-| `--depth <n>` | Shallow clone | `clone` |
-| `--single-branch` | Clone only one branch | `clone` |
-| `--recursive` | Clone with submodules | `clone` |
+| Flag              | Description              | Works With   |
+| ----------------- | ------------------------ | ------------ |
+| `-q, --quiet`     | Quiet mode (errors only) | All commands |
+| `-v, --verbose`   | Verbose output           | All commands |
+| `-b <branch>`     | Specific branch          | `clone`      |
+| `--depth <n>`     | Shallow clone            | `clone`      |
+| `--single-branch` | Clone only one branch    | `clone`      |
+| `--recursive`     | Clone with submodules    | `clone`      |
 
 ______________________________________________________________________
 

@@ -513,13 +513,13 @@ watch:
 
 ### Performance Budget
 
-| Feature | Latency | Memory | CPU |
-|---------|---------|--------|-----|
-| Basic watch | \<10ms | 5MB/repo | 0.1% |
-| With stats | +50ms | +2MB | +0.5% |
-| With history | N/A | +10MB | 0% |
-| Desktop notify | +5ms | +1MB | 0% |
-| Webhooks | +100ms | +1MB | 0% |
+| Feature        | Latency | Memory   | CPU   |
+| -------------- | ------- | -------- | ----- |
+| Basic watch    | \<10ms  | 5MB/repo | 0.1%  |
+| With stats     | +50ms   | +2MB     | +0.5% |
+| With history   | N/A     | +10MB    | 0%    |
+| Desktop notify | +5ms    | +1MB     | 0%    |
+| Webhooks       | +100ms  | +1MB     | 0%    |
 
 **Goal**: Keep total overhead under 100ms per check, \<50MB memory
 

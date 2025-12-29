@@ -221,24 +221,24 @@ ______________________________________________________________________
 
 ### Testing
 
-| Metric | Value | Status |
-|--------|-------|--------|
-| Integration Tests | 51 | ✅ 100% passing |
-| E2E Tests | 90 runs | ✅ 100% passing |
-| Benchmarks | 11 | ✅ All targets met |
-| Total Tests | 141 | ✅ All passing |
-| Test Runtime | ~24s | ✅ Fast |
-| Coverage | 69.1% | ⚠️ Good (target: 85%) |
+| Metric            | Value   | Status                |
+| ----------------- | ------- | --------------------- |
+| Integration Tests | 51      | ✅ 100% passing       |
+| E2E Tests         | 90 runs | ✅ 100% passing       |
+| Benchmarks        | 11      | ✅ All targets met    |
+| Total Tests       | 141     | ✅ All passing        |
+| Test Runtime      | ~24s    | ✅ Fast               |
+| Coverage          | 69.1%   | ⚠️ Good (target: 85%) |
 
 ### Performance (Apple M1 Ultra)
 
-| Command | Time | Memory | Status |
-|---------|------|--------|--------|
-| commit validate | 4.4ms | 17KB | ✅ Excellent |
-| template list | 5.0ms | 17KB | ✅ Excellent |
-| history file | 24ms | 20KB | ✅ Fast |
-| info | 39ms | 20KB | ✅ Fast |
-| status | 62ms | 20KB | ✅ Good |
+| Command         | Time  | Memory | Status       |
+| --------------- | ----- | ------ | ------------ |
+| commit validate | 4.4ms | 17KB   | ✅ Excellent |
+| template list   | 5.0ms | 17KB   | ✅ Excellent |
+| history file    | 24ms  | 20KB   | ✅ Fast      |
+| info            | 39ms  | 20KB   | ✅ Fast      |
+| status          | 62ms  | 20KB   | ✅ Good      |
 
 **Performance Targets**:
 

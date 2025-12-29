@@ -511,14 +511,14 @@ func TestMergeScenarios(t *testing.T)
 
 ### 2.3 Test Coverage Targets
 
-| Package | Current | Target | Strategy |
-|---------|---------|--------|----------|
-| pkg/repository | 57.7% | 85% | Add integration tests |
-| pkg/commit | 64.9% | 85% | Add workflow tests |
-| pkg/branch | 37.9% | 85% | Add integration tests |
-| pkg/history | 93.3% | 85% | ✅ Exceeds |
-| pkg/merge | 86.8% | 85% | ✅ Exceeds |
-| cmd/ | 0% | 70% | Add CLI tests |
+| Package        | Current | Target | Strategy              |
+| -------------- | ------- | ------ | --------------------- |
+| pkg/repository | 57.7%   | 85%    | Add integration tests |
+| pkg/commit     | 64.9%   | 85%    | Add workflow tests    |
+| pkg/branch     | 37.9%   | 85%    | Add integration tests |
+| pkg/history    | 93.3%   | 85%    | ✅ Exceeds            |
+| pkg/merge      | 86.8%   | 85%    | ✅ Exceeds            |
+| cmd/           | 0%      | 70%    | Add CLI tests         |
 
 ______________________________________________________________________
 

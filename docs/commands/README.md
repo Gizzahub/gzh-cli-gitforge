@@ -14,11 +14,11 @@ Complete reference for all `gzh-git` commands.
 
 All commands support these global flags:
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--quiet` | `-q` | Suppress non-error output |
-| `--verbose` | `-v` | Show detailed output |
-| `--help` | `-h` | Show command help |
+| Flag        | Short | Description               |
+| ----------- | ----- | ------------------------- |
+| `--quiet`   | `-q`  | Suppress non-error output |
+| `--verbose` | `-v`  | Show detailed output      |
+| `--help`    | `-h`  | Show command help         |
 
 ## Repository Commands
 
@@ -468,20 +468,20 @@ gzh-git merge rebase --abort
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | General error |
-| 2 | Invalid arguments |
-| 3 | Not a git repository |
-| 4 | Operation failed (e.g., conflicts) |
+| Code | Meaning                            |
+| ---- | ---------------------------------- |
+| 0    | Success                            |
+| 1    | General error                      |
+| 2    | Invalid arguments                  |
+| 3    | Not a git repository               |
+| 4    | Operation failed (e.g., conflicts) |
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GZH_GIT_TEMPLATE` | Default commit template | `conventional` |
-| `GZH_GIT_EDITOR` | Editor for interactive operations | `$EDITOR` or `vim` |
+| Variable           | Description                       | Default            |
+| ------------------ | --------------------------------- | ------------------ |
+| `GZH_GIT_TEMPLATE` | Default commit template           | `conventional`     |
+| `GZH_GIT_EDITOR`   | Editor for interactive operations | `$EDITOR` or `vim` |
 
 ## See Also
 

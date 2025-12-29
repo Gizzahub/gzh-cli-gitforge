@@ -75,12 +75,12 @@ Machine-readable format for automation:
 
 ### Configuration Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--interval` | 2s | Polling interval for checking changes |
-| `--include-clean` | false | Notify when repository becomes clean |
-| `--format` | default | Output format (default, compact, json) |
-| `--notify` | false | Play sound on changes (macOS/Linux) |
+| Option            | Default | Description                            |
+| ----------------- | ------- | -------------------------------------- |
+| `--interval`      | 2s      | Polling interval for checking changes  |
+| `--include-clean` | false   | Notify when repository becomes clean   |
+| `--format`        | default | Output format (default, compact, json) |
+| `--notify`        | false   | Play sound on changes (macOS/Linux)    |
 
 ## Usage Examples
 

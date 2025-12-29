@@ -10,19 +10,19 @@ This directory contains performance benchmarks for the gzh-git CLI tool.
 
 ### Command Performance
 
-| Command | Avg Time (ms) | Memory (KB) | Allocs | Status |
-|---------|---------------|-------------|--------|--------|
-| **commit validate** | 4.4 | 17 | 41 | ✅ < 5ms |
-| **commit template list** | 5.0 | 17 | 41 | ✅ < 10ms |
-| **history file** | 24.2 | 20 | 46 | ✅ < 50ms |
-| **history blame** | 25.2 | 20 | 46 | ✅ < 50ms |
-| **info** | 38.6 | 20 | 46 | ✅ < 50ms |
-| **history stats** | 55.9 | 20 | 46 | ✅ < 100ms |
-| **status** | 62.1 | 20 | 46 | ✅ < 100ms |
-| **status (100 commits)** | 61.5 | 20 | 46 | ✅ < 100ms |
-| **history contributors** | 68.3 | 20 | 46 | ✅ < 100ms |
-| **history stats (200 commits)** | 83.6 | 20 | 46 | ✅ < 100ms |
-| **branch list** | 107.4 | 20 | 46 | ⚠️ > 100ms |
+| Command                         | Avg Time (ms) | Memory (KB) | Allocs | Status     |
+| ------------------------------- | ------------- | ----------- | ------ | ---------- |
+| **commit validate**             | 4.4           | 17          | 41     | ✅ < 5ms   |
+| **commit template list**        | 5.0           | 17          | 41     | ✅ < 10ms  |
+| **history file**                | 24.2          | 20          | 46     | ✅ < 50ms  |
+| **history blame**               | 25.2          | 20          | 46     | ✅ < 50ms  |
+| **info**                        | 38.6          | 20          | 46     | ✅ < 50ms  |
+| **history stats**               | 55.9          | 20          | 46     | ✅ < 100ms |
+| **status**                      | 62.1          | 20          | 46     | ✅ < 100ms |
+| **status (100 commits)**        | 61.5          | 20          | 46     | ✅ < 100ms |
+| **history contributors**        | 68.3          | 20          | 46     | ✅ < 100ms |
+| **history stats (200 commits)** | 83.6          | 20          | 46     | ✅ < 100ms |
+| **branch list**                 | 107.4         | 20          | 46     | ⚠️ > 100ms |
 
 ### Performance Targets
 

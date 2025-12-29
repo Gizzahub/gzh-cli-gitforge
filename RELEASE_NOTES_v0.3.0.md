@@ -102,13 +102,13 @@ Following GNU and Git conventions, we've added shorthand flags for frequently us
 
 **New Shorthand Flags:**
 
-| Flag | Short | Convention | Commands |
-|------|-------|-----------|----------|
-| `--parallel` | `-j` | make -j, xargs -P | fetch, pull |
-| `--dry-run` | `-n` | make -n, apt -s | fetch, pull |
-| `--tags` | `-t` | git fetch -t | fetch, pull |
-| `--prune` | `-p` | git prune | pull |
-| `--recursive` | `-r` | cp -r, grep -r | fetch, pull |
+| Flag          | Short | Convention        | Commands    |
+| ------------- | ----- | ----------------- | ----------- |
+| `--parallel`  | `-j`  | make -j, xargs -P | fetch, pull |
+| `--dry-run`   | `-n`  | make -n, apt -s   | fetch, pull |
+| `--tags`      | `-t`  | git fetch -t      | fetch, pull |
+| `--prune`     | `-p`  | git prune         | pull        |
+| `--recursive` | `-r`  | cp -r, grep -r    | fetch, pull |
 
 **Examples:**
 

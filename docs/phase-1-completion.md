@@ -68,12 +68,12 @@ ______________________________________________________________________
 
 ### Overall Coverage: 79%
 
-| Package | Coverage | Status | Test Files |
-|---------|----------|--------|------------|
-| **internal/gitcmd** | 94.1% | ✅ Excellent | sanitize_test.go, executor_test.go |
-| **internal/parser** | 97.7% | ✅ Excellent | status_test.go, common_test.go |
-| **pkg/repository** | 56.2% | ⚠️ Good | client_test.go |
-| **test/integration** | 100% pass | ✅ Excellent | cli_test.go |
+| Package              | Coverage  | Status       | Test Files                         |
+| -------------------- | --------- | ------------ | ---------------------------------- |
+| **internal/gitcmd**  | 94.1%     | ✅ Excellent | sanitize_test.go, executor_test.go |
+| **internal/parser**  | 97.7%     | ✅ Excellent | status_test.go, common_test.go     |
+| **pkg/repository**   | 56.2%     | ⚠️ Good      | client_test.go                     |
+| **test/integration** | 100% pass | ✅ Excellent | cli_test.go                        |
 
 ### Test Statistics
 
@@ -302,14 +302,14 @@ ______________________________________________________________________
 
 ## Phase 1 Success Criteria
 
-| Criterion | Target | Actual | Status |
-|-----------|--------|--------|--------|
-| Project structure | Complete | ✅ Complete | ✅ |
-| Core docs | 4 documents | 4+ documents | ✅ |
-| Basic Git ops | 5 operations | 5 operations | ✅ |
-| Test coverage | ≥80% internal | 94-97% internal | ✅ |
-| Integration tests | Working | 9/9 passing | ✅ |
-| CI/CD pipeline | Configured | ✅ Configured | ✅ |
+| Criterion         | Target        | Actual          | Status |
+| ----------------- | ------------- | --------------- | ------ |
+| Project structure | Complete      | ✅ Complete     | ✅     |
+| Core docs         | 4 documents   | 4+ documents    | ✅     |
+| Basic Git ops     | 5 operations  | 5 operations    | ✅     |
+| Test coverage     | ≥80% internal | 94-97% internal | ✅     |
+| Integration tests | Working       | 9/9 passing     | ✅     |
+| CI/CD pipeline    | Configured    | ✅ Configured   | ✅     |
 
 **Overall Phase 1 Status**: ✅ **COMPLETE** (exceeds criteria)
 

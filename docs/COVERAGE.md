@@ -7,16 +7,16 @@
 
 ### Package Coverage
 
-| Package | Coverage | Target | Status |
-|---------|----------|--------|--------|
-| **internal/gitcmd** | 89.5% | 80% | ✅ Exceeds |
-| **internal/parser** | 95.7% | 80% | ✅ Exceeds |
-| **pkg/history** | 87.7% | 85% | ✅ Exceeds |
-| **pkg/merge** | 82.9% | 85% | ⚠️ Near Target |
-| **pkg/commit** | 66.3% | 85% | ⚠️ Below Target |
-| **pkg/branch** | 48.1% | 85% | ❌ Below Target |
-| **pkg/repository** | 39.2% | 85% | ❌ Below Target |
-| **cmd/gzh-git** | 0.0% | 70% | ❌ Not Tested |
+| Package             | Coverage | Target | Status          |
+| ------------------- | -------- | ------ | --------------- |
+| **internal/gitcmd** | 89.5%    | 80%    | ✅ Exceeds      |
+| **internal/parser** | 95.7%    | 80%    | ✅ Exceeds      |
+| **pkg/history**     | 87.7%    | 85%    | ✅ Exceeds      |
+| **pkg/merge**       | 82.9%    | 85%    | ⚠️ Near Target  |
+| **pkg/commit**      | 66.3%    | 85%    | ⚠️ Below Target |
+| **pkg/branch**      | 48.1%    | 85%    | ❌ Below Target |
+| **pkg/repository**  | 39.2%    | 85%    | ❌ Below Target |
+| **cmd/gzh-git**     | 0.0%     | 70%    | ❌ Not Tested   |
 
 ### Coverage Tier Analysis
 
@@ -51,12 +51,12 @@
 
 ### Coverage by Test Type
 
-| Test Type | Count | Purpose | Coverage Impact |
-|-----------|-------|---------|----------------|
-| Unit Tests | 50+ | Package functionality | High |
-| Integration Tests | 51 | CLI commands | Medium |
-| E2E Tests | 90 | User workflows | Low (black-box) |
-| Benchmarks | 11 | Performance | None |
+| Test Type         | Count | Purpose               | Coverage Impact |
+| ----------------- | ----- | --------------------- | --------------- |
+| Unit Tests        | 50+   | Package functionality | High            |
+| Integration Tests | 51    | CLI commands          | Medium          |
+| E2E Tests         | 90    | User workflows        | Low (black-box) |
+| Benchmarks        | 11    | Performance           | None            |
 
 ## Detailed Package Analysis
 

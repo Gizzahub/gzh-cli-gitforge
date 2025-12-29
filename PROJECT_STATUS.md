@@ -480,16 +480,16 @@ ______________________________________________________________________
 
 **Package Coverage** (Phase 6 Final):
 
-| Package | Coverage | Target | Status |
-|---------|----------|--------|--------|
-| **internal/gitcmd** | 89.5% | 80% | ✅ Exceeds |
-| **internal/parser** | 95.7% | 80% | ✅ Exceeds |
-| **pkg/history** | 87.7% | 85% | ✅ Exceeds |
-| **pkg/merge** | 82.9% | 85% | ⚠️ Near Target |
-| **pkg/commit** | 66.3% | 85% | ⚠️ Below Target |
-| **pkg/branch** | 48.1% | 85% | ⚠️ Below Target |
-| **pkg/repository** | 39.2% | 85% | ⚠️ Below Target |
-| **cmd/gzh-git** | 0.0% | 70% | ⚠️ Covered by integration tests |
+| Package             | Coverage | Target | Status                          |
+| ------------------- | -------- | ------ | ------------------------------- |
+| **internal/gitcmd** | 89.5%    | 80%    | ✅ Exceeds                      |
+| **internal/parser** | 95.7%    | 80%    | ✅ Exceeds                      |
+| **pkg/history**     | 87.7%    | 85%    | ✅ Exceeds                      |
+| **pkg/merge**       | 82.9%    | 85%    | ⚠️ Near Target                  |
+| **pkg/commit**      | 66.3%    | 85%    | ⚠️ Below Target                 |
+| **pkg/branch**      | 48.1%    | 85%    | ⚠️ Below Target                 |
+| **pkg/repository**  | 39.2%    | 85%    | ⚠️ Below Target                 |
+| **cmd/gzh-git**     | 0.0%     | 70%    | ⚠️ Covered by integration tests |
 
 **Quality Assessment**:
 
@@ -582,11 +582,11 @@ ______________________________________________________________________
 
 ### Current Risks
 
-| Risk | Severity | Mitigation |
-|------|----------|------------|
-| pkg/repository coverage below target | Medium | Prioritize additional tests in Phase 2 |
-| Clone function low coverage (17.9%) | Low | Requires complex integration testing; defer to Phase 6 |
-| No cmd/ package tests | Medium | Add during Phase 2 implementation |
+| Risk                                 | Severity | Mitigation                                             |
+| ------------------------------------ | -------- | ------------------------------------------------------ |
+| pkg/repository coverage below target | Medium   | Prioritize additional tests in Phase 2                 |
+| Clone function low coverage (17.9%)  | Low      | Requires complex integration testing; defer to Phase 6 |
+| No cmd/ package tests                | Medium   | Add during Phase 2 implementation                      |
 
 ### Known Issues
 

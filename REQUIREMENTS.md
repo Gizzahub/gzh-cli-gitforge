@@ -12,21 +12,23 @@ ______________________________________________________________________
 ### 1.1 Runtime Requirements
 
 **Minimum System Specifications:**
-| Component | Requirement | Notes |
-|-----------|-------------|-------|
+
+| Component        | Requirement           | Notes                               |
+| ---------------- | --------------------- | ----------------------------------- |
 | Operating System | Linux, macOS, Windows | Kernel 4.x+, macOS 11+, Windows 10+ |
-| Architecture | amd64, arm64 | Native binaries for each platform |
-| Memory | 256MB RAM | For typical operations |
-| Disk Space | 50MB | Binary + config + templates |
-| Git | 2.30+ | System Git CLI required |
+| Architecture     | amd64, arm64          | Native binaries for each platform   |
+| Memory           | 256MB RAM             | For typical operations              |
+| Disk Space       | 50MB                  | Binary + config + templates         |
+| Git              | 2.30+                 | System Git CLI required             |
 
 **Recommended Specifications:**
-| Component | Recommendation | Benefit |
-|-----------|---------------|---------|
-| Memory | 512MB+ RAM | Better performance for bulk operations |
-| CPU | 2+ cores | Parallel operations |
-| Disk | SSD | Faster repository access |
-| Git | 2.40+ | Latest features and performance |
+
+| Component | Recommendation | Benefit                                |
+| --------- | -------------- | -------------------------------------- |
+| Memory    | 512MB+ RAM     | Better performance for bulk operations |
+| CPU       | 2+ cores       | Parallel operations                    |
+| Disk      | SSD            | Faster repository access               |
+| Git       | 2.40+          | Latest features and performance        |
 
 ### 1.2 Development Requirements
 
@@ -886,26 +888,26 @@ ______________________________________________________________________
 
 ## 10. Traceability Matrix
 
-| Requirement ID | Feature | Priority | Verification Method | Status |
-|----------------|---------|----------|---------------------|--------|
-| REQ-F1.1.1 | Template Loading | P0 | Unit Test | ⏳ Pending |
-| REQ-F1.2.1 | Change Analysis | P0 | Integration Test | ⏳ Pending |
-| REQ-F1.3.1 | Safety Checks | P0 | E2E Test | ⏳ Pending |
-| REQ-F2.1.1 | Branch Creation | P0 | Unit Test | ⏳ Pending |
-| REQ-F2.2.1 | Worktree Creation | P0 | Integration Test | ⏳ Pending |
-| REQ-F3.1.1 | Commit Queries | P0 | Unit Test | ⏳ Pending |
-| REQ-F4.1.1 | Pre-Merge Analysis | P0 | Integration Test | ⏳ Pending |
-| REQ-NFR-P1 | Basic Operation Latency | P0 | Benchmark | ⏳ Pending |
-| REQ-NFR-R1 | Destructive Operations | P0 | Manual Test | ⏳ Pending |
-| REQ-NFR-S1 | Command Injection Prevention | P0 | Security Test | ⏳ Pending |
+| Requirement ID | Feature                      | Priority | Verification Method | Status     |
+| -------------- | ---------------------------- | -------- | ------------------- | ---------- |
+| REQ-F1.1.1     | Template Loading             | P0       | Unit Test           | ⏳ Pending |
+| REQ-F1.2.1     | Change Analysis              | P0       | Integration Test    | ⏳ Pending |
+| REQ-F1.3.1     | Safety Checks                | P0       | E2E Test            | ⏳ Pending |
+| REQ-F2.1.1     | Branch Creation              | P0       | Unit Test           | ⏳ Pending |
+| REQ-F2.2.1     | Worktree Creation            | P0       | Integration Test    | ⏳ Pending |
+| REQ-F3.1.1     | Commit Queries               | P0       | Unit Test           | ⏳ Pending |
+| REQ-F4.1.1     | Pre-Merge Analysis           | P0       | Integration Test    | ⏳ Pending |
+| REQ-NFR-P1     | Basic Operation Latency      | P0       | Benchmark           | ⏳ Pending |
+| REQ-NFR-R1     | Destructive Operations       | P0       | Manual Test         | ⏳ Pending |
+| REQ-NFR-S1     | Command Injection Prevention | P0       | Security Test       | ⏳ Pending |
 
 ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-27 | Claude (AI) | Initial technical requirements |
+| Version | Date       | Author      | Changes                        |
+| ------- | ---------- | ----------- | ------------------------------ |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial technical requirements |
 
 ______________________________________________________________________
 

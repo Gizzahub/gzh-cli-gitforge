@@ -68,14 +68,14 @@ gzh-cli-git is a **Git-specialized CLI tool and Go library** that provides advan
 
 ### 2.3 Key Differentiators
 
-| Feature | gzh-cli-git | Standard Git | Other Tools |
-|---------|-------------|--------------|-------------|
-| Library-First Design | ✅ Clean APIs | ❌ CLI only | ⚠️ Tightly coupled |
-| Commit Templates | ✅ Built-in + Custom | ❌ Manual | ⚠️ Limited |
-| Worktree Workflows | ✅ Simplified | ⚠️ Complex | ⚠️ Minimal |
-| History Analysis | ✅ Rich insights | ⚠️ Basic | ⚠️ Separate tools |
-| Auto-Conflict Resolution | ✅ Multiple strategies | ❌ Manual only | ⚠️ Limited |
-| Go Integration | ✅ Clean interfaces | ❌ Not applicable | ⚠️ Heavy deps |
+| Feature                  | gzh-cli-git            | Standard Git      | Other Tools        |
+| ------------------------ | ---------------------- | ----------------- | ------------------ |
+| Library-First Design     | ✅ Clean APIs          | ❌ CLI only       | ⚠️ Tightly coupled |
+| Commit Templates         | ✅ Built-in + Custom   | ❌ Manual         | ⚠️ Limited         |
+| Worktree Workflows       | ✅ Simplified          | ⚠️ Complex        | ⚠️ Minimal         |
+| History Analysis         | ✅ Rich insights       | ⚠️ Basic          | ⚠️ Separate tools  |
+| Auto-Conflict Resolution | ✅ Multiple strategies | ❌ Manual only    | ⚠️ Limited         |
+| Go Integration           | ✅ Clean interfaces    | ❌ Not applicable | ⚠️ Heavy deps      |
 
 ______________________________________________________________________
 
@@ -119,22 +119,22 @@ gzh-cli-git
 
 ### 3.2 Feature Priority Matrix
 
-| Feature | Priority | Target Phase | User Impact | Technical Complexity |
-|---------|----------|--------------|-------------|---------------------|
-| **Commit Automation** | P0 | Phase 2 | High | Medium |
-| Template System | P0 | Phase 2 | High | Low |
-| Auto-Commit | P0 | Phase 2 | High | Medium |
-| Smart Push | P0 | Phase 2 | High | Medium |
-| **Branch Management** | P0 | Phase 3 | High | Medium |
-| Worktree Operations | P0 | Phase 3 | High | Medium |
-| Parallel Workflows | P1 | Phase 3 | Medium | High |
-| **History Analysis** | P0 | Phase 4 | Medium | Medium |
-| Commit Stats | P0 | Phase 4 | Medium | Low |
-| Contributor Analysis | P1 | Phase 4 | Medium | Medium |
-| **Advanced Merge** | P0 | Phase 5 | High | High |
-| Conflict Detection | P0 | Phase 5 | High | Medium |
-| Auto-Resolution | P1 | Phase 5 | High | High |
-| **Library API** | P0 | All Phases | Critical | Medium |
+| Feature               | Priority | Target Phase | User Impact | Technical Complexity |
+| --------------------- | -------- | ------------ | ----------- | -------------------- |
+| **Commit Automation** | P0       | Phase 2      | High        | Medium               |
+| Template System       | P0       | Phase 2      | High        | Low                  |
+| Auto-Commit           | P0       | Phase 2      | High        | Medium               |
+| Smart Push            | P0       | Phase 2      | High        | Medium               |
+| **Branch Management** | P0       | Phase 3      | High        | Medium               |
+| Worktree Operations   | P0       | Phase 3      | High        | Medium               |
+| Parallel Workflows    | P1       | Phase 3      | Medium      | High                 |
+| **History Analysis**  | P0       | Phase 4      | Medium      | Medium               |
+| Commit Stats          | P0       | Phase 4      | Medium      | Low                  |
+| Contributor Analysis  | P1       | Phase 4      | Medium      | Medium               |
+| **Advanced Merge**    | P0       | Phase 5      | High        | High                 |
+| Conflict Detection    | P0       | Phase 5      | High        | Medium               |
+| Auto-Resolution       | P1       | Phase 5      | High        | High                 |
+| **Library API**       | P0       | All Phases   | Critical    | Medium               |
 
 ______________________________________________________________________
 
@@ -411,11 +411,11 @@ ______________________________________________________________________
 
 ### 5.3 Performance Constraints
 
-| Operation | Target (p95) | Rationale |
-|-----------|--------------|-----------|
-| Basic operations | \<100ms | User expects instant feedback |
-| Bulk updates (100 repos) | \<30s | Parallel execution feasible |
-| History analysis (10K commits) | \<5s | Acceptable for one-time analysis |
+| Operation                      | Target (p95) | Rationale                        |
+| ------------------------------ | ------------ | -------------------------------- |
+| Basic operations               | \<100ms      | User expects instant feedback    |
+| Bulk updates (100 repos)       | \<30s        | Parallel execution feasible      |
+| History analysis (10K commits) | \<5s         | Acceptable for one-time analysis |
 
 ### 5.4 Security Constraints
 
@@ -525,15 +525,15 @@ ______________________________________________________________________
 
 ### 7.1 Phase Overview
 
-| Phase | Timeline | Focus | Deliverables |
-|-------|----------|-------|--------------|
-| **Phase 1** | Weeks 1-2 | Foundation | Project structure, core docs, basic Git ops |
-| **Phase 2** | Week 3 | Commit Automation | Templates, auto-commit, smart push |
-| **Phase 3** | Week 4 | Branch Management | Branch ops, worktree, workflows |
-| **Phase 4** | Week 5 | History Analysis | Stats, contributors, reporting |
-| **Phase 5** | Week 6 | Advanced Merge | Conflict detection, auto-resolution |
-| **Phase 6** | Weeks 7-8 | Integration & Testing | Test suite, performance, docs |
-| **Phase 7** | Weeks 9-10 | gzh-cli Integration | Library publication, integration, release |
+| Phase       | Timeline   | Focus                 | Deliverables                                |
+| ----------- | ---------- | --------------------- | ------------------------------------------- |
+| **Phase 1** | Weeks 1-2  | Foundation            | Project structure, core docs, basic Git ops |
+| **Phase 2** | Week 3     | Commit Automation     | Templates, auto-commit, smart push          |
+| **Phase 3** | Week 4     | Branch Management     | Branch ops, worktree, workflows             |
+| **Phase 4** | Week 5     | History Analysis      | Stats, contributors, reporting              |
+| **Phase 5** | Week 6     | Advanced Merge        | Conflict detection, auto-resolution         |
+| **Phase 6** | Weeks 7-8  | Integration & Testing | Test suite, performance, docs               |
+| **Phase 7** | Weeks 9-10 | gzh-cli Integration   | Library publication, integration, release   |
 
 ### 7.2 Milestone Criteria
 
@@ -593,13 +593,13 @@ ______________________________________________________________________
 
 ### 8.1 Document Status
 
-| Specification | Status | Phase | Priority | ETA |
-|---------------|--------|-------|----------|-----|
-| 00-overview.md | ✅ Complete | Phase 1 | P0 | Week 1 |
-| 10-commit-automation.md | ✅ Complete | Phase 2 | P0 | Week 3 |
-| 20-branch-management.md | ✅ Complete | Phase 3 | P0 | Week 3 |
-| 30-history-analysis.md | ✅ Complete | Phase 4 | P0 | Week 5 |
-| 40-advanced-merge.md | ⏳ Pending | Phase 5 | P0 | Week 6 |
+| Specification           | Status      | Phase   | Priority | ETA    |
+| ----------------------- | ----------- | ------- | -------- | ------ |
+| 00-overview.md          | ✅ Complete | Phase 1 | P0       | Week 1 |
+| 10-commit-automation.md | ✅ Complete | Phase 2 | P0       | Week 3 |
+| 20-branch-management.md | ✅ Complete | Phase 3 | P0       | Week 3 |
+| 30-history-analysis.md  | ✅ Complete | Phase 4 | P0       | Week 5 |
+| 40-advanced-merge.md    | ⏳ Pending  | Phase 5 | P0       | Week 6 |
 
 ### 8.2 Specification Template
 
@@ -659,10 +659,11 @@ Each feature specification follows this structure:
 - Examples show best practices
 
 **Traceability Matrix**:
-| Spec ID | Requirement | Implementation | Test | Docs |
-|---------|-------------|----------------|------|------|
-| F1.1.1 | Template Loading | `pkg/commit/template.go` | `template_test.go` | `10-commit-automation.md` |
-| F2.2.1 | Worktree Creation | `pkg/branch/worktree.go` | `worktree_test.go` | `20-branch-management.md` |
+
+| Spec ID | Requirement       | Implementation           | Test               | Docs                      |
+| ------- | ----------------- | ------------------------ | ------------------ | ------------------------- |
+| F1.1.1  | Template Loading  | `pkg/commit/template.go` | `template_test.go` | `10-commit-automation.md` |
+| F2.2.1  | Worktree Creation | `pkg/branch/worktree.go` | `worktree_test.go` | `20-branch-management.md` |
 
 ______________________________________________________________________
 
@@ -708,21 +709,21 @@ ______________________________________________________________________
 
 ### 10.1 Technical Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| API design instability | Medium | High | Design review checkpoints; SemVer |
-| Performance issues | Low | Medium | Early benchmarking; profiling |
-| Git version compatibility | Low | High | Support Git 2.30+; CI matrix testing |
-| Library adoption low | Medium | Medium | Excellent docs; gzh-cli proves value |
+| Risk                      | Probability | Impact | Mitigation                           |
+| ------------------------- | ----------- | ------ | ------------------------------------ |
+| API design instability    | Medium      | High   | Design review checkpoints; SemVer    |
+| Performance issues        | Low         | Medium | Early benchmarking; profiling        |
+| Git version compatibility | Low         | High   | Support Git 2.30+; CI matrix testing |
+| Library adoption low      | Medium      | Medium | Excellent docs; gzh-cli proves value |
 
 ### 10.2 Product Risks
 
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Feature scope creep | High | Medium | Strict phase boundaries; MVP focus |
-| User adoption slow | Medium | High | Clear value prop; gzh-cli integration |
-| Competition (existing tools) | Medium | Low | Unique library-first approach |
-| Documentation lag | Medium | Medium | Document-per-phase requirement |
+| Risk                         | Probability | Impact | Mitigation                            |
+| ---------------------------- | ----------- | ------ | ------------------------------------- |
+| Feature scope creep          | High        | Medium | Strict phase boundaries; MVP focus    |
+| User adoption slow           | Medium      | High   | Clear value prop; gzh-cli integration |
+| Competition (existing tools) | Medium      | Low    | Unique library-first approach         |
+| Documentation lag            | Medium      | Medium | Document-per-phase requirement        |
 
 ______________________________________________________________________
 
@@ -754,33 +755,33 @@ ______________________________________________________________________
 
 ### A.1 Glossary
 
-| Term | Definition |
-|------|------------|
-| **Library-First** | Design pattern prioritizing library API over CLI |
-| **Conventional Commits** | Standardized commit message format |
-| **Worktree** | Multiple working trees attached to same Git repository |
-| **Smart Push** | Push operation with safety checks and validations |
-| **Functional Options** | Go pattern for extensible function arguments |
-| **Context Propagation** | Passing context.Context through call chain |
+| Term                     | Definition                                             |
+| ------------------------ | ------------------------------------------------------ |
+| **Library-First**        | Design pattern prioritizing library API over CLI       |
+| **Conventional Commits** | Standardized commit message format                     |
+| **Worktree**             | Multiple working trees attached to same Git repository |
+| **Smart Push**           | Push operation with safety checks and validations      |
+| **Functional Options**   | Go pattern for extensible function arguments           |
+| **Context Propagation**  | Passing context.Context through call chain             |
 
 ### A.2 Acronyms
 
-| Acronym | Full Form |
-|---------|-----------|
-| CLI | Command-Line Interface |
-| API | Application Programming Interface |
-| PRD | Product Requirements Document |
-| MVP | Minimum Viable Product |
-| E2E | End-to-End |
-| CI/CD | Continuous Integration/Continuous Deployment |
-| TTL | Time To Live |
-| SemVer | Semantic Versioning |
+| Acronym | Full Form                                    |
+| ------- | -------------------------------------------- |
+| CLI     | Command-Line Interface                       |
+| API     | Application Programming Interface            |
+| PRD     | Product Requirements Document                |
+| MVP     | Minimum Viable Product                       |
+| E2E     | End-to-End                                   |
+| CI/CD   | Continuous Integration/Continuous Deployment |
+| TTL     | Time To Live                                 |
+| SemVer  | Semantic Versioning                          |
 
 ### A.3 Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-27 | Claude (AI) | Initial specification overview |
+| Version | Date       | Author      | Changes                        |
+| ------- | ---------- | ----------- | ------------------------------ |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial specification overview |
 
 ______________________________________________________________________
 

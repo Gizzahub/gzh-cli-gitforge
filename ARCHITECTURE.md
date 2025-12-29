@@ -38,13 +38,13 @@ gzh-cli-git adopts a **Library-First Architecture** with the following goals:
 
 ### 1.2 Key Architectural Decisions
 
-| Decision | Rationale | Trade-offs |
-|----------|-----------|------------|
-| Library-First over CLI-First | Enables reuse in gzh-cli; better API design | More upfront design effort |
-| Git CLI over go-git library | Maximum compatibility; simpler | External dependency on Git |
-| Interfaces over concrete types | Testability; extensibility | More files, indirection |
-| Functional options pattern | API extensibility without breaking changes | More boilerplate |
-| Context propagation | Cancellation, timeouts, request-scoped values | Every function signature includes ctx |
+| Decision                       | Rationale                                     | Trade-offs                            |
+| ------------------------------ | --------------------------------------------- | ------------------------------------- |
+| Library-First over CLI-First   | Enables reuse in gzh-cli; better API design   | More upfront design effort            |
+| Git CLI over go-git library    | Maximum compatibility; simpler                | External dependency on Git            |
+| Interfaces over concrete types | Testability; extensibility                    | More files, indirection               |
+| Functional options pattern     | API extensibility without breaking changes    | More boilerplate                      |
+| Context propagation            | Cancellation, timeouts, request-scoped values | Every function signature includes ctx |
 
 ______________________________________________________________________
 
@@ -1066,13 +1066,13 @@ ______________________________________________________________________
 
 ### 9.1 Performance Requirements
 
-| Operation | Target (p95) | Strategy |
-|-----------|--------------|----------|
-| `status` | \<50ms | Cached repository state |
-| `commit` | \<100ms | Minimal validation |
-| `branch create` | \<100ms | Direct Git execution |
-| Bulk update (100 repos) | \<30s | Parallel execution (goroutines) |
-| History analysis (10K commits) | \<5s | Streaming, pagination |
+| Operation                      | Target (p95) | Strategy                        |
+| ------------------------------ | ------------ | ------------------------------- |
+| `status`                       | \<50ms       | Cached repository state         |
+| `commit`                       | \<100ms      | Minimal validation              |
+| `branch create`                | \<100ms      | Direct Git execution            |
+| Bulk update (100 repos)        | \<30s        | Parallel execution (goroutines) |
+| History analysis (10K commits) | \<5s         | Streaming, pagination           |
 
 ### 9.2 Optimization Strategies
 
@@ -1515,12 +1515,12 @@ ______________________________________________________________________
 
 ### A.1 Key Files Summary
 
-| File | Purpose | Criticality |
-|------|---------|-------------|
-| `pkg/repository/interfaces.go` | Core repository API | CRITICAL |
-| `pkg/commit/manager.go` | Commit automation | HIGH |
-| `internal/gitcmd/executor.go` | Git command wrapper | CRITICAL |
-| `cmd/gzh-git/main.go` | CLI entry point | MEDIUM |
+| File                           | Purpose             | Criticality |
+| ------------------------------ | ------------------- | ----------- |
+| `pkg/repository/interfaces.go` | Core repository API | CRITICAL    |
+| `pkg/commit/manager.go`        | Commit automation   | HIGH        |
+| `internal/gitcmd/executor.go`  | Git command wrapper | CRITICAL    |
+| `cmd/gzh-git/main.go`          | CLI entry point     | MEDIUM      |
 
 ### A.2 Dependencies
 
@@ -1554,9 +1554,9 @@ ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-11-27 | Claude (AI) | Initial architecture design |
+| Version | Date       | Author      | Changes                     |
+| ------- | ---------- | ----------- | --------------------------- |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial architecture design |
 
 ______________________________________________________________________
 

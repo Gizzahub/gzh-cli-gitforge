@@ -666,12 +666,12 @@ ______________________________________________________________________
 
 ## 8. Risks & Mitigation
 
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Template syntax too complex | Medium | Medium | Provide wizard for template creation |
-| Auto-gen messages inaccurate | Medium | High | Allow editing before commit; improve algorithms |
-| Smart push too restrictive | Low | Medium | Provide override flag; clear error messages |
-| Performance with large diffs | Low | Low | Implement diff size limits; optimize parsing |
+| Risk                         | Probability | Impact | Mitigation                                      |
+| ---------------------------- | ----------- | ------ | ----------------------------------------------- |
+| Template syntax too complex  | Medium      | Medium | Provide wizard for template creation            |
+| Auto-gen messages inaccurate | Medium      | High   | Allow editing before commit; improve algorithms |
+| Smart push too restrictive   | Low         | Medium | Provide override flag; clear error messages     |
+| Performance with large diffs | Low         | Low    | Implement diff size limits; optimize parsing    |
 
 ______________________________________________________________________
 

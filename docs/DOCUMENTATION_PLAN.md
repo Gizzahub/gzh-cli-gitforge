@@ -302,12 +302,12 @@ For each document:
 
 ## Timeline
 
-| Week | Tasks | Deliverables |
-|------|-------|--------------|
-| 1 | Create structure, move existing docs | New directory structure, moved files |
-| 2 | Create new user content | Workflows, examples |
-| 3 | Create new developer content | Architecture overview, API refs |
-| 4 | Update links, cleanup | Complete migration |
+| Week | Tasks                                | Deliverables                         |
+| ---- | ------------------------------------ | ------------------------------------ |
+| 1    | Create structure, move existing docs | New directory structure, moved files |
+| 2    | Create new user content              | Workflows, examples                  |
+| 3    | Create new developer content         | Architecture overview, API refs      |
+| 4    | Update links, cleanup                | Complete migration                   |
 
 ## Open Questions
 

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -37,21 +36,15 @@ for Git repositories with uncommitted changes and commits them in batch.
 By default:
   - Scans 1 directory level deep
   - Processes 5 repositories in parallel
-  - Shows preview and asks for confirmation
+  - Shows preview only (use --yes to commit)
   - Auto-generates commit messages based on changed files
 
 The workflow is:
   1. Scan repositories and identify dirty ones
   2. Show preview table with repositories and suggested messages
-  3. Ask for confirmation (Y/n/e)
-  4. Execute commits in parallel
+  3. Execute commits if --yes is specified
 
-Confirmation options:
-  Y - commit all with suggested messages (default)
-  n - cancel
-  e - edit messages in editor ($EDITOR or vim)
-
-Use --yes to skip confirmation, --dry-run to preview without committing.`,
+Use --yes to commit, --edit to modify messages in $EDITOR first.`,
 	Example: `  # Commit all dirty repositories in current directory
   gz-git commit bulk -d 1
 
@@ -185,52 +178,33 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		applyCustomMessages(result, customMessages)
 	}
 
-	// For non-dry-run, interactive confirmation
-	if !opts.DryRun && !opts.Yes && result.TotalDirty > 0 && commitBulkFlags.Format != "json" {
-		// Show preview
-		displayCommitPreview(result)
-
-		// If -e flag is set, open editor directly
-		if commitBulkEdit {
-			editedMessages, err := editMessagesInEditor(result)
-			if err != nil {
-				return fmt.Errorf("editor failed: %w", err)
-			}
-			if editedMessages == nil {
-				fmt.Println("Cancelled (empty file).")
-				return nil
-			}
-			applyCustomMessages(result, editedMessages)
-		} else {
-			// Ask for confirmation with Y/n/e options
-			choice, err := askConfirmationWithEdit()
-			if err != nil {
-				return err
-			}
-			switch choice {
-			case "cancel":
-				fmt.Println("Cancelled.")
-				return nil
-			case "edit":
-				editedMessages, err := editMessagesInEditor(result)
-				if err != nil {
-					return fmt.Errorf("editor failed: %w", err)
-				}
-				if editedMessages == nil {
-					fmt.Println("Cancelled (empty file).")
-					return nil
-				}
-				applyCustomMessages(result, editedMessages)
-			}
-			// "confirm" falls through to commit
+	// If -e flag is set, open editor for message editing
+	if commitBulkEdit && result.TotalDirty > 0 && !opts.DryRun {
+		editedMessages, err := editMessagesInEditor(result)
+		if err != nil {
+			return fmt.Errorf("editor failed: %w", err)
 		}
-
-		// Re-run with actual commits
+		if editedMessages == nil {
+			fmt.Println("Cancelled (empty file).")
+			return nil
+		}
+		applyCustomMessages(result, editedMessages)
+		// After editor, proceed to commit
 		opts.Yes = true
-		opts.DryRun = false
+	}
+
+	// If --yes not specified and not using editor, treat as dry-run (preview only)
+	if !opts.Yes && !opts.DryRun && result.TotalDirty > 0 {
+		opts.DryRun = true
+		if shouldShowProgress(commitBulkFlags.Format, quiet) {
+			fmt.Println("Hint: Use --yes (-y) to commit, or --edit (-e) to edit messages first")
+		}
+	}
+
+	// Execute commits if --yes is set
+	if opts.Yes && !opts.DryRun && result.TotalDirty > 0 {
 		// Pass the custom messages via MessageGenerator
 		opts.MessageGenerator = func(ctx context.Context, repoPath string, files []string) (string, error) {
-			// Find repo in result and return its (possibly edited) message
 			for _, repo := range result.Repositories {
 				if repo.Path == repoPath {
 					if repo.Message != "" {
@@ -316,34 +290,6 @@ func displayCommitPreview(result *repository.BulkCommitResult) {
 
 	fmt.Println(strings.Repeat("-", 105))
 	fmt.Printf("Total: %d repositories, %d files, +%d/-%d lines\n\n", result.TotalDirty, totalFiles, totalAdditions, totalDeletions)
-}
-
-// askConfirmationWithEdit asks for confirmation with Y/n/e options
-// Returns: "confirm", "cancel", or "edit"
-func askConfirmationWithEdit() (string, error) {
-	fmt.Println("Proceed? [Y/n/e]")
-	fmt.Println("  Y - commit all with suggested messages (default)")
-	fmt.Println("  n - cancel")
-	fmt.Println("  e - edit messages in editor")
-	fmt.Print("> ")
-
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-
-	input = strings.TrimSpace(strings.ToLower(input))
-	switch input {
-	case "", "y", "yes":
-		return "confirm", nil
-	case "n", "no":
-		return "cancel", nil
-	case "e", "edit":
-		return "edit", nil
-	default:
-		return "confirm", nil // Default to confirm
-	}
 }
 
 // loadMessagesFile loads commit messages from a JSON file

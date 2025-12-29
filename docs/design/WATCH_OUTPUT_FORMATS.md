@@ -407,11 +407,11 @@ gzh-git watch --format json >> ~/logs/git-changes.jsonl
 
 ### Format Impact on Performance
 
-| Format | CPU Overhead | Memory | Notes |
-|---------|--------------|--------|-------|
-| Default | ~0.5% | 1KB/event | Color codes + formatting |
-| Compact | ~0.3% | 500B/event | Minimal processing |
-| JSON | ~0.4% | 800B/event | JSON encoding |
+| Format  | CPU Overhead | Memory     | Notes                    |
+| ------- | ------------ | ---------- | ------------------------ |
+| Default | ~0.5%        | 1KB/event  | Color codes + formatting |
+| Compact | ~0.3%        | 500B/event | Minimal processing       |
+| JSON    | ~0.4%        | 800B/event | JSON encoding            |
 
 **Conclusion**: All formats are lightweight enough for real-time use
 

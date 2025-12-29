@@ -577,12 +577,12 @@ ______________________________________________________________________
 
 ## 8. Risks & Mitigation
 
-| Risk | Severity | Probability | Mitigation |
-|------|----------|-------------|------------|
-| Data loss from accidental deletion | High | Medium | Multiple confirmation prompts, dry-run mode |
-| Worktree path conflicts | Medium | Medium | Path validation, clear error messages |
-| Performance with many branches | Low | Low | Efficient git commands, pagination |
-| Git version compatibility | Medium | Low | Version checks, feature detection |
+| Risk                               | Severity | Probability | Mitigation                                  |
+| ---------------------------------- | -------- | ----------- | ------------------------------------------- |
+| Data loss from accidental deletion | High     | Medium      | Multiple confirmation prompts, dry-run mode |
+| Worktree path conflicts            | Medium   | Medium      | Path validation, clear error messages       |
+| Performance with many branches     | Low      | Low         | Efficient git commands, pagination          |
+| Git version compatibility          | Medium   | Low         | Version checks, feature detection           |
 
 ______________________________________________________________________
 
