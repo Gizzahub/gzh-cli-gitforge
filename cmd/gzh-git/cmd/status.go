@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -78,6 +79,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Validate format
+	if err := validateBulkFormat(statusFlags.Format); err != nil {
+		return err
+	}
+
 	// Create client
 	client := repository.NewClient()
 
@@ -103,7 +109,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// One-time status check
-	if !quiet {
+	if shouldShowProgress(statusFlags.Format, quiet) {
 		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, statusFlags.Depth)
 	}
 
@@ -113,12 +119,12 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display scan completion message
-	if !quiet && result.TotalScanned == 0 {
+	if shouldShowProgress(statusFlags.Format, quiet) && result.TotalScanned == 0 {
 		fmt.Printf("Scan complete: no repositories found\n")
 	}
 
-	// Display results
-	if !quiet {
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if statusFlags.Format == "json" || !quiet {
 		displayStatusResults(result)
 	}
 
@@ -187,6 +193,12 @@ func executeStatus(ctx context.Context, client repository.Client, opts repositor
 }
 
 func displayStatusResults(result *repository.BulkStatusResult) {
+	// JSON output mode
+	if statusFlags.Format == "json" {
+		displayStatusResultsJSON(result)
+		return
+	}
+
 	fmt.Println()
 	fmt.Println("=== Bulk Status Results ===")
 	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
@@ -228,6 +240,61 @@ func displayStatusResults(result *repository.BulkStatusResult) {
 			fmt.Println("✓ All repositories are clean")
 		}
 	}
+}
+
+// StatusJSONOutput represents the JSON output structure for status command
+type StatusJSONOutput struct {
+	TotalScanned   int                          `json:"total_scanned"`
+	TotalProcessed int                          `json:"total_processed"`
+	DurationMs     int64                        `json:"duration_ms"`
+	Summary        map[string]int               `json:"summary"`
+	Repositories   []StatusRepositoryJSONOutput `json:"repositories"`
+}
+
+// StatusRepositoryJSONOutput represents a single repository in JSON output
+type StatusRepositoryJSONOutput struct {
+	Path             string   `json:"path"`
+	Branch           string   `json:"branch,omitempty"`
+	Status           string   `json:"status"`
+	UncommittedFiles int      `json:"uncommitted_files,omitempty"`
+	UntrackedFiles   int      `json:"untracked_files,omitempty"`
+	CommitsAhead     int      `json:"commits_ahead,omitempty"`
+	CommitsBehind    int      `json:"commits_behind,omitempty"`
+	ConflictFiles    []string `json:"conflict_files,omitempty"`
+	DurationMs       int64    `json:"duration_ms,omitempty"`
+	Error            string   `json:"error,omitempty"`
+}
+
+func displayStatusResultsJSON(result *repository.BulkStatusResult) {
+	output := StatusJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]StatusRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := StatusRepositoryJSONOutput{
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			CommitsAhead:     repo.CommitsAhead,
+			CommitsBehind:    repo.CommitsBehind,
+			ConflictFiles:    repo.ConflictFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(output)
 }
 
 func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {

@@ -119,6 +119,11 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Validate format
+	if err := validateBulkFormat(pushFlags.Format); err != nil {
+		return err
+	}
+
 	// Create client
 	client := repository.NewClient()
 
