@@ -157,12 +157,19 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// If --yes not specified and not using editor, this is preview only
+	// Set DryRun before first BulkCommit call to avoid accidental commits
+	previewOnly := !opts.Yes && !opts.DryRun && !commitBulkEdit
+	if previewOnly {
+		opts.DryRun = true
+	}
+
 	// Scanning phase
 	if shouldShowProgress(commitBulkFlags.Format, quiet) {
 		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, commitBulkFlags.Depth)
 	}
 
-	// Execute bulk commit (analysis phase)
+	// Execute bulk commit (analysis phase if DryRun, otherwise commits)
 	result, err := client.BulkCommit(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("bulk commit failed: %w", err)
@@ -178,8 +185,8 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		applyCustomMessages(result, customMessages)
 	}
 
-	// If -e flag is set, open editor for message editing
-	if commitBulkEdit && result.TotalDirty > 0 && !opts.DryRun {
+	// If -e flag is set, open editor for message editing then commit
+	if commitBulkEdit && result.TotalDirty > 0 {
 		editedMessages, err := editMessagesInEditor(result)
 		if err != nil {
 			return fmt.Errorf("editor failed: %w", err)
@@ -189,21 +196,10 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 		applyCustomMessages(result, editedMessages)
-		// After editor, proceed to commit
+
+		// Execute commits with edited messages
+		opts.DryRun = false
 		opts.Yes = true
-	}
-
-	// If --yes not specified and not using editor, treat as dry-run (preview only)
-	if !opts.Yes && !opts.DryRun && result.TotalDirty > 0 {
-		opts.DryRun = true
-		if shouldShowProgress(commitBulkFlags.Format, quiet) {
-			fmt.Println("Hint: Use --yes (-y) to commit, or --edit (-e) to edit messages first")
-		}
-	}
-
-	// Execute commits if --yes is set
-	if opts.Yes && !opts.DryRun && result.TotalDirty > 0 {
-		// Pass the custom messages via MessageGenerator
 		opts.MessageGenerator = func(ctx context.Context, repoPath string, files []string) (string, error) {
 			for _, repo := range result.Repositories {
 				if repo.Path == repoPath {
@@ -219,6 +215,11 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("bulk commit failed: %w", err)
 		}
+	}
+
+	// Show hint for preview mode
+	if previewOnly && result.TotalDirty > 0 && shouldShowProgress(commitBulkFlags.Format, quiet) {
+		fmt.Println("Hint: Use --yes (-y) to commit, or --edit (-e) to edit messages first")
 	}
 
 	// Display results
