@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -156,7 +157,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 	}
 
 	// One-time push
-	if !quiet {
+	if shouldShowProgress(pushFlags.Format, quiet) {
 		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pushFlags.Depth)
 	}
 
@@ -166,12 +167,12 @@ func runPush(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display scan completion message
-	if !quiet && result.TotalScanned == 0 {
+	if shouldShowProgress(pushFlags.Format, quiet) && result.TotalScanned == 0 {
 		fmt.Printf("Scan complete: no repositories found\n")
 	}
 
-	// Display results
-	if !quiet {
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if pushFlags.Format == "json" || !quiet {
 		displayPushResults(result)
 	}
 
@@ -209,7 +210,7 @@ func runPushWatch(ctx context.Context, client repository.Client, opts repository
 			return nil
 
 		case <-ticker.C:
-			if !quiet && pushFlags.Format != "compact" {
+			if shouldShowProgress(pushFlags.Format, quiet) {
 				fmt.Printf("\n[%s] Running scheduled push...\n", time.Now().Format("15:04:05"))
 			}
 			if err := executePush(ctx, client, opts); err != nil {
@@ -240,6 +241,12 @@ func executePush(ctx context.Context, client repository.Client, opts repository.
 }
 
 func displayPushResults(result *repository.BulkPushResult) {
+	// JSON output mode
+	if pushFlags.Format == "json" {
+		displayPushResultsJSON(result)
+		return
+	}
+
 	fmt.Println()
 	fmt.Println("=== Bulk Push Results ===")
 	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
@@ -394,4 +401,55 @@ func getPushStatusIconWithContext(status string, pushedCommits int) string {
 // getPushStatusIcon returns the icon for a status (deprecated: use getPushStatusIconWithContext).
 func getPushStatusIcon(status string) string {
 	return getPushStatusIconWithContext(status, 0)
+}
+
+// PushJSONOutput represents the JSON output structure for push command
+type PushJSONOutput struct {
+	TotalScanned   int                       `json:"total_scanned"`
+	TotalProcessed int                       `json:"total_processed"`
+	DurationMs     int64                     `json:"duration_ms"`
+	Summary        map[string]int            `json:"summary"`
+	Repositories   []PushRepositoryJSONOutput `json:"repositories"`
+}
+
+// PushRepositoryJSONOutput represents a single repository in JSON output
+type PushRepositoryJSONOutput struct {
+	Path          string `json:"path"`
+	Branch        string `json:"branch,omitempty"`
+	Status        string `json:"status"`
+	CommitsAhead  int    `json:"commits_ahead,omitempty"`
+	PushedCommits int    `json:"pushed_commits,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+func displayPushResultsJSON(result *repository.BulkPushResult) {
+	output := PushJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PushRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PushRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			PushedCommits: repo.PushedCommits,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
 }

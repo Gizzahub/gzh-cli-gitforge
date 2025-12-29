@@ -294,7 +294,9 @@ func displayStatusResultsJSON(result *repository.BulkStatusResult) {
 
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	_ = encoder.Encode(output)
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
 }
 
 func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {

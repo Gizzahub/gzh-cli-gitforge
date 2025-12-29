@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -142,7 +143,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// One-time pull
-	if !quiet {
+	if shouldShowProgress(pullFlags.Format, quiet) {
 		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pullFlags.Depth)
 	}
 
@@ -152,12 +153,12 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display scan completion message
-	if !quiet && result.TotalScanned == 0 {
+	if shouldShowProgress(pullFlags.Format, quiet) && result.TotalScanned == 0 {
 		fmt.Printf("Scan complete: no repositories found\n")
 	}
 
-	// Display results
-	if !quiet {
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if pullFlags.Format == "json" || !quiet {
 		displayPullResults(result)
 	}
 
@@ -195,7 +196,7 @@ func runPullWatch(ctx context.Context, client repository.Client, opts repository
 			return nil
 
 		case <-ticker.C:
-			if !quiet && pullFlags.Format != "compact" {
+			if shouldShowProgress(pullFlags.Format, quiet) {
 				fmt.Printf("\n[%s] Running scheduled pull...\n", time.Now().Format("15:04:05"))
 			}
 			if err := executePull(ctx, client, opts); err != nil {
@@ -226,6 +227,12 @@ func executePull(ctx context.Context, client repository.Client, opts repository.
 }
 
 func displayPullResults(result *repository.BulkPullResult) {
+	// JSON output mode
+	if pullFlags.Format == "json" {
+		displayPullResultsJSON(result)
+		return
+	}
+
 	fmt.Println()
 	fmt.Println("=== Bulk Pull Results ===")
 	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
@@ -394,4 +401,57 @@ func getPullStatusIconWithContext(status string, commitsBehind int) string {
 // getPullStatusIcon returns the icon for a status (deprecated: use getPullStatusIconWithContext).
 func getPullStatusIcon(status string) string {
 	return getPullStatusIconWithContext(status, 0)
+}
+
+// PullJSONOutput represents the JSON output structure for pull command
+type PullJSONOutput struct {
+	TotalScanned   int                       `json:"total_scanned"`
+	TotalProcessed int                       `json:"total_processed"`
+	DurationMs     int64                     `json:"duration_ms"`
+	Summary        map[string]int            `json:"summary"`
+	Repositories   []PullRepositoryJSONOutput `json:"repositories"`
+}
+
+// PullRepositoryJSONOutput represents a single repository in JSON output
+type PullRepositoryJSONOutput struct {
+	Path          string `json:"path"`
+	Branch        string `json:"branch,omitempty"`
+	Status        string `json:"status"`
+	CommitsAhead  int    `json:"commits_ahead,omitempty"`
+	CommitsBehind int    `json:"commits_behind,omitempty"`
+	Stashed       bool   `json:"stashed,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+func displayPullResultsJSON(result *repository.BulkPullResult) {
+	output := PullJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PullRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PullRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			CommitsBehind: repo.CommitsBehind,
+			Stashed:       repo.Stashed,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
 }
