@@ -1,9 +1,9 @@
 # Product Goals (No-PRD)
 
-**Project**: gzh-cli-gitforge  
-**Doc Type**: Goals + Constraints + Quality Gates  
-**Status**: Draft  
-**Last Updated**: 2025-12-30
+**Project**: gzh-cli-gitforge
+**Doc Type**: Goals + Constraints + Quality Gates
+**Status**: Active
+**Last Updated**: 2025-12-31
 
 ______________________________________________________________________
 
@@ -17,6 +17,17 @@ gzh-cli-gitforge provides a Git-focused CLI and Go library that:
 
 This document replaces a full PRD. It defines goals, non-goals, guardrails,
 and release quality gates.
+
+**Detailed Documentation**: See [docs/00-product/](docs/00-product/) for comprehensive product documentation.
+
+| Document | Description |
+|----------|-------------|
+| [Vision](docs/00-product/01-vision.md) | Why this project exists, anti-goals |
+| [Principles](docs/00-product/02-principles.md) | Core values and trade-offs |
+| [Problem Space](docs/00-product/03-problem-space.md) | Target users and pain points |
+| [Scope](docs/00-product/04-scope.md) | What's in/out of scope |
+| [Metrics](docs/00-product/05-metrics.md) | Success criteria and measurement |
+| [Roadmap](docs/00-product/06-roadmap.md) | Phases and milestones |
 
 ______________________________________________________________________
 
