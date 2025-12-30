@@ -1,17 +1,17 @@
-# github.com/gizzahub/gzh-cli-git/cmd/gzh-git/cmd
-cmd/gzh-git/cmd/commit_validate.go:108:3: fmt.Println arg list ends with redundant newline
-ok  	github.com/gizzahub/gzh-cli-git/benchmarks	0.661s	coverage: [no statements] [no tests to run]
-	github.com/gizzahub/gzh-cli-git/cmd/gzh-git		coverage: 0.0% of statements
-FAIL	github.com/gizzahub/gzh-cli-git/cmd/gzh-git/cmd [build failed]
-	github.com/gizzahub/gzh-cli-git/examples/basic		coverage: 0.0% of statements
-	github.com/gizzahub/gzh-cli-git/examples/clone		coverage: 0.0% of statements
-ok  	github.com/gizzahub/gzh-cli-git/internal/gitcmd	1.328s	coverage: 93.5% of statements
-ok  	github.com/gizzahub/gzh-cli-git/internal/parser	0.841s	coverage: 97.7% of statements
-ok  	github.com/gizzahub/gzh-cli-git/pkg/branch	1.497s	coverage: 37.9% of statements
-ok  	github.com/gizzahub/gzh-cli-git/pkg/commit	1.849s	coverage: 64.9% of statements
-ok  	github.com/gizzahub/gzh-cli-git/pkg/history	2.970s	coverage: 93.3% of statements
-ok  	github.com/gizzahub/gzh-cli-git/pkg/merge	2.218s	coverage: 86.8% of statements
-ok  	github.com/gizzahub/gzh-cli-git/pkg/repository	3.781s	coverage: 57.7% of statements
+# github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git/cmd
+cmd/gz-git/cmd/commit_validate.go:108:3: fmt.Println arg list ends with redundant newline
+ok  	github.com/gizzahub/gzh-cli-gitforge/benchmarks	0.661s	coverage: [no statements] [no tests to run]
+	github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git		coverage: 0.0% of statements
+FAIL	github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git/cmd [build failed]
+	github.com/gizzahub/gzh-cli-gitforge/examples/basic		coverage: 0.0% of statements
+	github.com/gizzahub/gzh-cli-gitforge/examples/clone		coverage: 0.0% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd	1.328s	coverage: 93.5% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/internal/parser	0.841s	coverage: 97.7% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/branch	1.497s	coverage: 37.9% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/commit	1.849s	coverage: 64.9% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/history	2.970s	coverage: 93.3% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/merge	2.218s	coverage: 86.8% of statements
+ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/repository	3.781s	coverage: 57.7% of statements
 --- FAIL: TestCLIStatus (0.04s)
     cli_test.go:62: Expected status output to contain repository status information, got: Untracked files:
           (use "git add <file>..." to include in what will be committed)
@@ -20,7 +20,7 @@ ok  	github.com/gizzahub/gzh-cli-git/pkg/repository	3.781s	coverage: 57.7% of st
         
 FAIL
 coverage: [no statements]
-FAIL	github.com/gizzahub/gzh-cli-git/test/integration	5.545s
-ok  	github.com/gizzahub/gzh-cli-git/tests/e2e	7.513s	coverage: [no statements]
-ok  	github.com/gizzahub/gzh-cli-git/tests/integration	9.211s	coverage: [no statements]
+FAIL	github.com/gizzahub/gzh-cli-gitforge/test/integration	5.545s
+ok  	github.com/gizzahub/gzh-cli-gitforge/tests/e2e	7.513s	coverage: [no statements]
+ok  	github.com/gizzahub/gzh-cli-gitforge/tests/integration	9.211s	coverage: [no statements]
 FAIL

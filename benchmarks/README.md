@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-This directory contains performance benchmarks for the gzh-git CLI tool.
+This directory contains performance benchmarks for the gz-git CLI tool.
 
 ## Benchmark Results
 

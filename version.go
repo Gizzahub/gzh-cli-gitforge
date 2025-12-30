@@ -1,5 +1,5 @@
-// Package gzhcligit provides version information for gzh-cli-git library and CLI tool.
-package gzhcligit
+// Package gzhcligitforge provides version information for gzh-cli-gitforge library and CLI tool.
+package gzhcligitforge
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 //
 // Example:
 //
-//	go build -ldflags "-X github.com/gizzahub/gzh-cli-git.GitCommit=$(git rev-parse HEAD)"
+//	go build -ldflags "-X github.com/gizzahub/gzh-cli-gitforge.GitCommit=$(git rev-parse HEAD)"
 var (
 	// Version is the current library version following semantic versioning.
 	// Format: vMAJOR.MINOR.PATCH[-PRERELEASE]
@@ -36,7 +36,7 @@ var (
 //
 // Example:
 //
-//	info := gzhcligit.VersionInfo()
+//	info := gzhcligitforge.VersionInfo()
 //	fmt.Printf("Version: %s\n", info["version"])
 //	fmt.Printf("Commit: %s\n", info["gitCommit"])
 func VersionInfo() map[string]string {
@@ -50,14 +50,14 @@ func VersionInfo() map[string]string {
 
 // VersionString returns a formatted version string.
 //
-// Format: "gzh-cli-git version v0.1.0-alpha (commit: a1b2c3d, built: 2025-11-30)"
+// Format: "gzh-cli-gitforge version v0.1.0-alpha (commit: a1b2c3d, built: 2025-11-30)"
 //
 // Example:
 //
-//	fmt.Println(gzhcligit.VersionString())
-//	// Output: gzh-cli-git version v0.1.0-alpha (commit: unknown, built: unknown)
+//	fmt.Println(gzhcligitforge.VersionString())
+//	// Output: gzh-cli-gitforge version v0.1.0-alpha (commit: unknown, built: unknown)
 func VersionString() string {
-	return fmt.Sprintf("gzh-cli-git version v%s (commit: %s, built: %s)",
+	return fmt.Sprintf("gzh-cli-gitforge version v%s (commit: %s, built: %s)",
 		Version, GitCommit, BuildDate)
 }
 
@@ -65,7 +65,7 @@ func VersionString() string {
 //
 // Example:
 //
-//	fmt.Println(gzhcligit.ShortVersion())
+//	fmt.Println(gzhcligitforge.ShortVersion())
 //	// Output: 0.1.0-alpha
 func ShortVersion() string {
 	return Version
@@ -75,7 +75,7 @@ func ShortVersion() string {
 //
 // Example:
 //
-//	fmt.Println(gzhcligit.FullVersion())
+//	fmt.Println(gzhcligitforge.FullVersion())
 //	// Output: v0.1.0-alpha
 func FullVersion() string {
 	return "v" + Version
