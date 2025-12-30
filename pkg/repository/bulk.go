@@ -1547,10 +1547,13 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
-	// Note: We don't check CommitsBehind here because:
-	// 1. GetInfo() uses local remote-tracking branches which may be stale
-	// 2. git pull internally does fetch first, so it will check the real remote state
-	// 3. git pull will return "Already up to date" if there's nothing to pull
+	// Capture HEAD commit before pull to detect actual changes
+	// This is more reliable than CommitsBehind which uses stale local remote-tracking branches
+	headBeforeResult, err := c.executor.Run(ctx, repoPath, "rev-parse", "HEAD")
+	var headBefore string
+	if err == nil && headBeforeResult.ExitCode == 0 {
+		headBefore = strings.TrimSpace(headBeforeResult.Stdout)
+	}
 
 	// Build pull command based on strategy
 	pullArgs := []string{"pull"}
@@ -1629,18 +1632,33 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
-	// Check if git pull reported "Already up to date"
-	// Use specific statuses: StatusPulled (changes pulled) vs StatusUpToDate (no changes)
-	outputStr := strings.ToLower(pullResult.Stdout + pullResult.Stderr)
-	if strings.Contains(outputStr, "already up to date") || strings.Contains(outputStr, "already up-to-date") {
-		result.Status = StatusUpToDate
-		result.Message = "Already up to date"
-	} else if result.CommitsBehind > 0 {
-		// Actual changes were pulled
+	// Determine if actual changes were pulled by comparing HEAD before and after
+	// This is more reliable than checking CommitsBehind (which uses stale local tracking branches)
+	// or parsing git output (which may be empty with --quiet flag)
+	headAfterResult, headAfterErr := c.executor.Run(ctx, repoPath, "rev-parse", "HEAD")
+	var headAfter string
+	if headAfterErr == nil && headAfterResult.ExitCode == 0 {
+		headAfter = strings.TrimSpace(headAfterResult.Stdout)
+	}
+
+	// Compare HEAD before and after to determine if changes were actually pulled
+	if headBefore != "" && headAfter != "" && headBefore != headAfter {
+		// HEAD changed - actual changes were pulled
+		// Count commits pulled using rev-list
+		countResult, countErr := c.executor.Run(ctx, repoPath, "rev-list", "--count", headBefore+".."+headAfter)
+		pulledCount := 0
+		if countErr == nil && countResult.ExitCode == 0 {
+			if n, parseErr := fmt.Sscanf(strings.TrimSpace(countResult.Stdout), "%d", &pulledCount); parseErr != nil || n != 1 {
+				pulledCount = 1 // Fallback to 1 if parsing fails
+			}
+		} else {
+			pulledCount = 1 // Fallback to 1 if command fails
+		}
+		result.CommitsBehind = pulledCount // Update with actual pulled count
 		result.Status = StatusPulled
-		result.Message = fmt.Sprintf("Successfully pulled %d commit(s) from remote", result.CommitsBehind)
+		result.Message = fmt.Sprintf("Successfully pulled %d commit(s) from remote", pulledCount)
 	} else {
-		// No commits behind but pull succeeded (edge case)
+		// HEAD unchanged - no changes pulled
 		result.Status = StatusUpToDate
 		result.Message = "Already up to date"
 	}
