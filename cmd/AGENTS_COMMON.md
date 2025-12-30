@@ -1,6 +1,6 @@
 # AGENTS_COMMON.md - Common Development Rules
 
-Project-wide conventions for all gzh-cli-git modules.
+Project-wide conventions for all gzh-cli-gitforge modules.
 
 ______________________________________________________________________
 
