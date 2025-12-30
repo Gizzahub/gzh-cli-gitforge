@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/gizzahub/gzh-cli-core v0.0.0-20251227143918-d1f97099af33
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/sync v0.18.0
 	gopkg.in/yaml.v3 v3.0.1

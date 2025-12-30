@@ -17,11 +17,14 @@
 package history
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/gizzahub/gzh-cli-core/cli"
 )
 
 // Formatter formats analysis results in various output formats
@@ -57,6 +60,8 @@ func (f *formatter) FormatCommitStats(stats *CommitStats) ([]byte, error) {
 		return f.formatStatsCSV(stats), nil
 	case FormatMarkdown:
 		return f.formatStatsMarkdown(stats), nil
+	case FormatLLM:
+		return f.formatLLM(stats)
 	default:
 		return nil, ErrInvalidFormat
 	}
@@ -77,6 +82,8 @@ func (f *formatter) FormatContributors(contributors []*Contributor) ([]byte, err
 		return f.formatContributorsCSV(contributors), nil
 	case FormatMarkdown:
 		return f.formatContributorsMarkdown(contributors), nil
+	case FormatLLM:
+		return f.formatLLM(contributors)
 	default:
 		return nil, ErrInvalidFormat
 	}
@@ -97,6 +104,8 @@ func (f *formatter) FormatFileHistory(history []*FileCommit) ([]byte, error) {
 		return f.formatFileHistoryCSV(history), nil
 	case FormatMarkdown:
 		return f.formatFileHistoryMarkdown(history), nil
+	case FormatLLM:
+		return f.formatLLM(history)
 	default:
 		return nil, ErrInvalidFormat
 	}
@@ -340,4 +349,14 @@ func truncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// formatLLM formats data using gzh-cli-core's LLM formatter
+func (f *formatter) formatLLM(data interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

@@ -123,4 +123,5 @@ const (
 	FormatJSON     OutputFormat = "json"
 	FormatCSV      OutputFormat = "csv"
 	FormatMarkdown OutputFormat = "markdown"
+	FormatLLM      OutputFormat = "llm"
 )

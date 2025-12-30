@@ -52,7 +52,7 @@ func init() {
 	statsCmd.Flags().StringVar(&statsUntil, "until", "", "end date (e.g., '2024-12-31', 'yesterday')")
 	statsCmd.Flags().StringVar(&statsBranch, "branch", "", "specific branch (default: current)")
 	statsCmd.Flags().StringVar(&statsAuthor, "author", "", "filter by author")
-	statsCmd.Flags().StringVarP(&statsFormat, "format", "f", "table", "output format (table|json|csv|markdown)")
+	statsCmd.Flags().StringVarP(&statsFormat, "format", "f", "table", "output format (table|json|csv|markdown|llm)")
 }
 
 func runHistoryStats(cmd *cobra.Command, args []string) error {
@@ -142,8 +142,10 @@ func parseOutputFormat(format string) (history.OutputFormat, error) {
 		return history.FormatCSV, nil
 	case "markdown", "md":
 		return history.FormatMarkdown, nil
+	case "llm":
+		return history.FormatLLM, nil
 	default:
-		return history.FormatTable, fmt.Errorf("unknown format: %s (valid: table, json, csv, markdown)", format)
+		return history.FormatTable, fmt.Errorf("unknown format: %s (valid: table, json, csv, markdown, llm)", format)
 	}
 }
 
