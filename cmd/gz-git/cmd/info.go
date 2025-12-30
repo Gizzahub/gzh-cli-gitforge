@@ -14,18 +14,31 @@ import (
 var infoCmd = &cobra.Command{
 	Use:   "info [path]",
 	Short: "Show repository information",
-	Long: `Display detailed information about a Git repository including:
-  - Current branch
-  - Remote URL
-  - Upstream branch
+	Long: `Display detailed information about a Git repository.
+
+Shows comprehensive repository metadata including:
+  - Current branch and commit hash
+  - Remote name and URL
+  - Upstream tracking branch
   - Commits ahead/behind upstream
+  - Working tree status (clean/dirty)
+  - File change counts (staged, modified, untracked, conflicts)
+
+This command is useful for:
+  - Quick repository health check
+  - Verifying remote configuration
+  - Checking sync status with upstream
+  - Scripting and automation
 
 If no path is specified, the current directory is used.`,
 	Example: `  # Show info for current directory
   gz-git info
 
   # Show info for specific repository
-  gz-git info /path/to/repo`,
+  gz-git info /path/to/repo
+
+  # Check multiple repos (use with xargs)
+  find ~/projects -maxdepth 2 -name .git -printf '%h\n' | xargs -I{} gz-git info {}`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runInfo,
 }

@@ -22,6 +22,47 @@ func (f CommandFactory) newRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Plan and execute repository synchronization",
+		Long: `Sync repositories defined in a YAML configuration file.
+
+This command reads a config file specifying repositories to sync,
+then clones or updates each repository according to the sync strategy.
+
+Config File Format (YAML):
+  strategy: reset          # default strategy: reset|pull|fetch
+  parallel: 4              # concurrent operations
+  maxRetries: 3            # retry attempts per repo
+  cleanupOrphans: false    # remove dirs not in config
+  roots:                   # required if cleanupOrphans=true
+    - ./repos
+  repositories:
+    - name: my-project
+      url: https://github.com/owner/my-project.git
+      targetPath: ./repos/my-project
+      strategy: pull       # per-repo override (optional)
+    - name: another-repo
+      url: git@github.com:owner/another-repo.git
+      targetPath: ./repos/another-repo
+
+Alternative gzh.yaml format (auto-detected):
+  provider: github
+  sync_mode:
+    cleanup_orphans: true
+  repositories:
+    - name: repo1
+      clone_url: https://github.com/owner/repo1.git
+
+Examples:
+  # Sync from config file
+  gz-git sync run -c config.yaml
+
+  # Preview without making changes
+  gz-git sync run -c config.yaml --dry-run
+
+  # Override strategy for all repos
+  gz-git sync run -c config.yaml --strategy pull
+
+  # Resume interrupted sync
+  gz-git sync run -c config.yaml --resume --state-file state.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

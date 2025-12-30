@@ -29,7 +29,29 @@ Long: `gz-git is a CLI tool that provides advanced Git operations including:
   - Repository synchronization (filesystem and forge providers)
 
 This tool can also be used as a Go library for integrating Git operations
-into your own applications.`,
+into your own applications.
+
+Command Groups:
+
+  Core Operations      clone, status, fetch, pull, push, diff
+  Branch Management    branch, switch, merge
+  Automation           commit, sync, watch, update
+  Analysis             history, info
+
+Common Workflows:
+
+  Daily development:
+    gz-git status              # Check all repos in current directory
+    gz-git commit auto         # Auto-generate commit message
+
+  Team sync:
+    gz-git sync forge          # Sync all repos from GitHub/GitLab org
+    gz-git fetch               # Update remote refs
+
+  Branch work:
+    gz-git branch create feature/x --worktree ./wt/feature-x
+    gz-git merge detect feature/x main
+    gz-git merge do feature/x`,
 	Version: appVersion,
 	// Uncomment the following line if your application requires Cobra to
 	// check for a config file.

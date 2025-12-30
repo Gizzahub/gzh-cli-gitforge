@@ -51,22 +51,22 @@ Use --provider to specify the forge type.
 
 Examples:
   # Sync from GitHub organization
-  git-sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+  gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 
   # Sync from GitLab group
-  git-sync forge --provider gitlab --org mygroup --target ./repos --token $GITLAB_TOKEN
+  gz-git sync forge --provider gitlab --org mygroup --target ./repos --token $GITLAB_TOKEN
 
   # Sync from self-hosted GitLab
-  git-sync forge --provider gitlab --org mygroup --target ./repos --token $GITLAB_TOKEN --base-url https://gitlab.company.com`,
+  gz-git sync forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runForgeSync(cmd, opts)
 		},
 	}
 
-	// Provider and target
-	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider (github, gitlab, gitea)")
-	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group to sync")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory for repositories")
+	// Provider and target (required)
+	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
+	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name to sync [required]")
+	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory for cloned repositories [required]")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
