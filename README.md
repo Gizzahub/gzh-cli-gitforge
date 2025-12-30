@@ -316,7 +316,7 @@ gz-git push -j 10 -n --set-upstream -r -d 2 ~/projects
 
 | Flag          | Short | Description                                      | Commands          |
 | ------------- | ----- | ------------------------------------------------ | ----------------- |
-| `--depth`     | `-d`  | Directory depth to scan                          | fetch, pull, push |
+| `--scan-depth`| `-d`  | Directory depth to scan (bulk commands)          | fetch, pull, push |
 | `--parallel`  | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push |
 | `--dry-run`   | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push |
 | `--strategy`  | `-s`  | Pull strategy (merge/rebase/ff-only)             | pull              |

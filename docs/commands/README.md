@@ -186,7 +186,7 @@ gz-git commit bulk [flags]
 | `--message`       | `-m`  | Common message for all repos      | (auto)     |
 | `--edit`          | `-e`  | Edit messages in editor           | false      |
 | `--yes`           | `-y`  | Execute commits without preview   | false      |
-| `--depth`         | `-d`  | Scan depth for repositories       | 1          |
+| `--scan-depth`    | `-d`  | Scan depth for repositories       | 1          |
 | `--include`       |       | Include repos matching pattern    | *          |
 | `--exclude`       |       | Exclude repos matching pattern    |            |
 | `--parallel`      | `-p`  | Parallel execution count          | (CPU num)  |
@@ -296,7 +296,7 @@ gz-git diff [flags]
 | Flag              | Short | Description                       | Default    |
 | ----------------- | ----- | --------------------------------- | ---------- |
 | `--staged`        |       | Show only staged changes          | false      |
-| `--depth`         | `-d`  | Scan depth for repositories       | 1          |
+| `--scan-depth`    | `-d`  | Scan depth for repositories       | 1          |
 | `--include`       |       | Include repos matching pattern    | *          |
 | `--exclude`       |       | Exclude repos matching pattern    |            |
 | `--context`       | `-c`  | Context lines around changes      | 3          |
