@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Breaking: remove `gz-git multi` and promote `switch` to top-level (`gz-git switch`)
+
 ### Documentation
 
 - Align status/version notes to v0.3.0 across README and docs

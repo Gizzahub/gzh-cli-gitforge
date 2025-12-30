@@ -17,9 +17,11 @@ var (
 
 // validateCmd represents the commit validate command
 var validateCmd = &cobra.Command{
-	Use:   "validate <message>",
+	Use:   "validate [message]",
 	Short: "Validate a commit message",
 	Long: `Validate a commit message against template rules.
+
+Provide a message as an argument or via --file.
 
 The message is validated for:
   - Format compliance (conventional commits, etc.)

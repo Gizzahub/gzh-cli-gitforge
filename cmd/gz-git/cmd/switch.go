@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	multiSwitchFlags  BulkCommandFlags
-	multiSwitchCreate bool
-	multiSwitchForce  bool
+	switchFlags  BulkCommandFlags
+	switchCreate bool
+	switchForce  bool
 )
 
-// multiSwitchCmd represents the multi switch command
-var multiSwitchCmd = &cobra.Command{
+// switchCmd represents the switch command
+var switchCmd = &cobra.Command{
 	Use:   "switch <branch> [directory]",
 	Short: "Switch branches across multiple repositories",
 	Long: `Scan for Git repositories and switch their branches in parallel.
@@ -38,50 +38,50 @@ The command will skip repositories that:
   - Have rebase or merge in progress
   - Don't have the target branch (unless --create)`,
 	Example: `  # Switch all repos to develop branch
-  gz-git multi switch develop
+  gz-git switch develop
 
   # Preview what would happen (dry-run)
-  gz-git multi switch main --dry-run
+  gz-git switch main --dry-run
 
   # Create branch if it doesn't exist
-  gz-git multi switch feature/new --create
+  gz-git switch feature/new --create
 
   # Switch with custom directory depth
-  gz-git multi switch develop -d 2
+  gz-git switch develop -d 2
 
   # Process more repos in parallel
-  gz-git multi switch main -j 10
+  gz-git switch main -j 10
 
   # Only include specific repos
-  gz-git multi switch develop --include "gzh-cli-.*"
+  gz-git switch develop --include "gzh-cli-.*"
 
   # Exclude certain repos
-  gz-git multi switch develop --exclude ".*-mcp-.*"
+  gz-git switch develop --exclude ".*-mcp-.*"
 
   # Force switch (discards uncommitted changes - DANGEROUS!)
-  gz-git multi switch main --force`,
+  gz-git switch main --force`,
 	Args: cobra.RangeArgs(1, 2),
-	RunE: runMultiSwitch,
+	RunE: runSwitch,
 }
 
 func init() {
-	multiCmd.AddCommand(multiSwitchCmd)
+	rootCmd.AddCommand(switchCmd)
 
 	// Common bulk operation flags (except watch/interval which don't apply)
-	multiSwitchCmd.Flags().IntVarP(&multiSwitchFlags.Depth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
-	multiSwitchCmd.Flags().IntVarP(&multiSwitchFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	multiSwitchCmd.Flags().BoolVarP(&multiSwitchFlags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
-	multiSwitchCmd.Flags().BoolVarP(&multiSwitchFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
-	multiSwitchCmd.Flags().StringVar(&multiSwitchFlags.Include, "include", "", "regex pattern to include repositories")
-	multiSwitchCmd.Flags().StringVar(&multiSwitchFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	multiSwitchCmd.Flags().StringVar(&multiSwitchFlags.Format, "format", "default", "output format: default, compact")
+	switchCmd.Flags().IntVarP(&switchFlags.Depth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	switchCmd.Flags().IntVarP(&switchFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
+	switchCmd.Flags().BoolVarP(&switchFlags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
+	switchCmd.Flags().BoolVarP(&switchFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
+	switchCmd.Flags().StringVar(&switchFlags.Include, "include", "", "regex pattern to include repositories")
+	switchCmd.Flags().StringVar(&switchFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	switchCmd.Flags().StringVar(&switchFlags.Format, "format", "default", "output format: default, compact")
 
 	// Switch-specific flags
-	multiSwitchCmd.Flags().BoolVarP(&multiSwitchCreate, "create", "c", false, "create branch if it doesn't exist")
-	multiSwitchCmd.Flags().BoolVarP(&multiSwitchForce, "force", "f", false, "force switch even with uncommitted changes (DANGEROUS!)")
+	switchCmd.Flags().BoolVarP(&switchCreate, "create", "c", false, "create branch if it doesn't exist")
+	switchCmd.Flags().BoolVarP(&switchForce, "force", "f", false, "force switch even with uncommitted changes (DANGEROUS!)")
 }
 
-func runMultiSwitch(cmd *cobra.Command, args []string) error {
+func runSwitch(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// Get branch name (required)
@@ -99,7 +99,7 @@ func runMultiSwitch(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate depth
-	if err := validateBulkDepth(cmd, multiSwitchFlags.Depth); err != nil {
+	if err := validateBulkDepth(cmd, switchFlags.Depth); err != nil {
 		return err
 	}
 
@@ -113,25 +113,25 @@ func runMultiSwitch(cmd *cobra.Command, args []string) error {
 	opts := repository.BulkSwitchOptions{
 		Directory:         directory,
 		Branch:            branch,
-		Parallel:          multiSwitchFlags.Parallel,
-		MaxDepth:          multiSwitchFlags.Depth,
-		DryRun:            multiSwitchFlags.DryRun,
+		Parallel:          switchFlags.Parallel,
+		MaxDepth:          switchFlags.Depth,
+		DryRun:            switchFlags.DryRun,
 		Verbose:           verbose,
-		Create:            multiSwitchCreate,
-		Force:             multiSwitchForce,
-		IncludeSubmodules: multiSwitchFlags.IncludeSubmodules,
-		IncludePattern:    multiSwitchFlags.Include,
-		ExcludePattern:    multiSwitchFlags.Exclude,
+		Create:            switchCreate,
+		Force:             switchForce,
+		IncludeSubmodules: switchFlags.IncludeSubmodules,
+		IncludePattern:    switchFlags.Include,
+		ExcludePattern:    switchFlags.Exclude,
 		Logger:            logger,
-		ProgressCallback:  createProgressCallback("Switching", multiSwitchFlags.Format, quiet),
+		ProgressCallback:  createProgressCallback("Switching", switchFlags.Format, quiet),
 	}
 
 	// Print header
 	if !quiet {
-		if multiSwitchFlags.DryRun {
-			fmt.Printf("Scanning for repositories in %s (depth: %d) [DRY-RUN]...\n", directory, multiSwitchFlags.Depth)
+		if switchFlags.DryRun {
+			fmt.Printf("Scanning for repositories in %s (depth: %d) [DRY-RUN]...\n", directory, switchFlags.Depth)
 		} else {
-			fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, multiSwitchFlags.Depth)
+			fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, switchFlags.Depth)
 		}
 	}
 

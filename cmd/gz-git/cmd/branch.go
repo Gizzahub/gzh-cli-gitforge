@@ -12,9 +12,7 @@ var branchCmd = &cobra.Command{
 
 This command provides subcommands for:
   - Creating and deleting branches
-  - Managing worktrees for parallel development
-  - Cleaning up merged and stale branches
-  - Analyzing branch conflicts`,
+  - Managing worktrees for parallel development`,
 	Example: `  # List all branches
   gz-git branch list
 
@@ -22,10 +20,7 @@ This command provides subcommands for:
   gz-git branch create feature/new-feature
 
   # Create branch with worktree
-  gz-git branch create feature/auth --worktree ./worktrees/auth
-
-  # Clean up merged branches
-  gz-git branch cleanup --strategy merged`,
+  gz-git branch create feature/auth --worktree ./worktrees/auth`,
 }
 
 func init() {
