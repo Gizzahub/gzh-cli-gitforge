@@ -1,308 +1,466 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 var (
+	pullFlags    BulkCommandFlags
 	pullStrategy string
 	pullPrune    bool
 	pullTags     bool
 	pullStash    bool
-	pullDryRun   bool
-	pullRebase   bool
-	pullFFOnly   bool
 )
 
-// pullCmd represents the pull command (single repository, git-style)
+// pullCmd represents the pull command for multi-repository operations
 var pullCmd = &cobra.Command{
-	Use:   "pull [remote] [branch]",
-	Short: "Pull updates from remote repository",
-	Long: `Pull updates from a remote repository and integrate with current branch.
+	Use:   "pull [directory]",
+	Short: "Pull updates from multiple repositories in parallel",
+	Long: `Scan for Git repositories and pull updates from remote in parallel.
 
-This command works like 'git pull' - it fetches from remote and integrates
-changes into the current branch. It operates on the current directory's Git repository.
+This command recursively scans the specified directory (or current directory)
+for Git repositories and pulls updates (fetch + merge/rebase) from their remotes
+in parallel.
 
-Arguments:
-  remote   - Remote name (default: origin)
-  branch   - Branch to pull from (default: upstream tracking branch)
+For single repository operations, use 'git pull' directly.
 
-Pull strategies:
-  --rebase    - Rebase current branch on top of fetched changes
-  --ff-only   - Only fast-forward, fail if not possible
-  (default)   - Merge fetched changes
+By default:
+  - Scans 1 directory level deep
+  - Processes 5 repositories in parallel
+  - Uses merge strategy (can use rebase or ff-only)
+  - Skips repositories without remotes or upstreams
 
-For bulk operations across multiple repositories, use 'pull-bulk' instead.`,
-	Example: `  # Pull from origin (current branch's upstream)
+The command updates your working tree with changes from the remote.`,
+	Example: `  # Pull all repositories in current directory
   gz-git pull
 
-  # Pull from specific remote
-  gz-git pull upstream
+  # Pull all repositories up to 2 levels deep
+  gz-git pull -d 2 ~/projects
 
-  # Pull specific branch
-  gz-git pull origin main
+  # Pull with custom parallelism
+  gz-git pull --parallel 10 ~/workspace
 
-  # Pull with rebase
-  gz-git pull --rebase origin main
+  # Pull with rebase strategy
+  gz-git pull --strategy rebase ~/projects
 
-  # Pull with fast-forward only
-  gz-git pull --ff-only origin
+  # Pull with fast-forward only strategy
+  gz-git pull --strategy ff-only ~/repos
 
   # Pull and prune deleted remote branches
-  gz-git pull --prune origin
+  gz-git pull --prune ~/projects
 
-  # Pull and fetch all tags
-  gz-git pull --tags origin
+  # Dry run to see what would be pulled
+  gz-git pull --dry-run ~/projects
 
   # Automatically stash local changes before pull
-  gz-git pull --stash origin
+  gz-git pull --stash ~/projects
 
-  # Dry run - show what would be pulled
-  gz-git pull --dry-run origin`,
-	Args: cobra.MaximumNArgs(2),
+  # Filter by pattern
+  gz-git pull --include "myproject.*" ~/workspace
+
+  # Exclude pattern
+  gz-git pull --exclude "test.*" ~/projects
+
+  # Compact output format
+  gz-git pull --format compact ~/projects
+
+  # Continuously pull at intervals (watch mode)
+  gz-git pull --scan-depth 2 --watch --interval 10m ~/projects
+
+  # Watch with shorter interval
+  gz-git pull --watch --interval 5m ~/work`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runPull,
 }
 
 func init() {
 	rootCmd.AddCommand(pullCmd)
 
-	// Pull flags
-	pullCmd.Flags().BoolVarP(&pullRebase, "rebase", "r", false, "rebase current branch on top of upstream")
-	pullCmd.Flags().BoolVar(&pullFFOnly, "ff-only", false, "only fast-forward, fail if not possible")
+	// Common bulk operation flags
+	addBulkFlags(pullCmd, &pullFlags)
+
+	// Pull-specific flags
+	pullCmd.Flags().StringVarP(&pullStrategy, "strategy", "s", "merge", "pull strategy: merge, rebase, ff-only")
 	pullCmd.Flags().BoolVarP(&pullPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
 	pullCmd.Flags().BoolVarP(&pullTags, "tags", "t", false, "fetch all tags from remote")
 	pullCmd.Flags().BoolVar(&pullStash, "stash", false, "automatically stash local changes before pull")
-	pullCmd.Flags().BoolVarP(&pullDryRun, "dry-run", "n", false, "dry run - show what would be pulled")
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	startTime := time.Now()
 
-	// Get current directory
-	cwd, err := os.Getwd()
+	// Validate and parse directory
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
 
-	// Parse arguments
-	remote, branch := parsePullArgs(args)
+	// Validate depth
+	if err := validateBulkDepth(cmd, pullFlags.Depth); err != nil {
+		return err
+	}
 
-	// Check if current directory is a git repository
+	// Validate format
+	if err := validateBulkFormat(pullFlags.Format); err != nil {
+		return err
+	}
+
+	// Create client
 	client := repository.NewClient()
-	if !client.IsRepository(ctx, cwd) {
-		return fmt.Errorf("not a git repository")
+
+	// Create logger for verbose mode
+	logger := createBulkLogger(verbose)
+
+	// Build options
+	opts := repository.BulkPullOptions{
+		Directory:         directory,
+		Parallel:          pullFlags.Parallel,
+		MaxDepth:          pullFlags.Depth,
+		DryRun:            pullFlags.DryRun,
+		Verbose:           verbose,
+		Strategy:          pullStrategy,
+		Prune:             pullPrune,
+		Tags:              pullTags,
+		Stash:             pullStash,
+		IncludeSubmodules: pullFlags.IncludeSubmodules,
+		IncludePattern:    pullFlags.Include,
+		ExcludePattern:    pullFlags.Exclude,
+		Logger:            logger,
+		ProgressCallback:  createProgressCallback("Pulling", pullFlags.Format, quiet),
 	}
 
-	// Build git pull command
-	executor := gitcmd.NewExecutor()
+	// Watch mode: continuously pull at intervals
+	if pullFlags.Watch {
+		return runPullWatch(ctx, client, opts)
+	}
 
-	// Show what we're about to do
+	// One-time pull
+	if shouldShowProgress(pullFlags.Format, quiet) {
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pullFlags.Depth)
+	}
+
+	result, err := client.BulkPull(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk pull failed: %w", err)
+	}
+
+	// Display scan completion message
+	if shouldShowProgress(pullFlags.Format, quiet) && result.TotalScanned == 0 {
+		fmt.Printf("Scan complete: no repositories found\n")
+	}
+
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if pullFlags.Format == "json" || !quiet {
+		displayPullResults(result)
+	}
+
+	return nil
+}
+
+func runPullWatch(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {
 	if !quiet {
-		displayPullIntent(remote, branch)
+		fmt.Printf("Starting watch mode: pulling every %s\n", pullFlags.Interval)
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
+		fmt.Println("Press Ctrl+C to stop...")
+		fmt.Println()
 	}
 
-	// Stash local changes if requested
-	stashed := false
-	if pullStash {
-		hasChanges, err := hasUncommittedChanges(ctx, executor, cwd)
-		if err != nil {
-			return fmt.Errorf("failed to check for changes: %w", err)
-		}
-		if hasChanges {
-			if err := stashChanges(ctx, executor, cwd); err != nil {
-				return fmt.Errorf("failed to stash changes: %w", err)
-			}
-			stashed = true
-			if !quiet {
-				fmt.Println("  Stashed local changes")
-			}
-		}
-	}
+	// Setup signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Execute pull
-	if err := executeSinglePull(ctx, executor, cwd, remote, branch); err != nil {
-		// Try to restore stash on error
-		if stashed {
-			_ = unstashChanges(ctx, executor, cwd)
-		}
+	// Create ticker for periodic pulling
+	ticker := time.NewTicker(pullFlags.Interval)
+	defer ticker.Stop()
+
+	// Perform initial pull immediately
+	if err := executePull(ctx, client, opts); err != nil {
 		return err
 	}
 
-	// Restore stashed changes
-	if stashed {
-		if err := unstashChanges(ctx, executor, cwd); err != nil {
+	// Watch loop
+	for {
+		select {
+		case <-sigChan:
 			if !quiet {
-				fmt.Fprintf(os.Stderr, "Warning: failed to restore stashed changes: %v\n", err)
-				fmt.Fprintln(os.Stderr, "  Use 'git stash pop' to restore manually")
+				fmt.Println("\nStopping watch...")
 			}
-		} else if !quiet {
-			fmt.Println("  Restored stashed changes")
+			return nil
+
+		case <-ticker.C:
+			if shouldShowProgress(pullFlags.Format, quiet) {
+				fmt.Printf("\n[%s] Running scheduled pull...\n", time.Now().Format("15:04:05"))
+			}
+			if err := executePull(ctx, client, opts); err != nil {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "Pull error: %v\n", err)
+				}
+				// Continue watching even on error
+			}
+
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
+}
 
-	// Show success
-	duration := time.Since(startTime)
+func executePull(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {
+	result, err := client.BulkPull(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk pull failed: %w", err)
+	}
+
+	// Display results
 	if !quiet {
-		displayPullSuccess(remote, branch, duration)
+		displayPullResults(result)
 	}
 
 	return nil
 }
 
-// parsePullArgs parses command arguments into remote and branch
-func parsePullArgs(args []string) (remote, branch string) {
-	remote = "origin" // default remote
-
-	switch len(args) {
-	case 0:
-		return remote, ""
-	case 1:
-		return args[0], ""
-	case 2:
-		return args[0], args[1]
-	}
-
-	return remote, ""
-}
-
-// hasUncommittedChanges checks if there are uncommitted changes
-func hasUncommittedChanges(ctx context.Context, executor *gitcmd.Executor, repoPath string) (bool, error) {
-	result, err := executor.Run(ctx, repoPath, "status", "--porcelain")
-	if err != nil {
-		return false, err
-	}
-
-	return len(result.Stdout) > 0, nil
-}
-
-// stashChanges stashes local changes
-func stashChanges(ctx context.Context, executor *gitcmd.Executor, repoPath string) error {
-	result, err := executor.Run(ctx, repoPath, "stash", "push", "-m", "gz-git pull auto-stash")
-	if err != nil {
-		return err
-	}
-
-	if result.ExitCode != 0 {
-		return fmt.Errorf("git stash failed: %s", result.Stderr)
-	}
-
-	return nil
-}
-
-// unstashChanges restores stashed changes
-func unstashChanges(ctx context.Context, executor *gitcmd.Executor, repoPath string) error {
-	result, err := executor.Run(ctx, repoPath, "stash", "pop")
-	if err != nil {
-		return err
-	}
-
-	if result.ExitCode != 0 {
-		return fmt.Errorf("git stash pop failed: %s", result.Stderr)
-	}
-
-	return nil
-}
-
-// executeSinglePull performs pull from a single remote
-func executeSinglePull(ctx context.Context, executor *gitcmd.Executor, repoPath, remote, branch string) error {
-	args := []string{"pull"}
-
-	if pullDryRun {
-		args = append(args, "--dry-run")
-	}
-
-	if pullRebase {
-		args = append(args, "--rebase")
-	} else if pullFFOnly {
-		args = append(args, "--ff-only")
-	}
-
-	if pullPrune {
-		args = append(args, "--prune")
-	}
-
-	if pullTags {
-		args = append(args, "--tags")
-	}
-
-	args = append(args, remote)
-
-	if branch != "" {
-		args = append(args, branch)
-	}
-
-	result, err := executor.Run(ctx, repoPath, args...)
-	if err != nil {
-		return fmt.Errorf("git pull failed: %w", err)
-	}
-
-	if result.ExitCode != 0 {
-		return fmt.Errorf("git pull failed: %s", result.Stderr)
-	}
-
-	return nil
-}
-
-// displayPullIntent shows what the pull command will do
-func displayPullIntent(remote, branch string) {
-	var action string
-	if pullDryRun {
-		action = "Would pull"
-	} else {
-		action = "Pulling"
-	}
-
-	target := remote
-	if branch != "" {
-		target += "/" + branch
-	}
-
-	strategy := ""
-	if pullRebase {
-		strategy = " (rebase)"
-	} else if pullFFOnly {
-		strategy = " (ff-only)"
-	}
-
-	flags := []string{}
-	if pullPrune {
-		flags = append(flags, "--prune")
-	}
-	if pullTags {
-		flags = append(flags, "--tags")
-	}
-	if pullStash {
-		flags = append(flags, "--stash")
-	}
-
-	flagStr := ""
-	if len(flags) > 0 {
-		flagStr = " " + joinStrings(flags, " ")
-	}
-
-	fmt.Printf("%s from %s%s%s\n", action, target, strategy, flagStr)
-}
-
-// displayPullSuccess shows pull completion message
-func displayPullSuccess(remote, branch string, duration time.Duration) {
-	if pullDryRun {
-		fmt.Println("✓ Dry run complete (no changes made)")
+func displayPullResults(result *repository.BulkPullResult) {
+	// JSON output mode
+	if pullFlags.Format == "json" {
+		displayPullResultsJSON(result)
 		return
 	}
 
-	target := remote
-	if branch != "" {
-		target += "/" + branch
+	// LLM output mode
+	if pullFlags.Format == "llm" {
+		displayPullResultsLLM(result)
+		return
 	}
 
-	fmt.Printf("✓ Pulled from %s (%s)\n", target, duration.Round(time.Millisecond))
+	fmt.Println()
+	fmt.Println("=== Pull Results ===")
+	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
+	fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
+	fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000)) // Round to 0.1s
+	fmt.Println()
+
+	// Display summary
+	if len(result.Summary) > 0 {
+		fmt.Println("Summary by status:")
+		for status, count := range result.Summary {
+			icon := getBulkStatusIconSimple(status)
+			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
+		}
+		fmt.Println()
+	}
+
+	// Display individual results if not compact
+	if pullFlags.Format != "compact" && len(result.Repositories) > 0 {
+		fmt.Println("Repository details:")
+		for _, repo := range result.Repositories {
+			displayPullRepositoryResult(repo)
+		}
+	}
+
+	// Display only errors/warnings in compact mode
+	if pullFlags.Format == "compact" {
+		hasIssues := false
+		for _, repo := range result.Repositories {
+			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
+				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" ||
+				repo.Status == "dirty" {
+				if !hasIssues {
+					fmt.Println("Issues found:")
+					hasIssues = true
+				}
+				displayPullRepositoryResult(repo)
+			}
+		}
+		if !hasIssues {
+			fmt.Println("✓ All repositories pulled successfully")
+		}
+	}
+}
+
+func displayPullRepositoryResult(repo repository.RepositoryPullResult) {
+	// Determine icon based on actual result, not just status
+	// ✓ = changes pulled, = = no changes (up-to-date)
+	icon := getBulkStatusIcon(repo.Status, repo.CommitsBehind)
+
+	// Build compact one-line format: icon path (branch) status duration
+	parts := []string{icon}
+
+	// Path with branch
+	pathPart := repo.RelativePath
+	if repo.Branch != "" {
+		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
+	}
+	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
+
+	// Show status compactly
+	// Status Display Guidelines:
+	//   - Changes occurred: "N↓ pulled" with ✓ icon
+	//   - No changes: "up-to-date" with = icon
+	statusStr := ""
+	switch repo.Status {
+	case "success", "pulled":
+		if repo.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("%d↓ pulled", repo.CommitsBehind)
+		} else {
+			// No changes pulled - display as up-to-date for consistency
+			statusStr = "up-to-date"
+		}
+	case "up-to-date":
+		if repo.CommitsAhead > 0 {
+			statusStr = fmt.Sprintf("up-to-date %d↑", repo.CommitsAhead)
+		} else {
+			statusStr = "up-to-date"
+		}
+	case "would-pull":
+		if repo.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("would pull %d↓", repo.CommitsBehind)
+		} else {
+			statusStr = "would pull"
+		}
+	case "error":
+		statusStr = "failed"
+	case "no-remote":
+		statusStr = "no remote"
+	case "no-upstream":
+		statusStr = "no upstream"
+	case "conflict":
+		statusStr = "CONFLICT"
+	case "rebase-in-progress":
+		statusStr = "REBASE"
+	case "merge-in-progress":
+		statusStr = "MERGE"
+	case "dirty":
+		statusStr = "dirty"
+	case "skipped":
+		statusStr = "skipped"
+	default:
+		statusStr = repo.Status
+	}
+
+	// Add stash indicator
+	if repo.Stashed {
+		statusStr += " [stash]"
+	}
+
+	parts = append(parts, fmt.Sprintf("%-18s", statusStr))
+
+	// Duration
+	if repo.Duration > 0 {
+		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
+	}
+
+	// Build output line safely
+	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
+	if len(parts) > 3 {
+		line += " " + parts[3]
+	}
+	fmt.Println(line)
+
+	// Show fix hint for no-upstream status
+	if repo.Status == "no-upstream" {
+		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
+	}
+
+	// Show error details if present
+	if repo.Error != nil && verbose {
+		fmt.Printf("    Error: %v\n", repo.Error)
+	}
+}
+
+// PullJSONOutput represents the JSON output structure for pull command
+type PullJSONOutput struct {
+	TotalScanned   int                        `json:"total_scanned"`
+	TotalProcessed int                        `json:"total_processed"`
+	DurationMs     int64                      `json:"duration_ms"`
+	Summary        map[string]int             `json:"summary"`
+	Repositories   []PullRepositoryJSONOutput `json:"repositories"`
+}
+
+// PullRepositoryJSONOutput represents a single repository in JSON output
+type PullRepositoryJSONOutput struct {
+	Path          string `json:"path"`
+	Branch        string `json:"branch,omitempty"`
+	Status        string `json:"status"`
+	CommitsAhead  int    `json:"commits_ahead,omitempty"`
+	CommitsBehind int    `json:"commits_behind,omitempty"`
+	Stashed       bool   `json:"stashed,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+func displayPullResultsJSON(result *repository.BulkPullResult) {
+	output := PullJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PullRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PullRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			CommitsBehind: repo.CommitsBehind,
+			Stashed:       repo.Stashed,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displayPullResultsLLM(result *repository.BulkPullResult) {
+	output := PullJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PullRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PullRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			CommitsBehind: repo.CommitsBehind,
+			Stashed:       repo.Stashed,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }

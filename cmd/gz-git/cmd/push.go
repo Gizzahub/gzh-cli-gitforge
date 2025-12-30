@@ -1,290 +1,501 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 var (
+	pushFlags       BulkCommandFlags
 	pushForce       bool
 	pushSetUpstream bool
 	pushTags        bool
-	pushDryRun      bool
+	pushRefspec     string
+	pushRemotes     []string
 	pushAllRemotes  bool
-	pushSkipChecks  bool
 )
 
-// pushCmd represents the push command (single repository, git-style)
+// pushCmd represents the push command for multi-repository operations
 var pushCmd = &cobra.Command{
-	Use:   "push [remote] [refspec]",
-	Short: "Push commits to remote repository",
-	Long: `Push local commits to a remote repository.
+	Use:   "push [directory]",
+	Short: "Push commits to multiple repositories in parallel",
+	Long: `Scan for Git repositories and push local commits to remote in parallel.
 
-This command works like 'git push' with enhanced safety checks.
-It operates on the current directory's Git repository.
+This command recursively scans the specified directory (or current directory)
+for Git repositories and pushes local commits to their remotes in parallel.
 
-Arguments:
-  remote   - Remote name (default: origin)
-  refspec  - Branch or refspec to push (e.g., "develop" or "develop:master")
+For single repository operations, use 'git push' directly.
 
-Refspec format:
-  branch           - Push current branch to same-named remote branch
-  local:remote     - Push local branch to different remote branch
-  :remote          - Delete remote branch
+By default:
+  - Scans 1 directory level deep
+  - Processes 5 repositories in parallel
+  - Pushes to origin remote only
+  - Skips repositories without remotes or upstreams
 
-For bulk operations across multiple repositories, use 'push-bulk' instead.`,
-	Example: `  # Push current branch to origin
+The command pushes your local commits to remote repositories.`,
+	Example: `  # Push all repositories in current directory
   gz-git push
 
-  # Push to specific remote
-  gz-git push upstream
+  # Push all repositories up to 2 levels deep
+  gz-git push -d 2 ~/projects
 
-  # Push current branch to origin
-  gz-git push origin main
+  # Push with custom parallelism
+  gz-git push --parallel 10 ~/workspace
 
-  # Push local develop to remote master
-  gz-git push origin develop:master
+  # Force push (use with caution!)
+  gz-git push --force ~/projects
 
-  # Push feature branch to origin with upstream tracking
-  gz-git push -u origin feature/login
-
-  # Force push with lease (safer than --force)
-  gz-git push --force origin develop
+  # Push and set upstream for new branches
+  gz-git push --set-upstream ~/projects
 
   # Push all tags
-  gz-git push --tags origin
+  gz-git push --tags ~/repos
+
+  # Push with custom refspec (local:remote branch mapping)
+  gz-git push --refspec develop:master ~/projects
+
+  # Push to multiple remotes
+  gz-git push --remote origin --remote backup ~/projects
 
   # Push to all configured remotes
-  gz-git push --all-remotes
+  gz-git push --all-remotes ~/projects
 
-  # Dry run - show what would be pushed
-  gz-git push --dry-run origin main
+  # Combine refspec with multiple remotes
+  gz-git push --refspec develop:master --remote origin --remote backup ~/work
 
-  # Delete remote branch
-  gz-git push origin :old-branch`,
-	Args: cobra.MaximumNArgs(2),
+  # Dry run to see what would be pushed
+  gz-git push --dry-run ~/projects
+
+  # Filter by pattern
+  gz-git push --include "myproject.*" ~/workspace
+
+  # Exclude pattern
+  gz-git push --exclude "test.*" ~/projects
+
+  # Compact output format
+  gz-git push --format compact ~/projects
+
+  # Continuously push at intervals (watch mode)
+  gz-git push --scan-depth 2 --watch --interval 10m ~/projects
+
+  # Watch with shorter interval
+  gz-git push --watch --interval 5m ~/work`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runPush,
 }
 
 func init() {
 	rootCmd.AddCommand(pushCmd)
 
-	// Push flags
-	pushCmd.Flags().BoolVarP(&pushForce, "force", "f", false, "force push with lease (use with caution!)")
-	pushCmd.Flags().BoolVarP(&pushSetUpstream, "set-upstream", "u", false, "set upstream for the branch")
+	// Common bulk operation flags
+	addBulkFlags(pushCmd, &pushFlags)
+
+	// Push-specific flags (no -f shorthand for force, conflicts with --format)
+	pushCmd.Flags().BoolVar(&pushForce, "force", false, "force push (use with caution!)")
+	pushCmd.Flags().BoolVarP(&pushSetUpstream, "set-upstream", "u", false, "set upstream for new branches")
 	pushCmd.Flags().BoolVarP(&pushTags, "tags", "t", false, "push all tags to remote")
-	pushCmd.Flags().BoolVarP(&pushDryRun, "dry-run", "n", false, "dry run - show what would be pushed")
+	pushCmd.Flags().StringVar(&pushRefspec, "refspec", "", "custom refspec (e.g., 'develop:master' to push local develop to remote master)")
+	pushCmd.Flags().StringSliceVar(&pushRemotes, "remote", []string{}, "remote(s) to push to (can be specified multiple times)")
 	pushCmd.Flags().BoolVar(&pushAllRemotes, "all-remotes", false, "push to all configured remotes")
-	pushCmd.Flags().BoolVar(&pushSkipChecks, "skip-checks", false, "skip safety checks (use with caution!)")
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	startTime := time.Now()
 
-	// Get current directory
-	cwd, err := os.Getwd()
+	// Validate and parse directory
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	// Parse arguments
-	remote, refspec := parseRemoteRefspec(args)
-
-	// Check if current directory is a git repository
-	client := repository.NewClient()
-	repo, err := client.Open(ctx, cwd)
-	if err != nil {
-		return fmt.Errorf("not a git repository: %w", err)
-	}
-
-	// Create smart push
-	smartPush := commit.NewSmartPush()
-
-	// Build push options
-	opts := commit.PushOptions{
-		Remote:      remote,
-		Refspec:     refspec,
-		Force:       pushForce,
-		SetUpstream: pushSetUpstream,
-		AllRemotes:  pushAllRemotes,
-		DryRun:      pushDryRun,
-		SkipChecks:  pushSkipChecks,
-	}
-
-	// Show what we're about to do
-	if !quiet {
-		displayPushIntent(remote, refspec, opts)
-	}
-
-	// Run safety checks first (unless skipped or dry run)
-	if !pushSkipChecks && !pushDryRun {
-		check, err := smartPush.CanPush(ctx, repo)
-		if err != nil {
-			return fmt.Errorf("safety check failed: %w", err)
-		}
-
-		if verbose {
-			fmt.Print(commit.FormatPushCheck(check))
-		}
-
-		// Show blocking issues
-		if !check.Safe {
-			for _, issue := range check.Issues {
-				if issue.Blocker {
-					fmt.Fprintf(os.Stderr, "✗ %s\n", issue.Message)
-				}
-			}
-			for _, rec := range check.Recommendations {
-				fmt.Fprintf(os.Stderr, "  → %s\n", rec)
-			}
-			return fmt.Errorf("push blocked by safety checks (use --skip-checks to override)")
-		}
-	}
-
-	// Execute push
-	if err := smartPush.Push(ctx, repo, opts); err != nil {
 		return err
 	}
 
-	// Show success
-	duration := time.Since(startTime)
-	if !quiet {
-		displayPushSuccess(remote, refspec, opts, duration)
+	// Validate depth
+	if err := validateBulkDepth(cmd, pushFlags.Depth); err != nil {
+		return err
+	}
+
+	// Validate format
+	if err := validateBulkFormat(pushFlags.Format); err != nil {
+		return err
+	}
+
+	// Create client
+	client := repository.NewClient()
+
+	// Create logger for verbose mode
+	logger := createBulkLogger(verbose)
+
+	// Build options
+	opts := repository.BulkPushOptions{
+		Directory:         directory,
+		Parallel:          pushFlags.Parallel,
+		MaxDepth:          pushFlags.Depth,
+		DryRun:            pushFlags.DryRun,
+		Verbose:           verbose,
+		Force:             pushForce,
+		SetUpstream:       pushSetUpstream,
+		Tags:              pushTags,
+		Refspec:           pushRefspec,
+		Remotes:           pushRemotes,
+		AllRemotes:        pushAllRemotes,
+		IncludeSubmodules: pushFlags.IncludeSubmodules,
+		IncludePattern:    pushFlags.Include,
+		ExcludePattern:    pushFlags.Exclude,
+		Logger:            logger,
+		ProgressCallback:  createProgressCallback("Pushing", pushFlags.Format, quiet),
+	}
+
+	// Watch mode: continuously push at intervals
+	if pushFlags.Watch {
+		return runPushWatch(ctx, client, opts)
+	}
+
+	// One-time push
+	if shouldShowProgress(pushFlags.Format, quiet) {
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pushFlags.Depth)
+	}
+
+	result, err := client.BulkPush(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk push failed: %w", err)
+	}
+
+	// Display scan completion message
+	if shouldShowProgress(pushFlags.Format, quiet) && result.TotalScanned == 0 {
+		fmt.Printf("Scan complete: no repositories found\n")
+	}
+
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if pushFlags.Format == "json" || !quiet {
+		displayPushResults(result)
 	}
 
 	return nil
 }
 
-// parseRemoteRefspec parses command arguments into remote and refspec
-func parseRemoteRefspec(args []string) (remote, refspec string) {
-	remote = "origin" // default remote
+func runPushWatch(ctx context.Context, client repository.Client, opts repository.BulkPushOptions) error {
+	if !quiet {
+		fmt.Printf("Starting watch mode: pushing every %s\n", pushFlags.Interval)
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
+		fmt.Println("Press Ctrl+C to stop...")
+		fmt.Println()
+	}
 
-	switch len(args) {
-	case 0:
-		// No args: push current branch to origin
-		return remote, ""
-	case 1:
-		// One arg: could be remote or refspec
-		arg := args[0]
-		if isLikelyRefspec(arg) {
-			// It's a refspec (contains ":" or looks like a branch)
-			return remote, arg
+	// Setup signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Create ticker for periodic pushing
+	ticker := time.NewTicker(pushFlags.Interval)
+	defer ticker.Stop()
+
+	// Perform initial push immediately
+	if err := executePush(ctx, client, opts); err != nil {
+		return err
+	}
+
+	// Watch loop
+	for {
+		select {
+		case <-sigChan:
+			if !quiet {
+				fmt.Println("\nStopping watch...")
+			}
+			return nil
+
+		case <-ticker.C:
+			if shouldShowProgress(pushFlags.Format, quiet) {
+				fmt.Printf("\n[%s] Running scheduled push...\n", time.Now().Format("15:04:05"))
+			}
+			if err := executePush(ctx, client, opts); err != nil {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "Push error: %v\n", err)
+				}
+				// Continue watching even on error
+			}
+
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-		// It's a remote name
-		return arg, ""
-	case 2:
-		// Two args: remote and refspec
-		return args[0], args[1]
 	}
-
-	return remote, ""
 }
 
-// isLikelyRefspec determines if an argument looks like a refspec rather than a remote
-func isLikelyRefspec(arg string) bool {
-	// Contains ":" → definitely a refspec (e.g., "develop:master" or ":delete-branch")
-	if strings.Contains(arg, ":") {
-		return true
+func executePush(ctx context.Context, client repository.Client, opts repository.BulkPushOptions) error {
+	result, err := client.BulkPush(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk push failed: %w", err)
 	}
 
-	// Common remote names that should NOT be treated as refspecs
-	commonRemotes := map[string]bool{
-		"origin":   true,
-		"upstream": true,
-		"fork":     true,
-		"backup":   true,
+	// Display results
+	if !quiet {
+		displayPushResults(result)
 	}
 
-	if commonRemotes[arg] {
-		return false
-	}
-
-	// If it contains "/" it's likely a branch (e.g., "feature/login")
-	if strings.Contains(arg, "/") {
-		return true
-	}
-
-	// Default: treat as remote name
-	return false
+	return nil
 }
 
-// displayPushIntent shows what the push command will do
-func displayPushIntent(remote, refspec string, opts commit.PushOptions) {
-	var action string
-	if opts.DryRun {
-		action = "Would push"
-	} else {
-		action = "Pushing"
-	}
-
-	var target string
-	if refspec != "" {
-		if strings.HasPrefix(refspec, ":") {
-			// Delete branch
-			target = fmt.Sprintf("(deleting %s)", strings.TrimPrefix(refspec, ":"))
-		} else if strings.Contains(refspec, ":") {
-			// Full refspec
-			parts := strings.Split(refspec, ":")
-			target = fmt.Sprintf("%s → %s", parts[0], parts[1])
-		} else {
-			target = refspec
-		}
-	} else {
-		target = "(current branch)"
-	}
-
-	remotePart := remote
-	if opts.AllRemotes {
-		remotePart = "(all remotes)"
-	}
-
-	flags := []string{}
-	if opts.Force {
-		flags = append(flags, "--force")
-	}
-	if opts.SetUpstream {
-		flags = append(flags, "-u")
-	}
-
-	flagStr := ""
-	if len(flags) > 0 {
-		flagStr = " " + strings.Join(flags, " ")
-	}
-
-	fmt.Printf("%s to %s: %s%s\n", action, remotePart, target, flagStr)
-}
-
-// displayPushSuccess shows push completion message
-func displayPushSuccess(remote, refspec string, opts commit.PushOptions, duration time.Duration) {
-	if opts.DryRun {
-		fmt.Println("✓ Dry run complete (no changes made)")
+func displayPushResults(result *repository.BulkPushResult) {
+	// JSON output mode
+	if pushFlags.Format == "json" {
+		displayPushResultsJSON(result)
 		return
 	}
 
-	var target string
-	if refspec != "" {
-		if strings.HasPrefix(refspec, ":") {
-			target = fmt.Sprintf("Deleted %s", strings.TrimPrefix(refspec, ":"))
-		} else {
-			target = fmt.Sprintf("Pushed %s", refspec)
+	// LLM output mode
+	if pushFlags.Format == "llm" {
+		displayPushResultsLLM(result)
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("=== Push Results ===")
+	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
+	fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
+	fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000)) // Round to 0.1s
+	fmt.Println()
+
+	// Display summary
+	if len(result.Summary) > 0 {
+		fmt.Println("Summary by status:")
+		for status, count := range result.Summary {
+			icon := getBulkStatusIconSimple(status)
+			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
 		}
-	} else {
-		target = "Pushed"
+		fmt.Println()
 	}
 
-	remotePart := remote
-	if opts.AllRemotes {
-		remotePart = "all remotes"
+	// Display individual results if not compact
+	if pushFlags.Format != "compact" && len(result.Repositories) > 0 {
+		fmt.Println("Repository details:")
+		for _, repo := range result.Repositories {
+			displayPushRepositoryResult(repo)
+		}
 	}
 
-	fmt.Printf("✓ %s to %s (%s)\n", target, remotePart, duration.Round(time.Millisecond))
+	// Display only errors/warnings in compact mode
+	if pushFlags.Format == "compact" {
+		hasIssues := false
+		for _, repo := range result.Repositories {
+			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
+				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" {
+				if !hasIssues {
+					fmt.Println("Issues found:")
+					hasIssues = true
+				}
+				displayPushRepositoryResult(repo)
+			}
+		}
+		if !hasIssues {
+			fmt.Println("✓ All repositories pushed successfully")
+		}
+	}
+}
+
+func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
+	// Determine icon based on actual result, not just status
+	// ✓ = changes pushed, = = no changes (up-to-date)
+	icon := getPushStatusIconWithContext(repo.Status, repo.PushedCommits)
+
+	// Build compact one-line format: icon path (branch) status duration
+	parts := []string{icon}
+
+	// Path with branch
+	pathPart := repo.RelativePath
+	if repo.Branch != "" {
+		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
+	}
+	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
+
+	// Show status compactly
+	// Status Display Guidelines:
+	//   - Changes occurred: "N↑ pushed" with ✓ icon
+	//   - No changes: "up-to-date" with = icon
+	statusStr := ""
+	switch repo.Status {
+	case "success", "pushed":
+		if repo.PushedCommits > 0 {
+			statusStr = fmt.Sprintf("%d↑ pushed", repo.PushedCommits)
+		} else {
+			// No changes pushed - display as up-to-date for consistency
+			statusStr = "up-to-date"
+		}
+	case "nothing-to-push", "up-to-date":
+		statusStr = "up-to-date"
+	case "would-push":
+		if repo.CommitsAhead > 0 {
+			statusStr = fmt.Sprintf("would push %d↑", repo.CommitsAhead)
+		} else {
+			statusStr = "would push"
+		}
+	case "error":
+		statusStr = "failed"
+	case "no-remote":
+		statusStr = "no remote"
+	case "no-upstream":
+		statusStr = "no upstream"
+	case "conflict":
+		statusStr = "CONFLICT"
+	case "rebase-in-progress":
+		statusStr = "REBASE"
+	case "merge-in-progress":
+		statusStr = "MERGE"
+	case "skipped":
+		statusStr = "skipped"
+	default:
+		statusStr = repo.Status
+	}
+
+	parts = append(parts, fmt.Sprintf("%-18s", statusStr))
+
+	// Duration
+	if repo.Duration > 0 {
+		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
+	}
+
+	// Build output line safely
+	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
+	if len(parts) > 3 {
+		line += " " + parts[3]
+	}
+	fmt.Println(line)
+
+	// Show fix hint for no-upstream status
+	if repo.Status == "no-upstream" {
+		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
+	}
+
+	// Show error details if present
+	if repo.Error != nil && verbose {
+		fmt.Printf("    Error: %v\n", repo.Error)
+	}
+}
+
+// PushJSONOutput represents the JSON output structure for push command
+type PushJSONOutput struct {
+	TotalScanned   int                        `json:"total_scanned"`
+	TotalProcessed int                        `json:"total_processed"`
+	DurationMs     int64                      `json:"duration_ms"`
+	Summary        map[string]int             `json:"summary"`
+	Repositories   []PushRepositoryJSONOutput `json:"repositories"`
+}
+
+// PushRepositoryJSONOutput represents a single repository in JSON output
+type PushRepositoryJSONOutput struct {
+	Path          string `json:"path"`
+	Branch        string `json:"branch,omitempty"`
+	Status        string `json:"status"`
+	CommitsAhead  int    `json:"commits_ahead,omitempty"`
+	PushedCommits int    `json:"pushed_commits,omitempty"`
+	DurationMs    int64  `json:"duration_ms,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+func displayPushResultsJSON(result *repository.BulkPushResult) {
+	output := PushJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PushRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PushRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			PushedCommits: repo.PushedCommits,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displayPushResultsLLM(result *repository.BulkPushResult) {
+	output := PushJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PushRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PushRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			PushedCommits: repo.PushedCommits,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
+}
+
+// getPushStatusIconWithContext returns the appropriate icon based on status and actual changes.
+// Icons: ✓ (changes pushed), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
+func getPushStatusIconWithContext(status string, pushedCommits int) string {
+	switch status {
+	case "success", "pushed":
+		// Only show ✓ if actual changes were pushed
+		if pushedCommits > 0 {
+			return "✓"
+		}
+		return "=" // No changes = up-to-date
+	case "nothing-to-push", "up-to-date":
+		return "="
+	case "error":
+		return "✗"
+	case "skipped":
+		return "⊘"
+	case "would-push":
+		return "→"
+	case "no-remote":
+		return "⚠"
+	case "no-upstream":
+		return "⚠"
+	case "conflict":
+		return "✗"
+	case "rebase-in-progress", "merge-in-progress":
+		return "⚠"
+	default:
+		return "•"
+	}
+}
+
+// getPushStatusIcon returns the icon for a status.
+func getPushStatusIcon(status string) string {
+	return getPushStatusIconWithContext(status, 0)
 }
