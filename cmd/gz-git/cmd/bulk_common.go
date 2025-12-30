@@ -99,40 +99,52 @@ func shouldShowProgress(format string, quiet bool) bool {
 	return !quiet && format != "json"
 }
 
-// getPushStatusIconWithContext returns the appropriate icon based on status and actual changes.
-// Icons: ✓ (changes pushed), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
-func getPushStatusIconWithContext(status string, pushedCommits int) string {
+// getBulkStatusIcon returns the appropriate icon for bulk operation status.
+// The changesCount parameter indicates actual changes (commits behind/ahead/pushed).
+// Icons: ✓ (changes occurred), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
+func getBulkStatusIcon(status string, changesCount int) string {
 	switch status {
-	case "success", "pushed":
-		// Only show ✓ if actual changes were pushed
-		if pushedCommits > 0 {
+	// Success states - show ✓ only if changes occurred
+	case "success", "fetched", "pulled", "pushed", "updated":
+		if changesCount > 0 {
 			return "✓"
 		}
 		return "=" // No changes = up-to-date
+
+	// Up-to-date states
 	case "nothing-to-push", "up-to-date":
 		return "="
+
+	// Error states
 	case "error":
 		return "✗"
+
+	// Conflict/in-progress states
 	case "conflict":
 		return "⚡"
 	case "rebase-in-progress":
 		return "↻"
 	case "merge-in-progress":
 		return "⇄"
+	case "dirty":
+		return "⚠"
+
+	// Skipped/dry-run states
 	case "skipped":
 		return "⊘"
-	case "would-push":
+	case "would-fetch", "would-pull", "would-push":
 		return "→"
-	case "no-remote":
+
+	// Warning states
+	case "no-remote", "no-upstream":
 		return "⚠"
-	case "no-upstream":
-		return "⚠"
+
 	default:
 		return "•"
 	}
 }
 
-// getPushStatusIcon returns the icon for a status (deprecated: use getPushStatusIconWithContext).
-func getPushStatusIcon(status string) string {
-	return getPushStatusIconWithContext(status, 0)
+// getBulkStatusIconSimple returns the icon without considering changes count.
+func getBulkStatusIconSimple(status string) string {
+	return getBulkStatusIcon(status, 0)
 }
