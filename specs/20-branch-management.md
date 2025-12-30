@@ -1,6 +1,6 @@
 # Branch Management Specification
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Feature**: Branch Management (F2)
 **Phase**: Phase 3
 **Version**: 1.0
@@ -14,7 +14,7 @@ ______________________________________________________________________
 
 ### 1.1 Purpose
 
-This specification defines the branch management features for gzh-cli-git, including branch operations, worktree management, and parallel workflow support for efficient multi-context development.
+This specification defines the branch management features for gzh-cli-gitforge, including branch operations, worktree management, and parallel workflow support for efficient multi-context development.
 
 ### 1.2 Goals
 
@@ -243,7 +243,7 @@ type DeleteOptions struct {
 - `main`, `master`
 - `develop`, `development`
 - `release/*`, `hotfix/*`
-- Configurable via `.gzh-git/config.yaml`
+- Configurable via `.gz-git/config.yaml`
 
 #### 4.1.3 Branch Cleanup
 
@@ -348,7 +348,7 @@ type Worktree struct {
 
 **Worktree Path Management**:
 
-- Default location: `~/.gzh-git/worktrees/{repo-name}/{branch-name}`
+- Default location: `~/.gz-git/worktrees/{repo-name}/{branch-name}`
 - Custom paths supported
 - Validate path doesn't exist or is empty
 - Clean up on removal
@@ -357,22 +357,22 @@ type Worktree struct {
 
 ```bash
 # Add worktree for new feature
-$ gzh-git worktree add ~/work/feature-auth feature/auth
+$ gz-git worktree add ~/work/feature-auth feature/auth
 
 # Add worktree with new branch
-$ gzh-git worktree add ~/work/fix-bug fix/login-bug --new
+$ gz-git worktree add ~/work/fix-bug fix/login-bug --new
 
 # List all worktrees
-$ gzh-git worktree list
+$ gz-git worktree list
 /home/user/projects/myapp (main)
 /home/user/work/feature-auth (feature/auth)
 /home/user/work/fix-bug (fix/login-bug)
 
 # Remove worktree
-$ gzh-git worktree remove ~/work/feature-auth
+$ gz-git worktree remove ~/work/feature-auth
 
 # Cleanup orphaned worktrees
-$ gzh-git worktree prune
+$ gz-git worktree prune
 ```
 
 #### 4.2.2 Worktree Safety
@@ -407,8 +407,8 @@ $ gzh-git worktree prune
 
 ```bash
 # Setup
-gzh-git worktree add ~/work/feature-a feature/user-profile
-gzh-git worktree add ~/work/hotfix hotfix/login-error
+gz-git worktree add ~/work/feature-a feature/user-profile
+gz-git worktree add ~/work/hotfix hotfix/login-error
 
 # Work in parallel
 cd ~/work/feature-a    # Context A
@@ -502,50 +502,50 @@ ______________________________________________________________________
 
 ```bash
 # Create branch
-gzh-git branch create <name> [ref]
-gzh-git branch create feature/auth            # From HEAD
-gzh-git branch create fix/bug v1.0.0          # From tag
-gzh-git branch create feature/api --checkout  # Create and checkout
+gz-git branch create <name> [ref]
+gz-git branch create feature/auth            # From HEAD
+gz-git branch create fix/bug v1.0.0          # From tag
+gz-git branch create feature/api --checkout  # Create and checkout
 
 # Delete branch
-gzh-git branch delete <name>
-gzh-git branch delete feature/old              # Local only
-gzh-git branch delete feature/old --remote     # Delete remote too
-gzh-git branch delete feature/old --force      # Force delete
+gz-git branch delete <name>
+gz-git branch delete feature/old              # Local only
+gz-git branch delete feature/old --remote     # Delete remote too
+gz-git branch delete feature/old --force      # Force delete
 
 # List branches
-gzh-git branch list
-gzh-git branch list --merged                   # Only merged
-gzh-git branch list --remote                   # Remote branches
+gz-git branch list
+gz-git branch list --merged                   # Only merged
+gz-git branch list --remote                   # Remote branches
 
 # Cleanup
-gzh-git branch cleanup
-gzh-git branch cleanup --merged                # Merged only
-gzh-git branch cleanup --stale                 # Stale only
-gzh-git branch cleanup --all                   # All strategies
-gzh-git branch cleanup --dry-run               # Preview only
+gz-git branch cleanup
+gz-git branch cleanup --merged                # Merged only
+gz-git branch cleanup --stale                 # Stale only
+gz-git branch cleanup --all                   # All strategies
+gz-git branch cleanup --dry-run               # Preview only
 ```
 
 ### 6.2 Worktree Commands
 
 ```bash
 # Add worktree
-gzh-git worktree add <path> <branch>
-gzh-git worktree add ~/work/fix fix/login     # Existing branch
-gzh-git worktree add ~/work/feat feat/new --new  # New branch
+gz-git worktree add <path> <branch>
+gz-git worktree add ~/work/fix fix/login     # Existing branch
+gz-git worktree add ~/work/feat feat/new --new  # New branch
 
 # Remove worktree
-gzh-git worktree remove <path>
-gzh-git worktree remove ~/work/fix
-gzh-git worktree remove ~/work/fix --force     # Force removal
+gz-git worktree remove <path>
+gz-git worktree remove ~/work/fix
+gz-git worktree remove ~/work/fix --force     # Force removal
 
 # List worktrees
-gzh-git worktree list
-gzh-git worktree list --porcelain              # Machine-readable
+gz-git worktree list
+gz-git worktree list --porcelain              # Machine-readable
 
 # Prune orphaned worktrees
-gzh-git worktree prune
-gzh-git worktree prune --dry-run               # Preview only
+gz-git worktree prune
+gz-git worktree prune --dry-run               # Preview only
 ```
 
 ______________________________________________________________________

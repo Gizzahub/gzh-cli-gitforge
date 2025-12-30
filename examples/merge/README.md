@@ -1,6 +1,6 @@
 # Merge & Conflict Detection Example
 
-This example demonstrates gzh-git merge and conflict detection features using the CLI.
+This example demonstrates gz-git merge and conflict detection features using the CLI.
 
 ## Features Demonstrated
 
@@ -15,45 +15,45 @@ This example demonstrates gzh-git merge and conflict detection features using th
 
 ```bash
 # Check for conflicts between branches
-gzh-git merge detect feature/mybranch main
+gz-git merge detect feature/mybranch main
 
 # Detailed conflict analysis
-gzh-git merge detect feature/mybranch main --detailed
+gz-git merge detect feature/mybranch main --detailed
 ```
 
 ### Execute Merge
 
 ```bash
 # Basic merge
-gzh-git merge do feature/mybranch
+gz-git merge do feature/mybranch
 
 # Merge with specific strategy
-gzh-git merge do feature/mybranch --strategy recursive
+gz-git merge do feature/mybranch --strategy recursive
 
 # Merge without creating commit (for review)
-gzh-git merge do feature/mybranch --no-commit
+gz-git merge do feature/mybranch --no-commit
 ```
 
 ### Abort Merge
 
 ```bash
 # If merge has conflicts, abort and return to pre-merge state
-gzh-git merge abort
+gz-git merge abort
 ```
 
 ### Rebase Operations
 
 ```bash
 # Rebase current branch onto main
-gzh-git merge rebase main
+gz-git merge rebase main
 
 # Interactive rebase
-gzh-git merge rebase main --interactive
+gz-git merge rebase main --interactive
 ```
 
 ## Merge Strategies
 
-gzh-git supports multiple merge strategies:
+gz-git supports multiple merge strategies:
 
 - **fast-forward**: Fast-forward only (no merge commit)
 - **recursive**: Default 3-way merge (Git's default)

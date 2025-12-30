@@ -8,7 +8,7 @@ ______________________________________________________________________
 
 ## 🎉 Overview
 
-We're excited to announce the first alpha release of **gzh-cli-git**, a Git-specialized CLI tool and Go library designed to automate common Git workflows and provide advanced repository operations.
+We're excited to announce the first alpha release of **gzh-cli-gitforge**, a Git-specialized CLI tool and Go library designed to automate common Git workflows and provide advanced repository operations.
 
 This release represents **6 weeks of development** across 6 major phases, delivering a production-ready foundation for Git automation.
 
@@ -18,9 +18,9 @@ ______________________________________________________________________
 
 ### Dual-Purpose Design
 
-gzh-cli-git works as both:
+gzh-cli-gitforge works as both:
 
-1. **Standalone CLI** - Full-featured command-line tool (`gzh-git`)
+1. **Standalone CLI** - Full-featured command-line tool (`gz-git`)
 1. **Go Library** - Importable packages for building your own tools
 
 ### Key Features
@@ -39,14 +39,14 @@ ______________________________________________________________________
 ### Via Go Install
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.1.0-alpha
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.1.0-alpha
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 make build
 make install
 ```
@@ -64,13 +64,13 @@ ______________________________________________________________________
 
 ```bash
 # Check repository status
-gzh-git status
+gz-git status
 
 # Clone repositories
-gzh-git clone https://github.com/user/repo.git
+gz-git clone https://github.com/user/repo.git
 
 # Get detailed repository information
-gzh-git info
+gz-git info
 ```
 
 **Features**:
@@ -84,14 +84,14 @@ gzh-git info
 
 ```bash
 # Auto-generate commit messages
-gzh-git commit auto
+gz-git commit auto
 
 # Validate commit messages
-gzh-git commit validate "feat(cli): add new command"
+gz-git commit validate "feat(cli): add new command"
 
 # Template management
-gzh-git commit template list
-gzh-git commit template show conventional
+gz-git commit template list
+gz-git commit template show conventional
 ```
 
 **Features**:
@@ -105,13 +105,13 @@ gzh-git commit template show conventional
 
 ```bash
 # List branches
-gzh-git branch list --all
+gz-git branch list --all
 
 # Create branches
-gzh-git branch create feature/awesome
+gz-git branch create feature/awesome
 
 # Delete branches
-gzh-git branch delete old-feature
+gz-git branch delete old-feature
 ```
 
 **Features**:
@@ -125,16 +125,16 @@ gzh-git branch delete old-feature
 
 ```bash
 # Commit statistics
-gzh-git history stats --since 2025-01-01
+gz-git history stats --since 2025-01-01
 
 # Top contributors
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # File history
-gzh-git history file src/main.go
+gz-git history file src/main.go
 
 # Line-by-line attribution
-gzh-git history blame src/main.go
+gz-git history blame src/main.go
 ```
 
 **Features**:
@@ -148,16 +148,16 @@ gzh-git history blame src/main.go
 
 ```bash
 # Pre-merge conflict detection
-gzh-git merge detect feature/auth
+gz-git merge detect feature/auth
 
 # Execute merge
-gzh-git merge do feature/auth --strategy recursive
+gz-git merge do feature/auth --strategy recursive
 
 # Rebase operations
-gzh-git merge rebase main --interactive
+gz-git merge rebase main --interactive
 
 # Abort merge
-gzh-git merge abort
+gz-git merge abort
 ```
 
 **Features**:
@@ -181,7 +181,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -275,7 +275,7 @@ ______________________________________________________________________
 
 ### For Developers
 
-- **[pkg.go.dev](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)** - API documentation
+- **[pkg.go.dev](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)** - API documentation
 - **[PRD.md](../PRD.md)** - Product requirements
 - **[REQUIREMENTS.md](../REQUIREMENTS.md)** - Technical requirements
 
@@ -354,10 +354,10 @@ ______________________________________________________________________
 
 ## 🔗 Links
 
-- **Repository**: https://github.com/gizzahub/gzh-cli-git
-- **Issues**: https://github.com/gizzahub/gzh-cli-git/issues
-- **Discussions**: https://github.com/gizzahub/gzh-cli-git/discussions
-- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-git
+- **Repository**: https://github.com/gizzahub/gzh-cli-gitforge
+- **Issues**: https://github.com/gizzahub/gzh-cli-gitforge/issues
+- **Discussions**: https://github.com/gizzahub/gzh-cli-gitforge/discussions
+- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
 - **Changelog**: [CHANGELOG.md](../CHANGELOG.md)
 
 ______________________________________________________________________
@@ -376,7 +376,7 @@ This project is licensed under the MIT License - see the [LICENSE](../LICENSE) f
 
 ______________________________________________________________________
 
-**Thank you for trying gzh-cli-git!** 🎉
+**Thank you for trying gzh-cli-gitforge!** 🎉
 
 We're excited to see what you build with it. Please share your feedback and report any issues you encounter.
 

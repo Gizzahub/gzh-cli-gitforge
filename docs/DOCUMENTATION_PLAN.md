@@ -1,6 +1,6 @@
 # Documentation Structure Plan
 
-> **Purpose**: Define the future organization of gzh-cli-git documentation
+> **Purpose**: Define the future organization of gzh-cli-gitforge documentation
 > **Status**: Planning Phase
 > **Last Updated**: 2025-12-01
 

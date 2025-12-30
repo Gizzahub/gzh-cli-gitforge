@@ -1,15 +1,15 @@
-# gzh-cli-git
+# gzh-cli-gitforge
 
 > Advanced Git automation CLI and Go library for developers
 
 [![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
-[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.3.0)
+[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.3.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/COVERAGE.md)
 [![Tests](https://img.shields.io/badge/tests-141%20passing-brightgreen)](#testing)
-[![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-git.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+[![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-gitforge.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 
-**gzh-cli-git** is a Git-specialized CLI tool and Go library that provides advanced Git automation capabilities. It serves dual purposes: a powerful standalone CLI for developers and a reusable library for embedding in other Go projects.
+**gzh-cli-gitforge** is a Git-specialized CLI tool and Go library that provides advanced Git automation capabilities. It serves dual purposes: a powerful standalone CLI for developers and a reusable library for embedding in other Go projects.
 
 ______________________________________________________________________
 
@@ -74,7 +74,7 @@ ______________________________________________________________________
 - Comprehensive integration tests
 - Well-documented codebase
 
-> **Note**: Version v0.2.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for details.
+> **Note**: Version v0.3.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for details.
 
 ______________________________________________________________________
 
@@ -85,7 +85,7 @@ ______________________________________________________________________
 **Via Go Install:**
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 **Via Homebrew (macOS/Linux):**
@@ -97,8 +97,8 @@ brew install gz-git  # Coming soon
 **From Source:**
 
 ```bash
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 make build    # Builds as 'gz-git'
 make install  # Installs to $GOPATH/bin
 ```
@@ -416,7 +416,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -463,7 +463,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -506,7 +506,7 @@ All major packages are fully implemented. See [Library Documentation](docs/LIBRA
 
 - [Library Guide](docs/LIBRARY.md) - Complete library documentation
 - [examples/](examples/) directory - Working code samples
-- [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git) - Full API documentation
+- [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge) - Full API documentation
 
 ______________________________________________________________________
 
@@ -516,26 +516,26 @@ ______________________________________________________________________
 - 🏗️ [Architecture Design](ARCHITECTURE.md)
 - 📋 [Product Requirements](PRD.md)
 - 🔧 [Technical Requirements](REQUIREMENTS.md)
-- 📚 [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- 📚 [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - 🤝 [Contributing Guide](CONTRIBUTING.md)
 
 ### Feature Specifications
 
-- [Commit Automation](specs/10-commit-automation.md) *(coming soon)*
-- [Branch Management](specs/20-branch-management.md) *(coming soon)*
-- [History Analysis](specs/30-history-analysis.md) *(coming soon)*
-- [Advanced Merge/Rebase](specs/40-advanced-merge.md) *(coming soon)*
+- [Commit Automation](specs/10-commit-automation.md)
+- [Branch Management](specs/20-branch-management.md)
+- [History Analysis](specs/30-history-analysis.md)
+- [Advanced Merge/Rebase](specs/40-advanced-merge.md)
 
 ______________________________________________________________________
 
 ## Project Status
 
-**Current Version**: v0.2.0
-**Status**: Feature Complete - Documentation & Testing Phase
+**Current Version**: v0.3.0
+**Status**: Feature Complete - Integration & Testing Complete
 
 ### Roadmap
 
-- [x] **Phase 1-5**: Core Features *(Completed - v0.2.0)*
+- [x] **Phase 1-5**: Core Features *(Completed - v0.3.0)*
 
   - [x] Project structure and architecture
   - [x] Core documentation (PRD, REQUIREMENTS, ARCHITECTURE)
@@ -547,13 +547,14 @@ ______________________________________________________________________
   - [x] Library-first architecture with full pkg/ implementations
   - [x] Test infrastructure (141 tests, 69.1% coverage)
 
-- [ ] **Phase 6**: Documentation & Examples *(In Progress)*
+- [x] **Phase 6**: Integration & Testing *(Completed - v0.3.0)*
 
-  - [x] Implementation status report
-  - [ ] Comprehensive usage examples
-  - [ ] Complete API documentation
-  - [ ] Video tutorials and guides
-  - [ ] Migration guides from other tools
+  - [x] Integration testing specification
+  - [x] Full CLI command coverage
+  - [x] Integration and E2E test suites
+  - [x] Performance benchmarks
+  - [x] Coverage analysis and reporting
+  - [x] Documentation updates and guides
 
 - [ ] **Phase 7**: Production Readiness *(Target: v1.0.0)*
 
@@ -574,7 +575,7 @@ ______________________________________________________________________
 
 ```
 ┌─────────────────────────────────────────┐
-│        gzh-cli-git Architecture          │
+│        gzh-cli-gitforge Architecture          │
 ├─────────────────────────────────────────┤
 │                                          │
 │  ┌────────────────────────────────────┐ │
@@ -671,10 +672,10 @@ make bench
 ### Project Structure
 
 ```
-gzh-cli-git/
+gzh-cli-gitforge/
 ├── pkg/                  # Public library API
 ├── internal/             # Internal implementation
-├── cmd/gzh-git/          # CLI application
+├── cmd/gz-git/          # CLI application
 ├── examples/             # Usage examples
 ├── test/                 # Integration & E2E tests
 ├── docs/                 # User documentation
@@ -691,9 +692,9 @@ This project is designed to be the Git engine for [gzh-cli](https://github.com/g
 **Usage in gzh-cli:**
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/repository"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 
-// gzh-cli can now leverage all gzh-cli-git functionality
+// gzh-cli can now leverage all gzh-cli-gitforge functionality
 client := repository.NewClient(logger)
 repo, _ := client.Open(ctx, repoPath)
 ```
@@ -760,8 +761,8 @@ ______________________________________________________________________
 ## Support
 
 - 📧 Email: support@gizzahub.com *(example)*
-- 🐛 Issues: [GitHub Issues](https://github.com/gizzahub/gzh-cli-git/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/gizzahub/gzh-cli-git/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
 
 ______________________________________________________________________
 

@@ -1,18 +1,18 @@
 # Troubleshooting Guide
 
-Common issues and solutions for `gzh-git`.
+Common issues and solutions for `gz-git`.
 
 ## Installation Issues
 
 ### Command Not Found
 
-**Problem:** `gzh-git: command not found`
+**Problem:** `gz-git: command not found`
 
 **Solutions:**
 
 ```bash
 # Check if binary exists
-which gzh-git
+which gz-git
 
 # Check Go bin directory
 ls -la $HOME/go/bin
@@ -107,7 +107,7 @@ git prune
 
 ### Auto-Commit Fails
 
-**Problem:** `gzh-git commit auto` doesn't create commit
+**Problem:** `gz-git commit auto` doesn't create commit
 
 **Solutions:**
 
@@ -119,10 +119,10 @@ git status
 git add <files>
 
 # Then auto-commit
-gzh-git commit auto
+gz-git commit auto
 
 # Or use dry-run to see what would happen
-gzh-git commit auto --dry-run
+gz-git commit auto --dry-run
 ```
 
 ### Validation Errors
@@ -133,10 +133,10 @@ gzh-git commit auto --dry-run
 
 ```bash
 # Check template requirements
-gzh-git commit template show conventional
+gz-git commit template show conventional
 
 # Validate message format
-gzh-git commit validate "your message"
+gz-git commit validate "your message"
 
 # Common issues:
 # - Missing type: "feat:", "fix:", etc.
@@ -153,13 +153,13 @@ gzh-git commit validate "your message"
 
 ```bash
 # List available templates
-gzh-git commit template list
+gz-git commit template list
 
 # Check template location
-ls ~/.config/gzh-git/templates/
+ls ~/.config/gz-git/templates/
 
 # Use correct template name
-gzh-git commit auto --template conventional
+gz-git commit auto --template conventional
 ```
 
 ## Branch Issues
@@ -175,8 +175,8 @@ gzh-git commit auto --template conventional
 git branch -a | grep <name>
 
 # Use force flag if needed
-gzh-git branch delete <name> --force
-gzh-git branch create <name>
+gz-git branch delete <name> --force
+gz-git branch create <name>
 
 # Check base reference
 git show <base-ref>
@@ -199,7 +199,7 @@ rm -rf /path/to/worktree
 mkdir -p /parent/directory
 
 # Create with absolute path
-gzh-git branch create feature --worktree /absolute/path
+gz-git branch create feature --worktree /absolute/path
 ```
 
 ### Cannot Delete Branch
@@ -216,17 +216,17 @@ git branch --show-current
 git checkout main
 
 # Force delete if needed
-gzh-git branch delete <name> --force
+gz-git branch delete <name> --force
 
 # Delete remote branch
-gzh-git branch delete <name> --remote
+gz-git branch delete <name> --remote
 ```
 
 ## History Issues
 
 ### No History Returned
 
-**Problem:** `gzh-git history stats` returns empty
+**Problem:** `gz-git history stats` returns empty
 
 **Solutions:**
 
@@ -235,7 +235,7 @@ gzh-git branch delete <name> --remote
 git log
 
 # Check date range
-gzh-git history stats --since "1 year ago"
+gz-git history stats --since "1 year ago"
 
 # Check branch exists
 git branch -a | grep <branch-name>
@@ -255,7 +255,7 @@ ls -la <file-path>
 git log --all -- <file-path>
 
 # Use --follow for renames
-gzh-git history file --follow <file-path>
+gz-git history file --follow <file-path>
 
 # Check correct path
 git ls-files | grep <filename>
@@ -271,7 +271,7 @@ git ls-files | grep <filename>
 
 ```bash
 # Check conflicts first
-gzh-git merge detect <source> <target>
+gz-git merge detect <source> <target>
 
 # If conflicts exist, resolve them
 git status
@@ -280,7 +280,7 @@ git add <resolved-files>
 git commit
 
 # Or abort merge
-gzh-git merge abort
+gz-git merge abort
 ```
 
 ### Fast-Forward Fails
@@ -291,13 +291,13 @@ gzh-git merge abort
 
 ```bash
 # Check if fast-forward is possible
-gzh-git merge detect <source> <target>
+gz-git merge detect <source> <target>
 
 # Use regular merge instead
-gzh-git merge do <source>
+gz-git merge do <source>
 
 # Or rebase first
-gzh-git merge rebase <target>
+gz-git merge rebase <target>
 ```
 
 ### Rebase Conflicts
@@ -313,13 +313,13 @@ git status
 git add <resolved-files>
 
 # Continue rebase
-gzh-git merge rebase --continue
+gz-git merge rebase --continue
 
 # Or skip commit
-gzh-git merge rebase --skip
+gz-git merge rebase --skip
 
 # Or abort
-gzh-git merge rebase --abort
+gz-git merge rebase --abort
 ```
 
 ## Performance Issues
@@ -332,13 +332,13 @@ gzh-git merge rebase --abort
 
 ```bash
 # For large repositories, use depth limit
-gzh-git history stats --max-count 1000
+gz-git history stats --max-count 1000
 
 # Use specific date range
-gzh-git history stats --since "1 month ago"
+gz-git history stats --since "1 month ago"
 
 # For file history, limit commits
-gzh-git history file --max 100 <file>
+gz-git history file --max 100 <file>
 
 # Optimize repository
 git gc --aggressive
@@ -353,13 +353,13 @@ git prune
 
 ```bash
 # Use smaller date ranges
-gzh-git history stats --since "3 months ago"
+gz-git history stats --since "3 months ago"
 
 # Limit output with --top
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # Use streaming output formats
-gzh-git history stats --format json | jq .
+gz-git history stats --format json | jq .
 ```
 
 ## Output Issues
@@ -376,10 +376,10 @@ export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
 # Use --quiet to suppress formatting
-gzh-git --quiet <command>
+gz-git --quiet <command>
 
 # Use machine-readable format
-gzh-git history stats --format json
+gz-git history stats --format json
 ```
 
 ### Missing Colors
@@ -393,10 +393,10 @@ gzh-git history stats --format json
 echo $TERM
 
 # Force color output
-FORCE_COLOR=1 gzh-git status
+FORCE_COLOR=1 gz-git status
 
 # Or use simpler format
-gzh-git status --porcelain
+gz-git status --porcelain
 ```
 
 ## Common Error Messages
@@ -426,7 +426,7 @@ gzh-git status --porcelain
 git branch -a
 
 # Use correct branch name
-gzh-git merge detect feature/existing-branch main
+gz-git merge detect feature/existing-branch main
 ```
 
 ### "failed to get current branch"
@@ -452,18 +452,18 @@ git fsck
 
 ```bash
 # Use verbose flag
-gzh-git --verbose <command>
+gz-git --verbose <command>
 
 # Or set environment variable
 export GZH_GIT_VERBOSE=1
-gzh-git <command>
+gz-git <command>
 ```
 
 ### Check Git Operations
 
 ```bash
 # Enable Git tracing
-GIT_TRACE=1 gzh-git <command>
+GIT_TRACE=1 gz-git <command>
 
 # Check Git config
 git config --list
@@ -479,7 +479,7 @@ git status
 uname -a
 go version
 git --version
-gzh-git --version
+gz-git --version
 
 # Repository information
 git status
@@ -487,7 +487,7 @@ git log --oneline -5
 git config --list
 
 # Test command
-gzh-git --verbose <command> 2>&1 | tee debug.log
+gz-git --verbose <command> 2>&1 | tee debug.log
 ```
 
 ## Getting Help
@@ -495,9 +495,9 @@ gzh-git --verbose <command> 2>&1 | tee debug.log
 If you can't resolve the issue:
 
 1. **Check documentation**: Read the [Command Reference](commands/README.md)
-1. **Search issues**: https://github.com/gizzahub/gzh-cli-git/issues
-1. **Ask for help**: https://github.com/gizzahub/gzh-cli-git/discussions
-1. **Report a bug**: https://github.com/gizzahub/gzh-cli-git/issues/new
+1. **Search issues**: https://github.com/gizzahub/gzh-cli-gitforge/issues
+1. **Ask for help**: https://github.com/gizzahub/gzh-cli-gitforge/discussions
+1. **Report a bug**: https://github.com/gizzahub/gzh-cli-gitforge/issues/new
 
 ### Bug Report Template
 
@@ -508,11 +508,11 @@ When reporting issues, include:
 - OS: [e.g., Ubuntu 22.04, macOS 14.0]
 - Go version: [output of `go version`]
 - Git version: [output of `git --version`]
-- gzh-git version: [output of `gzh-git --version`]
+- gz-git version: [output of `gz-git --version`]
 
 **Command:**
 ```bash
-gzh-git <command>
+gz-git <command>
 ````
 
 **Expected behavior:**

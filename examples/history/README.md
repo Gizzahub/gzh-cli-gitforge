@@ -1,6 +1,6 @@
 # History Analysis Example
 
-This example demonstrates gzh-git history analysis features using the CLI.
+This example demonstrates gz-git history analysis features using the CLI.
 
 ## Features Demonstrated
 
@@ -14,30 +14,30 @@ This example demonstrates gzh-git history analysis features using the CLI.
 
 ```bash
 # Stats for last 30 days
-gzh-git history stats --since "30 days ago"
+gz-git history stats --since "30 days ago"
 
 # Stats for specific date range
-gzh-git history stats --since "2025-01-01" --until "2025-01-31"
+gz-git history stats --since "2025-01-01" --until "2025-01-31"
 ```
 
 ### Analyze Contributors
 
 ```bash
 # Top 10 contributors
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # Contributors in last month
-gzh-git history contributors --since "1 month ago"
+gz-git history contributors --since "1 month ago"
 ```
 
 ### View File History
 
 ```bash
 # History of specific file
-gzh-git history file README.md
+gz-git history file README.md
 
 # Last 5 commits affecting file
-gzh-git history file src/main.go --limit 5
+gz-git history file src/main.go --limit 5
 ```
 
 ## Output Formats
@@ -46,13 +46,13 @@ All history commands support multiple output formats:
 
 ```bash
 # Table format (default)
-gzh-git history stats
+gz-git history stats
 
 # JSON format
-gzh-git history stats --format json
+gz-git history stats --format json
 
 # CSV format
-gzh-git history contributors --format csv
+gz-git history contributors --format csv
 ```
 
 ## Library Usage

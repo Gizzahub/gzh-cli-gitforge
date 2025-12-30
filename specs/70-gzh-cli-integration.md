@@ -10,12 +10,12 @@ ______________________________________________________________________
 
 ## Overview
 
-Phase 7.2 focuses on integrating the gzh-cli-git library into the gzh-cli unified CLI tool. This phase involves architectural planning, API integration, command mapping, and final v1.0.0 release preparation.
+Phase 7.2 focuses on integrating the gzh-cli-gitforge library into the gzh-cli unified CLI tool. This phase involves architectural planning, API integration, command mapping, and final v1.0.0 release preparation.
 
 ### Goals
 
-1. **Integration Architecture** - Design how gzh-cli consumes gzh-cli-git library
-1. **Command Integration** - Map gzh-git commands to gzh-cli command structure
+1. **Integration Architecture** - Design how gzh-cli consumes gzh-cli-gitforge library
+1. **Command Integration** - Map gz-git commands to gzh-cli command structure
 1. **Shared Infrastructure** - Leverage gzh-cli's logging, config, and UI components
 1. **Testing** - Validate integration through gzh-cli's test suite
 1. **Documentation** - Update gzh-cli docs with Git functionality
@@ -23,7 +23,7 @@ Phase 7.2 focuses on integrating the gzh-cli-git library into the gzh-cli unifie
 
 ### Non-Goals
 
-- Rewriting existing gzh-cli-git functionality
+- Rewriting existing gzh-cli-gitforge functionality
 - GUI or web interface
 - Plugin system (future enhancement)
 - Cloud integrations
@@ -56,7 +56,7 @@ ______________________________________________________________________
 └───────────────┼──────────────────────────┘
                 │
         ┌───────▼────────┐
-        │   gzh-cli-git  │
+        │   gzh-cli-gitforge  │
         │     Library    │
         └────────────────┘
 ```
@@ -71,7 +71,7 @@ gzh-cli Command Router
     ↓
 Git Integration Handler (new)
     ↓
-gzh-cli-git Library (repository.Client)
+gzh-cli-gitforge Library (repository.Client)
     ↓
 Git CLI Execution
     ↓
@@ -88,7 +88,7 @@ ______________________________________________________________________
 
 ### Purpose
 
-Define how gzh-cli will integrate and consume the gzh-cli-git library.
+Define how gzh-cli will integrate and consume the gzh-cli-gitforge library.
 
 ### 1.1 Dependency Management
 
@@ -100,7 +100,7 @@ module github.com/gizzahub/gzh-cli
 go 1.24
 
 require (
-    github.com/gizzahub/gzh-cli-git v0.1.0  // Add this
+    github.com/gizzahub/gzh-cli-gitforge v0.1.0  // Add this
     github.com/spf13/cobra v1.8.0
     // ... other dependencies
 )
@@ -114,7 +114,7 @@ require (
 gzh-cli/
 ├── internal/
 │   └── git/                    # Git integration (new)
-│       ├── client.go          # Wrapper around gzh-cli-git
+│       ├── client.go          # Wrapper around gzh-cli-gitforge
 │       ├── logger.go          # Logger adapter
 │       ├── progress.go        # Progress reporter adapter
 │       ├── formatter.go       # Output formatter adapter
@@ -141,10 +141,10 @@ import (
 
     "github.com/gizzahub/gzh-cli/internal/config"
     "github.com/gizzahub/gzh-cli/internal/logger"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// Client wraps gzh-cli-git library with gzh-cli infrastructure
+// Client wraps gzh-cli-gitforge library with gzh-cli infrastructure
 type Client struct {
     repo       repository.Client
     logger     *logger.Logger  // gzh-cli logger
@@ -168,7 +168,7 @@ func NewClient(cfg *config.Config, log *logger.Logger) *Client {
 
 // Status gets repository status with gzh-cli formatting
 func (c *Client) Status(ctx context.Context, path string) error {
-    // Use gzh-cli-git library
+    // Use gzh-cli-gitforge library
     repo, err := c.repo.Open(ctx, path)
     if err != nil {
         return c.translateError(err)
@@ -190,24 +190,24 @@ ______________________________________________________________________
 
 ### Purpose
 
-Map gzh-git commands to gzh-cli command structure and integrate with existing gzh-cli features.
+Map gz-git commands to gzh-cli command structure and integrate with existing gzh-cli features.
 
 ### 2.1 Command Mapping
 
-**gzh-git → gzh-cli mapping:**
+**gz-git → gzh-cli mapping:**
 
 ```
-gzh-git status              → gzh git status
-gzh-git clone <url>         → gzh git clone <url>
-gzh-git info                → gzh git info
-gzh-git commit auto         → gzh git commit auto
-gzh-git commit validate     → gzh git commit validate
-gzh-git branch list         → gzh git branch list
-gzh-git branch create       → gzh git branch create
-gzh-git history stats       → gzh git history stats
-gzh-git history contributors → gzh git history contributors
-gzh-git merge do            → gzh git merge do
-gzh-git merge detect        → gzh git merge detect
+gz-git status              → gzh git status
+gz-git clone <url>         → gzh git clone <url>
+gz-git info                → gzh git info
+gz-git commit auto         → gzh git commit auto
+gz-git commit validate     → gzh git commit validate
+gz-git branch list         → gzh git branch list
+gz-git branch create       → gzh git branch create
+gz-git history stats       → gzh git history stats
+gz-git history contributors → gzh git history contributors
+gz-git merge do            → gzh git merge do
+gz-git merge detect        → gzh git merge detect
 ```
 
 ### 2.2 Command Implementation
@@ -266,7 +266,7 @@ func NewGitCmd(gitClient *git.Client) *cobra.Command {
     cmd := &cobra.Command{
         Use:   "git",
         Short: "Git operations and automation",
-        Long:  "Advanced Git operations powered by gzh-cli-git library",
+        Long:  "Advanced Git operations powered by gzh-cli-gitforge library",
     }
 
     // Add subcommands
@@ -299,10 +299,10 @@ package git
 
 import (
     "github.com/gizzahub/gzh-cli/internal/logger"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// loggerAdapter adapts gzh-cli logger to gzh-cli-git Logger interface
+// loggerAdapter adapts gzh-cli logger to gzh-cli-gitforge Logger interface
 type loggerAdapter struct {
     logger *logger.Logger
 }
@@ -337,10 +337,10 @@ package git
 
 import (
     "github.com/gizzahub/gzh-cli/internal/ui"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// progressAdapter adapts gzh-cli progress UI to gzh-cli-git ProgressReporter
+// progressAdapter adapts gzh-cli progress UI to gzh-cli-gitforge ProgressReporter
 type progressAdapter struct {
     progressBar *ui.ProgressBar
 }
@@ -373,11 +373,11 @@ import (
     "errors"
     "fmt"
 
-    giterrors "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    giterrors "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
     "github.com/gizzahub/gzh-cli/internal/errors"
 )
 
-// translateError converts gzh-cli-git errors to gzh-cli error format
+// translateError converts gzh-cli-gitforge errors to gzh-cli error format
 func (c *Client) translateError(err error) error {
     if err == nil {
         return nil
@@ -407,7 +407,7 @@ import (
     "io"
 
     "github.com/gizzahub/gzh-cli/internal/output"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // formatStatus formats repository status using gzh-cli formatters
@@ -523,7 +523,7 @@ Update gzh-cli documentation to include Git functionality.
 ## Features
 
 - **Project Management**: Streamlined project initialization and configuration
-- **Git Operations**: Advanced Git automation powered by gzh-cli-git ⭐ NEW
+- **Git Operations**: Advanced Git automation powered by gzh-cli-gitforge ⭐ NEW
   - Smart commit messages with templates
   - Branch management and worktrees
   - History analysis and statistics
@@ -538,7 +538,7 @@ Update gzh-cli documentation to include Git functionality.
 ```markdown
 # Git Commands
 
-All Git operations in gzh-cli are powered by the [gzh-cli-git](https://github.com/gizzahub/gzh-cli-git) library.
+All Git operations in gzh-cli are powered by the [gzh-cli-gitforge](https://github.com/gizzahub/gzh-cli-gitforge) library.
 
 ## Available Commands
 
@@ -569,7 +569,7 @@ All Git operations in gzh-cli are powered by the [gzh-cli-git](https://github.co
 
 ## Examples
 
-See [gzh-cli-git documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git) for detailed examples.
+See [gzh-cli-gitforge documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge) for detailed examples.
 ```
 
 ______________________________________________________________________
@@ -582,7 +582,7 @@ Prepare both libraries for v1.0.0 production release.
 
 ### 6.1 Version Coordination
 
-**gzh-cli-git versions:**
+**gzh-cli-gitforge versions:**
 
 ```
 v0.1.0-alpha → Initial library release (Phase 7.1)
@@ -599,7 +599,7 @@ v1.0.0       → With Git integration (Phase 7.2)
 
 ### 6.2 Release Checklist
 
-**For gzh-cli-git v1.0.0:**
+**For gzh-cli-gitforge v1.0.0:**
 
 - [ ] All integration tests passing in gzh-cli
 - [ ] No breaking API changes since v0.1.0
@@ -624,9 +624,9 @@ v1.0.0       → With Git integration (Phase 7.2)
 
 **Release Process:**
 
-1. **Week 1**: gzh-cli-git v0.1.0-alpha (Phase 7.1)
+1. **Week 1**: gzh-cli-gitforge v0.1.0-alpha (Phase 7.1)
 1. **Week 2-3**: Alpha testing, bug fixes
-1. **Week 4**: gzh-cli-git v0.1.0 stable
+1. **Week 4**: gzh-cli-gitforge v0.1.0 stable
 1. **Week 5-6**: gzh-cli integration (Phase 7.2)
 1. **Week 7**: Integration testing and refinement
 1. **Week 8**: Coordinated v1.0.0 release
@@ -656,7 +656,7 @@ ______________________________________________________________________
 
 ### Integration Testing
 
-- All gzh-cli-git tests still passing
+- All gzh-cli-gitforge tests still passing
 - All gzh-cli tests still passing
 - New Git integration tests passing
 - E2E tests covering Git workflows
@@ -664,7 +664,7 @@ ______________________________________________________________________
 ### Performance
 
 - No performance regression in gzh-cli
-- Git operations maintain gzh-cli-git benchmarks
+- Git operations maintain gzh-cli-gitforge benchmarks
 - Memory usage acceptable
 
 ### Documentation
@@ -679,7 +679,7 @@ ______________________________________________________________________
 
 ### Risk 1: API Incompatibility
 
-**Risk**: gzh-cli-git API may not fit gzh-cli architecture
+**Risk**: gzh-cli-gitforge API may not fit gzh-cli architecture
 **Impact**: High (requires refactoring)
 **Mitigation**:
 
@@ -689,7 +689,7 @@ ______________________________________________________________________
 
 ### Risk 2: Dependency Conflicts
 
-**Risk**: gzh-cli and gzh-cli-git may have conflicting dependencies
+**Risk**: gzh-cli and gzh-cli-gitforge may have conflicting dependencies
 **Impact**: Medium
 **Mitigation**:
 
@@ -757,6 +757,6 @@ ______________________________________________________________________
 ## References
 
 - gzh-cli repository: https://github.com/gizzahub/gzh-cli
-- gzh-cli-git library: https://github.com/gizzahub/gzh-cli-git
+- gzh-cli-gitforge library: https://github.com/gizzahub/gzh-cli-gitforge
 - Phase 7.1 Spec: `specs/60-library-publication.md`
 - Integration best practices: [Go Library Integration](https://go.dev/doc/modules/managing-dependencies)

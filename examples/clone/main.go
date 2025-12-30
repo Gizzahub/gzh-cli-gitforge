@@ -1,4 +1,4 @@
-// Package main demonstrates cloning a repository using gzh-cli-git library.
+// Package main demonstrates cloning a repository using gzh-cli-gitforge library.
 package main
 
 import (
@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {

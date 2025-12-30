@@ -2,7 +2,7 @@
 
 > **Status**: ✅ Implemented
 > **Version**: Unreleased (targeting v0.3.0)
-> **Package**: `pkg/watch`, `cmd/gzh-git/cmd/watch.go`
+> **Package**: `pkg/watch`, `cmd/gz-git/cmd/watch.go`
 
 ## Overview
 
@@ -31,7 +31,7 @@ Detects the following types of changes:
 Monitor multiple repositories simultaneously:
 
 ```bash
-gzh-git watch /path/to/repo1 /path/to/repo2 /path/to/repo3
+gz-git watch /path/to/repo1 /path/to/repo2 /path/to/repo3
 ```
 
 Each repository is monitored independently with its own state tracking.
@@ -89,13 +89,13 @@ Machine-readable format for automation:
 Watch current directory:
 
 ```bash
-gzh-git watch
+gz-git watch
 ```
 
 Watch specific repository:
 
 ```bash
-gzh-git watch /path/to/repo
+gz-git watch /path/to/repo
 ```
 
 ### Custom Interval
@@ -103,13 +103,13 @@ gzh-git watch /path/to/repo
 Check for changes every 5 seconds (less CPU intensive):
 
 ```bash
-gzh-git watch --interval 5s
+gz-git watch --interval 5s
 ```
 
 Check more frequently (1 second):
 
 ```bash
-gzh-git watch --interval 1s
+gz-git watch --interval 1s
 ```
 
 ### Output Formats
@@ -117,13 +117,13 @@ gzh-git watch --interval 1s
 Compact output for terminals:
 
 ```bash
-gzh-git watch --format compact
+gz-git watch --format compact
 ```
 
 JSON for piping to other tools:
 
 ```bash
-gzh-git watch --format json | jq '.files[]'
+gz-git watch --format json | jq '.files[]'
 ```
 
 ### Multi-Repository Monitoring
@@ -131,7 +131,7 @@ gzh-git watch --format json | jq '.files[]'
 Watch multiple projects:
 
 ```bash
-gzh-git watch ~/projects/frontend ~/projects/backend ~/projects/api
+gz-git watch ~/projects/frontend ~/projects/backend ~/projects/api
 ```
 
 ### Include Clean Events
@@ -139,7 +139,7 @@ gzh-git watch ~/projects/frontend ~/projects/backend ~/projects/api
 Get notified when repository becomes clean after having changes:
 
 ```bash
-gzh-git watch --include-clean
+gz-git watch --include-clean
 ```
 
 ### Automation Examples
@@ -147,7 +147,7 @@ gzh-git watch --include-clean
 #### Trigger Build on Changes
 
 ```bash
-gzh-git watch --format json | while read -r event; do
+gz-git watch --format json | while read -r event; do
   TYPE=$(echo "$event" | jq -r '.type')
   if [ "$TYPE" = "staged" ]; then
     echo "Running build..."
@@ -159,13 +159,13 @@ done
 #### Log Changes to File
 
 ```bash
-gzh-git watch --format json >> git-changes.log
+gz-git watch --format json >> git-changes.log
 ```
 
 #### Notify Desktop on Changes
 
 ```bash
-gzh-git watch --format compact | while read -r line; do
+gz-git watch --format compact | while read -r line; do
   osascript -e "display notification \"$line\" with title \"Git Change Detected\""
 done
 ```
@@ -215,7 +215,7 @@ File System Changes
    - Structured event data
    - Timestamp tracking
 
-1. **Formatters** (`cmd/gzh-git/cmd/watch.go`)
+1. **Formatters** (`cmd/gz-git/cmd/watch.go`)
 
    - Default: Human-readable with colors
    - Compact: Single-line output
@@ -241,8 +241,8 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
-    "github.com/gizzahub/gzh-cli-git/pkg/watch"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/watch"
 )
 
 func main() {

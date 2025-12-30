@@ -1,4 +1,4 @@
-// Package main demonstrates basic repository operations using gzh-cli-git library.
+// Package main demonstrates basic repository operations using gzh-cli-gitforge library.
 package main
 
 import (
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {

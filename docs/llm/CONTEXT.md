@@ -1,4 +1,4 @@
-# gzh-cli-git - LLM Context Summary
+# gzh-cli-gitforge - LLM Context Summary
 
 > **Purpose**: Provide LLM with essential project context for code assistance and development
 > **Last Updated**: 2025-12-01
@@ -6,7 +6,7 @@
 
 ## Project Identity
 
-**Name**: gzh-cli-git
+**Name**: gzh-cli-gitforge
 **Type**: Dual-purpose CLI tool + Go library
 **Domain**: Git automation and repository management
 **Language**: Go 1.24+
@@ -16,7 +16,7 @@
 
 ```
 ┌─────────────────────────────────────┐
-│  gzh-cli-git = Library + CLI        │
+│  gzh-cli-gitforge = Library + CLI        │
 ├─────────────────────────────────────┤
 │                                      │
 │  Library (pkg/)                      │
@@ -78,7 +78,7 @@
 - Merge execution with strategies
 - Abort and rebase operations
 
-**CLI Commands** (`cmd/gzh-git/`):
+**CLI Commands** (`cmd/gz-git/`):
 All commands functional - status, info, clone, update, branch, commit, history, merge
 
 **Testing**:
@@ -90,7 +90,7 @@ All commands functional - status, info, clone, update, branch, commit, history, 
 ## Project Structure
 
 ```
-gzh-cli-git/
+gzh-cli-gitforge/
 ├── pkg/                      # PUBLIC LIBRARY (zero CLI deps)
 │   ├── repository/           # Core repository operations
 │   │   ├── interfaces.go     # Client interface
@@ -107,7 +107,7 @@ gzh-cli-git/
 │   ├── parser/              # Git output parsing
 │   └── validation/          # Input validation
 │
-├── cmd/gzh-git/             # CLI APPLICATION
+├── cmd/gz-git/             # CLI APPLICATION
 │   ├── main.go              # Entry point
 │   └── internal/cli/        # Cobra commands
 │
@@ -185,7 +185,7 @@ Clone(ctx, url, path,
 | `pkg/repository/client.go`     | Repository client implementation | CRITICAL   |
 | `pkg/operations/clone.go`      | Clone operations                 | HIGH       |
 | `internal/gitcmd/executor.go`  | Git command wrapper              | CRITICAL   |
-| `cmd/gzh-git/main.go`          | CLI entry point                  | MEDIUM     |
+| `cmd/gz-git/main.go`          | CLI entry point                  | MEDIUM     |
 
 ## Key Types
 
@@ -237,7 +237,7 @@ Git errors: `GitError{Op, Path, ExitCode, Output, Err}`
 
 ```bash
 # Build binary
-make build           # → build/gzh-git
+make build           # → build/gz-git
 
 # Run tests
 make test            # Unit tests only
@@ -250,7 +250,7 @@ make fmt             # go fmt
 make quality         # All checks
 
 # Install
-make install         # → /usr/local/bin/gzh-git
+make install         # → /usr/local/bin/gz-git
 ```
 
 ## Git Commit Guidelines
@@ -287,8 +287,8 @@ docs/
 
 ## Integration
 
-- gzh-cli: `import "github.com/gizzahub/gzh-cli-git/pkg/repository"`
-- As library: `go get github.com/gizzahub/gzh-cli-git`
+- gzh-cli: `import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"`
+- As library: `go get github.com/gizzahub/gzh-cli-gitforge`
 
 ## Performance Characteristics
 
@@ -323,12 +323,12 @@ docs/
 - **Full Architecture**: [ARCHITECTURE.md](../../ARCHITECTURE.md) (1500+ lines, detailed)
 - **Product Requirements**: [PRD.md](../../PRD.md)
 - **Technical Requirements**: [REQUIREMENTS.md](../../REQUIREMENTS.md)
-- **API Documentation**: [pkg.go.dev](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- **API Documentation**: [pkg.go.dev](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - **Roadmap**: See PRD.md for 10-week development plan
 
 ## Quick Decision Reference
 
-**When to use gzh-cli-git:**
+**When to use gzh-cli-gitforge:**
 
 - ✅ Need Git operations in Go application
 - ✅ Want type-safe Git API

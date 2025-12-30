@@ -1,4 +1,4 @@
-// Package main demonstrates history analysis using gzh-cli-git library.
+// Package main demonstrates history analysis using gzh-cli-gitforge library.
 package main
 
 import (
@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-git/pkg/history"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/history"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -121,8 +121,8 @@ func main() {
 	}
 	fmt.Println()
 
-	fmt.Println("Tip: Use gzh-git for more detailed history analysis:")
-	fmt.Println("  gzh-git history stats --since \"1 month ago\"")
-	fmt.Println("  gzh-git history contributors --top 10")
-	fmt.Println("  gzh-git history file <path>")
+	fmt.Println("Tip: Use gz-git for more detailed history analysis:")
+	fmt.Println("  gz-git history stats --since \"1 month ago\"")
+	fmt.Println("  gz-git history contributors --top 10")
+	fmt.Println("  gz-git history file <path>")
 }

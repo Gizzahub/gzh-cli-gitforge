@@ -31,43 +31,43 @@ All 7 command groups implemented and tested:
 
 #### Repository Commands
 
-- `gzh-git status` - Working tree status
-- `gzh-git clone` - Repository cloning
-- `gzh-git info` - Repository information
+- `gz-git status` - Working tree status
+- `gz-git clone` - Repository cloning
+- `gz-git info` - Repository information
 
 **Tests**: 8 integration tests ✅
 
 #### Commit Commands
 
-- `gzh-git commit auto` - Auto-generate commits
-- `gzh-git commit validate` - Validate messages
-- `gzh-git commit template list/show/validate` - Template management
+- `gz-git commit auto` - Auto-generate commits
+- `gz-git commit validate` - Validate messages
+- `gz-git commit template list/show/validate` - Template management
 
 **Tests**: 13 integration tests ✅
 
 #### Branch Commands
 
-- `gzh-git branch list` - List branches
-- `gzh-git branch create` - Create branches
-- `gzh-git branch delete` - Delete branches
+- `gz-git branch list` - List branches
+- `gz-git branch create` - Create branches
+- `gz-git branch delete` - Delete branches
 
 **Tests**: 8 integration tests ✅
 
 #### History Commands
 
-- `gzh-git history stats` - Commit statistics
-- `gzh-git history contributors` - Contributor analysis
-- `gzh-git history file` - File history
-- `gzh-git history blame` - Line-by-line attribution
+- `gz-git history stats` - Commit statistics
+- `gz-git history contributors` - Contributor analysis
+- `gz-git history file` - File history
+- `gz-git history blame` - Line-by-line attribution
 
 **Tests**: 20 integration tests ✅
 
 #### Merge Commands
 
-- `gzh-git merge do` - Execute merge
-- `gzh-git merge detect` - Conflict detection
-- `gzh-git merge abort` - Abort merge
-- `gzh-git merge rebase` - Rebase operations
+- `gz-git merge do` - Execute merge
+- `gz-git merge detect` - Conflict detection
+- `gz-git merge abort` - Abort merge
+- `gz-git merge rebase` - Rebase operations
 
 **Tests**: 5 integration tests ✅
 
@@ -361,14 +361,14 @@ ______________________________________________________________________
 
 ### Challenge 2: Binary Path Resolution
 
-**Problem**: Benchmarks couldn't find the gzh-git binary.
+**Problem**: Benchmarks couldn't find the gz-git binary.
 
 **Solution**: Updated `findOrBuildBinary` to use absolute paths and automatic building:
 
 ```go
-binaryPath := filepath.Join("..", "gzh-git")
+binaryPath := filepath.Join("..", "gz-git")
 absPath, _ := filepath.Abs(binaryPath)
-cmd := exec.Command("go", "build", "-o", absPath, "./cmd/gzh-git")
+cmd := exec.Command("go", "build", "-o", absPath, "./cmd/gz-git")
 ```
 
 ### Challenge 3: Coverage Target Balance

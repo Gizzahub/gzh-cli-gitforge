@@ -715,22 +715,22 @@ ______________________________________________________________________
 
 ```bash
 # Detect conflicts
-gzh-git merge detect <source> <target>
+gz-git merge detect <source> <target>
 
 # Merge with strategy
-gzh-git merge <source> [--strategy=<strategy>] [--no-ff]
+gz-git merge <source> [--strategy=<strategy>] [--no-ff]
 
 # Abort merge
-gzh-git merge abort
+gz-git merge abort
 
 # Rebase
-gzh-git rebase <upstream> [--interactive]
+gz-git rebase <upstream> [--interactive]
 
 # Continue rebase
-gzh-git rebase continue
+gz-git rebase continue
 
 # Abort rebase
-gzh-git rebase abort
+gz-git rebase abort
 ```
 
 ______________________________________________________________________

@@ -597,16 +597,16 @@ ______________________________________________________________________
 
 ```bash
 # Commit statistics
-gzh-git history stats [--since DATE] [--until DATE] [--format FORMAT]
+gz-git history stats [--since DATE] [--until DATE] [--format FORMAT]
 
 # Contributor analysis
-gzh-git history contributors [--top N] [--sort-by FIELD] [--format FORMAT]
+gz-git history contributors [--top N] [--sort-by FIELD] [--format FORMAT]
 
 # File history
-gzh-git history file <path> [--follow] [--max-count N] [--format FORMAT]
+gz-git history file <path> [--follow] [--max-count N] [--format FORMAT]
 
 # File blame
-gzh-git history blame <path> [--format FORMAT]
+gz-git history blame <path> [--format FORMAT]
 ```
 
 ______________________________________________________________________

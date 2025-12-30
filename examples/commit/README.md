@@ -1,6 +1,6 @@
 # Commit Automation Example
 
-This example demonstrates gzh-git commit automation features using the CLI.
+This example demonstrates gz-git commit automation features using the CLI.
 
 ## Features Demonstrated
 
@@ -14,19 +14,19 @@ This example demonstrates gzh-git commit automation features using the CLI.
 ### Validate a Commit Message
 
 ```bash
-gzh-git commit validate "feat(cli): add status command"
+gz-git commit validate "feat(cli): add status command"
 ```
 
 ### List Available Templates
 
 ```bash
-gzh-git commit template list
+gz-git commit template list
 ```
 
 ### Show Template Details
 
 ```bash
-gzh-git commit template show conventional
+gz-git commit template show conventional
 ```
 
 ### Auto-Generate Commit Message
@@ -36,7 +36,7 @@ gzh-git commit template show conventional
 git add file.txt
 
 # Generate commit message
-gzh-git commit auto
+gz-git commit auto
 ```
 
 ## Library Usage
@@ -46,7 +46,7 @@ For library integration, see [Library Guide](../../docs/LIBRARY.md).
 Basic library example:
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/commit"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 
 generator := commit.NewGenerator()
 template Mgr := commit.NewTemplateManager()

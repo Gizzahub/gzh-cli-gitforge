@@ -6,7 +6,7 @@
 
 ## Context
 
-The `gzh-git watch` command monitors repositories for changes in real-time. The challenge is presenting this information in a way that is:
+The `gz-git watch` command monitors repositories for changes in real-time. The challenge is presenting this information in a way that is:
 
 1. **Human-readable** for developers monitoring their work
 1. **Machine-parseable** for automation and integration
@@ -336,12 +336,12 @@ src/main.go:
 Via CLI flags only:
 
 ```bash
-gzh-git watch --format compact --interval 5s
+gz-git watch --format compact --interval 5s
 ```
 
 ### Future Configuration
 
-Could support config file (`.gzh-git/config.yaml`):
+Could support config file (`.gz-git/config.yaml`):
 
 ```yaml
 watch:
@@ -362,7 +362,7 @@ watch:
 **Command**:
 
 ```bash
-gzh-git watch
+gz-git watch
 ```
 
 **Output**: Default format with colors and file lists
@@ -374,7 +374,7 @@ gzh-git watch
 **Command**:
 
 ```bash
-gzh-git watch --format json | jq -r 'select(.type=="staged") | .path'
+gz-git watch --format json | jq -r 'select(.type=="staged") | .path'
 ```
 
 **Output**: Repository paths where files are staged
@@ -386,7 +386,7 @@ gzh-git watch --format json | jq -r 'select(.type=="staged") | .path'
 **Command**:
 
 ```bash
-gzh-git watch --format compact ~/team/repos/*
+gz-git watch --format compact ~/team/repos/*
 ```
 
 **Output**: Compact multi-repo summary
@@ -398,7 +398,7 @@ gzh-git watch --format compact ~/team/repos/*
 **Command**:
 
 ```bash
-gzh-git watch --format json >> ~/logs/git-changes.jsonl
+gz-git watch --format json >> ~/logs/git-changes.jsonl
 ```
 
 **Output**: Append-only JSON log file
@@ -442,13 +442,13 @@ gzh-git watch --format json >> ~/logs/git-changes.jsonl
 1. **Custom Format Strings**
 
    ```bash
-   gzh-git watch --format='{time} {repo} {type} {count}'
+   gz-git watch --format='{time} {repo} {type} {count}'
    ```
 
 1. **Filter Options**
 
    ```bash
-   gzh-git watch --only=staged,modified
+   gz-git watch --only=staged,modified
    ```
 
 1. **Sound Notifications**
@@ -462,13 +462,13 @@ gzh-git watch --format json >> ~/logs/git-changes.jsonl
 1. **TUI Dashboard Mode**
 
    ```bash
-   gzh-git watch --tui
+   gz-git watch --tui
    ```
 
 1. **Webhook Notifications**
 
    ```bash
-   gzh-git watch --webhook=https://api.example.com/git-changes
+   gz-git watch --webhook=https://api.example.com/git-changes
    ```
 
 1. **Configuration File Support**

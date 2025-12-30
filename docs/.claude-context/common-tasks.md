@@ -1,4 +1,4 @@
-# Common Tasks - gzh-cli-git
+# Common Tasks - gzh-cli-gitforge
 
 ## Adding New Git Commands
 
@@ -116,7 +116,7 @@ func containsDangerousChars(s string) bool {
 ### Use git-specific test helpers
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/internal/testutil"
+import "github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 
 func TestGitOperation(t *testing.T) {
     // Create temp git repo
@@ -132,7 +132,7 @@ func TestGitOperation(t *testing.T) {
 ## Working with Branches
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/branch"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 
 manager := branch.NewManager(executor)
 
@@ -149,7 +149,7 @@ err = manager.Switch(ctx, "main")
 ## Working with Commits
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/commit"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 
 handler := commit.NewHandler(executor)
 

@@ -1,16 +1,16 @@
-# First Steps with gzh-git
+# First Steps with gz-git
 
-Welcome! This tutorial will guide you through your first 10 minutes with gzh-git.
+Welcome! This tutorial will guide you through your first 10 minutes with gz-git.
 
 ## What You'll Learn
 
 By the end of this tutorial, you'll know how to:
 
-- ✅ Install gzh-git
+- ✅ Install gz-git
 - ✅ Clone a repository
 - ✅ Check repository status
 - ✅ View repository information
-- ✅ Use gzh-git as a Go library
+- ✅ Use gz-git as a Go library
 
 **Time Required**: ~10 minutes
 
@@ -21,24 +21,24 @@ By the end of this tutorial, you'll know how to:
 
 ______________________________________________________________________
 
-## Step 1: Install gzh-git (2 minutes)
+## Step 1: Install gz-git (2 minutes)
 
 ### Quick Install
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 ### Verify Installation
 
 ```bash
-gzh-git --version
+gz-git --version
 ```
 
 **Expected Output**:
 
 ```
-gzh-git version v0.1.0-alpha
+gz-git version v0.1.0-alpha
 ```
 
 **Troubleshooting**: If you see "command not found", add Go's bin directory to your PATH:
@@ -63,15 +63,15 @@ Let's clone a public repository to practice with.
 
 ```bash
 # Clone to current directory
-gzh-git clone https://github.com/gizzahub/gzh-cli-git.git
+gz-git clone https://github.com/gizzahub/gzh-cli-gitforge.git
 
 # Or clone to specific directory
-gzh-git clone https://github.com/gizzahub/gzh-cli-git.git my-test-repo
+gz-git clone https://github.com/gizzahub/gzh-cli-gitforge.git my-test-repo
 ```
 
 **What happens:**
 
-1. gzh-git validates the URL
+1. gz-git validates the URL
 1. Creates the destination directory
 1. Clones the repository
 1. Shows progress information
@@ -79,9 +79,9 @@ gzh-git clone https://github.com/gizzahub/gzh-cli-git.git my-test-repo
 **Expected Output**:
 
 ```
-Cloning into 'gzh-cli-git'...
+Cloning into 'gzh-cli-gitforge'...
 ✓ Repository cloned successfully
-Path: /current/directory/gzh-cli-git
+Path: /current/directory/gzh-cli-gitforge
 ```
 
 ### Advanced Clone Options
@@ -91,19 +91,19 @@ Try these variations:
 **Clone specific branch:**
 
 ```bash
-gzh-git clone -b develop https://github.com/user/repo.git
+gz-git clone -b develop https://github.com/user/repo.git
 ```
 
 **Shallow clone (faster, saves space):**
 
 ```bash
-gzh-git clone --depth 1 https://github.com/user/repo.git
+gz-git clone --depth 1 https://github.com/user/repo.git
 ```
 
 **Clone only one branch:**
 
 ```bash
-gzh-git clone --single-branch -b main https://github.com/user/repo.git
+gz-git clone --single-branch -b main https://github.com/user/repo.git
 ```
 
 ______________________________________________________________________
@@ -113,13 +113,13 @@ ______________________________________________________________________
 Navigate into your cloned repository:
 
 ```bash
-cd gzh-cli-git  # or my-test-repo
+cd gzh-cli-gitforge  # or my-test-repo
 ```
 
 ### View Status
 
 ```bash
-gzh-git status
+gz-git status
 ```
 
 **Example Output (Clean Repository)**:
@@ -146,7 +146,7 @@ echo "# Test File" > test.md
 Now check status again:
 
 ```bash
-gzh-git status
+gz-git status
 ```
 
 **Example Output (With Changes)**:
@@ -168,7 +168,7 @@ Untracked Files: 1
 Use `-q` flag for scripts (exits with code 1 if repository is dirty):
 
 ```bash
-gzh-git status -q
+gz-git status -q
 echo $?  # Prints exit code (1 = dirty, 0 = clean)
 ```
 
@@ -179,7 +179,7 @@ ______________________________________________________________________
 Get detailed information about your repository:
 
 ```bash
-gzh-git info
+gz-git info
 ```
 
 **Example Output**:
@@ -188,11 +188,11 @@ gzh-git info
 Repository Information
 =====================
 
-Path: /Users/you/projects/gzh-cli-git
-Git Directory: /Users/you/projects/gzh-cli-git/.git
+Path: /Users/you/projects/gzh-cli-gitforge
+Git Directory: /Users/you/projects/gzh-cli-gitforge/.git
 
 Branch: main
-Remote URL: https://github.com/gizzahub/gzh-cli-git.git
+Remote URL: https://github.com/gizzahub/gzh-cli-gitforge.git
 Upstream: origin/main
 
 Ahead: 0 commits
@@ -210,9 +210,9 @@ Status: Dirty (1 untracked file)
 
 ______________________________________________________________________
 
-## Step 5: Use gzh-git as a Library (Optional, 3 minutes)
+## Step 5: Use gz-git as a Library (Optional, 3 minutes)
 
-If you're a Go developer, you can use gzh-git in your own projects.
+If you're a Go developer, you can use gz-git in your own projects.
 
 ### Create a Test Project
 
@@ -225,7 +225,7 @@ go mod init example.com/gzh-test
 ### Install Library
 
 ```bash
-go get github.com/gizzahub/gzh-cli-git
+go get github.com/gizzahub/gzh-cli-gitforge
 ```
 
 ### Write Simple Code
@@ -240,7 +240,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -316,7 +316,7 @@ repos=(
 
 for repo in "${repos[@]}"; do
     echo "Checking $repo..."
-    gzh-git status "$repo" -q
+    gz-git status "$repo" -q
     if [ $? -eq 1 ]; then
         echo "  ✗ Repository has changes"
     else
@@ -339,7 +339,7 @@ repos=(
 )
 
 for repo in "${repos[@]}"; do
-    gzh-git clone "$repo"
+    gz-git clone "$repo"
 done
 ```
 
@@ -355,7 +355,7 @@ import (
     "log"
     "sync"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -409,11 +409,11 @@ ______________________________________________________________________
 
 | Command                 | Description                 | Example                                          |
 | ----------------------- | --------------------------- | ------------------------------------------------ |
-| `gzh-git clone <url>`   | Clone repository            | `gzh-git clone https://github.com/user/repo.git` |
-| `gzh-git status [path]` | Check repository status     | `gzh-git status`                                 |
-| `gzh-git info [path]`   | Show repository information | `gzh-git info`                                   |
-| `gzh-git --version`     | Show version                | `gzh-git --version`                              |
-| `gzh-git --help`        | Show help                   | `gzh-git --help`                                 |
+| `gz-git clone <url>`   | Clone repository            | `gz-git clone https://github.com/user/repo.git` |
+| `gz-git status [path]` | Check repository status     | `gz-git status`                                 |
+| `gz-git info [path]`   | Show repository information | `gz-git info`                                   |
+| `gz-git --version`     | Show version                | `gz-git --version`                              |
+| `gz-git --help`        | Show help                   | `gz-git --help`                                 |
 
 ### Common Flags
 
@@ -460,9 +460,9 @@ ______________________________________________________________________
 
 **Community**:
 
-- [GitHub Issues](https://github.com/gizzahub/gzh-cli-git/issues) - Report bugs
-- [GitHub Discussions](https://github.com/gizzahub/gzh-cli-git/discussions) - Ask questions
+- [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues) - Report bugs
+- [GitHub Discussions](https://github.com/gizzahub/gzh-cli-gitforge/discussions) - Ask questions
 
 ______________________________________________________________________
 
-**Congratulations!** 🎉 You've completed your first steps with gzh-git. Happy coding!
+**Congratulations!** 🎉 You've completed your first steps with gz-git. Happy coding!

@@ -1,4 +1,4 @@
-# Security Guide - gzh-cli-git
+# Security Guide - gzh-cli-gitforge
 
 ## Input Sanitization (Critical)
 
@@ -75,7 +75,7 @@ func isValidPath(s string) bool {
 ### Using internal/gitcmd
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/internal/gitcmd"
+import "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 
 executor := gitcmd.NewExecutor()
 

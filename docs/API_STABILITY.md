@@ -1,6 +1,6 @@
 # API Stability Document
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Version**: v0.1.0-alpha
 **Status**: Pre-release
 **Last Updated**: 2025-12-01
@@ -9,13 +9,13 @@ ______________________________________________________________________
 
 ## Overview
 
-This document outlines the stability guarantees and versioning policy for the gzh-cli-git public API. As a library-first project, we prioritize backward compatibility and clear communication about API changes.
+This document outlines the stability guarantees and versioning policy for the gzh-cli-gitforge public API. As a library-first project, we prioritize backward compatibility and clear communication about API changes.
 
 ______________________________________________________________________
 
 ## Versioning Policy
 
-gzh-cli-git follows [Semantic Versioning 2.0.0](https://semver.org/):
+gzh-cli-gitforge follows [Semantic Versioning 2.0.0](https://semver.org/):
 
 ```
 vMAJOR.MINOR.PATCH[-PRERELEASE]
@@ -84,7 +84,7 @@ internal/
 **NOT part of public library API** - CLI commands are for end-users, not library consumers:
 
 ```
-cmd/gzh-git/       # CLI application (uses pkg/ packages)
+cmd/gz-git/       # CLI application (uses pkg/ packages)
 ```
 
 ______________________________________________________________________
@@ -349,8 +349,8 @@ ______________________________________________________________________
 
 We welcome feedback on the API design:
 
-- **Issues**: [GitHub Issues](https://github.com/gizzahub/gzh-cli-git/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/gizzahub/gzh-cli-git/discussions)
+- **Issues**: [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
 
 ______________________________________________________________________
 

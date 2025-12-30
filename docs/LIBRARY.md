@@ -1,11 +1,11 @@
 # Library Integration Guide
 
-Use `gzh-git` as a Go library in your own applications.
+Use `gz-git` as a Go library in your own applications.
 
 ## Installation
 
 ```bash
-go get github.com/gizzahub/gzh-cli-git
+go get github.com/gizzahub/gzh-cli-gitforge
 ```
 
 ## Quick Start
@@ -18,8 +18,8 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
-    "github.com/gizzahub/gzh-cli-git/pkg/commit"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 Manage Git repositories.
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/repository"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 
 // Create client
 client := repository.NewClient()
@@ -83,7 +83,7 @@ fmt.Printf("Remote: %s\n", info.RemoteURL)
 Automate commit message generation and validation.
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/commit"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 
 // Get built-in template
 template, err := commit.GetBuiltinTemplate("conventional")
@@ -116,7 +116,7 @@ err = generator.CreateCommit(ctx, repo, message.Format())
 Manage branches and worktrees.
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/branch"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 
 // Create branch manager
 mgr := branch.NewManager()
@@ -169,8 +169,8 @@ Analyze repository history.
 
 ```go
 import (
-    "github.com/gizzahub/gzh-cli-git/pkg/history"
-    "github.com/gizzahub/gzh-cli-git/internal/gitcmd"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/history"
+    "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 executor := gitcmd.NewExecutor()
@@ -214,8 +214,8 @@ Perform merge and rebase operations.
 
 ```go
 import (
-    "github.com/gizzahub/gzh-cli-git/pkg/merge"
-    "github.com/gizzahub/gzh-cli-git/internal/gitcmd"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/merge"
+    "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 executor := gitcmd.NewExecutor()
@@ -266,7 +266,7 @@ if rebaseResult.Success {
 ### Custom Commit Templates
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/commit"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 
 // Define custom template
 template := &commit.Template{
@@ -310,7 +310,7 @@ message, err := generator.Generate(ctx, repo, template)
 ### Working with Worktrees
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/branch"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 
 mgr := branch.NewWorktreeManager()
 
@@ -345,7 +345,7 @@ for _, w := range list {
 
 ```go
 import (
-    "github.com/gizzahub/gzh-cli-git/pkg/branch"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
     "sync"
 )
 
@@ -383,8 +383,8 @@ wg.Wait()
 ```go
 import (
     "errors"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
-    "github.com/gizzahub/gzh-cli-git/pkg/merge"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/merge"
 )
 
 // Check specific error types
@@ -420,7 +420,7 @@ if !result.Success {
 ```go
 import (
     "testing"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func TestMyFunction(t *testing.T) {
@@ -479,7 +479,7 @@ rebaseMgr := merge.NewRebaseManager(executor)
 
 ## See Also
 
-- [API Documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- [API Documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - [Examples](examples/)
 - [Architecture](../ARCHITECTURE.md)
 - [Contributing](../CONTRIBUTING.md)

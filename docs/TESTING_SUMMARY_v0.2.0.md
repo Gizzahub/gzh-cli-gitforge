@@ -26,11 +26,11 @@ ______________________________________________________________________
 **Output**:
 
 ```
-Repository: /Users/archmagece/myopen/Gizzahub/gzh-cli-git
+Repository: /Users/archmagece/myopen/Gizzahub/gzh-cli-gitforge
 
 Repository Information:
   Branch:
-  Remote URL: https://github.com/Gizzahub/gzh-cli-git.git
+  Remote URL: https://github.com/gizzahub/gzh-cli-gitforge.git
   Upstream:   origin/master
 
 Working Tree Status:
@@ -120,18 +120,18 @@ ______________________________________________________________________
 
 **Result**: ✅ SUCCESS
 
-**Binary Location**: `./gzh-git`
+**Binary Location**: `./gz-git`
 
 ______________________________________________________________________
 
 ### ✅ Version Command
 
-**Command**: `./gzh-git --version`
+**Command**: `./gz-git --version`
 
 **Output**:
 
 ```
-gzh-git version v0.2.0
+gz-git version v0.2.0
 ```
 
 **Verification**: Version correctly shows v0.2.0 after rebuild.
@@ -140,7 +140,7 @@ ______________________________________________________________________
 
 ### ✅ Status Command
 
-**Command**: `./gzh-git status`
+**Command**: `./gz-git status`
 
 **Result**: ✅ PASS
 
@@ -155,17 +155,17 @@ ______________________________________________________________________
 
 ### ✅ Info Command
 
-**Command**: `./gzh-git info`
+**Command**: `./gz-git info`
 
 **Result**: ✅ PASS
 
 **Output**:
 
 ```
-Repository: /Users/archmagece/myopen/Gizzahub/gzh-cli-git
+Repository: /Users/archmagece/myopen/Gizzahub/gzh-cli-gitforge
 
 Branch:        (detached HEAD)
-Remote URL:    https://github.com/Gizzahub/gzh-cli-git.git
+Remote URL:    https://github.com/gizzahub/gzh-cli-gitforge.git
 Upstream:      origin/master
 
 Status:        dirty
@@ -187,7 +187,7 @@ ______________________________________________________________________
 
 ### ✅ Branch List Command
 
-**Command**: `./gzh-git branch list`
+**Command**: `./gz-git branch list`
 
 **Result**: ✅ PASS
 
@@ -209,7 +209,7 @@ ______________________________________________________________________
 
 ### ✅ Commit Template Commands
 
-**Command**: `./gzh-git commit template list`
+**Command**: `./gz-git commit template list`
 
 **Result**: ✅ PASS
 
@@ -233,7 +233,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Command**: `./gzh-git commit validate "feat(cli): add status command"`
+**Command**: `./gz-git commit validate "feat(cli): add status command"`
 
 **Result**: ✅ PASS
 
@@ -255,7 +255,7 @@ ______________________________________________________________________
 
 ### ✅ History Commands
 
-**Command**: `./gzh-git history stats --since "2025-11-01"`
+**Command**: `./gz-git history stats --since "2025-11-01"`
 
 **Result**: ✅ PASS
 
@@ -288,7 +288,7 @@ Peak Day:         2025-11-27 (50 commits)
 
 ______________________________________________________________________
 
-**Command**: `./gzh-git history contributors --top 3`
+**Command**: `./gz-git history contributors --top 3`
 
 **Result**: ✅ PASS
 
@@ -316,7 +316,7 @@ ______________________________________________________________________
 
 ### ✅ Merge Commands
 
-**Command**: `./gzh-git merge detect --help`
+**Command**: `./gz-git merge detect --help`
 
 **Result**: ✅ PASS
 
@@ -329,14 +329,14 @@ This command performs a dry-run merge analysis to identify files that would
 conflict during an actual merge, without modifying your working directory.
 
 Usage:
-  gzh-git merge detect <source> <target> [flags]
+  gz-git merge detect <source> <target> [flags]
 
 Examples:
   # Detect conflicts between branches
-  gzh-git merge detect feature/new-feature main
+  gz-git merge detect feature/new-feature main
 
   # Include binary file conflicts
-  gzh-git merge detect feature/new-feature main --include-binary
+  gz-git merge detect feature/new-feature main --include-binary
 ```
 
 **Features Verified**:
@@ -421,10 +421,10 @@ ______________________________________________________________________
 
 ```bash
 # ✅ Works
-gzh-git history stats --since "2025-11-01"
+gz-git history stats --since "2025-11-01"
 
 # ❌ Doesn't work
-gzh-git history stats --since "7 days ago"
+gz-git history stats --since "7 days ago"
 ```
 
 **Status**: This is intentional - simpler parsing, no external dependencies

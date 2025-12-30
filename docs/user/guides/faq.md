@@ -1,21 +1,21 @@
 # Frequently Asked Questions (FAQ)
 
-Common questions and answers about gzh-cli-git.
+Common questions and answers about gzh-cli-gitforge.
 
 ## General Questions
 
-### What is gzh-cli-git?
+### What is gzh-cli-gitforge?
 
-gzh-cli-git is a dual-purpose tool:
+gzh-cli-gitforge is a dual-purpose tool:
 
 1. **CLI Application**: A standalone command-line tool for Git automation
 1. **Go Library**: A reusable library for integrating Git operations into other Go projects
 
 It's designed with a library-first architecture, meaning the core functionality is available as clean Go APIs without any CLI dependencies.
 
-### Why use gzh-cli-git instead of standard Git?
+### Why use gzh-cli-gitforge instead of standard Git?
 
-gzh-cli-git doesn't replace Git—it enhances it:
+gzh-cli-gitforge doesn't replace Git—it enhances it:
 
 - **Automation**: Auto-generate commit messages, detect conflicts before merging
 - **Safety**: Smart push with pre-flight checks, conflict detection
@@ -69,19 +69,19 @@ gzh-cli-git doesn't replace Git—it enhances it:
 
 ## Installation & Setup
 
-### How do I install gzh-git?
+### How do I install gz-git?
 
 **Option 1: Using Go (Recommended)**
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 **Option 2: From Source**
 
 ```bash
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 make build
 sudo make install
 ```
@@ -94,9 +94,9 @@ See [Installation Guide](../INSTALL.md) for more options.
 - **Git**: 2.30 or later (required for all operations)
 - **OS**: Linux, macOS, or Windows
 
-### Why does gzh-git require Git to be installed?
+### Why does gz-git require Git to be installed?
 
-gzh-cli-git uses the Git CLI under the hood rather than reimplementing Git functionality. This approach provides:
+gzh-cli-gitforge uses the Git CLI under the hood rather than reimplementing Git functionality. This approach provides:
 
 - Maximum compatibility with all Git features
 - Consistent behavior with standard Git
@@ -105,7 +105,7 @@ gzh-cli-git uses the Git CLI under the hood rather than reimplementing Git funct
 
 ### Command not found after installation
 
-If you see "command not found: gzh-git":
+If you see "command not found: gz-git":
 
 1. **Check if Go bin is in PATH:**
 
@@ -128,8 +128,8 @@ If you see "command not found: gzh-git":
 1. **Verify installation:**
 
    ```bash
-   which gzh-git
-   gzh-git --version
+   which gz-git
+   gz-git --version
    ```
 
 ## Usage Questions
@@ -138,13 +138,13 @@ If you see "command not found: gzh-git":
 
 ```bash
 # In current directory
-gzh-git status
+gz-git status
 
 # Specific repository
-gzh-git status /path/to/repo
+gz-git status /path/to/repo
 
 # Quiet mode (exit code only)
-gzh-git status -q
+gz-git status -q
 ```
 
 Exit codes:
@@ -156,21 +156,21 @@ Exit codes:
 
 ```bash
 # Basic clone
-gzh-git clone https://github.com/user/repo.git
+gz-git clone https://github.com/user/repo.git
 
 # Clone specific branch
-gzh-git clone -b develop https://github.com/user/repo.git
+gz-git clone -b develop https://github.com/user/repo.git
 
 # Shallow clone (faster, saves disk space)
-gzh-git clone --depth 1 https://github.com/user/repo.git
+gz-git clone --depth 1 https://github.com/user/repo.git
 
 # Clone to specific directory
-gzh-git clone https://github.com/user/repo.git my-project
+gz-git clone https://github.com/user/repo.git my-project
 ```
 
-### What's the difference between gzh-git and regular git?
+### What's the difference between gz-git and regular git?
 
-For basic operations like `status` and `clone`, gzh-git provides:
+For basic operations like `status` and `clone`, gz-git provides:
 
 - Cleaner, more structured output
 - Additional validation and safety checks
@@ -179,11 +179,11 @@ For basic operations like `status` and `clone`, gzh-git provides:
 
 Advanced features (coming soon) will add automation and intelligence not available in standard Git.
 
-### Can I use gzh-git alongside regular git?
+### Can I use gz-git alongside regular git?
 
-Yes! gzh-git works with standard Git repositories. You can:
+Yes! gz-git works with standard Git repositories. You can:
 
-- Use gzh-git for some operations
+- Use gz-git for some operations
 - Use regular git for others
 - Mix both in the same workflow
 
@@ -191,7 +191,7 @@ They operate on the same `.git` directory and are fully compatible.
 
 ## Library Usage
 
-### How do I use gzh-git as a library?
+### How do I use gz-git as a library?
 
 ```go
 package main
@@ -201,7 +201,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -269,10 +269,10 @@ See [API Stability Policy](../API_STABILITY.md) for details.
 
 ### How do I integrate with gzh-cli?
 
-gzh-cli-git is designed to be the Git engine for [gzh-cli](https://github.com/gizzahub/gzh-cli):
+gzh-cli-gitforge is designed to be the Git engine for [gzh-cli](https://github.com/gizzahub/gzh-cli):
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/repository"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 
 // Use in gzh-cli commands
 client := repository.NewClient()
@@ -285,7 +285,7 @@ Full integration planned for v1.0.0 release.
 
 ### "Not a git repository" error
 
-This error means you're trying to run gzh-git in a directory that isn't a Git repository.
+This error means you're trying to run gz-git in a directory that isn't a Git repository.
 
 **Solution:**
 
@@ -321,9 +321,9 @@ git clone https://username:token@github.com/user/repo.git
 ping github.com
 ```
 
-### Performance: Why is gzh-git slower than git?
+### Performance: Why is gz-git slower than git?
 
-gzh-git adds a thin layer on top of Git for:
+gz-git adds a thin layer on top of Git for:
 
 - Input validation
 - Output parsing
@@ -339,13 +339,13 @@ Overhead is typically 10-50ms. For large operations (clone, fetch), the overhead
 
 ### How do I report bugs or request features?
 
-1. **Check existing issues**: [GitHub Issues](https://github.com/gizzahub/gzh-cli-git/issues)
+1. **Check existing issues**: [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues)
 1. **Search documentation**: [docs/](../)
 1. **Create new issue**: Use issue templates
 
 **Include in bug reports:**
 
-- gzh-git version (`gzh-git --version`)
+- gz-git version (`gz-git --version`)
 - Git version (`git --version`)
 - Operating system
 - Steps to reproduce
@@ -353,26 +353,26 @@ Overhead is typically 10-50ms. For large operations (clone, fetch), the overhead
 
 ## Advanced Questions
 
-### Does gzh-git support Git hooks?
+### Does gz-git support Git hooks?
 
-Git hooks work normally with gzh-git since it uses standard Git repositories. Future versions may add hook automation features.
+Git hooks work normally with gz-git since it uses standard Git repositories. Future versions may add hook automation features.
 
 ### Can I use custom commit templates?
 
-Yes! gzh-git supports custom commit templates:
+Yes! gz-git supports custom commit templates:
 
 ```bash
 # List available templates
-gzh-git commit template list
+gz-git commit template list
 
 # Show template details
-gzh-git commit template show conventional
+gz-git commit template show conventional
 
 # Use auto-commit (uses default template)
-gzh-git commit auto
+gz-git commit auto
 ```
 
-You can create custom templates in `~/.config/gzh-git/templates/` directory.
+You can create custom templates in `~/.config/gz-git/templates/` directory.
 
 ### What about submodules?
 
@@ -382,23 +382,23 @@ Submodule support is planned for future releases. Current version focuses on cor
 
 Current version is CLI-only. Terminal UI (TUI) is being considered for future versions.
 
-### How does gzh-git handle credentials?
+### How does gz-git handle credentials?
 
-gzh-git uses Git's credential system:
+gz-git uses Git's credential system:
 
 - SSH keys (via SSH agent)
 - HTTPS credentials (via Git credential helper)
 - Personal access tokens
 
-No credentials are stored or logged by gzh-git.
+No credentials are stored or logged by gz-git.
 
-### Can I extend gzh-git with plugins?
+### Can I extend gz-git with plugins?
 
 Plugin architecture is planned for v2.0+. Current version focuses on core stability.
 
 ## Project & Community
 
-### Who maintains gzh-cli-git?
+### Who maintains gzh-cli-gitforge?
 
 Currently maintained by the Gizzahub team as part of the gzh-cli ecosystem.
 
@@ -418,8 +418,8 @@ MIT License - see [LICENSE](../../LICENSE) for details.
 ### Where can I get help?
 
 - **Documentation**: [docs/](../)
-- **GitHub Issues**: [Report bugs](https://github.com/gizzahub/gzh-cli-git/issues)
-- **GitHub Discussions**: [Ask questions](https://github.com/gizzahub/gzh-cli-git/discussions)
+- **GitHub Issues**: [Report bugs](https://github.com/gizzahub/gzh-cli-gitforge/issues)
+- **GitHub Discussions**: [Ask questions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
 
 ## See Also
 

@@ -10,7 +10,7 @@ ______________________________________________________________________
 
 ## Overview
 
-Phase 7.1 focuses on preparing and publishing gzh-cli-git as a stable Go library for external consumption. This phase ensures the library meets production-quality standards, has clear versioning and release processes, and is properly documented for third-party developers.
+Phase 7.1 focuses on preparing and publishing gzh-cli-gitforge as a stable Go library for external consumption. This phase ensures the library meets production-quality standards, has clear versioning and release processes, and is properly documented for third-party developers.
 
 ### Goals
 
@@ -168,7 +168,7 @@ Establish clear versioning practices and tooling for managing library releases.
 **Create `version.go`:**
 
 ```go
-package gzhcligit
+package gzhcligitforge
 
 // Version information
 const (
@@ -222,7 +222,7 @@ Protected Tag Patterns:
 **Ensure `go.mod` is clean:**
 
 ```go
-module github.com/gizzahub/gzh-cli-git
+module github.com/gizzahub/gzh-cli-gitforge
 
 go 1.24
 
@@ -308,8 +308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributor guidelines
 - 80+ code examples
 
-[Unreleased]: https://github.com/gizzahub/gzh-cli-git/compare/v0.1.0-alpha...HEAD
-[0.1.0-alpha]: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.1.0-alpha
+[Unreleased]: https://github.com/gizzahub/gzh-cli-gitforge/compare/v0.1.0-alpha...HEAD
+[0.1.0-alpha]: https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.1.0-alpha
 ```
 
 ### 3.2 Release Notes Template
@@ -317,7 +317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **GitHub Release Notes:**
 
 ````markdown
-# gzh-cli-git v0.1.0-alpha
+# gzh-cli-gitforge v0.1.0-alpha
 
 > Initial library publication - Advanced Git automation CLI and Go library
 
@@ -334,13 +334,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### As a Library
 
 ```bash
-go get github.com/gizzahub/gzh-cli-git@v0.1.0-alpha
+go get github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha
 ````
 
 ### As a CLI Tool
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.1.0-alpha
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.1.0-alpha
 ```
 
 ## ✨ Features
@@ -392,7 +392,7 @@ go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.1.0-alpha
 - [Quick Start Guide](docs/QUICKSTART.md)
 - [Installation Guide](docs/INSTALL.md)
 - [Library Integration](docs/LIBRARY.md)
-- [API Documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- [API Documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - [Contributing Guide](CONTRIBUTING.md)
 
 ## 🔄 What's Next
@@ -411,7 +411,7 @@ Built with [Cobra](https://github.com/spf13/cobra) CLI framework.
 
 ______________________________________________________________________
 
-**Full Changelog**: https://github.com/gizzahub/gzh-cli-git/blob/master/CHANGELOG.md
+**Full Changelog**: https://github.com/gizzahub/gzh-cli-gitforge/blob/master/CHANGELOG.md
 
 ````
 
@@ -493,8 +493,8 @@ func ExampleClient_Open() {
 **Add badges:**
 
 ```markdown
-[![Go Reference](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-git.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gizzahub/gzh-cli-git)](https://goreportcard.com/report/github.com/gizzahub/gzh-cli-git)
+[![Go Reference](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-gitforge.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gizzahub/gzh-cli-gitforge)](https://goreportcard.com/report/github.com/gizzahub/gzh-cli-gitforge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ```
 
@@ -579,7 +579,7 @@ go list -json -m all | nancy sleuth
    - Go to GitHub Releases page
    - Click "Draft a new release"
    - Select tag: v0.1.0-alpha
-   - Release title: "gzh-cli-git v0.1.0-alpha"
+   - Release title: "gzh-cli-gitforge v0.1.0-alpha"
    - Copy release notes from template
    - Mark as "pre-release"
    - Publish release
@@ -600,10 +600,10 @@ go list -json -m all | nancy sleuth
 When a new tag is pushed to GitHub:
 1. pkg.go.dev automatically detects the new version
 2. Fetches the module and generates documentation
-3. Makes it available at https://pkg.go.dev/github.com/gizzahub/gzh-cli-git@v0.1.0-alpha
+3. Makes it available at https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha
 
 Manual trigger (if needed):
-https://pkg.go.dev/github.com/gizzahub/gzh-cli-git@v0.1.0-alpha?tab=overview
+https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha?tab=overview
 (Visit URL to trigger indexing)
 ```
 
@@ -611,10 +611,10 @@ https://pkg.go.dev/github.com/gizzahub/gzh-cli-git@v0.1.0-alpha?tab=overview
 
 ```bash
 # Check that pkg.go.dev has indexed the version
-curl -s https://pkg.go.dev/github.com/gizzahub/gzh-cli-git@v0.1.0-alpha | grep "v0.1.0-alpha"
+curl -s https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha | grep "v0.1.0-alpha"
 
 # Verify go get works
-go get github.com/gizzahub/gzh-cli-git@v0.1.0-alpha
+go get github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha
 ```
 
 ______________________________________________________________________
@@ -650,9 +650,9 @@ Validate publication success and prepare for community adoption.
 **Announcement Template:**
 
 ````markdown
-🎉 **gzh-cli-git v0.1.0-alpha is now available!**
+🎉 **gzh-cli-gitforge v0.1.0-alpha is now available!**
 
-We're excited to announce the first alpha release of gzh-cli-git, an advanced Git automation CLI tool and Go library.
+We're excited to announce the first alpha release of gzh-cli-gitforge, an advanced Git automation CLI tool and Go library.
 
 ✨ **Features:**
 - Complete Git operation library (repository, commit, branch, history, merge)
@@ -662,11 +662,11 @@ We're excited to announce the first alpha release of gzh-cli-git, an advanced Gi
 
 📦 **Installation:**
 ```bash
-go get github.com/gizzahub/gzh-cli-git@v0.1.0-alpha
+go get github.com/gizzahub/gzh-cli-gitforge@v0.1.0-alpha
 ````
 
 📚 **Documentation:**
-https://pkg.go.dev/github.com/gizzahub/gzh-cli-git
+https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
 
 This is an alpha release for early testing. Feedback welcome!
 

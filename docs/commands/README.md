@@ -1,6 +1,6 @@
-# gzh-git Command Reference
+# gz-git Command Reference
 
-Complete reference for all `gzh-git` commands.
+Complete reference for all `gz-git` commands.
 
 ## Quick Navigation
 
@@ -27,7 +27,7 @@ All commands support these global flags:
 Show repository status with detailed change information.
 
 ```bash
-gzh-git status [flags]
+gz-git status [flags]
 ```
 
 **Flags:**
@@ -38,10 +38,10 @@ gzh-git status [flags]
 
 ```bash
 # Show status
-gzh-git status
+gz-git status
 
 # Machine-readable format
-gzh-git status --porcelain
+gz-git status --porcelain
 ```
 
 ### clone
@@ -49,7 +49,7 @@ gzh-git status --porcelain
 Clone a repository with advanced options.
 
 ```bash
-gzh-git clone <url> [directory] [flags]
+gz-git clone <url> [directory] [flags]
 ```
 
 **Flags:**
@@ -62,13 +62,13 @@ gzh-git clone <url> [directory] [flags]
 
 ```bash
 # Clone repository
-gzh-git clone https://github.com/user/repo.git
+gz-git clone https://github.com/user/repo.git
 
 # Clone specific branch
-gzh-git clone --branch develop https://github.com/user/repo.git
+gz-git clone --branch develop https://github.com/user/repo.git
 
 # Shallow clone
-gzh-git clone --depth 1 https://github.com/user/repo.git
+gz-git clone --depth 1 https://github.com/user/repo.git
 ```
 
 ### info
@@ -76,14 +76,14 @@ gzh-git clone --depth 1 https://github.com/user/repo.git
 Display repository information.
 
 ```bash
-gzh-git info [flags]
+gz-git info [flags]
 ```
 
 **Examples:**
 
 ```bash
 # Show repository info
-gzh-git info
+gz-git info
 ```
 
 ## Commit Commands
@@ -93,7 +93,7 @@ gzh-git info
 Automatically generate and create commits from staged changes.
 
 ```bash
-gzh-git commit auto [flags]
+gz-git commit auto [flags]
 ```
 
 **Flags:**
@@ -105,13 +105,13 @@ gzh-git commit auto [flags]
 
 ```bash
 # Auto-generate and commit
-gzh-git commit auto
+gz-git commit auto
 
 # Use specific template
-gzh-git commit auto --template conventional
+gz-git commit auto --template conventional
 
 # Preview without committing
-gzh-git commit auto --dry-run
+gz-git commit auto --dry-run
 ```
 
 **How it works:**
@@ -126,7 +126,7 @@ gzh-git commit auto --dry-run
 Validate commit messages against templates.
 
 ```bash
-gzh-git commit validate <message> [flags]
+gz-git commit validate <message> [flags]
 ```
 
 **Flags:**
@@ -137,10 +137,10 @@ gzh-git commit validate <message> [flags]
 
 ```bash
 # Validate message
-gzh-git commit validate "feat: add new feature"
+gz-git commit validate "feat: add new feature"
 
 # Validate with template
-gzh-git commit validate "feat(api): add endpoint" --template conventional
+gz-git commit validate "feat(api): add endpoint" --template conventional
 ```
 
 ### commit template
@@ -148,7 +148,7 @@ gzh-git commit validate "feat(api): add endpoint" --template conventional
 Manage commit message templates.
 
 ```bash
-gzh-git commit template <command> [args]
+gz-git commit template <command> [args]
 ```
 
 **Subcommands:**
@@ -161,13 +161,13 @@ gzh-git commit template <command> [args]
 
 ```bash
 # List templates
-gzh-git commit template list
+gz-git commit template list
 
 # Show template
-gzh-git commit template show conventional
+gz-git commit template show conventional
 
 # Validate custom template
-gzh-git commit template validate my-template.yaml
+gz-git commit template validate my-template.yaml
 ```
 
 ### commit bulk
@@ -175,7 +175,7 @@ gzh-git commit template validate my-template.yaml
 Bulk commit across multiple repositories with auto-generated messages.
 
 ```bash
-gzh-git commit bulk [flags]
+gz-git commit bulk [flags]
 ```
 
 **Flags:**
@@ -197,25 +197,25 @@ gzh-git commit bulk [flags]
 
 ```bash
 # Preview dirty repositories
-gzh-git commit bulk
+gz-git commit bulk
 
 # Commit all with auto-generated messages
-gzh-git commit bulk -y
+gz-git commit bulk -y
 
 # Use common message for all
-gzh-git commit bulk -y -m "chore: sync all repos"
+gz-git commit bulk -y -m "chore: sync all repos"
 
 # Edit messages in editor before committing
-gzh-git commit bulk -e
+gz-git commit bulk -e
 
 # Filter repositories
-gzh-git commit bulk --include "myproject-*" --exclude "*-test*"
+gz-git commit bulk --include "myproject-*" --exclude "*-test*"
 
 # Load messages from JSON file
-gzh-git commit bulk --messages-file /tmp/messages.json -y
+gz-git commit bulk --messages-file /tmp/messages.json -y
 
 # JSON output for CI/automation
-gzh-git commit bulk --dry-run --format json
+gz-git commit bulk --dry-run --format json
 ```
 
 **Workflow:**
@@ -288,7 +288,7 @@ Result output:
 Show diffs for multiple repositories at once.
 
 ```bash
-gzh-git diff [flags]
+gz-git diff [flags]
 ```
 
 **Flags:**
@@ -307,16 +307,16 @@ gzh-git diff [flags]
 
 ```bash
 # Show all diffs
-gzh-git diff
+gz-git diff
 
 # Show only staged changes
-gzh-git diff --staged
+gz-git diff --staged
 
 # Filter repositories
-gzh-git diff --include "myproject-*"
+gz-git diff --include "myproject-*"
 
 # JSON output
-gzh-git diff --format json
+gz-git diff --format json
 ```
 
 ## Branch Commands
@@ -326,7 +326,7 @@ gzh-git diff --format json
 List local and remote branches.
 
 ```bash
-gzh-git branch list [flags]
+gz-git branch list [flags]
 ```
 
 **Flags:**
@@ -340,13 +340,13 @@ gzh-git branch list [flags]
 
 ```bash
 # List local branches
-gzh-git branch list
+gz-git branch list
 
 # List all branches
-gzh-git branch list --all
+gz-git branch list --all
 
 # Show merged branches
-gzh-git branch list --merged
+gz-git branch list --merged
 ```
 
 ### branch create
@@ -354,7 +354,7 @@ gzh-git branch list --merged
 Create a new branch with optional worktree.
 
 ```bash
-gzh-git branch create <name> [flags]
+gz-git branch create <name> [flags]
 ```
 
 **Flags:**
@@ -367,13 +367,13 @@ gzh-git branch create <name> [flags]
 
 ```bash
 # Create branch
-gzh-git branch create feature/new-feature
+gz-git branch create feature/new-feature
 
 # Create from specific commit
-gzh-git branch create hotfix/bug --base abc123
+gz-git branch create hotfix/bug --base abc123
 
 # Create with worktree
-gzh-git branch create feature/parallel --worktree ../parallel-work
+gz-git branch create feature/parallel --worktree ../parallel-work
 ```
 
 ### branch delete
@@ -381,7 +381,7 @@ gzh-git branch create feature/parallel --worktree ../parallel-work
 Delete local or remote branches.
 
 ```bash
-gzh-git branch delete <name> [flags]
+gz-git branch delete <name> [flags]
 ```
 
 **Flags:**
@@ -393,13 +393,13 @@ gzh-git branch delete <name> [flags]
 
 ```bash
 # Delete branch
-gzh-git branch delete feature/old
+gz-git branch delete feature/old
 
 # Force delete
-gzh-git branch delete experimental --force
+gz-git branch delete experimental --force
 
 # Delete remote branch
-gzh-git branch delete feature/done --remote
+gz-git branch delete feature/done --remote
 ```
 
 ## History Commands
@@ -409,7 +409,7 @@ gzh-git branch delete feature/done --remote
 Show commit statistics and trends.
 
 ```bash
-gzh-git history stats [flags]
+gz-git history stats [flags]
 ```
 
 **Flags:**
@@ -424,13 +424,13 @@ gzh-git history stats [flags]
 
 ```bash
 # Overall statistics
-gzh-git history stats
+gz-git history stats
 
 # Last month
-gzh-git history stats --since "1 month ago"
+gz-git history stats --since "1 month ago"
 
 # Export as JSON
-gzh-git history stats --format json > stats.json
+gz-git history stats --format json > stats.json
 ```
 
 ### history contributors
@@ -438,7 +438,7 @@ gzh-git history stats --format json > stats.json
 Analyze repository contributors.
 
 ```bash
-gzh-git history contributors [flags]
+gz-git history contributors [flags]
 ```
 
 **Flags:**
@@ -454,13 +454,13 @@ gzh-git history contributors [flags]
 
 ```bash
 # List all contributors
-gzh-git history contributors
+gz-git history contributors
 
 # Top 10 contributors
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # Contributors with at least 5 commits
-gzh-git history contributors --min-commits 5
+gz-git history contributors --min-commits 5
 ```
 
 ### history file
@@ -468,7 +468,7 @@ gzh-git history contributors --min-commits 5
 Show file change history.
 
 ```bash
-gzh-git history file <path> [flags]
+gz-git history file <path> [flags]
 ```
 
 **Flags:**
@@ -484,13 +484,13 @@ gzh-git history file <path> [flags]
 
 ```bash
 # Show file history
-gzh-git history file src/main.go
+gz-git history file src/main.go
 
 # Follow renames
-gzh-git history file --follow src/main.go
+gz-git history file --follow src/main.go
 
 # Limit to 10 commits
-gzh-git history file --max 10 README.md
+gz-git history file --max 10 README.md
 ```
 
 ### history blame
@@ -498,14 +498,14 @@ gzh-git history file --max 10 README.md
 Show line-by-line authorship.
 
 ```bash
-gzh-git history blame <file> [flags]
+gz-git history blame <file> [flags]
 ```
 
 **Examples:**
 
 ```bash
 # Show blame
-gzh-git history blame src/main.go
+gz-git history blame src/main.go
 ```
 
 ## Merge Commands
@@ -515,7 +515,7 @@ gzh-git history blame src/main.go
 Execute a merge operation.
 
 ```bash
-gzh-git merge do <source-branch> [flags]
+gz-git merge do <source-branch> [flags]
 ```
 
 **Flags:**
@@ -530,16 +530,16 @@ gzh-git merge do <source-branch> [flags]
 
 ```bash
 # Merge branch
-gzh-git merge do feature/new-feature
+gz-git merge do feature/new-feature
 
 # Fast-forward only
-gzh-git merge do feature/new-feature --ff-only
+gz-git merge do feature/new-feature --ff-only
 
 # Squash merge
-gzh-git merge do feature/new-feature --squash
+gz-git merge do feature/new-feature --squash
 
 # Custom message
-gzh-git merge do feature/new-feature --message "Merge feature X"
+gz-git merge do feature/new-feature --message "Merge feature X"
 ```
 
 **Merge Strategies:**
@@ -554,7 +554,7 @@ gzh-git merge do feature/new-feature --message "Merge feature X"
 Detect potential merge conflicts before merging.
 
 ```bash
-gzh-git merge detect <source> <target> [flags]
+gz-git merge detect <source> <target> [flags]
 ```
 
 **Flags:**
@@ -566,10 +566,10 @@ gzh-git merge detect <source> <target> [flags]
 
 ```bash
 # Detect conflicts
-gzh-git merge detect feature/new-feature main
+gz-git merge detect feature/new-feature main
 
 # Include binary files
-gzh-git merge detect feature/new-feature main --include-binary
+gz-git merge detect feature/new-feature main --include-binary
 ```
 
 ### merge abort
@@ -577,14 +577,14 @@ gzh-git merge detect feature/new-feature main --include-binary
 Abort an in-progress merge.
 
 ```bash
-gzh-git merge abort
+gz-git merge abort
 ```
 
 **Examples:**
 
 ```bash
 # Abort merge
-gzh-git merge abort
+gz-git merge abort
 ```
 
 ### merge rebase
@@ -592,7 +592,7 @@ gzh-git merge abort
 Rebase current branch onto another.
 
 ```bash
-gzh-git merge rebase [branch] [flags]
+gz-git merge rebase [branch] [flags]
 ```
 
 **Flags:**
@@ -606,13 +606,13 @@ gzh-git merge rebase [branch] [flags]
 
 ```bash
 # Rebase onto main
-gzh-git merge rebase main
+gz-git merge rebase main
 
 # Continue after conflicts
-gzh-git merge rebase --continue
+gz-git merge rebase --continue
 
 # Abort rebase
-gzh-git merge rebase --abort
+gz-git merge rebase --abort
 ```
 
 ## Exit Codes

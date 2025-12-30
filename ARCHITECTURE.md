@@ -1,6 +1,6 @@
 # Architecture Design Document
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Version**: 1.0
 **Last Updated**: 2025-11-27
 **Status**: Draft
@@ -28,7 +28,7 @@ ______________________________________________________________________
 
 ### 1.1 Architectural Goals
 
-gzh-cli-git adopts a **Library-First Architecture** with the following goals:
+gzh-cli-gitforge adopts a **Library-First Architecture** with the following goals:
 
 1. **Dual-Purpose Design**: Function as both standalone CLI and reusable Go library
 1. **Clean Separation**: Zero coupling between library code (`pkg/`) and CLI code (`cmd/`)
@@ -54,7 +54,7 @@ ______________________________________________________________________
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    gzh-cli-git System                        │
+│                    gzh-cli-gitforge System                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌────────────────────────────────────────────────────┐     │
@@ -233,7 +233,7 @@ ______________________________________________________________________
 ### 4.1 Directory Structure
 
 ```
-gzh-cli-git/
+gzh-cli-gitforge/
 ├── pkg/                          # PUBLIC API
 │   ├── repository/               # Core repo operations
 │   │   ├── interfaces.go         # Repository, Client interfaces
@@ -289,7 +289,7 @@ gzh-cli-git/
 │       └── patterns.go           # Regex patterns
 │
 ├── cmd/                          # CLI APPLICATION
-│   └── gzh-git/                  # Binary: gzh-git
+│   └── gz-git/                  # Binary: gz-git
 │       ├── main.go               # Entry point
 │       ├── root.go               # Root command
 │       └── internal/             # CLI-specific (not reusable)
@@ -417,7 +417,7 @@ package commit
 
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // Manager handles commit operations
@@ -476,7 +476,7 @@ package branch
 
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // Manager handles branch and worktree operations
@@ -526,7 +526,7 @@ package history
 import (
     "context"
     "time"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // Analyzer handles Git history analysis
@@ -586,7 +586,7 @@ package merge
 
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // Manager handles merge and rebase operations
@@ -967,8 +967,8 @@ import (
     "os"
     "path/filepath"
     "testing"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
-    "github.com/gizzahub/gzh-cli-git/pkg/commit"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 )
 
 func TestCommit_Integration(t *testing.T) {
@@ -1039,8 +1039,8 @@ func TestWorkflow_CommitToPush(t *testing.T) {
         cmd  string
         args []string
     }{
-        {"gzh-git", []string{"commit", "--auto"}},
-        {"gzh-git", []string{"push", "--smart"}},
+        {"gz-git", []string{"commit", "--auto"}},
+        {"gz-git", []string{"push", "--smart"}},
     }
 
     for _, step := range steps {
@@ -1348,7 +1348,7 @@ ______________________________________________________________________
 **Go Module (Primary):**
 
 ```bash
-go get github.com/gizzahub/gzh-cli-git@latest
+go get github.com/gizzahub/gzh-cli-gitforge@latest
 ```
 
 **Homebrew (macOS/Linux):**
@@ -1360,7 +1360,7 @@ brew install gz-git
 **Direct Download:**
 
 ```bash
-curl -sL https://github.com/gizzahub/gzh-cli-git/releases/latest/download/gzh-git-linux-amd64 -o gz-git
+curl -sL https://github.com/gizzahub/gzh-cli-gitforge/releases/latest/download/gz-git-linux-amd64 -o gz-git
 chmod +x gz-git
 ```
 
@@ -1520,13 +1520,13 @@ ______________________________________________________________________
 | `pkg/repository/interfaces.go` | Core repository API | CRITICAL    |
 | `pkg/commit/manager.go`        | Commit automation   | HIGH        |
 | `internal/gitcmd/executor.go`  | Git command wrapper | CRITICAL    |
-| `cmd/gzh-git/main.go`          | CLI entry point     | MEDIUM      |
+| `cmd/gz-git/main.go`          | CLI entry point     | MEDIUM      |
 
 ### A.2 Dependencies
 
 ```go
 // go.mod
-module github.com/gizzahub/gzh-cli-git
+module github.com/gizzahub/gzh-cli-gitforge
 
 go 1.24
 

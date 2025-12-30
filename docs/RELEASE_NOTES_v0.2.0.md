@@ -84,10 +84,10 @@ ______________________________________________________________________
 #### Repository Operations
 
 ```bash
-gzh-git status              # Working tree status
-gzh-git info                # Repository information
-gzh-git clone <url>         # Clone with advanced options
-gzh-git update <url>        # Clone-or-update strategies
+gz-git status              # Working tree status
+gz-git info                # Repository information
+gz-git clone <url>         # Clone with advanced options
+gz-git update <url>        # Clone-or-update strategies
 ```
 
 **Library API**:
@@ -101,10 +101,10 @@ status, _ := client.GetStatus(ctx, repo)
 #### Commit Automation
 
 ```bash
-gzh-git commit auto         # Auto-generate commit messages
-gzh-git commit validate     # Validate commit messages
-gzh-git commit template list    # List templates
-gzh-git commit template show    # Show template details
+gz-git commit auto         # Auto-generate commit messages
+gz-git commit validate     # Validate commit messages
+gz-git commit template list    # List templates
+gz-git commit template show    # Show template details
 ```
 
 **Features**:
@@ -117,10 +117,10 @@ gzh-git commit template show    # Show template details
 #### Branch Management
 
 ```bash
-gzh-git branch list         # List branches (local/remote)
-gzh-git branch create       # Create branches
-gzh-git branch delete       # Delete branches
-gzh-git branch create --worktree  # With worktree
+gz-git branch list         # List branches (local/remote)
+gz-git branch create       # Create branches
+gz-git branch delete       # Delete branches
+gz-git branch create --worktree  # With worktree
 ```
 
 **Features**:
@@ -132,9 +132,9 @@ gzh-git branch create --worktree  # With worktree
 #### History Analysis
 
 ```bash
-gzh-git history stats       # Commit statistics
-gzh-git history contributors # Contributor analysis
-gzh-git history file        # File history
+gz-git history stats       # Commit statistics
+gz-git history contributors # Contributor analysis
+gz-git history file        # File history
 ```
 
 **Features**:
@@ -146,10 +146,10 @@ gzh-git history file        # File history
 #### Advanced Merge/Rebase
 
 ```bash
-gzh-git merge detect        # Pre-merge conflict detection
-gzh-git merge do            # Execute merge
-gzh-git merge abort         # Abort merge
-gzh-git merge rebase        # Rebase operations
+gz-git merge detect        # Pre-merge conflict detection
+gz-git merge do            # Execute merge
+gz-git merge abort         # Abort merge
+gz-git merge rebase        # Rebase operations
 ```
 
 **Features**:
@@ -174,7 +174,7 @@ gzh-git merge rebase        # Rebase operations
 ```go
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 client := repository.NewClient()
@@ -230,18 +230,18 @@ This is a documentation-only release. Your existing code will work without modif
 
 ```bash
 # Update binary
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.2.0
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.2.0
 
 # Verify version
-gzh-git --version
-# Output: gzh-cli-git version v0.2.0
+gz-git --version
+# Output: gzh-cli-gitforge version v0.2.0
 ```
 
 **For Library Users**:
 
 ```bash
 # Update dependency
-go get github.com/gizzahub/gzh-cli-git@v0.2.0
+go get github.com/gizzahub/gzh-cli-gitforge@v0.2.0
 ```
 
 **No API Changes**:
@@ -285,16 +285,14 @@ ______________________________________________________________________
 
 ## Roadmap to v1.0.0
 
-### Phase 6: Documentation & Examples (In Progress)
+### Phase 6: Integration & Testing (Completed)
 
-- [x] Implementation status report
-- [x] Complete FAQ with working examples
-- [x] 10-minute tutorial
-- [x] LLM-optimized context
-- [ ] Comprehensive usage examples in examples/
-- [ ] Complete API documentation
-- [ ] Video tutorials and guides
-- [ ] Migration guides from other tools
+- [x] Integration testing specification
+- [x] Full CLI command coverage
+- [x] Integration and E2E test suites
+- [x] Performance benchmarks
+- [x] Coverage analysis and reporting
+- [x] Documentation updates and guides
 
 ### Phase 7: Production Readiness (Planned)
 
@@ -330,7 +328,7 @@ ______________________________________________________________________
 
 ### API Documentation
 
-- [GoDoc](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- [GoDoc](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - [Library Examples](examples/)
 
 ______________________________________________________________________
@@ -356,14 +354,14 @@ ______________________________________________________________________
 ### Getting Help
 
 - **Documentation**: [docs/](docs/)
-- **GitHub Issues**: [Report bugs](https://github.com/gizzahub/gzh-cli-git/issues)
-- **GitHub Discussions**: [Ask questions](https://github.com/gizzahub/gzh-cli-git/discussions)
+- **GitHub Issues**: [Report bugs](https://github.com/gizzahub/gzh-cli-gitforge/issues)
+- **GitHub Discussions**: [Ask questions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
 
 ### Reporting Issues
 
 When reporting bugs, include:
 
-- gzh-git version (`gzh-git --version`)
+- gz-git version (`gz-git --version`)
 - Git version (`git --version`)
 - Operating system
 - Steps to reproduce
@@ -377,11 +375,11 @@ ______________________________________________________________________
 
 ```bash
 # Via go install (recommended)
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.2.0
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.2.0
 
 # From source
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 git checkout v0.2.0
 make build
 sudo make install
@@ -390,18 +388,18 @@ sudo make install
 ### Library
 
 ```bash
-go get github.com/gizzahub/gzh-cli-git@v0.2.0
+go get github.com/gizzahub/gzh-cli-gitforge@v0.2.0
 ```
 
 ______________________________________________________________________
 
 ## Links
 
-- **Repository**: https://github.com/gizzahub/gzh-cli-git
-- **Release**: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.2.0
-- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-git
+- **Repository**: https://github.com/gizzahub/gzh-cli-gitforge
+- **Release**: https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.2.0
+- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
 - **Changelog**: [CHANGELOG.md](../CHANGELOG.md)
 
 ______________________________________________________________________
 
-**Thank you for using gzh-cli-git!**
+**Thank you for using gzh-cli-gitforge!**

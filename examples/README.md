@@ -1,6 +1,6 @@
-# gzh-cli-git Examples
+# gzh-cli-gitforge Examples
 
-This directory contains runnable examples demonstrating how to use the gzh-cli-git library in your Go applications.
+This directory contains runnable examples demonstrating how to use the gzh-cli-gitforge library in your Go applications.
 
 ## Quick Start
 
@@ -24,7 +24,7 @@ go run main.go
 
 **What it does:**
 
-- Opens the gzh-cli-git repository
+- Opens the gzh-cli-gitforge repository
 - Displays branch, remote URL, and upstream information
 - Shows working tree status (clean/dirty, file counts)
 
@@ -258,7 +258,7 @@ Then run them:
 - [Branch Manager API](../pkg/branch/interfaces.go)
 - [History Analyzer API](../pkg/history/interfaces.go)
 - [Merge Manager API](../pkg/merge/interfaces.go)
-- [Complete GoDoc](https://pkg.go.dev/github.com/gizzahub/gzh-cli-git)
+- [Complete GoDoc](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 
 ### User Documentation
 

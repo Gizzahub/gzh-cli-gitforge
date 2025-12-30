@@ -57,7 +57,7 @@ Performance Tests
 ### CLI Architecture
 
 ```
-cmd/gzh-git/
+cmd/gz-git/
 ├── main.go              # Entry point
 ├── cmd/
 │   ├── root.go         # Root command setup
@@ -103,7 +103,7 @@ type GlobalFlags struct {
 **Signature:**
 
 ```bash
-gzh-git status [flags] [path]
+gz-git status [flags] [path]
 ```
 
 **Flags:**
@@ -143,7 +143,7 @@ Untracked files:
 **Signature:**
 
 ```bash
-gzh-git clone <url> [directory] [flags]
+gz-git clone <url> [directory] [flags]
 ```
 
 **Flags:**
@@ -165,7 +165,7 @@ func (c *CloneCommand) Run(ctx context.Context, args []string) error
 **Main Command:**
 
 ```bash
-gzh-git commit <subcommand> [flags]
+gz-git commit <subcommand> [flags]
 ```
 
 **Subcommands:**
@@ -173,7 +173,7 @@ gzh-git commit <subcommand> [flags]
 **1. Auto-Commit**
 
 ```bash
-gzh-git commit auto [flags]
+gz-git commit auto [flags]
 ```
 
 - Analyzes staged changes
@@ -191,7 +191,7 @@ gzh-git commit auto [flags]
 **2. Validate Message**
 
 ```bash
-gzh-git commit validate <message> [flags]
+gz-git commit validate <message> [flags]
 ```
 
 - Validates commit message format
@@ -201,9 +201,9 @@ gzh-git commit validate <message> [flags]
 **3. Template Operations**
 
 ```bash
-gzh-git commit template list
-gzh-git commit template show <name>
-gzh-git commit template validate <file>
+gz-git commit template list
+gz-git commit template show <name>
+gz-git commit template validate <file>
 ```
 
 ### 1.5 Branch Commands
@@ -211,7 +211,7 @@ gzh-git commit template validate <file>
 **Main Command:**
 
 ```bash
-gzh-git branch <subcommand> [flags]
+gz-git branch <subcommand> [flags]
 ```
 
 **Subcommands:**
@@ -219,7 +219,7 @@ gzh-git branch <subcommand> [flags]
 **1. List Branches**
 
 ```bash
-gzh-git branch list [flags]
+gz-git branch list [flags]
 ```
 
 **Flags:**
@@ -232,7 +232,7 @@ gzh-git branch list [flags]
 **2. Create Branch**
 
 ```bash
-gzh-git branch create <name> [flags]
+gz-git branch create <name> [flags]
 ```
 
 **Flags:**
@@ -244,7 +244,7 @@ gzh-git branch create <name> [flags]
 **3. Delete Branch**
 
 ```bash
-gzh-git branch delete <name> [flags]
+gz-git branch delete <name> [flags]
 ```
 
 **Flags:**
@@ -255,7 +255,7 @@ gzh-git branch delete <name> [flags]
 **4. Cleanup**
 
 ```bash
-gzh-git branch cleanup [flags]
+gz-git branch cleanup [flags]
 ```
 
 **Flags:**
@@ -267,9 +267,9 @@ gzh-git branch cleanup [flags]
 **5. Worktree Operations**
 
 ```bash
-gzh-git branch worktree add <path> <branch>
-gzh-git branch worktree remove <path>
-gzh-git branch worktree list
+gz-git branch worktree add <path> <branch>
+gz-git branch worktree remove <path>
+gz-git branch worktree list
 ```
 
 ### 1.6 History Commands
@@ -277,7 +277,7 @@ gzh-git branch worktree list
 **Main Command:**
 
 ```bash
-gzh-git history <subcommand> [flags]
+gz-git history <subcommand> [flags]
 ```
 
 **Subcommands:**
@@ -285,7 +285,7 @@ gzh-git history <subcommand> [flags]
 **1. Statistics**
 
 ```bash
-gzh-git history stats [flags]
+gz-git history stats [flags]
 ```
 
 **Flags:**
@@ -312,7 +312,7 @@ Commit Statistics
 **2. Contributors**
 
 ```bash
-gzh-git history contributors [flags]
+gz-git history contributors [flags]
 ```
 
 **Flags:**
@@ -324,7 +324,7 @@ gzh-git history contributors [flags]
 **3. File History**
 
 ```bash
-gzh-git history file <path> [flags]
+gz-git history file <path> [flags]
 ```
 
 **Flags:**
@@ -335,7 +335,7 @@ gzh-git history file <path> [flags]
 **4. Blame**
 
 ```bash
-gzh-git history blame <file> [flags]
+gz-git history blame <file> [flags]
 ```
 
 **Flags:**
@@ -348,7 +348,7 @@ gzh-git history blame <file> [flags]
 **Main Command:**
 
 ```bash
-gzh-git merge <subcommand> [flags]
+gz-git merge <subcommand> [flags]
 ```
 
 **Subcommands:**
@@ -356,7 +356,7 @@ gzh-git merge <subcommand> [flags]
 **1. Merge**
 
 ```bash
-gzh-git merge do <branch> [flags]
+gz-git merge do <branch> [flags]
 ```
 
 **Flags:**
@@ -369,7 +369,7 @@ gzh-git merge do <branch> [flags]
 **2. Detect Conflicts**
 
 ```bash
-gzh-git merge detect <source> <target> [flags]
+gz-git merge detect <source> <target> [flags]
 ```
 
 **Output:**
@@ -393,13 +393,13 @@ Recommendations:
 **3. Abort Merge**
 
 ```bash
-gzh-git merge abort
+gz-git merge abort
 ```
 
 **4. Rebase**
 
 ```bash
-gzh-git merge rebase <branch> [flags]
+gz-git merge rebase <branch> [flags]
 ```
 
 **Flags:**
@@ -412,7 +412,7 @@ gzh-git merge rebase <branch> [flags]
 ### 1.8 Version Command
 
 ```bash
-gzh-git version [flags]
+gz-git version [flags]
 ```
 
 **Flags:**
@@ -423,7 +423,7 @@ gzh-git version [flags]
 **Output:**
 
 ```
-gzh-git version v0.1.0-alpha
+gz-git version v0.1.0-alpha
 Git version: 2.43.0
 Go version: go1.24
 Platform: darwin/arm64
@@ -547,13 +547,13 @@ tests/e2e/
 
 ```bash
 # Initialize new project
-gzh-git clone https://github.com/test/repo.git
+gz-git clone https://github.com/test/repo.git
 cd repo
 
 # Create initial commit
 echo "# Test" > README.md
 git add README.md
-gzh-git commit auto
+gz-git commit auto
 
 # Verify commit
 git log -1 --oneline
@@ -564,48 +564,48 @@ git log -1 --oneline
 
 ```bash
 # Create feature branch with worktree
-gzh-git branch create feature/auth --worktree ./worktrees/auth
+gz-git branch create feature/auth --worktree ./worktrees/auth
 
 # Work in worktree
 cd ./worktrees/auth
 # ... make changes ...
-gzh-git commit auto --scope auth --type feat
+gz-git commit auto --scope auth --type feat
 
 # Check status across worktrees
-gzh-git branch worktree list
+gz-git branch worktree list
 
 # Merge feature
-gzh-git merge detect feature/auth main
-gzh-git merge do feature/auth
+gz-git merge detect feature/auth main
+gz-git merge do feature/auth
 
 # Cleanup
-gzh-git branch cleanup --strategy merged
+gz-git branch cleanup --strategy merged
 ```
 
 **Scenario 3: Code Review**
 
 ```bash
 # Analyze commit history
-gzh-git history stats --since 2025-11-01
+gz-git history stats --since 2025-11-01
 
 # Get contributor insights
-gzh-git history contributors --top 10
+gz-git history contributors --top 10
 
 # File change history
-gzh-git history file src/auth.go --follow
+gz-git history file src/auth.go --follow
 
 # Export for review
-gzh-git history stats --format json > review-stats.json
+gz-git history stats --format json > review-stats.json
 ```
 
 **Scenario 4: Conflict Resolution**
 
 ```bash
 # Detect conflicts before merge
-gzh-git merge detect feature/new-auth feature/old-auth
+gz-git merge detect feature/new-auth feature/old-auth
 
 # Attempt merge
-gzh-git merge do feature/old-auth
+gz-git merge do feature/old-auth
 
 # Handle conflicts
 # ... resolve conflicts manually ...
@@ -613,7 +613,7 @@ git add .
 git commit
 
 # Or abort
-gzh-git merge abort
+gz-git merge abort
 ```
 
 ### 3.3 E2E Test Requirements

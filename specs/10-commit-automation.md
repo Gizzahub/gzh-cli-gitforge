@@ -1,6 +1,6 @@
 # Commit Automation Specification
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Feature**: Commit Automation (F1)
 **Phase**: Phase 2
 **Version**: 1.0
@@ -14,7 +14,7 @@ ______________________________________________________________________
 
 ### 1.1 Purpose
 
-This specification defines the commit automation features for gzh-cli-git, including template-based commits, auto-generated commit messages, message validation, and smart push functionality.
+This specification defines the commit automation features for gzh-cli-gitforge, including template-based commits, auto-generated commit messages, message validation, and smart push functionality.
 
 ### 1.2 Goals
 
@@ -487,53 +487,53 @@ ______________________________________________________________________
 
 ```bash
 # Interactive template-based commit
-gzh-git commit --template conventional
+gz-git commit --template conventional
 
 # Non-interactive with all options
-gzh-git commit --template conventional \
+gz-git commit --template conventional \
   --type feat \
   --scope cli \
   --message "add commit automation" \
   --body "Implements template system and auto-generation"
 
 # Auto-generate commit message
-gzh-git commit --auto
+gz-git commit --auto
 
 # Auto-generate with preview
-gzh-git commit --auto --dry-run
+gz-git commit --auto --dry-run
 ```
 
 **Using Custom Template**:
 
 ```bash
 # Load from file
-gzh-git commit --template-file ~/.config/gzh-git/my-template.yaml
+gz-git commit --template-file ~/.config/gz-git/my-template.yaml
 
 # Set as default
-gzh-git config template.default my-template
+gz-git config template.default my-template
 ```
 
 **Smart Push**:
 
 ```bash
 # Safe push with checks
-gzh-git push --smart
+gz-git push --smart
 
 # Dry-run to see what would happen
-gzh-git push --smart --dry-run
+gz-git push --smart --dry-run
 
 # Override safety checks (emergency)
-gzh-git push --smart --force --skip-checks
+gz-git push --smart --force --skip-checks
 ```
 
 **Message Validation**:
 
 ```bash
 # Validate message from file
-gzh-git commit --validate --message-file commit.txt
+gz-git commit --validate --message-file commit.txt
 
 # Validate with specific template
-gzh-git commit --validate --template conventional \
+gz-git commit --validate --template conventional \
   --message "feat: add feature"
 ```
 
@@ -546,8 +546,8 @@ package main
 
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/commit"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {

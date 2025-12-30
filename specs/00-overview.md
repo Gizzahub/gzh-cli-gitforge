@@ -1,6 +1,6 @@
 # Specification Overview
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Document Type**: Specification Overview
 **Version**: 1.0
 **Last Updated**: 2025-11-27
@@ -12,7 +12,7 @@ ______________________________________________________________________
 
 ### 1.1 Purpose
 
-This document provides a comprehensive overview of the gzh-cli-git project specifications. It serves as the entry point to understanding the system's capabilities, architecture, and feature specifications.
+This document provides a comprehensive overview of the gzh-cli-gitforge project specifications. It serves as the entry point to understanding the system's capabilities, architecture, and feature specifications.
 
 ### 1.2 Audience
 
@@ -45,9 +45,9 @@ ______________________________________________________________________
 
 ## 2. Project Overview
 
-### 2.1 What is gzh-cli-git?
+### 2.1 What is gzh-cli-gitforge?
 
-gzh-cli-git is a **Git-specialized CLI tool and Go library** that provides advanced Git automation capabilities. It serves dual purposes:
+gzh-cli-gitforge is a **Git-specialized CLI tool and Go library** that provides advanced Git automation capabilities. It serves dual purposes:
 
 1. **Standalone CLI**: Independent command-line tool for developers
 1. **Go Library**: Reusable package for embedding in other projects (particularly gzh-cli)
@@ -56,7 +56,7 @@ gzh-cli-git is a **Git-specialized CLI tool and Go library** that provides advan
 
 **Problem**: Developers spend 15-20% of their time on repetitive Git operations with inconsistent results.
 
-**Solution**: gzh-cli-git automates common Git workflows while maintaining flexibility and safety.
+**Solution**: gzh-cli-gitforge automates common Git workflows while maintaining flexibility and safety.
 
 **Benefits**:
 
@@ -68,7 +68,7 @@ gzh-cli-git is a **Git-specialized CLI tool and Go library** that provides advan
 
 ### 2.3 Key Differentiators
 
-| Feature                  | gzh-cli-git            | Standard Git      | Other Tools        |
+| Feature                  | gzh-cli-gitforge            | Standard Git      | Other Tools        |
 | ------------------------ | ---------------------- | ----------------- | ------------------ |
 | Library-First Design     | ✅ Clean APIs          | ❌ CLI only       | ⚠️ Tightly coupled |
 | Commit Templates         | ✅ Built-in + Custom   | ❌ Manual         | ⚠️ Limited         |
@@ -84,7 +84,7 @@ ______________________________________________________________________
 ### 3.1 Feature Map
 
 ```
-gzh-cli-git
+gzh-cli-gitforge
 │
 ├── Commit Automation (F1)
 │   ├── Template System
@@ -167,9 +167,9 @@ ______________________________________________________________________
 
 ```bash
 # Sarah's daily workflow
-gzh-git commit --auto                    # Quick commits
-gzh-git worktree add ~/work/fix-bug      # Parallel work
-gzh-git branch cleanup --merged          # Keep repo clean
+gz-git commit --auto                    # Quick commits
+gz-git worktree add ~/work/fix-bug      # Parallel work
+gz-git branch cleanup --merged          # Keep repo clean
 ```
 
 #### Persona 2: Team Lead (Michael)
@@ -197,9 +197,9 @@ gzh-git branch cleanup --merged          # Keep repo clean
 
 ```bash
 # Michael's team management workflow
-gzh-git stats contributors --since week   # Team review
-gzh-git merge --detect-conflicts         # Pre-merge check
-gzh-git stats commits --format json      # Metrics
+gz-git stats contributors --since week   # Team review
+gz-git merge --detect-conflicts         # Pre-merge check
+gz-git stats commits --format json      # Metrics
 ```
 
 #### Persona 3: Tool Developer (Alex)
@@ -226,7 +226,7 @@ gzh-git stats commits --format json      # Metrics
 
 ```go
 // Alex's tool integration
-import "github.com/gizzahub/gzh-cli-git/pkg/repository"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 
 client := repository.NewClient(logger)
 repo, _ := client.Open(ctx, path)
@@ -241,14 +241,14 @@ status, _ := client.GetStatus(ctx, repo)
 
 ```bash
 # Morning: Start new feature
-gzh-git worktree add ~/work/feature-x feature/x
+gz-git worktree add ~/work/feature-x feature/x
 
 # Throughout day: Frequent commits
-gzh-git commit --auto                    # Let tool generate message
-gzh-git commit --template conventional   # Use template
+gz-git commit --auto                    # Let tool generate message
+gz-git commit --template conventional   # Use template
 
 # End of day: Push work
-gzh-git push --smart                     # Safety checks
+gz-git push --smart                     # Safety checks
 ```
 
 **Benefits**:
@@ -263,16 +263,16 @@ gzh-git push --smart                     # Safety checks
 
 ```bash
 # Setup parallel worktrees
-gzh-git worktree add ~/work/feature-auth feature/auth
-gzh-git worktree add ~/work/feature-api feature/api
+gz-git worktree add ~/work/feature-auth feature/auth
+gz-git worktree add ~/work/feature-api feature/api
 
 # Switch contexts easily
 cd ~/work/feature-auth    # Work on auth
 cd ~/work/feature-api     # Switch to API
 
 # Cleanup when done
-gzh-git worktree remove ~/work/feature-auth
-gzh-git worktree remove ~/work/feature-api
+gz-git worktree remove ~/work/feature-auth
+gz-git worktree remove ~/work/feature-api
 ```
 
 **Benefits**:
@@ -287,13 +287,13 @@ gzh-git worktree remove ~/work/feature-api
 
 ```bash
 # Generate sprint metrics
-gzh-git stats commits --since "2 weeks ago" --format json > sprint-stats.json
+gz-git stats commits --since "2 weeks ago" --format json > sprint-stats.json
 
 # Identify top contributors
-gzh-git stats contributors --top 5
+gz-git stats contributors --top 5
 
 # Analyze file ownership
-gzh-git history file src/main.go --contributors
+gz-git history file src/main.go --contributors
 ```
 
 **Benefits**:
@@ -311,9 +311,9 @@ gzh-git history file src/main.go --contributors
 # CI script for auto-merge
 
 # Detect conflicts before attempting
-if gzh-git merge --detect-conflicts feature/x; then
+if gz-git merge --detect-conflicts feature/x; then
     echo "No conflicts detected, proceeding with merge"
-    gzh-git merge --auto-resolve feature/x --strategy theirs --policy safe
+    gz-git merge --auto-resolve feature/x --strategy theirs --policy safe
 else
     echo "Conflicts detected, manual intervention required"
     exit 1
@@ -335,8 +335,8 @@ package main
 
 import (
     "context"
-    "github.com/gizzahub/gzh-cli-git/pkg/repository"
-    "github.com/gizzahub/gzh-cli-git/pkg/commit"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
 )
 
 func deployWorkflow(repoPath string) error {

@@ -1,6 +1,6 @@
 # Installation Guide
 
-Complete installation instructions for `gzh-git`.
+Complete installation instructions for `gz-git`.
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@ Complete installation instructions for `gzh-git`.
 ### Option 1: Using Go Install (Recommended)
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 The binary will be installed to `$GOPATH/bin` (usually `~/go/bin`).
@@ -22,8 +22,8 @@ The binary will be installed to `$GOPATH/bin` (usually `~/go/bin`).
 
 ```bash
 # Clone the repository
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 
 # Build
 make build
@@ -37,7 +37,7 @@ make install PREFIX=$HOME/.local
 
 ### Option 3: Download Binary (Coming Soon)
 
-Pre-built binaries will be available on the [Releases](https://github.com/gizzahub/gzh-cli-git/releases) page.
+Pre-built binaries will be available on the [Releases](https://github.com/gizzahub/gzh-cli-gitforge/releases) page.
 
 ## Detailed Installation
 
@@ -46,8 +46,8 @@ Pre-built binaries will be available on the [Releases](https://github.com/gizzah
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 ```
 
 #### 2. Install Dependencies
@@ -71,7 +71,7 @@ GOOS=darwin GOARCH=arm64 make build
 GOOS=windows GOARCH=amd64 make build
 ```
 
-The binary will be created in `build/gzh-git`.
+The binary will be created in `build/gz-git`.
 
 #### 4. Install
 
@@ -83,14 +83,14 @@ sudo make install
 make install PREFIX=$HOME/.local
 
 # Or manually copy
-cp build/gzh-git /usr/local/bin/
+cp build/gz-git /usr/local/bin/
 ```
 
 #### 5. Verify Installation
 
 ```bash
-gzh-git --version
-gzh-git --help
+gz-git --version
+gz-git --help
 ```
 
 ## Platform-Specific Instructions
@@ -108,8 +108,8 @@ sudo dnf install -y git golang
 # Arch Linux
 sudo pacman -S git go
 
-# Then install gzh-git
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+# Then install gz-git
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 Add Go binaries to your PATH if not already done:
@@ -125,8 +125,8 @@ source ~/.bashrc
 # Install prerequisites with Homebrew
 brew install git go
 
-# Install gzh-git
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+# Install gz-git
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 Add Go binaries to your PATH if needed:
@@ -142,8 +142,8 @@ source ~/.zshrc
 # Install prerequisites with Chocolatey
 choco install git golang
 
-# Install gzh-git
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+# Install gz-git
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 Add Go binaries to your PATH:
@@ -159,22 +159,22 @@ $env:Path += ";$env:USERPROFILE\go\bin"
 
 ```bash
 # Generate completion script
-gzh-git completion bash > /usr/local/etc/bash_completion.d/gzh-git
+gz-git completion bash > /usr/local/etc/bash_completion.d/gz-git
 
 # Or for user-specific:
-gzh-git completion bash > ~/.bash_completion.d/gzh-git
-echo 'source ~/.bash_completion.d/gzh-git' >> ~/.bashrc
+gz-git completion bash > ~/.bash_completion.d/gz-git
+echo 'source ~/.bash_completion.d/gz-git' >> ~/.bashrc
 ```
 
 ### Zsh
 
 ```zsh
 # Generate completion script
-gzh-git completion zsh > /usr/local/share/zsh/site-functions/_gzh-git
+gz-git completion zsh > /usr/local/share/zsh/site-functions/_gz-git
 
 # Or for user-specific:
 mkdir -p ~/.zsh/completion
-gzh-git completion zsh > ~/.zsh/completion/_gzh-git
+gz-git completion zsh > ~/.zsh/completion/_gz-git
 echo 'fpath=(~/.zsh/completion $fpath)' >> ~/.zshrc
 echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
 ```
@@ -182,14 +182,14 @@ echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
 ### Fish
 
 ```fish
-gzh-git completion fish > ~/.config/fish/completions/gzh-git.fish
+gz-git completion fish > ~/.config/fish/completions/gz-git.fish
 ```
 
 ## Configuration
 
 ### Default Configuration
 
-gzh-git works out-of-the-box with sensible defaults.
+gz-git works out-of-the-box with sensible defaults.
 
 ### Custom Templates
 
@@ -197,16 +197,16 @@ Create custom commit templates:
 
 ```bash
 # Create templates directory
-mkdir -p ~/.config/gzh-git/templates
+mkdir -p ~/.config/gz-git/templates
 
 # Copy and customize a template
-gzh-git commit template show conventional > ~/.config/gzh-git/templates/my-template.yaml
+gz-git commit template show conventional > ~/.config/gz-git/templates/my-template.yaml
 ```
 
 Edit the template and use it:
 
 ```bash
-gzh-git commit auto --template my-template
+gz-git commit auto --template my-template
 ```
 
 ### Environment Variables
@@ -224,13 +224,13 @@ export GZH_GIT_EDITOR=vim
 ### From Go Install
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 ### From Source
 
 ```bash
-cd gzh-cli-git
+cd gzh-cli-gitforge
 git pull
 make build
 sudo make install
@@ -241,13 +241,13 @@ sudo make install
 ### Installed via Go
 
 ```bash
-rm $(which gzh-git)
+rm $(which gz-git)
 ```
 
 ### Installed from Source
 
 ```bash
-cd gzh-cli-git
+cd gzh-cli-gitforge
 sudo make uninstall
 ```
 
@@ -255,21 +255,21 @@ sudo make uninstall
 
 ```bash
 # Remove binaries
-rm $(which gzh-git)
+rm $(which gz-git)
 
 # Remove configuration (optional)
-rm -rf ~/.config/gzh-git
+rm -rf ~/.config/gz-git
 ```
 
 ## Troubleshooting Installation
 
-### "command not found: gzh-git"
+### "command not found: gz-git"
 
 The binary is not in your PATH. Check:
 
 ```bash
 # Find the binary
-which gzh-git
+which gz-git
 
 # Check Go bin directory
 ls -la $HOME/go/bin
@@ -316,14 +316,14 @@ After installation, verify everything works:
 
 ```bash
 # Check version
-gzh-git --version
+gz-git --version
 
 # Run help
-gzh-git --help
+gz-git --help
 
 # Test with a repository
 cd /path/to/git/repo
-gzh-git status
+gz-git status
 ```
 
 ## Next Steps
@@ -334,6 +334,6 @@ gzh-git status
 
 ## Getting Help
 
-- **GitHub Issues**: https://github.com/gizzahub/gzh-cli-git/issues
-- **Documentation**: https://github.com/gizzahub/gzh-cli-git/tree/main/docs
-- **Discussions**: https://github.com/gizzahub/gzh-cli-git/discussions
+- **GitHub Issues**: https://github.com/gizzahub/gzh-cli-gitforge/issues
+- **Documentation**: https://github.com/gizzahub/gzh-cli-gitforge/tree/main/docs
+- **Discussions**: https://github.com/gizzahub/gzh-cli-gitforge/discussions

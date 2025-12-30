@@ -1,4 +1,4 @@
-# Context Documentation - gzh-cli-git
+# Context Documentation - gzh-cli-gitforge
 
 This directory contains detailed context documentation extracted from CLAUDE.md for LLM optimization.
 

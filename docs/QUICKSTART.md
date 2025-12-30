@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get started with `gzh-git` in 5 minutes.
+Get started with `gz-git` in 5 minutes.
 
 ## Installation
 
@@ -8,21 +8,21 @@ Get started with `gzh-git` in 5 minutes.
 
 ```bash
 # Clone the repository
-git clone https://github.com/gizzahub/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 
 # Build and install
 make build
 sudo make install
 
 # Verify installation
-gzh-git --version
+gz-git --version
 ```
 
 ### Using Go
 
 ```bash
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 ## Basic Usage
@@ -34,7 +34,7 @@ go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@latest
 cd /path/to/your/repo
 
 # Check status
-gzh-git status
+gz-git status
 ```
 
 **Output:**
@@ -58,14 +58,14 @@ Untracked Files: 1
 
 ### 2. Auto-Generate Commits
 
-Instead of manually writing commit messages, let `gzh-git` generate them:
+Instead of manually writing commit messages, let `gz-git` generate them:
 
 ```bash
 # Stage your changes
 git add src/main.go
 
 # Auto-generate and commit
-gzh-git commit auto
+gz-git commit auto
 ```
 
 **What happens:**
@@ -88,36 +88,36 @@ Ensures config values are within expected ranges.
 
 ```bash
 # Create a new feature branch
-gzh-git branch create feature/user-authentication
+gz-git branch create feature/user-authentication
 
 # List all branches
-gzh-git branch list --all
+gz-git branch list --all
 
 # Delete old branch
-gzh-git branch delete feature/old-implementation
+gz-git branch delete feature/old-implementation
 ```
 
 ### 4. Analyze Repository History
 
 ```bash
 # Show commit statistics
-gzh-git history stats --since "1 month ago"
+gz-git history stats --since "1 month ago"
 
 # List top contributors
-gzh-git history contributors --top 5
+gz-git history contributors --top 5
 
 # View file history
-gzh-git history file src/main.go
+gz-git history file src/main.go
 ```
 
 ### 5. Safe Merging with Conflict Detection
 
 ```bash
 # Check for conflicts before merging
-gzh-git merge detect feature/new-feature main
+gz-git merge detect feature/new-feature main
 
 # If no conflicts, merge
-gzh-git merge do feature/new-feature
+gz-git merge do feature/new-feature
 
 # If there are conflicts, you'll see:
 ⚠️  Found 2 potential conflicts:
@@ -135,50 +135,50 @@ Auto-resolvable: 0/2
 
 ```bash
 # 1. Create feature branch
-gzh-git branch create feature/add-caching
+gz-git branch create feature/add-caching
 
 # 2. Make changes and commit
 git add .
-gzh-git commit auto
+gz-git commit auto
 
 # 3. Check for merge conflicts
-gzh-git merge detect feature/add-caching main
+gz-git merge detect feature/add-caching main
 
 # 4. Merge when ready
-gzh-git merge do feature/add-caching --squash
+gz-git merge do feature/add-caching --squash
 ```
 
 ### Code Review Workflow
 
 ```bash
 # 1. Check branch history
-gzh-git history stats --branch feature/new-api
+gz-git history stats --branch feature/new-api
 
 # 2. View contributor activity
-gzh-git history contributors --since "1 week ago"
+gz-git history contributors --since "1 week ago"
 
 # 3. Analyze file changes
-gzh-git history file src/api/handler.go
+gz-git history file src/api/handler.go
 
 # 4. Review specific lines
-gzh-git history blame src/api/handler.go
+gz-git history blame src/api/handler.go
 ```
 
 ### Hotfix Workflow
 
 ```bash
 # 1. Create hotfix branch from production
-gzh-git branch create hotfix/critical-bug --base production
+gz-git branch create hotfix/critical-bug --base production
 
 # 2. Fix and commit
 git add .
-gzh-git commit auto --template conventional
+gz-git commit auto --template conventional
 
 # 3. Validate commit message
-gzh-git commit validate "fix(auth): prevent null pointer dereference"
+gz-git commit validate "fix(auth): prevent null pointer dereference"
 
 # 4. Fast-forward merge to production
-gzh-git merge do hotfix/critical-bug --ff-only
+gz-git merge do hotfix/critical-bug --ff-only
 ```
 
 ## Tips and Best Practices
@@ -187,13 +187,13 @@ gzh-git merge do hotfix/critical-bug --ff-only
 
 ```bash
 # List available templates
-gzh-git commit template list
+gz-git commit template list
 
 # View template details
-gzh-git commit template show conventional
+gz-git commit template show conventional
 
 # Use specific template
-gzh-git commit auto --template conventional
+gz-git commit auto --template conventional
 ```
 
 ### 2. Prevent Merge Conflicts
@@ -201,7 +201,7 @@ gzh-git commit auto --template conventional
 Always check for conflicts before merging:
 
 ```bash
-gzh-git merge detect <your-branch> <target-branch>
+gz-git merge detect <your-branch> <target-branch>
 ```
 
 ### 3. Track File History
@@ -210,10 +210,10 @@ When debugging, check file history and blame:
 
 ```bash
 # See all changes to a file
-gzh-git history file --follow src/problematic.go
+gz-git history file --follow src/problematic.go
 
 # Find who wrote specific lines
-gzh-git history blame src/problematic.go
+gz-git history blame src/problematic.go
 ```
 
 ### 4. Work in Parallel with Worktrees
@@ -222,7 +222,7 @@ Create linked worktrees for parallel development:
 
 ```bash
 # Create branch with worktree
-gzh-git branch create feature/parallel --worktree ../parallel-work
+gz-git branch create feature/parallel --worktree ../parallel-work
 
 # Now you can work in both directories simultaneously
 cd ../parallel-work  # Main repo stays on current branch
@@ -234,10 +234,10 @@ Use JSON output for custom analysis:
 
 ```bash
 # Export statistics
-gzh-git history stats --format json > stats.json
+gz-git history stats --format json > stats.json
 
 # Export contributors
-gzh-git history contributors --format json > contributors.json
+gz-git history contributors --format json > contributors.json
 
 # Process with jq
 cat stats.json | jq '.total_commits'
@@ -259,17 +259,17 @@ git init
 
 ```bash
 # List available templates
-gzh-git commit template list
+gz-git commit template list
 
 # Use a valid template name
-gzh-git commit auto --template conventional
+gz-git commit auto --template conventional
 ```
 
 ### "Merge conflicts detected"
 
 ```bash
 # Abort the merge if needed
-gzh-git merge abort
+gz-git merge abort
 
 # Or resolve conflicts manually and continue
 git add <resolved-files>
@@ -279,7 +279,7 @@ git commit
 ## Next Steps
 
 - Read the [Command Reference](commands/README.md) for detailed command documentation
-- Learn about [Library Integration](LIBRARY.md) to use gzh-git as a Go library
+- Learn about [Library Integration](LIBRARY.md) to use gz-git as a Go library
 - Check [Troubleshooting Guide](TROUBLESHOOTING.md) for common issues
 - See [Examples](examples/) for real-world usage patterns
 
@@ -287,15 +287,15 @@ git commit
 
 ```bash
 # Get help for any command
-gzh-git --help
-gzh-git commit --help
-gzh-git merge do --help
+gz-git --help
+gz-git commit --help
+gz-git merge do --help
 
 # Check version
-gzh-git --version
+gz-git --version
 ```
 
 For more help:
 
-- GitHub Issues: https://github.com/gizzahub/gzh-cli-git/issues
-- Documentation: https://github.com/gizzahub/gzh-cli-git/tree/main/docs
+- GitHub Issues: https://github.com/gizzahub/gzh-cli-gitforge/issues
+- Documentation: https://github.com/gizzahub/gzh-cli-gitforge/tree/main/docs

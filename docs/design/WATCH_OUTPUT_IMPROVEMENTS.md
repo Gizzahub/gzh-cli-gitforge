@@ -107,13 +107,13 @@ After implementing the basic functionality, we've identified several areas where
 
 ```bash
 # Only show specific file types
-gzh-git watch --files='*.go,*.md'
+gz-git watch --files='*.go,*.md'
 
 # Ignore specific patterns
-gzh-git watch --ignore='*_test.go,vendor/*'
+gz-git watch --ignore='*_test.go,vendor/*'
 
 # Only show "important" changes (configurable)
-gzh-git watch --important-only
+gz-git watch --important-only
 ```
 
 **Important Change Heuristics**:
@@ -151,7 +151,7 @@ gzh-git watch --important-only
 **Desktop Notifications**:
 
 ```bash
-gzh-git watch --notify desktop
+gz-git watch --notify desktop
 ```
 
 - macOS: Notification Center
@@ -161,7 +161,7 @@ gzh-git watch --notify desktop
 **Webhook Integration**:
 
 ```bash
-gzh-git watch --webhook https://api.slack.com/hooks/...
+gz-git watch --webhook https://api.slack.com/hooks/...
 ```
 
 - POST JSON events to URL
@@ -171,8 +171,8 @@ gzh-git watch --webhook https://api.slack.com/hooks/...
 **Sound Alerts**:
 
 ```bash
-gzh-git watch --sound beep     # System beep
-gzh-git watch --sound custom.wav
+gz-git watch --sound beep     # System beep
+gz-git watch --sound custom.wav
 ```
 
 **Implementation**:
@@ -244,7 +244,7 @@ Actions: [d]iff [s]tatus [c]ommit [i]gnore [q]uit >
 **Proposed Enhancement**: Scrollable history view
 
 ```bash
-gzh-git watch --history 50  # Keep last 50 events
+gz-git watch --history 50  # Keep last 50 events
 ```
 
 **In-Watch Commands**:
@@ -333,7 +333,7 @@ gzh-git watch --history 50  # Keep last 50 events
 **Proposed Enhancement**: Comparative statistics
 
 ```bash
-gzh-git watch --compare daily
+gz-git watch --compare daily
 ```
 
 **Output**:
@@ -462,7 +462,7 @@ Before implementing, we should validate:
 
 ## Configuration File Design
 
-**Proposed**: `.gzh-git/watch.yaml`
+**Proposed**: `.gz-git/watch.yaml`
 
 ```yaml
 watch:
@@ -548,7 +548,7 @@ watch:
 **Solution**:
 
 ```bash
-gzh-git watch --notify desktop --files='*.go,*.ts'
+gz-git watch --notify desktop --files='*.go,*.ts'
 ```
 
 **Experience**: Gets desktop notification when code files change, can stay focused in IDE
@@ -562,7 +562,7 @@ gzh-git watch --notify desktop --files='*.go,*.ts'
 **Solution**:
 
 ```bash
-gzh-git watch ~/team-repos/* --batch-duration 60s --webhook https://slack.com/...
+gz-git watch ~/team-repos/* --batch-duration 60s --webhook https://slack.com/...
 ```
 
 **Experience**: Hourly summary posted to Slack channel, can spot blockers
@@ -576,7 +576,7 @@ gzh-git watch ~/team-repos/* --batch-duration 60s --webhook https://slack.com/..
 **Solution**:
 
 ```bash
-gzh-git watch --format json --files='src/**' | \
+gz-git watch --format json --files='src/**' | \
   jq -r 'select(.type=="staged")' | \
   xargs -I {} ./trigger-build.sh
 ```
@@ -592,7 +592,7 @@ gzh-git watch --format json --files='src/**' | \
 **Solution**:
 
 ```bash
-gzh-git watch --compare hourly --history 100
+gz-git watch --compare hourly --history 100
 ```
 
 **Experience**: See contribution patterns, identify hot files

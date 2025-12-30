@@ -1,4 +1,4 @@
-// Package main demonstrates branch management using gzh-cli-git library.
+// Package main demonstrates branch management using gzh-cli-gitforge library.
 package main
 
 import (
@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/branch"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -98,14 +98,14 @@ func main() {
 	newBranch := "feature/example-branch"
 	fmt.Printf("To create a new branch '%s':\n", newBranch)
 	fmt.Println()
-	fmt.Println("Using gzh-cli-git library:")
+	fmt.Println("Using gzh-cli-gitforge library:")
 	fmt.Println("  err := branchManager.Create(ctx, repo, branch.CreateOptions{")
 	fmt.Println("      Name:     \"feature/example-branch\",")
 	fmt.Println("      StartRef: \"main\",")
 	fmt.Println("  })")
 	fmt.Println()
 	fmt.Println("Using CLI:")
-	fmt.Printf("  gzh-git branch create %s\n", newBranch)
+	fmt.Printf("  gz-git branch create %s\n", newBranch)
 	fmt.Println()
 
 	// Example 5: List worktrees (if any)
@@ -124,5 +124,5 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Tip: Use worktrees for parallel development:")
-	fmt.Println("  gzh-git branch create feature/new --worktree /path/to/worktree")
+	fmt.Println("  gz-git branch create feature/new --worktree /path/to/worktree")
 }

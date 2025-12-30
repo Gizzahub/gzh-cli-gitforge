@@ -1,4 +1,4 @@
-// Package main demonstrates merge and conflict detection using gzh-cli-git library.
+// Package main demonstrates merge and conflict detection using gzh-cli-gitforge library.
 package main
 
 import (
@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-git/pkg/branch"
-	"github.com/gizzahub/gzh-cli-git/pkg/merge"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/merge"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func main() {
@@ -121,7 +121,7 @@ func main() {
 
 	// Example 3: Merge strategies
 	fmt.Println("=== Example 3: Available Merge Strategies ===")
-	fmt.Println("gzh-cli-git supports multiple merge strategies:")
+	fmt.Println("gzh-cli-gitforge supports multiple merge strategies:")
 	fmt.Printf("  - %s: Fast-forward only (no merge commit)\n", merge.StrategyFastForward)
 	fmt.Printf("  - %s: Default 3-way merge\n", merge.StrategyRecursive)
 	fmt.Printf("  - %s: Prefer current branch on conflicts\n", merge.StrategyOurs)
@@ -134,7 +134,7 @@ func main() {
 	if targetBranch != "" {
 		fmt.Printf("To merge '%s' into current branch:\n", targetBranch)
 		fmt.Println()
-		fmt.Println("Using gzh-cli-git library:")
+		fmt.Println("Using gzh-cli-gitforge library:")
 		fmt.Printf("  result, err := mergeManager.Merge(ctx, repo, merge.MergeOptions{\n")
 		fmt.Printf("      Source:   \"%s\",\n", targetBranch)
 		fmt.Println("      Strategy: merge.StrategyRecursive,")
@@ -142,7 +142,7 @@ func main() {
 		fmt.Println("  })")
 		fmt.Println()
 		fmt.Println("Using CLI:")
-		fmt.Printf("  gzh-git merge do %s\n", targetBranch)
+		fmt.Printf("  gz-git merge do %s\n", targetBranch)
 		fmt.Println()
 		fmt.Println("⚠️  This example does NOT execute the merge")
 	}
@@ -151,19 +151,19 @@ func main() {
 	fmt.Println("=== Example 5: Rebase Operations ===")
 	fmt.Println("Rebase current branch onto another:")
 	fmt.Println()
-	fmt.Println("Using gzh-cli-git library:")
+	fmt.Println("Using gzh-cli-gitforge library:")
 	fmt.Println("  result, err := rebaseManager.Rebase(ctx, repo, merge.RebaseOptions{")
 	fmt.Println("      Onto:        \"main\",")
 	fmt.Println("      Interactive: false,")
 	fmt.Println("  })")
 	fmt.Println()
 	fmt.Println("Using CLI:")
-	fmt.Println("  gzh-git merge rebase main")
+	fmt.Println("  gz-git merge rebase main")
 	fmt.Println()
 
 	// Suppress unused warning
 	_ = mergeManager
 
 	fmt.Println("Tip: Always detect conflicts before merging:")
-	fmt.Println("  gzh-git merge detect <source> <target>")
+	fmt.Println("  gz-git merge detect <source> <target>")
 }

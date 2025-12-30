@@ -1,6 +1,6 @@
-# Contributing to gzh-cli-git
+# Contributing to gzh-cli-gitforge
 
-Thank you for your interest in contributing to **gzh-cli-git**! This guide will help you get started with development, testing, and submitting contributions.
+Thank you for your interest in contributing to **gzh-cli-gitforge**! This guide will help you get started with development, testing, and submitting contributions.
 
 ______________________________________________________________________
 
@@ -47,14 +47,14 @@ Before contributing, ensure you have the following installed:
 1. Clone your fork locally:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/gzh-cli-git.git
-cd gzh-cli-git
+git clone https://github.com/YOUR_USERNAME/gzh-cli-gitforge.git
+cd gzh-cli-gitforge
 ```
 
 3. Add the upstream remote:
 
 ```bash
-git remote add upstream https://github.com/gizzahub/gzh-cli-git.git
+git remote add upstream https://github.com/gizzahub/gzh-cli-gitforge.git
 ```
 
 ### Install Dependencies
@@ -136,7 +136,7 @@ ______________________________________________________________________
 Understanding the project structure will help you navigate the codebase:
 
 ```
-gzh-cli-git/
+gzh-cli-gitforge/
 ├── pkg/                     # Public library API (importable by other projects)
 │   ├── repository/          # Repository management
 │   ├── commit/              # Commit automation
@@ -148,7 +148,7 @@ gzh-cli-git/
 │   ├── gitcmd/              # Git command execution & security
 │   └── parser/              # Output parsing
 │
-├── cmd/gzh-git/             # CLI application
+├── cmd/gz-git/             # CLI application
 │   └── cmd/                 # CLI commands (Cobra)
 │
 ├── tests/                   # Test suites
@@ -216,7 +216,7 @@ import (
 
     "github.com/spf13/cobra"
 
-    "github.com/gizzahub/gzh-cli-git/internal/gitcmd"
+    "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 // 3. Constants and variables
@@ -713,8 +713,8 @@ ______________________________________________________________________
 ### Questions and Support
 
 - **Documentation**: Check [docs/](docs/) first
-- **Issues**: Search existing [GitHub Issues](https://github.com/gizzahub/gzh-cli-git/issues)
-- **Discussions**: Use [GitHub Discussions](https://github.com/gizzahub/gzh-cli-git/discussions)
+- **Issues**: Search existing [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues)
+- **Discussions**: Use [GitHub Discussions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
 - **Chat**: Join our community chat (coming soon)
 
 ### Reporting Bugs
@@ -785,15 +785,15 @@ ______________________________________________________________________
 
 ## License
 
-By contributing to gzh-cli-git, you agree that your contributions will be licensed under the MIT License.
+By contributing to gzh-cli-gitforge, you agree that your contributions will be licensed under the MIT License.
 
 ______________________________________________________________________
 
 ## Thank You!
 
-Thank you for contributing to **gzh-cli-git**! Your efforts help make this project better for everyone.
+Thank you for contributing to **gzh-cli-gitforge**! Your efforts help make this project better for everyone.
 
-**Questions?** Feel free to ask in [GitHub Discussions](https://github.com/gizzahub/gzh-cli-git/discussions).
+**Questions?** Feel free to ask in [GitHub Discussions](https://github.com/gizzahub/gzh-cli-gitforge/discussions).
 
 ______________________________________________________________________
 

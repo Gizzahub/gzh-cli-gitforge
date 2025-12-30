@@ -16,7 +16,7 @@
 | **pkg/commit**      | 66.3%    | 85%    | ⚠️ Below Target |
 | **pkg/branch**      | 48.1%    | 85%    | ❌ Below Target |
 | **pkg/repository**  | 39.2%    | 85%    | ❌ Below Target |
-| **cmd/gzh-git**     | 0.0%     | 70%    | ❌ Not Tested   |
+| **cmd/gz-git**     | 0.0%     | 70%    | ❌ Not Tested   |
 
 ### Coverage Tier Analysis
 
@@ -38,7 +38,7 @@
 
 - ❌ pkg/branch (48.1%)
 - ❌ pkg/repository (39.2%)
-- ❌ cmd/gzh-git (0.0%)
+- ❌ cmd/gz-git (0.0%)
 
 ## Test Statistics
 
@@ -166,7 +166,7 @@
 
 **Recommendation**: Add 40-50 tests, focus on clone and helpers
 
-### cmd/gzh-git (0.0%)
+### cmd/gz-git (0.0%)
 
 **Current State**:
 
