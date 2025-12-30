@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // FileHistoryTracker tracks file evolution and changes

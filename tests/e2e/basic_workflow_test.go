@@ -16,7 +16,7 @@ func TestNewProjectSetup(t *testing.T) {
 		// Stage the file
 		repo.Git("add", "README.md")
 
-		// Use gzh-git to create auto-commit
+		// Use gz-git to create auto-commit
 		output := repo.RunGzhGit("commit", "auto", "--dry-run")
 
 		// Should generate appropriate commit message
@@ -32,7 +32,7 @@ func TestNewProjectSetup(t *testing.T) {
 	})
 
 	t.Run("check repository status", func(t *testing.T) {
-		// Check status using gzh-git
+		// Check status using gz-git
 		output := repo.RunGzhGit("status")
 
 		// Should show clean working directory
@@ -119,8 +119,8 @@ func TestBasicBranchWorkflow(t *testing.T) {
 		AssertContains(t, output, "master")
 	})
 
-	t.Run("create branch using git and verify with gzh-git", func(t *testing.T) {
-		// Create branch using git (gzh-git has ref issues)
+	t.Run("create branch using git and verify with gz-git", func(t *testing.T) {
+		// Create branch using git (gz-git has ref issues)
 		repo.Git("branch", "feature/test")
 
 		// List all branches

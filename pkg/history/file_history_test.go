@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func TestFileHistoryTracker_GetHistory(t *testing.T) {

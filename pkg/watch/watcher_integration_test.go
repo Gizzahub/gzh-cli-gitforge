@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // TestWatchIntegration_UntrackedFile tests detecting new untracked files.

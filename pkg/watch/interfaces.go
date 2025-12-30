@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // Watcher monitors Git repositories for changes.

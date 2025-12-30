@@ -136,11 +136,11 @@ func (r *TestRepo) SetupWithCommits() {
 	r.GitCommit("Update README")
 }
 
-// RunGzhGit executes gzh-git command in the repository
+// RunGzhGit executes gz-git command in the repository
 func (r *TestRepo) RunGzhGit(args ...string) (string, error) {
 	r.T.Helper()
 
-	// Find gzh-git binary
+	// Find gz-git binary
 	binary := findGzhGitBinary(r.T)
 
 	cmd := exec.Command(binary, args...)
@@ -150,26 +150,26 @@ func (r *TestRepo) RunGzhGit(args ...string) (string, error) {
 	return string(output), err
 }
 
-// RunGzhGitSuccess runs gzh-git and expects success
+// RunGzhGitSuccess runs gz-git and expects success
 func (r *TestRepo) RunGzhGitSuccess(args ...string) string {
 	r.T.Helper()
 
 	output, err := r.RunGzhGit(args...)
 	if err != nil {
-		r.T.Fatalf("Command failed: gzh-git %v\nError: %v\nOutput: %s",
+		r.T.Fatalf("Command failed: gz-git %v\nError: %v\nOutput: %s",
 			args, err, output)
 	}
 
 	return output
 }
 
-// RunGzhGitExpectError runs gzh-git and expects an error
+// RunGzhGitExpectError runs gz-git and expects an error
 func (r *TestRepo) RunGzhGitExpectError(args ...string) string {
 	r.T.Helper()
 
 	output, err := r.RunGzhGit(args...)
 	if err == nil {
-		r.T.Fatalf("Expected command to fail but it succeeded: gzh-git %v\nOutput: %s",
+		r.T.Fatalf("Expected command to fail but it succeeded: gz-git %v\nOutput: %s",
 			args, output)
 	}
 
@@ -196,16 +196,16 @@ func AssertNotContains(t *testing.T, output, unexpected string) {
 	}
 }
 
-// findGzhGitBinary locates the gzh-git binary
+// findGzhGitBinary locates the gz-git binary
 func findGzhGitBinary(t *testing.T) string {
 	t.Helper()
 
 	// Check if binary exists in various locations
 	candidates := []string{
-		"../../gzh-git",       // Root directory (where make build creates it)
-		"../../build/gzh-git", // Build directory (alternative location)
-		"../../tmp/gzh-git",   // Tmp directory (alternative location)
-		"gzh-git",             // In PATH
+		"../../gz-git",       // Root directory (where make build creates it)
+		"../../build/gz-git", // Build directory (alternative location)
+		"../../tmp/gz-git",   // Tmp directory (alternative location)
+		"gz-git",             // In PATH
 	}
 
 	for _, candidate := range candidates {
@@ -225,19 +225,19 @@ func findGzhGitBinary(t *testing.T) string {
 	buildCmd := exec.Command("make", "build")
 	buildCmd.Dir = "../.."
 	if err := buildCmd.Run(); err != nil {
-		t.Fatalf("Failed to build gzh-git: %v", err)
+		t.Fatalf("Failed to build gz-git: %v", err)
 	}
 
-	return "../../gzh-git"
+	return "../../gz-git"
 }
 
-// SkipIfNoBinary skips test if gzh-git binary is not available
+// SkipIfNoBinary skips test if gz-git binary is not available
 func SkipIfNoBinary(t *testing.T) {
 	t.Helper()
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Skipf("gzh-git binary not available: %v", r)
+			t.Skipf("gz-git binary not available: %v", r)
 		}
 	}()
 
@@ -251,7 +251,7 @@ func TestMain(m *testing.M) {
 	cmd := exec.CommandContext(ctx, "make", "build")
 	cmd.Dir = "../.."
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to build gzh-git: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to build gz-git: %v\n", err)
 		os.Exit(1)
 	}
 

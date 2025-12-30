@@ -89,7 +89,7 @@ func TestMergeAbort(t *testing.T) {
 		// This test documents the abort workflow
 		// Note: Creating actual conflicts reliably in test env is complex
 		// The abort command has been tested in integration tests
-		t.Log("Merge abort workflow: when conflicts occur, use 'gzh-git merge abort'")
+		t.Log("Merge abort workflow: when conflicts occur, use 'gz-git merge abort'")
 		t.Log("This restores the repository to pre-merge state")
 	})
 }
@@ -128,7 +128,7 @@ func TestRebaseWorkflow(t *testing.T) {
 		// Switch back to feature branch
 		repo.Git("checkout", "feature/rebase-test")
 
-		// Try rebase using git (gzh-git has ref issues)
+		// Try rebase using git (gz-git has ref issues)
 		output := repo.Git("rebase", "master")
 		if len(output) > 0 {
 			t.Log("Rebase completed")
@@ -265,11 +265,11 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 		// tests is complex due to the interactive nature of conflict resolution
 
 		t.Log("Complete Conflict Resolution Workflow:")
-		t.Log("1. Use 'gzh-git merge detect <source> <target>' to preview conflicts")
-		t.Log("2. Attempt merge with 'gzh-git merge do <branch>'")
+		t.Log("1. Use 'gz-git merge detect <source> <target>' to preview conflicts")
+		t.Log("2. Attempt merge with 'gz-git merge do <branch>'")
 		t.Log("3. If conflicts occur, resolve them manually")
-		t.Log("4. Check status with 'gzh-git status'")
-		t.Log("5. Abort with 'gzh-git merge abort' or commit resolved changes")
+		t.Log("4. Check status with 'gz-git status'")
+		t.Log("5. Abort with 'gz-git merge abort' or commit resolved changes")
 
 		// Verify basic commands work
 		status := repo.RunGzhGit("status")

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func TestNewWorktreeManager(t *testing.T) {

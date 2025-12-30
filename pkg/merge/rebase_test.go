@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func TestRebaseManager_Rebase(t *testing.T) {

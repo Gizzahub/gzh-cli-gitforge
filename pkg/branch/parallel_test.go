@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 func TestNewParallelWorkflow(t *testing.T) {

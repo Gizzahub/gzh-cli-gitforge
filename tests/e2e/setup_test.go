@@ -29,7 +29,7 @@ func NewE2ERepo(t *testing.T) *E2ERepo {
 	// Create temp directory for test repo
 	repoDir := t.TempDir()
 
-	// Find or build gzh-git binary
+	// Find or build gz-git binary
 	binaryPath := findOrBuildBinary(t)
 
 	repo := &E2ERepo{
@@ -47,26 +47,26 @@ func NewE2ERepo(t *testing.T) *E2ERepo {
 	return repo
 }
 
-// findOrBuildBinary locates the gzh-git binary or builds it if necessary
+// findOrBuildBinary locates the gz-git binary or builds it if necessary
 func findOrBuildBinary(t *testing.T) string {
 	t.Helper()
 
 	// Try to find existing binary
-	if _, err := os.Stat("../../gzh-git"); err == nil {
-		abs, _ := filepath.Abs("../../gzh-git")
+	if _, err := os.Stat("../../gz-git"); err == nil {
+		abs, _ := filepath.Abs("../../gz-git")
 		return abs
 	}
 
 	// Build the binary
-	t.Log("Building gzh-git binary for E2E tests...")
-	cmd := exec.Command("go", "build", "-o", "gzh-git", "./cmd/gzh-git")
+	t.Log("Building gz-git binary for E2E tests...")
+	cmd := exec.Command("go", "build", "-o", "gz-git", "./cmd/gz-git")
 	cmd.Dir = "../../"
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to build gzh-git: %v\nOutput: %s", err, output)
+		t.Fatalf("Failed to build gz-git: %v\nOutput: %s", err, output)
 	}
 
-	abs, _ := filepath.Abs("../../gzh-git")
+	abs, _ := filepath.Abs("../../gz-git")
 	return abs
 }
 
@@ -84,7 +84,7 @@ func (r *E2ERepo) runCommand(dir string, name string, args ...string) string {
 	return string(output)
 }
 
-// RunGzhGit runs gzh-git command and expects success
+// RunGzhGit runs gz-git command and expects success
 func (r *E2ERepo) RunGzhGit(args ...string) string {
 	r.t.Helper()
 
@@ -92,13 +92,13 @@ func (r *E2ERepo) RunGzhGit(args ...string) string {
 	cmd.Dir = r.repoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		r.t.Fatalf("gzh-git command failed: %v %v\nError: %v\nOutput: %s",
+		r.t.Fatalf("gz-git command failed: %v %v\nError: %v\nOutput: %s",
 			r.binaryPath, args, err, output)
 	}
 	return string(output)
 }
 
-// RunGzhGitExpectError runs gzh-git command and expects failure
+// RunGzhGitExpectError runs gz-git command and expects failure
 func (r *E2ERepo) RunGzhGitExpectError(args ...string) string {
 	r.t.Helper()
 
@@ -106,7 +106,7 @@ func (r *E2ERepo) RunGzhGitExpectError(args ...string) string {
 	cmd.Dir = r.repoDir
 	output, err := cmd.CombinedOutput()
 	if err == nil {
-		r.t.Fatalf("Expected gzh-git to fail but it succeeded: %v %v\nOutput: %s",
+		r.t.Fatalf("Expected gz-git to fail but it succeeded: %v %v\nOutput: %s",
 			r.binaryPath, args, output)
 	}
 	return string(output)

@@ -41,10 +41,10 @@ func TestBranchCreateCommand(t *testing.T) {
 	repo.SetupWithCommits()
 
 	t.Run("create new branch using git directly", func(t *testing.T) {
-		// Use git directly as the gzh-git branch create has ref resolution issues
+		// Use git directly as the gz-git branch create has ref resolution issues
 		repo.GitBranch("feature/new-feature")
 
-		// Verify branch exists via gzh-git
+		// Verify branch exists via gz-git
 		listOutput := repo.RunGzhGitSuccess("branch", "list", "--all")
 		AssertContains(t, listOutput, "feature/new-feature")
 	})
@@ -91,7 +91,7 @@ func TestBranchWorkflow(t *testing.T) {
 		repo.GitAdd("feature.go")
 		repo.GitCommit("Add feature")
 
-		// 4. List branches via gzh-git
+		// 4. List branches via gz-git
 		listOutput := repo.RunGzhGitSuccess("branch", "list", "--all")
 		AssertContains(t, listOutput, "feature/workflow-test")
 

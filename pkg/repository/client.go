@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 // client implements the Client interface.

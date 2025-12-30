@@ -23,7 +23,7 @@ func TestFeatureBranchWorkflow(t *testing.T) {
 			t.Error("Feature branch was not created")
 		}
 
-		// List branches via gzh-git
+		// List branches via gz-git
 		output := repo.RunGzhGit("branch", "list", "--all")
 		AssertContains(t, output, "feature/authentication")
 	})

@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gizzahub/gzh-cli-git/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-git/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // GitExecutor defines the interface for running git commands

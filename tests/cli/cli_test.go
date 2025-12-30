@@ -1,4 +1,4 @@
-// Package cli provides CLI binary integration tests for gzh-git.
+// Package cli provides CLI binary integration tests for gz-git.
 package cli
 
 import (
@@ -11,7 +11,7 @@ import (
 
 func getBinaryPath() string {
 	// Get the module root directory
-	return filepath.Join("..", "..", "gzh-git")
+	return filepath.Join("..", "..", "gz-git")
 }
 
 // TestCLIVersion tests the version command.
@@ -23,8 +23,8 @@ func TestCLIVersion(t *testing.T) {
 	}
 
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "gzh-git version") {
-		t.Errorf("Expected version output to contain 'gzh-git version', got: %s", outputStr)
+	if !strings.Contains(outputStr, "gz-git version") {
+		t.Errorf("Expected version output to contain 'gz-git version', got: %s", outputStr)
 	}
 }
 
@@ -38,7 +38,7 @@ func TestCLIHelp(t *testing.T) {
 
 	outputStr := string(output)
 	expectedStrings := []string{
-		"gzh-git",
+		"gz-git",
 		"status",
 		"info",
 		"clone",
