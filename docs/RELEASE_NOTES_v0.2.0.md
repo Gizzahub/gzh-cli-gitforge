@@ -285,6 +285,8 @@ ______________________________________________________________________
 
 ## Roadmap to v1.0.0
 
+**Note**: Roadmap status reflects current project state as of v0.3.0.
+
 ### Phase 6: Integration & Testing (Completed)
 
 - [x] Integration testing specification

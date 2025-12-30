@@ -1,4 +1,4 @@
-# Makefile - gzh-cli-git CLI Tool
+# Makefile - gzh-cli-gitforge CLI Tool
 # Modular Makefile structure with comprehensive functionality
 # Git Automation Library and CLI Tool
 
@@ -7,7 +7,7 @@
 # ==============================================================================
 
 # Project metadata
-projectname := gzh-cli-git
+projectname := gzh-cli-gitforge
 executablename := gz-git
 VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0-alpha")
 
@@ -47,7 +47,7 @@ include .make/docker.mk  # Docker operations
 help: ## show main help menu with categories
 	@echo -e "$(CYAN)"
 	@echo "╔══════════════════════════════════════════════════════════════════════════════╗"
-	@echo -e "║                        $(MAGENTA)gzh-cli-git Makefile Help$(CYAN)                      ║"
+	@echo -e "║                        $(MAGENTA)gzh-cli-gitforge Makefile Help$(CYAN)                      ║"
 	@echo -e "║                    $(YELLOW)Git Repository Management CLI Tool$(CYAN)                      ║"
 	@echo "╚══════════════════════════════════════════════════════════════════════════════╝"
 	@echo -e "$(RESET)"
