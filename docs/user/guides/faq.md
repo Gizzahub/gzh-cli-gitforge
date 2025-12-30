@@ -24,7 +24,7 @@ gzh-cli-gitforge doesn't replace Git—it enhances it:
 
 ### What features are currently available?
 
-**All Major Features Implemented (v0.2.0):**
+**All Major Features Implemented (v0.3.0):**
 
 ✅ **Repository Operations**
 
@@ -65,7 +65,7 @@ gzh-cli-gitforge doesn't replace Git—it enhances it:
 - Clean APIs with zero CLI dependencies
 - Context-aware operations
 
-> **Note**: Version v0.2.0 accurately reflects feature completeness. See [IMPLEMENTATION_STATUS](../../IMPLEMENTATION_STATUS.md) for historical context.
+> **Note**: Version v0.3.0 accurately reflects feature completeness. See [IMPLEMENTATION_STATUS](../../IMPLEMENTATION_STATUS.md) for historical context.
 
 ## Installation & Setup
 
@@ -177,7 +177,7 @@ For basic operations like `status` and `clone`, gz-git provides:
 - Better error messages
 - Library API for programmatic access
 
-Advanced features (coming soon) will add automation and intelligence not available in standard Git.
+Advanced features are available now, adding automation and intelligence not available in standard Git.
 
 ### Can I use gz-git alongside regular git?
 
@@ -228,7 +228,7 @@ See [Library Integration Guide](../LIBRARY.md) for more examples.
 
 ### Is the library API stable?
 
-Current status (v0.2.0):
+Current status (v0.3.0):
 
 - **All major APIs**: Implemented and functional
 - **Core packages**: repository, operations, commit, branch, history, merge
@@ -246,7 +246,7 @@ See [API Stability Policy](../API_STABILITY.md) for details.
 
 ### Can I use this in production?
 
-**Current version (v0.2.0)**: Use with caution
+**Current version (v0.3.0)**: Use with caution
 
 - ✅ All major features implemented and functional
 - ✅ Good test coverage (69.1%, 141 tests passing)

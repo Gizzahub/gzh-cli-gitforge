@@ -44,8 +44,8 @@
 
 ### Test Execution Summary
 
-- **Integration Tests**: 51 tests (all passing)
-- **E2E Tests**: 90 test runs (all passing)
+- **Integration Tests**: 51 passing
+- **E2E Tests**: 90 runs passing
 - **Benchmarks**: 11 benchmarks (all passing)
 - **Total Test Runtime**: ~24 seconds
 

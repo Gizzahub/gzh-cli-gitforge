@@ -38,7 +38,7 @@ gz-git --version
 **Expected Output**:
 
 ```
-gz-git version v0.1.0-alpha
+gz-git version v0.3.0
 ```
 
 **Troubleshooting**: If you see "command not found", add Go's bin directory to your PATH:
@@ -437,16 +437,16 @@ Now that you know the basics, explore:
 1. **Troubleshooting**: Visit [Troubleshooting Guide](../../TROUBLESHOOTING.md) for common issues
 1. **FAQ**: Read [FAQ](../guides/faq.md) for frequently asked questions
 
-### Planned Features
+### Try These Next
 
-These features are coming soon (not yet available):
+These features are available now:
 
-- 🚀 **Commit Automation** (v0.2.0) - Template-based commit messages
-- 🌿 **Branch Management** (v0.3.0) - Worktree and parallel development
-- 📊 **History Analysis** (v0.4.0) - Statistics and contributor insights
-- 🔀 **Advanced Merge** (v0.5.0) - Conflict detection and resolution
+- 🚀 **Commit Automation**: `gz-git commit auto`
+- 🌿 **Branch Management**: `gz-git branch list`
+- 📊 **History Analysis**: `gz-git history stats`
+- 🔀 **Advanced Merge**: `gz-git merge detect`
 
-See [Roadmap](../../README.md#roadmap) for detailed timeline.
+See [Project Status](../../README.md#project-status) for the current roadmap.
 
 ______________________________________________________________________
 

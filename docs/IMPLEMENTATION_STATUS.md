@@ -121,29 +121,27 @@
 
 ## Documentation Discrepancies
 
-### Critical Issues
+### Current Review Targets
 
 1. **README.md**:
 
-   - Lists commit/branch/history/merge as "Planned Features (Coming Soon)"
-   - Should list as "Currently Available"
-   - Roadmap shows phases 2-5 as incomplete
+   - Confirm Project Status aligns with v0.3.0
+   - Verify Phase 6 completion and Phase 7 pending
 
 1. **FAQ (docs/user/guides/faq.md)**:
 
-   - States "Current version doesn't support this yet" for implemented features
-   - Lists features as "planned for v0.2.0-v0.5.0"
+   - Ensure examples match current CLI behavior
+   - Verify version references and status language
 
 1. **First Steps Tutorial (docs/user/getting-started/first-steps.md)**:
 
-   - Only demonstrates basic clone/status/info
-   - Marks advanced features as "planned"
-   - Should include working examples of all features
+   - Check for updated examples beyond clone/status/info
+   - Confirm advanced feature examples are present
 
 1. **LLM Context (docs/llm/CONTEXT.md)**:
 
-   - Correctly marks features as "PLANNED"
-   - Needs update to reflect actual implementation
+   - Confirm feature status matches current implementation
+   - Update any outdated phase/feature references
 
 ## Recommended Actions
 

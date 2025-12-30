@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(No unreleased changes)
+### Documentation
+
+- Align status/version notes to v0.3.0 across README and docs
+- Refresh Phase 6/7 status references and test metrics
+- Update user guides and LLM context for current feature availability
 
 ## [0.3.0] - 2025-12-02
 

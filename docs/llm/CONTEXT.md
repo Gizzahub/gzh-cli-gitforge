@@ -2,7 +2,7 @@
 
 > **Purpose**: Provide LLM with essential project context for code assistance and development
 > **Last Updated**: 2025-12-01
-> **Version**: v0.2.0
+> **Version**: v0.3.0
 
 ## Project Identity
 
@@ -34,7 +34,7 @@
 
 ## Current Implementation Status
 
-### ✅ Fully Implemented (v0.2.0)
+### ✅ Fully Implemented (v0.3.0)
 
 **ALL major features are implemented and functional.**
 
@@ -83,9 +83,9 @@ All commands functional - status, info, clone, update, branch, commit, history, 
 
 **Testing**:
 
-- 141 tests passing
 - 69.1% code coverage
-- Comprehensive integration tests
+- Integration tests: 51 passing
+- E2E tests: 90 runs passing
 
 ## Project Structure
 
@@ -111,7 +111,7 @@ gzh-cli-gitforge/
 │   ├── main.go              # Entry point
 │   └── internal/cli/        # Cobra commands
 │
-├── test/                    # Integration & E2E tests
+├── tests/                   # Integration & E2E tests
 ├── examples/                # Library usage examples
 ├── docs/                    # Documentation
 └── specs/                   # Feature specifications
@@ -231,7 +231,7 @@ Git errors: `GitError{Op, Path, ExitCode, Output, Err}`
 - Unit: Mocked executor, fast
 - Integration: Real Git, `// +build integration`
 - E2E: CLI binary, `// +build e2e`
-- Coverage: 69.1%, 141 tests
+- Coverage: 69.1% (integration: 51, E2E: 90 runs)
 
 ## Build & Development
 
