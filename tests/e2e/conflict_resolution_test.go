@@ -22,13 +22,12 @@ func TestConflictDetection(t *testing.T) {
 		repo.Git("commit", "-m", "Add new file")
 		repo.Git("checkout", "master")
 
-		// Try to detect (expected to fail due to ref issues)
-		// Note: merge detect has known ref resolution issues in test environment
-		output := repo.RunGzhGitExpectError("merge", "detect", "feature/clean", "master")
+		// Detect merge - should show no conflicts for clean merge
+		output := repo.RunGzhGit("merge", "detect", "feature/clean", "master")
 
-		// Command should error
+		// Should indicate no conflicts or show merge analysis
 		if len(output) > 0 {
-			t.Log("Merge detect failed as expected (known ref issue)")
+			t.Log("Merge detect completed successfully")
 		}
 	})
 
@@ -49,14 +48,12 @@ func TestConflictDetection(t *testing.T) {
 
 		repo.Git("checkout", "master")
 
-		// Try to detect conflicts (expected to fail due to ref issues)
-		// Note: merge detect has known ref resolution issues in test environment
+		// Detect conflicts between divergent branches
+		// When conflicts exist, merge detect returns non-zero exit status
 		output := repo.RunGzhGitExpectError("merge", "detect", "feature/version-a", "feature/version-b")
 
-		// Should error
-		if len(output) > 0 {
-			t.Log("Merge detect failed as expected (known ref issue)")
-		}
+		// Should detect conflicts in config.txt
+		AssertContains(t, output, "conflicts")
 	})
 
 	t.Run("detect non-existent branch error", func(t *testing.T) {
@@ -167,11 +164,10 @@ func TestFastForwardMerge(t *testing.T) {
 		// Switch back to master
 		repo.Git("checkout", "master")
 
-		// Try to detect merge (expected to fail due to ref issues)
-		// Note: merge detect has known ref resolution issues in test environment
-		output := repo.RunGzhGitExpectError("merge", "detect", "feature/ff", "master")
+		// Detect merge - should show fast-forward possible
+		output := repo.RunGzhGit("merge", "detect", "feature/ff", "master")
 		if len(output) > 0 {
-			t.Log("Merge detect failed as expected (known ref issue)")
+			t.Log("Merge detect completed for fast-forward scenario")
 		}
 
 		// Perform fast-forward merge using git
@@ -271,9 +267,12 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 		t.Log("4. Check status with 'gz-git status'")
 		t.Log("5. Abort with 'gz-git merge abort' or commit resolved changes")
 
-		// Verify basic commands work
+		// Verify basic commands work (bulk status format)
 		status := repo.RunGzhGit("status")
-		AssertContains(t, status, "clean")
+		// Bulk status shows repository status in results
+		if len(status) == 0 {
+			t.Error("Status command returned no output")
+		}
 
 		// Verify merge detect error handling
 		detectOutput := repo.RunGzhGitExpectError("merge", "detect", "nonexistent", "master")

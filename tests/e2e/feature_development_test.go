@@ -80,11 +80,10 @@ func TestAuthenticate(t *testing.T) {
 		// Switch back to master
 		repo.Git("checkout", "master")
 
-		// Try to detect conflicts (may fail due to ref resolution)
-		// Note: merge detect has known ref resolution issues in test environment
-		detectOutput := repo.RunGzhGitExpectError("merge", "detect", "feature/authentication", "master")
+		// Detect potential conflicts before merge
+		detectOutput := repo.RunGzhGit("merge", "detect", "feature/authentication", "master")
 		if len(detectOutput) > 0 {
-			t.Log("Merge detect failed as expected (known ref issue)")
+			t.Log("Merge detect completed for feature branch")
 		}
 
 		// Perform merge using git directly

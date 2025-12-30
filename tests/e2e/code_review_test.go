@@ -284,13 +284,12 @@ func TestBranchComparisonForReview(t *testing.T) {
 	})
 
 	t.Run("detect potential merge conflicts", func(t *testing.T) {
-		// Try to detect conflicts (expected to fail due to ref issues)
-		// Note: merge detect has known ref resolution issues in test environment
-		output := repo.RunGzhGitExpectError("merge", "detect", "feature/review", "master")
+		// Detect potential merge conflicts before review
+		output := repo.RunGzhGit("merge", "detect", "feature/review", "master")
 
-		// Should error with branch not found
+		// Should complete successfully with merge analysis
 		if len(output) > 0 {
-			t.Log("Merge detect failed as expected (known ref issue)")
+			t.Log("Merge detect completed for branch review")
 		}
 	})
 
