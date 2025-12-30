@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-git/pkg/repository"
 )
 
@@ -227,6 +229,12 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 		return
 	}
 
+	// LLM output mode
+	if fetchFlags.Format == "llm" {
+		displayFetchResultsLLM(result)
+		return
+	}
+
 	fmt.Println()
 	fmt.Println("=== Bulk Fetch Results ===")
 	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
@@ -431,4 +439,37 @@ func displayFetchResultsJSON(result *repository.BulkFetchResult) {
 	if err := encoder.Encode(output); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
+}
+
+func displayFetchResultsLLM(result *repository.BulkFetchResult) {
+	output := FetchJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]FetchRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := FetchRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			CommitsBehind: repo.CommitsBehind,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }

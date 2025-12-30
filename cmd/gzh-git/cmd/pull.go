@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-git/pkg/repository"
 )
 
@@ -230,6 +232,12 @@ func displayPullResults(result *repository.BulkPullResult) {
 	// JSON output mode
 	if pullFlags.Format == "json" {
 		displayPullResultsJSON(result)
+		return
+	}
+
+	// LLM output mode
+	if pullFlags.Format == "llm" {
+		displayPullResultsLLM(result)
 		return
 	}
 
@@ -459,4 +467,38 @@ func displayPullResultsJSON(result *repository.BulkPullResult) {
 	if err := encoder.Encode(output); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
+}
+
+func displayPullResultsLLM(result *repository.BulkPullResult) {
+	output := PullJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]PullRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := PullRepositoryJSONOutput{
+			Path:          repo.RelativePath,
+			Branch:        repo.Branch,
+			Status:        repo.Status,
+			CommitsAhead:  repo.CommitsAhead,
+			CommitsBehind: repo.CommitsBehind,
+			Stashed:       repo.Stashed,
+			DurationMs:    repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }

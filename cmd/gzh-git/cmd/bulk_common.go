@@ -31,7 +31,7 @@ func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
 	cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
 	cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json")
+	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
 	cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
 	cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
 }
@@ -62,7 +62,7 @@ func validateBulkDepth(cmd *cobra.Command, depth int) error {
 }
 
 // ValidBulkFormats contains the list of valid output formats
-var ValidBulkFormats = []string{"default", "compact", "json"}
+var ValidBulkFormats = []string{"default", "compact", "json", "llm"}
 
 // validateBulkFormat validates the format flag
 // Returns an error if the format is not supported
@@ -72,7 +72,7 @@ func validateBulkFormat(format string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid format %q: must be one of: default, compact, json", format)
+	return fmt.Errorf("invalid format %q: must be one of: default, compact, json, llm", format)
 }
 
 // createBulkLogger creates a logger for bulk operations
