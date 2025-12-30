@@ -149,36 +149,24 @@
 
 ### Immediate (Priority 1)
 
-1. **Update README.md**:
+1. **Verify core docs reflect v0.3.0**:
 
-   - Move all implemented features from "Planned" to "Currently Available"
-   - Update roadmap to show phases 2-5 as completed
-   - Update version targets
+   - README/FAQ/First Steps align with current feature set
+   - Roadmap reflects Phase 6 completion and Phase 7 pending
+   - Version references updated to v0.3.0
 
-1. **Update FAQ**:
+1. **Audit CLI examples and flags**:
 
-   - Change "not yet implemented" to "available in v0.1.0-alpha"
-   - Update feature availability information
-   - Add usage examples for implemented features
-
-1. **Update First Steps Tutorial**:
-
-   - Add examples of commit auto, branch management
-   - Demonstrate history analysis
-   - Show merge/rebase workflows
+   - Ensure examples match current CLI behavior
+   - Align flag naming with latest release (e.g., `--depth`, `-j`, `-n`)
 
 ### Short-term (Priority 2)
 
-4. **Create Comprehensive Command Reference**:
+1. **Create Comprehensive Command Reference**:
 
    - Document all subcommands
    - Add usage examples
    - Include output samples
-
-1. **Update LLM Context**:
-
-   - Move features from "Planned" to "Implemented"
-   - Update implementation status sections
 
 1. **Add Feature Demonstration Examples**:
 
@@ -187,17 +175,17 @@
 
 ### Medium-term (Priority 3)
 
-7. **API Documentation**:
+1. **API Documentation**:
 
    - Generate GoDoc for all packages
    - Create API reference documentation
    - Add integration examples
 
-1. **Version Strategy**:
+1. **Release Readiness**:
 
-   - Consider releasing as v0.5.0 or v1.0.0-beta
-   - Current "v0.1.0-alpha" severely underrepresents maturity
-   - Establish proper versioning going forward
+   - Raise test coverage toward 90%+
+   - Perform security review
+   - Establish v1.0.0 release checklist
 
 ## Build & Test Verification
 
@@ -225,11 +213,10 @@ $ make test
 ## Next Steps
 
 1. Create implementation status document (this file) ✅
-1. Update README.md with correct feature status
-1. Update FAQ with implemented features
-1. Update tutorials with working examples
-1. Consider version number adjustment
-1. Plan proper v1.0.0 release
+1. Verify README/FAQ/tutorials align to v0.3.0
+1. Publish comprehensive command reference
+1. Expand `examples/` with working workflows
+1. Plan v1.0.0 readiness checklist
 
 ## Appendix: Command Inventory
 
