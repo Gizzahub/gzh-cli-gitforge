@@ -82,18 +82,18 @@ func runCommitValidate(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	if !quiet {
-		fmt.Printf("\n📋 Validating message:\n")
+		fmt.Printf("\nValidating message:\n")
 		fmt.Printf("  %s\n\n", message)
 	}
 
 	if result.Valid {
 		if !quiet {
-			fmt.Println("✅ Valid commit message")
+			fmt.Println("✓ Valid commit message")
 		}
 
 		// Show warnings if any
 		if result.Warnings != nil && len(result.Warnings) > 0 {
-			fmt.Println("\n⚠️  Warnings:")
+			fmt.Println("\n⚠ Warnings:")
 			for _, warning := range result.Warnings {
 				fmt.Printf("  - %s\n", warning.Message)
 				if warning.Suggestion != "" {
@@ -107,7 +107,7 @@ func runCommitValidate(cmd *cobra.Command, args []string) error {
 
 	// Invalid message
 	if !quiet {
-		fmt.Println("❌ Invalid commit message")
+		fmt.Println("✗ Invalid commit message")
 		fmt.Println("Errors:")
 	}
 

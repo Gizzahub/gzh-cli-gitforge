@@ -95,7 +95,7 @@ func runMergeRebase(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to abort rebase: %w", err)
 		}
 		if !quiet {
-			fmt.Println("✅ Rebase aborted successfully")
+			fmt.Println("✓ Rebase aborted successfully")
 		}
 		return nil
 	}
@@ -162,12 +162,12 @@ func displayRebaseResult(result *merge.RebaseResult) {
 
 	fmt.Println()
 	if result.Success {
-		fmt.Println("✅ Rebase successful!")
+		fmt.Println("✓ Rebase successful!")
 		if result.CommitsRebased > 0 {
 			fmt.Printf("   Commits rebased: %d\n", result.CommitsRebased)
 		}
 	} else {
-		fmt.Println("⚠️  Rebase stopped due to conflicts")
+		fmt.Println("⚠ Rebase stopped due to conflicts")
 		if result.ConflictsFound > 0 {
 			fmt.Printf("   Conflicts: %d\n", result.ConflictsFound)
 			fmt.Println()

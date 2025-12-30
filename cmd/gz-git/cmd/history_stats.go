@@ -50,7 +50,7 @@ func init() {
 
 	statsCmd.Flags().StringVar(&statsSince, "since", "", "start date (e.g., '2024-01-01', '1 month ago')")
 	statsCmd.Flags().StringVar(&statsUntil, "until", "", "end date (e.g., '2024-12-31', 'yesterday')")
-	statsCmd.Flags().StringVar(&statsBranch, "branch", "", "specific branch (default: current)")
+	statsCmd.Flags().StringVarP(&statsBranch, "branch", "b", "", "specific branch (default: current)")
 	statsCmd.Flags().StringVar(&statsAuthor, "author", "", "filter by author")
 	statsCmd.Flags().StringVarP(&statsFormat, "format", "f", "table", "output format (table|json|csv|markdown|llm)")
 }

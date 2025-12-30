@@ -33,8 +33,8 @@ By default:
   - Shows repositories with uncommitted changes, ahead/behind status
 
 The command is read-only and will not modify your repositories.`,
-	Example: `  # Check status of all repositories in current directory (1-depth scan)
-  gz-git status -d 1
+	Example: `  # Check status of all repositories in current directory (1-level scan)
+  gz-git status --scan-depth 1
 
   # Check status of all repositories up to 2 levels deep
   gz-git status -d 2 ~/projects
@@ -55,7 +55,7 @@ The command is read-only and will not modify your repositories.`,
   gz-git status --format compact ~/projects
 
   # Continuously check at intervals (watch mode)
-  gz-git status -d 2 --watch --interval 30s ~/projects`,
+  gz-git status --scan-depth 2 --watch --interval 30s ~/projects`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runStatus,
 }

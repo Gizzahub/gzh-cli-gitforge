@@ -97,7 +97,7 @@ func runBranchCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("✅ Branch '%s' created successfully\n", branchName)
+		fmt.Printf("✓ Branch '%s' created successfully\n", branchName)
 	}
 
 	// Create worktree if requested
@@ -125,7 +125,7 @@ func runBranchCreate(cmd *cobra.Command, args []string) error {
 		_ = wt // Worktree created successfully
 
 		if !quiet {
-			fmt.Printf("✅ Worktree created at '%s'\n", worktreePath)
+			fmt.Printf("✓ Worktree created at '%s'\n", worktreePath)
 		}
 	}
 

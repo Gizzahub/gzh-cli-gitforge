@@ -75,13 +75,13 @@ func runTemplateList(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("\n📋 Available Templates (%d):\n\n", len(templates))
+		fmt.Printf("\nAvailable Templates (%d):\n\n", len(templates))
 	}
 
 	for _, name := range templates {
 		tmpl, err := templateMgr.Load(ctx, name)
 		if err != nil {
-			fmt.Printf("  ❌ %s (failed to load)\n", name)
+			fmt.Printf("  ✗ %s (failed to load)\n", name)
 			continue
 		}
 
@@ -106,7 +106,7 @@ func runTemplateShow(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display template information
-	fmt.Printf("\n📋 Template: %s\n\n", tmpl.Name)
+	fmt.Printf("\nTemplate: %s\n\n", tmpl.Name)
 
 	if tmpl.Description != "" {
 		fmt.Printf("Description: %s\n\n", tmpl.Description)
@@ -168,7 +168,7 @@ func runTemplateValidate(cmd *cobra.Command, args []string) error {
 	tmpl, err := templateMgr.LoadCustom(ctx, templateFile)
 	if err != nil {
 		if !quiet {
-			fmt.Printf("\n❌ Template validation failed:\n")
+			fmt.Printf("\n✗ Template validation failed:\n")
 			fmt.Printf("  %s\n\n", err.Error())
 		}
 		os.Exit(1)
@@ -178,7 +178,7 @@ func runTemplateValidate(cmd *cobra.Command, args []string) error {
 	// Validate template structure
 	if err := templateMgr.Validate(ctx, tmpl); err != nil {
 		if !quiet {
-			fmt.Printf("\n❌ Template validation failed:\n")
+			fmt.Printf("\n✗ Template validation failed:\n")
 			fmt.Printf("  %s\n\n", err.Error())
 		}
 		os.Exit(1)
@@ -187,7 +187,7 @@ func runTemplateValidate(cmd *cobra.Command, args []string) error {
 
 	// Success
 	if !quiet {
-		fmt.Printf("\n✅ Template is valid!\n\n")
+		fmt.Printf("\n✓ Template is valid!\n\n")
 		fmt.Printf("Template: %s\n", tmpl.Name)
 		if tmpl.Description != "" {
 			fmt.Printf("Description: %s\n", tmpl.Description)

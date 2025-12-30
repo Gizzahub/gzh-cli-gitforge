@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // ForgeCommandOptions holds options for forge sync command
@@ -167,7 +167,6 @@ func (f CommandFactory) runForgeSync(cmd *cobra.Command, opts *ForgeCommandOptio
 		Progress:    progress,
 		State:       state,
 	})
-
 	if err != nil {
 		return fmt.Errorf("forge sync failed: %w", err)
 	}

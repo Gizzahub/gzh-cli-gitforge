@@ -138,7 +138,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Execute clone-or-update
 	result, err := client.CloneOrUpdate(ctx, opts)
 	if err != nil {
-		fmt.Printf("❌ Failed to clone or update repository: %s\n", opts.Destination)
+		fmt.Printf("✗ Failed to clone or update repository: %s\n", opts.Destination)
 		if updateOpts.batch {
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true

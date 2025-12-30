@@ -141,7 +141,7 @@ func runMergeDo(cmd *cobra.Command, args []string) error {
 	if !quiet {
 		fmt.Println()
 		if result.Success {
-			fmt.Println("✅ Merge successful!")
+			fmt.Println("✓ Merge successful!")
 			if result.Strategy == merge.StrategyFastForward {
 				fmt.Println("   Mode: Fast-forward")
 			} else {
@@ -151,7 +151,7 @@ func runMergeDo(cmd *cobra.Command, args []string) error {
 				fmt.Printf("   Commit: %s\n", result.CommitHash[:8])
 			}
 		} else {
-			fmt.Println("⚠️  Merge completed with conflicts")
+			fmt.Println("⚠ Merge completed with conflicts")
 			fmt.Printf("   Conflicts: %d files\n", len(result.Conflicts))
 			fmt.Println()
 			fmt.Println("Conflicting files:")

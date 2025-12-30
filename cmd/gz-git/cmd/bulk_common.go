@@ -25,13 +25,13 @@ type BulkCommandFlags struct {
 
 // addBulkFlags registers common bulk operation flags to a command
 func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
-	cmd.Flags().IntVarP(&flags.Depth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	cmd.Flags().IntVarP(&flags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
 	cmd.Flags().IntVarP(&flags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
 	cmd.Flags().BoolVarP(&flags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
 	cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
 	cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
+	cmd.Flags().StringVarP(&flags.Format, "format", "f", "default", "output format: default, compact, json, llm")
 	cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
 	cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
 }
@@ -52,11 +52,11 @@ func validateBulkDirectory(args []string) (string, error) {
 	return directory, nil
 }
 
-// validateBulkDepth validates the depth flag
+// validateBulkDepth validates the scan-depth flag
 // Returns an error if depth is explicitly set to 0
 func validateBulkDepth(cmd *cobra.Command, depth int) error {
-	if cmd.Flags().Changed("depth") && depth == 0 {
-		return fmt.Errorf("depth must be at least 1 (use --depth 1 to scan current directory and immediate subdirectories)")
+	if cmd.Flags().Changed("scan-depth") && depth == 0 {
+		return fmt.Errorf("scan-depth must be at least 1 (use --scan-depth 1 to scan current directory and immediate subdirectories)")
 	}
 	return nil
 }
@@ -97,4 +97,42 @@ func createProgressCallback(operationName string, format string, quiet bool) fun
 // shouldShowProgress returns true if progress messages should be displayed
 func shouldShowProgress(format string, quiet bool) bool {
 	return !quiet && format != "json"
+}
+
+// getPushStatusIconWithContext returns the appropriate icon based on status and actual changes.
+// Icons: ✓ (changes pushed), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
+func getPushStatusIconWithContext(status string, pushedCommits int) string {
+	switch status {
+	case "success", "pushed":
+		// Only show ✓ if actual changes were pushed
+		if pushedCommits > 0 {
+			return "✓"
+		}
+		return "=" // No changes = up-to-date
+	case "nothing-to-push", "up-to-date":
+		return "="
+	case "error":
+		return "✗"
+	case "conflict":
+		return "⚡"
+	case "rebase-in-progress":
+		return "↻"
+	case "merge-in-progress":
+		return "⇄"
+	case "skipped":
+		return "⊘"
+	case "would-push":
+		return "→"
+	case "no-remote":
+		return "⚠"
+	case "no-upstream":
+		return "⚠"
+	default:
+		return "•"
+	}
+}
+
+// getPushStatusIcon returns the icon for a status (deprecated: use getPushStatusIconWithContext).
+func getPushStatusIcon(status string) string {
+	return getPushStatusIconWithContext(status, 0)
 }

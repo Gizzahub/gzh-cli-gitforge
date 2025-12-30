@@ -21,7 +21,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "gz-git",
 	Short: "Advanced Git operations CLI",
-Long: `gz-git is a CLI tool that provides advanced Git operations including:
+	Long: `gz-git is a CLI tool that provides advanced Git operations including:
   - Commit automation with templates
   - Branch and worktree management
   - Git history analysis

@@ -96,7 +96,7 @@ func runBranchDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("✅ Branch '%s' deleted successfully\n", branchName)
+		fmt.Printf("✓ Branch '%s' deleted successfully\n", branchName)
 	}
 
 	return nil

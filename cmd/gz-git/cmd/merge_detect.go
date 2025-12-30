@@ -100,7 +100,7 @@ func runMergeDetect(cmd *cobra.Command, args []string) error {
 	if !quiet {
 		fmt.Println()
 		if report.TotalConflicts > 0 {
-			fmt.Printf("⚠️  Found %d potential conflicts:\n\n", report.TotalConflicts)
+			fmt.Printf("⚠ Found %d potential conflicts:\n\n", report.TotalConflicts)
 			for _, conflict := range report.Conflicts {
 				fmt.Printf("  %s: %s\n", conflict.ConflictType, conflict.FilePath)
 				if verbose && conflict.Description != "" {
@@ -111,14 +111,14 @@ func runMergeDetect(cmd *cobra.Command, args []string) error {
 			fmt.Printf("Difficulty: %s\n", report.Difficulty)
 			fmt.Printf("Auto-resolvable: %d/%d\n", report.CanAutoResolve, report.TotalConflicts)
 		} else {
-			fmt.Println("✅ No conflicts detected - merge should be clean!")
+			fmt.Println("✓ No conflicts detected - merge should be clean!")
 		}
 
 		// Check fast-forward
 		canFF, err := detector.CanFastForward(ctx, repo, source, target)
 		if err == nil && canFF {
 			fmt.Println()
-			fmt.Println("💡 Tip: This merge can be fast-forwarded")
+			fmt.Println("Tip: This merge can be fast-forwarded")
 		}
 	}
 

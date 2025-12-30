@@ -215,7 +215,6 @@ func TestCLIStatusQuietDirty(t *testing.T) {
 	// Run status command with --quiet flag
 	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir)
 	output, err := cmd.CombinedOutput()
-
 	// Quiet mode suppresses output but still returns 0 (command success)
 	// Similar to git status --porcelain which returns 0 regardless of dirty state
 	if err != nil {

@@ -58,7 +58,6 @@ func TestForgePlanner_Plan(t *testing.T) {
 		})
 
 		plan, err := planner.Plan(context.Background(), PlanRequest{})
-
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -81,7 +80,6 @@ func TestForgePlanner_Plan(t *testing.T) {
 		})
 
 		plan, err := planner.Plan(context.Background(), PlanRequest{})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -100,7 +98,7 @@ func TestForgePlanner_Plan(t *testing.T) {
 		// Create existing repo with .git directory
 		repoDir := filepath.Join(tmpDir, "existing-repo")
 		gitDir := filepath.Join(repoDir, ".git")
-		if err := os.MkdirAll(gitDir, 0755); err != nil {
+		if err := os.MkdirAll(gitDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -115,7 +113,6 @@ func TestForgePlanner_Plan(t *testing.T) {
 		})
 
 		plan, err := planner.Plan(context.Background(), PlanRequest{})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -141,7 +138,6 @@ func TestForgePlanner_Plan(t *testing.T) {
 		})
 
 		plan, err := planner.Plan(context.Background(), PlanRequest{})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -166,7 +162,6 @@ func TestForgePlanner_Plan(t *testing.T) {
 		})
 
 		plan, err := planner.Plan(context.Background(), PlanRequest{})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -372,13 +367,13 @@ func TestForgePlanner_planOrphanCleanup(t *testing.T) {
 
 		// Create expected repo
 		expectedRepo := filepath.Join(tmpDir, "expected-repo", ".git")
-		if err := os.MkdirAll(expectedRepo, 0755); err != nil {
+		if err := os.MkdirAll(expectedRepo, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create orphan repo
 		orphanRepo := filepath.Join(tmpDir, "orphan-repo", ".git")
-		if err := os.MkdirAll(orphanRepo, 0755); err != nil {
+		if err := os.MkdirAll(orphanRepo, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -404,7 +399,7 @@ func TestForgePlanner_planOrphanCleanup(t *testing.T) {
 
 		// Create regular directory (not a git repo)
 		regularDir := filepath.Join(tmpDir, "not-a-repo")
-		if err := os.MkdirAll(regularDir, 0755); err != nil {
+		if err := os.MkdirAll(regularDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -423,7 +418,7 @@ func TestForgePlanner_planOrphanCleanup(t *testing.T) {
 
 		// Create hidden directory with git
 		hiddenDir := filepath.Join(tmpDir, ".hidden-repo", ".git")
-		if err := os.MkdirAll(hiddenDir, 0755); err != nil {
+		if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 

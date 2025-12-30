@@ -127,7 +127,7 @@ func runBranchList(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("\n📋 Branches (%d):\n\n", len(filtered))
+		fmt.Printf("\nBranches (%d):\n\n", len(filtered))
 	}
 
 	for _, b := range filtered {

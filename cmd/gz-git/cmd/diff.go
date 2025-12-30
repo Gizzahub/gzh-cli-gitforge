@@ -45,7 +45,7 @@ This is useful for:
   - Providing context for LLM-based commit message generation
   - Bulk change auditing before commits`,
 	Example: `  # Show diffs for all repositories in current directory
-  gz-git diff -d 1
+  gz-git diff --scan-depth 1
 
   # Show diffs up to 2 levels deep
   gz-git diff -d 2 ~/projects
@@ -84,7 +84,7 @@ func init() {
 	addBulkFlags(diffCmd, &diffFlags)
 
 	// Diff-specific flags
-	diffCmd.Flags().BoolVarP(&diffStaged, "staged", "s", false, "show only staged changes (--cached)")
+	diffCmd.Flags().BoolVar(&diffStaged, "staged", false, "show only staged changes (--cached)")
 	diffCmd.Flags().BoolVar(&diffIncludeUntrack, "include-untracked", false, "include untracked files in output")
 	diffCmd.Flags().IntVarP(&diffContextLines, "context", "U", 3, "number of context lines around changes")
 	diffCmd.Flags().IntVar(&diffMaxSize, "max-size", 100, "max diff size per repository in KB")

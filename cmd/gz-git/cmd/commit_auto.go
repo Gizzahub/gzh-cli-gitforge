@@ -119,11 +119,11 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 
 	// Show generated message
 	if !quiet {
-		fmt.Printf("\n📝 Generated Commit Message:\n\n")
+		fmt.Printf("\nGenerated Commit Message:\n\n")
 		fmt.Printf("  %s\n\n", message)
 
 		if result.Warnings != nil && len(result.Warnings) > 0 {
-			fmt.Println("⚠️  Warnings:")
+			fmt.Println("⚠ Warnings:")
 			for _, warning := range result.Warnings {
 				fmt.Printf("  - %s\n", warning.Message)
 				if warning.Suggestion != "" {
@@ -136,7 +136,7 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 
 	// Check for validation errors
 	if !result.Valid {
-		fmt.Fprintln(os.Stderr, "\n❌ Validation failed:")
+		fmt.Fprintln(os.Stderr, "\n✗ Validation failed:")
 		for _, err := range result.Errors {
 			fmt.Fprintf(os.Stderr, "  - %s", err.Message)
 			if err.Line > 0 {
@@ -150,20 +150,20 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 	// Dry run mode
 	if autoDryRun {
 		if !quiet {
-			fmt.Println("✅ Dry run mode - no commit created")
+			fmt.Println("✓ Dry run mode - no commit created")
 		}
 		return nil
 	}
 
 	// Edit mode (future enhancement - for now just show warning)
 	if autoEdit {
-		fmt.Fprintln(os.Stderr, "⚠️  --edit flag not yet implemented")
+		fmt.Fprintln(os.Stderr, "⚠ --edit flag not yet implemented")
 		fmt.Fprintln(os.Stderr, "Using generated message as-is")
 	}
 
 	// Create commit using git command
 	if !quiet {
-		fmt.Println("\n🔨 Creating commit...")
+		fmt.Println("\nCreating commit...")
 	}
 
 	// Execute git commit directly using os/exec
@@ -176,7 +176,7 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Println("\n✅ Commit created successfully!")
+		fmt.Println("\n✓ Commit created successfully!")
 		fmt.Println(string(output))
 	}
 

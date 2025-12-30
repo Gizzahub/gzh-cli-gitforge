@@ -75,7 +75,7 @@ func runMergeAbort(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Println("✅ Merge aborted successfully")
+		fmt.Println("✓ Merge aborted successfully")
 		fmt.Println("   Working directory restored to pre-merge state")
 	}
 
