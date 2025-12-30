@@ -1,8 +1,8 @@
 # Project Status
 
 **Project**: gzh-cli-gitforge
-**Last Updated**: 2025-11-30
-**Current Phase**: Phase 6 (Integration & Testing) - COMPLETE!
+**Last Updated**: 2025-12-30
+**Current Phase**: Phase 7 (Release & Adoption) - PENDING
 
 ______________________________________________________________________
 
@@ -17,7 +17,7 @@ Phase 5: ████████████████████ 100% Compl
 Phase 6: ████████████████████ 100% Complete ✅
 Phase 7: ░░░░░░░░░░░░░░░░░░░░   0% Pending
 
-Overall: ███████████████████░  96% Complete
+Overall: █████████████████░░░  86% Complete
 ```
 
 ______________________________________________________________________
@@ -365,7 +365,7 @@ ______________________________________________________________________
 - [x] Integration Tests: 51 tests (100% passing)
 - [x] E2E Tests: 90 test runs (100% passing)
 - [x] Performance Benchmarks: 11 benchmarks (all targets met)
-- [x] Test Coverage: 69.1% overall with analysis
+- [x] Test Coverage: 37.8% overall unit coverage with analysis
 - [x] Documentation: Complete user and contributor guides
 
 **Completed Components**:
@@ -404,10 +404,10 @@ ______________________________________________________________________
 
 1. ✅ Coverage Analysis (`docs/COVERAGE.md`) - 276 lines
 
-   - Overall: 69.1% (3,333/4,823 statements)
-   - Excellent: internal/parser (95.7%), gitcmd (89.5%), pkg/history (87.7%)
-   - Path to 85%: 98 additional tests needed
-   - Quality score: B+
+   - Overall: 37.8% (unit coverage via make cover-report)
+   - Excellent: internal/parser (97.7%), gitcmd (93.6%), pkg/history (91.6%), pkg/ratelimit (90.5%), pkg/merge (86.8%)
+   - Path to 85%: Re-estimate pending; focus on pkg/reposync/repository/branch/commit and cmd/gz-git/cmd
+   - Quality score: C (unit coverage below target; integration/E2E strong)
 
 1. ✅ Documentation (`docs/`, `CONTRIBUTING.md`) - 2,990+ lines
 
@@ -421,7 +421,7 @@ ______________________________________________________________________
 - Integration tests: 51/51 passing (100%)
 - E2E tests: 90/90 runs passing (100%)
 - Benchmarks: 11/11 passing (100%)
-- Test coverage: 69.1% overall (target: 65% exceeded)
+- Test coverage: 37.8% overall (unit coverage; below 65% target)
 - Performance: 95% ops < 100ms (91%), 100% ops < 500ms (100%)
 - Documentation: 80+ code examples, 50+ troubleshooting items
 
@@ -431,7 +431,7 @@ ______________________________________________________________________
 - Minimal memory usage (< 1MB per operation)
 - Good scalability characteristics
 - Complete library/CLI separation
-- All quality gates passed
+- Quality gates: integration/E2E/benchmarks passed; unit coverage below target
 
 **Documentation**:
 
@@ -448,7 +448,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-### ⏳ Phase 7: gzh-cli Integration (Pending)
+### ⏳ Phase 7: Release & Adoption (Pending)
 
 **Status**: ⏳ Pending
 **Target**: Weeks 9-10
@@ -456,8 +456,6 @@ ______________________________________________________________________
 
 **Planned Deliverables**:
 
-- [ ] Library published (v0.1.0)
-- [ ] gzh-cli integration
 - [ ] v1.0.0 release
 - [ ] Alpha user adoption (3+ users)
 
@@ -469,41 +467,46 @@ ______________________________________________________________________
 
 ## Test Coverage
 
-### Current Coverage: 69.1% Overall (After Phase 6)
+### Current Coverage: 37.8% Overall (Unit Coverage)
 
 **Summary**:
 
-- Overall: 69.1% (3,333/4,823 statements)
+- Overall: 37.8% (unit coverage via make cover-report)
+- Last run: 2025-12-30 (make cover-report)
 - Integration Tests: 51 tests (100% passing)
 - E2E Tests: 90 test runs (100% passing)
 - Benchmarks: 11 benchmarks (100% passing)
 
-**Package Coverage** (Phase 6 Final):
+**Package Coverage** (Latest):
 
-| Package             | Coverage | Target | Status                          |
-| ------------------- | -------- | ------ | ------------------------------- |
-| **internal/gitcmd** | 89.5%    | 80%    | ✅ Exceeds                      |
-| **internal/parser** | 95.7%    | 80%    | ✅ Exceeds                      |
-| **pkg/history**     | 87.7%    | 85%    | ✅ Exceeds                      |
-| **pkg/merge**       | 82.9%    | 85%    | ⚠️ Near Target                  |
-| **pkg/commit**      | 66.3%    | 85%    | ⚠️ Below Target                 |
-| **pkg/branch**      | 48.1%    | 85%    | ⚠️ Below Target                 |
-| **pkg/repository**  | 39.2%    | 85%    | ⚠️ Below Target                 |
-| **cmd/gz-git**     | 0.0%     | 70%    | ⚠️ Covered by integration tests |
+| Package                      | Coverage | Target | Status                          |
+| ---------------------------- | -------- | ------ | ------------------------------- |
+| **internal/gitcmd**          | 93.6%    | 80%    | ✅ Exceeds                      |
+| **internal/parser**          | 97.7%    | 80%    | ✅ Exceeds                      |
+| **internal/testutil**        | 90.6%    | 80%    | ✅ Exceeds                      |
+| **internal/testutil/builders** | 68.6%  | 80%    | ⚠️ Below Target                 |
+| **pkg/history**              | 91.6%    | 85%    | ✅ Exceeds                      |
+| **pkg/merge**                | 86.8%    | 85%    | ✅ Exceeds                      |
+| **pkg/watch**                | 82.8%    | 85%    | ⚠️ Near Target                  |
+| **pkg/ratelimit**            | 90.5%    | 85%    | ✅ Exceeds                      |
+| **pkg/commit**               | 60.5%    | 85%    | ⚠️ Below Target                 |
+| **pkg/branch**               | 52.9%    | 85%    | ⚠️ Below Target                 |
+| **pkg/repository**           | 40.1%    | 85%    | ⚠️ Below Target                 |
+| **pkg/reposync**             | 32.3%    | 85%    | ⚠️ Below Target                 |
+| **cmd/gz-git/cmd**           | 7.6%     | 70%    | ⚠️ Below Target                 |
+| **cmd/gz-git**              | 0.0%     | 70%    | ⚠️ Covered by integration tests |
 
 **Quality Assessment**:
 
-- **Excellent Coverage** (≥85%): 3 packages (internal/parser, gitcmd, pkg/history)
-- **Good Coverage** (70-84%): 1 package (pkg/merge)
-- **Needs Improvement** (\<70%): 3 packages (commit, branch, repository)
+- **Excellent Coverage** (≥85%): internal/parser, internal/gitcmd, internal/testutil, pkg/history, pkg/merge, pkg/ratelimit
+- **Good Coverage** (70-84%): pkg/watch
+- **Needs Improvement** (\<70%): internal/testutil/builders, pkg/commit, pkg/branch, pkg/repository, pkg/reposync, cmd/gz-git/cmd, cmd/gz-git
 
 **Path to 85% Overall**:
 
-- Add ~40 tests to pkg/repository (+7% overall)
-- Add ~35 tests to pkg/branch (+5% overall)
-- Add ~15 tests to pkg/commit (+3% overall)
-- Add ~8 tests to pkg/merge (+1% overall)
-- **Total**: ~98 additional tests needed
+- Add targeted unit tests for pkg/reposync, pkg/repository, pkg/branch, pkg/commit
+- Decide whether to unit-test cmd/gz-git/cmd or keep it integration-only and adjust targets
+- Re-run `make cover-report` to track progress
 
 See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed analysis.
 
@@ -526,7 +529,8 @@ ______________________________________________________________________
 - E2E tests: 90 test runs (100% passing)
 - Performance benchmarks: 11 benchmarks (100% passing)
 - Total test runtime: ~24 seconds (integration + E2E + benchmarks)
-- Test coverage: 69.1% overall (exceeds 65% target)
+- Test coverage: 37.8% overall (unit coverage; below 65% target)
+- Verification: go test ./... (2025-12-30) ✅
 
 ### Performance (Phase 6 Benchmarks)
 
@@ -573,8 +577,8 @@ fed9ba7 - docs(phase-6): update progress to reflect benchmark completion
 ### Current Status
 
 - **Branch**: master
-- **Phase**: Phase 6 Complete ✅
-- **Next Phase**: Phase 7 (Library Publication & gzh-cli Integration)
+- **Phase**: Phase 7 Pending ⏳
+- **Next Phase**: Phase 7 (Release & Adoption)
 
 ______________________________________________________________________
 
@@ -582,11 +586,11 @@ ______________________________________________________________________
 
 ### Current Risks
 
-| Risk                                 | Severity | Mitigation                                             |
-| ------------------------------------ | -------- | ------------------------------------------------------ |
-| pkg/repository coverage below target | Medium   | Prioritize additional tests in Phase 2                 |
-| Clone function low coverage (17.9%)  | Low      | Requires complex integration testing; defer to Phase 6 |
-| No cmd/ package tests                | Medium   | Add during Phase 2 implementation                      |
+| Risk                                           | Severity | Mitigation                                             |
+| ---------------------------------------------- | -------- | ------------------------------------------------------ |
+| pkg/repository/branch/commit below target      | Medium   | Add targeted unit tests before Phase 7 release         |
+| cmd/gz-git unit coverage remains 0%            | Low      | Add focused unit tests or keep integration/CLI coverage |
+| Phase 7 scope creep                            | Medium   | Lock release checklist and scope boundaries            |
 
 ### Known Issues
 
@@ -598,38 +602,18 @@ ______________________________________________________________________
 
 ### Immediate (This Week)
 
-1. ✅ Complete Phase 1 documentation
-1. ✅ Write Phase 2 specification
-1. ✅ Complete Phase 2 implementation
-   - ✅ Template Manager (85.6% coverage)
-   - ✅ Message Validator (93.8% coverage)
-   - ✅ Smart Push (basic implementation)
-   - ✅ Auto-Commit Generator (64.9% coverage)
+1. Define Phase 7 scope and release checklist
+1. Add coverage backfill plan for pkg/repository/branch/commit
 
 ### Short Term (Next 2 Weeks)
 
-1. ✅ Complete Phase 2 (Commit Automation) - DONE!
-1. ✅ Complete Phase 3 (Branch Management) - DONE!
-1. ✅ Complete Phase 4 (History Analysis) - DONE!
-1. Write Phase 5 specification (Advanced Merge/Rebase)
-1. Begin Phase 5 implementation
-   - Conflict detection
-   - Merge strategies
-   - Interactive rebase support
+1. Close top coverage gaps in pkg/repository/branch/commit/merge
 
 ### Medium Term (Next 4-6 Weeks)
 
-1. Complete Phase 5 (Advanced Merge/Rebase)
-1. Comprehensive testing (Phase 6)
-1. Performance optimization
-1. Integration tests for all packages
-1. CLI command implementation
-
-### Long Term (Next 8-10 Weeks)
-
-1. gzh-cli integration (Phase 7)
-1. v1.0.0 release
-1. Alpha user adoption
+1. Stabilize APIs and docs for v1.0.0 release
+1. Prepare v1.0.0 release artifacts and notes
+1. Begin alpha user onboarding (3+ users)
 
 ______________________________________________________________________
 
@@ -664,5 +648,5 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Report Generated**: 2025-11-27
+**Report Generated**: 2025-12-30
 **Next Update**: Weekly or on phase completion
