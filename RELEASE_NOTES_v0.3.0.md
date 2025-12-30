@@ -218,20 +218,20 @@ Future enhancements under consideration:
 
 ```bash
 # Using Go
-go install github.com/gizzahub/gzh-cli-git/cmd/gzh-git@v0.3.0
+go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.3.0
 
 # From source
-git clone https://github.com/gizzahub/gzh-cli-git
-cd gzh-cli-git
+git clone https://github.com/gizzahub/gzh-cli-gitforge
+cd gzh-cli-gitforge
 git checkout v0.3.0
 make install
 ```
 
 ## 🔗 Links
 
-- **Repository:** https://github.com/gizzahub/gzh-cli-git
-- **Documentation:** https://pkg.go.dev/github.com/gizzahub/gzh-cli-git
-- **Issues:** https://github.com/gizzahub/gzh-cli-git/issues
+- **Repository:** https://github.com/gizzahub/gzh-cli-gitforge
+- **Documentation:** https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
+- **Issues:** https://github.com/gizzahub/gzh-cli-gitforge/issues
 - **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
 ## 🙏 Acknowledgments
@@ -249,4 +249,4 @@ Follows:
 
 ______________________________________________________________________
 
-**Full Changelog:** https://github.com/gizzahub/gzh-cli-git/compare/v0.2.0...v0.3.0
+**Full Changelog:** https://github.com/gizzahub/gzh-cli-gitforge/compare/v0.2.0...v0.3.0

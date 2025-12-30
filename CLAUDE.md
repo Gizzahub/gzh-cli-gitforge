@@ -7,7 +7,7 @@ ______________________________________________________________________
 ## Quick Start (30s scan)
 
 **Binary**: `gz-git`
-**Module**: `github.com/gizzahub/gzh-cli-git`
+**Module**: `github.com/gizzahub/gzh-cli-gitforge`
 **Go Version**: 1.23+
 **Architecture**: Safe Git operations CLI
 
@@ -57,7 +57,7 @@ ______________________________________________________________________
 
 ```
 .
-├── cmd/gzh-git/            # CLI commands
+├── cmd/gz-git/            # CLI commands
 │   ├── AGENTS.md           # Module guide (READ THIS!)
 │   └── *.go                # Subcommands
 ├── internal/               # Private packages
@@ -84,7 +84,7 @@ ______________________________________________________________________
 **CRITICAL**: Read before modifying:
 
 - `cmd/AGENTS_COMMON.md` - Project-wide conventions
-- `cmd/gzh-git/AGENTS.md` - CLI-specific rules
+- `cmd/gz-git/AGENTS.md` - CLI-specific rules
 - [Security Guide](docs/.claude-context/security-guide.md) - Security requirements
 
 ______________________________________________________________________
@@ -123,7 +123,7 @@ import (
 **Git-specific test helpers**:
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/internal/testutil"
+import "github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 
 repo := testutil.TempGitRepo(t)
 repoWithCommit := testutil.TempGitRepoWithCommit(t)
@@ -175,7 +175,7 @@ ______________________________________________________________________
 ## FAQ
 
 **Q: Where to add new git commands?**
-A: `cmd/gzh-git/` - create new command file
+A: `cmd/gz-git/` - create new command file
 
 **Q: Where to add git execution logic?**
 A: `internal/gitcmd/` - safe command execution

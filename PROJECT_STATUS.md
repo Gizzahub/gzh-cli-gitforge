@@ -1,6 +1,6 @@
 # Project Status
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Last Updated**: 2025-11-30
 **Current Phase**: Phase 6 (Integration & Testing) - COMPLETE!
 
@@ -370,7 +370,7 @@ ______________________________________________________________________
 
 **Completed Components**:
 
-1. ✅ CLI Commands (`cmd/gzh-git/cmd/`) - 7 command groups
+1. ✅ CLI Commands (`cmd/gz-git/cmd/`) - 7 command groups
 
    - Repository: status, clone, info (8 integration tests)
    - Commit: auto, validate, template (13 integration tests)
@@ -463,7 +463,7 @@ ______________________________________________________________________
 
 **Dependencies**:
 
-- Phase 6: ⏳ Pending
+- Phase 6: ✅ Complete
 
 ______________________________________________________________________
 
@@ -489,7 +489,7 @@ ______________________________________________________________________
 | **pkg/commit**      | 66.3%    | 85%    | ⚠️ Below Target                 |
 | **pkg/branch**      | 48.1%    | 85%    | ⚠️ Below Target                 |
 | **pkg/repository**  | 39.2%    | 85%    | ⚠️ Below Target                 |
-| **cmd/gzh-git**     | 0.0%     | 70%    | ⚠️ Covered by integration tests |
+| **cmd/gz-git**     | 0.0%     | 70%    | ⚠️ Covered by integration tests |
 
 **Quality Assessment**:
 
@@ -658,7 +658,7 @@ ______________________________________________________________________
 
 ### External Links
 
-- [GitHub Repository](https://github.com/Gizzahub/gzh-cli-git)
+- [GitHub Repository](https://github.com/gizzahub/gzh-cli-gitforge)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [Semantic Versioning](https://semver.org/)
 

@@ -1,6 +1,6 @@
 # Technical Requirements Document
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Version**: 1.0
 **Last Updated**: 2025-11-27
 **Status**: Draft

@@ -196,7 +196,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Smart filtering (`--files`, `--ignore` patterns)
   - Desktop notifications (macOS, Linux, Windows)
   - Webhook integration for team awareness
-  - Configuration file support (`.gzh-git/watch.yaml`)
+  - Configuration file support (`.gz-git/watch.yaml`)
 - v1.0.0 production release
 - Additional test coverage improvements
 
@@ -206,7 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Watch Command** - Real-time Repository Monitoring:
 
-- `gzh-git watch` command for continuous repository monitoring
+- `gz-git watch` command for continuous repository monitoring
   - Multiple output formats:
     - **Default**: Colored, detailed output with file lists (max 5 files shown)
     - **Compact**: Single-line event summaries (`[15:04:05] repo: modified [3]`)
@@ -619,7 +619,7 @@ internal/               # Internal implementation
 ├── gitcmd/             # Git command execution (89.5% coverage)
 └── parser/             # Output parsing (95.7% coverage)
 
-cmd/gzh-git/           # CLI application
+cmd/gz-git/           # CLI application
 └── cmd/                # CLI commands
 ```
 
@@ -711,10 +711,10 @@ ______________________________________________________________________
 
 ## Links
 
-- **Repository**: https://github.com/gizzahub/gzh-cli-git
-- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-git
-- **Issues**: https://github.com/gizzahub/gzh-cli-git/issues
-- **Discussions**: https://github.com/gizzahub/gzh-cli-git/discussions
+- **Repository**: https://github.com/gizzahub/gzh-cli-gitforge
+- **Documentation**: https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
+- **Issues**: https://github.com/gizzahub/gzh-cli-gitforge/issues
+- **Discussions**: https://github.com/gizzahub/gzh-cli-gitforge/discussions
 
 ______________________________________________________________________
 
@@ -726,7 +726,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-[0.1.0-alpha]: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.1.0-alpha
-[0.2.0]: https://github.com/gizzahub/gzh-cli-git/compare/v0.1.0-alpha...v0.2.0
-[0.3.0]: https://github.com/gizzahub/gzh-cli-git/releases/tag/v0.3.0
-[unreleased]: https://github.com/gizzahub/gzh-cli-git/compare/v0.3.0...HEAD
+[0.1.0-alpha]: https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.1.0-alpha
+[0.2.0]: https://github.com/gizzahub/gzh-cli-gitforge/compare/v0.1.0-alpha...v0.2.0
+[0.3.0]: https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.3.0
+[unreleased]: https://github.com/gizzahub/gzh-cli-gitforge/compare/v0.3.0...HEAD

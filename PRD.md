@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD)
 
-**Project**: gzh-cli-git
+**Project**: gzh-cli-gitforge
 **Version**: 1.0
 **Last Updated**: 2025-11-27
 **Status**: Draft
@@ -11,7 +11,7 @@ ______________________________________________________________________
 
 ### 1.1 Product Vision
 
-gzh-cli-git is a Git-specialized CLI tool and Go library that provides advanced Git automation capabilities. It serves dual purposes:
+gzh-cli-gitforge is a Git-specialized CLI tool and Go library that provides advanced Git automation capabilities. It serves dual purposes:
 
 1. **Standalone CLI Tool**: Independent command-line interface for developers seeking advanced Git workflows
 1. **Reusable Library**: Go package that can be imported into other projects, particularly as the Git engine for `gzh-cli`
@@ -36,7 +36,7 @@ gzh-cli-git is a Git-specialized CLI tool and Go library that provides advanced 
 
 ### 1.3 Solution
 
-gzh-cli-git addresses these issues through:
+gzh-cli-gitforge addresses these issues through:
 
 1. **Commit Automation**: Template-based commit messages with conventional commits support
 1. **Branch Management**: Simplified worktree and parallel workflow management
@@ -69,7 +69,7 @@ ______________________________________________________________________
 - **Profile**: Developer building internal tools or IDE plugins
 - **Goals**: Embed Git functionality into their applications
 - **Pain Points**: Existing libraries too heavy or tightly coupled to CLI
-- **Use Cases**: Import gzh-cli-git as library; customize Git workflows
+- **Use Cases**: Import gzh-cli-gitforge as library; customize Git workflows
 
 ### 2.2 User Segments
 
@@ -104,7 +104,7 @@ ______________________________________________________________________
 **G4: Library Adoption in gzh-cli**
 
 - Metric: Successful integration and migration
-- Target: 100% of gzh-cli Git operations using gzh-cli-git library
+- Target: 100% of gzh-cli Git operations using gzh-cli-gitforge library
 
 ### 3.2 Success Metrics (KPIs)
 
@@ -355,7 +355,7 @@ gz-git merge --auto-resolve feature/auth --strategy theirs --policy safe
 **US-10**: As a tool developer, I want to embed Git operations in my application so that users have a seamless experience.
 
 ```go
-import "github.com/gizzahub/gzh-cli-git/pkg/repository"
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 
 client := repository.NewClient(logger)
 repo, _ := client.Open(ctx, ".")
@@ -477,7 +477,7 @@ ______________________________________________________________________
 
 **gzh-cli Integration:**
 
-- gzh-cli imports `github.com/gizzahub/gzh-cli-git/pkg/`
+- gzh-cli imports `github.com/gizzahub/gzh-cli-gitforge/pkg/`
 - Adapter layer translates between interfaces
 - Shared configuration format (YAML)
 
