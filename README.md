@@ -22,7 +22,7 @@ ______________________________________________________________________
 - Clone repositories with advanced options (branch, depth, single-branch, recursive)
 - Check repository status (clean/dirty, modified/staged/untracked files)
 - Get repository information (branch, remote, upstream, ahead/behind counts)
-- Bulk operations (clone-or-update, bulk-fetch multiple repos in parallel)
+- Bulk operations (clone-or-update, fetch multiple repos in parallel)
 - **Bulk fetch** from multiple repositories by depth (1-depth, 2-depth scanning)
 - Flexible clone strategies (always-clone, update-if-exists, skip-if-exists)
 - **Real-time monitoring** (watch repositories for changes)

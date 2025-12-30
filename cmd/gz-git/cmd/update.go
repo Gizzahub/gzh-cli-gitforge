@@ -69,7 +69,7 @@ func init() {
 		"Strategy when repository exists: rebase, reset, clone, skip, pull, fetch")
 	updateCmd.Flags().StringVarP(&updateOpts.branch, "branch", "b", "",
 		"Specific branch to clone/checkout (default: repository default branch)")
-	updateCmd.Flags().IntVarP(&updateOpts.depth, "depth", "d", 0,
+	updateCmd.Flags().IntVar(&updateOpts.depth, "depth", 0,
 		"Create shallow clone with specified depth (0 for full history)")
 	updateCmd.Flags().BoolVarP(&updateOpts.force, "force", "f", false,
 		"Force operation even if it might be destructive")
