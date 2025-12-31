@@ -1,0 +1,167 @@
+# GoReleaser configuration for gzh-cli-gitforge
+# https://goreleaser.com/customization/
+
+version: 2
+
+project_name: gz-git
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: gz-git
+    binary: gz-git
+    main: ./cmd/gz-git
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: '{{ .CommitTimestamp }}'
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+      - CHANGELOG*
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Refactoring
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: gizzahub
+    name: gzh-cli-gitforge
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## gz-git {{.Version}}
+
+    Git repository management CLI tool.
+  footer: |
+    ---
+
+    ### Installation
+
+    **Homebrew (macOS/Linux)**:
+    ```bash
+    brew tap gizzahub/tap
+    brew install gz-git
+    ```
+
+    **Go install**:
+    ```bash
+    go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@{{.Tag}}
+    ```
+
+    **Binary download**: See assets below.
+
+# Homebrew Tap configuration
+brews:
+  - name: gz-git
+    ids:
+      - default
+    repository:
+      owner: gizzahub
+      name: homebrew-tap
+      # Personal Access Token with repo scope
+      # Set as HOMEBREW_TAP_TOKEN in GitHub Secrets
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+
+    # Git author for formula updates
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+
+    # Formula metadata
+    homepage: "https://github.com/gizzahub/gzh-cli-gitforge"
+    description: "Git repository management CLI tool with multi-forge support"
+    license: "MIT"
+
+    # Installation directory
+    install: |
+      bin.install "gz-git"
+
+    # Post-install test
+    test: |
+      system "#{bin}/gz-git", "--version"
+
+    # Optional: dependencies
+    # dependencies:
+    #   - name: git
+    #     type: optional
+
+    # Optional: caveats shown after installation
+    # caveats: |
+    #   To use gz-git as a git subcommand, create a symlink:
+    #     ln -sf $(brew --prefix)/bin/gz-git $(brew --prefix)/bin/git-gitforge
+    #
+    #   Then you can use: git gitforge <command>
+
+# Optional: Scoop for Windows users
+# scoops:
+#   - repository:
+#       owner: gizzahub
+#       name: scoop-bucket
+#     homepage: "https://github.com/gizzahub/gzh-cli-gitforge"
+#     description: "Git repository management CLI tool"
+#     license: MIT

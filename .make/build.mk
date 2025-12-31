@@ -38,7 +38,7 @@ endif
 # Build Targets
 # ==============================================================================
 
-.PHONY: build install run bootstrap clean release-dry-run release-snapshot release-check deploy
+.PHONY: build install install-git-plugin run bootstrap clean release-dry-run release-snapshot release-check deploy
 
 build: ## build golang binary
 	@printf "$(CYAN)Building %s...$(RESET)\n" "$(BINARY)"
@@ -60,6 +60,11 @@ install: build ## install golang binary
 	@"$(BINDIR)$(SEP)$(BINARY)" --version || echo -e "$(YELLOW)Note: Binary installed but --version flag not implemented$(RESET)"
 	@echo ""
 	@printf "$(GREEN)🎉 Installation complete! Run '$(BINARY) --help' to get started.$(RESET)\n"
+
+install-git-plugin: install ## install as git plugin (git forge)
+	@printf "$(CYAN)Installing git plugin symlink...$(RESET)\n"
+	@ln -sf "$(BINDIR)$(SEP)$(BINARY)" "$(BINDIR)$(SEP)git-forge"
+	@printf "$(GREEN)✅ Git plugin installed! Use 'git forge' to run.$(RESET)\n"
 
 run: ## run the application (usage: make run [args...] or ARGS="args" make run)
 	@echo -e "$(CYAN)Running application with version $(VERSION)...$(RESET)"
