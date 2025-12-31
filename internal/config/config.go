@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package config
 
 import (
@@ -8,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config represents the application configuration
+// Config represents the application configuration.
 type Config struct {
 	GitHub GitHubConfig `yaml:"github"`
 	GitLab GitLabConfig `yaml:"gitlab"`
@@ -16,25 +19,25 @@ type Config struct {
 	Sync   SyncConfig   `yaml:"sync"`
 }
 
-// GitHubConfig holds GitHub-specific configuration
+// GitHubConfig holds GitHub-specific configuration.
 type GitHubConfig struct {
 	Token   string `yaml:"token"`
 	BaseURL string `yaml:"base_url"` // For GitHub Enterprise
 }
 
-// GitLabConfig holds GitLab-specific configuration
+// GitLabConfig holds GitLab-specific configuration.
 type GitLabConfig struct {
 	Token   string `yaml:"token"`
 	BaseURL string `yaml:"base_url"`
 }
 
-// GiteaConfig holds Gitea-specific configuration
+// GiteaConfig holds Gitea-specific configuration.
 type GiteaConfig struct {
 	Token   string `yaml:"token"`
 	BaseURL string `yaml:"base_url"`
 }
 
-// SyncConfig holds sync operation defaults
+// SyncConfig holds sync operation defaults.
 type SyncConfig struct {
 	TargetPath      string `yaml:"target_path"`
 	Parallel        int    `yaml:"parallel"`
@@ -43,7 +46,7 @@ type SyncConfig struct {
 	IncludePrivate  bool   `yaml:"include_private"`
 }
 
-// DefaultConfig returns a config with default values
+// DefaultConfig returns a config with default values.
 func DefaultConfig() *Config {
 	return &Config{
 		Sync: SyncConfig{
@@ -56,7 +59,7 @@ func DefaultConfig() *Config {
 	}
 }
 
-// Load loads configuration from file
+// Load loads configuration from file.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -74,7 +77,7 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-// LoadDefault loads configuration from default locations
+// LoadDefault loads configuration from default locations.
 func LoadDefault() (*Config, error) {
 	// Try locations in order
 	locations := []string{

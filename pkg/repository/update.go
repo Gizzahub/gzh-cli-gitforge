@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -8,25 +11,25 @@ import (
 	"strings"
 )
 
-// UpdateStrategy defines how to handle existing repositories during clone-or-update operations
+// UpdateStrategy defines how to handle existing repositories during clone-or-update operations.
 type UpdateStrategy string
 
 const (
-	// StrategyRebase rebases local changes on top of remote changes
+	// StrategyRebase rebases local changes on top of remote changes.
 	StrategyRebase UpdateStrategy = "rebase"
-	// StrategyReset performs a hard reset to match remote state (discards local changes)
+	// StrategyReset performs a hard reset to match remote state (discards local changes).
 	StrategyReset UpdateStrategy = "reset"
-	// StrategyClone removes existing directory and performs fresh clone
+	// StrategyClone removes existing directory and performs fresh clone.
 	StrategyClone UpdateStrategy = "clone"
-	// StrategySkip leaves the existing repository unchanged
+	// StrategySkip leaves the existing repository unchanged.
 	StrategySkip UpdateStrategy = "skip"
-	// StrategyPull performs a standard git pull (merge remote changes)
+	// StrategyPull performs a standard git pull (merge remote changes).
 	StrategyPull UpdateStrategy = "pull"
-	// StrategyFetch only fetches remote changes without updating working directory
+	// StrategyFetch only fetches remote changes without updating working directory.
 	StrategyFetch UpdateStrategy = "fetch"
 )
 
-// CloneOrUpdateOptions configures the clone-or-update operation
+// CloneOrUpdateOptions configures the clone-or-update operation.
 type CloneOrUpdateOptions struct {
 	// URL is the repository URL to clone (required)
 	URL string
@@ -61,7 +64,7 @@ type CloneOrUpdateOptions struct {
 	Progress ProgressReporter
 }
 
-// CloneOrUpdateResult contains the result of a clone-or-update operation
+// CloneOrUpdateResult contains the result of a clone-or-update operation.
 type CloneOrUpdateResult struct {
 	// Repository is the opened repository (nil if skipped)
 	Repository *Repository
@@ -177,7 +180,7 @@ func (c *client) CloneOrUpdate(ctx context.Context, opts CloneOrUpdateOptions) (
 	}
 }
 
-// performCloneOperation executes a fresh clone
+// performCloneOperation executes a fresh clone.
 func (c *client) performCloneOperation(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	cloneOpts := CloneOptions{
 		URL:          opts.URL,
@@ -203,7 +206,7 @@ func (c *client) performCloneOperation(ctx context.Context, opts CloneOrUpdateOp
 	}, nil
 }
 
-// applyUpdateStrategy applies the specified update strategy to an existing repository
+// applyUpdateStrategy applies the specified update strategy to an existing repository.
 func (c *client) applyUpdateStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	switch opts.Strategy {
 	case StrategySkip:
@@ -245,7 +248,7 @@ func (c *client) applyUpdateStrategy(ctx context.Context, opts CloneOrUpdateOpti
 	}
 }
 
-// applyFetchStrategy fetches remote changes without updating working directory
+// applyFetchStrategy fetches remote changes without updating working directory.
 func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	args := []string{"fetch", "origin"}
 	if opts.Branch != "" {
@@ -257,7 +260,7 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch failed: %s", result.Error)
+		return nil, fmt.Errorf("fetch failed: %w", result.Error)
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -274,7 +277,7 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 	}, nil
 }
 
-// applyPullStrategy performs a standard git pull (merge)
+// applyPullStrategy performs a standard git pull (merge).
 func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	args := []string{"pull", "origin"}
 	if opts.Branch != "" {
@@ -286,7 +289,7 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 		return nil, fmt.Errorf("pull failed: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return nil, fmt.Errorf("pull failed: %s", result.Error)
+		return nil, fmt.Errorf("pull failed: %w", result.Error)
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -303,7 +306,7 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 	}, nil
 }
 
-// applyResetStrategy performs a hard reset to match remote state
+// applyResetStrategy performs a hard reset to match remote state.
 func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	// First fetch to get latest remote state
 	fetchResult, err := c.executor.Run(ctx, opts.Destination, "fetch", "origin")
@@ -311,7 +314,7 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		return nil, fmt.Errorf("fetch before reset failed: %w", err)
 	}
 	if fetchResult.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch before reset failed: %s", fetchResult.Error)
+		return nil, fmt.Errorf("fetch before reset failed: %w", fetchResult.Error)
 	}
 
 	// Determine reset target
@@ -326,7 +329,7 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		return nil, fmt.Errorf("reset failed: %w", err)
 	}
 	if resetResult.ExitCode != 0 {
-		return nil, fmt.Errorf("reset failed: %s", resetResult.Error)
+		return nil, fmt.Errorf("reset failed: %w", resetResult.Error)
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -343,7 +346,7 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 	}, nil
 }
 
-// applyRebaseStrategy rebases local changes on top of remote changes
+// applyRebaseStrategy rebases local changes on top of remote changes.
 func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
 	// Fetch latest changes
 	fetchResult, err := c.executor.Run(ctx, opts.Destination, "fetch", "origin")
@@ -351,7 +354,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("fetch before rebase failed: %w", err)
 	}
 	if fetchResult.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch before rebase failed: %s", fetchResult.Error)
+		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchResult.Error)
 	}
 
 	// Pull with rebase
@@ -365,7 +368,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("rebase failed: %w", err)
 	}
 	if rebaseResult.ExitCode != 0 {
-		return nil, fmt.Errorf("rebase failed: %s", rebaseResult.Error)
+		return nil, fmt.Errorf("rebase failed: %w", rebaseResult.Error)
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -382,7 +385,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 	}, nil
 }
 
-// checkTargetDirectory checks if target directory exists and is a git repository
+// checkTargetDirectory checks if target directory exists and is a git repository.
 func checkTargetDirectory(path string) (exists bool, isGitRepo bool, err error) {
 	// Check if directory exists
 	info, err := os.Stat(path)
@@ -409,7 +412,7 @@ func checkTargetDirectory(path string) (exists bool, isGitRepo bool, err error) 
 	return true, true, nil
 }
 
-// isValidUpdateStrategy validates if the strategy is supported
+// isValidUpdateStrategy validates if the strategy is supported.
 func isValidUpdateStrategy(strategy UpdateStrategy) bool {
 	switch strategy {
 	case StrategyRebase, StrategyReset, StrategyClone, StrategySkip, StrategyPull, StrategyFetch:
@@ -419,7 +422,7 @@ func isValidUpdateStrategy(strategy UpdateStrategy) bool {
 	}
 }
 
-// getValidStrategies returns a comma-separated list of valid strategies
+// getValidStrategies returns a comma-separated list of valid strategies.
 func getValidStrategies() string {
 	return "rebase, reset, clone, skip, pull, fetch"
 }

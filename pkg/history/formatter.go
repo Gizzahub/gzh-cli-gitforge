@@ -1,19 +1,6 @@
-// Package history provides Git repository history analysis and statistics.
-// This package includes commit statistics, contributor analysis, file history tracking,
-// and support for multiple output formats (table, JSON, CSV, markdown).
-//
-// Example usage:
-//
-//	// Analyze commit statistics
-//	analyzer := history.NewAnalyzer()
-//	stats, err := analyzer.GetCommitStats(ctx, repo, history.StatsOptions{
-//	    Since: time.Now().AddDate(0, -1, 0),
-//	})
-//
-//	// Get top contributors
-//	contributors, err := analyzer.GetContributors(ctx, repo, history.ContributorOptions{
-//	    TopN: 10,
-//	})
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package history
 
 import (
@@ -27,7 +14,7 @@ import (
 	"github.com/gizzahub/gzh-cli-core/cli"
 )
 
-// Formatter formats analysis results in various output formats
+// Formatter formats analysis results in various output formats.
 type Formatter interface {
 	FormatCommitStats(stats *CommitStats) ([]byte, error)
 	FormatContributors(contributors []*Contributor) ([]byte, error)
@@ -38,14 +25,14 @@ type formatter struct {
 	format OutputFormat
 }
 
-// NewFormatter creates a new formatter for the specified output format
+// NewFormatter creates a new formatter for the specified output format.
 func NewFormatter(format OutputFormat) Formatter {
 	return &formatter{
 		format: format,
 	}
 }
 
-// FormatCommitStats formats commit statistics
+// FormatCommitStats formats commit statistics.
 func (f *formatter) FormatCommitStats(stats *CommitStats) ([]byte, error) {
 	if stats == nil {
 		return nil, fmt.Errorf("stats cannot be nil")
@@ -67,7 +54,7 @@ func (f *formatter) FormatCommitStats(stats *CommitStats) ([]byte, error) {
 	}
 }
 
-// FormatContributors formats contributor list
+// FormatContributors formats contributor list.
 func (f *formatter) FormatContributors(contributors []*Contributor) ([]byte, error) {
 	if contributors == nil {
 		return nil, fmt.Errorf("contributors cannot be nil")
@@ -89,7 +76,7 @@ func (f *formatter) FormatContributors(contributors []*Contributor) ([]byte, err
 	}
 }
 
-// FormatFileHistory formats file commit history
+// FormatFileHistory formats file commit history.
 func (f *formatter) FormatFileHistory(history []*FileCommit) ([]byte, error) {
 	if history == nil {
 		return nil, fmt.Errorf("history cannot be nil")
@@ -351,7 +338,7 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// formatLLM formats data using gzh-cli-core's LLM formatter
+// formatLLM formats data using gzh-cli-core's LLM formatter.
 func (f *formatter) formatLLM(data interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")

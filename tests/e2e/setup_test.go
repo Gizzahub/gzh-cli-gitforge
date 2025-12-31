@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,7 +9,7 @@ import (
 	"testing"
 )
 
-// E2ERepo represents an E2E test repository
+// E2ERepo represents an E2E test repository.
 type E2ERepo struct {
 	t          *testing.T
 	rootDir    string // Original working directory
@@ -16,7 +17,7 @@ type E2ERepo struct {
 	binaryPath string
 }
 
-// NewE2ERepo creates a new E2E test repository
+// NewE2ERepo creates a new E2E test repository.
 func NewE2ERepo(t *testing.T) *E2ERepo {
 	t.Helper()
 
@@ -47,7 +48,7 @@ func NewE2ERepo(t *testing.T) *E2ERepo {
 	return repo
 }
 
-// findOrBuildBinary locates the gz-git binary or builds it if necessary
+// findOrBuildBinary locates the gz-git binary or builds it if necessary.
 func findOrBuildBinary(t *testing.T) string {
 	t.Helper()
 
@@ -70,7 +71,7 @@ func findOrBuildBinary(t *testing.T) string {
 	return abs
 }
 
-// runCommand runs a command in the specified directory
+// runCommand runs a command in the specified directory.
 func (r *E2ERepo) runCommand(dir string, name string, args ...string) string {
 	r.t.Helper()
 
@@ -84,7 +85,7 @@ func (r *E2ERepo) runCommand(dir string, name string, args ...string) string {
 	return string(output)
 }
 
-// RunGzhGit runs gz-git command and expects success
+// RunGzhGit runs gz-git command and expects success.
 func (r *E2ERepo) RunGzhGit(args ...string) string {
 	r.t.Helper()
 
@@ -98,7 +99,7 @@ func (r *E2ERepo) RunGzhGit(args ...string) string {
 	return string(output)
 }
 
-// RunGzhGitExpectError runs gz-git command and expects failure
+// RunGzhGitExpectError runs gz-git command and expects failure.
 func (r *E2ERepo) RunGzhGitExpectError(args ...string) string {
 	r.t.Helper()
 
@@ -112,13 +113,13 @@ func (r *E2ERepo) RunGzhGitExpectError(args ...string) string {
 	return string(output)
 }
 
-// Git runs a git command
+// Git runs a git command.
 func (r *E2ERepo) Git(args ...string) string {
 	r.t.Helper()
 	return r.runCommand(r.repoDir, "git", args...)
 }
 
-// WriteFile writes content to a file in the repository
+// WriteFile writes content to a file in the repository.
 func (r *E2ERepo) WriteFile(path, content string) {
 	r.t.Helper()
 
@@ -134,7 +135,7 @@ func (r *E2ERepo) WriteFile(path, content string) {
 	}
 }
 
-// ReadFile reads content from a file in the repository
+// ReadFile reads content from a file in the repository.
 func (r *E2ERepo) ReadFile(path string) string {
 	r.t.Helper()
 
@@ -146,7 +147,7 @@ func (r *E2ERepo) ReadFile(path string) string {
 	return string(content)
 }
 
-// FileExists checks if a file exists
+// FileExists checks if a file exists.
 func (r *E2ERepo) FileExists(path string) bool {
 	r.t.Helper()
 
@@ -155,7 +156,7 @@ func (r *E2ERepo) FileExists(path string) bool {
 	return err == nil
 }
 
-// CommitExists checks if a commit with given message exists
+// CommitExists checks if a commit with given message exists.
 func (r *E2ERepo) CommitExists(message string) bool {
 	r.t.Helper()
 
@@ -163,7 +164,7 @@ func (r *E2ERepo) CommitExists(message string) bool {
 	return strings.Contains(output, message)
 }
 
-// GetCurrentBranch returns the current branch name
+// GetCurrentBranch returns the current branch name.
 func (r *E2ERepo) GetCurrentBranch() string {
 	r.t.Helper()
 
@@ -171,7 +172,7 @@ func (r *E2ERepo) GetCurrentBranch() string {
 	return strings.TrimSpace(output)
 }
 
-// BranchExists checks if a branch exists
+// BranchExists checks if a branch exists.
 func (r *E2ERepo) BranchExists(name string) bool {
 	r.t.Helper()
 
@@ -179,7 +180,7 @@ func (r *E2ERepo) BranchExists(name string) bool {
 	return strings.Contains(output, name)
 }
 
-// AssertContains checks if output contains expected string
+// AssertContains checks if output contains expected string.
 func AssertContains(t *testing.T, output, expected string) {
 	t.Helper()
 
@@ -189,7 +190,7 @@ func AssertContains(t *testing.T, output, expected string) {
 	}
 }
 
-// AssertNotContains checks if output does not contain expected string
+// AssertNotContains checks if output does not contain expected string.
 func AssertNotContains(t *testing.T, output, expected string) {
 	t.Helper()
 
@@ -199,11 +200,12 @@ func AssertNotContains(t *testing.T, output, expected string) {
 	}
 }
 
-// AssertExitCode checks if command exited with expected code
+// AssertExitCode checks if command exited with expected code.
 func AssertExitCode(t *testing.T, err error, expectedCode int) {
 	t.Helper()
 
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	exitErr := &exec.ExitError{}
+	if errors.As(err, &exitErr) {
 		if exitErr.ExitCode() != expectedCode {
 			t.Errorf("Expected exit code %d, got %d", expectedCode, exitErr.ExitCode())
 		}

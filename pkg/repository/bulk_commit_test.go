@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// createDirtyRepo creates a git repo with uncommitted changes
+// createDirtyRepo creates a git repo with uncommitted changes.
 func createDirtyRepo(path string) error {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return err
@@ -493,7 +494,7 @@ func TestBulkCommitContextCancellation(t *testing.T) {
 		t.Skipf("Skipping test: git not available: %v", err)
 	}
 
-	// Create cancelled context
+	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -507,9 +508,9 @@ func TestBulkCommitContextCancellation(t *testing.T) {
 	}
 
 	_, err := client.BulkCommit(ctx, opts)
-	// Should handle cancelled context gracefully
-	if err != nil && err != context.Canceled {
-		t.Logf("BulkCommit with cancelled context returned: %v", err)
+	// Should handle canceled context gracefully
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Logf("BulkCommit with canceled context returned: %v", err)
 	}
 }
 

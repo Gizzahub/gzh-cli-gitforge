@@ -1,7 +1,6 @@
-// Package parser provides parsers for Git command output.
-// This package contains parsers for various Git commands including
-// status, diff, log, and other Git operations. All parsers are designed
-// to handle edge cases and provide structured output.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package parser
 
 import (
@@ -195,7 +194,7 @@ func ParseAheadBehind(output string) (ahead, behind int, err error) {
 }
 
 // ParseCommitInfo parses basic commit information from "git log" output.
-// Format: "HASH|AUTHOR|EMAIL|TIMESTAMP|SUBJECT"
+// Format: "HASH|AUTHOR|EMAIL|TIMESTAMP|SUBJECT".
 func ParseCommitInfo(line string) (hash, author, email, subject string, timestamp int64, err error) {
 	parts := strings.Split(line, "|")
 	if len(parts) < 5 {

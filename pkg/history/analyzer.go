@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package history
 
 import (
@@ -11,12 +14,12 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// GitExecutor defines the interface for executing git commands
+// GitExecutor defines the interface for executing git commands.
 type GitExecutor interface {
 	Run(ctx context.Context, repoPath string, args ...string) (*gitcmd.Result, error)
 }
 
-// HistoryAnalyzer analyzes commit history
+// HistoryAnalyzer analyzes commit history.
 type HistoryAnalyzer interface {
 	Analyze(ctx context.Context, repo *repository.Repository, opts AnalyzeOptions) (*CommitStats, error)
 	GetTrends(ctx context.Context, repo *repository.Repository, opts TrendOptions) (*CommitTrends, error)
@@ -26,14 +29,14 @@ type historyAnalyzer struct {
 	executor GitExecutor
 }
 
-// NewHistoryAnalyzer creates a new history analyzer
+// NewHistoryAnalyzer creates a new history analyzer.
 func NewHistoryAnalyzer(executor *gitcmd.Executor) HistoryAnalyzer {
 	return &historyAnalyzer{
 		executor: executor,
 	}
 }
 
-// Analyze analyzes commit history and returns statistics
+// Analyze analyzes commit history and returns statistics.
 func (h *historyAnalyzer) Analyze(ctx context.Context, repo *repository.Repository, opts AnalyzeOptions) (*CommitStats, error) {
 	// Validate options
 	if err := h.validateOptions(opts); err != nil {
@@ -78,7 +81,7 @@ func (h *historyAnalyzer) Analyze(ctx context.Context, repo *repository.Reposito
 	return stats, nil
 }
 
-// GetTrends analyzes commit trends over time
+// GetTrends analyzes commit trends over time.
 func (h *historyAnalyzer) GetTrends(ctx context.Context, repo *repository.Repository, opts TrendOptions) (*CommitTrends, error) {
 	// Build git log command
 	args := []string{"log", "--format=%ct"}

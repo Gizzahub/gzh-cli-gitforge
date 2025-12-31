@@ -1,4 +1,6 @@
-// Package repository provides Git repository operations.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 // Status constants for bulk operations.

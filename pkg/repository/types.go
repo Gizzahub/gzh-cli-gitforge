@@ -1,17 +1,20 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 // This file contains additional type definitions that support the repository package.
 // Types in this file are supplementary to the main interfaces defined in interfaces.go
 
-// Default values for bulk operations
+// Default values for bulk operations.
 const (
-	// DefaultBulkParallel is the default number of parallel workers
+	// DefaultBulkParallel is the default number of parallel workers.
 	DefaultBulkParallel = 5
 
 	// DefaultBulkMaxDepth is the default maximum directory depth to scan
 	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)
 	// maxDepth=2 means scan root + 2 levels (depth 0 -> depth 1 -> depth 2)
-	// Default is 1 to scan current directory and immediate subdirectories
+	// Default is 1 to scan current directory and immediate subdirectories.
 	DefaultBulkMaxDepth = 1
 )
 

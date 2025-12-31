@@ -1,8 +1,11 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package history
 
 import "time"
 
-// CommitStats represents commit statistics for a repository
+// CommitStats represents commit statistics for a repository.
 type CommitStats struct {
 	TotalCommits   int
 	FirstCommit    time.Time
@@ -19,7 +22,7 @@ type CommitStats struct {
 	TotalDeletions int
 }
 
-// CommitTrends represents commit trend data over time
+// CommitTrends represents commit trend data over time.
 type CommitTrends struct {
 	Daily   map[string]int // date (YYYY-MM-DD) -> count
 	Weekly  map[string]int // week (YYYY-WW) -> count
@@ -27,7 +30,7 @@ type CommitTrends struct {
 	Hourly  map[int]int    // hour (0-23) -> count
 }
 
-// AnalyzeOptions configures history analysis
+// AnalyzeOptions configures history analysis.
 type AnalyzeOptions struct {
 	Since      time.Time
 	Until      time.Time
@@ -36,14 +39,14 @@ type AnalyzeOptions struct {
 	MaxCommits int
 }
 
-// TrendOptions configures trend analysis
+// TrendOptions configures trend analysis.
 type TrendOptions struct {
 	Since  time.Time
 	Until  time.Time
 	Branch string
 }
 
-// Contributor represents a repository contributor
+// Contributor represents a repository contributor.
 type Contributor struct {
 	Name           string
 	Email          string
@@ -58,7 +61,7 @@ type Contributor struct {
 	Rank           int
 }
 
-// ContributorOptions configures contributor analysis
+// ContributorOptions configures contributor analysis.
 type ContributorOptions struct {
 	Since      time.Time
 	Until      time.Time
@@ -66,7 +69,7 @@ type ContributorOptions struct {
 	SortBy     ContributorSortBy
 }
 
-// ContributorSortBy defines sorting criteria for contributors
+// ContributorSortBy defines sorting criteria for contributors.
 type ContributorSortBy string
 
 const (
@@ -76,7 +79,7 @@ const (
 	SortByRecent       ContributorSortBy = "recent"
 )
 
-// FileCommit represents a commit affecting a specific file
+// FileCommit represents a commit affecting a specific file.
 type FileCommit struct {
 	Hash         string
 	Author       string
@@ -90,13 +93,13 @@ type FileCommit struct {
 	OldPath      string
 }
 
-// BlameInfo represents file blame information
+// BlameInfo represents file blame information.
 type BlameInfo struct {
 	FilePath string
 	Lines    []*BlameLine
 }
 
-// BlameLine represents blame information for a single line
+// BlameLine represents blame information for a single line.
 type BlameLine struct {
 	LineNumber  int
 	Content     string
@@ -106,7 +109,7 @@ type BlameLine struct {
 	Date        time.Time
 }
 
-// HistoryOptions configures file history retrieval
+// HistoryOptions configures file history retrieval.
 type HistoryOptions struct {
 	MaxCount int
 	Since    time.Time
@@ -115,7 +118,7 @@ type HistoryOptions struct {
 	Author   string
 }
 
-// OutputFormat defines the output format for analysis results
+// OutputFormat defines the output format for analysis results.
 type OutputFormat string
 
 const (

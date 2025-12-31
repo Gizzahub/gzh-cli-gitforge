@@ -1,5 +1,6 @@
-// Package parser provides functions for parsing Git command output.
-// This package converts raw Git CLI output into structured Go types.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package parser
 
 import (

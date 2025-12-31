@@ -541,7 +541,7 @@ func TestMergeManager_CheckCleanWorkingTree(t *testing.T) {
 
 			err := manager.checkCleanWorkingTree(context.Background(), repo)
 
-			if err != tt.wantError {
+			if !errors.Is(err, tt.wantError) {
 				t.Errorf("checkCleanWorkingTree() error = %v, want %v", err, tt.wantError)
 			}
 		})

@@ -7,7 +7,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// TestParseStatus tests the main status parsing function
+// TestParseStatus tests the main status parsing function.
 func TestParseStatus(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -266,7 +266,7 @@ D  deleted.txt`,
 	}
 }
 
-// TestParseBranchInfo tests branch name parsing
+// TestParseBranchInfo tests branch name parsing.
 func TestParseBranchInfo(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -305,7 +305,7 @@ func TestParseBranchInfo(t *testing.T) {
 	}
 }
 
-// TestParseRemoteInfo tests remote URL parsing
+// TestParseRemoteInfo tests remote URL parsing.
 func TestParseRemoteInfo(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -339,7 +339,7 @@ func TestParseRemoteInfo(t *testing.T) {
 	}
 }
 
-// TestParseUpstreamInfo tests upstream branch parsing
+// TestParseUpstreamInfo tests upstream branch parsing.
 func TestParseUpstreamInfo(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -378,7 +378,7 @@ func TestParseUpstreamInfo(t *testing.T) {
 	}
 }
 
-// TestParseAheadBehind tests ahead/behind count parsing
+// TestParseAheadBehind tests ahead/behind count parsing.
 func TestParseAheadBehind(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -461,7 +461,7 @@ func TestParseAheadBehind(t *testing.T) {
 	}
 }
 
-// TestParseCommitInfo tests commit info parsing
+// TestParseCommitInfo tests commit info parsing.
 func TestParseCommitInfo(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -544,7 +544,7 @@ func TestParseCommitInfo(t *testing.T) {
 	}
 }
 
-// TestParseFileList tests file list parsing
+// TestParseFileList tests file list parsing.
 func TestParseFileList(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -589,7 +589,7 @@ func TestParseFileList(t *testing.T) {
 	}
 }
 
-// TestParseIsClean tests clean status detection
+// TestParseIsClean tests clean status detection.
 func TestParseIsClean(t *testing.T) {
 	tests := []struct {
 		name   string

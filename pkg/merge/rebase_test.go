@@ -205,7 +205,7 @@ func TestRebaseManager_Continue(t *testing.T) {
 			result, err := manager.Continue(context.Background(), repo)
 
 			if tt.wantError != nil {
-				if err != tt.wantError {
+				if !errors.Is(err, tt.wantError) {
 					t.Errorf("Continue() error = %v, want %v", err, tt.wantError)
 				}
 				return
@@ -286,7 +286,7 @@ func TestRebaseManager_Skip(t *testing.T) {
 			result, err := manager.Skip(context.Background(), repo)
 
 			if tt.wantError != nil {
-				if err != tt.wantError {
+				if !errors.Is(err, tt.wantError) {
 					t.Errorf("Skip() error = %v, want %v", err, tt.wantError)
 				}
 				return

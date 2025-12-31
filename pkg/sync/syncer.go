@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package sync
 
 import (
@@ -11,17 +14,17 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
 )
 
-// Syncer handles repository synchronization operations
+// Syncer handles repository synchronization operations.
 type Syncer struct {
 	// gitClient could be gzh-cli-gitforge client in the future
 }
 
-// NewSyncer creates a new Syncer
+// NewSyncer creates a new Syncer.
 func NewSyncer() *Syncer {
 	return &Syncer{}
 }
 
-// SyncOrganization syncs all repositories from an organization
+// SyncOrganization syncs all repositories from an organization.
 func (s *Syncer) SyncOrganization(ctx context.Context, p provider.Provider, org string, opts provider.SyncOptions) ([]provider.SyncResult, error) {
 	repos, err := p.ListOrganizationRepos(ctx, org)
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestCheckRepositoryState tests the detailed repository state detection
+// TestCheckRepositoryState tests the detailed repository state detection.
 func TestCheckRepositoryState(t *testing.T) {
 	// Create temporary test directory
 	tmpDir := t.TempDir()
@@ -58,7 +58,11 @@ func TestCheckRepositoryState(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	c := NewClient().(*client)
+	repo := NewClient()
+	c, ok := repo.(*client)
+	if !ok {
+		t.Fatal("NewClient did not return *client")
+	}
 
 	t.Run("clean repository", func(t *testing.T) {
 		state, err := c.checkRepositoryState(ctx, repoPath)
@@ -147,7 +151,7 @@ func TestCheckRepositoryState(t *testing.T) {
 	})
 }
 
-// TestStatusConstants tests the new status constants
+// TestStatusConstants tests the new status constants.
 func TestStatusConstants(t *testing.T) {
 	tests := []struct {
 		status   string

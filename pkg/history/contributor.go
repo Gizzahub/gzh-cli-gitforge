@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package history
 
 import (
@@ -11,7 +14,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// ContributorAnalyzer analyzes contributor activity
+// ContributorAnalyzer analyzes contributor activity.
 type ContributorAnalyzer interface {
 	Analyze(ctx context.Context, repo *repository.Repository, opts ContributorOptions) ([]*Contributor, error)
 	GetTopContributors(ctx context.Context, repo *repository.Repository, limit int) ([]*Contributor, error)
@@ -21,14 +24,14 @@ type contributorAnalyzer struct {
 	executor GitExecutor
 }
 
-// NewContributorAnalyzer creates a new contributor analyzer
+// NewContributorAnalyzer creates a new contributor analyzer.
 func NewContributorAnalyzer(executor GitExecutor) ContributorAnalyzer {
 	return &contributorAnalyzer{
 		executor: executor,
 	}
 }
 
-// Analyze analyzes contributor activity and returns detailed statistics
+// Analyze analyzes contributor activity and returns detailed statistics.
 func (c *contributorAnalyzer) Analyze(ctx context.Context, repo *repository.Repository, opts ContributorOptions) ([]*Contributor, error) {
 	// Get basic contributor stats from shortlog
 	result, err := c.executor.Run(ctx, repo.Path, "shortlog", "-s", "-n", "-e", "--all")
@@ -68,7 +71,7 @@ func (c *contributorAnalyzer) Analyze(ctx context.Context, repo *repository.Repo
 	return contributors, nil
 }
 
-// GetTopContributors returns the top N contributors by commit count
+// GetTopContributors returns the top N contributors by commit count.
 func (c *contributorAnalyzer) GetTopContributors(ctx context.Context, repo *repository.Repository, limit int) ([]*Contributor, error) {
 	opts := ContributorOptions{
 		SortBy: SortByCommits,

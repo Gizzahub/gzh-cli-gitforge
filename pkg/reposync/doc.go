@@ -1,4 +1,4 @@
-// Package reposync provides the library-first orchestration engine for
-// multi-repository clone/sync operations. It is intentionally config-format
-// agnostic so callers can supply repository specs from any source.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package reposync

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package merge
 
 import (
@@ -9,7 +12,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// RebaseManager handles rebase operations
+// RebaseManager handles rebase operations.
 type RebaseManager interface {
 	// Rebase performs a rebase operation
 	Rebase(ctx context.Context, repo *repository.Repository, opts RebaseOptions) (*RebaseResult, error)
@@ -31,12 +34,12 @@ type rebaseManager struct {
 	executor GitExecutor
 }
 
-// NewRebaseManager creates a new rebase manager
+// NewRebaseManager creates a new rebase manager.
 func NewRebaseManager(executor GitExecutor) RebaseManager {
 	return &rebaseManager{executor: executor}
 }
 
-// Rebase performs a rebase operation
+// Rebase performs a rebase operation.
 func (r *rebaseManager) Rebase(ctx context.Context, repo *repository.Repository, opts RebaseOptions) (*RebaseResult, error) {
 	// Validate options
 	if opts.Branch == "" && opts.Onto == "" && opts.UpstreamName == "" {
@@ -75,7 +78,7 @@ func (r *rebaseManager) Rebase(ctx context.Context, repo *repository.Repository,
 	return r.parseRebaseResult(result)
 }
 
-// Continue continues an in-progress rebase
+// Continue continues an in-progress rebase.
 func (r *rebaseManager) Continue(ctx context.Context, repo *repository.Repository) (*RebaseResult, error) {
 	// Check if rebase is in progress
 	status, err := r.Status(ctx, repo)
@@ -100,7 +103,7 @@ func (r *rebaseManager) Continue(ctx context.Context, repo *repository.Repositor
 	return r.parseRebaseResult(result)
 }
 
-// Skip skips the current commit in rebase
+// Skip skips the current commit in rebase.
 func (r *rebaseManager) Skip(ctx context.Context, repo *repository.Repository) (*RebaseResult, error) {
 	// Check if rebase is in progress
 	status, err := r.Status(ctx, repo)
@@ -125,7 +128,7 @@ func (r *rebaseManager) Skip(ctx context.Context, repo *repository.Repository) (
 	return r.parseRebaseResult(result)
 }
 
-// Abort aborts an in-progress rebase
+// Abort aborts an in-progress rebase.
 func (r *rebaseManager) Abort(ctx context.Context, repo *repository.Repository) error {
 	// Check if rebase is in progress
 	status, err := r.Status(ctx, repo)
@@ -149,7 +152,7 @@ func (r *rebaseManager) Abort(ctx context.Context, repo *repository.Repository) 
 	return nil
 }
 
-// Status checks the status of an in-progress rebase
+// Status checks the status of an in-progress rebase.
 func (r *rebaseManager) Status(ctx context.Context, repo *repository.Repository) (RebaseStatus, error) {
 	// Check for rebase directory
 	result, err := r.executor.Run(ctx, repo.Path, "rev-parse", "--git-path", "rebase-merge")
@@ -168,7 +171,7 @@ func (r *rebaseManager) Status(ctx context.Context, repo *repository.Repository)
 	return RebaseComplete, nil
 }
 
-// checkCleanWorkingTree verifies no uncommitted changes exist
+// checkCleanWorkingTree verifies no uncommitted changes exist.
 func (r *rebaseManager) checkCleanWorkingTree(ctx context.Context, repo *repository.Repository) error {
 	result, err := r.executor.Run(ctx, repo.Path, "status", "--porcelain")
 	if err != nil {
@@ -182,7 +185,7 @@ func (r *rebaseManager) checkCleanWorkingTree(ctx context.Context, repo *reposit
 	return nil
 }
 
-// buildRebaseArgs constructs git rebase command arguments
+// buildRebaseArgs constructs git rebase command arguments.
 func (r *rebaseManager) buildRebaseArgs(opts RebaseOptions) []string {
 	args := []string{"rebase"}
 
@@ -216,7 +219,7 @@ func (r *rebaseManager) buildRebaseArgs(opts RebaseOptions) []string {
 	return args
 }
 
-// handleRebaseError handles rebase execution errors
+// handleRebaseError handles rebase execution errors.
 func (r *rebaseManager) handleRebaseError(ctx context.Context, repo *repository.Repository, err error) (*RebaseResult, error) {
 	return &RebaseResult{
 		Success: false,
@@ -225,7 +228,7 @@ func (r *rebaseManager) handleRebaseError(ctx context.Context, repo *repository.
 	}, err
 }
 
-// handleRebaseConflict handles rebase conflicts
+// handleRebaseConflict handles rebase conflicts.
 func (r *rebaseManager) handleRebaseConflict(ctx context.Context, repo *repository.Repository, result *gitcmd.Result) (*RebaseResult, error) {
 	// Count conflicts
 	conflictsFound := strings.Count(result.Stdout, "CONFLICT")
@@ -246,7 +249,7 @@ func (r *rebaseManager) handleRebaseConflict(ctx context.Context, repo *reposito
 	}, nil
 }
 
-// parseRebaseResult parses successful rebase output
+// parseRebaseResult parses successful rebase output.
 func (r *rebaseManager) parseRebaseResult(result *gitcmd.Result) (*RebaseResult, error) {
 	output := result.Stdout + result.Stderr
 

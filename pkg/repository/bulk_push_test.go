@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// initGitRepoWithCommit initializes a git repository with an initial commit
+// initGitRepoWithCommit initializes a git repository with an initial commit.
 func initGitRepoWithCommit(path string) error {
 	if err := initGitRepo(path); err != nil {
 		return err
@@ -245,7 +246,7 @@ func TestBulkPushContextCancellation(t *testing.T) {
 		t.Skipf("Skipping test: git not available: %v", err)
 	}
 
-	// Create cancelled context
+	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -259,10 +260,10 @@ func TestBulkPushContextCancellation(t *testing.T) {
 	}
 
 	_, err := client.BulkPush(ctx, opts)
-	// Should handle cancelled context gracefully
+	// Should handle canceled context gracefully
 	// The error may or may not be returned depending on timing
-	if err != nil && err != context.Canceled {
-		t.Logf("BulkPush with cancelled context returned: %v", err)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Logf("BulkPush with canceled context returned: %v", err)
 	}
 }
 

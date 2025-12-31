@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -381,8 +384,8 @@ func parseAheadBehind(output string) (ahead, behind int, err error) {
 	}
 
 	// Simple integer parsing (ignoring errors returns 0)
-	fmt.Sscanf(parts[0], "%d", &ahead)
-	fmt.Sscanf(parts[1], "%d", &behind)
+	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)
+	_, _ = fmt.Sscanf(parts[1], "%d", &behind)
 
 	return ahead, behind, nil
 }
@@ -403,7 +406,7 @@ func parseAheadBehind(output string) (ahead, behind int, err error) {
 // C = copied
 // U = updated but unmerged
 // ? = untracked
-// ! = ignored
+// ! = ignored.
 func parseStatus(output string) (*Status, error) {
 	status := &Status{
 		IsClean:        true,

@@ -1,6 +1,9 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package merge
 
-// ConflictReport contains detected conflicts from merge analysis
+// ConflictReport contains detected conflicts from merge analysis.
 type ConflictReport struct {
 	Source         string
 	Target         string
@@ -11,7 +14,7 @@ type ConflictReport struct {
 	Difficulty     MergeDifficulty
 }
 
-// Conflict represents a single merge conflict
+// Conflict represents a single merge conflict.
 type Conflict struct {
 	FilePath       string
 	ConflictType   ConflictType
@@ -22,7 +25,7 @@ type Conflict struct {
 	Description    string
 }
 
-// ConflictType defines the type of conflict
+// ConflictType defines the type of conflict.
 type ConflictType string
 
 const (
@@ -32,7 +35,7 @@ const (
 	ConflictBinary  ConflictType = "binary"  // Binary file conflicts
 )
 
-// ChangeType defines the type of change
+// ChangeType defines the type of change.
 type ChangeType string
 
 const (
@@ -43,7 +46,7 @@ const (
 	ChangeCopied   ChangeType = "copied"
 )
 
-// ConflictSeverity indicates conflict severity
+// ConflictSeverity indicates conflict severity.
 type ConflictSeverity string
 
 const (
@@ -52,7 +55,7 @@ const (
 	SeverityHigh   ConflictSeverity = "high"
 )
 
-// MergeDifficulty indicates merge complexity
+// MergeDifficulty indicates merge complexity.
 type MergeDifficulty string
 
 const (
@@ -62,7 +65,7 @@ const (
 	DifficultyHard    MergeDifficulty = "hard"    // Many conflicts
 )
 
-// DetectOptions configures conflict detection
+// DetectOptions configures conflict detection.
 type DetectOptions struct {
 	Source        string
 	Target        string
@@ -70,7 +73,7 @@ type DetectOptions struct {
 	IncludeBinary bool
 }
 
-// MergePreview shows what will happen during merge
+// MergePreview shows what will happen during merge.
 type MergePreview struct {
 	Source         string
 	Target         string
@@ -82,7 +85,7 @@ type MergePreview struct {
 	Difficulty     MergeDifficulty
 }
 
-// MergeStrategy defines merge approach
+// MergeStrategy defines merge approach.
 type MergeStrategy string
 
 const (
@@ -93,7 +96,7 @@ const (
 	StrategyOctopus     MergeStrategy = "octopus"
 )
 
-// MergeOptions configures merge operation
+// MergeOptions configures merge operation.
 type MergeOptions struct {
 	Source           string
 	Target           string
@@ -104,7 +107,7 @@ type MergeOptions struct {
 	Squash           bool
 }
 
-// MergeResult contains merge outcome
+// MergeResult contains merge outcome.
 type MergeResult struct {
 	Success      bool
 	Strategy     MergeStrategy
@@ -116,7 +119,7 @@ type MergeResult struct {
 	Message      string
 }
 
-// RebaseOptions configures rebase operation
+// RebaseOptions configures rebase operation.
 type RebaseOptions struct {
 	Branch         string
 	Onto           string
@@ -126,7 +129,7 @@ type RebaseOptions struct {
 	UpstreamName   string
 }
 
-// RebaseResult contains rebase outcome
+// RebaseResult contains rebase outcome.
 type RebaseResult struct {
 	Success        bool
 	CommitsRebased int
@@ -136,7 +139,7 @@ type RebaseResult struct {
 	Message        string
 }
 
-// RebaseStatus indicates rebase state
+// RebaseStatus indicates rebase state.
 type RebaseStatus string
 
 const (
@@ -146,7 +149,7 @@ const (
 	RebaseAborted    RebaseStatus = "aborted"
 )
 
-// RebaseAction defines interactive rebase action
+// RebaseAction defines interactive rebase action.
 type RebaseAction string
 
 const (
@@ -158,7 +161,7 @@ const (
 	ActionDrop   RebaseAction = "drop"
 )
 
-// ResolutionResult contains resolution outcome
+// ResolutionResult contains resolution outcome.
 type ResolutionResult struct {
 	TotalConflicts int
 	Resolved       int
@@ -166,7 +169,7 @@ type ResolutionResult struct {
 	Resolutions    []*Resolution
 }
 
-// Resolution represents a single conflict resolution
+// Resolution represents a single conflict resolution.
 type Resolution struct {
 	FilePath     string
 	ConflictType ConflictType
@@ -175,7 +178,7 @@ type Resolution struct {
 	Error        error
 }
 
-// ResolutionStrategy defines how to resolve
+// ResolutionStrategy defines how to resolve.
 type ResolutionStrategy string
 
 const (
@@ -186,7 +189,7 @@ const (
 	StrategyNormalize  ResolutionStrategy = "normalize"
 )
 
-// FileChange represents a change to a file
+// FileChange represents a change to a file.
 type FileChange struct {
 	Path       string
 	ChangeType ChangeType

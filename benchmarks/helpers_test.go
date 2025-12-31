@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// setupGitRepo initializes a git repository
+// setupGitRepo initializes a git repository.
 func setupGitRepo(b *testing.B, path string) {
 	b.Helper()
 
@@ -21,7 +21,7 @@ func setupGitRepo(b *testing.B, path string) {
 	runCmd(b, path, "git", "config", "user.email", "benchmark@example.com")
 }
 
-// setupGitRepoWithCommit creates a git repo with initial commit
+// setupGitRepoWithCommit creates a git repo with initial commit.
 func setupGitRepoWithCommit(b *testing.B, path string) {
 	b.Helper()
 
@@ -33,7 +33,7 @@ func setupGitRepoWithCommit(b *testing.B, path string) {
 	runCmd(b, path, "git", "commit", "-m", "Initial commit")
 }
 
-// setupLargeRepo creates a repository with many commits
+// setupLargeRepo creates a repository with many commits.
 func setupLargeRepo(b *testing.B, path string, commits int) {
 	b.Helper()
 
@@ -47,7 +47,7 @@ func setupLargeRepo(b *testing.B, path string, commits int) {
 	}
 }
 
-// setupRepoWithManyFiles creates a repository with many files
+// setupRepoWithManyFiles creates a repository with many files.
 func setupRepoWithManyFiles(b *testing.B, path string, fileCount int) {
 	b.Helper()
 
@@ -63,7 +63,7 @@ func setupRepoWithManyFiles(b *testing.B, path string, fileCount int) {
 	runCmd(b, path, "git", "commit", "-m", "Add many files")
 }
 
-// runCmd executes a command in the specified directory
+// runCmd executes a command in the specified directory.
 func runCmd(b *testing.B, dir string, name string, args ...string) {
 	b.Helper()
 
@@ -75,7 +75,7 @@ func runCmd(b *testing.B, dir string, name string, args ...string) {
 	}
 }
 
-// writeFile writes content to a file
+// writeFile writes content to a file.
 func writeFile(b *testing.B, path, content string) {
 	b.Helper()
 

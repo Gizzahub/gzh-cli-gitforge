@@ -1,4 +1,6 @@
-// Package gzhcligitforge provides version information for gzh-cli-gitforge library and CLI tool.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package gzhcligitforge
 
 import (
@@ -14,7 +16,7 @@ import (
 //	go build -ldflags "-X github.com/gizzahub/gzh-cli-gitforge.GitCommit=$(git rev-parse HEAD)"
 var (
 	// Version is the current library version following semantic versioning.
-	// Format: vMAJOR.MINOR.PATCH[-PRERELEASE]
+	// Format: vMAJOR.MINOR.PATCH[-PRERELEASE].
 	Version = "0.3.0"
 
 	// GitCommit is the git commit SHA of the build.

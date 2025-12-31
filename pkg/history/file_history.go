@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package history
 
 import (
@@ -10,7 +13,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// FileHistoryTracker tracks file evolution and changes
+// FileHistoryTracker tracks file evolution and changes.
 type FileHistoryTracker interface {
 	GetHistory(ctx context.Context, repo *repository.Repository, path string, opts HistoryOptions) ([]*FileCommit, error)
 	GetBlame(ctx context.Context, repo *repository.Repository, path string) (*BlameInfo, error)
@@ -20,14 +23,14 @@ type fileHistoryTracker struct {
 	executor GitExecutor
 }
 
-// NewFileHistoryTracker creates a new file history tracker
+// NewFileHistoryTracker creates a new file history tracker.
 func NewFileHistoryTracker(executor GitExecutor) FileHistoryTracker {
 	return &fileHistoryTracker{
 		executor: executor,
 	}
 }
 
-// GetHistory retrieves the commit history for a specific file
+// GetHistory retrieves the commit history for a specific file.
 func (f *fileHistoryTracker) GetHistory(ctx context.Context, repo *repository.Repository, path string, opts HistoryOptions) ([]*FileCommit, error) {
 	if path == "" {
 		return nil, ErrFileNotFound
@@ -77,7 +80,7 @@ func (f *fileHistoryTracker) GetHistory(ctx context.Context, repo *repository.Re
 	return commits, nil
 }
 
-// GetBlame retrieves line-by-line authorship information for a file
+// GetBlame retrieves line-by-line authorship information for a file.
 func (f *fileHistoryTracker) GetBlame(ctx context.Context, repo *repository.Repository, path string) (*BlameInfo, error) {
 	if path == "" {
 		return nil, ErrFileNotFound

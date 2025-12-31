@@ -310,7 +310,7 @@ func TestManager_Exists_EmptyName(t *testing.T) {
 	}
 }
 
-// Helper function to check if error wraps a specific error
+// Helper function to check if error wraps a specific error.
 func isError(err, target error) bool {
 	if err == nil {
 		return target == nil

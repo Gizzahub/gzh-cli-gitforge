@@ -1,19 +1,6 @@
-// Package merge provides advanced merge and rebase operations.
-// This package includes conflict detection, merge strategy management,
-// automatic conflict resolution, and rebase operations with safety checks.
-//
-// Example usage:
-//
-//	// Detect conflicts before merging
-//	detector := merge.NewConflictDetector()
-//	report, err := detector.Detect(ctx, repo, "feature-branch")
-//
-//	// Execute merge with strategy
-//	mgr := merge.NewMergeManager()
-//	result, err := mgr.Merge(ctx, repo, merge.MergeOptions{
-//	    Branch:   "feature-branch",
-//	    Strategy: merge.StrategyOurs,
-//	})
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package merge
 
 import (
@@ -25,12 +12,12 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// GitExecutor defines the interface for running git commands
+// GitExecutor defines the interface for running git commands.
 type GitExecutor interface {
 	Run(ctx context.Context, repoPath string, args ...string) (*gitcmd.Result, error)
 }
 
-// ConflictDetector analyzes potential merge conflicts
+// ConflictDetector analyzes potential merge conflicts.
 type ConflictDetector interface {
 	// Detect analyzes potential conflicts between source and target
 	Detect(ctx context.Context, repo *repository.Repository, opts DetectOptions) (*ConflictReport, error)
@@ -46,12 +33,12 @@ type conflictDetector struct {
 	executor GitExecutor
 }
 
-// NewConflictDetector creates a new conflict detector
+// NewConflictDetector creates a new conflict detector.
 func NewConflictDetector(executor GitExecutor) ConflictDetector {
 	return &conflictDetector{executor: executor}
 }
 
-// Detect analyzes potential conflicts between source and target
+// Detect analyzes potential conflicts between source and target.
 func (d *conflictDetector) Detect(ctx context.Context, repo *repository.Repository, opts DetectOptions) (*ConflictReport, error) {
 	// Validate branches
 	if err := d.validateBranch(ctx, repo, opts.Source); err != nil {
@@ -102,7 +89,7 @@ func (d *conflictDetector) Detect(ctx context.Context, repo *repository.Reposito
 	}, nil
 }
 
-// Preview shows what will happen during merge
+// Preview shows what will happen during merge.
 func (d *conflictDetector) Preview(ctx context.Context, repo *repository.Repository, source, target string) (*MergePreview, error) {
 	// Check if fast-forward is possible
 	canFF, err := d.CanFastForward(ctx, repo, source, target)
@@ -154,7 +141,7 @@ func (d *conflictDetector) Preview(ctx context.Context, repo *repository.Reposit
 	}, nil
 }
 
-// CanFastForward checks if fast-forward merge is possible
+// CanFastForward checks if fast-forward merge is possible.
 func (d *conflictDetector) CanFastForward(ctx context.Context, repo *repository.Repository, source, target string) (bool, error) {
 	// Check if target is ancestor of source
 	result, err := d.executor.Run(ctx, repo.Path, "merge-base", "--is-ancestor", target, source)
@@ -165,7 +152,7 @@ func (d *conflictDetector) CanFastForward(ctx context.Context, repo *repository.
 	return result.ExitCode == 0, nil
 }
 
-// validateBranch checks if a branch reference exists
+// validateBranch checks if a branch reference exists.
 func (d *conflictDetector) validateBranch(ctx context.Context, repo *repository.Repository, ref string) error {
 	if ref == "" {
 		return ErrInvalidBranch
@@ -179,11 +166,11 @@ func (d *conflictDetector) validateBranch(ctx context.Context, repo *repository.
 	return nil
 }
 
-// findMergeBase finds the common ancestor of two branches
+// findMergeBase finds the common ancestor of two branches.
 func (d *conflictDetector) findMergeBase(ctx context.Context, repo *repository.Repository, source, target string) (string, error) {
 	result, err := d.executor.Run(ctx, repo.Path, "merge-base", source, target)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrNoMergeBase, err)
+		return "", fmt.Errorf("%w: %w", ErrNoMergeBase, err)
 	}
 
 	if result.ExitCode != 0 {
@@ -193,7 +180,7 @@ func (d *conflictDetector) findMergeBase(ctx context.Context, repo *repository.R
 	return strings.TrimSpace(result.Stdout), nil
 }
 
-// getChangedFiles gets list of changed files between two commits
+// getChangedFiles gets list of changed files between two commits.
 func (d *conflictDetector) getChangedFiles(ctx context.Context, repo *repository.Repository, base, head string) ([]*FileChange, error) {
 	result, err := d.executor.Run(ctx, repo.Path, "diff", "--name-status", base+".."+head)
 	if err != nil {
@@ -233,7 +220,7 @@ func (d *conflictDetector) getChangedFiles(ctx context.Context, repo *repository
 	return changes, nil
 }
 
-// detectConflicts finds conflicts between two sets of changes
+// detectConflicts finds conflicts between two sets of changes.
 func (d *conflictDetector) detectConflicts(sourceChanges, targetChanges []*FileChange, includeBinary bool) []*Conflict {
 	var conflicts []*Conflict
 
@@ -264,7 +251,7 @@ func (d *conflictDetector) detectConflicts(sourceChanges, targetChanges []*FileC
 	return conflicts
 }
 
-// analyzeConflict analyzes a potential conflict between two changes
+// analyzeConflict analyzes a potential conflict between two changes.
 func (d *conflictDetector) analyzeConflict(path string, sourceChange, targetChange *FileChange) *Conflict {
 	// Both modified same file
 	if sourceChange.ChangeType == ChangeModified && targetChange.ChangeType == ChangeModified {
@@ -322,7 +309,7 @@ func (d *conflictDetector) analyzeConflict(path string, sourceChange, targetChan
 	return nil
 }
 
-// parseChangeType converts git status code to ChangeType
+// parseChangeType converts git status code to ChangeType.
 func (d *conflictDetector) parseChangeType(status string) ChangeType {
 	switch {
 	case status == "A":
@@ -340,7 +327,7 @@ func (d *conflictDetector) parseChangeType(status string) ChangeType {
 	}
 }
 
-// calculateDifficulty determines merge difficulty based on conflicts
+// calculateDifficulty determines merge difficulty based on conflicts.
 func (d *conflictDetector) calculateDifficulty(totalConflicts, canAutoResolve int) MergeDifficulty {
 	if totalConflicts == 0 {
 		return DifficultyTrivial

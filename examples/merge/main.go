@@ -1,4 +1,6 @@
-// Package main demonstrates merge and conflict detection using gzh-cli-gitforge library.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (
@@ -60,6 +62,10 @@ func main() {
 		case merge.RebaseConflict:
 			fmt.Println("⚠️  Rebase has conflicts")
 			fmt.Println("Resolve conflicts and continue or abort")
+		case merge.RebaseComplete:
+			fmt.Println("✓ Rebase completed successfully")
+		case merge.RebaseAborted:
+			fmt.Println("✓ Rebase was aborted")
 		default:
 			fmt.Println("✓ No rebase in progress")
 		}

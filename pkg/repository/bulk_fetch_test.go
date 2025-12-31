@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// initGitRepo initializes a git repository at the given path
+// initGitRepo initializes a git repository at the given path.
 func initGitRepo(path string) error {
 	cmd := exec.Command("git", "init")
 	cmd.Dir = path
@@ -243,7 +244,7 @@ func TestBulkFetchContextCancellation(t *testing.T) {
 		t.Skipf("Skipping test: git not available: %v", err)
 	}
 
-	// Create cancelled context
+	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -257,10 +258,10 @@ func TestBulkFetchContextCancellation(t *testing.T) {
 	}
 
 	_, err := client.BulkFetch(ctx, opts)
-	// Should handle cancelled context gracefully
+	// Should handle canceled context gracefully
 	// The error may or may not be returned depending on timing
-	if err != nil && err != context.Canceled {
-		t.Logf("BulkFetch with cancelled context returned: %v", err)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Logf("BulkFetch with canceled context returned: %v", err)
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestCodeReviewWorkflow tests analyzing code changes for review
+// TestCodeReviewWorkflow tests analyzing code changes for review.
 func TestCodeReviewWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -72,7 +72,7 @@ func TestCodeReviewWorkflow(t *testing.T) {
 	})
 }
 
-// TestCommitMessageReview tests reviewing commit message quality
+// TestCommitMessageReview tests reviewing commit message quality.
 func TestCommitMessageReview(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -121,7 +121,7 @@ func TestCommitMessageReview(t *testing.T) {
 	})
 }
 
-// TestFileAttributionAnalysis tests analyzing who wrote what
+// TestFileAttributionAnalysis tests analyzing who wrote what.
 func TestFileAttributionAnalysis(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -190,7 +190,7 @@ func Function2() {
 	})
 }
 
-// TestChangePatternAnalysis tests analyzing change patterns
+// TestChangePatternAnalysis tests analyzing change patterns.
 func TestChangePatternAnalysis(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -255,7 +255,7 @@ func TestChangePatternAnalysis(t *testing.T) {
 	})
 }
 
-// TestBranchComparisonForReview tests comparing branches before merge
+// TestBranchComparisonForReview tests comparing branches before merge.
 func TestBranchComparisonForReview(t *testing.T) {
 	repo := NewE2ERepo(t)
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package commit
 
 import (
@@ -64,7 +67,7 @@ func NewSmartPushWithExecutor(executor *gitcmd.Executor) SmartPush {
 	}
 }
 
-// Protected branches that should not accept force pushes
+// Protected branches that should not accept force pushes.
 var protectedBranches = map[string]bool{
 	"main":    true,
 	"master":  true,

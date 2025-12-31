@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package branch
 
 import (
@@ -67,7 +70,7 @@ func (w *worktreeManager) Add(ctx context.Context, repo *repository.Repository, 
 
 	// Validate path
 	if err := validateWorktreePath(opts.Path); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidPath, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidPath, err)
 	}
 
 	// Check if path already exists

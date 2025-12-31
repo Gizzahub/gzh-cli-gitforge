@@ -216,7 +216,10 @@ func BenchmarkEventDetection(b *testing.B) {
 	}
 	defer wtchr.Stop()
 
-	w := wtchr.(*watcher)
+	w, ok := wtchr.(*watcher)
+	if !ok {
+		b.Fatal("NewWatcher did not return *watcher")
+	}
 
 	oldStatus := &repository.Status{
 		IsClean:       false,
@@ -268,7 +271,10 @@ func BenchmarkWatcherWithMultipleRepos(b *testing.B) {
 			}
 			defer wtchr.Stop()
 
-			w := wtchr.(*watcher)
+			w, ok := wtchr.(*watcher)
+			if !ok {
+				b.Fatal("NewWatcher did not return *watcher")
+			}
 
 			// Setup: Create mock repository states
 			for i := 0; i < repoCount; i++ {

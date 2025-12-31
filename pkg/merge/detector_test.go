@@ -2,6 +2,7 @@ package merge
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -346,7 +347,7 @@ func TestConflictDetector_ValidateBranch(t *testing.T) {
 			repo := &repository.Repository{Path: "/test/repo"}
 
 			err := detector.validateBranch(context.Background(), repo, tt.branch)
-			if err != tt.wantError {
+			if !errors.Is(err, tt.wantError) {
 				t.Errorf("validateBranch() error = %v, want %v", err, tt.wantError)
 			}
 		})

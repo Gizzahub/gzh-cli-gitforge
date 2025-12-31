@@ -1,5 +1,6 @@
-// Package testutil provides Git-specific testing utilities.
-// Common test utilities are available from gzh-cli-core/testutil.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package testutil
 
 import (
@@ -25,11 +26,11 @@ func TempGitRepo(t *testing.T) string {
 	// Configure git user for commits.
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = dir
-	cmd.Run()
+	_ = cmd.Run() // Ignore config errors in test setup
 
 	cmd = exec.Command("git", "config", "user.name", "Test")
 	cmd.Dir = dir
-	cmd.Run()
+	_ = cmd.Run() // Ignore config errors in test setup
 
 	return dir
 }
@@ -47,11 +48,11 @@ func TempGitRepoWithCommit(t *testing.T) string {
 
 	cmd := exec.Command("git", "add", ".")
 	cmd.Dir = dir
-	cmd.Run()
+	_ = cmd.Run() // Ignore add errors in test setup
 
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = dir
-	cmd.Run()
+	_ = cmd.Run() // Ignore commit errors in test setup
 
 	return dir
 }

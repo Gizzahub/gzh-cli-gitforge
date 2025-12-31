@@ -70,7 +70,7 @@ func TestCalculatePushSummaryCounts(t *testing.T) {
 	}
 
 	expected := map[string]int{
-		StatusPushed:  2,
+		StatusPushed:   2,
 		StatusUpToDate: 1,
 	}
 	assertSummary(t, calculatePushSummary(results), expected)

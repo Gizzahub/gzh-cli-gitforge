@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -468,10 +471,10 @@ func parseDiffStats(output string) (additions, deletions int) {
 			for _, part := range parts {
 				part = strings.TrimSpace(part)
 				if strings.Contains(part, "insertion") {
-					fmt.Sscanf(part, "%d", &additions)
+					_, _ = fmt.Sscanf(part, "%d", &additions) // Best effort parse
 				}
 				if strings.Contains(part, "deletion") {
-					fmt.Sscanf(part, "%d", &deletions)
+					_, _ = fmt.Sscanf(part, "%d", &deletions) // Best effort parse
 				}
 			}
 		}

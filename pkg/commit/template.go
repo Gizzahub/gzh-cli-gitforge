@@ -1,4 +1,6 @@
-// Package commit provides commit message automation features.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package commit
 
 import (
@@ -91,7 +93,7 @@ func (m *templateManager) Load(ctx context.Context, name string) (*Template, err
 	// Parse YAML
 	var tmpl Template
 	if err := yaml.Unmarshal(data, &tmpl); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidTemplate, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidTemplate, err)
 	}
 
 	// Validate template
@@ -132,7 +134,7 @@ func (m *templateManager) LoadCustom(ctx context.Context, path string) (*Templat
 	// Parse YAML
 	var tmpl Template
 	if err := yaml.Unmarshal(data, &tmpl); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidTemplate, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidTemplate, err)
 	}
 
 	// Validate template
@@ -181,7 +183,7 @@ func (m *templateManager) Validate(ctx context.Context, tmpl *Template) error {
 	// Validate format is valid Go template
 	_, err := template.New("test").Parse(tmpl.Format)
 	if err != nil {
-		return fmt.Errorf("%w: invalid template format: %v", ErrInvalidTemplate, err)
+		return fmt.Errorf("%w: invalid template format: %w", ErrInvalidTemplate, err)
 	}
 
 	// Validate variables
@@ -216,7 +218,7 @@ func (m *templateManager) Validate(ctx context.Context, tmpl *Template) error {
 				return fmt.Errorf("%w: pattern rule %d has empty pattern", ErrInvalidTemplate, i)
 			}
 			if _, err := regexp.Compile(rule.Pattern); err != nil {
-				return fmt.Errorf("%w: rule %d has invalid regex pattern: %v", ErrInvalidTemplate, i, err)
+				return fmt.Errorf("%w: rule %d has invalid regex pattern: %w", ErrInvalidTemplate, i, err)
 			}
 		}
 	}

@@ -1,23 +1,11 @@
-// Package commit provides commit message automation and validation.
-// This package includes template-based commit message generation, validation
-// against conventional commit standards, and smart push operations with safety checks.
-//
-// Example usage:
-//
-//	// Generate commit message
-//	gen := commit.NewGenerator()
-//	msg, err := gen.Generate(ctx, repo, commit.GenerateOptions{
-//	    Template: tmpl,
-//	})
-//
-//	// Validate message
-//	validator := commit.NewValidator()
-//	result, err := validator.Validate(ctx, msg, tmpl)
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package commit
 
 import "errors"
 
-// Template errors
+// Template errors.
 var (
 	ErrTemplateNotFound = errors.New("template not found")
 	ErrInvalidTemplate  = errors.New("invalid template format")

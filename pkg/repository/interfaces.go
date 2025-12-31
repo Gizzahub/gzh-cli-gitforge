@@ -1,6 +1,6 @@
-// Package repository provides core Git repository operations and interfaces.
-// This package defines the public API for interacting with Git repositories
-// and is designed to be consumed by both the CLI and external Go applications.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -381,12 +381,14 @@ func (l *WriterLogger) log(level, msg string, args ...interface{}) {
 	output := "[" + level + "] " + msg
 	for i := 0; i < len(args); i += 2 {
 		if i+1 < len(args) {
-			output += " " + args[i].(string) + "=" + formatValue(args[i+1])
+			if key, ok := args[i].(string); ok {
+				output += " " + key + "=" + formatValue(args[i+1])
+			}
 		}
 	}
 	output += "\n"
 
-	l.w.Write([]byte(output))
+	_, _ = l.w.Write([]byte(output)) // Ignore write errors in logger
 }
 
 func formatValue(v interface{}) string {

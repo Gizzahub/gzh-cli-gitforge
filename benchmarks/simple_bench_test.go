@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// BenchmarkCLIStatus benchmarks the status command
+// BenchmarkCLIStatus benchmarks the status command.
 func BenchmarkCLIStatus(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -25,7 +25,7 @@ func BenchmarkCLIStatus(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIInfo benchmarks the info command
+// BenchmarkCLIInfo benchmarks the info command.
 func BenchmarkCLIInfo(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -44,7 +44,7 @@ func BenchmarkCLIInfo(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIBranchList benchmarks the branch list command
+// BenchmarkCLIBranchList benchmarks the branch list command.
 func BenchmarkCLIBranchList(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -63,7 +63,7 @@ func BenchmarkCLIBranchList(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIHistoryStats benchmarks the history stats command
+// BenchmarkCLIHistoryStats benchmarks the history stats command.
 func BenchmarkCLIHistoryStats(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -82,7 +82,7 @@ func BenchmarkCLIHistoryStats(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIHistoryContributors benchmarks the history contributors command
+// BenchmarkCLIHistoryContributors benchmarks the history contributors command.
 func BenchmarkCLIHistoryContributors(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -101,7 +101,7 @@ func BenchmarkCLIHistoryContributors(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIHistoryFile benchmarks the history file command
+// BenchmarkCLIHistoryFile benchmarks the history file command.
 func BenchmarkCLIHistoryFile(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -120,7 +120,7 @@ func BenchmarkCLIHistoryFile(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIHistoryBlame benchmarks the history blame command
+// BenchmarkCLIHistoryBlame benchmarks the history blame command.
 func BenchmarkCLIHistoryBlame(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -139,7 +139,7 @@ func BenchmarkCLIHistoryBlame(b *testing.B) {
 	}
 }
 
-// BenchmarkCLICommitValidate benchmarks the commit validate command
+// BenchmarkCLICommitValidate benchmarks the commit validate command.
 func BenchmarkCLICommitValidate(b *testing.B) {
 	binaryPath := findOrBuildBinary(b)
 
@@ -152,7 +152,7 @@ func BenchmarkCLICommitValidate(b *testing.B) {
 	}
 }
 
-// BenchmarkCLICommitTemplateList benchmarks the template list command
+// BenchmarkCLICommitTemplateList benchmarks the template list command.
 func BenchmarkCLICommitTemplateList(b *testing.B) {
 	binaryPath := findOrBuildBinary(b)
 
@@ -165,7 +165,7 @@ func BenchmarkCLICommitTemplateList(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIStatusLargeRepo benchmarks status on large repository
+// BenchmarkCLIStatusLargeRepo benchmarks status on large repository.
 func BenchmarkCLIStatusLargeRepo(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -184,7 +184,7 @@ func BenchmarkCLIStatusLargeRepo(b *testing.B) {
 	}
 }
 
-// BenchmarkCLIHistoryStatsLargeRepo benchmarks stats on large repository
+// BenchmarkCLIHistoryStatsLargeRepo benchmarks stats on large repository.
 func BenchmarkCLIHistoryStatsLargeRepo(b *testing.B) {
 	// Setup
 	tempDir := b.TempDir()
@@ -203,7 +203,7 @@ func BenchmarkCLIHistoryStatsLargeRepo(b *testing.B) {
 	}
 }
 
-// findOrBuildBinary locates the gz-git binary or builds it
+// findOrBuildBinary locates the gz-git binary or builds it.
 func findOrBuildBinary(b *testing.B) string {
 	b.Helper()
 

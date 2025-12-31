@@ -2,6 +2,7 @@ package history
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -85,7 +86,7 @@ func TestFormatter_FormatCommitStats(t *testing.T) {
 					t.Errorf("FormatCommitStats() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("FormatCommitStats() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				return
@@ -206,7 +207,7 @@ func TestFormatter_FormatContributors(t *testing.T) {
 					t.Errorf("FormatContributors() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("FormatContributors() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				return
@@ -324,7 +325,7 @@ func TestFormatter_FormatFileHistory(t *testing.T) {
 					t.Errorf("FormatFileHistory() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("FormatFileHistory() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				return

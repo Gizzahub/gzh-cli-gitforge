@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestConflictDetection tests detecting merge conflicts before they happen
+// TestConflictDetection tests detecting merge conflicts before they happen.
 func TestConflictDetection(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -65,7 +65,7 @@ func TestConflictDetection(t *testing.T) {
 	})
 }
 
-// TestMergeAbort tests aborting merge operations
+// TestMergeAbort tests aborting merge operations.
 func TestMergeAbort(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -91,7 +91,7 @@ func TestMergeAbort(t *testing.T) {
 	})
 }
 
-// TestRebaseWorkflow tests rebasing operations
+// TestRebaseWorkflow tests rebasing operations.
 func TestRebaseWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -138,7 +138,7 @@ func TestRebaseWorkflow(t *testing.T) {
 	})
 }
 
-// TestFastForwardMerge tests fast-forward merge scenarios
+// TestFastForwardMerge tests fast-forward merge scenarios.
 func TestFastForwardMerge(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -180,7 +180,7 @@ func TestFastForwardMerge(t *testing.T) {
 	})
 }
 
-// TestNoFastForwardMerge tests explicit merge commits
+// TestNoFastForwardMerge tests explicit merge commits.
 func TestNoFastForwardMerge(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -212,7 +212,7 @@ func TestNoFastForwardMerge(t *testing.T) {
 	})
 }
 
-// TestMergeErrorHandling tests various merge error scenarios
+// TestMergeErrorHandling tests various merge error scenarios.
 func TestMergeErrorHandling(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -246,7 +246,7 @@ func TestMergeErrorHandling(t *testing.T) {
 	})
 }
 
-// TestCompleteConflictWorkflow documents the complete conflict workflow
+// TestCompleteConflictWorkflow documents the complete conflict workflow.
 func TestCompleteConflictWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 

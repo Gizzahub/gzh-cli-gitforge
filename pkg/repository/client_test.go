@@ -552,7 +552,7 @@ func stringSliceEqual(a, b []string) bool {
 	return true
 }
 
-// TestCloneOptions tests all CloneOption functions
+// TestCloneOptions tests all CloneOption functions.
 func TestCloneOptions(t *testing.T) {
 	tests := []struct {
 		name string
@@ -575,7 +575,7 @@ func TestCloneOptions(t *testing.T) {
 	}
 }
 
-// TestWithExecutor tests WithExecutor client option
+// TestWithExecutor tests WithExecutor client option.
 func TestWithExecutor(t *testing.T) {
 	// This is a simple test to just cover the function
 	client := NewClient(WithExecutor(nil))
@@ -584,7 +584,7 @@ func TestWithExecutor(t *testing.T) {
 	}
 }
 
-// TestNoopLogger tests NoopLogger
+// TestNoopLogger tests NoopLogger.
 func TestNoopLogger(t *testing.T) {
 	logger := NewNoopLogger()
 
@@ -595,7 +595,7 @@ func TestNoopLogger(t *testing.T) {
 	logger.Error("test")
 }
 
-// testProgressReporter is a simple progress reporter for testing
+// testProgressReporter is a simple progress reporter for testing.
 type testProgressReporter struct{}
 
 func (p *testProgressReporter) Start(total int64)    {}

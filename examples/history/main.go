@@ -1,4 +1,6 @@
-// Package main demonstrates history analysis using gzh-cli-gitforge library.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (

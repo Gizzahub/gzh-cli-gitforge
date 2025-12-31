@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestFeatureBranchWorkflow tests the complete feature branch workflow
+// TestFeatureBranchWorkflow tests the complete feature branch workflow.
 func TestFeatureBranchWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -104,7 +104,7 @@ func TestAuthenticate(t *testing.T) {
 	})
 }
 
-// TestParallelFeatureDevelopment tests working on multiple features
+// TestParallelFeatureDevelopment tests working on multiple features.
 func TestParallelFeatureDevelopment(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -199,7 +199,7 @@ func TestParallelFeatureDevelopment(t *testing.T) {
 	})
 }
 
-// TestIncrementalFeatureRefinement tests iterative development
+// TestIncrementalFeatureRefinement tests iterative development.
 func TestIncrementalFeatureRefinement(t *testing.T) {
 	repo := NewE2ERepo(t)
 

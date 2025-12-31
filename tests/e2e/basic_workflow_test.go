@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestNewProjectSetup tests the workflow of setting up a new project
+// TestNewProjectSetup tests the workflow of setting up a new project.
 func TestNewProjectSetup(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -53,7 +53,7 @@ func TestNewProjectSetup(t *testing.T) {
 	})
 }
 
-// TestBasicCommitWorkflow tests basic commit operations
+// TestBasicCommitWorkflow tests basic commit operations.
 func TestBasicCommitWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -105,7 +105,7 @@ func TestBasicCommitWorkflow(t *testing.T) {
 	})
 }
 
-// TestBasicBranchWorkflow tests basic branch operations
+// TestBasicBranchWorkflow tests basic branch operations.
 func TestBasicBranchWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -163,7 +163,7 @@ func TestBasicBranchWorkflow(t *testing.T) {
 	})
 }
 
-// TestBasicHistoryWorkflow tests basic history operations
+// TestBasicHistoryWorkflow tests basic history operations.
 func TestBasicHistoryWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -231,7 +231,7 @@ func TestBasicHistoryWorkflow(t *testing.T) {
 	})
 }
 
-// TestRepositoryCleanupWorkflow tests cleanup operations
+// TestRepositoryCleanupWorkflow tests cleanup operations.
 func TestRepositoryCleanupWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 

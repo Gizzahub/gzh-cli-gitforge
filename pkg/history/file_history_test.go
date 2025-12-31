@@ -2,6 +2,7 @@ package history
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -115,7 +116,7 @@ def456|Jane Smith|jane@example.com|1700001000|Update main
 					t.Errorf("GetHistory() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("GetHistory() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				return
@@ -314,7 +315,7 @@ def456 (Jane Smith <jane@example.com> 2025-11-27 13:00:00 +0000 2) import "fmt"`
 					t.Errorf("GetBlame() error = nil, wantErr %v", tt.wantErr)
 					return
 				}
-				if err != tt.wantErr {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("GetBlame() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				return

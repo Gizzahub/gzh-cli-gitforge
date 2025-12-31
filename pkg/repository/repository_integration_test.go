@@ -587,7 +587,7 @@ func TestWriterLogger(t *testing.T) {
 	}
 }
 
-// testBuffer is a simple buffer for testing WriterLogger
+// testBuffer is a simple buffer for testing WriterLogger.
 type testBuffer struct {
 	data []byte
 }

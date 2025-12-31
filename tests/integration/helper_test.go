@@ -10,13 +10,13 @@ import (
 	"testing"
 )
 
-// TestRepo represents a temporary test repository
+// TestRepo represents a temporary test repository.
 type TestRepo struct {
 	Path string
 	T    *testing.T
 }
 
-// NewTestRepo creates a temporary Git repository for testing
+// NewTestRepo creates a temporary Git repository for testing.
 func NewTestRepo(t *testing.T) *TestRepo {
 	t.Helper()
 
@@ -49,7 +49,7 @@ func NewTestRepo(t *testing.T) *TestRepo {
 	}
 }
 
-// WriteFile writes content to a file in the repository
+// WriteFile writes content to a file in the repository.
 func (r *TestRepo) WriteFile(path, content string) {
 	r.T.Helper()
 
@@ -65,7 +65,7 @@ func (r *TestRepo) WriteFile(path, content string) {
 	}
 }
 
-// GitAdd stages files
+// GitAdd stages files.
 func (r *TestRepo) GitAdd(files ...string) {
 	r.T.Helper()
 
@@ -77,7 +77,7 @@ func (r *TestRepo) GitAdd(files ...string) {
 	}
 }
 
-// GitCommit creates a commit
+// GitCommit creates a commit.
 func (r *TestRepo) GitCommit(message string) {
 	r.T.Helper()
 
@@ -88,7 +88,7 @@ func (r *TestRepo) GitCommit(message string) {
 	}
 }
 
-// GitBranch creates a branch
+// GitBranch creates a branch.
 func (r *TestRepo) GitBranch(name string) {
 	r.T.Helper()
 
@@ -99,7 +99,7 @@ func (r *TestRepo) GitBranch(name string) {
 	}
 }
 
-// GitCheckout checks out a branch
+// GitCheckout checks out a branch.
 func (r *TestRepo) GitCheckout(ref string) {
 	r.T.Helper()
 
@@ -111,7 +111,7 @@ func (r *TestRepo) GitCheckout(ref string) {
 	}
 }
 
-// SetupWithCommits creates a repository with initial commits
+// SetupWithCommits creates a repository with initial commits.
 func (r *TestRepo) SetupWithCommits() {
 	r.T.Helper()
 
@@ -136,7 +136,7 @@ func (r *TestRepo) SetupWithCommits() {
 	r.GitCommit("Update README")
 }
 
-// RunGzhGit executes gz-git command in the repository
+// RunGzhGit executes gz-git command in the repository.
 func (r *TestRepo) RunGzhGit(args ...string) (string, error) {
 	r.T.Helper()
 
@@ -150,7 +150,7 @@ func (r *TestRepo) RunGzhGit(args ...string) (string, error) {
 	return string(output), err
 }
 
-// RunGzhGitSuccess runs gz-git and expects success
+// RunGzhGitSuccess runs gz-git and expects success.
 func (r *TestRepo) RunGzhGitSuccess(args ...string) string {
 	r.T.Helper()
 
@@ -163,7 +163,7 @@ func (r *TestRepo) RunGzhGitSuccess(args ...string) string {
 	return output
 }
 
-// RunGzhGitExpectError runs gz-git and expects an error
+// RunGzhGitExpectError runs gz-git and expects an error.
 func (r *TestRepo) RunGzhGitExpectError(args ...string) string {
 	r.T.Helper()
 
@@ -176,7 +176,7 @@ func (r *TestRepo) RunGzhGitExpectError(args ...string) string {
 	return output
 }
 
-// AssertContains checks if output contains expected string
+// AssertContains checks if output contains expected string.
 func AssertContains(t *testing.T, output, expected string) {
 	t.Helper()
 
@@ -186,7 +186,7 @@ func AssertContains(t *testing.T, output, expected string) {
 	}
 }
 
-// AssertNotContains checks if output does not contain a string
+// AssertNotContains checks if output does not contain a string.
 func AssertNotContains(t *testing.T, output, unexpected string) {
 	t.Helper()
 
@@ -196,7 +196,7 @@ func AssertNotContains(t *testing.T, output, unexpected string) {
 	}
 }
 
-// findGzhGitBinary locates the gz-git binary
+// findGzhGitBinary locates the gz-git binary.
 func findGzhGitBinary(t *testing.T) string {
 	t.Helper()
 
@@ -231,7 +231,7 @@ func findGzhGitBinary(t *testing.T) string {
 	return "../../gz-git"
 }
 
-// SkipIfNoBinary skips test if gz-git binary is not available
+// SkipIfNoBinary skips test if gz-git binary is not available.
 func SkipIfNoBinary(t *testing.T) {
 	t.Helper()
 
@@ -244,7 +244,7 @@ func SkipIfNoBinary(t *testing.T) {
 	findGzhGitBinary(t)
 }
 
-// TestMain ensures binary is built before running tests
+// TestMain ensures binary is built before running tests.
 func TestMain(m *testing.M) {
 	// Build the binary before running tests
 	ctx := context.Background()

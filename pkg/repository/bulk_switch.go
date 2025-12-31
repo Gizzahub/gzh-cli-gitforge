@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -10,7 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// BulkSwitch scans for repositories and switches their branches in parallel
+// BulkSwitch scans for repositories and switches their branches in parallel.
 func (c *client) BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkSwitchResult, error) {
 	startTime := time.Now()
 
@@ -76,7 +79,7 @@ func (c *client) BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkS
 	}, nil
 }
 
-// processSwitchRepositories processes repositories in parallel for branch switching
+// processSwitchRepositories processes repositories in parallel for branch switching.
 func (c *client) processSwitchRepositories(ctx context.Context, rootDir string, repos []string, opts BulkSwitchOptions, logger Logger) ([]RepositorySwitchResult, error) {
 	results := make([]RepositorySwitchResult, len(repos))
 	var mu sync.Mutex
@@ -111,7 +114,7 @@ func (c *client) processSwitchRepositories(ctx context.Context, rootDir string, 
 	return results, nil
 }
 
-// processSwitchRepository processes a single repository branch switch
+// processSwitchRepository processes a single repository branch switch.
 func (c *client) processSwitchRepository(ctx context.Context, rootDir, repoPath string, opts BulkSwitchOptions, logger Logger) RepositorySwitchResult {
 	startTime := time.Now()
 
@@ -289,7 +292,7 @@ func (c *client) processSwitchRepository(ctx context.Context, rootDir, repoPath 
 	return result
 }
 
-// branchExistsLocally checks if a branch exists locally
+// branchExistsLocally checks if a branch exists locally.
 func (c *client) branchExistsLocally(ctx context.Context, repoPath, branch string) (bool, error) {
 	result, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", fmt.Sprintf("refs/heads/%s", branch))
 	if err != nil {
@@ -298,7 +301,7 @@ func (c *client) branchExistsLocally(ctx context.Context, repoPath, branch strin
 	return result.ExitCode == 0, nil
 }
 
-// branchExistsOnRemote checks if a branch exists on the remote
+// branchExistsOnRemote checks if a branch exists on the remote.
 func (c *client) branchExistsOnRemote(ctx context.Context, repoPath, branch string) (bool, error) {
 	// First try origin
 	result, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", fmt.Sprintf("refs/remotes/origin/%s", branch))
@@ -308,7 +311,7 @@ func (c *client) branchExistsOnRemote(ctx context.Context, repoPath, branch stri
 	return result.ExitCode == 0, nil
 }
 
-// switchBranch switches to an existing local branch
+// switchBranch switches to an existing local branch.
 func (c *client) switchBranch(ctx context.Context, repoPath, branch string) error {
 	result, err := c.executor.Run(ctx, repoPath, "checkout", branch)
 	if err != nil {
@@ -320,7 +323,7 @@ func (c *client) switchBranch(ctx context.Context, repoPath, branch string) erro
 	return nil
 }
 
-// createAndSwitchBranch creates a new branch and switches to it
+// createAndSwitchBranch creates a new branch and switches to it.
 func (c *client) createAndSwitchBranch(ctx context.Context, repoPath, branch string) error {
 	result, err := c.executor.Run(ctx, repoPath, "checkout", "-b", branch)
 	if err != nil {
@@ -332,7 +335,7 @@ func (c *client) createAndSwitchBranch(ctx context.Context, repoPath, branch str
 	return nil
 }
 
-// checkoutRemoteTrackingBranch checks out a remote tracking branch
+// checkoutRemoteTrackingBranch checks out a remote tracking branch.
 func (c *client) checkoutRemoteTrackingBranch(ctx context.Context, repoPath, branch string) error {
 	// Try to checkout with tracking
 	result, err := c.executor.Run(ctx, repoPath, "checkout", "--track", fmt.Sprintf("origin/%s", branch))
@@ -352,7 +355,7 @@ func (c *client) checkoutRemoteTrackingBranch(ctx context.Context, repoPath, bra
 	return nil
 }
 
-// calculateSwitchSummary creates a summary of switch results by status
+// calculateSwitchSummary creates a summary of switch results by status.
 func calculateSwitchSummary(results []RepositorySwitchResult) map[string]int {
 	summary := make(map[string]int)
 

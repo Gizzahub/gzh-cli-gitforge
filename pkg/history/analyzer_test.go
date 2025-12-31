@@ -12,7 +12,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// mockExecutor is a test mock for gitcmd.Executor
+// mockExecutor is a test mock for gitcmd.Executor.
 type mockExecutor struct {
 	runFunc func(ctx context.Context, repoPath string, args ...string) (*gitcmd.Result, error)
 }
@@ -90,7 +90,7 @@ def456|John Doe|john@example.com|1700001000
 		t.Run(tt.name, func(t *testing.T) {
 			executor := &mockExecutor{
 				runFunc: func(ctx context.Context, repoPath string, args ...string) (*gitcmd.Result, error) {
-					if tt.wantErr != nil && tt.wantErr != ErrEmptyHistory {
+					if tt.wantErr != nil && !errors.Is(tt.wantErr, ErrEmptyHistory) {
 						return nil, tt.wantErr
 					}
 					return &gitcmd.Result{
@@ -359,7 +359,7 @@ func TestHistoryAnalyzer_GetTrends(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			executor := &mockExecutor{
 				runFunc: func(ctx context.Context, repoPath string, args ...string) (*gitcmd.Result, error) {
-					if tt.wantErr != nil && tt.wantErr != ErrEmptyHistory {
+					if tt.wantErr != nil && !errors.Is(tt.wantErr, ErrEmptyHistory) {
 						return nil, tt.wantErr
 					}
 					return &gitcmd.Result{

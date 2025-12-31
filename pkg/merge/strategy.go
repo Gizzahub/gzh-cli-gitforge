@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package merge
 
 import (
@@ -9,7 +12,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// MergeManager handles merge operations with different strategies
+// MergeManager handles merge operations with different strategies.
 type MergeManager interface {
 	// Merge performs a merge operation
 	Merge(ctx context.Context, repo *repository.Repository, opts MergeOptions) (*MergeResult, error)
@@ -29,7 +32,7 @@ type mergeManager struct {
 	detector ConflictDetector
 }
 
-// NewMergeManager creates a new merge manager
+// NewMergeManager creates a new merge manager.
 func NewMergeManager(executor GitExecutor, detector ConflictDetector) MergeManager {
 	return &mergeManager{
 		executor: executor,
@@ -37,7 +40,7 @@ func NewMergeManager(executor GitExecutor, detector ConflictDetector) MergeManag
 	}
 }
 
-// Merge performs a merge operation
+// Merge performs a merge operation.
 func (m *mergeManager) Merge(ctx context.Context, repo *repository.Repository, opts MergeOptions) (*MergeResult, error) {
 	// Validate options
 	if err := m.ValidateStrategy(ctx, repo, opts); err != nil {
@@ -85,7 +88,7 @@ func (m *mergeManager) Merge(ctx context.Context, repo *repository.Repository, o
 	return m.parseMergeResult(ctx, repo, opts, result)
 }
 
-// ValidateStrategy checks if a strategy is valid for the merge
+// ValidateStrategy checks if a strategy is valid for the merge.
 func (m *mergeManager) ValidateStrategy(ctx context.Context, repo *repository.Repository, opts MergeOptions) error {
 	if opts.Source == "" {
 		return fmt.Errorf("source branch is required")
@@ -120,7 +123,7 @@ func (m *mergeManager) ValidateStrategy(ctx context.Context, repo *repository.Re
 	return nil
 }
 
-// CanMerge checks if merge is possible without conflicts
+// CanMerge checks if merge is possible without conflicts.
 func (m *mergeManager) CanMerge(ctx context.Context, repo *repository.Repository, source, target string) (bool, error) {
 	report, err := m.detector.Detect(ctx, repo, DetectOptions{
 		Source: source,
@@ -133,7 +136,7 @@ func (m *mergeManager) CanMerge(ctx context.Context, repo *repository.Repository
 	return report.TotalConflicts == 0, nil
 }
 
-// AbortMerge aborts an in-progress merge
+// AbortMerge aborts an in-progress merge.
 func (m *mergeManager) AbortMerge(ctx context.Context, repo *repository.Repository) error {
 	result, err := m.executor.Run(ctx, repo.Path, "merge", "--abort")
 	if err != nil {
@@ -147,7 +150,7 @@ func (m *mergeManager) AbortMerge(ctx context.Context, repo *repository.Reposito
 	return nil
 }
 
-// checkCleanWorkingTree verifies no uncommitted changes exist
+// checkCleanWorkingTree verifies no uncommitted changes exist.
 func (m *mergeManager) checkCleanWorkingTree(ctx context.Context, repo *repository.Repository) error {
 	result, err := m.executor.Run(ctx, repo.Path, "status", "--porcelain")
 	if err != nil {
@@ -161,7 +164,7 @@ func (m *mergeManager) checkCleanWorkingTree(ctx context.Context, repo *reposito
 	return nil
 }
 
-// isAlreadyUpToDate checks if target is already at source
+// isAlreadyUpToDate checks if target is already at source.
 func (m *mergeManager) isAlreadyUpToDate(ctx context.Context, repo *repository.Repository, source, target string) (bool, error) {
 	// Get commit hashes
 	sourceResult, err := m.executor.Run(ctx, repo.Path, "rev-parse", source)
@@ -180,7 +183,7 @@ func (m *mergeManager) isAlreadyUpToDate(ctx context.Context, repo *repository.R
 	return sourceHash == targetHash, nil
 }
 
-// buildMergeArgs constructs git merge command arguments
+// buildMergeArgs constructs git merge command arguments.
 func (m *mergeManager) buildMergeArgs(opts MergeOptions, canFastForward bool) []string {
 	args := []string{"merge"}
 
@@ -226,7 +229,7 @@ func (m *mergeManager) buildMergeArgs(opts MergeOptions, canFastForward bool) []
 	return args
 }
 
-// handleMergeError handles merge execution errors
+// handleMergeError handles merge execution errors.
 func (m *mergeManager) handleMergeError(ctx context.Context, repo *repository.Repository, opts MergeOptions, err error) (*MergeResult, error) {
 	return &MergeResult{
 		Success: false,
@@ -234,7 +237,7 @@ func (m *mergeManager) handleMergeError(ctx context.Context, repo *repository.Re
 	}, err
 }
 
-// handleMergeConflict handles merge conflicts
+// handleMergeConflict handles merge conflicts.
 func (m *mergeManager) handleMergeConflict(ctx context.Context, repo *repository.Repository, opts MergeOptions) (*MergeResult, error) {
 	// Get conflict information
 	report, err := m.detector.Detect(ctx, repo, DetectOptions{
@@ -253,7 +256,7 @@ func (m *mergeManager) handleMergeConflict(ctx context.Context, repo *repository
 	}, ErrMergeConflict
 }
 
-// parseMergeResult parses successful merge output
+// parseMergeResult parses successful merge output.
 func (m *mergeManager) parseMergeResult(ctx context.Context, repo *repository.Repository, opts MergeOptions, result *gitcmd.Result) (*MergeResult, error) {
 	// Get merge commit hash
 	commitResult, err := m.executor.Run(ctx, repo.Path, "rev-parse", "HEAD")
@@ -277,7 +280,7 @@ func (m *mergeManager) parseMergeResult(ctx context.Context, repo *repository.Re
 	}, nil
 }
 
-// parseStats extracts statistics from git merge output
+// parseStats extracts statistics from git merge output.
 func (m *mergeManager) parseStats(output string) (files, additions, deletions int) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {

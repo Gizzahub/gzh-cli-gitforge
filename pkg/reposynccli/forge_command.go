@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package reposynccli
 
 import (
@@ -12,7 +15,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
-// ForgeCommandOptions holds options for forge sync command
+// ForgeCommandOptions holds options for forge sync command.
 type ForgeCommandOptions struct {
 	Provider        string
 	Organization    string
@@ -33,7 +36,7 @@ type ForgeCommandOptions struct {
 	IsUser          bool
 }
 
-// newForgeCmd creates a command for syncing from git forges
+// newForgeCmd creates a command for syncing from git forges.
 func (f CommandFactory) newForgeCmd() *cobra.Command {
 	opts := &ForgeCommandOptions{
 		Strategy:   "reset",
@@ -178,7 +181,7 @@ func (f CommandFactory) runForgeSync(cmd *cobra.Command, opts *ForgeCommandOptio
 	return nil
 }
 
-// createForgeProvider creates the appropriate provider based on options
+// createForgeProvider creates the appropriate provider based on options.
 func createForgeProvider(opts *ForgeCommandOptions) (reposync.ForgeProvider, error) {
 	switch opts.Provider {
 	case "github":
@@ -199,7 +202,7 @@ func createForgeProvider(opts *ForgeCommandOptions) (reposync.ForgeProvider, err
 	}
 }
 
-// forgeProviderAdapter adapts gitforge providers to ForgeProvider interface
+// forgeProviderAdapter adapts gitforge providers to ForgeProvider interface.
 type forgeProviderAdapter struct {
 	provider.Provider
 }

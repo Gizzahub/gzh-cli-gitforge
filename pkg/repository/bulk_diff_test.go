@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// createRepoWithChanges creates a git repo with staged and unstaged changes
+// createRepoWithChanges creates a git repo with staged and unstaged changes.
 func createRepoWithChanges(path string) error {
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		return err
@@ -455,7 +456,7 @@ func TestBulkDiffContextCancellation(t *testing.T) {
 		t.Skipf("Skipping test: git not available: %v", err)
 	}
 
-	// Create cancelled context
+	// Create canceled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -468,9 +469,9 @@ func TestBulkDiffContextCancellation(t *testing.T) {
 	}
 
 	_, err := client.BulkDiff(ctx, opts)
-	// Should handle cancelled context gracefully
-	if err != nil && err != context.Canceled {
-		t.Logf("BulkDiff with cancelled context returned: %v", err)
+	// Should handle canceled context gracefully
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Logf("BulkDiff with canceled context returned: %v", err)
 	}
 }
 

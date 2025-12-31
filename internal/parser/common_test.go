@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// TestParseError tests ParseError type
+// TestParseError tests ParseError type.
 func TestParseError(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -52,7 +52,7 @@ func TestParseError(t *testing.T) {
 	}
 }
 
-// TestParseErrorIs tests ParseError.Is method
+// TestParseErrorIs tests ParseError.Is method.
 func TestParseErrorIs(t *testing.T) {
 	err1 := &ParseError{Line: 1, Reason: "test"}
 	err2 := &ParseError{Line: 2, Reason: "test2"}
@@ -66,7 +66,7 @@ func TestParseErrorIs(t *testing.T) {
 	}
 }
 
-// TestSplitLines tests line splitting
+// TestSplitLines tests line splitting.
 func TestSplitLines(t *testing.T) {
 	tests := []struct {
 		name string
@@ -110,7 +110,7 @@ func TestSplitLines(t *testing.T) {
 	}
 }
 
-// TestParseKeyValue tests key-value parsing
+// TestParseKeyValue tests key-value parsing.
 func TestParseKeyValue(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -187,7 +187,7 @@ func TestParseKeyValue(t *testing.T) {
 	}
 }
 
-// TestParseInt tests integer parsing
+// TestParseInt tests integer parsing.
 func TestParseInt(t *testing.T) {
 	tests := []struct {
 		name string
@@ -212,7 +212,7 @@ func TestParseInt(t *testing.T) {
 	}
 }
 
-// TestParseBool tests boolean parsing
+// TestParseBool tests boolean parsing.
 func TestParseBool(t *testing.T) {
 	tests := []struct {
 		name string
@@ -242,7 +242,7 @@ func TestParseBool(t *testing.T) {
 	}
 }
 
-// TestParseTimestamp tests timestamp parsing
+// TestParseTimestamp tests timestamp parsing.
 func TestParseTimestamp(t *testing.T) {
 	tests := []struct {
 		name string
@@ -281,7 +281,7 @@ func TestParseTimestamp(t *testing.T) {
 	}
 }
 
-// TestParseDate tests date parsing
+// TestParseDate tests date parsing.
 func TestParseDate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -338,7 +338,7 @@ func TestParseDate(t *testing.T) {
 	}
 }
 
-// TestParseRef tests reference parsing
+// TestParseRef tests reference parsing.
 func TestParseRef(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -381,7 +381,7 @@ func TestParseRef(t *testing.T) {
 	}
 }
 
-// TestParseCommitHash tests commit hash parsing
+// TestParseCommitHash tests commit hash parsing.
 func TestParseCommitHash(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -459,7 +459,7 @@ func TestParseCommitHash(t *testing.T) {
 	}
 }
 
-// TestParseFileMode tests file mode parsing
+// TestParseFileMode tests file mode parsing.
 func TestParseFileMode(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -521,7 +521,7 @@ func TestParseFileMode(t *testing.T) {
 	}
 }
 
-// TestIsEmptyLine tests empty line detection
+// TestIsEmptyLine tests empty line detection.
 func TestIsEmptyLine(t *testing.T) {
 	tests := []struct {
 		name string
@@ -546,7 +546,7 @@ func TestIsEmptyLine(t *testing.T) {
 	}
 }
 
-// TestTrimPrefix tests prefix trimming
+// TestTrimPrefix tests prefix trimming.
 func TestTrimPrefix(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -584,7 +584,7 @@ func TestTrimPrefix(t *testing.T) {
 	}
 }
 
-// TestSplitFields tests field splitting
+// TestSplitFields tests field splitting.
 func TestSplitFields(t *testing.T) {
 	tests := []struct {
 		name string
@@ -628,7 +628,7 @@ func TestSplitFields(t *testing.T) {
 	}
 }
 
-// TestExtractBetween tests text extraction
+// TestExtractBetween tests text extraction.
 func TestExtractBetween(t *testing.T) {
 	tests := []struct {
 		name  string

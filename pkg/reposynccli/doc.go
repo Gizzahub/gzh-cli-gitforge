@@ -1,3 +1,4 @@
-// Package reposynccli exposes a shared Cobra command tree that can be embedded
-// into the main gzh CLI or built as a standalone binary.
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package reposynccli

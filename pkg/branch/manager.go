@@ -1,14 +1,6 @@
-// Package branch provides Git branch management operations.
-// This package includes branch creation, deletion, listing, and worktree management.
-//
-// Example usage:
-//
-//	mgr := branch.NewManager()
-//	err := mgr.Create(ctx, repo, branch.CreateOptions{
-//	    Name:     "feature/new-feature",
-//	    StartRef: "main",
-//	    Checkout: true,
-//	})
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package branch
 
 import (
@@ -74,7 +66,7 @@ func (m *manager) Create(ctx context.Context, repo *repository.Repository, opts 
 	// Validate branch name
 	if opts.Validate {
 		if err := validateBranchName(opts.Name); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidName, err)
+			return fmt.Errorf("%w: %w", ErrInvalidName, err)
 		}
 	}
 

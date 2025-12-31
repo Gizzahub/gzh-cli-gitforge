@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package reposync
 
 import (
@@ -20,7 +23,7 @@ type RunRequest struct {
 	State    StateStore
 }
 
-// RunOptions control execution behaviour.
+// RunOptions control execution behavior.
 type RunOptions struct {
 	Parallel   int
 	MaxRetries int

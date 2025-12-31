@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -14,7 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// BulkFetchOptions configures bulk repository fetch operations
+// BulkFetchOptions configures bulk repository fetch operations.
 type BulkFetchOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -57,7 +60,7 @@ type BulkFetchOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkFetchResult contains the results of a bulk fetch operation
+// BulkFetchResult contains the results of a bulk fetch operation.
 type BulkFetchResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -75,7 +78,7 @@ type BulkFetchResult struct {
 	Summary map[string]int
 }
 
-// RepositoryFetchResult represents the result for a single repository fetch
+// RepositoryFetchResult represents the result for a single repository fetch.
 type RepositoryFetchResult struct {
 	// Path is the repository path
 	Path string
@@ -117,7 +120,7 @@ type RepositoryFetchResult struct {
 	CommitsAhead int
 }
 
-// BulkPullOptions configures bulk repository pull operations
+// BulkPullOptions configures bulk repository pull operations.
 type BulkPullOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -163,7 +166,7 @@ type BulkPullOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkPullResult contains the results of a bulk pull operation
+// BulkPullResult contains the results of a bulk pull operation.
 type BulkPullResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -181,7 +184,7 @@ type BulkPullResult struct {
 	Summary map[string]int
 }
 
-// RepositoryPullResult represents the result for a single repository pull
+// RepositoryPullResult represents the result for a single repository pull.
 type RepositoryPullResult struct {
 	// Path is the repository path
 	Path string
@@ -223,7 +226,7 @@ type RepositoryPullResult struct {
 	Stashed bool
 }
 
-// BulkPushOptions configures bulk repository push operations
+// BulkPushOptions configures bulk repository push operations.
 type BulkPushOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -275,7 +278,7 @@ type BulkPushOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkPushResult contains the results of a bulk push operation
+// BulkPushResult contains the results of a bulk push operation.
 type BulkPushResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -293,7 +296,7 @@ type BulkPushResult struct {
 	Summary map[string]int
 }
 
-// RepositoryPushResult represents the result for a single repository push
+// RepositoryPushResult represents the result for a single repository push.
 type RepositoryPushResult struct {
 	// Path is the repository path
 	Path string
@@ -329,7 +332,7 @@ type RepositoryPushResult struct {
 	PushedCommits int
 }
 
-// BulkStatusOptions configures bulk repository status check operations
+// BulkStatusOptions configures bulk repository status check operations.
 type BulkStatusOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -360,7 +363,7 @@ type BulkStatusOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkStatusResult contains the results of a bulk status operation
+// BulkStatusResult contains the results of a bulk status operation.
 type BulkStatusResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -378,7 +381,7 @@ type BulkStatusResult struct {
 	Summary map[string]int
 }
 
-// RepositoryStatusResult represents the status result for a single repository
+// RepositoryStatusResult represents the status result for a single repository.
 type RepositoryStatusResult struct {
 	// Path is the repository path
 	Path string
@@ -429,7 +432,7 @@ type RepositoryStatusResult struct {
 	MergeInProgress bool
 }
 
-// BulkUpdateOptions configures bulk repository update operations
+// BulkUpdateOptions configures bulk repository update operations.
 type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -466,7 +469,7 @@ type BulkUpdateOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkUpdateResult contains the results of a bulk update operation
+// BulkUpdateResult contains the results of a bulk update operation.
 type BulkUpdateResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -484,7 +487,7 @@ type BulkUpdateResult struct {
 	Summary map[string]int
 }
 
-// RepositoryUpdateResult represents the result for a single repository
+// RepositoryUpdateResult represents the result for a single repository.
 type RepositoryUpdateResult struct {
 	// Path is the repository path
 	Path string
@@ -529,7 +532,7 @@ type RepositoryUpdateResult struct {
 	HasUncommittedChanges bool
 }
 
-// BulkSwitchOptions configures bulk repository branch switch operations
+// BulkSwitchOptions configures bulk repository branch switch operations.
 type BulkSwitchOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
@@ -571,7 +574,7 @@ type BulkSwitchOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// BulkSwitchResult contains the results of a bulk switch operation
+// BulkSwitchResult contains the results of a bulk switch operation.
 type BulkSwitchResult struct {
 	// TotalScanned is the number of repositories found
 	TotalScanned int
@@ -592,7 +595,7 @@ type BulkSwitchResult struct {
 	TargetBranch string
 }
 
-// RepositorySwitchResult represents the result for a single repository switch
+// RepositorySwitchResult represents the result for a single repository switch.
 type RepositorySwitchResult struct {
 	// Path is the repository path
 	Path string
@@ -628,7 +631,7 @@ type RepositorySwitchResult struct {
 	HasUncommittedChanges bool
 }
 
-// BulkUpdate scans for repositories and updates them in parallel
+// BulkUpdate scans for repositories and updates them in parallel.
 func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkUpdateResult, error) {
 	startTime := time.Now()
 
@@ -687,14 +690,14 @@ func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkU
 	}, nil
 }
 
-// scanRepositories recursively finds Git repositories
+// scanRepositories recursively finds Git repositories.
 func (c *client) scanRepositories(ctx context.Context, dir string, maxDepth int, logger Logger) ([]string, error) {
 	return c.scanRepositoriesWithConfig(ctx, dir, maxDepth, logger, walkDirectoryConfig{
 		includeSubmodules: false,
 	})
 }
 
-// scanRepositoriesWithConfig recursively finds Git repositories with configuration
+// scanRepositoriesWithConfig recursively finds Git repositories with configuration.
 func (c *client) scanRepositoriesWithConfig(ctx context.Context, dir string, maxDepth int, logger Logger, config walkDirectoryConfig) ([]string, error) {
 	var repos []string
 	var mu sync.Mutex
@@ -746,12 +749,12 @@ func isSubmodule(dir string) bool {
 	return false
 }
 
-// walkDirectoryConfig holds configuration for walkDirectory
+// walkDirectoryConfig holds configuration for walkDirectory.
 type walkDirectoryConfig struct {
 	includeSubmodules bool
 }
 
-// walkDirectory recursively walks directories to find Git repositories
+// walkDirectory recursively walks directories to find Git repositories.
 func (c *client) walkDirectory(ctx context.Context, dir string, depth, maxDepth int, repos *[]string, mu *sync.Mutex, logger Logger) error {
 	return c.walkDirectoryWithConfig(ctx, dir, depth, maxDepth, repos, mu, logger, walkDirectoryConfig{
 		includeSubmodules: false,
@@ -850,7 +853,7 @@ func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth,
 	return nil
 }
 
-// shouldIgnoreDirectory checks if a directory should be skipped
+// shouldIgnoreDirectory checks if a directory should be skipped.
 func shouldIgnoreDirectory(name string) bool {
 	// Skip hidden directories
 	if len(name) > 0 && name[0] == '.' {
@@ -878,7 +881,7 @@ func shouldIgnoreDirectory(name string) bool {
 	return false
 }
 
-// filterRepositories filters repositories based on include/exclude patterns
+// filterRepositories filters repositories based on include/exclude patterns.
 func filterRepositories(repos []string, includePattern, excludePattern string, logger Logger) ([]string, error) {
 	if includePattern == "" && excludePattern == "" {
 		return repos, nil
@@ -921,7 +924,7 @@ func filterRepositories(repos []string, includePattern, excludePattern string, l
 	return filtered, nil
 }
 
-// processRepositories processes repositories in parallel
+// processRepositories processes repositories in parallel.
 func (c *client) processRepositories(ctx context.Context, rootDir string, repos []string, opts BulkUpdateOptions, logger Logger) ([]RepositoryUpdateResult, error) {
 	results := make([]RepositoryUpdateResult, len(repos))
 	var mu sync.Mutex
@@ -956,7 +959,7 @@ func (c *client) processRepositories(ctx context.Context, rootDir string, repos 
 	return results, nil
 }
 
-// processRepository processes a single repository
+// processRepository processes a single repository.
 func (c *client) processRepository(ctx context.Context, rootDir, repoPath string, opts BulkUpdateOptions, logger Logger) RepositoryUpdateResult {
 	startTime := time.Now()
 
@@ -1042,7 +1045,7 @@ func (c *client) processRepository(ctx context.Context, rootDir, repoPath string
 		if err != nil {
 			result.Error = err
 		} else {
-			result.Error = fmt.Errorf("pull exited with code %d: %s", pullResult.ExitCode, pullResult.Error)
+			result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
 		}
 		result.Duration = time.Since(startTime)
 		return result
@@ -1057,7 +1060,7 @@ func (c *client) processRepository(ctx context.Context, rootDir, repoPath string
 	return result
 }
 
-// getRelativePath returns the relative path from root to target
+// getRelativePath returns the relative path from root to target.
 func getRelativePath(root, target string) string {
 	rel, err := filepath.Rel(root, target)
 	if err != nil {
@@ -1066,7 +1069,7 @@ func getRelativePath(root, target string) string {
 	return rel
 }
 
-// calculateSummary creates a summary of results by status
+// calculateSummary creates a summary of results by status.
 func calculateSummary(results []RepositoryUpdateResult) map[string]int {
 	summary := make(map[string]int)
 
@@ -1077,7 +1080,7 @@ func calculateSummary(results []RepositoryUpdateResult) map[string]int {
 	return summary
 }
 
-// BulkFetch scans for repositories and fetches them in parallel
+// BulkFetch scans for repositories and fetches them in parallel.
 func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFetchResult, error) {
 	startTime := time.Now()
 
@@ -1136,7 +1139,7 @@ func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFet
 	}, nil
 }
 
-// processFetchRepositories processes repositories in parallel for fetch
+// processFetchRepositories processes repositories in parallel for fetch.
 func (c *client) processFetchRepositories(ctx context.Context, rootDir string, repos []string, opts BulkFetchOptions, logger Logger) ([]RepositoryFetchResult, error) {
 	results := make([]RepositoryFetchResult, len(repos))
 	var mu sync.Mutex
@@ -1171,7 +1174,7 @@ func (c *client) processFetchRepositories(ctx context.Context, rootDir string, r
 	return results, nil
 }
 
-// processFetchRepository processes a single repository fetch
+// processFetchRepository processes a single repository fetch.
 func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath string, opts BulkFetchOptions, logger Logger) RepositoryFetchResult {
 	startTime := time.Now()
 
@@ -1250,7 +1253,7 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 		if err != nil {
 			result.Error = err
 		} else {
-			result.Error = fmt.Errorf("fetch exited with code %d: %s", fetchResult.ExitCode, fetchResult.Error)
+			result.Error = fmt.Errorf("fetch exited with code %d: %w", fetchResult.ExitCode, fetchResult.Error)
 		}
 		result.Duration = time.Since(startTime)
 		return result
@@ -1291,7 +1294,7 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 	return result
 }
 
-// calculateFetchSummary creates a summary of fetch results by status
+// calculateFetchSummary creates a summary of fetch results by status.
 func calculateFetchSummary(results []RepositoryFetchResult) map[string]int {
 	summary := make(map[string]int)
 
@@ -1302,7 +1305,7 @@ func calculateFetchSummary(results []RepositoryFetchResult) map[string]int {
 	return summary
 }
 
-// BulkPull scans for repositories and pulls them in parallel
+// BulkPull scans for repositories and pulls them in parallel.
 func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullResult, error) {
 	startTime := time.Now()
 
@@ -1376,7 +1379,7 @@ func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullR
 	}, nil
 }
 
-// processPullRepositories processes repositories in parallel for pull
+// processPullRepositories processes repositories in parallel for pull.
 func (c *client) processPullRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPullOptions, logger Logger) ([]RepositoryPullResult, error) {
 	results := make([]RepositoryPullResult, len(repos))
 	var mu sync.Mutex
@@ -1411,7 +1414,7 @@ func (c *client) processPullRepositories(ctx context.Context, rootDir string, re
 	return results, nil
 }
 
-// processPullRepository processes a single repository pull
+// processPullRepository processes a single repository pull.
 func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath string, opts BulkPullOptions, logger Logger) RepositoryPullResult {
 	startTime := time.Now()
 
@@ -1525,7 +1528,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 			if err != nil {
 				result.Error = err
 			} else {
-				result.Error = fmt.Errorf("stash exited with code %d: %s", stashResult.ExitCode, stashResult.Error)
+				result.Error = fmt.Errorf("stash exited with code %d: %w", stashResult.ExitCode, stashResult.Error)
 			}
 			result.Duration = time.Since(startTime)
 			return result
@@ -1608,7 +1611,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 				if err != nil {
 					result.Error = err
 				} else {
-					result.Error = fmt.Errorf("pull exited with code %d: %s", pullResult.ExitCode, pullResult.Error)
+					result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
 				}
 			}
 		} else {
@@ -1618,7 +1621,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 			if err != nil {
 				result.Error = err
 			} else {
-				result.Error = fmt.Errorf("pull exited with code %d: %s", pullResult.ExitCode, pullResult.Error)
+				result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
 			}
 		}
 		result.Duration = time.Since(startTime)
@@ -1681,7 +1684,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 	return result
 }
 
-// calculatePullSummary creates a summary of pull results by status
+// calculatePullSummary creates a summary of pull results by status.
 func calculatePullSummary(results []RepositoryPullResult) map[string]int {
 	summary := make(map[string]int)
 
@@ -1692,7 +1695,7 @@ func calculatePullSummary(results []RepositoryPullResult) map[string]int {
 	return summary
 }
 
-// repositoryState represents the current state of a git repository
+// repositoryState represents the current state of a git repository.
 type repositoryState struct {
 	HasConflicts     bool
 	RebaseInProgress bool
@@ -1702,7 +1705,7 @@ type repositoryState struct {
 	UncommittedFiles int
 }
 
-// checkRepositoryState checks the detailed state of a repository
+// checkRepositoryState checks the detailed state of a repository.
 func (c *client) checkRepositoryState(ctx context.Context, repoPath string) (*repositoryState, error) {
 	state := &repositoryState{}
 
@@ -1739,19 +1742,19 @@ func (c *client) checkRepositoryState(ctx context.Context, repoPath string) (*re
 	return state, nil
 }
 
-// abortRebaseIfNeeded aborts an ongoing rebase operation
+// abortRebaseIfNeeded aborts an ongoing rebase operation.
 func (c *client) abortRebaseIfNeeded(ctx context.Context, repoPath string) error {
 	result, err := c.executor.Run(ctx, repoPath, "rebase", "--abort")
 	if err != nil {
 		return fmt.Errorf("failed to abort rebase: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return fmt.Errorf("rebase abort failed: %s", result.Error)
+		return fmt.Errorf("rebase abort failed: %w", result.Error)
 	}
 	return nil
 }
 
-// BulkPush scans for repositories and pushes them in parallel
+// BulkPush scans for repositories and pushes them in parallel.
 func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushResult, error) {
 	startTime := time.Now()
 
@@ -1810,7 +1813,7 @@ func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushR
 	}, nil
 }
 
-// processPushRepositories processes repositories in parallel for push
+// processPushRepositories processes repositories in parallel for push.
 func (c *client) processPushRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPushOptions, logger Logger) ([]RepositoryPushResult, error) {
 	results := make([]RepositoryPushResult, len(repos))
 	var mu sync.Mutex
@@ -1845,7 +1848,7 @@ func (c *client) processPushRepositories(ctx context.Context, rootDir string, re
 	return results, nil
 }
 
-// processPushRepository processes a single repository push
+// processPushRepository processes a single repository push.
 func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath string, opts BulkPushOptions, logger Logger) RepositoryPushResult {
 	startTime := time.Now()
 
@@ -2020,7 +2023,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	return result
 }
 
-// pushToRemote performs the actual push to a single remote
+// pushToRemote performs the actual push to a single remote.
 func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch string, opts BulkPushOptions) error {
 	// Build push command
 	pushArgs := []string{"push"}
@@ -2058,13 +2061,13 @@ func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch stri
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("push exited with code %d: %s", pushResult.ExitCode, pushResult.Error)
+		return fmt.Errorf("push exited with code %d: %w", pushResult.ExitCode, pushResult.Error)
 	}
 
 	return nil
 }
 
-// calculatePushSummary creates a summary of push results by status
+// calculatePushSummary creates a summary of push results by status.
 func calculatePushSummary(results []RepositoryPushResult) map[string]int {
 	summary := make(map[string]int)
 
@@ -2075,7 +2078,7 @@ func calculatePushSummary(results []RepositoryPushResult) map[string]int {
 	return summary
 }
 
-// BulkStatus scans for repositories and checks their status in parallel
+// BulkStatus scans for repositories and checks their status in parallel.
 func (c *client) BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkStatusResult, error) {
 	startTime := time.Now()
 
@@ -2134,7 +2137,7 @@ func (c *client) BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkS
 	}, nil
 }
 
-// processStatusRepositories processes repositories in parallel for status check
+// processStatusRepositories processes repositories in parallel for status check.
 func (c *client) processStatusRepositories(ctx context.Context, rootDir string, repos []string, opts BulkStatusOptions, logger Logger) ([]RepositoryStatusResult, error) {
 	results := make([]RepositoryStatusResult, len(repos))
 	var mu sync.Mutex
@@ -2169,7 +2172,7 @@ func (c *client) processStatusRepositories(ctx context.Context, rootDir string, 
 	return results, nil
 }
 
-// processStatusRepository processes a single repository status check
+// processStatusRepository processes a single repository status check.
 func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath string, opts BulkStatusOptions, logger Logger) RepositoryStatusResult {
 	startTime := time.Now()
 
@@ -2281,7 +2284,7 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 	return result
 }
 
-// calculateStatusSummary creates a summary of status results by status
+// calculateStatusSummary creates a summary of status results by status.
 func calculateStatusSummary(results []RepositoryStatusResult) map[string]int {
 	summary := make(map[string]int)
 
@@ -2296,7 +2299,7 @@ func calculateStatusSummary(results []RepositoryStatusResult) map[string]int {
 // Common Bulk Operation Helpers
 // ============================================================================
 
-// bulkOperationCommon holds common configuration for bulk operations
+// bulkOperationCommon holds common configuration for bulk operations.
 type bulkOperationCommon struct {
 	Directory         string
 	Parallel          int
@@ -2308,7 +2311,7 @@ type bulkOperationCommon struct {
 }
 
 // initializeBulkOperation initializes common bulk operation settings
-// Returns initialized common config and absolute directory path
+// Returns initialized common config and absolute directory path.
 func initializeBulkOperation(
 	directory string,
 	parallel int,
@@ -2359,7 +2362,7 @@ func initializeBulkOperation(
 	}, nil
 }
 
-// scanAndFilterRepositories scans for repositories and applies filters
+// scanAndFilterRepositories scans for repositories and applies filters.
 func (c *client) scanAndFilterRepositories(
 	ctx context.Context,
 	common *bulkOperationCommon,

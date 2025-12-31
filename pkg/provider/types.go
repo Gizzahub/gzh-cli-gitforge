@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package provider
 
 import (
@@ -5,7 +8,7 @@ import (
 	"time"
 )
 
-// Repository represents a repository from any Git platform
+// Repository represents a repository from any Git platform.
 type Repository struct {
 	Name          string
 	FullName      string
@@ -27,14 +30,14 @@ type Repository struct {
 	PushedAt      time.Time
 }
 
-// Organization represents an organization or group from any Git platform
+// Organization represents an organization or group from any Git platform.
 type Organization struct {
 	Name        string
 	Description string
 	URL         string
 }
 
-// SyncOptions configures repository synchronization
+// SyncOptions configures repository synchronization.
 type SyncOptions struct {
 	TargetPath      string
 	Parallel        int
@@ -44,14 +47,14 @@ type SyncOptions struct {
 	DryRun          bool
 }
 
-// SyncResult represents the result of syncing a single repository
+// SyncResult represents the result of syncing a single repository.
 type SyncResult struct {
 	Repository *Repository
 	Action     SyncAction
 	Error      error
 }
 
-// SyncAction represents what action was taken during sync
+// SyncAction represents what action was taken during sync.
 type SyncAction string
 
 const (
@@ -61,7 +64,7 @@ const (
 	ActionFailed  SyncAction = "failed"
 )
 
-// RateLimit represents API rate limit information
+// RateLimit represents API rate limit information.
 type RateLimit struct {
 	Limit     int
 	Remaining int
@@ -69,13 +72,13 @@ type RateLimit struct {
 	Used      int
 }
 
-// ListOptions common pagination options
+// ListOptions common pagination options.
 type ListOptions struct {
 	Page    int
 	PerPage int
 }
 
-// Provider defines the interface for Git platform providers
+// Provider defines the interface for Git platform providers.
 type Provider interface {
 	// Name returns the provider name (github, gitlab, gitea)
 	Name() string
@@ -96,7 +99,7 @@ type Provider interface {
 	GetRateLimit(ctx context.Context) (*RateLimit, error)
 }
 
-// ProviderWithAuth extends Provider with authentication capabilities
+// ProviderWithAuth extends Provider with authentication capabilities.
 type ProviderWithAuth interface {
 	Provider
 
@@ -107,7 +110,7 @@ type ProviderWithAuth interface {
 	ValidateToken(ctx context.Context) (bool, error)
 }
 
-// Syncer handles repository synchronization operations
+// Syncer handles repository synchronization operations.
 type Syncer interface {
 	// SyncOrganization syncs all repositories from an organization
 	SyncOrganization(ctx context.Context, provider Provider, org string, opts SyncOptions) ([]SyncResult, error)

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package repository
 
 import (
@@ -192,9 +195,10 @@ func (c *client) BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffR
 
 			mu.Lock()
 			result.Repositories = append(result.Repositories, repoResult)
-			if repoResult.Status == "has-changes" {
+			switch repoResult.Status {
+			case "has-changes":
 				result.TotalWithChanges++
-			} else if repoResult.Status == "clean" {
+			case "clean":
 				result.TotalClean++
 			}
 			mu.Unlock()

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
 package branch
 
 import "errors"
@@ -34,8 +37,8 @@ var (
 	// ErrRemoteNotFound indicates remote doesn't exist.
 	ErrRemoteNotFound = errors.New("remote not found")
 
-	// ErrOperationCancelled indicates user cancelled the operation.
-	ErrOperationCancelled = errors.New("operation cancelled by user")
+	// ErrOperationCancelled indicates user canceled the operation.
+	ErrOperationCancelled = errors.New("operation canceled by user")
 
 	// ErrWorktreeExists indicates worktree path already exists.
 	ErrWorktreeExists = errors.New("worktree path already exists")
