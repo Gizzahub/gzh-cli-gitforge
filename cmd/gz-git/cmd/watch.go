@@ -77,8 +77,26 @@ func init() {
 	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (macOS/Linux)")
 }
 
+// ValidWatchFormats contains the list of valid output formats for watch command
+var ValidWatchFormats = []string{"default", "compact", "json", "llm"}
+
+// validateWatchFormat validates the format flag for watch command
+func validateWatchFormat(format string) error {
+	for _, valid := range ValidWatchFormats {
+		if format == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid format %q: must be one of: default, compact, json, llm", format)
+}
+
 func runWatch(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	// Validate format
+	if err := validateWatchFormat(watchOutputFormat); err != nil {
+		return err
+	}
 
 	// Determine paths to watch
 	paths := watchPaths
@@ -192,6 +210,8 @@ func newEventFormatter(format string) eventFormatter {
 		return &compactFormatter{}
 	case "json":
 		return &jsonFormatter{}
+	case "llm":
+		return &llmFormatter{}
 	default:
 		return &defaultFormatter{}
 	}
@@ -283,6 +303,33 @@ func (f *jsonFormatter) Format(event watch.Event) string {
 		event.Path,
 		event.Type,
 		files)
+}
+
+// llmFormatter provides LLM-friendly structured output.
+type llmFormatter struct{}
+
+func (f *llmFormatter) Format(event watch.Event) string {
+	var sb strings.Builder
+
+	timestamp := event.Timestamp.Format("2006-01-02 15:04:05")
+	repoName := filepath.Base(event.Path)
+
+	sb.WriteString(fmt.Sprintf("## Repository Change Event\n"))
+	sb.WriteString(fmt.Sprintf("- Time: %s\n", timestamp))
+	sb.WriteString(fmt.Sprintf("- Repository: %s\n", repoName))
+	sb.WriteString(fmt.Sprintf("- Path: %s\n", event.Path))
+	sb.WriteString(fmt.Sprintf("- Event Type: %s\n", event.Type))
+
+	if len(event.Files) > 0 {
+		sb.WriteString(fmt.Sprintf("- Files Changed: %d\n", len(event.Files)))
+		sb.WriteString("- File List:\n")
+		for _, file := range event.Files {
+			sb.WriteString(fmt.Sprintf("  - %s\n", file))
+		}
+	}
+
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 // watchLogger implements watch.Logger interface.

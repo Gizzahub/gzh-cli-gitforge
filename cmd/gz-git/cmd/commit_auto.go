@@ -61,8 +61,26 @@ func init() {
 	autoCmd.Flags().BoolVar(&autoEdit, "edit", false, "open editor to edit message before committing")
 }
 
+// ValidCommitTemplates contains the list of valid templates for commit auto command
+var ValidCommitTemplates = []string{"conventional", "semantic"}
+
+// validateCommitTemplate validates the template flag for commit auto command
+func validateCommitTemplate(template string) error {
+	for _, valid := range ValidCommitTemplates {
+		if template == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid template %q: must be one of: conventional, semantic", template)
+}
+
 func runCommitAuto(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
+	// Validate template
+	if err := validateCommitTemplate(autoTemplate); err != nil {
+		return err
+	}
 
 	// Get repository path
 	repoPath, err := os.Getwd()
