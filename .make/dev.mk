@@ -172,3 +172,65 @@ dev-status: ## show current development status
 	@echo -e "  • $(CYAN)make quick$(RESET)          Quick development check"
 	@echo -e "  • $(CYAN)make dev$(RESET)            Full development workflow"
 	@echo -e "  • $(CYAN)make setup-all$(RESET)      Set up everything from scratch"
+
+# ==============================================================================
+# Version Management (VERSION file based, no tags for patch versions)
+# ==============================================================================
+
+.PHONY: ver ver-up-a ver-up-b ver-up-c ver-set ver-tag-push
+
+ver: ## show current version
+	@echo -e "$(CYAN)Current version: $(GREEN)$(VERSION)$(RESET)"
+
+ver-up-a: ## bump major version (a.b.c -> a+1.0.0) + create new vN tag
+	@current=$$(cat VERSION 2>/dev/null || echo "0.0.0"); \
+	major=$$(echo $$current | cut -d. -f1); \
+	new_major=$$((major + 1)); \
+	new_version="$$new_major.0.0"; \
+	echo $$new_version > VERSION; \
+	echo -e "$(GREEN)Version bumped: $$current -> $$new_version$(RESET)"; \
+	echo -e "$(CYAN)Creating tag v$$new_major...$(RESET)"; \
+	git tag -a "v$$new_major" -m "Release v$$new_major ($$new_version)"; \
+	echo -e "$(GREEN)Tag v$$new_major created. Push with: git push origin v$$new_major$(RESET)"
+
+ver-up-b: ## bump minor version (a.b.c -> a.b+1.0) + update rolling vN tag
+	@current=$$(cat VERSION 2>/dev/null || echo "0.0.0"); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	new_minor=$$((minor + 1)); \
+	new_version="$$major.$$new_minor.0"; \
+	echo $$new_version > VERSION; \
+	echo -e "$(GREEN)Version bumped: $$current -> $$new_version$(RESET)"; \
+	echo -e "$(CYAN)Updating rolling tag v$$major...$(RESET)"; \
+	git tag -d "v$$major" 2>/dev/null || true; \
+	git tag -a "v$$major" -m "Release v$$major ($$new_version)"; \
+	echo -e "$(GREEN)Tag v$$major updated. Push with: git push origin v$$major --force$(RESET)"
+
+ver-up-c: ## bump patch version (a.b.c -> a.b.c+1) + update rolling vN tag
+	@current=$$(cat VERSION 2>/dev/null || echo "0.0.0"); \
+	major=$$(echo $$current | cut -d. -f1); \
+	minor=$$(echo $$current | cut -d. -f2); \
+	patch=$$(echo $$current | cut -d. -f3); \
+	new_patch=$$((patch + 1)); \
+	new_version="$$major.$$minor.$$new_patch"; \
+	echo $$new_version > VERSION; \
+	echo -e "$(GREEN)Version bumped: $$current -> $$new_version$(RESET)"; \
+	echo -e "$(CYAN)Updating rolling tag v$$major...$(RESET)"; \
+	git tag -d "v$$major" 2>/dev/null || true; \
+	git tag -a "v$$major" -m "Release v$$major ($$new_version)"; \
+	echo -e "$(GREEN)Tag v$$major updated. Push with: git push origin v$$major --force$(RESET)"
+
+ver-set: ## set version manually (usage: make ver-set V=1.2.3)
+	@if [ -z "$(V)" ]; then \
+		echo -e "$(RED)Usage: make ver-set V=1.2.3$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo $(V) > VERSION; \
+	echo -e "$(GREEN)Version set to: $(V)$(RESET)"
+
+ver-tag-push: ## push the rolling major tag (force push)
+	@version=$$(cat VERSION 2>/dev/null); \
+	major=$$(echo $$version | cut -d. -f1); \
+	echo -e "$(CYAN)Pushing tag v$$major (force)...$(RESET)"; \
+	git push origin "v$$major" --force; \
+	echo -e "$(GREEN)Tag v$$major pushed$(RESET)"

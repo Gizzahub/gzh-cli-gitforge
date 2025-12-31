@@ -9,7 +9,8 @@
 # Project metadata
 projectname := gzh-cli-gitforge
 executablename := gz-git
-VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0-alpha")
+# Version from VERSION file (preferred) or git tag (fallback)
+VERSION ?= $(shell cat VERSION 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo "0.1.0")
 
 # Go configuration
 export GOPROXY=https://proxy.golang.org,direct
