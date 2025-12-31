@@ -54,7 +54,7 @@ Supports various merge strategies and options:
 func init() {
 	mergeCmd.AddCommand(doCmd)
 
-	doCmd.Flags().StringVar(&mergeStrategy, "strategy", "auto", "merge strategy (auto|ours|theirs|recursive)")
+	doCmd.Flags().StringVar(&mergeStrategy, "strategy", "auto", "merge strategy: auto, ours, theirs, recursive")
 	doCmd.Flags().BoolVar(&mergeFastForward, "ff-only", false, "only allow fast-forward merge")
 	doCmd.Flags().BoolVar(&mergeNoCommit, "no-commit", false, "perform merge but don't commit")
 	doCmd.Flags().BoolVar(&mergeSquash, "squash", false, "squash all commits into one")

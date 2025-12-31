@@ -54,7 +54,7 @@ This command will:
 func init() {
 	commitCmd.AddCommand(autoCmd)
 
-	autoCmd.Flags().StringVar(&autoTemplate, "template", "conventional", "template to use (conventional|semantic)")
+	autoCmd.Flags().StringVar(&autoTemplate, "template", "conventional", "template to use: conventional, semantic")
 	autoCmd.Flags().StringVar(&autoScope, "scope", "", "override detected scope")
 	autoCmd.Flags().StringVar(&autoType, "type", "", "override detected type")
 	autoCmd.Flags().BoolVar(&autoDryRun, "dry-run", false, "show message without committing")

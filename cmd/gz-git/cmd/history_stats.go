@@ -52,7 +52,7 @@ func init() {
 	statsCmd.Flags().StringVar(&statsUntil, "until", "", "end date (e.g., '2024-12-31', 'yesterday')")
 	statsCmd.Flags().StringVarP(&statsBranch, "branch", "b", "", "specific branch (default: current)")
 	statsCmd.Flags().StringVar(&statsAuthor, "author", "", "filter by author")
-	statsCmd.Flags().StringVarP(&statsFormat, "format", "f", "table", "output format (table|json|csv|markdown|llm)")
+	statsCmd.Flags().StringVarP(&statsFormat, "format", "f", "table", "output format: table, json, csv, markdown, llm")
 }
 
 func runHistoryStats(cmd *cobra.Command, args []string) error {

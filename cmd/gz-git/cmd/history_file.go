@@ -71,7 +71,7 @@ func init() {
 	fileCmd.Flags().IntVar(&fileHistoryMax, "max", 0, "maximum number of commits")
 	fileCmd.Flags().BoolVar(&fileHistoryFollow, "follow", false, "follow file renames")
 	fileCmd.Flags().StringVar(&fileHistoryAuthor, "author", "", "filter by author")
-	fileCmd.Flags().StringVarP(&fileHistoryFormat, "format", "f", "table", "output format (table|json|csv|markdown|llm)")
+	fileCmd.Flags().StringVarP(&fileHistoryFormat, "format", "f", "table", "output format: table, json, csv, markdown, llm")
 }
 
 func runHistoryFile(cmd *cobra.Command, args []string) error {
