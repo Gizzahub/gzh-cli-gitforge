@@ -118,15 +118,54 @@ func runClone(cmd *cobra.Command, args []string) error {
 }
 
 // extractRepoName extracts the repository name from a URL.
-// Example: https://github.com/user/repo.git -> repo
+// Supports HTTPS, SSH, Git, and file URLs.
+// Examples:
+//   - https://github.com/user/repo.git -> repo
+//   - git@github.com:user/repo.git -> repo
+//   - git@github.com:user/repo -> repo
+//   - /path/to/repo -> repo
 func extractRepoName(url string) string {
-	// Remove trailing .git
 	name := url
-	if len(name) > 4 && name[len(name)-4:] == ".git" {
+
+	// Remove trailing .git suffix
+	if len(name) >= 4 && name[len(name)-4:] == ".git" {
 		name = name[:len(name)-4]
 	}
 
-	// Find last slash
+	// Handle edge case where name becomes empty after removing .git
+	if name == "" || name == "." {
+		return "repository"
+	}
+
+	// Handle SSH URLs (git@github.com:user/repo)
+	// Find the last colon that's part of the SSH path separator
+	lastColon := -1
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == ':' {
+			lastColon = i
+			break
+		}
+	}
+
+	// If colon found and there's content after it, check if it's an SSH URL
+	// SSH URLs have format: git@host:user/repo (colon followed by path with slash)
+	if lastColon > 0 && lastColon < len(name)-1 {
+		afterColon := name[lastColon+1:]
+		// Check if this is an SSH-style path (contains /)
+		hasSlash := false
+		for _, c := range afterColon {
+			if c == '/' {
+				hasSlash = true
+				break
+			}
+		}
+		if hasSlash {
+			// SSH URL: extract repo name from path after colon
+			name = afterColon
+		}
+	}
+
+	// Find last slash or backslash to get the final path component
 	lastSlash := -1
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' || name[i] == '\\' {
@@ -137,19 +176,6 @@ func extractRepoName(url string) string {
 
 	if lastSlash >= 0 && lastSlash < len(name)-1 {
 		name = name[lastSlash+1:]
-	}
-
-	// Remove colon (for SSH URLs like git@github.com:user/repo)
-	if lastColon := -1; lastColon >= 0 {
-		for i := len(name) - 1; i >= 0; i-- {
-			if name[i] == ':' {
-				lastColon = i
-				break
-			}
-		}
-		if lastColon >= 0 && lastColon < len(name)-1 {
-			name = name[lastColon+1:]
-		}
 	}
 
 	if name == "" {

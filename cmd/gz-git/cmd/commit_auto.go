@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -155,15 +156,24 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Edit mode (future enhancement - for now just show warning)
+	// Edit mode - open editor to modify the message
 	if autoEdit {
-		fmt.Fprintln(os.Stderr, "⚠ --edit flag not yet implemented")
-		fmt.Fprintln(os.Stderr, "Using generated message as-is")
+		editedMessage, err := editMessageInEditor(ctx, message)
+		if err != nil {
+			return fmt.Errorf("failed to edit message: %w", err)
+		}
+		if editedMessage == "" {
+			return fmt.Errorf("aborting commit due to empty message")
+		}
+		message = editedMessage
+		if !quiet {
+			fmt.Printf("\nEdited Commit Message:\n\n  %s\n\n", message)
+		}
 	}
 
 	// Create commit using git command
 	if !quiet {
-		fmt.Println("\nCreating commit...")
+		fmt.Println("Creating commit...")
 	}
 
 	// Execute git commit directly using os/exec
@@ -181,4 +191,60 @@ func runCommitAuto(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// editMessageInEditor opens the user's preferred editor to edit the commit message.
+// Returns the edited message or an error.
+func editMessageInEditor(ctx context.Context, initialMessage string) (string, error) {
+	// Find editor from environment variables
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+	}
+	if editor == "" {
+		editor = "vi" // Default fallback
+	}
+
+	// Create temporary file for editing
+	tmpFile, err := os.CreateTemp("", "gz-git-commit-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	// Write initial message to temp file with instructions
+	content := initialMessage + "\n\n# Edit the commit message above.\n# Lines starting with '#' will be ignored.\n# An empty message aborts the commit.\n"
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		return "", fmt.Errorf("failed to write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Open editor
+	editorCmd := exec.CommandContext(ctx, editor, tmpPath)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
+
+	if err := editorCmd.Run(); err != nil {
+		return "", fmt.Errorf("editor failed: %w", err)
+	}
+
+	// Read edited content
+	editedContent, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read edited file: %w", err)
+	}
+
+	// Remove comment lines and trim
+	lines := strings.Split(string(editedContent), "\n")
+	var messageLines []string
+	for _, line := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			messageLines = append(messageLines, line)
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(messageLines, "\n")), nil
 }

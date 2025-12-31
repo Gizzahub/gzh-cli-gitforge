@@ -239,3 +239,19 @@ func (e *ValidationError) Is(target error) bool {
 	_, ok := target.(*ValidationError)
 	return ok
 }
+
+// statusGetter is an interface for types that have a Status field.
+// This enables generic summary calculation across all bulk result types.
+type statusGetter interface {
+	GetStatus() string
+}
+
+// calculateSummaryGeneric creates a summary by status for any slice of statusGetter.
+// This is a generic implementation that replaces all type-specific summary functions.
+func calculateSummaryGeneric[T statusGetter](results []T) map[string]int {
+	summary := make(map[string]int)
+	for _, result := range results {
+		summary[result.GetStatus()]++
+	}
+	return summary
+}

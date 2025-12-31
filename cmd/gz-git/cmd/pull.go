@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -170,50 +167,18 @@ func runPull(cmd *cobra.Command, args []string) error {
 }
 
 func runPullWatch(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {
-	if !quiet {
-		fmt.Printf("Starting watch mode: pulling every %s\n", pullFlags.Interval)
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
-		fmt.Println("Press Ctrl+C to stop...")
-		fmt.Println()
+	cfg := WatchConfig{
+		Interval:      pullFlags.Interval,
+		Format:        pullFlags.Format,
+		Quiet:         quiet,
+		OperationName: "pull",
+		Directory:     opts.Directory,
+		MaxDepth:      opts.MaxDepth,
 	}
 
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Create ticker for periodic pulling
-	ticker := time.NewTicker(pullFlags.Interval)
-	defer ticker.Stop()
-
-	// Perform initial pull immediately
-	if err := executePull(ctx, client, opts); err != nil {
-		return err
-	}
-
-	// Watch loop
-	for {
-		select {
-		case <-sigChan:
-			if !quiet {
-				fmt.Println("\nStopping watch...")
-			}
-			return nil
-
-		case <-ticker.C:
-			if shouldShowProgress(pullFlags.Format, quiet) {
-				fmt.Printf("\n[%s] Running scheduled pull...\n", time.Now().Format("15:04:05"))
-			}
-			if err := executePull(ctx, client, opts); err != nil {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "Pull error: %v\n", err)
-				}
-				// Continue watching even on error
-			}
-
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	return RunBulkWatch(cfg, func() error {
+		return executePull(ctx, client, opts)
+	})
 }
 
 func executePull(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {

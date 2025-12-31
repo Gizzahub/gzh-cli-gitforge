@@ -120,6 +120,9 @@ type RepositoryDiffResult struct {
 	Duration time.Duration
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositoryDiffResult) GetStatus() string { return r.Status }
+
 // ChangedFile represents a changed file with its status.
 type ChangedFile struct {
 	// Path is the file path

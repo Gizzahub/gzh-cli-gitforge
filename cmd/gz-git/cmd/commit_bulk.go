@@ -230,69 +230,6 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func displayCommitPreview(result *repository.BulkCommitResult) {
-	fmt.Println()
-	fmt.Println("=== Bulk Commit Preview ===")
-	fmt.Printf("Found %d dirty repositories\n\n", result.TotalDirty)
-
-	// Table header
-	fmt.Printf(" # | %-30s | %-10s | Files | %-10s | %s\n", "Repository", "Branch", "+/-", "Message (suggested)")
-	fmt.Println(strings.Repeat("-", 105))
-
-	// Calculate totals
-	totalFiles := 0
-	totalAdditions := 0
-	totalDeletions := 0
-	rowNum := 0
-
-	for _, repo := range result.Repositories {
-		if repo.Status != "dirty" && repo.Status != "would-commit" {
-			continue
-		}
-		rowNum++
-
-		// Truncate path if too long
-		path := repo.RelativePath
-		if len(path) > 28 {
-			path = "..." + path[len(path)-25:]
-		}
-
-		// Truncate branch if too long
-		branch := repo.Branch
-		if len(branch) > 10 {
-			branch = branch[:7] + "..."
-		}
-
-		// Format +/-
-		plusMinus := fmt.Sprintf("+%d/-%d", repo.Additions, repo.Deletions)
-
-		// Truncate message if too long
-		msg := repo.SuggestedMessage
-		if repo.Message != "" {
-			msg = repo.Message
-		}
-		if len(msg) > 35 {
-			msg = msg[:32] + "..."
-		}
-
-		fmt.Printf("%2d | %-30s | %-10s | %5d | %-10s | %s\n",
-			rowNum,
-			path,
-			branch,
-			repo.FilesChanged,
-			plusMinus,
-			msg,
-		)
-
-		totalFiles += repo.FilesChanged
-		totalAdditions += repo.Additions
-		totalDeletions += repo.Deletions
-	}
-
-	fmt.Println(strings.Repeat("-", 105))
-	fmt.Printf("Total: %d repositories, %d files, +%d/-%d lines\n\n", result.TotalDirty, totalFiles, totalAdditions, totalDeletions)
-}
-
 // loadMessagesFile loads commit messages from a JSON file
 func loadMessagesFile(path string) (map[string]string, error) {
 	data, err := os.ReadFile(path)

@@ -125,6 +125,9 @@ type RepositoryCommitResult struct {
 	Duration time.Duration
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositoryCommitResult) GetStatus() string { return r.Status }
+
 // BulkCommit scans for repositories and commits changes in parallel.
 func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkCommitResult, error) {
 	startTime := time.Now()

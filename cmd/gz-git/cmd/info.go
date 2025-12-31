@@ -3,12 +3,35 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
+
+// ANSI color codes for terminal output
+const (
+	colorReset  = "\x1b[0m"
+	colorGreen  = "\x1b[32m"
+	colorRed    = "\x1b[31m"
+	colorYellow = "\x1b[33m"
+)
+
+// colorize wraps text with ANSI color codes if terminal supports colors.
+func colorize(text, color string) string {
+	if !isTerminal() {
+		return text
+	}
+	return color + text + colorReset
+}
+
+// isTerminal checks if stdout is connected to a terminal.
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
 
 // infoCmd represents the info command
 var infoCmd = &cobra.Command{
@@ -127,9 +150,9 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	if err == nil {
 		fmt.Println()
 		if status.IsClean {
-			fmt.Println("Status:        \x1b[32mclean\x1b[0m")
+			fmt.Printf("Status:        %s\n", colorize("clean", colorGreen))
 		} else {
-			fmt.Println("Status:        \x1b[31mdirty\x1b[0m")
+			fmt.Printf("Status:        %s\n", colorize("dirty", colorRed))
 
 			totalChanges := len(status.ModifiedFiles) + len(status.StagedFiles) + len(status.UntrackedFiles)
 			fmt.Printf("Changes:       %d files\n", totalChanges)
@@ -144,7 +167,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 				fmt.Printf("  Untracked:   %d\n", len(status.UntrackedFiles))
 			}
 			if len(status.ConflictFiles) > 0 {
-				fmt.Printf("  Conflicts:   \x1b[31m%d\x1b[0m\n", len(status.ConflictFiles))
+				fmt.Printf("  Conflicts:   %s\n", colorize(fmt.Sprintf("%d", len(status.ConflictFiles)), colorRed))
 			}
 		}
 	}

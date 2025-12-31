@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -184,50 +181,18 @@ func runPush(cmd *cobra.Command, args []string) error {
 }
 
 func runPushWatch(ctx context.Context, client repository.Client, opts repository.BulkPushOptions) error {
-	if !quiet {
-		fmt.Printf("Starting watch mode: pushing every %s\n", pushFlags.Interval)
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
-		fmt.Println("Press Ctrl+C to stop...")
-		fmt.Println()
+	cfg := WatchConfig{
+		Interval:      pushFlags.Interval,
+		Format:        pushFlags.Format,
+		Quiet:         quiet,
+		OperationName: "push",
+		Directory:     opts.Directory,
+		MaxDepth:      opts.MaxDepth,
 	}
 
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Create ticker for periodic pushing
-	ticker := time.NewTicker(pushFlags.Interval)
-	defer ticker.Stop()
-
-	// Perform initial push immediately
-	if err := executePush(ctx, client, opts); err != nil {
-		return err
-	}
-
-	// Watch loop
-	for {
-		select {
-		case <-sigChan:
-			if !quiet {
-				fmt.Println("\nStopping watch...")
-			}
-			return nil
-
-		case <-ticker.C:
-			if shouldShowProgress(pushFlags.Format, quiet) {
-				fmt.Printf("\n[%s] Running scheduled push...\n", time.Now().Format("15:04:05"))
-			}
-			if err := executePush(ctx, client, opts); err != nil {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "Push error: %v\n", err)
-				}
-				// Continue watching even on error
-			}
-
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	return RunBulkWatch(cfg, func() error {
+		return executePush(ctx, client, opts)
+	})
 }
 
 func executePush(ctx context.Context, client repository.Client, opts repository.BulkPushOptions) error {
@@ -304,7 +269,7 @@ func displayPushResults(result *repository.BulkPushResult) {
 func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 	// Determine icon based on actual result, not just status
 	// ✓ = changes pushed, = = no changes (up-to-date)
-	icon := getPushStatusIconWithContext(repo.Status, repo.PushedCommits)
+	icon := getBulkStatusIcon(repo.Status, repo.PushedCommits)
 
 	// Build compact one-line format: icon path (branch) status duration
 	parts := []string{icon}
@@ -464,38 +429,3 @@ func displayPushResultsLLM(result *repository.BulkPushResult) {
 	fmt.Print(buf.String())
 }
 
-// getPushStatusIconWithContext returns the appropriate icon based on status and actual changes.
-// Icons: ✓ (changes pushed), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
-func getPushStatusIconWithContext(status string, pushedCommits int) string {
-	switch status {
-	case "success", "pushed":
-		// Only show ✓ if actual changes were pushed
-		if pushedCommits > 0 {
-			return "✓"
-		}
-		return "=" // No changes = up-to-date
-	case "nothing-to-push", "up-to-date":
-		return "="
-	case "error":
-		return "✗"
-	case "skipped":
-		return "⊘"
-	case "would-push":
-		return "→"
-	case "no-remote":
-		return "⚠"
-	case "no-upstream":
-		return "⚠"
-	case "conflict":
-		return "✗"
-	case "rebase-in-progress", "merge-in-progress":
-		return "⚠"
-	default:
-		return "•"
-	}
-}
-
-// getPushStatusIcon returns the icon for a status.
-func getPushStatusIcon(status string) string {
-	return getPushStatusIconWithContext(status, 0)
-}

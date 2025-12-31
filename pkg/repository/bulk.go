@@ -120,6 +120,9 @@ type RepositoryFetchResult struct {
 	CommitsAhead int
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositoryFetchResult) GetStatus() string { return r.Status }
+
 // BulkPullOptions configures bulk repository pull operations.
 type BulkPullOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -225,6 +228,9 @@ type RepositoryPullResult struct {
 	// Stashed indicates if local changes were stashed
 	Stashed bool
 }
+
+// GetStatus returns the status for summary calculation.
+func (r RepositoryPullResult) GetStatus() string { return r.Status }
 
 // BulkPushOptions configures bulk repository push operations.
 type BulkPushOptions struct {
@@ -332,6 +338,9 @@ type RepositoryPushResult struct {
 	PushedCommits int
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositoryPushResult) GetStatus() string { return r.Status }
+
 // BulkStatusOptions configures bulk repository status check operations.
 type BulkStatusOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -431,6 +440,9 @@ type RepositoryStatusResult struct {
 	// MergeInProgress indicates if repository is in merge state
 	MergeInProgress bool
 }
+
+// GetStatus returns the status for summary calculation.
+func (r RepositoryStatusResult) GetStatus() string { return r.Status }
 
 // BulkUpdateOptions configures bulk repository update operations.
 type BulkUpdateOptions struct {
@@ -532,6 +544,9 @@ type RepositoryUpdateResult struct {
 	HasUncommittedChanges bool
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositoryUpdateResult) GetStatus() string { return r.Status }
+
 // BulkSwitchOptions configures bulk repository branch switch operations.
 type BulkSwitchOptions struct {
 	// Directory is the root directory to scan for repositories
@@ -631,6 +646,9 @@ type RepositorySwitchResult struct {
 	HasUncommittedChanges bool
 }
 
+// GetStatus returns the status for summary calculation.
+func (r RepositorySwitchResult) GetStatus() string { return r.Status }
+
 // BulkUpdate scans for repositories and updates them in parallel.
 func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkUpdateResult, error) {
 	startTime := time.Now()
@@ -690,13 +708,6 @@ func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkU
 	}, nil
 }
 
-// scanRepositories recursively finds Git repositories.
-func (c *client) scanRepositories(ctx context.Context, dir string, maxDepth int, logger Logger) ([]string, error) {
-	return c.scanRepositoriesWithConfig(ctx, dir, maxDepth, logger, walkDirectoryConfig{
-		includeSubmodules: false,
-	})
-}
-
 // scanRepositoriesWithConfig recursively finds Git repositories with configuration.
 func (c *client) scanRepositoriesWithConfig(ctx context.Context, dir string, maxDepth int, logger Logger, config walkDirectoryConfig) ([]string, error) {
 	var repos []string
@@ -749,16 +760,9 @@ func isSubmodule(dir string) bool {
 	return false
 }
 
-// walkDirectoryConfig holds configuration for walkDirectory.
+// walkDirectoryConfig holds configuration for walkDirectoryWithConfig.
 type walkDirectoryConfig struct {
 	includeSubmodules bool
-}
-
-// walkDirectory recursively walks directories to find Git repositories.
-func (c *client) walkDirectory(ctx context.Context, dir string, depth, maxDepth int, repos *[]string, mu *sync.Mutex, logger Logger) error {
-	return c.walkDirectoryWithConfig(ctx, dir, depth, maxDepth, repos, mu, logger, walkDirectoryConfig{
-		includeSubmodules: false,
-	})
 }
 
 // walkDirectoryWithConfig walks directories with configuration options to find git repositories.
@@ -1071,13 +1075,7 @@ func getRelativePath(root, target string) string {
 
 // calculateSummary creates a summary of results by status.
 func calculateSummary(results []RepositoryUpdateResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
 
 // BulkFetch scans for repositories and fetches them in parallel.
@@ -1296,13 +1294,7 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 
 // calculateFetchSummary creates a summary of fetch results by status.
 func calculateFetchSummary(results []RepositoryFetchResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
 
 // BulkPull scans for repositories and pulls them in parallel.
@@ -1686,13 +1678,7 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 
 // calculatePullSummary creates a summary of pull results by status.
 func calculatePullSummary(results []RepositoryPullResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
 
 // repositoryState represents the current state of a git repository.
@@ -2069,13 +2055,7 @@ func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch stri
 
 // calculatePushSummary creates a summary of push results by status.
 func calculatePushSummary(results []RepositoryPushResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
 
 // BulkStatus scans for repositories and checks their status in parallel.
@@ -2286,13 +2266,7 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 
 // calculateStatusSummary creates a summary of status results by status.
 func calculateStatusSummary(results []RepositoryStatusResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
 
 // ============================================================================

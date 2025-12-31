@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -134,50 +131,18 @@ func runStatus(cmd *cobra.Command, args []string) error {
 }
 
 func runStatusWatch(ctx context.Context, client repository.Client, opts repository.BulkStatusOptions) error {
-	if !quiet {
-		fmt.Printf("Starting watch mode: checking every %s\n", statusFlags.Interval)
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
-		fmt.Println("Press Ctrl+C to stop...")
-		fmt.Println()
+	cfg := WatchConfig{
+		Interval:      statusFlags.Interval,
+		Format:        statusFlags.Format,
+		Quiet:         quiet,
+		OperationName: "status check",
+		Directory:     opts.Directory,
+		MaxDepth:      opts.MaxDepth,
 	}
 
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Create ticker for periodic checking
-	ticker := time.NewTicker(statusFlags.Interval)
-	defer ticker.Stop()
-
-	// Perform initial check immediately
-	if err := executeStatus(ctx, client, opts); err != nil {
-		return err
-	}
-
-	// Watch loop
-	for {
-		select {
-		case <-sigChan:
-			if !quiet {
-				fmt.Println("\nStopping watch...")
-			}
-			return nil
-
-		case <-ticker.C:
-			if !quiet && statusFlags.Format != "compact" {
-				fmt.Printf("\n[%s] Running scheduled status check...\n", time.Now().Format("15:04:05"))
-			}
-			if err := executeStatus(ctx, client, opts); err != nil {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
-				}
-				// Continue watching even on error
-			}
-
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	return RunBulkWatch(cfg, func() error {
+		return executeStatus(ctx, client, opts)
+	})
 }
 
 func executeStatus(ctx context.Context, client repository.Client, opts repository.BulkStatusOptions) error {
@@ -218,7 +183,7 @@ func displayStatusResults(result *repository.BulkStatusResult) {
 	if len(result.Summary) > 0 {
 		fmt.Println("Summary by status:")
 		for status, count := range result.Summary {
-			icon := getStatusIconForStatus(status)
+			icon := getBulkStatusIconSimple(status)
 			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
 		}
 		fmt.Println()
@@ -344,7 +309,7 @@ func displayStatusResultsLLM(result *repository.BulkStatusResult) {
 }
 
 func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
-	icon := getStatusIconForStatus(repo.Status)
+	icon := getBulkStatusIconSimple(repo.Status)
 
 	// Build compact one-line format: icon path (branch) status duration
 	parts := []string{icon}
@@ -426,28 +391,6 @@ func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
 	}
 }
 
-func getStatusIconForStatus(status string) string {
-	switch status {
-	case "clean":
-		return "✓"
-	case "dirty":
-		return "⚠"
-	case "conflict":
-		return "⚡"
-	case "rebase-in-progress":
-		return "↻"
-	case "merge-in-progress":
-		return "⇄"
-	case "error":
-		return "✗"
-	case "no-remote":
-		return "⚠"
-	case "no-upstream":
-		return "⚠"
-	default:
-		return "•"
-	}
-}
 
 // FormatUpstreamFixHint returns a formatted fix hint for no-upstream status.
 // Returns empty string if branch is empty.

@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -101,9 +103,13 @@ func shouldShowProgress(format string, quiet bool) bool {
 
 // getBulkStatusIcon returns the appropriate icon for bulk operation status.
 // The changesCount parameter indicates actual changes (commits behind/ahead/pushed).
-// Icons: ✓ (changes occurred), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
+// Icons: ✓ (changes occurred/clean), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
 func getBulkStatusIcon(status string, changesCount int) string {
 	switch status {
+	// Clean state (for status command)
+	case "clean":
+		return "✓"
+
 	// Success states - show ✓ only if changes occurred
 	case "success", "fetched", "pulled", "pushed", "updated":
 		if changesCount > 0 {
@@ -147,4 +153,65 @@ func getBulkStatusIcon(status string, changesCount int) string {
 // getBulkStatusIconSimple returns the icon without considering changes count.
 func getBulkStatusIconSimple(status string) string {
 	return getBulkStatusIcon(status, 0)
+}
+
+// WatchConfig holds configuration for watch mode operations.
+type WatchConfig struct {
+	Interval      time.Duration
+	Format        string
+	Quiet         bool
+	OperationName string // e.g., "fetch", "pull", "push", "status check"
+	Directory     string
+	MaxDepth      int
+}
+
+// WatchExecutor is a function that executes the bulk operation once.
+// Returns an error if the operation fails.
+type WatchExecutor func() error
+
+// RunBulkWatch runs a bulk operation in watch mode with proper signal handling.
+// This centralizes the watch loop logic used by fetch, pull, push, and status commands.
+func RunBulkWatch(cfg WatchConfig, executor WatchExecutor) error {
+	if !cfg.Quiet {
+		fmt.Printf("Starting watch mode: %s every %s\n", cfg.OperationName, cfg.Interval)
+		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", cfg.Directory, cfg.MaxDepth)
+		fmt.Println("Press Ctrl+C to stop...")
+		fmt.Println()
+	}
+
+	// Setup signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+
+	// Create ticker for periodic execution
+	ticker := time.NewTicker(cfg.Interval)
+	defer ticker.Stop()
+
+	// Perform initial execution immediately
+	if err := executor(); err != nil {
+		return err
+	}
+
+	// Watch loop
+	for {
+		select {
+		case <-sigChan:
+			if !cfg.Quiet {
+				fmt.Println("\nStopping watch...")
+			}
+			return nil
+
+		case <-ticker.C:
+			if shouldShowProgress(cfg.Format, cfg.Quiet) {
+				fmt.Printf("\n[%s] Running scheduled %s...\n", time.Now().Format("15:04:05"), cfg.OperationName)
+			}
+			if err := executor(); err != nil {
+				if !cfg.Quiet {
+					fmt.Fprintf(os.Stderr, "%s error: %v\n", cfg.OperationName, err)
+				}
+				// Continue watching even on error
+			}
+		}
+	}
 }

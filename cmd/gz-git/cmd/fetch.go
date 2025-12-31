@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -164,50 +161,18 @@ func runFetch(cmd *cobra.Command, args []string) error {
 }
 
 func runFetchWatch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {
-	if !quiet {
-		fmt.Printf("Starting watch mode: fetching every %s\n", fetchFlags.Interval)
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", opts.Directory, opts.MaxDepth)
-		fmt.Println("Press Ctrl+C to stop...")
-		fmt.Println()
+	cfg := WatchConfig{
+		Interval:      fetchFlags.Interval,
+		Format:        fetchFlags.Format,
+		Quiet:         quiet,
+		OperationName: "fetch",
+		Directory:     opts.Directory,
+		MaxDepth:      opts.MaxDepth,
 	}
 
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	// Create ticker for periodic fetching
-	ticker := time.NewTicker(fetchFlags.Interval)
-	defer ticker.Stop()
-
-	// Perform initial fetch immediately
-	if err := executeFetch(ctx, client, opts); err != nil {
-		return err
-	}
-
-	// Watch loop
-	for {
-		select {
-		case <-sigChan:
-			if !quiet {
-				fmt.Println("\nStopping watch...")
-			}
-			return nil
-
-		case <-ticker.C:
-			if shouldShowProgress(fetchFlags.Format, quiet) {
-				fmt.Printf("\n[%s] Running scheduled fetch...\n", time.Now().Format("15:04:05"))
-			}
-			if err := executeFetch(ctx, client, opts); err != nil {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "Fetch error: %v\n", err)
-				}
-				// Continue watching even on error
-			}
-
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+	return RunBulkWatch(cfg, func() error {
+		return executeFetch(ctx, client, opts)
+	})
 }
 
 func executeFetch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {
@@ -248,7 +213,7 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 	if len(result.Summary) > 0 {
 		fmt.Println("Summary by status:")
 		for status, count := range result.Summary {
-			icon := getFetchStatusIcon(status)
+			icon := getBulkStatusIconSimple(status)
 			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
 		}
 		fmt.Println()
@@ -283,7 +248,7 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	// Determine icon based on actual result, not just status
 	// ✓ = changes fetched, = = no changes (up-to-date)
-	icon := getFetchStatusIconWithContext(repo.Status, repo.CommitsBehind)
+	icon := getBulkStatusIcon(repo.Status, repo.CommitsBehind)
 
 	// Build compact one-line format: icon path (branch) status duration
 	parts := []string{icon}
@@ -444,34 +409,3 @@ func displayFetchResultsLLM(result *repository.BulkFetchResult) {
 	fmt.Print(buf.String())
 }
 
-// getFetchStatusIconWithContext returns the appropriate icon based on status and actual changes.
-// Icons: ✓ (changes fetched), = (no changes), ✗ (error), ⚠ (warning), ⊘ (skipped)
-func getFetchStatusIconWithContext(status string, commitsBehind int) string {
-	switch status {
-	case "success", "fetched", "updated":
-		// Only show ✓ if actual changes were fetched
-		if commitsBehind > 0 {
-			return "✓"
-		}
-		return "=" // No changes = up-to-date
-	case "up-to-date":
-		return "="
-	case "error":
-		return "✗"
-	case "skipped":
-		return "⊘"
-	case "would-fetch":
-		return "→"
-	case "no-remote":
-		return "⚠"
-	case "no-upstream":
-		return "⚠"
-	default:
-		return "•"
-	}
-}
-
-// getFetchStatusIcon returns the icon for a status.
-func getFetchStatusIcon(status string) string {
-	return getFetchStatusIconWithContext(status, 0)
-}

@@ -357,11 +357,5 @@ func (c *client) checkoutRemoteTrackingBranch(ctx context.Context, repoPath, bra
 
 // calculateSwitchSummary creates a summary of switch results by status.
 func calculateSwitchSummary(results []RepositorySwitchResult) map[string]int {
-	summary := make(map[string]int)
-
-	for _, result := range results {
-		summary[result.Status]++
-	}
-
-	return summary
+	return calculateSummaryGeneric(results)
 }
