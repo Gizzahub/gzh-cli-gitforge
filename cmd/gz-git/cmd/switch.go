@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -67,18 +70,18 @@ The command will skip repositories that:
 func init() {
 	rootCmd.AddCommand(switchCmd)
 
-	// Common bulk operation flags (except watch/interval which don't apply)
-	switchCmd.Flags().IntVarP(&switchFlags.Depth, "depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
+	// Common bulk operation flags (except watch/interval which don't apply to switch)
+	switchCmd.Flags().IntVarP(&switchFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
 	switchCmd.Flags().IntVarP(&switchFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
 	switchCmd.Flags().BoolVarP(&switchFlags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
 	switchCmd.Flags().BoolVarP(&switchFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	switchCmd.Flags().StringVar(&switchFlags.Include, "include", "", "regex pattern to include repositories")
 	switchCmd.Flags().StringVar(&switchFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	switchCmd.Flags().StringVar(&switchFlags.Format, "format", "default", "output format: default, compact")
+	switchCmd.Flags().StringVarP(&switchFlags.Format, "format", "f", "default", "output format: default, compact, json, llm")
 
-	// Switch-specific flags
+	// Switch-specific flags (no -f shorthand for force to avoid conflict with --format)
 	switchCmd.Flags().BoolVarP(&switchCreate, "create", "c", false, "create branch if it doesn't exist")
-	switchCmd.Flags().BoolVarP(&switchForce, "force", "f", false, "force switch even with uncommitted changes (DANGEROUS!)")
+	switchCmd.Flags().BoolVar(&switchForce, "force", false, "force switch even with uncommitted changes (DANGEROUS!)")
 }
 
 func runSwitch(cmd *cobra.Command, args []string) error {
@@ -100,6 +103,11 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 
 	// Validate depth
 	if err := validateBulkDepth(cmd, switchFlags.Depth); err != nil {
+		return err
+	}
+
+	// Validate format
+	if err := validateBulkFormat(switchFlags.Format); err != nil {
 		return err
 	}
 
@@ -137,9 +145,9 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("bulk switch failed: %w", err)
 	}
 
-	// Display results
-	if !quiet {
-		displaySwitchResults(result)
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if switchFlags.Format == "json" || !quiet {
+		displaySwitchResults(result, switchFlags.Format)
 	}
 
 	// Return error if there were any failures
@@ -151,16 +159,40 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 }
 
 // displaySwitchResults displays the results of a bulk switch operation
-func displaySwitchResults(result *repository.BulkSwitchResult) {
+func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
+	// JSON output mode
+	if format == "json" {
+		displaySwitchResultsJSON(result)
+		return
+	}
+
+	// LLM output mode
+	if format == "llm" {
+		displaySwitchResultsLLM(result)
+		return
+	}
+
+	// Default/compact output
 	fmt.Println()
 	fmt.Printf("Target branch: %s\n", result.TargetBranch)
 	fmt.Printf("Scanned: %d repositories\n", result.TotalScanned)
 	fmt.Printf("Processed: %d repositories\n", result.TotalProcessed)
 	fmt.Println()
 
-	// Display each repository result
-	for _, repo := range result.Repositories {
-		displaySwitchRepoResult(repo)
+	// Display each repository result (skip in compact mode unless there are issues)
+	if format != "compact" {
+		for _, repo := range result.Repositories {
+			displaySwitchRepoResult(repo)
+		}
+	} else {
+		// In compact mode, only show non-success results
+		for _, repo := range result.Repositories {
+			if repo.Status != repository.StatusSwitched &&
+				repo.Status != repository.StatusAlreadyOnBranch &&
+				repo.Status != repository.StatusBranchCreated {
+				displaySwitchRepoResult(repo)
+			}
+		}
 	}
 
 	// Display summary
@@ -233,4 +265,96 @@ func displaySwitchSummary(result *repository.BulkSwitchResult) {
 		}
 		fmt.Println()
 	}
+}
+
+// SwitchJSONOutput represents the JSON output structure for switch command
+type SwitchJSONOutput struct {
+	TargetBranch   string                       `json:"target_branch"`
+	TotalScanned   int                          `json:"total_scanned"`
+	TotalProcessed int                          `json:"total_processed"`
+	DurationMs     int64                        `json:"duration_ms"`
+	Summary        map[string]int               `json:"summary"`
+	Repositories   []SwitchRepositoryJSONOutput `json:"repositories"`
+}
+
+// SwitchRepositoryJSONOutput represents a single repository in JSON output
+type SwitchRepositoryJSONOutput struct {
+	Path           string `json:"path"`
+	Status         string `json:"status"`
+	PreviousBranch string `json:"previous_branch,omitempty"`
+	CurrentBranch  string `json:"current_branch,omitempty"`
+	Message        string `json:"message,omitempty"`
+	DurationMs     int64  `json:"duration_ms,omitempty"`
+}
+
+func displaySwitchResultsJSON(result *repository.BulkSwitchResult) {
+	// Convert summary keys to strings
+	summary := make(map[string]int)
+	for k, v := range result.Summary {
+		summary[string(k)] = v
+	}
+
+	output := SwitchJSONOutput{
+		TargetBranch:   result.TargetBranch,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        summary,
+		Repositories:   make([]SwitchRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := SwitchRepositoryJSONOutput{
+			Path:           repo.RelativePath,
+			Status:         string(repo.Status),
+			PreviousBranch: repo.PreviousBranch,
+			CurrentBranch:  repo.CurrentBranch,
+			Message:        repo.Message,
+			DurationMs:     repo.Duration.Milliseconds(),
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displaySwitchResultsLLM(result *repository.BulkSwitchResult) {
+	// Convert summary keys to strings
+	summary := make(map[string]int)
+	for k, v := range result.Summary {
+		summary[string(k)] = v
+	}
+
+	output := SwitchJSONOutput{
+		TargetBranch:   result.TargetBranch,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        summary,
+		Repositories:   make([]SwitchRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := SwitchRepositoryJSONOutput{
+			Path:           repo.RelativePath,
+			Status:         string(repo.Status),
+			PreviousBranch: repo.PreviousBranch,
+			CurrentBranch:  repo.CurrentBranch,
+			Message:        repo.Message,
+			DurationMs:     repo.Duration.Milliseconds(),
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }
