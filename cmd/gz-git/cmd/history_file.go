@@ -78,6 +78,11 @@ func runHistoryFile(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	filePath := args[0]
 
+	// Validate format
+	if err := validateHistoryFormat(fileHistoryFormat); err != nil {
+		return err
+	}
+
 	// Get repository path
 	repoPath, err := os.Getwd()
 	if err != nil {

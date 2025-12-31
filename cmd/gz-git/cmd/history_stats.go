@@ -58,6 +58,11 @@ func init() {
 func runHistoryStats(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	// Validate format
+	if err := validateHistoryFormat(statsFormat); err != nil {
+		return err
+	}
+
 	// Get repository path
 	repoPath, err := os.Getwd()
 	if err != nil {

@@ -63,10 +63,13 @@ func validateBulkDepth(cmd *cobra.Command, depth int) error {
 	return nil
 }
 
-// ValidBulkFormats contains the list of valid output formats
+// ValidBulkFormats contains the list of valid output formats for bulk operations
 var ValidBulkFormats = []string{"default", "compact", "json", "llm"}
 
-// validateBulkFormat validates the format flag
+// ValidHistoryFormats contains the list of valid output formats for history commands
+var ValidHistoryFormats = []string{"table", "json", "csv", "markdown", "llm"}
+
+// validateBulkFormat validates the format flag for bulk operations
 // Returns an error if the format is not supported
 func validateBulkFormat(format string) error {
 	for _, valid := range ValidBulkFormats {
@@ -75,6 +78,17 @@ func validateBulkFormat(format string) error {
 		}
 	}
 	return fmt.Errorf("invalid format %q: must be one of: default, compact, json, llm", format)
+}
+
+// validateHistoryFormat validates the format flag for history commands
+// Returns an error if the format is not supported
+func validateHistoryFormat(format string) error {
+	for _, valid := range ValidHistoryFormats {
+		if format == valid {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid format %q: must be one of: table, json, csv, markdown, llm", format)
 }
 
 // createBulkLogger creates a logger for bulk operations

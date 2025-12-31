@@ -62,6 +62,11 @@ func init() {
 func runHistoryContributors(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	// Validate format
+	if err := validateHistoryFormat(contribFormat); err != nil {
+		return err
+	}
+
 	// Get repository path
 	repoPath, err := os.Getwd()
 	if err != nil {
