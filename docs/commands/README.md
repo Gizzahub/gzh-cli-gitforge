@@ -5,6 +5,7 @@ Complete reference for all `gz-git` commands.
 ## Quick Navigation
 
 - [Repository Commands](#repository-commands) - Initialize and manage repositories
+- [Bulk Operations](#bulk-operations) - Multi-repository operations
 - [Commit Commands](#commit-commands) - Automate commit operations
 - [Branch Commands](#branch-commands) - Branch and worktree management
 - [History Commands](#history-commands) - Analyze repository history
@@ -86,6 +87,175 @@ gz-git info [flags]
 gz-git info
 ```
 
+## Bulk Operations
+
+Commands for operating on multiple repositories at once.
+
+### fetch
+
+Fetch from multiple repositories.
+
+```bash
+gz-git fetch [directory] [flags]
+```
+
+**Flags:**
+
+| Flag           | Short | Description                          | Default |
+| -------------- | ----- | ------------------------------------ | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
+| `--dry-run`    | `-n`  | Preview without executing            | false   |
+| `--recursive`  | `-r`  | Include nested repos/submodules      | false   |
+| `--all`        |       | Fetch from all remotes               | false   |
+| `--prune`      |       | Prune deleted remote branches        | false   |
+| `--tags`       | `-t`  | Fetch all tags                       | false   |
+| `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
+
+**Examples:**
+
+```bash
+# Fetch all repositories
+gz-git fetch -d 2 ~/projects
+
+# Fetch with parallelism
+gz-git fetch -j 10 ~/workspace
+
+# Dry run
+gz-git fetch -n ~/projects
+```
+
+### pull
+
+Pull from multiple repositories with smart state detection.
+
+```bash
+gz-git pull [directory] [flags]
+```
+
+**Flags:**
+
+| Flag           | Short | Description                          | Default |
+| -------------- | ----- | ------------------------------------ | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
+| `--dry-run`    | `-n`  | Preview without executing            | false   |
+| `--strategy`   | `-s`  | Pull strategy (merge, rebase, ff-only) | merge |
+| `--stash`      |       | Auto-stash local changes             | false   |
+| `--prune`      | `-p`  | Prune deleted remote branches        | false   |
+| `--tags`       | `-t`  | Fetch all tags                       | false   |
+| `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
+
+**Examples:**
+
+```bash
+# Pull all repositories
+gz-git pull -d 2 ~/projects
+
+# Pull with rebase
+gz-git pull -s rebase ~/projects
+```
+
+### push
+
+Push to multiple repositories.
+
+```bash
+gz-git push [directory] [flags]
+```
+
+**Flags:**
+
+| Flag              | Short | Description                          | Default |
+| ----------------- | ----- | ------------------------------------ | ------- |
+| `--scan-depth`    | `-d`  | Directory depth to scan              | 1       |
+| `--parallel`      | `-j`  | Number of parallel operations        | 5       |
+| `--dry-run`       | `-n`  | Preview without executing            | false   |
+| `--force`         |       | Force push (dangerous!)              | false   |
+| `--force-with-lease` |    | Safer force push                     | false   |
+| `--set-upstream`  |       | Set upstream branch                  | false   |
+| `--tags`          |       | Push all tags                        | false   |
+| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
+
+**Examples:**
+
+```bash
+# Push all repositories
+gz-git push -d 2 ~/projects
+
+# Dry run
+gz-git push -n ~/projects
+```
+
+### switch
+
+Switch branches across multiple repositories.
+
+```bash
+gz-git switch <branch> [directory] [flags]
+```
+
+**Flags:**
+
+| Flag           | Short | Description                          | Default |
+| -------------- | ----- | ------------------------------------ | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
+| `--dry-run`    | `-n`  | Preview without executing            | false   |
+| `--force`      |       | Force switch (dangerous!)            | false   |
+| `--include`    |       | Include repos matching pattern       |         |
+| `--exclude`    |       | Exclude repos matching pattern       |         |
+| `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
+
+**Examples:**
+
+```bash
+# Switch all repos to develop
+gz-git switch develop -d 2 ~/projects
+
+# Preview switch
+gz-git switch main -n ~/projects
+
+# JSON output
+gz-git switch main --format json ~/projects
+
+# LLM-friendly output
+gz-git switch main --format llm ~/projects
+```
+
+### watch
+
+Monitor repositories for changes in real-time.
+
+```bash
+gz-git watch [paths...] [flags]
+```
+
+**Flags:**
+
+| Flag             | Short | Description                          | Default |
+| ---------------- | ----- | ------------------------------------ | ------- |
+| `--interval`     |       | Polling interval                     | 2s      |
+| `--include-clean`|       | Notify when repo becomes clean       | false   |
+| `--format`       | `-f`  | Output format (default, compact, json, llm) | default |
+| `--notify`       |       | Play sound on changes                | false   |
+
+**Examples:**
+
+```bash
+# Watch current directory
+gz-git watch
+
+# Watch multiple repos
+gz-git watch /path/to/repo1 /path/to/repo2
+
+# Custom interval
+gz-git watch --interval 5s
+
+# LLM-friendly output
+gz-git watch --format llm
+```
+
 ## Commit Commands
 
 ### commit auto
@@ -98,7 +268,7 @@ gz-git commit auto [flags]
 
 **Flags:**
 
-- `--template <name>`: Use specific commit template
+- `--template <name>`: Use specific commit template (conventional, semantic)
 - `--dry-run`: Show generated message without committing
 
 **Examples:**
@@ -190,7 +360,7 @@ gz-git commit bulk [flags]
 | `--include`       |       | Include repos matching pattern    | *          |
 | `--exclude`       |       | Exclude repos matching pattern    |            |
 | `--parallel`      | `-p`  | Parallel execution count          | (CPU num)  |
-| `--format`        | `-f`  | Output format (text/json)         | text       |
+| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
 | `--messages-file` |       | Load messages from JSON file      |            |
 
 **Examples:**
@@ -301,7 +471,7 @@ gz-git diff [flags]
 | `--exclude`       |       | Exclude repos matching pattern    |            |
 | `--context`       | `-c`  | Context lines around changes      | 3          |
 | `--max-size`      |       | Max diff size per repo (bytes)    | 102400     |
-| `--format`        | `-f`  | Output format (text/json)         | text       |
+| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
 
@@ -418,7 +588,7 @@ gz-git history stats [flags]
 - `--until <date>`: End date
 - `--branch <name>`: Specific branch
 - `--author <name>`: Filter by author
-- `--format <type>`: Output format (table|json|csv|markdown)
+- `--format <type>`: Output format (table, json, csv, markdown, llm)
 
 **Examples:**
 
@@ -447,8 +617,8 @@ gz-git history contributors [flags]
 - `--since <date>`: Start date
 - `--until <date>`: End date
 - `--min-commits <n>`: Minimum commits threshold
-- `--sort <field>`: Sort by (commits|additions|deletions|recent)
-- `--format <type>`: Output format
+- `--sort <field>`: Sort by (commits, additions, deletions, recent)
+- `--format <type>`: Output format (table, json, csv, markdown, llm)
 
 **Examples:**
 
@@ -478,7 +648,7 @@ gz-git history file <path> [flags]
 - `--max <n>`: Maximum number of commits
 - `--follow`: Follow file renames
 - `--author <name>`: Filter by author
-- `--format <type>`: Output format
+- `--format <type>`: Output format (table, json, csv, markdown, llm)
 
 **Examples:**
 

@@ -315,13 +315,44 @@ gz-git push --format compact ~/projects
 gz-git push -j 10 -n --set-upstream -r -d 2 ~/projects
 ```
 
+**Bulk Switch Branches:**
+
+```bash
+# Switch all repositories to a branch
+# - Skips repos without the target branch
+# - Shows clear status for each repo
+gz-git switch develop -d 1
+
+# Switch repositories up to 2 levels deep
+gz-git switch main -d 2 ~/projects
+
+# Preview switch without executing (short: -n)
+gz-git switch feature/new -n ~/projects
+
+# Force switch even with uncommitted changes (DANGEROUS!)
+gz-git switch main --force ~/projects
+
+# Filter by pattern
+gz-git switch develop --include "myproject.*" ~/workspace
+
+# Compact output format (short: -f)
+gz-git switch main -f compact ~/projects
+
+# JSON output for automation
+gz-git switch main --format json ~/projects
+
+# LLM-friendly output format
+gz-git switch main --format llm ~/projects
+```
+
 **Shorthand Flags Reference:**
 
-| Flag          | Short | Description                                      | Commands          |
-| ------------- | ----- | ------------------------------------------------ | ----------------- |
-| `--scan-depth`| `-d`  | Directory depth to scan (bulk commands)          | fetch, pull, push |
-| `--parallel`  | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push |
-| `--dry-run`   | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push |
+| Flag          | Short | Description                                      | Commands                |
+| ------------- | ----- | ------------------------------------------------ | ----------------------- |
+| `--scan-depth`| `-d`  | Directory depth to scan (bulk commands)          | fetch, pull, push, switch |
+| `--parallel`  | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push, switch |
+| `--dry-run`   | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push, switch |
+| `--format`    | `-f`  | Output format (default, compact, json, llm)      | fetch, pull, push, switch, watch |
 | `--strategy`  | `-s`  | Pull strategy (merge/rebase/ff-only)             | pull              |
 | `--tags`      | `-t`  | Fetch/push all tags (git convention)             | fetch, pull, push |
 | `--prune`     | `-p`  | Prune deleted remote branches (git convention)   | pull              |
