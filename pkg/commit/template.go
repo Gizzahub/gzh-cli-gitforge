@@ -227,6 +227,8 @@ func (m *templateManager) Validate(ctx context.Context, tmpl *Template) error {
 }
 
 // Render renders a template with the given values.
+//
+//nolint:gocognit // TODO: Refactor template rendering logic into smaller functions
 func (m *templateManager) Render(ctx context.Context, tmpl *Template, values map[string]string) (string, error) {
 	if tmpl == nil {
 		return "", errors.New("template cannot be nil")

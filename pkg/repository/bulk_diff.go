@@ -216,6 +216,8 @@ func (c *client) BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffR
 }
 
 // getRepositoryDiff gets the diff for a single repository.
+//
+//nolint:gocognit // TODO: Refactor diff logic into smaller functions
 func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string, opts BulkDiffOptions) RepositoryDiffResult {
 	startTime := time.Now()
 

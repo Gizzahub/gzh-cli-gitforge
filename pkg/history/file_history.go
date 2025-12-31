@@ -130,8 +130,8 @@ func (f *fileHistoryTracker) parseFileHistory(output, targetPath string) ([]*Fil
 					commits = append(commits, currentCommit)
 				}
 
-				// Parse timestamp
-				timestamp, _ := strconv.ParseInt(parts[3], 10, 64)
+				// Parse timestamp (default to zero time if malformed)
+				timestamp, _ := strconv.ParseInt(parts[3], 10, 64) //nolint:errcheck // malformed input -> 0
 				commitTime := time.Unix(timestamp, 0)
 
 				// Create new commit
@@ -159,9 +159,9 @@ func (f *fileHistoryTracker) parseFileHistory(output, targetPath string) ([]*Fil
 				continue
 			}
 
-			// Parse additions/deletions
-			additions, _ := strconv.Atoi(fields[0])
-			deletions, _ := strconv.Atoi(fields[1])
+			// Parse additions/deletions (binary files may have non-numeric values)
+			additions, _ := strconv.Atoi(fields[0]) //nolint:errcheck // malformed -> 0
+			deletions, _ := strconv.Atoi(fields[1]) //nolint:errcheck // malformed -> 0
 
 			// Check for rename (format: "oldpath => newpath")
 			filename := strings.Join(fields[2:], " ")
@@ -263,8 +263,8 @@ func (f *fileHistoryTracker) parseBlameMetadata(metadata string) (author, email 
 		if len(tokens) >= 3 {
 			// Reconstruct date string without line number
 			dateStr = strings.Join(tokens[:len(tokens)-1], " ")
-			// Try to parse ISO date format
-			date, _ = time.Parse("2006-01-02 15:04:05 -0700", dateStr)
+			// Try to parse ISO date format (returns zero time on parse failure)
+			date, _ = time.Parse("2006-01-02 15:04:05 -0700", dateStr) //nolint:errcheck
 		}
 	}
 

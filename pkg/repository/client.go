@@ -120,6 +120,8 @@ func (c *client) Open(ctx context.Context, path string) (*Repository, error) {
 //	        repository.WithDepth(1),
 //	    },
 //	})
+//
+//nolint:gocognit // TODO: Refactor clone logic into smaller functions
 func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, error) {
 	c.logger.Debug("Cloning repository from %s to %s", opts.URL, opts.Destination)
 
@@ -384,8 +386,8 @@ func parseAheadBehind(output string) (ahead, behind int, err error) {
 	}
 
 	// Simple integer parsing (ignoring errors returns 0)
-	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)
-	_, _ = fmt.Sscanf(parts[1], "%d", &behind)
+	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)  //nolint:errcheck
+	_, _ = fmt.Sscanf(parts[1], "%d", &behind) //nolint:errcheck
 
 	return ahead, behind, nil
 }

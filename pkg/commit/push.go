@@ -380,8 +380,8 @@ func (p *smartPush) getAheadBehind(ctx context.Context, repo *repository.Reposit
 		return 0, 0, fmt.Errorf("unexpected rev-list output: %s", result.Stdout)
 	}
 
-	fmt.Sscanf(parts[0], "%d", &ahead)
-	fmt.Sscanf(parts[1], "%d", &behind)
+	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)  //nolint:errcheck
+	_, _ = fmt.Sscanf(parts[1], "%d", &behind) //nolint:errcheck
 
 	return ahead, behind, nil
 }

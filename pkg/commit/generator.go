@@ -366,10 +366,10 @@ func (g *generator) parseStats(output string) (insertions, deletions int) {
 			for _, part := range parts {
 				part = strings.TrimSpace(part)
 				if strings.Contains(part, "insertion") {
-					fmt.Sscanf(part, "%d", &insertions)
+					_, _ = fmt.Sscanf(part, "%d", &insertions) //nolint:errcheck
 				}
 				if strings.Contains(part, "deletion") {
-					fmt.Sscanf(part, "%d", &deletions)
+					_, _ = fmt.Sscanf(part, "%d", &deletions) //nolint:errcheck
 				}
 			}
 		}

@@ -414,14 +414,14 @@ func (m *manager) parseBranchLine(line string) (*Branch, error) {
 func parseAheadBehindFromStatus(status string) (ahead, behind int) {
 	status = strings.TrimSpace(status)
 
-	// Parse "ahead N"
+	// Parse "ahead N" (defaults to 0 on parse failure)
 	if strings.Contains(status, "ahead") {
-		fmt.Sscanf(extractNumber(status, "ahead"), "%d", &ahead)
+		_, _ = fmt.Sscanf(extractNumber(status, "ahead"), "%d", &ahead) //nolint:errcheck
 	}
 
-	// Parse "behind N"
+	// Parse "behind N" (defaults to 0 on parse failure)
 	if strings.Contains(status, "behind") {
-		fmt.Sscanf(extractNumber(status, "behind"), "%d", &behind)
+		_, _ = fmt.Sscanf(extractNumber(status, "behind"), "%d", &behind) //nolint:errcheck
 	}
 
 	return ahead, behind

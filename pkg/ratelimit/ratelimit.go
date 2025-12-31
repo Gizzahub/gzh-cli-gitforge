@@ -138,8 +138,14 @@ func CalculateBackoff(attempt int) time.Duration {
 	if attempt < 0 {
 		attempt = 0
 	}
+	// Cap attempt to prevent integer overflow (2^6 = 64 seconds, close to 60s cap)
+	const maxAttempt = 6
+	if attempt > maxAttempt {
+		attempt = maxAttempt
+	}
 
 	// Base backoff: 2^attempt seconds
+	// #nosec G115 -- attempt is bounded to [0, 6], safe for uint conversion
 	backoff := time.Duration(1<<uint(attempt)) * time.Second
 
 	// Cap at 60 seconds
@@ -148,6 +154,7 @@ func CalculateBackoff(attempt int) time.Duration {
 	}
 
 	// Add jitter (10% of backoff)
+	// #nosec G404 -- math/rand is appropriate for non-cryptographic jitter
 	jitter := time.Duration(rand.Float64() * float64(backoff) * 0.1)
 
 	return backoff + jitter

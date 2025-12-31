@@ -236,8 +236,8 @@ func (r *rebaseManager) handleRebaseConflict(ctx context.Context, repo *reposito
 		conflictsFound = strings.Count(result.Stderr, "CONFLICT")
 	}
 
-	// Get current commit
-	commitResult, _ := r.executor.Run(ctx, repo.Path, "rev-parse", "HEAD")
+	// Get current commit (best effort during conflict)
+	commitResult, _ := r.executor.Run(ctx, repo.Path, "rev-parse", "HEAD") //nolint:errcheck
 	currentCommit := strings.TrimSpace(commitResult.Stdout)
 
 	return &RebaseResult{

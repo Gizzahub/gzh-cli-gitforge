@@ -145,8 +145,8 @@ func (v *validator) validateLength(message string, rule ValidationRule, result *
 	}
 
 	var min, max int
-	fmt.Sscanf(matches[1], "%d", &min)
-	fmt.Sscanf(matches[2], "%d", &max)
+	_, _ = fmt.Sscanf(matches[1], "%d", &min) //nolint:errcheck
+	_, _ = fmt.Sscanf(matches[2], "%d", &max) //nolint:errcheck
 
 	subjectLen := utf8.RuneCountInString(subject)
 

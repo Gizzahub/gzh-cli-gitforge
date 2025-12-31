@@ -287,7 +287,7 @@ func (m *mergeManager) parseStats(output string) (files, additions, deletions in
 		// Look for lines like: "3 files changed, 10 insertions(+), 5 deletions(-)"
 		if strings.Contains(line, "file") && strings.Contains(line, "changed") {
 			var f, a, d int
-			fmt.Sscanf(line, "%d files changed, %d insertions(+), %d deletions(-)", &f, &a, &d)
+			_, _ = fmt.Sscanf(line, "%d files changed, %d insertions(+), %d deletions(-)", &f, &a, &d) //nolint:errcheck
 			if f > 0 {
 				files = f
 			}

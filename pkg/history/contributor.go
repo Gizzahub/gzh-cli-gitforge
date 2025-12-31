@@ -181,6 +181,7 @@ func (c *contributorAnalyzer) enrichContributor(ctx context.Context, repo *repos
 	return nil
 }
 
+//nolint:gocognit // TODO: Refactor parsing logic into smaller functions
 func (c *contributorAnalyzer) parseContributorStats(contributor *Contributor, output string) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
@@ -236,9 +237,9 @@ func (c *contributorAnalyzer) parseContributorStats(contributor *Contributor, ou
 			// Parse numstat line: "additions deletions filename"
 			fields := strings.Fields(statLine)
 			if len(fields) >= 3 {
-				// Track additions/deletions (handle binary files which show "-")
-				additions, _ := strconv.Atoi(fields[0])
-				deletions, _ := strconv.Atoi(fields[1])
+				// Track additions/deletions (binary files show "-", parse fails -> 0)
+				additions, _ := strconv.Atoi(fields[0]) //nolint:errcheck // binary files return "-"
+				deletions, _ := strconv.Atoi(fields[1]) //nolint:errcheck // binary files return "-"
 				filename := fields[2]
 
 				contributor.LinesAdded += additions

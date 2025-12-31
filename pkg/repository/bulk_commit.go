@@ -129,6 +129,8 @@ type RepositoryCommitResult struct {
 func (r RepositoryCommitResult) GetStatus() string { return r.Status }
 
 // BulkCommit scans for repositories and commits changes in parallel.
+//
+//nolint:gocognit // TODO: Refactor into smaller helper functions
 func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkCommitResult, error) {
 	startTime := time.Now()
 
@@ -474,10 +476,10 @@ func parseDiffStats(output string) (additions, deletions int) {
 			for _, part := range parts {
 				part = strings.TrimSpace(part)
 				if strings.Contains(part, "insertion") {
-					_, _ = fmt.Sscanf(part, "%d", &additions) // Best effort parse
+					_, _ = fmt.Sscanf(part, "%d", &additions) //nolint:errcheck
 				}
 				if strings.Contains(part, "deletion") {
-					_, _ = fmt.Sscanf(part, "%d", &deletions) // Best effort parse
+					_, _ = fmt.Sscanf(part, "%d", &deletions) //nolint:errcheck
 				}
 			}
 		}

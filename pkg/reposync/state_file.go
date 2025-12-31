@@ -38,7 +38,7 @@ func (s *FileStateStore) Save(ctx context.Context, state RunState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return fmt.Errorf("create state dir: %w", err)
 	}
 
@@ -48,7 +48,7 @@ func (s *FileStateStore) Save(ctx context.Context, state RunState) error {
 	}
 
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write temp state: %w", err)
 	}
 

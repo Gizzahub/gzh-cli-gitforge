@@ -63,7 +63,7 @@ func (s *Syncer) SyncOrganization(ctx context.Context, p provider.Provider, org 
 	}
 
 	// Ensure target directory exists
-	if err := os.MkdirAll(opts.TargetPath, 0o755); err != nil {
+	if err := os.MkdirAll(opts.TargetPath, 0o750); err != nil {
 		return nil, fmt.Errorf("failed to create target directory: %w", err)
 	}
 

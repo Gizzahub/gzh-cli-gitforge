@@ -120,6 +120,7 @@ func (h *historyAnalyzer) validateOptions(opts AnalyzeOptions) error {
 	return nil
 }
 
+//nolint:gocognit // TODO: Refactor parsing logic into smaller functions
 func (h *historyAnalyzer) parseCommitStats(output string) (*CommitStats, error) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
@@ -225,8 +226,9 @@ func (h *historyAnalyzer) parseCommitStats(output string) (*CommitStats, error) 
 		for date, count := range dailyCounts {
 			if count > maxCount {
 				maxCount = count
-				peakTime, _ := time.Parse("2006-01-02", date)
-				stats.PeakDay = peakTime
+				if peakTime, err := time.Parse("2006-01-02", date); err == nil {
+					stats.PeakDay = peakTime
+				}
 				stats.PeakCount = count
 			}
 		}
@@ -245,14 +247,20 @@ func (h *historyAnalyzer) parseShortstat(line string) (additions, deletions int)
 		if strings.Contains(part, "insertion") {
 			fields := strings.Fields(part)
 			if len(fields) >= 1 {
-				additions, _ = strconv.Atoi(fields[0])
+				// Ignore parse error - malformed git output defaults to 0
+				if v, err := strconv.Atoi(fields[0]); err == nil {
+					additions = v
+				}
 			}
 		}
 
 		if strings.Contains(part, "deletion") {
 			fields := strings.Fields(part)
 			if len(fields) >= 1 {
-				deletions, _ = strconv.Atoi(fields[0])
+				// Ignore parse error - malformed git output defaults to 0
+				if v, err := strconv.Atoi(fields[0]); err == nil {
+					deletions = v
+				}
 			}
 		}
 	}
