@@ -139,7 +139,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 
 	// One-time fetch
 	if shouldShowProgress(fetchFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, fetchFlags.Depth)
+		printScanningMessage(directory, fetchFlags.Depth, fetchFlags.Parallel, fetchFlags.DryRun)
 	}
 
 	result, err := client.BulkFetch(ctx, opts)
@@ -168,6 +168,7 @@ func runFetchWatch(ctx context.Context, client repository.Client, opts repositor
 		OperationName: "fetch",
 		Directory:     opts.Directory,
 		MaxDepth:      opts.MaxDepth,
+		Parallel:      opts.Parallel,
 	}
 
 	return RunBulkWatch(cfg, func() error {
@@ -408,4 +409,3 @@ func displayFetchResultsLLM(result *repository.BulkFetchResult) {
 	}
 	fmt.Print(buf.String())
 }
-

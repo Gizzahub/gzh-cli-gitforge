@@ -1407,6 +1407,7 @@ func (c *client) processPullRepositories(ctx context.Context, rootDir string, re
 }
 
 // processPullRepository processes a single repository pull.
+//
 //nolint:gocognit // TODO: Refactor into smaller helper functions (validateRepo, handleState, executePull, handleResult)
 func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath string, opts BulkPullOptions, logger Logger) RepositoryPullResult {
 	startTime := time.Now()
@@ -1836,6 +1837,7 @@ func (c *client) processPushRepositories(ctx context.Context, rootDir string, re
 }
 
 // processPushRepository processes a single repository push.
+//
 //nolint:gocognit // TODO: Refactor into smaller helper functions (similar to processPullRepository)
 func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath string, opts BulkPushOptions, logger Logger) RepositoryPushResult {
 	startTime := time.Now()

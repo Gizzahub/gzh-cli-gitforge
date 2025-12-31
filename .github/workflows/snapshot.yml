@@ -1,0 +1,65 @@
+name: Snapshot Release
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    name: Build Snapshot
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+
+    - name: Run GoReleaser Snapshot
+      uses: goreleaser/goreleaser-action@v5
+      with:
+        distribution: goreleaser
+        version: latest
+        args: release --snapshot --clean
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload snapshot artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: snapshot-${{ github.sha }}
+        path: dist/*.tar.gz
+
+    - name: Update latest snapshot release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: snapshot
+        name: Latest Snapshot
+        body: |
+          🔄 **Automated snapshot build**
+
+          Commit: ${{ github.sha }}
+          Branch: ${{ github.ref_name }}
+
+          ⚠️ This is a development build, not a stable release.
+        files: |
+          dist/*.tar.gz
+          dist/*.zip
+          dist/checksums.txt
+        prerelease: true
+        make_latest: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

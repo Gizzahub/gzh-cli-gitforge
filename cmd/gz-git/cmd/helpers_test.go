@@ -51,7 +51,6 @@ func TestFormatUpstreamFixHint(t *testing.T) {
 	}
 }
 
-
 func TestGetBulkStatusIcon(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -119,7 +118,7 @@ func TestGetBulkStatusIconSimple(t *testing.T) {
 		want   string
 	}{
 		{"clean", "✓"},
-		{"success", "="},   // No changes count, so shows =
+		{"success", "="}, // No changes count, so shows =
 		{"up-to-date", "="},
 		{"error", "✗"},
 		{"conflict", "⚡"},

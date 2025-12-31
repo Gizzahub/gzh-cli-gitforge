@@ -109,7 +109,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// One-time status check
 	if shouldShowProgress(statusFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, statusFlags.Depth)
+		printScanningMessage(directory, statusFlags.Depth, statusFlags.Parallel, false)
 	}
 
 	result, err := client.BulkStatus(ctx, opts)
@@ -138,6 +138,7 @@ func runStatusWatch(ctx context.Context, client repository.Client, opts reposito
 		OperationName: "status check",
 		Directory:     opts.Directory,
 		MaxDepth:      opts.MaxDepth,
+		Parallel:      opts.Parallel,
 	}
 
 	return RunBulkWatch(cfg, func() error {
@@ -390,7 +391,6 @@ func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
 		fmt.Printf("    Error: %v\n", repo.Error)
 	}
 }
-
 
 // FormatUpstreamFixHint returns a formatted fix hint for no-upstream status.
 // Returns empty string if branch is empty.

@@ -163,6 +163,17 @@ type WatchConfig struct {
 	OperationName string // e.g., "fetch", "pull", "push", "status check"
 	Directory     string
 	MaxDepth      int
+	Parallel      int
+}
+
+// printScanningMessage prints the standard scanning message for bulk operations.
+// This centralizes the message format for consistency across all bulk commands.
+func printScanningMessage(directory string, depth, parallel int, dryRun bool) {
+	suffix := ""
+	if dryRun {
+		suffix = " [DRY-RUN]"
+	}
+	fmt.Printf("Scanning for repositories in %s (depth: %d, parallel: %d)%s...\n", directory, depth, parallel, suffix)
 }
 
 // WatchExecutor is a function that executes the bulk operation once.
@@ -174,7 +185,7 @@ type WatchExecutor func() error
 func RunBulkWatch(cfg WatchConfig, executor WatchExecutor) error {
 	if !cfg.Quiet {
 		fmt.Printf("Starting watch mode: %s every %s\n", cfg.OperationName, cfg.Interval)
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", cfg.Directory, cfg.MaxDepth)
+		printScanningMessage(cfg.Directory, cfg.MaxDepth, cfg.Parallel, false)
 		fmt.Println("Press Ctrl+C to stop...")
 		fmt.Println()
 	}

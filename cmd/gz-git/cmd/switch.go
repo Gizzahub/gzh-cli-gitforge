@@ -128,11 +128,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 
 	// Print header
 	if !quiet {
-		if switchFlags.DryRun {
-			fmt.Printf("Scanning for repositories in %s (depth: %d) [DRY-RUN]...\n", directory, switchFlags.Depth)
-		} else {
-			fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, switchFlags.Depth)
-		}
+		printScanningMessage(directory, switchFlags.Depth, switchFlags.Parallel, switchFlags.DryRun)
 	}
 
 	// Execute bulk switch

@@ -166,7 +166,7 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 
 	// Scanning phase
 	if shouldShowProgress(commitBulkFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, commitBulkFlags.Depth)
+		printScanningMessage(directory, commitBulkFlags.Depth, commitBulkFlags.Parallel, commitBulkFlags.DryRun)
 	}
 
 	// Execute bulk commit (analysis phase if DryRun, otherwise commits)

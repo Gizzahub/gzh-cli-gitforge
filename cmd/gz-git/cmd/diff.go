@@ -150,7 +150,7 @@ func runDiff(cmd *cobra.Command, args []string) error {
 
 	// Scanning phase
 	if shouldShowProgress(diffFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, diffFlags.Depth)
+		printScanningMessage(directory, diffFlags.Depth, diffFlags.Parallel, false)
 	}
 
 	// Execute bulk diff

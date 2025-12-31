@@ -159,7 +159,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 
 	// One-time push
 	if shouldShowProgress(pushFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pushFlags.Depth)
+		printScanningMessage(directory, pushFlags.Depth, pushFlags.Parallel, pushFlags.DryRun)
 	}
 
 	result, err := client.BulkPush(ctx, opts)
@@ -188,6 +188,7 @@ func runPushWatch(ctx context.Context, client repository.Client, opts repository
 		OperationName: "push",
 		Directory:     opts.Directory,
 		MaxDepth:      opts.MaxDepth,
+		Parallel:      opts.Parallel,
 	}
 
 	return RunBulkWatch(cfg, func() error {
@@ -428,4 +429,3 @@ func displayPushResultsLLM(result *repository.BulkPushResult) {
 	}
 	fmt.Print(buf.String())
 }
-

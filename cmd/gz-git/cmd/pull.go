@@ -145,7 +145,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 
 	// One-time pull
 	if shouldShowProgress(pullFlags.Format, quiet) {
-		fmt.Printf("Scanning for repositories in %s (depth: %d)...\n", directory, pullFlags.Depth)
+		printScanningMessage(directory, pullFlags.Depth, pullFlags.Parallel, pullFlags.DryRun)
 	}
 
 	result, err := client.BulkPull(ctx, opts)
@@ -174,6 +174,7 @@ func runPullWatch(ctx context.Context, client repository.Client, opts repository
 		OperationName: "pull",
 		Directory:     opts.Directory,
 		MaxDepth:      opts.MaxDepth,
+		Parallel:      opts.Parallel,
 	}
 
 	return RunBulkWatch(cfg, func() error {
