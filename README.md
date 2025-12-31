@@ -5,7 +5,7 @@
 [![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
 [![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.3.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/COVERAGE.md)
+[![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/_deprecated/2025-12/COVERAGE.md)
 [![Tests](https://img.shields.io/badge/tests-51%20integration%2F90%20e2e-brightgreen)](#testing)
 [![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-gitforge.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 
@@ -75,7 +75,7 @@ ______________________________________________________________________
 - Comprehensive integration tests
 - Well-documented codebase
 
-> **Note**: Version v0.3.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for details.
+> **Note**: Version v0.3.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/_deprecated/2025-12/IMPLEMENTATION_STATUS.md) for details.
 
 ______________________________________________________________________
 
@@ -151,6 +151,9 @@ gz-git watch --format compact
 
 # JSON output for automation
 gz-git watch --format json
+
+# LLM-friendly output format
+gz-git watch --format llm
 ```
 
 **View Repository Information:**
@@ -409,7 +412,7 @@ ______________________________________________________________________
 
 ## Documentation
 
-- 📖 [User Guide](docs/00-overview/README.md)
+- 📖 [Quick Start](QUICK_START.md)
 - 📚 [API Reference](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
 - 🧪 [Examples](examples/)
 

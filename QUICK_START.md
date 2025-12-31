@@ -1,68 +1,93 @@
 # Quick Start
 
-Get `gz-git` running in 5 minutes.
+5분 안에 gz-git 시작하기.
 
-## Prerequisites
+## 요구사항
 
 - Go 1.23+
 - Git 2.30+
-- Linux/macOS/Windows (amd64/arm64)
 
-## Installation
-
-### Option 1: From Source
-
-```bash
-# Clone and build
-git clone https://github.com/gizzahub/gzh-cli-gitforge.git
-cd gzh-cli-gitforge
-make build
-sudo make install
-
-# Verify
-gz-git --version
-```
-
-### Option 2: Using Go
+## 설치
 
 ```bash
 go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
-## Basic Usage
+설치 확인:
+```bash
+gz-git --version
+```
 
-### Check Repository Status
+> **PATH 오류 시**: `echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc && source ~/.bashrc`
+
+---
+
+## 기본 사용법
+
+### 저장소 상태 확인
 
 ```bash
 gz-git status
+gz-git info
 ```
 
-### Commit with Template
+### 저장소 복제
 
 ```bash
-gz-git commit -m "feat(api): add user authentication"
+gz-git clone https://github.com/user/repo.git
+gz-git clone -b develop https://github.com/user/repo.git   # 특정 브랜치
+gz-git clone --depth 1 https://github.com/user/repo.git    # 얕은 복제
 ```
 
-### Sync Multiple Repositories
+---
+
+## 핵심 기능: 다중 저장소 관리
+
+gz-git의 가장 강력한 기능입니다.
+
+### 일괄 Fetch/Pull/Push
 
 ```bash
-gz-git sync --org myorg --provider github
+# 현재 디렉토리의 모든 저장소 fetch
+gz-git fetch -d 1
+
+# 2단계 깊이까지 스캔하여 pull
+gz-git pull -d 2 ~/projects
+
+# rebase 전략으로 pull
+gz-git pull -s rebase -d 2 ~/projects
+
+# 병렬 10개로 실행
+gz-git fetch -j 10 ~/workspace
+
+# 미리보기 (실행 안함)
+gz-git pull -n ~/projects
 ```
 
-## Verify It's Working
+### 단축 플래그
+
+| 플래그 | 축약 | 설명 |
+|--------|------|------|
+| `--scan-depth` | `-d` | 스캔 깊이 |
+| `--parallel` | `-j` | 병렬 처리 수 |
+| `--dry-run` | `-n` | 미리보기 |
+| `--strategy` | `-s` | pull 전략 |
+
+---
+
+## 추가 기능
 
 ```bash
-# Should show available commands
-gz-git --help
-
-# Should show repository info
-cd /path/to/your/repo
-gz-git status
+gz-git commit auto                         # 커밋 자동 생성
+gz-git branch list --all                   # 브랜치 목록
+gz-git history stats --since "1 month ago" # 커밋 통계
+gz-git merge detect feature/new main       # 머지 충돌 감지
 ```
 
-## Next Steps
+---
 
-- [Full Documentation](docs/)
-- [Development Guide](CLAUDE.md)
-- [Product Goals](PRODUCT.md)
-- [Library Usage](docs/_deprecated/2025-12/LIBRARY.md) (to be migrated)
+## 다음 단계
+
+- [명령어 레퍼런스](docs/commands/README.md)
+- [FAQ](docs/user/guides/faq.md)
+- [Go 라이브러리](docs/user/getting-started/library-usage.md)

@@ -376,7 +376,7 @@ None - This is a new feature addition
 
 - `docs/IMPLEMENTATION_STATUS.md`: Comprehensive analysis documenting actual vs. claimed implementation status
 - `docs/user/guides/faq.md`: Complete FAQ with 400+ lines covering all implemented features
-- `docs/user/getting-started/first-steps.md`: 10-minute tutorial with working examples for all features
+- `QUICK_START.md`: 5-minute quick start guide with multi-repo examples
 - `docs/llm/CONTEXT.md`: LLM-optimized context document (12KB, token-efficient)
 - `docs/DOCUMENTATION_PLAN.md`: Future documentation structure and migration strategy
 
