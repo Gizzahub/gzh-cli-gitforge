@@ -8,19 +8,20 @@ import (
 var branchCmd = &cobra.Command{
 	Use:   "branch",
 	Short: "Branch management commands",
-	Long: `Manage Git branches, worktrees, and parallel development workflows.
+	Long: `Manage Git branches across single or multiple repositories.
 
 This command provides subcommands for:
-  - Creating and deleting branches
-  - Managing worktrees for parallel development`,
-	Example: `  # List all branches
-  gz-git branch list
+  - Cleaning up merged, stale, or gone branches (with bulk support)
 
-  # Create a new branch
-  gz-git branch create feature/new-feature
+For basic branch operations (create, delete, list), use git directly:
+  git checkout -b <name>     # create branch
+  git branch -d <name>       # delete branch
+  git branch -a              # list branches`,
+	Example: `  # Clean up merged branches (dry-run)
+  gz-git branch cleanup --merged --dry-run
 
-  # Create branch with worktree
-  gz-git branch create feature/auth --worktree ./worktrees/auth`,
+  # BULK: Clean up all repos
+  gz-git branch cleanup --merged ..`,
 }
 
 func init() {
