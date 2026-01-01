@@ -38,19 +38,20 @@ All operations accept `context.Context` for cancellation and timeouts. Long-runn
 
 When principles conflict, this is the priority order:
 
-| Conflict | Winner | Rationale |
-|----------|--------|-----------|
-| Safety vs Speed | Safety | Lost work is worse than slow operations |
-| Simplicity vs Features | Simplicity | Fewer features done well beats many done poorly |
-| Library vs CLI | Library | CLI is a consumer; library serves multiple consumers |
-| Consistency vs Flexibility | Consistency | Predictable behavior reduces user errors |
-| Compatibility vs Innovation | Compatibility | Breaking changes hurt adoption |
+| Conflict                    | Winner        | Rationale                                            |
+| --------------------------- | ------------- | ---------------------------------------------------- |
+| Safety vs Speed             | Safety        | Lost work is worse than slow operations              |
+| Simplicity vs Features      | Simplicity    | Fewer features done well beats many done poorly      |
+| Library vs CLI              | Library       | CLI is a consumer; library serves multiple consumers |
+| Consistency vs Flexibility  | Consistency   | Predictable behavior reduces user errors             |
+| Compatibility vs Innovation | Compatibility | Breaking changes hurt adoption                       |
 
 ### Decision Framework
 
 When in doubt:
+
 1. Does it prevent data loss? → Do it
-2. Does it simplify the mental model? → Prefer it
-3. Does it work as a library function? → Required
-4. Does it maintain Git CLI compatibility? → Required
-5. Is it the simplest solution? → Prefer it
+1. Does it simplify the mental model? → Prefer it
+1. Does it work as a library function? → Required
+1. Does it maintain Git CLI compatibility? → Required
+1. Is it the simplest solution? → Prefer it

@@ -14,13 +14,14 @@ go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 설치 확인:
+
 ```bash
 gz-git --version
 ```
 
 > **PATH 오류 시**: `echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc && source ~/.bashrc`
 
----
+______________________________________________________________________
 
 ## 기본 사용법
 
@@ -39,7 +40,7 @@ gz-git clone -b develop https://github.com/user/repo.git   # 특정 브랜치
 gz-git clone --depth 1 https://github.com/user/repo.git    # 얕은 복제
 ```
 
----
+______________________________________________________________________
 
 ## 핵심 기능: 다중 저장소 관리
 
@@ -66,14 +67,14 @@ gz-git pull -n ~/projects
 
 ### 단축 플래그
 
-| 플래그 | 축약 | 설명 |
-|--------|------|------|
-| `--scan-depth` | `-d` | 스캔 깊이 |
-| `--parallel` | `-j` | 병렬 처리 수 |
-| `--dry-run` | `-n` | 미리보기 |
-| `--strategy` | `-s` | pull 전략 |
+| 플래그         | 축약 | 설명         |
+| -------------- | ---- | ------------ |
+| `--scan-depth` | `-d` | 스캔 깊이    |
+| `--parallel`   | `-j` | 병렬 처리 수 |
+| `--dry-run`    | `-n` | 미리보기     |
+| `--strategy`   | `-s` | pull 전략    |
 
----
+______________________________________________________________________
 
 ## 추가 기능
 
@@ -84,7 +85,7 @@ gz-git history stats --since "1 month ago" # 커밋 통계
 gz-git merge detect feature/new main       # 머지 충돌 감지
 ```
 
----
+______________________________________________________________________
 
 ## 다음 단계
 

@@ -185,7 +185,7 @@ Clone(ctx, url, path,
 | `pkg/repository/client.go`     | Repository client implementation | CRITICAL   |
 | `pkg/operations/clone.go`      | Clone operations                 | HIGH       |
 | `internal/gitcmd/executor.go`  | Git command wrapper              | CRITICAL   |
-| `cmd/gz-git/main.go`          | CLI entry point                  | MEDIUM     |
+| `cmd/gz-git/main.go`           | CLI entry point                  | MEDIUM     |
 
 ## Key Types
 

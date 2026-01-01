@@ -17,16 +17,18 @@ Git workflows remain largely manual and error-prone despite decades of tool evol
 - **Integration**: Go projects lack a native, library-first Git integration approach
 
 Modern development demands:
+
 - Faster iteration cycles (CI/CD, trunk-based development)
 - Multi-repository workflows (microservices, monorepo alternatives)
 - Stronger safety guarantees (protected branches, signed commits)
 - Better developer experience (CLI tools with sane defaults)
 
 The time is right because:
+
 1. Go 1.23+ provides stable generics and improved tooling
-2. Git 2.30+ has mature worktree and sparse-checkout features
-3. GitHub/GitLab APIs enable powerful automation
-4. Developer expectations for CLI tools have risen (see: gh, ripgrep, fd)
+1. Git 2.30+ has mature worktree and sparse-checkout features
+1. GitHub/GitLab APIs enable powerful automation
+1. Developer expectations for CLI tools have risen (see: gh, ripgrep, fd)
 
 ## Anti-Goals
 

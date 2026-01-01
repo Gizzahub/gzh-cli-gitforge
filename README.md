@@ -347,16 +347,16 @@ gz-git switch main --format llm ~/projects
 
 **Shorthand Flags Reference:**
 
-| Flag          | Short | Description                                      | Commands                |
-| ------------- | ----- | ------------------------------------------------ | ----------------------- |
-| `--scan-depth`| `-d`  | Directory depth to scan (bulk commands)          | fetch, pull, push, switch |
-| `--parallel`  | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push, switch |
-| `--dry-run`   | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push, switch |
-| `--format`    | `-f`  | Output format (default, compact, json, llm)      | fetch, pull, push, switch, watch |
-| `--strategy`  | `-s`  | Pull strategy (merge/rebase/ff-only)             | pull              |
-| `--tags`      | `-t`  | Fetch/push all tags (git convention)             | fetch, pull, push |
-| `--prune`     | `-p`  | Prune deleted remote branches (git convention)   | pull              |
-| `--recursive` | `-r`  | Include nested repos/submodules (GNU convention) | fetch, pull, push |
+| Flag           | Short | Description                                      | Commands                         |
+| -------------- | ----- | ------------------------------------------------ | -------------------------------- |
+| `--scan-depth` | `-d`  | Directory depth to scan (bulk commands)          | fetch, pull, push, switch        |
+| `--parallel`   | `-j`  | Parallel operations (make -j convention)         | fetch, pull, push, switch        |
+| `--dry-run`    | `-n`  | Preview without executing (GNU convention)       | fetch, pull, push, switch        |
+| `--format`     | `-f`  | Output format (default, compact, json, llm)      | fetch, pull, push, switch, watch |
+| `--strategy`   | `-s`  | Pull strategy (merge/rebase/ff-only)             | pull                             |
+| `--tags`       | `-t`  | Fetch/push all tags (git convention)             | fetch, pull, push                |
+| `--prune`      | `-p`  | Prune deleted remote branches (git convention)   | pull                             |
+| `--recursive`  | `-r`  | Include nested repos/submodules (GNU convention) | fetch, pull, push                |
 
 **Global Options:**
 

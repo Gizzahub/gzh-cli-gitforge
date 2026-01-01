@@ -5,8 +5,8 @@ This guide explains how to set up Homebrew distribution for gz-git.
 ## Prerequisites
 
 1. GitHub organization/user: `gizzahub`
-2. GoReleaser configuration: `.goreleaser.yaml` (already created)
-3. GitHub Actions workflow: `.github/workflows/release.yml` (already configured)
+1. GoReleaser configuration: `.goreleaser.yaml` (already created)
+1. GitHub Actions workflow: `.github/workflows/release.yml` (already configured)
 
 ## Step 1: Create Homebrew Tap Repository
 
@@ -31,7 +31,7 @@ homebrew-tap/
 
 ### Sample README.md for homebrew-tap
 
-```markdown
+````markdown
 # Homebrew Tap for gizzahub
 
 ## Installation
@@ -39,12 +39,12 @@ homebrew-tap/
 ```bash
 brew tap gizzahub/tap
 brew install gz-git
-```
+````
 
 ## Available Formulas
 
-| Formula | Description |
-|---------|-------------|
+| Formula | Description                        |
+| ------- | ---------------------------------- |
 | gz-git  | Git repository management CLI tool |
 
 ## Updating
@@ -53,7 +53,8 @@ brew install gz-git
 brew update
 brew upgrade gz-git
 ```
-```
+
+````
 
 ## Step 2: Create Personal Access Token (PAT)
 
@@ -86,7 +87,7 @@ When you push a new tag, GoReleaser will:
 # Create and push a new tag
 git tag v1.0.0
 git push origin v1.0.0
-```
+````
 
 ## User Installation
 
@@ -130,6 +131,7 @@ git push
 ### Token Permission Issues
 
 If GoReleaser fails to push to homebrew-tap:
+
 - Verify PAT has `repo` scope
 - Ensure PAT is not expired
 - Check `HOMEBREW_TAP_TOKEN` secret is correctly set

@@ -9,22 +9,22 @@ Note: This report reflects unit coverage from `make cover-report`. Integration/E
 
 ### Package Coverage
 
-| Package             | Coverage | Target | Status          |
-| ------------------- | -------- | ------ | --------------- |
-| **internal/gitcmd** | 93.6%    | 80%    | ✅ Exceeds      |
-| **internal/parser** | 97.7%    | 80%    | ✅ Exceeds      |
-| **internal/testutil** | 90.6%  | 80%    | ✅ Exceeds      |
-| **internal/testutil/builders** | 68.6% | 80% | ⚠️ Below Target |
-| **pkg/history**     | 91.6%    | 85%    | ✅ Exceeds      |
-| **pkg/merge**       | 86.8%    | 85%    | ✅ Exceeds      |
-| **pkg/watch**       | 82.8%    | 85%    | ⚠️ Near Target  |
-| **pkg/ratelimit**   | 90.5%    | 85%    | ✅ Exceeds      |
-| **pkg/commit**      | 60.5%    | 85%    | ⚠️ Below Target |
-| **pkg/branch**      | 52.9%    | 85%    | ⚠️ Below Target |
-| **pkg/repository**  | 40.1%    | 85%    | ⚠️ Below Target |
-| **pkg/reposync**    | 32.3%    | 85%    | ❌ Below Target |
-| **cmd/gz-git/cmd**  | 7.6%     | 70%    | ❌ Below Target |
-| **cmd/gz-git**     | 0.0%     | 70%    | ❌ Not Tested   |
+| Package                        | Coverage | Target | Status          |
+| ------------------------------ | -------- | ------ | --------------- |
+| **internal/gitcmd**            | 93.6%    | 80%    | ✅ Exceeds      |
+| **internal/parser**            | 97.7%    | 80%    | ✅ Exceeds      |
+| **internal/testutil**          | 90.6%    | 80%    | ✅ Exceeds      |
+| **internal/testutil/builders** | 68.6%    | 80%    | ⚠️ Below Target |
+| **pkg/history**                | 91.6%    | 85%    | ✅ Exceeds      |
+| **pkg/merge**                  | 86.8%    | 85%    | ✅ Exceeds      |
+| **pkg/watch**                  | 82.8%    | 85%    | ⚠️ Near Target  |
+| **pkg/ratelimit**              | 90.5%    | 85%    | ✅ Exceeds      |
+| **pkg/commit**                 | 60.5%    | 85%    | ⚠️ Below Target |
+| **pkg/branch**                 | 52.9%    | 85%    | ⚠️ Below Target |
+| **pkg/repository**             | 40.1%    | 85%    | ⚠️ Below Target |
+| **pkg/reposync**               | 32.3%    | 85%    | ❌ Below Target |
+| **cmd/gz-git/cmd**             | 7.6%     | 70%    | ❌ Below Target |
+| **cmd/gz-git**                 | 0.0%     | 70%    | ❌ Not Tested   |
 
 Packages with 0.0% coverage include `examples/*`, `internal/config`, `pkg/gitea`, `pkg/github`, `pkg/gitlab`, `pkg/provider`, `pkg/reposynccli`, `pkg/sync`, and the root module package.
 

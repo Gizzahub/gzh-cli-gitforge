@@ -68,7 +68,7 @@ gzh-cli-gitforge is a **Git-specialized CLI tool and Go library** that provides 
 
 ### 2.3 Key Differentiators
 
-| Feature                  | gzh-cli-gitforge            | Standard Git      | Other Tools        |
+| Feature                  | gzh-cli-gitforge       | Standard Git      | Other Tools        |
 | ------------------------ | ---------------------- | ----------------- | ------------------ |
 | Library-First Design     | ✅ Clean APIs          | ❌ CLI only       | ⚠️ Tightly coupled |
 | Commit Templates         | ✅ Built-in + Custom   | ❌ Manual         | ⚠️ Limited         |

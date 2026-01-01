@@ -1520,7 +1520,7 @@ ______________________________________________________________________
 | `pkg/repository/interfaces.go` | Core repository API | CRITICAL    |
 | `pkg/commit/manager.go`        | Commit automation   | HIGH        |
 | `internal/gitcmd/executor.go`  | Git command wrapper | CRITICAL    |
-| `cmd/gz-git/main.go`          | CLI entry point     | MEDIUM      |
+| `cmd/gz-git/main.go`           | CLI entry point     | MEDIUM      |
 
 ### A.2 Dependencies
 

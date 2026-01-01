@@ -101,15 +101,15 @@ gz-git fetch [directory] [flags]
 
 **Flags:**
 
-| Flag           | Short | Description                          | Default |
-| -------------- | ----- | ------------------------------------ | ------- |
-| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
-| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
-| `--dry-run`    | `-n`  | Preview without executing            | false   |
-| `--recursive`  | `-r`  | Include nested repos/submodules      | false   |
-| `--all`        |       | Fetch from all remotes               | false   |
-| `--prune`      |       | Prune deleted remote branches        | false   |
-| `--tags`       | `-t`  | Fetch all tags                       | false   |
+| Flag           | Short | Description                                 | Default |
+| -------------- | ----- | ------------------------------------------- | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan                     | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations               | 5       |
+| `--dry-run`    | `-n`  | Preview without executing                   | false   |
+| `--recursive`  | `-r`  | Include nested repos/submodules             | false   |
+| `--all`        |       | Fetch from all remotes                      | false   |
+| `--prune`      |       | Prune deleted remote branches               | false   |
+| `--tags`       | `-t`  | Fetch all tags                              | false   |
 | `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
@@ -135,15 +135,15 @@ gz-git pull [directory] [flags]
 
 **Flags:**
 
-| Flag           | Short | Description                          | Default |
-| -------------- | ----- | ------------------------------------ | ------- |
-| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
-| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
-| `--dry-run`    | `-n`  | Preview without executing            | false   |
-| `--strategy`   | `-s`  | Pull strategy (merge, rebase, ff-only) | merge |
-| `--stash`      |       | Auto-stash local changes             | false   |
-| `--prune`      | `-p`  | Prune deleted remote branches        | false   |
-| `--tags`       | `-t`  | Fetch all tags                       | false   |
+| Flag           | Short | Description                                 | Default |
+| -------------- | ----- | ------------------------------------------- | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan                     | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations               | 5       |
+| `--dry-run`    | `-n`  | Preview without executing                   | false   |
+| `--strategy`   | `-s`  | Pull strategy (merge, rebase, ff-only)      | merge   |
+| `--stash`      |       | Auto-stash local changes                    | false   |
+| `--prune`      | `-p`  | Prune deleted remote branches               | false   |
+| `--tags`       | `-t`  | Fetch all tags                              | false   |
 | `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
@@ -166,16 +166,16 @@ gz-git push [directory] [flags]
 
 **Flags:**
 
-| Flag              | Short | Description                          | Default |
-| ----------------- | ----- | ------------------------------------ | ------- |
-| `--scan-depth`    | `-d`  | Directory depth to scan              | 1       |
-| `--parallel`      | `-j`  | Number of parallel operations        | 5       |
-| `--dry-run`       | `-n`  | Preview without executing            | false   |
-| `--force`         |       | Force push (dangerous!)              | false   |
-| `--force-with-lease` |    | Safer force push                     | false   |
-| `--set-upstream`  |       | Set upstream branch                  | false   |
-| `--tags`          |       | Push all tags                        | false   |
-| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
+| Flag                 | Short | Description                                 | Default |
+| -------------------- | ----- | ------------------------------------------- | ------- |
+| `--scan-depth`       | `-d`  | Directory depth to scan                     | 1       |
+| `--parallel`         | `-j`  | Number of parallel operations               | 5       |
+| `--dry-run`          | `-n`  | Preview without executing                   | false   |
+| `--force`            |       | Force push (dangerous!)                     | false   |
+| `--force-with-lease` |       | Safer force push                            | false   |
+| `--set-upstream`     |       | Set upstream branch                         | false   |
+| `--tags`             |       | Push all tags                               | false   |
+| `--format`           | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
 
@@ -197,14 +197,14 @@ gz-git switch <branch> [directory] [flags]
 
 **Flags:**
 
-| Flag           | Short | Description                          | Default |
-| -------------- | ----- | ------------------------------------ | ------- |
-| `--scan-depth` | `-d`  | Directory depth to scan              | 1       |
-| `--parallel`   | `-j`  | Number of parallel operations        | 5       |
-| `--dry-run`    | `-n`  | Preview without executing            | false   |
-| `--force`      |       | Force switch (dangerous!)            | false   |
-| `--include`    |       | Include repos matching pattern       |         |
-| `--exclude`    |       | Exclude repos matching pattern       |         |
+| Flag           | Short | Description                                 | Default |
+| -------------- | ----- | ------------------------------------------- | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan                     | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations               | 5       |
+| `--dry-run`    | `-n`  | Preview without executing                   | false   |
+| `--force`      |       | Force switch (dangerous!)                   | false   |
+| `--include`    |       | Include repos matching pattern              |         |
+| `--exclude`    |       | Exclude repos matching pattern              |         |
 | `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
@@ -233,12 +233,12 @@ gz-git watch [paths...] [flags]
 
 **Flags:**
 
-| Flag             | Short | Description                          | Default |
-| ---------------- | ----- | ------------------------------------ | ------- |
-| `--interval`     |       | Polling interval                     | 2s      |
-| `--include-clean`|       | Notify when repo becomes clean       | false   |
-| `--format`       | `-f`  | Output format (default, compact, json, llm) | default |
-| `--notify`       |       | Play sound on changes                | false   |
+| Flag              | Short | Description                                 | Default |
+| ----------------- | ----- | ------------------------------------------- | ------- |
+| `--interval`      |       | Polling interval                            | 2s      |
+| `--include-clean` |       | Notify when repo becomes clean              | false   |
+| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
+| `--notify`        |       | Play sound on changes                       | false   |
 
 **Examples:**
 
@@ -350,18 +350,18 @@ gz-git commit bulk [flags]
 
 **Flags:**
 
-| Flag              | Short | Description                       | Default    |
-| ----------------- | ----- | --------------------------------- | ---------- |
-| `--dry-run`       |       | Preview only, don't commit        | false      |
-| `--message`       | `-m`  | Common message for all repos      | (auto)     |
-| `--edit`          | `-e`  | Edit messages in editor           | false      |
-| `--yes`           | `-y`  | Execute commits without preview   | false      |
-| `--scan-depth`    | `-d`  | Scan depth for repositories       | 1          |
-| `--include`       |       | Include repos matching pattern    | *          |
-| `--exclude`       |       | Exclude repos matching pattern    |            |
-| `--parallel`      | `-p`  | Parallel execution count          | (CPU num)  |
-| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
-| `--messages-file` |       | Load messages from JSON file      |            |
+| Flag              | Short | Description                                 | Default   |
+| ----------------- | ----- | ------------------------------------------- | --------- |
+| `--dry-run`       |       | Preview only, don't commit                  | false     |
+| `--message`       | `-m`  | Common message for all repos                | (auto)    |
+| `--edit`          | `-e`  | Edit messages in editor                     | false     |
+| `--yes`           | `-y`  | Execute commits without preview             | false     |
+| `--scan-depth`    | `-d`  | Scan depth for repositories                 | 1         |
+| `--include`       |       | Include repos matching pattern              | \*        |
+| `--exclude`       |       | Exclude repos matching pattern              |           |
+| `--parallel`      | `-p`  | Parallel execution count                    | (CPU num) |
+| `--format`        | `-f`  | Output format (default, compact, json, llm) | default   |
+| `--messages-file` |       | Load messages from JSON file                |           |
 
 **Examples:**
 
@@ -391,8 +391,8 @@ gz-git commit bulk --dry-run --format json
 **Workflow:**
 
 1. **Preview mode** (default, no `-y`): Scans and shows dirty repos
-2. **Execute mode** (`-y`): Commits with auto-generated messages
-3. **Editor mode** (`-e`): Opens editor to customize messages
+1. **Execute mode** (`-y`): Commits with auto-generated messages
+1. **Editor mode** (`-e`): Opens editor to customize messages
 
 **Messages File JSON Schema:**
 
@@ -404,6 +404,7 @@ gz-git commit bulk --dry-run --format json
 ```
 
 Keys can be:
+
 - Relative path: `myproject-api`
 - Base name: `api`
 - Full path: `/path/to/myproject-api`
@@ -411,6 +412,7 @@ Keys can be:
 **JSON Output Schema (--format json):**
 
 Preview output:
+
 ```json
 {
   "scan_depth": 1,
@@ -434,6 +436,7 @@ Preview output:
 ```
 
 Result output:
+
 ```json
 {
   "success": true,
@@ -463,15 +466,15 @@ gz-git diff [flags]
 
 **Flags:**
 
-| Flag              | Short | Description                       | Default    |
-| ----------------- | ----- | --------------------------------- | ---------- |
-| `--staged`        |       | Show only staged changes          | false      |
-| `--scan-depth`    | `-d`  | Scan depth for repositories       | 1          |
-| `--include`       |       | Include repos matching pattern    | *          |
-| `--exclude`       |       | Exclude repos matching pattern    |            |
-| `--context`       | `-c`  | Context lines around changes      | 3          |
-| `--max-size`      |       | Max diff size per repo (bytes)    | 102400     |
-| `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
+| Flag           | Short | Description                                 | Default |
+| -------------- | ----- | ------------------------------------------- | ------- |
+| `--staged`     |       | Show only staged changes                    | false   |
+| `--scan-depth` | `-d`  | Scan depth for repositories                 | 1       |
+| `--include`    |       | Include repos matching pattern              | \*      |
+| `--exclude`    |       | Exclude repos matching pattern              |         |
+| `--context`    | `-c`  | Context lines around changes                | 3       |
+| `--max-size`   |       | Max diff size per repo (bytes)              | 102400  |
+| `--format`     | `-f`  | Output format (default, compact, json, llm) | default |
 
 **Examples:**
 
