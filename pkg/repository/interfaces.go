@@ -61,6 +61,18 @@ type Client interface {
 	// This is useful for reviewing changes across multiple repositories or for LLM-based commit message generation.
 	BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffResult, error)
 
+	// BulkCleanup scans for repositories and performs branch cleanup in parallel.
+	// This is useful for cleaning up merged, stale, or gone branches across multiple repositories.
+	BulkCleanup(ctx context.Context, opts BulkCleanupOptions) (*BulkCleanupResult, error)
+
+	// BulkStash scans for repositories and performs stash operations in parallel.
+	// This is useful for stashing/popping changes across multiple repositories.
+	BulkStash(ctx context.Context, opts BulkStashOptions) (*BulkStashResult, error)
+
+	// BulkTag scans for repositories and performs tag operations in parallel.
+	// This is useful for creating/pushing tags across multiple repositories.
+	BulkTag(ctx context.Context, opts BulkTagOptions) (*BulkTagResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

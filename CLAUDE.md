@@ -65,11 +65,42 @@ ______________________________________________________________________
 │   ├── parser/             # Output parsing
 │   └── testutil/           # Git test helpers
 ├── pkg/                    # Public packages
-│   ├── branch/             # Branch management
+│   ├── branch/             # Branch management + cleanup
 │   ├── commit/             # Commit operations
 │   ├── operations/         # Complex operations
-│   └── repository/         # Repository abstraction
+│   ├── repository/         # Repository abstraction + bulk ops
+│   ├── stash/              # Stash management
+│   └── tag/                # Tag management + semver
 └── docs/.claude-context/   # Context docs
+```
+
+______________________________________________________________________
+
+## Bulk Operations (Core Feature)
+
+All major operations support **batch mode** for multi-repository workflows:
+
+| Command          | Bulk Support | Usage                                     |
+| ---------------- | ------------ | ----------------------------------------- |
+| `fetch`          | ✅           | `gz-git fetch [directory]`                |
+| `pull`           | ✅           | `gz-git pull [directory]`                 |
+| `push`           | ✅           | `gz-git push [directory]`                 |
+| `status`         | ✅           | `gz-git status [directory]`               |
+| `switch`         | ✅           | `gz-git switch <branch> [directory]`      |
+| `diff`           | ✅           | `gz-git diff [directory]`                 |
+| `commit bulk`    | ✅           | `gz-git commit bulk [directory]`          |
+| `branch cleanup` | ✅           | `gz-git branch cleanup [directory]`       |
+| `stash`          | ✅           | `gz-git stash save/list/pop [directory]`  |
+| `tag`            | ✅           | `gz-git tag create/list/push [directory]` |
+
+**Common Bulk Flags:**
+
+```
+-d, --scan-depth   Directory depth (default: 1)
+-j, --parallel     Parallel workers (default: 5)
+-n, --dry-run      Simulation mode
+--include          Include pattern (regex)
+--exclude          Exclude pattern (regex)
 ```
 
 ______________________________________________________________________
@@ -185,5 +216,5 @@ A: `internal/parser/` - git output parsing
 
 ______________________________________________________________________
 
-**Last Updated**: 2025-12-06
-**Previous**: 234 lines → **Current**: 153 lines (35% reduction)
+**Last Updated**: 2026-01-01
+**Previous**: 153 lines → **Current**: ~190 lines (added bulk ops docs)
