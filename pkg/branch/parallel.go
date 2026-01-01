@@ -282,15 +282,17 @@ func (p *parallelWorkflow) getModifiedFiles(ctx context.Context, path string) ([
 	}
 
 	files := make([]string, 0)
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	lines := strings.Split(result.Stdout, "\n")
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 
 		// Format: "XY filename" where XY is status code
-		if len(line) > 3 {
-			filename := strings.TrimSpace(line[3:])
+		// After TrimSpace, skip 2 chars for status, then TrimLeft space/tab
+		if len(line) > 2 {
+			filename := strings.TrimLeft(line[2:], " \t")
 			files = append(files, filename)
 		}
 	}

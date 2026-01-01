@@ -253,8 +253,9 @@ func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string
 	}
 
 	// Parse status output
-	lines := strings.Split(strings.TrimSpace(statusResult.Stdout), "\n")
+	lines := strings.Split(statusResult.Stdout, "\n")
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
@@ -263,7 +264,7 @@ func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string
 		}
 
 		statusCode := line[:2]
-		filePath := strings.TrimSpace(line[3:])
+		filePath := strings.TrimLeft(line[2:], " \t")
 
 		// Handle renamed files (R oldpath -> newpath)
 		if strings.Contains(filePath, " -> ") {

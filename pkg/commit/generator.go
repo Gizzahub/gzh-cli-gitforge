@@ -163,18 +163,19 @@ func (g *generator) getDiffSummary(ctx context.Context, repo *repository.Reposit
 		DeletedFiles:  []string{},
 	}
 
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	lines := strings.Split(result.Stdout, "\n")
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 
-		if len(line) < 4 {
+		if len(line) < 3 {
 			continue
 		}
 
 		status := strings.TrimSpace(line[0:2])
-		filepath := strings.TrimSpace(line[3:])
+		filepath := strings.TrimLeft(line[2:], " \t")
 
 		switch {
 		case strings.Contains(status, "A"):

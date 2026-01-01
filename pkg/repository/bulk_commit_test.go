@@ -542,3 +542,146 @@ func BenchmarkBulkCommitSingleRepo(b *testing.B) {
 		}
 	}
 }
+
+// TestFilePathParsing tests that file paths are correctly extracted from git status output.
+// This is a regression test for the bug where the first character of file paths was truncated.
+func TestFilePathParsing(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test repository with files that have various prefixes
+	repoPath := filepath.Join(tmpDir, "test-repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo dir: %v", err)
+	}
+
+	if err := initGitRepo(repoPath); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+
+	// Create initial commit
+	initialFiles := map[string]string{
+		"internal/test.go":  "package internal\n",
+		"examples/main.go":  "package main\n",
+		"CI_CD.md":          "# CI/CD\n",
+		"README.md":         "# README\n",
+		"docs/overview.md":  "# Overview\n",
+	}
+
+	for path, content := range initialFiles {
+		fullPath := filepath.Join(repoPath, path)
+		dir := filepath.Dir(fullPath)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("Failed to create dir %s: %v", dir, err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to write file %s: %v", path, err)
+		}
+	}
+
+	// Initial commit
+	cmd := exec.Command("git", "add", ".")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to git add: %v", err)
+	}
+
+	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to git commit: %v", err)
+	}
+
+	// Modify files to create dirty state
+	modifiedFiles := map[string]string{
+		"internal/test.go": "package internal\n\n// Modified\n",
+		"examples/main.go": "package main\n\n// Modified\n",
+		"CI_CD.md":         "# CI/CD\n\nModified\n",
+	}
+
+	for path, content := range modifiedFiles {
+		fullPath := filepath.Join(repoPath, path)
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+			t.Fatalf("Failed to modify file %s: %v", path, err)
+		}
+	}
+
+	// Test bulk commit to get changed files
+	client := NewClient()
+	ctx := context.Background()
+	opts := BulkCommitOptions{
+		Directory: tmpDir,
+		MaxDepth:  1,
+		DryRun:    true,
+		Logger:    NewNoopLogger(),
+	}
+
+	result, err := client.BulkCommit(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkCommit failed: %v", err)
+	}
+
+	if len(result.Repositories) != 1 {
+		t.Fatalf("Expected 1 repository, got %d", len(result.Repositories))
+	}
+
+	repoResult := result.Repositories[0]
+	if repoResult.Status != "would-commit" {
+		t.Fatalf("Expected status 'would-commit', got %s", repoResult.Status)
+	}
+
+	// Verify that file paths are correct (not truncated)
+	expectedFiles := map[string]bool{
+		"internal/test.go": false,
+		"examples/main.go": false,
+		"CI_CD.md":         false,
+	}
+
+	for _, file := range repoResult.ChangedFiles {
+		if _, exists := expectedFiles[file]; exists {
+			expectedFiles[file] = true
+		} else {
+			t.Errorf("Unexpected file in ChangedFiles: %s", file)
+		}
+	}
+
+	// Check for missing or truncated files
+	for file, found := range expectedFiles {
+		if !found {
+			t.Errorf("Expected file %s not found in ChangedFiles. Got: %v", file, repoResult.ChangedFiles)
+
+			// Check if it was truncated (first character missing)
+			truncated := file[1:]
+			for _, gotFile := range repoResult.ChangedFiles {
+				if gotFile == truncated {
+					t.Errorf("File %s appears to be truncated to %s (first character missing)", file, truncated)
+				}
+			}
+		}
+	}
+
+	// Verify specific files that were problematic in the bug report
+	testCases := []struct {
+		expected string
+		wrongly  string // What it would be if truncated
+	}{
+		{"internal/test.go", "nternal/test.go"},
+		{"examples/main.go", "xamples/main.go"},
+		{"CI_CD.md", "I_CD.md"},
+	}
+
+	for _, tc := range testCases {
+		found := false
+		for _, file := range repoResult.ChangedFiles {
+			if file == tc.expected {
+				found = true
+				break
+			}
+			if file == tc.wrongly {
+				t.Errorf("REGRESSION: File path truncated! Got %s, expected %s", file, tc.expected)
+			}
+		}
+		if !found {
+			t.Errorf("Expected file %s not found in ChangedFiles: %v", tc.expected, repoResult.ChangedFiles)
+		}
+	}
+}

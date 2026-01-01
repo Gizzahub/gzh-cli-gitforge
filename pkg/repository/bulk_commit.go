@@ -307,13 +307,17 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 	}
 
 	// Parse status
-	lines := strings.Split(strings.TrimSpace(statusResult.Stdout), "\n")
+	lines := strings.Split(statusResult.Stdout, "\n")
 	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 		if len(line) >= 3 {
-			file := strings.TrimSpace(line[3:])
+			// Extract filename after status code (e.g., "M\tfilename" -> "filename")
+			// After TrimSpace, status code is 2 chars, followed by space or tab
+			// Use line[2:] to skip status, then TrimLeft to remove space/tab
+			file := strings.TrimLeft(line[2:], " \t")
 			result.ChangedFiles = append(result.ChangedFiles, file)
 		}
 	}
