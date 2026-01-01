@@ -3,9 +3,9 @@
 **Project**: gzh-cli-gitforge
 **Feature**: Commit Automation (F1)
 **Phase**: Phase 2
-**Version**: 1.0
-**Last Updated**: 2025-11-27
-**Status**: Draft
+**Version**: 2.0 (v0.4.0)
+**Last Updated**: 2025-01-02
+**Status**: Implemented
 **Priority**: P0 (High)
 
 ______________________________________________________________________
@@ -14,12 +14,14 @@ ______________________________________________________________________
 
 ### 1.1 Purpose
 
-This specification defines the commit automation features for gzh-cli-gitforge, including template-based commits, auto-generated commit messages, message validation, and smart push functionality.
+This specification defines the commit automation features for gzh-cli-gitforge, including template-based commits, auto-generated commit messages, message validation, smart push functionality, and **bulk multi-repository commits** (v0.4.0+).
 
 ### 1.2 Goals
 
 - **Consistency**: Ensure commit messages follow team conventions
 - **Efficiency**: Reduce time spent writing commit messages (30% time savings)
+- **Scalability**: Enable bulk commits across multiple repositories (v0.4.0+)
+- **Flexibility**: Support per-repository custom messages (v0.4.0+)
 - **Quality**: Validate commit messages against standards
 - **Safety**: Prevent accidental destructive operations
 
@@ -705,20 +707,96 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Approval Required From**:
+## 11. v0.4.0 Updates - Bulk Commit Features
 
-- [ ] Product Owner
-- [ ] Tech Lead
-- [ ] Security Team (for push safety features)
+### 11.1 Overview
 
-**Next Steps**:
+Version 0.4.0 introduces bulk commit capabilities, enabling commits across multiple repositories with flexible message customization options.
 
-1. Review and approve specification
-1. Create implementation tasks
-1. Begin Phase 2 development
+### 11.2 Breaking Changes
+
+- **Command Structure**: `gz-git commit bulk` → `gz-git commit` (bulk is now default)
+- The `commit` command now operates on multiple repositories by default
+- Subcommands (`auto`, `validate`, `template`) preserved for single-repo operations
+
+### 11.3 New Features
+
+**Bulk Commit Operations**:
+
+- Scan multiple repositories at configurable depth (`-d` flag)
+- Parallel commit processing (default: 5 concurrent)
+- Preview mode by default (requires `--yes` to commit)
+- Auto-generate commit messages per repository
+- Support for dry-run, filtering, and multiple output formats
+
+**Per-Repository Custom Messages** (`--messages` flag):
+
+```bash
+gz-git commit \
+  --messages "frontend:feat(ui): add login" \
+  --messages "backend:fix(api): handle null" \
+  --yes
+```
+
+- Inline message specification via CLI
+- Flexible path matching (relative, base name, full path)
+- Repeatable flag for multiple repositories
+- Falls back to auto-generated messages
+
+**Message Input Methods**:
+
+1. **CLI flag** (`--messages`): Inline per-repo messages
+2. **Common message** (`-m`): Same message for all repos
+3. **JSON file** (`--messages-file`): Batch message customization
+4. **Interactive editor** (`-e`): Edit messages in $EDITOR
+5. **Auto-generation**: Based on file changes (default)
+
+**Implementation Details**:
+
+- **MessageGenerator Pattern**: Flexible callback for custom message lookup
+- **Path Matching**: Tries relative path → base name → full path
+- **Lazy Evaluation**: Messages resolved at commit time
+- **Error Handling**: Graceful fallback for missing custom messages
+
+### 11.4 Bug Fixes
+
+**File Path Truncation** (Critical):
+
+- **Issue**: First character of file paths truncated in git status parsing
+- **Impact**: JSON output showed `nternal/test.go` instead of `internal/test.go`
+- **Root Cause**: `strings.TrimSpace()` before line splitting
+- **Fix**: Split lines first, then trim; use `line[2:]` instead of `line[3:]`
+- **Test Coverage**: Added `TestFilePathParsing` regression test
+
+### 11.5 Architecture Updates
+
+**Modified Components**:
+
+- `cmd/gz-git/cmd/commit.go`: Complete rewrite with bulk functionality
+- `cmd/gz-git/cmd/commit_bulk.go`: Function renaming to avoid collision
+- `pkg/repository/bulk_commit.go`: File parsing bug fix
+- `pkg/commit/generator.go`: File parsing bug fix
+- `pkg/branch/parallel.go`: File parsing bug fix
+- `pkg/repository/bulk_diff.go`: File parsing bug fix
+
+**New Patterns**:
+
+- MessageGenerator callback pattern for extensibility
+- Multi-method message input architecture
+- Preview-by-default for safety
 
 ______________________________________________________________________
 
-**Document Version**: 1.0
-**Status**: Draft - Pending Review
-**Last Updated**: 2025-11-27
+**Approval Status**: ✅ Implemented and Released (v0.4.0)
+
+**Next Steps**:
+
+1. Monitor user feedback on bulk commit features
+1. Consider LLM-friendly output format for commit command
+1. Evaluate additional message input methods (YAML, TOML)
+
+______________________________________________________________________
+
+**Document Version**: 2.0 (v0.4.0)
+**Status**: Implemented
+**Last Updated**: 2025-01-02

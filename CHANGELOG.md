@@ -7,15 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-01-02
+
+### Added
+
+**Bulk Commit Command** - Multi-Repository Commit with Custom Messages:
+
+- `gz-git commit` is now bulk-enabled by default (breaking change from `commit bulk` subcommand)
+  - Scans multiple repositories and commits changes in parallel
+  - Preview mode by default (use `--yes` to commit)
+  - Auto-generates commit messages based on file changes
+  - Supports multiple message input methods
+
+**Per-Repository Custom Messages** - New `--messages` CLI Flag:
+
+- `--messages "repo:message"` flag for inline custom messages (repeatable)
+  - Format: `--messages "frontend:feat: add feature" --messages "backend:fix: bug"`
+  - Supports relative path, base name, or full path matching
+  - Works alongside existing `-m`, `--messages-file`, and `-e` options
+- MessageGenerator pattern for flexible message lookup
+- Falls back to auto-generated messages when no custom message matches
+
+**Commit Workflow Features**:
+
+- Interactive message editing with `$EDITOR` via `-e` flag
+- JSON file support for batch message customization via `--messages-file`
+- Common message for all repos via `-m` flag
+- Multiple output formats: default, compact, json
+- Filtering with `--include` and `--exclude` patterns
+- Parallel processing with `-j` flag (default: 5)
+- Dry-run mode with `--dry-run` flag
+
+**Preserved Subcommands**:
+
+- `gz-git commit auto` - Single repository auto-commit
+- `gz-git commit validate` - Validate commit message format
+- `gz-git commit template` - Manage commit message templates
+- `gz-git commit bulk` - Legacy alias (deprecated, use main command)
+
+### Fixed
+
+**File Path Truncation Bug** - Critical Git Status Parsing Fix:
+
+- Fixed bug where first character of file paths was truncated in JSON output
+  - Example: `internal/test.go` → `nternal/test.go`
+  - Affected: `bulk_commit.go`, `generator.go`, `parallel.go`, `bulk_diff.go`
+- Root cause: `strings.TrimSpace()` applied before line splitting
+- Solution: Split first, then TrimSpace each line, use `line[2:]` instead of `line[3:]`
+- Added regression test `TestFilePathParsing` to prevent future issues
+
 ### Changed
 
-- Breaking: remove `gz-git multi` and promote `switch` to top-level (`gz-git switch`)
+- **Breaking**: `commit bulk` subcommand → `commit` main command (bulk-by-default)
+- Refactored commit command architecture for better code reuse
+- Renamed `displayCommitResults` → `displayCommitBulkResults` to avoid namespace collision
 
 ### Documentation
 
-- Align status/version notes to v0.3.0 across README and docs
-- Refresh Phase 6/7 status references and test metrics
-- Update user guides and LLM context for current feature availability
+- Updated README.md with v0.4.0 features and examples
+- Added comprehensive commit command usage examples
+- Updated version badges and feature lists
 
 ## [0.3.0] - 2025-12-02
 

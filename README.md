@@ -3,7 +3,7 @@
 > Advanced Git automation CLI and Go library for developers
 
 [![Go Version](https://img.shields.io/badge/go-1.24.0%2B-blue)](https://go.dev)
-[![Version](https://img.shields.io/badge/version-v0.3.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.3.0)
+[![Version](https://img.shields.io/badge/version-v0.4.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.4.0)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Coverage](https://img.shields.io/badge/coverage-69.1%25-yellow)](docs/_deprecated/2025-12/COVERAGE.md)
 [![Tests](https://img.shields.io/badge/tests-51%20integration%2F90%20e2e-brightgreen)](#testing)
@@ -15,7 +15,7 @@ ______________________________________________________________________
 
 ## Features
 
-### ✅ Fully Implemented & Available (v0.3.0)
+### ✅ Fully Implemented & Available (v0.4.0)
 
 📦 **Repository Operations**
 
@@ -33,10 +33,14 @@ ______________________________________________________________________
 
 🚀 **Commit Automation**
 
+- **Bulk commit** across multiple repositories (new in v0.4.0!)
+- **Per-repository custom messages** via `--messages` flag
 - Template-based commit messages (Conventional Commits support)
 - Auto-generate commit messages from code changes
+- Interactive message editing with `$EDITOR`
 - Validate commit messages against templates
 - Built-in template management (list, show, validate)
+- JSON file support for batch message customization
 
 🌿 **Branch Management**
 
@@ -75,7 +79,7 @@ ______________________________________________________________________
 - Comprehensive integration tests
 - Well-documented codebase
 
-> **Note**: Version v0.3.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/_deprecated/2025-12/IMPLEMENTATION_STATUS.md) for details.
+> **Note**: Version v0.4.0 reflects the actual feature completeness of this project. All major planned features are implemented and tested. See [IMPLEMENTATION_STATUS.md](docs/_deprecated/2025-12/IMPLEMENTATION_STATUS.md) for details.
 
 ______________________________________________________________________
 
@@ -381,16 +385,40 @@ ______________________________________________________________________
 **Commit Automation:**
 
 ```bash
-# Auto-generate and create commit
-gz-git commit auto
+# Bulk commit across multiple repositories (v0.4.0+)
+gz-git commit -d 1                    # Preview commits
+gz-git commit -d 2 --yes              # Auto-approve and commit
 
-# Validate commit message
+# Common message for all repositories
+gz-git commit -m "chore: update dependencies" --yes
+
+# Per-repository custom messages (NEW!)
+gz-git commit \
+  --messages "frontend:feat(ui): add login button" \
+  --messages "backend:fix(api): handle null values" \
+  --messages "docs:docs: update API guide" \
+  --yes
+
+# Interactive message editing
+gz-git commit -e --yes                # Edit in $EDITOR
+
+# Load messages from JSON file
+gz-git commit --messages-file /tmp/messages.json --yes
+
+# Dry run (preview without committing)
+gz-git commit --dry-run
+
+# JSON output for automation
+gz-git commit --format json --yes
+
+# Filter repositories
+gz-git commit --include "^frontend" --yes
+gz-git commit --exclude "test-" --yes
+
+# Single repository commands
+gz-git commit auto                    # Auto-generate and commit
 gz-git commit validate "feat(cli): add new command"
-
-# List available templates
-gz-git commit template list
-
-# Show template details
+gz-git commit template list           # List templates
 gz-git commit template show conventional
 ```
 
