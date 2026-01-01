@@ -224,7 +224,7 @@ func runCommitBulk(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	if commitBulkFlags.Format == "json" || !quiet {
-		displayCommitResults(result)
+		displayCommitBulkResults(result)
 	}
 
 	return nil
@@ -374,7 +374,7 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 	return messages, nil
 }
 
-func displayCommitResults(result *repository.BulkCommitResult) {
+func displayCommitBulkResults(result *repository.BulkCommitResult) {
 	// JSON output mode
 	if commitBulkFlags.Format == "json" {
 		displayCommitResultsJSON(result)
