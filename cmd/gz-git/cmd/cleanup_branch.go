@@ -14,24 +14,24 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-// cleanupBulkFlags holds bulk-specific flags
-var cleanupBulkFlags BulkCommandFlags
+// cleanupBranchBulkFlags holds bulk-specific flags
+var cleanupBranchBulkFlags BulkCommandFlags
 
 var (
-	cleanupMerged     bool
-	cleanupStale      bool
-	cleanupGone       bool
-	cleanupStaleDays  int
-	cleanupDryRun     bool
-	cleanupForce      bool
-	cleanupRemote     bool
-	cleanupProtect    string
-	cleanupBaseBranch string
+	cleanupBranchMerged     bool
+	cleanupBranchStale      bool
+	cleanupBranchGone       bool
+	cleanupBranchStaleDays  int
+	cleanupBranchDryRun     bool
+	cleanupBranchForce      bool
+	cleanupBranchRemote     bool
+	cleanupBranchProtect    string
+	cleanupBranchBaseBranch string
 )
 
-// cleanupCmd represents the branch cleanup command
-var cleanupCmd = &cobra.Command{
-	Use:   "cleanup [directory]",
+// cleanupBranchCmd represents the cleanup branch command
+var cleanupBranchCmd = &cobra.Command{
+	Use:   "branch [directory]",
 	Short: "Clean up merged, stale, or gone branches",
 	Long: `Analyze and clean up branches that are no longer needed.
 
@@ -50,67 +50,67 @@ Use --force to actually delete branches.
 Protected branches (main, master, develop, release/*, hotfix/*) are never deleted
 unless explicitly overridden.`,
 	Example: `  # Preview merged branches in current repo
-  gz-git branch cleanup --merged
+  gz-git cleanup branch --merged
 
   # Preview stale branches (no activity for 30 days)
-  gz-git branch cleanup --stale
+  gz-git cleanup branch --stale
 
   # Preview all cleanup-eligible branches
-  gz-git branch cleanup --merged --stale --gone
+  gz-git cleanup branch --merged --stale --gone
 
   # Actually delete merged branches
-  gz-git branch cleanup --merged --force
+  gz-git cleanup branch --merged --force
 
   # BULK MODE: Clean up merged branches across all repos
-  gz-git branch cleanup . --merged --force
+  gz-git cleanup branch --merged --force .
 
   # BULK MODE: Preview cleanup with parallel workers
-  gz-git branch cleanup ~/projects --merged --stale -j 10
+  gz-git cleanup branch --merged --stale -j 10 ~/projects
 
   # Protect additional branches
-  gz-git branch cleanup --merged --protect "staging,qa" --force`,
-	RunE: runBranchCleanup,
+  gz-git cleanup branch --merged --protect "staging,qa" --force`,
+	RunE: runCleanupBranch,
 }
 
 func init() {
-	branchCmd.AddCommand(cleanupCmd)
+	cleanupCmd.AddCommand(cleanupBranchCmd)
 
 	// Cleanup-specific flags
-	cleanupCmd.Flags().BoolVar(&cleanupMerged, "merged", false, "clean up fully merged branches")
-	cleanupCmd.Flags().BoolVar(&cleanupStale, "stale", false, "clean up stale branches (no recent activity)")
-	cleanupCmd.Flags().BoolVar(&cleanupGone, "gone", false, "clean up gone branches (remote deleted)")
-	cleanupCmd.Flags().IntVar(&cleanupStaleDays, "stale-days", 30, "days threshold for stale branches")
-	cleanupCmd.Flags().BoolVarP(&cleanupDryRun, "dry-run", "n", true, "preview changes without deleting (default: true)")
-	cleanupCmd.Flags().BoolVarP(&cleanupForce, "force", "f", false, "actually delete branches (disables dry-run)")
-	cleanupCmd.Flags().BoolVarP(&cleanupRemote, "remote", "r", false, "also delete remote branches")
-	cleanupCmd.Flags().StringVar(&cleanupProtect, "protect", "", "additional branches to protect (comma-separated)")
-	cleanupCmd.Flags().StringVar(&cleanupBaseBranch, "base", "", "base branch for merge detection (default: auto-detect)")
+	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchMerged, "merged", false, "clean up fully merged branches")
+	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchStale, "stale", false, "clean up stale branches (no recent activity)")
+	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchGone, "gone", false, "clean up gone branches (remote deleted)")
+	cleanupBranchCmd.Flags().IntVar(&cleanupBranchStaleDays, "stale-days", 30, "days threshold for stale branches")
+	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchDryRun, "dry-run", "n", true, "preview changes without deleting (default: true)")
+	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchForce, "force", "f", false, "actually delete branches (disables dry-run)")
+	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchRemote, "remote", "r", false, "also delete remote branches")
+	cleanupBranchCmd.Flags().StringVar(&cleanupBranchProtect, "protect", "", "additional branches to protect (comma-separated)")
+	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBaseBranch, "base", "", "base branch for merge detection (default: auto-detect)")
 
 	// Bulk operation flags (manually added to avoid dry-run conflict)
-	cleanupCmd.Flags().IntVarP(&cleanupBulkFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
-	cleanupCmd.Flags().IntVarP(&cleanupBulkFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cleanupCmd.Flags().BoolVar(&cleanupBulkFlags.IncludeSubmodules, "recursive", false, "recursively include nested repositories and submodules")
-	cleanupCmd.Flags().StringVar(&cleanupBulkFlags.Include, "include", "", "regex pattern to include repositories")
-	cleanupCmd.Flags().StringVar(&cleanupBulkFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	cleanupBranchCmd.Flags().IntVarP(&cleanupBranchBulkFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
+	cleanupBranchCmd.Flags().IntVarP(&cleanupBranchBulkFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
+	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchBulkFlags.IncludeSubmodules, "recursive", false, "recursively include nested repositories and submodules")
+	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBulkFlags.Include, "include", "", "regex pattern to include repositories")
+	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBulkFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
 }
 
-func runBranchCleanup(cmd *cobra.Command, args []string) error {
+func runCleanupBranch(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// Require at least one cleanup type
-	if !cleanupMerged && !cleanupStale && !cleanupGone {
+	if !cleanupBranchMerged && !cleanupBranchStale && !cleanupBranchGone {
 		return fmt.Errorf("specify at least one cleanup type: --merged, --stale, or --gone")
 	}
 
 	// Force flag disables dry-run
-	if cleanupForce {
-		cleanupDryRun = false
+	if cleanupBranchForce {
+		cleanupBranchDryRun = false
 	}
 
 	// Build exclude list
 	excludePatterns := []string{}
-	if cleanupProtect != "" {
-		for _, p := range strings.Split(cleanupProtect, ",") {
+	if cleanupBranchProtect != "" {
+		for _, p := range strings.Split(cleanupBranchProtect, ",") {
 			p = strings.TrimSpace(p)
 			if p != "" {
 				excludePatterns = append(excludePatterns, p)
@@ -120,15 +120,15 @@ func runBranchCleanup(cmd *cobra.Command, args []string) error {
 
 	// If directory argument provided, run in bulk mode
 	if len(args) > 0 {
-		return runBulkCleanup(ctx, args[0], excludePatterns)
+		return runBulkCleanupBranch(ctx, args[0], excludePatterns)
 	}
 
 	// Single repository mode
-	return runSingleRepoCleanup(ctx, excludePatterns)
+	return runSingleRepoCleanupBranch(ctx, excludePatterns)
 }
 
-// runSingleRepoCleanup performs cleanup on a single repository
-func runSingleRepoCleanup(ctx context.Context, excludePatterns []string) error {
+// runSingleRepoCleanupBranch performs cleanup on a single repository
+func runSingleRepoCleanupBranch(ctx context.Context, excludePatterns []string) error {
 	// Get repository path
 	repoPath, err := os.Getwd()
 	if err != nil {
@@ -159,12 +159,12 @@ func runSingleRepoCleanup(ctx context.Context, excludePatterns []string) error {
 
 	// Analyze branches
 	analyzeOpts := branch.AnalyzeOptions{
-		IncludeMerged:  cleanupMerged,
-		IncludeStale:   cleanupStale,
-		StaleThreshold: time.Duration(cleanupStaleDays) * 24 * time.Hour,
-		IncludeRemote:  cleanupRemote,
+		IncludeMerged:  cleanupBranchMerged,
+		IncludeStale:   cleanupBranchStale,
+		StaleThreshold: time.Duration(cleanupBranchStaleDays) * 24 * time.Hour,
+		IncludeRemote:  cleanupBranchRemote,
 		Exclude:        excludePatterns,
-		BaseBranch:     cleanupBaseBranch,
+		BaseBranch:     cleanupBranchBaseBranch,
 	}
 
 	if !quiet {
@@ -178,7 +178,7 @@ func runSingleRepoCleanup(ctx context.Context, excludePatterns []string) error {
 
 	// Display report
 	if !quiet {
-		printCleanupReport(report, cleanupDryRun)
+		printCleanupBranchReport(report, cleanupBranchDryRun)
 	}
 
 	// If no branches to clean up, exit
@@ -190,11 +190,11 @@ func runSingleRepoCleanup(ctx context.Context, excludePatterns []string) error {
 	}
 
 	// Execute cleanup if not dry-run
-	if !cleanupDryRun {
+	if !cleanupBranchDryRun {
 		executeOpts := branch.ExecuteOptions{
 			DryRun:  false,
 			Force:   true, // We already confirmed with --force flag
-			Remote:  cleanupRemote,
+			Remote:  cleanupBranchRemote,
 			Confirm: true, // Skip confirmation
 			Exclude: excludePatterns,
 		}
@@ -215,31 +215,31 @@ func runSingleRepoCleanup(ctx context.Context, excludePatterns []string) error {
 	return nil
 }
 
-// runBulkCleanup performs cleanup across multiple repositories
-func runBulkCleanup(ctx context.Context, directory string, excludePatterns []string) error {
+// runBulkCleanupBranch performs cleanup across multiple repositories
+func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns []string) error {
 	client := repository.NewClient()
 
 	opts := repository.BulkCleanupOptions{
 		Directory:         directory,
-		Parallel:          cleanupBulkFlags.Parallel,
-		MaxDepth:          cleanupBulkFlags.Depth,
-		DryRun:            cleanupDryRun,
-		IncludeMerged:     cleanupMerged,
-		IncludeStale:      cleanupStale,
-		IncludeGone:       cleanupGone,
-		StaleThreshold:    time.Duration(cleanupStaleDays) * 24 * time.Hour,
-		BaseBranch:        cleanupBaseBranch,
-		DeleteRemote:      cleanupRemote,
+		Parallel:          cleanupBranchBulkFlags.Parallel,
+		MaxDepth:          cleanupBranchBulkFlags.Depth,
+		DryRun:            cleanupBranchDryRun,
+		IncludeMerged:     cleanupBranchMerged,
+		IncludeStale:      cleanupBranchStale,
+		IncludeGone:       cleanupBranchGone,
+		StaleThreshold:    time.Duration(cleanupBranchStaleDays) * 24 * time.Hour,
+		BaseBranch:        cleanupBranchBaseBranch,
+		DeleteRemote:      cleanupBranchRemote,
 		ProtectPatterns:   excludePatterns,
-		IncludeSubmodules: cleanupBulkFlags.IncludeSubmodules,
-		IncludePattern:    cleanupBulkFlags.Include,
-		ExcludePattern:    cleanupBulkFlags.Exclude,
+		IncludeSubmodules: cleanupBranchBulkFlags.IncludeSubmodules,
+		IncludePattern:    cleanupBranchBulkFlags.Include,
+		ExcludePattern:    cleanupBranchBulkFlags.Exclude,
 		Logger:            repository.NewNoopLogger(),
 	}
 
 	if !quiet {
 		modeStr := "[DRY-RUN]"
-		if !cleanupDryRun {
+		if !cleanupBranchDryRun {
 			modeStr = "[EXECUTE]"
 		}
 		fmt.Printf("%s Scanning for repositories in %s...\n", modeStr, directory)
@@ -251,13 +251,13 @@ func runBulkCleanup(ctx context.Context, directory string, excludePatterns []str
 	}
 
 	// Print results
-	printBulkCleanupResult(result, cleanupDryRun)
+	printBulkCleanupBranchResult(result, cleanupBranchDryRun)
 
 	return nil
 }
 
-// printBulkCleanupResult displays bulk cleanup results
-func printBulkCleanupResult(result *repository.BulkCleanupResult, dryRun bool) {
+// printBulkCleanupBranchResult displays bulk cleanup results
+func printBulkCleanupBranchResult(result *repository.BulkCleanupResult, dryRun bool) {
 	modeStr := "[DRY-RUN]"
 	if !dryRun {
 		modeStr = "[EXECUTE]"
@@ -312,8 +312,8 @@ func printBulkCleanupResult(result *repository.BulkCleanupResult, dryRun bool) {
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
 }
 
-// printCleanupReport displays the cleanup analysis report.
-func printCleanupReport(report *branch.CleanupReport, dryRun bool) {
+// printCleanupBranchReport displays the cleanup analysis report.
+func printCleanupBranchReport(report *branch.CleanupReport, dryRun bool) {
 	modeStr := "[DRY-RUN]"
 	if !dryRun {
 		modeStr = "[EXECUTE]"

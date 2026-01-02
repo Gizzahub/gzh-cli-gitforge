@@ -10,18 +10,17 @@ var branchCmd = &cobra.Command{
 	Short: "Branch management commands",
 	Long: `Manage Git branches across single or multiple repositories.
 
-This command provides subcommands for:
-  - Cleaning up merged, stale, or gone branches (with bulk support)
-
 For basic branch operations (create, delete, list), use git directly:
   git checkout -b <name>     # create branch
   git branch -d <name>       # delete branch
-  git branch -a              # list branches`,
-	Example: `  # Clean up merged branches (dry-run)
-  gz-git branch cleanup --merged --dry-run
+  git branch -a              # list branches
 
-  # BULK: Clean up all repos
-  gz-git branch cleanup --merged ..`,
+For branch cleanup, use: gz-git cleanup branch`,
+	Example: `  # List branches
+  git branch -a
+
+  # Clean up branches (new location)
+  gz-git cleanup branch --merged`,
 }
 
 func init() {
