@@ -3,6 +3,7 @@ package integration
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHistoryStatsCommand(t *testing.T) {
@@ -142,8 +143,9 @@ func TestHistoryBlameCommand(t *testing.T) {
 	t.Run("blame file", func(t *testing.T) {
 		output := repo.RunGzhGitSuccess("history", "blame", "README.md")
 
-		// Should show blame information with dates
-		AssertContains(t, output, "2025-")
+		// Should show blame information with dates (current year)
+		currentYear := time.Now().Format("2006-")
+		AssertContains(t, output, currentYear)
 		AssertContains(t, output, "README")
 	})
 
@@ -169,7 +171,8 @@ func TestHistoryWorkflow(t *testing.T) {
 
 		// 4. Blame a file
 		blameOutput := repo.RunGzhGitSuccess("history", "blame", "README.md")
-		AssertContains(t, blameOutput, "2025-")
+		currentYear := time.Now().Format("2006-")
+		AssertContains(t, blameOutput, currentYear)
 	})
 
 	t.Run("advanced filtering", func(t *testing.T) {
