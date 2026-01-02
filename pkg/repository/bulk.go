@@ -1932,7 +1932,10 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	}
 
 	// Check if there are commits to push
-	if info.AheadBy == 0 && !opts.Tags {
+	// Skip this check when refspec is provided (e.g., develop:master)
+	// because AheadBy is calculated against the current branch's upstream,
+	// not the refspec target branch
+	if info.AheadBy == 0 && !opts.Tags && opts.Refspec == "" {
 		result.Status = StatusNothingToPush
 		result.Message = "Nothing to push"
 		result.Duration = time.Since(startTime)
@@ -2002,6 +2005,12 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	if info.AheadBy > 0 {
 		result.Status = StatusPushed
 		result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to %d remote(s)", info.AheadBy, len(remotes))
+	} else if opts.Refspec != "" {
+		// When using refspec, we pushed successfully but can't determine exact commit count
+		// because AheadBy is calculated against the current branch's upstream, not the refspec target
+		// TODO: Calculate actual commits pushed by comparing local branch with remote target branch
+		result.Status = StatusPushed
+		result.Message = fmt.Sprintf("Successfully pushed to %d remote(s) via refspec", len(remotes))
 	} else {
 		result.Status = StatusUpToDate
 		result.Message = "Already up to date"
