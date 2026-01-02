@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -78,16 +77,17 @@ func TestInfoCommand(t *testing.T) {
 }
 
 func TestCloneCommand(t *testing.T) {
-	t.Run("invalid URL", func(t *testing.T) {
+	t.Run("invalid URL shows error in results", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		repo := &TestRepo{Path: tmpDir, T: t}
 
-		output := repo.RunGzhGitExpectError("clone", "invalid-url", tmpDir)
+		// Bulk clone mode: command succeeds but shows errors in results
+		// Use --url flag pattern (consistent with commit --messages)
+		output := repo.RunGzhGitSuccess("clone", "--url", "invalid-url")
 
-		// Should fail with appropriate error
-		if !strings.Contains(output, "failed") && !strings.Contains(output, "error") {
-			t.Errorf("Expected error message, got: %s", output)
-		}
+		// Should show error status in results
+		AssertContains(t, output, "error")
+		AssertContains(t, output, "Total failed")
 	})
 
 	t.Run("clone from local repository", func(t *testing.T) {
@@ -98,11 +98,32 @@ func TestCloneCommand(t *testing.T) {
 		// Create target directory
 		targetDir := t.TempDir()
 
-		// Clone should work with local path
+		// Clone should work with local path (bulk mode)
+		// Pattern: gz-git clone [directory] --url <url>
 		target := &TestRepo{Path: targetDir, T: t}
-		output := target.RunGzhGitSuccess("clone", source.Path, targetDir)
+		output := target.RunGzhGitSuccess("clone", "--url", source.Path)
 
 		AssertContains(t, output, "Cloning")
+		AssertContains(t, output, "Bulk Clone Results")
+	})
+
+	t.Run("clone multiple URLs", func(t *testing.T) {
+		// Create two source repositories
+		source1 := NewTestRepo(t)
+		source1.SetupWithCommits()
+
+		source2 := NewTestRepo(t)
+		source2.SetupWithCommits()
+
+		// Create target directory
+		targetDir := t.TempDir()
+
+		// Clone both repositories using multiple --url flags
+		target := &TestRepo{Path: targetDir, T: t}
+		output := target.RunGzhGitSuccess("clone", "--url", source1.Path, "--url", source2.Path)
+
+		AssertContains(t, output, "Cloning 2 repositories")
+		AssertContains(t, output, "Total cloned")
 	})
 }
 

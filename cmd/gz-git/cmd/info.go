@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 var infoVerbose bool

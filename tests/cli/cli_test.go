@@ -106,32 +106,34 @@ func TestCLIInfo(t *testing.T) {
 }
 
 // TestCLIClone tests the clone command with a small repository.
+// Note: Clone command uses --url flag pattern (consistent with commit --messages).
+// Directory is positional arg, URLs are via --url flag.
 func TestCLIClone(t *testing.T) {
 	// Create temporary directory for test
 	tmpDir := t.TempDir()
-	destination := filepath.Join(tmpDir, "test-clone")
 
-	// Clone a small, well-known repository
+	// Clone a small, well-known repository using --url flag
+	// Pattern: gz-git clone [directory] --url <url>
 	cmd := exec.Command(getBinaryPath(), "clone",
+		tmpDir, // directory as positional arg
 		"--depth", "1",
 		"--single-branch",
-		"https://github.com/golang/example.git",
-		destination)
+		"--url", "https://github.com/golang/example.git")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run clone command: %v\nOutput: %s", err, output)
 	}
 
-	// Verify the repository was cloned
-	gitDir := filepath.Join(destination, ".git")
+	// Verify the repository was cloned (repo name extracted from URL: "example")
+	gitDir := filepath.Join(tmpDir, "example", ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
 		t.Errorf("Expected .git directory to exist at %s", gitDir)
 	}
 
-	// Verify output contains success message
+	// Verify output contains bulk clone result
 	outputStr := string(output)
-	if !strings.Contains(outputStr, "Successfully cloned") {
-		t.Errorf("Expected clone output to contain 'Successfully cloned', got: %s", outputStr)
+	if !strings.Contains(outputStr, "Bulk Clone Results") {
+		t.Errorf("Expected clone output to contain 'Bulk Clone Results', got: %s", outputStr)
 	}
 }
 
@@ -243,15 +245,21 @@ func TestCLIInvalidCommand(t *testing.T) {
 }
 
 // TestCLICloneInvalidURL tests clone with invalid URL.
+// Note: Bulk clone mode returns success (exit 0) and reports failures in results.
 func TestCLICloneInvalidURL(t *testing.T) {
 	tmpDir := t.TempDir()
-	destination := filepath.Join(tmpDir, "invalid-clone")
 
-	cmd := exec.Command(getBinaryPath(), "clone", "not-a-valid-url", destination)
+	// Use --url flag pattern
+	cmd := exec.Command(getBinaryPath(), "clone", tmpDir, "--url", "not-a-valid-url")
 	output, err := cmd.CombinedOutput()
+	// Bulk mode: command succeeds but reports failures in output
+	if err != nil {
+		t.Fatalf("Unexpected error from bulk clone command: %v\nOutput: %s", err, output)
+	}
 
-	// Should fail with non-zero exit code
-	if err == nil {
-		t.Errorf("Expected error for invalid URL, got success\nOutput: %s", output)
+	outputStr := string(output)
+	// Should show error status in results
+	if !strings.Contains(outputStr, "error") && !strings.Contains(outputStr, "Total failed") {
+		t.Errorf("Expected output to contain error information, got: %s", outputStr)
 	}
 }

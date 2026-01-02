@@ -82,3 +82,4 @@ configs/templates/*.local.yaml
 *.tar.gz
 *.zip
 checksums.txt
+tests/cli/example/
