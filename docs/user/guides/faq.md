@@ -33,12 +33,12 @@ gzh-cli-gitforge doesn't replace Git—it enhances it:
 - Repository information (branch, remote, upstream, ahead/behind)
 - Bulk clone-or-update operations
 
-✅ **Commit Automation**
+✅ **Bulk Commit Operations**
 
+- Bulk commit across multiple repositories
 - Auto-generate commit messages from changes
-- Template-based commits (Conventional Commits support)
-- Commit message validation
-- Template management (list, show, validate)
+- Per-repository custom messages
+- Editor-based message editing
 
 ✅ **Branch & Worktree Management**
 
@@ -356,23 +356,6 @@ Overhead is typically 10-50ms. For large operations (clone, fetch), the overhead
 ### Does gz-git support Git hooks?
 
 Git hooks work normally with gz-git since it uses standard Git repositories. Future versions may add hook automation features.
-
-### Can I use custom commit templates?
-
-Yes! gz-git supports custom commit templates:
-
-```bash
-# List available templates
-gz-git commit template list
-
-# Show template details
-gz-git commit template show conventional
-
-# Use auto-commit (uses default template)
-gz-git commit auto
-```
-
-You can create custom templates in `~/.config/gz-git/templates/` directory.
 
 ### What about submodules?
 

@@ -12,8 +12,6 @@ This directory contains performance benchmarks for the gz-git CLI tool.
 
 | Command                         | Avg Time (ms) | Memory (KB) | Allocs | Status     |
 | ------------------------------- | ------------- | ----------- | ------ | ---------- |
-| **commit validate**             | 4.4           | 17          | 41     | ✅ < 5ms   |
-| **commit template list**        | 5.0           | 17          | 41     | ✅ < 10ms  |
 | **history file**                | 24.2          | 20          | 46     | ✅ < 50ms  |
 | **history blame**               | 25.2          | 20          | 46     | ✅ < 50ms  |
 | **info**                        | 38.6          | 20          | 46     | ✅ < 50ms  |
@@ -28,17 +26,12 @@ This directory contains performance benchmarks for the gz-git CLI tool.
 
 All commands meet or exceed performance targets:
 
-- ✅ **95% of operations < 100ms**: 10/11 benchmarks (91%)
-- ✅ **99% of operations < 500ms**: 11/11 benchmarks (100%)
+- ✅ **95% of operations < 100ms**: 8/9 benchmarks (89%)
+- ✅ **99% of operations < 500ms**: 9/9 benchmarks (100%)
 - ✅ **No operation > 2s**: All pass
 - ✅ **Memory usage < 50MB**: All commands use < 1MB
 
 ### Benchmark Categories
-
-#### Fast Operations (< 10ms)
-
-- `commit validate`: 4.4ms - Message validation is instant
-- `commit template list`: 5.0ms - Template listing is very fast
 
 #### Quick Operations (10-50ms)
 
@@ -137,7 +130,6 @@ The benchmarks test realistic scenarios:
 
 ### What We Did Well
 
-- ✅ Fast validation operations (< 5ms)
 - ✅ Efficient memory usage (< 1MB)
 - ✅ Good scalability with repository size
 - ✅ Minimal allocations per operation

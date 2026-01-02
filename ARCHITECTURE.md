@@ -69,8 +69,8 @@ ______________________________________________________________________
 │  │       ▼             ▼              ▼               │     │
 │  │          Public Library API (pkg/)                 │     │
 │  │  ┌──────────┐  ┌────────┐  ┌────────┐  ┌────────┐ │     │
-│  │  │Repository│  │ Commit │  │ Branch │  │ History│ │     │
-│  │  │  Client  │  │Manager │  │Manager │  │Analyzer│ │     │
+│  │  │Repository│  │ Branch │  │ History│  │ Merge  │ │     │
+│  │  │  Client  │  │Manager │  │Analyzer│  │Manager │ │     │
 │  │  └────┬─────┘  └───┬────┘  └───┬────┘  └───┬────┘ │     │
 │  └───────┼────────────┼───────────┼───────────┼──────┘     │
 │          │            │           │           │             │
@@ -135,7 +135,7 @@ ______________________________________________________________________
 **Single Responsibility:**
 
 - Each package has one clear purpose
-- `pkg/commit/` only handles commits
+- `pkg/branch/` only handles branch operations
 - `internal/gitcmd/` only executes Git commands
 
 **Open/Closed:**
@@ -240,18 +240,6 @@ gzh-cli-gitforge/
 │   │   ├── client.go             # Client implementation
 │   │   ├── types.go              # Repository, Info, Status types
 │   │   └── options.go            # Functional options
-│   ├── operations/               # Basic Git operations
-│   │   ├── clone.go              # Clone with options
-│   │   ├── pull.go               # Pull with strategies
-│   │   ├── fetch.go              # Fetch operations
-│   │   └── bulk.go               # Bulk operations
-│   ├── commit/                   # Commit automation
-│   │   ├── interfaces.go         # CommitManager interface
-│   │   ├── manager.go            # Manager implementation
-│   │   ├── template.go           # Template system
-│   │   ├── auto.go               # Auto-commit logic
-│   │   ├── smart_push.go         # Smart push operations
-│   │   └── types.go              # CommitOptions, Result, etc.
 │   ├── branch/                   # Branch management
 │   │   ├── interfaces.go         # BranchManager interface
 │   │   ├── manager.go            # Manager implementation
@@ -294,10 +282,6 @@ gzh-cli-gitforge/
 │       ├── root.go               # Root command
 │       └── internal/             # CLI-specific (not reusable)
 │           ├── cli/              # Cobra commands
-│           │   ├── commit/       # Commit commands
-│           │   │   ├── commit.go
-│           │   │   ├── auto.go
-│           │   │   └── template.go
 │           │   ├── branch/       # Branch commands
 │           │   ├── history/      # History commands
 │           │   └── merge/        # Merge commands
@@ -311,7 +295,7 @@ gzh-cli-gitforge/
 │
 ├── examples/                     # Library usage examples
 │   ├── basic/                    # Basic usage
-│   ├── commit_automation/        # Commit features
+│   ├── branch/                   # Branch features
 │   └── gzh_cli_integration/      # gzh-cli integration
 │
 ├── test/                         # Integration & E2E tests
@@ -319,9 +303,7 @@ gzh-cli-gitforge/
 │   └── e2e/                      # End-to-end tests
 │
 └── configs/                      # Default configurations
-    └── templates/                # Commit templates
-        ├── conventional.yaml
-        └── semantic.yaml
+    └── templates/                # Configuration templates
 ```
 
 ### 4.2 Component Diagram
@@ -409,66 +391,7 @@ type ProgressReporter interface {
 }
 ```
 
-### 5.2 Commit Manager Interface
-
-```go
-// pkg/commit/interfaces.go
-package commit
-
-import (
-    "context"
-    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-)
-
-// Manager handles commit operations
-type Manager interface {
-    // Manual commit operations
-    Create(ctx context.Context, repo *repository.Repository, opts CommitOptions) (*Result, error)
-    Amend(ctx context.Context, repo *repository.Repository, opts AmendOptions) (*Result, error)
-
-    // Message generation
-    GenerateMessage(ctx context.Context, repo *repository.Repository, template Template) (string, error)
-    ValidateMessage(ctx context.Context, message string, rules ValidationRules) error
-
-    // Automation
-    AutoCommit(ctx context.Context, repo *repository.Repository, policy AutoCommitPolicy) (*Result, error)
-
-    // Smart push
-    SmartPush(ctx context.Context, repo *repository.Repository, opts PushOptions) (*Result, error)
-}
-
-// Template represents a commit message template
-type Template struct {
-    Name        string            `yaml:"name"`
-    Type        string            `yaml:"type"`     // feat, fix, docs, etc.
-    Scope       string            `yaml:"scope"`
-    Subject     string            `yaml:"subject"`
-    Body        string            `yaml:"body"`
-    Footer      string            `yaml:"footer"`
-    Variables   map[string]string `yaml:"variables"`
-}
-
-// CommitOptions configure commit creation
-type CommitOptions struct {
-    Message      string
-    AllFiles     bool              // --all
-    Amend        bool              // --amend
-    NoVerify     bool              // --no-verify
-    Template     *Template
-    Variables    map[string]string // Template variable values
-}
-
-// Result contains commit operation result
-type Result struct {
-    Hash      string    // Commit SHA
-    Message   string    // Commit message
-    Author    string    // Author name <email>
-    Timestamp time.Time // Commit timestamp
-    Files     []string  // Modified files
-}
-```
-
-### 5.3 Branch Manager Interface
+### 5.2 Branch Manager Interface
 
 ```go
 // pkg/branch/interfaces.go
@@ -517,7 +440,7 @@ type Worktree struct {
 }
 ```
 
-### 5.4 History Analyzer Interface
+### 5.3 History Analyzer Interface
 
 ```go
 // pkg/history/interfaces.go
@@ -578,7 +501,7 @@ type Contributor struct {
 }
 ```
 
-### 5.5 Merge Manager Interface
+### 5.4 Merge Manager Interface
 
 ```go
 // pkg/merge/interfaces.go
@@ -634,65 +557,7 @@ ______________________________________________________________________
 
 ## 6. Data Flow
 
-### 6.1 Commit Automation Flow
-
-```
-User CLI Command
-       │
-       ▼
-┌──────────────────┐
-│ cmd/cli/commit   │  Parse CLI args, read config
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ pkg/commit       │  Validate options, prepare operation
-│ Manager.Auto    │
-│ Commit()         │
-└────────┬─────────┘
-         │
-         ├──────────▶ Get Repository Status
-         │            (pkg/repository/Client.GetStatus)
-         │
-         ├──────────▶ Analyze Staged Changes
-         │            (internal logic)
-         │
-         ├──────────▶ Generate Commit Message
-         │            (template + variables)
-         │
-         ├──────────▶ Validate Message
-         │            (validation rules)
-         │
-         ▼
-┌──────────────────┐
-│ internal/gitcmd  │  Execute: git commit -m "message"
-│ Executor.Run()   │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Git CLI          │  System git binary
-│ (external)       │
-└────────┬─────────┘
-         │
-         ▼
-     Success/Error
-         │
-         ▼
-┌──────────────────┐
-│ pkg/commit       │  Parse output, create Result
-│ Manager returns  │
-│ Result           │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ cmd/cli/commit   │  Format output, display to user
-│ Display Result   │
-└──────────────────┘
-```
-
-### 6.2 Repository Open Flow
+### 6.1 Repository Open Flow
 
 ```
 Library Consumer (gzh-cli)
@@ -725,7 +590,7 @@ Library Consumer (gzh-cli)
   └───────────────────┘
 ```
 
-### 6.3 Error Flow
+### 6.2 Error Flow
 
 ```
 Error Occurs in Git CLI
@@ -1518,7 +1383,7 @@ ______________________________________________________________________
 | File                           | Purpose             | Criticality |
 | ------------------------------ | ------------------- | ----------- |
 | `pkg/repository/interfaces.go` | Core repository API | CRITICAL    |
-| `pkg/commit/manager.go`        | Commit automation   | HIGH        |
+| `pkg/branch/manager.go`        | Branch management   | HIGH        |
 | `internal/gitcmd/executor.go`  | Git command wrapper | CRITICAL    |
 | `cmd/gz-git/main.go`           | CLI entry point     | MEDIUM      |
 

@@ -38,12 +38,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parallel processing with `-j` flag (default: 5)
 - Dry-run mode with `--dry-run` flag
 
-**Preserved Subcommands**:
+### Removed
 
-- `gz-git commit auto` - Single repository auto-commit
-- `gz-git commit validate` - Validate commit message format
-- `gz-git commit template` - Manage commit message templates
-- `gz-git commit bulk` - Legacy alias (deprecated, use main command)
+**Breaking: Commit Subcommands Removed**:
+
+- `gz-git commit auto` - Removed (use main `commit` command)
+- `gz-git commit validate` - Removed (commit message validation)
+- `gz-git commit template` - Removed (template management)
+- `gz-git commit bulk` - Removed (merged into main command)
+
+**Package Cleanup**:
+
+- Deleted `pkg/commit` package (generator, template, validator, push functionality)
+- All commit functionality is now in the CLI layer only
 
 ### Fixed
 
@@ -573,7 +580,7 @@ None - This is a new feature addition
 - Overall: 69.1% (3,333/4,823 statements)
 - Excellent (≥85%): internal/parser (95.7%), internal/gitcmd (89.5%), pkg/history (87.7%)
 - Good (70-84%): pkg/merge (82.9%)
-- Needs improvement: pkg/commit (66.3%), pkg/branch (48.1%), pkg/repository (39.2%)
+- Needs improvement: pkg/branch (48.1%), pkg/repository (39.2%)
 
 #### Documentation (Phase 6)
 
@@ -669,7 +676,6 @@ None - This is a new feature addition
 ```
 pkg/                    # Public library API
 ├── repository/         # Repository operations
-├── commit/             # Commit automation
 ├── branch/             # Branch management
 ├── history/            # History analysis
 └── merge/              # Merge/rebase operations
@@ -698,7 +704,6 @@ cmd/gz-git/           # CLI application
 
 - pkg/repository: 39.2% (needs +40 tests for 85%)
 - pkg/branch: 48.1% (needs +35 tests for 85%)
-- pkg/commit: 66.3% (needs +15 tests for 85%)
 
 **Performance**:
 

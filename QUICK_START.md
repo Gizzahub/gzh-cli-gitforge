@@ -79,7 +79,8 @@ ______________________________________________________________________
 ## 추가 기능
 
 ```bash
-gz-git commit auto                         # 커밋 자동 생성
+gz-git commit                              # 다중 저장소 커밋 (v0.4.0+)
+gz-git commit --yes                        # 자동 확인으로 커밋
 gz-git branch list --all                   # 브랜치 목록
 gz-git history stats --since "1 month ago" # 커밋 통계
 gz-git merge detect feature/new main       # 머지 충돌 감지

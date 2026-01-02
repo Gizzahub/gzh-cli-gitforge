@@ -31,16 +31,14 @@ ______________________________________________________________________
   - Auto-abort on conflicts to prevent incomplete states
   - Clear error messages with actionable guidance
 
-🚀 **Commit Automation**
+🚀 **Bulk Commit Operations**
 
-- **Bulk commit** across multiple repositories (new in v0.4.0!)
+- **Bulk commit** across multiple repositories (v0.4.0+)
 - **Per-repository custom messages** via `--messages` flag
-- Template-based commit messages (Conventional Commits support)
 - Auto-generate commit messages from code changes
 - Interactive message editing with `$EDITOR`
-- Validate commit messages against templates
-- Built-in template management (list, show, validate)
 - JSON file support for batch message customization
+- Filtering with `--include` and `--exclude` patterns
 
 🌿 **Branch Management**
 
@@ -69,7 +67,7 @@ ______________________________________________________________________
 - Zero CLI dependencies in library code
 - Context-aware operations (cancellation, timeouts)
 - Easy integration into other Go projects
-- Full implementations: `repository`, `operations`, `commit`, `branch`, `history`, `merge`
+- Full implementations: `repository`, `branch`, `history`, `merge`, `stash`, `tag`, `watch`
 
 🔧 **Quality & Testing**
 
@@ -414,12 +412,6 @@ gz-git commit --format json --yes
 # Filter repositories
 gz-git commit --include "^frontend" --yes
 gz-git commit --exclude "test-" --yes
-
-# Single repository commands
-gz-git commit auto                    # Auto-generate and commit
-gz-git commit validate "feat(cli): add new command"
-gz-git commit template list           # List templates
-gz-git commit template show conventional
 ```
 
 **Branch & Worktree Management:**

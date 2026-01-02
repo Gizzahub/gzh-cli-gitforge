@@ -88,7 +88,7 @@ All major operations support **batch mode** for multi-repository workflows:
 | `status`         | ✅           | `gz-git status [directory]`               |
 | `switch`         | ✅           | `gz-git switch <branch> [directory]`      |
 | `diff`           | ✅           | `gz-git diff [directory]`                 |
-| `commit bulk`    | ✅           | `gz-git commit bulk [directory]`          |
+| `commit`         | ✅           | `gz-git commit [directory]`               |
 | `branch cleanup` | ✅           | `gz-git branch cleanup [directory]`       |
 | `stash`          | ✅           | `gz-git stash save/list/pop [directory]`  |
 | `tag`            | ✅           | `gz-git tag create/list/push [directory]` |
