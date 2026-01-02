@@ -65,78 +65,11 @@ func TestConflictDetection(t *testing.T) {
 	})
 }
 
-// TestMergeAbort tests aborting merge operations.
-func TestMergeAbort(t *testing.T) {
-	repo := NewE2ERepo(t)
+// Note: TestMergeAbort removed - merge abort subcommand no longer exists.
+// Use native git for merge abort: git merge --abort
 
-	// Setup
-	repo.WriteFile("README.md", "# Test\n")
-	repo.Git("add", "README.md")
-	repo.Git("commit", "-m", "Initial commit")
-
-	t.Run("abort when no merge in progress", func(t *testing.T) {
-		// Try to abort without active merge
-		output := repo.RunGzhGitExpectError("merge", "abort")
-
-		// Should fail
-		AssertContains(t, output, "failed")
-	})
-
-	t.Run("abort workflow documentation", func(t *testing.T) {
-		// This test documents the abort workflow
-		// Note: Creating actual conflicts reliably in test env is complex
-		// The abort command has been tested in integration tests
-		t.Log("Merge abort workflow: when conflicts occur, use 'gz-git merge abort'")
-		t.Log("This restores the repository to pre-merge state")
-	})
-}
-
-// TestRebaseWorkflow tests rebasing operations.
-func TestRebaseWorkflow(t *testing.T) {
-	repo := NewE2ERepo(t)
-
-	// Setup base
-	repo.WriteFile("base.txt", "Base content\n")
-	repo.Git("add", "base.txt")
-	repo.Git("commit", "-m", "Base commit")
-
-	t.Run("rebase non-existent branch", func(t *testing.T) {
-		// Try to rebase invalid branch
-		output := repo.RunGzhGitExpectError("merge", "rebase", "nonexistent")
-
-		// Should fail
-		AssertContains(t, output, "failed")
-	})
-
-	t.Run("simple rebase workflow", func(t *testing.T) {
-		// Create feature branch
-		repo.Git("branch", "feature/rebase-test")
-		repo.Git("checkout", "feature/rebase-test")
-		repo.WriteFile("feature.txt", "Feature content\n")
-		repo.Git("add", "feature.txt")
-		repo.Git("commit", "-m", "Add feature")
-
-		// Update master
-		repo.Git("checkout", "master")
-		repo.WriteFile("master-update.txt", "Master update\n")
-		repo.Git("add", "master-update.txt")
-		repo.Git("commit", "-m", "Update master")
-
-		// Switch back to feature branch
-		repo.Git("checkout", "feature/rebase-test")
-
-		// Try rebase using git (gz-git has ref issues)
-		output := repo.Git("rebase", "master")
-		if len(output) > 0 {
-			t.Log("Rebase completed")
-		}
-
-		// Verify feature branch has master changes
-		if !repo.FileExists("master-update.txt") {
-			t.Error("Rebase did not apply master changes")
-		}
-	})
-}
+// Note: TestRebaseWorkflow removed - merge rebase subcommand no longer exists.
+// Use native git for rebase: git rebase <branch>
 
 // TestFastForwardMerge tests fast-forward merge scenarios.
 func TestFastForwardMerge(t *testing.T) {
@@ -212,7 +145,9 @@ func TestNoFastForwardMerge(t *testing.T) {
 	})
 }
 
-// TestMergeErrorHandling tests various merge error scenarios.
+// TestMergeErrorHandling tests merge detect error scenarios.
+// Note: merge do and merge rebase subcommands have been removed.
+// Use native git for merge: git merge <branch>
 func TestMergeErrorHandling(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -221,28 +156,12 @@ func TestMergeErrorHandling(t *testing.T) {
 	repo.Git("add", "README.md")
 	repo.Git("commit", "-m", "Initial commit")
 
-	t.Run("merge non-existent branch", func(t *testing.T) {
-		// Try to merge invalid branch
-		output := repo.RunGzhGitExpectError("merge", "do", "nonexistent")
-
-		// Should error
-		AssertContains(t, output, "not found")
-	})
-
 	t.Run("detect with invalid branches", func(t *testing.T) {
 		// Try to detect with invalid branches
 		output := repo.RunGzhGitExpectError("merge", "detect", "invalid1", "invalid2")
 
 		// Should error
 		AssertContains(t, output, "not found")
-	})
-
-	t.Run("rebase with sanitization error", func(t *testing.T) {
-		// Try rebase with potentially unsafe input
-		output := repo.RunGzhGitExpectError("merge", "rebase", "invalid-ref")
-
-		// Should fail gracefully
-		AssertContains(t, output, "failed")
 	})
 }
 
@@ -257,15 +176,15 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 
 	t.Run("conflict workflow documentation", func(t *testing.T) {
 		// This test documents the complete conflict resolution workflow
-		// Note: Creating and resolving actual merge conflicts in automated
-		// tests is complex due to the interactive nature of conflict resolution
+		// Note: gz-git provides merge detect only. Actual merge operations
+		// use native git commands.
 
 		t.Log("Complete Conflict Resolution Workflow:")
 		t.Log("1. Use 'gz-git merge detect <source> <target>' to preview conflicts")
-		t.Log("2. Attempt merge with 'gz-git merge do <branch>'")
+		t.Log("2. Attempt merge with 'git merge <branch>'")
 		t.Log("3. If conflicts occur, resolve them manually")
 		t.Log("4. Check status with 'gz-git status'")
-		t.Log("5. Abort with 'gz-git merge abort' or commit resolved changes")
+		t.Log("5. Abort with 'git merge --abort' or commit resolved changes")
 
 		// Verify basic commands work (bulk status format)
 		status := repo.RunGzhGit("status")

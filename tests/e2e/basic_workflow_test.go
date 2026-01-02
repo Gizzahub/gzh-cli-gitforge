@@ -3,6 +3,7 @@ package e2e
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestNewProjectSetup tests the workflow of setting up a new project.
@@ -16,13 +17,7 @@ func TestNewProjectSetup(t *testing.T) {
 		// Stage the file
 		repo.Git("add", "README.md")
 
-		// Use gz-git to create auto-commit
-		output := repo.RunGzhGit("commit", "auto", "--dry-run")
-
-		// Should generate appropriate commit message
-		AssertContains(t, output, "Generated")
-
-		// Create actual commit using git (auto-commit may fail in test env)
+		// Create commit using git
 		repo.Git("commit", "-m", "docs(root): add project README")
 
 		// Verify commit exists
@@ -53,7 +48,7 @@ func TestNewProjectSetup(t *testing.T) {
 	})
 }
 
-// TestBasicCommitWorkflow tests basic commit operations.
+// TestBasicCommitWorkflow tests basic commit operations (bulk mode).
 func TestBasicCommitWorkflow(t *testing.T) {
 	repo := NewE2ERepo(t)
 
@@ -62,48 +57,36 @@ func TestBasicCommitWorkflow(t *testing.T) {
 	repo.Git("add", "README.md")
 	repo.Git("commit", "-m", "Initial commit")
 
-	t.Run("validate commit message", func(t *testing.T) {
-		// Validate a good commit message
-		output := repo.RunGzhGit("commit", "validate", "feat(api): add user endpoint")
-
-		AssertContains(t, output, "Valid commit message")
-	})
-
-	t.Run("reject invalid commit message", func(t *testing.T) {
-		// Validate a bad commit message
-		output := repo.RunGzhGitExpectError("commit", "validate", "bad message")
-
-		AssertContains(t, output, "Invalid commit message")
-	})
-
-	t.Run("list commit templates", func(t *testing.T) {
-		// List available templates
-		output := repo.RunGzhGit("commit", "template", "list")
-
-		AssertContains(t, output, "conventional")
-		AssertContains(t, output, "semantic")
-	})
-
-	t.Run("show commit template", func(t *testing.T) {
-		// Show template details
-		output := repo.RunGzhGit("commit", "template", "show", "conventional")
-
-		AssertContains(t, output, "Template: conventional")
-		AssertContains(t, output, "Format:")
-	})
-
-	t.Run("auto-generate commit message", func(t *testing.T) {
+	t.Run("bulk commit dry run", func(t *testing.T) {
 		// Create changes
-		repo.WriteFile("src/feature.go", "package main\n\nfunc NewFeature() {}\n")
-		repo.Git("add", "src/feature.go")
+		repo.WriteFile("feature.go", "package main\n\nfunc NewFeature() {}\n")
+		repo.Git("add", "feature.go")
 
-		// Generate commit message (dry run)
-		output := repo.RunGzhGit("commit", "auto", "--dry-run")
+		// Test bulk commit dry run (now the default)
+		output := repo.RunGzhGit("commit", "--dry-run")
 
-		// Should generate message
-		AssertContains(t, output, "Generated")
+		// Should show bulk commit results
+		AssertContains(t, output, "Bulk Commit")
+	})
+
+	t.Run("commit with message", func(t *testing.T) {
+		// Clean up and create new change
+		repo.Git("reset", "--hard", "HEAD")
+		repo.WriteFile("test.txt", "test content\n")
+		repo.Git("add", "test.txt")
+
+		// Test commit with message flag
+		output := repo.RunGzhGit("commit", "-m", "test: add test file", "--dry-run")
+
+		// Should accept the message
+		AssertContains(t, output, "Bulk Commit")
 	})
 }
+
+// Note: The following commit subcommands have been removed:
+// - commit auto: Use 'commit' with --messages for per-repo messages
+// - commit validate: Use git hooks or external tools for message validation
+// - commit template: Use git commit templates via .gitmessage or hooks
 
 // TestBasicBranchWorkflow tests basic branch operations.
 func TestBasicBranchWorkflow(t *testing.T) {
@@ -114,23 +97,15 @@ func TestBasicBranchWorkflow(t *testing.T) {
 	repo.Git("add", "README.md")
 	repo.Git("commit", "-m", "Initial commit")
 
-	t.Run("list branches", func(t *testing.T) {
-		// List branches
-		output := repo.RunGzhGit("branch", "list")
-
-		// Should show master branch
-		AssertContains(t, output, "master")
-	})
-
-	t.Run("create branch using git and verify with gz-git", func(t *testing.T) {
-		// Create branch using git (gz-git has ref issues)
+	t.Run("use git for branch operations", func(t *testing.T) {
+		// Use native git for basic branch operations
 		repo.Git("branch", "feature/test")
 
-		// List all branches
-		output := repo.RunGzhGit("branch", "list", "--all")
-
-		// Should show new branch
-		AssertContains(t, output, "feature/test")
+		// Verify branch exists
+		branches := repo.Git("branch", "-a")
+		if !strings.Contains(branches, "feature/test") {
+			t.Error("Branch feature/test should exist")
+		}
 	})
 
 	t.Run("switch branches and make changes", func(t *testing.T) {
@@ -154,14 +129,21 @@ func TestBasicBranchWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("view branch list with verbose", func(t *testing.T) {
-		// List branches with verbose flag
-		output := repo.RunGzhGit("branch", "list", "--verbose")
+	t.Run("cleanup merged branches", func(t *testing.T) {
+		// Go back to master and merge
+		repo.Git("checkout", "master")
+		repo.Git("merge", "feature/test")
 
-		// Should show branch details
-		AssertContains(t, output, "master")
+		// Run cleanup (dry run)
+		output := repo.RunGzhGit("cleanup", "branch", "--merged", "--dry-run")
+
+		// Should complete successfully
+		AssertContains(t, output, "Branch Cleanup")
 	})
 }
+
+// Note: Basic branch operations (list, create, delete) now use native git.
+// Only cleanup functionality remains in gz-git.
 
 // TestBasicHistoryWorkflow tests basic history operations.
 func TestBasicHistoryWorkflow(t *testing.T) {
@@ -209,8 +191,9 @@ func TestBasicHistoryWorkflow(t *testing.T) {
 		// Blame file
 		output := repo.RunGzhGit("history", "blame", "README.md")
 
-		// Should show line-by-line attribution
-		AssertContains(t, output, "2025-")
+		// Should show line-by-line attribution with current year
+		currentYear := time.Now().Format("2006-")
+		AssertContains(t, output, currentYear)
 	})
 
 	t.Run("export stats as JSON", func(t *testing.T) {

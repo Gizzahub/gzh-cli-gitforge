@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestCodeReviewWorkflow tests analyzing code changes for review.
@@ -72,54 +74,9 @@ func TestCodeReviewWorkflow(t *testing.T) {
 	})
 }
 
-// TestCommitMessageReview tests reviewing commit message quality.
-func TestCommitMessageReview(t *testing.T) {
-	repo := NewE2ERepo(t)
-
-	// Setup
-	repo.WriteFile("README.md", "# Test\n")
-	repo.Git("add", "README.md")
-	repo.Git("commit", "-m", "Initial commit")
-
-	t.Run("validate conventional commit format", func(t *testing.T) {
-		// Validate various commit message formats
-		validMessages := []string{
-			"feat(api): add user endpoint",
-			"fix(auth): resolve login bug",
-			"docs(readme): update installation",
-			"test(unit): add auth tests",
-			"refactor(core): simplify logic",
-		}
-
-		for _, msg := range validMessages {
-			output := repo.RunGzhGit("commit", "validate", msg)
-			AssertContains(t, output, "Valid commit message")
-		}
-	})
-
-	t.Run("reject invalid formats", func(t *testing.T) {
-		// Invalid commit messages
-		invalidMessages := []string{
-			"bad message",
-			"Fixed stuff",
-			"WIP",
-		}
-
-		for _, msg := range invalidMessages {
-			output := repo.RunGzhGitExpectError("commit", "validate", msg)
-			AssertContains(t, output, "Invalid commit message")
-		}
-	})
-
-	t.Run("check template compliance", func(t *testing.T) {
-		// Show template format
-		output := repo.RunGzhGit("commit", "template", "show", "conventional")
-
-		// Should show template details
-		AssertContains(t, output, "Template: conventional")
-		AssertContains(t, output, "Format:")
-	})
-}
+// Note: Commit message validation (commit validate) and template management
+// (commit template) subcommands have been removed. Use git commit templates
+// or external tools for message validation.
 
 // TestFileAttributionAnalysis tests analyzing who wrote what.
 func TestFileAttributionAnalysis(t *testing.T) {
@@ -168,8 +125,9 @@ func Function2() {
 		// Get blame for file
 		output := repo.RunGzhGit("history", "blame", "shared.go")
 
-		// Should show line-by-line attribution
-		AssertContains(t, output, "2025-")
+		// Should show line-by-line attribution with current year
+		currentYear := time.Now().Format("2006-")
+		AssertContains(t, output, currentYear)
 		AssertContains(t, output, "shared.go")
 	})
 
@@ -293,12 +251,16 @@ func TestBranchComparisonForReview(t *testing.T) {
 		}
 	})
 
-	t.Run("list all branches for review", func(t *testing.T) {
-		// List all branches
-		output := repo.RunGzhGit("branch", "list", "--all")
+	t.Run("list all branches using git", func(t *testing.T) {
+		// Use native git for branch listing (gz-git branch list is removed)
+		branches := repo.Git("branch", "-a")
 
 		// Should show both branches
-		AssertContains(t, output, "master")
-		AssertContains(t, output, "feature/review")
+		if !strings.Contains(branches, "master") {
+			t.Error("Expected master branch in git branch -a output")
+		}
+		if !strings.Contains(branches, "feature/review") {
+			t.Error("Expected feature/review branch in git branch -a output")
+		}
 	})
 }

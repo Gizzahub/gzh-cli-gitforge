@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestFeatureBranchWorkflow tests the complete feature branch workflow.
@@ -23,9 +25,11 @@ func TestFeatureBranchWorkflow(t *testing.T) {
 			t.Error("Feature branch was not created")
 		}
 
-		// List branches via gz-git
-		output := repo.RunGzhGit("branch", "list", "--all")
-		AssertContains(t, output, "feature/authentication")
+		// List branches via native git (branch list removed from gz-git)
+		output := repo.Git("branch", "-a")
+		if !strings.Contains(output, "feature/authentication") {
+			t.Error("Expected feature/authentication branch in git branch output")
+		}
 	})
 
 	t.Run("develop feature with auto-commits", func(t *testing.T) {
@@ -119,13 +123,19 @@ func TestParallelFeatureDevelopment(t *testing.T) {
 		repo.Git("branch", "feature/ui")
 		repo.Git("branch", "feature/db")
 
-		// List all branches
-		output := repo.RunGzhGit("branch", "list", "--all")
+		// List all branches using native git (branch list removed from gz-git)
+		output := repo.Git("branch", "-a")
 
 		// Should show all branches
-		AssertContains(t, output, "feature/api")
-		AssertContains(t, output, "feature/ui")
-		AssertContains(t, output, "feature/db")
+		if !strings.Contains(output, "feature/api") {
+			t.Error("Expected feature/api branch in git branch output")
+		}
+		if !strings.Contains(output, "feature/ui") {
+			t.Error("Expected feature/ui branch in git branch output")
+		}
+		if !strings.Contains(output, "feature/db") {
+			t.Error("Expected feature/db branch in git branch output")
+		}
 	})
 
 	t.Run("develop API feature", func(t *testing.T) {
@@ -289,7 +299,8 @@ func Search(query string, items []string) []string {
 		// Blame the file
 		output := repo.RunGzhGit("history", "blame", "search.go")
 
-		// Should show attribution
-		AssertContains(t, output, "2025-")
+		// Should show attribution with current year
+		currentYear := time.Now().Format("2006-")
+		AssertContains(t, output, currentYear)
 	})
 }

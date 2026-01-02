@@ -99,14 +99,16 @@ func displayInfo(path string, info *repository.Info, status *repository.Status, 
 		fmt.Println("Status: dirty")
 	}
 
+	// Always show remote URL if available (commonly expected)
+	if info.RemoteURL != "" {
+		fmt.Printf("Remote URL: %s\n", info.RemoteURL)
+	}
+
 	if verbose {
 		fmt.Printf("Commit: %s\n", info.Commit)
 
 		if info.Remote != "" {
 			fmt.Printf("Remote: %s\n", info.Remote)
-		}
-		if info.RemoteURL != "" {
-			fmt.Printf("Remote URL: %s\n", info.RemoteURL)
 		}
 		if info.Upstream != "" {
 			fmt.Printf("Upstream: %s\n", info.Upstream)
