@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -17,13 +19,13 @@ import (
 var (
 	commitFlags        BulkCommandFlags
 	commitMessage      string
-	commitMessages     []string // NEW: Multiple repo:message pairs
+	commitMessages     []string
 	commitYes          bool
 	commitEdit         bool
 	commitMessagesFile string
 )
 
-// commitCmd represents the commit command (now with bulk as default)
+// commitCmd represents the commit command
 var commitCmd = &cobra.Command{
 	Use:   "commit [directory]",
 	Short: "Commit changes across multiple repositories",
@@ -43,19 +45,14 @@ The workflow is:
   2. Show preview table with repositories and suggested messages
   3. Execute commits if --yes is specified
 
-Use --yes to commit, --edit to modify messages in $EDITOR first.
-
-Subcommands:
-  auto      - Single repository auto-commit
-  validate  - Validate commit message format
-  template  - Manage commit message templates`,
+Use --yes to commit, --edit to modify messages in $EDITOR first.`,
 	Example: `  # Commit all dirty repositories in current directory
   gz-git commit -d 1
 
   # Commit with custom message for all
   gz-git commit -m "chore: update dependencies"
 
-  # Commit with per-repository messages (NEW!)
+  # Commit with per-repository messages
   gz-git commit --messages "repo1:feat: add feature" --messages "repo2:fix: bug fix"
 
   # Dry run to see what would be committed
@@ -71,11 +68,7 @@ Subcommands:
   gz-git commit --messages-file /tmp/messages.json
 
   # JSON output (for scripting)
-  gz-git commit --format json
-
-  # Subcommands (for single repo):
-  gz-git commit auto              # Auto-commit current repo
-  gz-git commit validate "msg"    # Validate message format`,
+  gz-git commit --format json`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCommit,
 }
@@ -160,7 +153,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// NEW: Parse --messages flag (repo:message format)
+	// Parse --messages flag (repo:message format)
 	if len(commitMessages) > 0 {
 		if customMessages == nil {
 			customMessages = make(map[string]string)
@@ -269,7 +262,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	if commitFlags.Format == "json" || !quiet {
-		displayCommitResults(result, commitFlags.Format)
+		displayCommitResults(result)
 	}
 
 	return nil
@@ -289,13 +282,339 @@ func parseRepoMessage(input string) (repo, message string, err error) {
 	return repo, message, nil
 }
 
-// displayCommitResults is a wrapper to call commit_bulk's display function with format parameter
-func displayCommitResults(result *repository.BulkCommitResult, format string) {
-	// Temporarily set the format for commit_bulk's display function
-	oldFormat := commitBulkFlags.Format
-	commitBulkFlags.Format = format
-	defer func() { commitBulkFlags.Format = oldFormat }()
+// loadMessagesFile loads commit messages from a JSON file
+func loadMessagesFile(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read file: %w", err)
+	}
 
-	// Call the existing display function from commit_bulk.go
-	displayCommitBulkResults(result)
+	var messages map[string]string
+	if err := json.Unmarshal(data, &messages); err != nil {
+		return nil, fmt.Errorf("invalid JSON format: %w", err)
+	}
+
+	return messages, nil
+}
+
+// applyCustomMessages applies custom messages to repository results
+func applyCustomMessages(result *repository.BulkCommitResult, messages map[string]string) {
+	for i := range result.Repositories {
+		repo := &result.Repositories[i]
+		// Try to match by relative path or full path
+		if msg, ok := messages[repo.RelativePath]; ok {
+			repo.Message = msg
+		} else if msg, ok := messages[filepath.Base(repo.RelativePath)]; ok {
+			repo.Message = msg
+		} else if msg, ok := messages[repo.Path]; ok {
+			repo.Message = msg
+		}
+	}
+}
+
+// editMessagesInEditor opens an editor for bulk message editing
+// Returns nil if the user cancelled (empty file)
+func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]string, error) {
+	// Create temp file
+	tmpFile, err := os.CreateTemp("", "gz-git-commit-*.txt")
+	if err != nil {
+		return nil, fmt.Errorf("cannot create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	// Write template
+	var content strings.Builder
+	content.WriteString("# Bulk Commit Messages\n")
+	content.WriteString("# Edit messages below. Lines starting with # are ignored.\n")
+	content.WriteString("# Format: repository: commit message\n")
+	content.WriteString("# Save and close to proceed. Delete all lines to cancel.\n")
+	content.WriteString("#\n")
+
+	for _, repo := range result.Repositories {
+		if repo.Status != "dirty" && repo.Status != "would-commit" {
+			continue
+		}
+		msg := repo.SuggestedMessage
+		if repo.Message != "" {
+			msg = repo.Message
+		}
+		content.WriteString(fmt.Sprintf("%s: %s\n", repo.RelativePath, msg))
+	}
+
+	if _, err := tmpFile.WriteString(content.String()); err != nil {
+		tmpFile.Close()
+		return nil, fmt.Errorf("cannot write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Get editor from environment
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = os.Getenv("VISUAL")
+	}
+	if editor == "" {
+		// Try common editors in order of preference
+		for _, candidate := range []string{"vim", "vi", "nano", "notepad"} {
+			if _, err := exec.LookPath(candidate); err == nil {
+				editor = candidate
+				break
+			}
+		}
+	}
+	if editor == "" {
+		return nil, fmt.Errorf("no editor found: set EDITOR or VISUAL environment variable, or install vim/nano")
+	}
+
+	// Verify editor exists (in case $EDITOR is set but invalid)
+	editorPath, err := exec.LookPath(editor)
+	if err != nil {
+		return nil, fmt.Errorf("editor '%s' not found: %w (set EDITOR or VISUAL to a valid editor)", editor, err)
+	}
+
+	// Open editor
+	cmd := exec.Command(editorPath, tmpPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		// Check for specific error types
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("editor exited with code %d: consider using --messages-file instead", exitErr.ExitCode())
+		}
+		return nil, fmt.Errorf("failed to run editor '%s': %w", editor, err)
+	}
+
+	// Read edited content
+	editedData, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read edited file: %w", err)
+	}
+
+	// Parse edited content
+	messages := make(map[string]string)
+	lines := strings.Split(string(editedData), "\n")
+	hasContent := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse "repo: message" format
+		idx := strings.Index(line, ":")
+		if idx == -1 {
+			continue
+		}
+
+		repo := strings.TrimSpace(line[:idx])
+		msg := strings.TrimSpace(line[idx+1:])
+
+		if repo != "" && msg != "" {
+			messages[repo] = msg
+			hasContent = true
+		}
+	}
+
+	if !hasContent {
+		return nil, nil // Cancelled
+	}
+
+	return messages, nil
+}
+
+func displayCommitResults(result *repository.BulkCommitResult) {
+	// JSON output mode
+	if commitFlags.Format == "json" {
+		displayCommitResultsJSON(result)
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("=== Bulk Commit Results ===")
+	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
+	fmt.Printf("Total dirty:     %d repositories\n", result.TotalDirty)
+	fmt.Printf("Total committed: %d repositories\n", result.TotalCommitted)
+	fmt.Printf("Total skipped:   %d repositories\n", result.TotalSkipped)
+	fmt.Printf("Total failed:    %d repositories\n", result.TotalFailed)
+	fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000)) // Round to 0.1s
+	fmt.Println()
+
+	// Display summary
+	if len(result.Summary) > 0 {
+		fmt.Println("Summary by status:")
+		for status, count := range result.Summary {
+			icon := getCommitStatusIcon(status)
+			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
+		}
+		fmt.Println()
+	}
+
+	// Display individual results if not compact
+	if commitFlags.Format != "compact" && len(result.Repositories) > 0 {
+		fmt.Println("Repository details:")
+		for _, repo := range result.Repositories {
+			displayCommitRepositoryResult(repo)
+		}
+	}
+
+	// Display only errors/committed in compact mode
+	if commitFlags.Format == "compact" {
+		hasIssues := false
+		for _, repo := range result.Repositories {
+			if repo.Status == "error" || repo.Status == "success" {
+				if !hasIssues && repo.Status == "error" {
+					fmt.Println("Issues found:")
+					hasIssues = true
+				}
+				displayCommitRepositoryResult(repo)
+			}
+		}
+		if !hasIssues && result.TotalCommitted > 0 {
+			fmt.Printf("✓ Successfully committed %d repositories\n", result.TotalCommitted)
+		} else if result.TotalDirty == 0 {
+			fmt.Println("✓ All repositories are clean")
+		}
+	}
+}
+
+func displayCommitRepositoryResult(repo repository.RepositoryCommitResult) {
+	icon := getCommitStatusIcon(repo.Status)
+
+	// Build compact one-line format: icon path (branch) status duration
+	parts := []string{icon}
+
+	// Path with branch
+	pathPart := repo.RelativePath
+	if repo.Branch != "" {
+		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
+	}
+	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
+
+	// Show status compactly
+	statusStr := ""
+	switch repo.Status {
+	case "success":
+		if repo.CommitHash != "" {
+			statusStr = fmt.Sprintf("committed [%s]", repo.CommitHash)
+		} else {
+			statusStr = "committed"
+		}
+	case "clean":
+		statusStr = "clean"
+	case "dirty", "would-commit":
+		statusStr = fmt.Sprintf("%d files changed", repo.FilesChanged)
+	case "error":
+		statusStr = "failed"
+	case "skipped":
+		statusStr = "skipped"
+	default:
+		statusStr = repo.Status
+	}
+
+	parts = append(parts, fmt.Sprintf("%-25s", statusStr))
+
+	// Duration
+	if repo.Duration > 0 {
+		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
+	}
+
+	// Build output line safely
+	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
+	if len(parts) > 3 {
+		line += " " + parts[3]
+	}
+	fmt.Println(line)
+
+	// Show error details if present
+	if repo.Error != nil && verbose {
+		fmt.Printf("    Error: %v\n", repo.Error)
+	}
+}
+
+func getCommitStatusIcon(status string) string {
+	switch status {
+	case "success":
+		return "✓"
+	case "clean":
+		return "="
+	case "dirty", "would-commit":
+		return "⚠"
+	case "error":
+		return "✗"
+	case "skipped":
+		return "⊘"
+	default:
+		return "•"
+	}
+}
+
+// CommitJSONOutput represents the JSON output structure for commit command
+type CommitJSONOutput struct {
+	TotalScanned   int                          `json:"total_scanned"`
+	TotalDirty     int                          `json:"total_dirty"`
+	TotalCommitted int                          `json:"total_committed"`
+	TotalSkipped   int                          `json:"total_skipped"`
+	TotalFailed    int                          `json:"total_failed"`
+	DurationMs     int64                        `json:"duration_ms"`
+	Summary        map[string]int               `json:"summary"`
+	Repositories   []CommitRepositoryJSONOutput `json:"repositories"`
+}
+
+// CommitRepositoryJSONOutput represents a single repository in JSON output
+type CommitRepositoryJSONOutput struct {
+	Path             string   `json:"path"`
+	Branch           string   `json:"branch,omitempty"`
+	Status           string   `json:"status"`
+	CommitHash       string   `json:"commit_hash,omitempty"`
+	Message          string   `json:"message,omitempty"`
+	SuggestedMessage string   `json:"suggested_message,omitempty"`
+	FilesChanged     int      `json:"files_changed,omitempty"`
+	Additions        int      `json:"additions,omitempty"`
+	Deletions        int      `json:"deletions,omitempty"`
+	ChangedFiles     []string `json:"changed_files,omitempty"`
+	DurationMs       int64    `json:"duration_ms,omitempty"`
+	Error            string   `json:"error,omitempty"`
+}
+
+func displayCommitResultsJSON(result *repository.BulkCommitResult) {
+	output := CommitJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalDirty:     result.TotalDirty,
+		TotalCommitted: result.TotalCommitted,
+		TotalSkipped:   result.TotalSkipped,
+		TotalFailed:    result.TotalFailed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]CommitRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := CommitRepositoryJSONOutput{
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			CommitHash:       repo.CommitHash,
+			Message:          repo.Message,
+			SuggestedMessage: repo.SuggestedMessage,
+			FilesChanged:     repo.FilesChanged,
+			Additions:        repo.Additions,
+			Deletions:        repo.Deletions,
+			ChangedFiles:     repo.ChangedFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
 }
