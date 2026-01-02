@@ -18,8 +18,8 @@ import (
 
 var (
 	commitFlags        BulkCommandFlags
-	commitMessage      string
-	commitMessages     []string
+	commitAll          string   // --all: common message for all repos
+	commitMessages     []string // -m, --message: per-repo messages
 	commitYes          bool
 	commitEdit         bool
 	commitMessagesFile string
@@ -49,11 +49,11 @@ Use --yes to commit, --edit to modify messages in $EDITOR first.`,
 	Example: `  # Commit all dirty repositories in current directory
   gz-git commit -d 1
 
-  # Commit with custom message for all
-  gz-git commit -m "chore: update dependencies"
+  # Commit with per-repository messages (most common usage)
+  gz-git commit -m "repo1:feat: add feature" -m "repo2:fix: bug fix"
 
-  # Commit with per-repository messages
-  gz-git commit --messages "repo1:feat: add feature" --messages "repo2:fix: bug fix"
+  # Commit with same message for all repositories
+  gz-git commit --all "chore: update dependencies"
 
   # Dry run to see what would be committed
   gz-git commit --dry-run
@@ -65,7 +65,7 @@ Use --yes to commit, --edit to modify messages in $EDITOR first.`,
   gz-git commit -e
 
   # Use messages from JSON file
-  gz-git commit --messages-file /tmp/messages.json
+  gz-git commit --file /tmp/messages.json
 
   # JSON output (for scripting)
   gz-git commit --format json`,
@@ -80,11 +80,11 @@ func init() {
 	addBulkFlags(commitCmd, &commitFlags)
 
 	// Commit-specific flags
-	commitCmd.Flags().StringVarP(&commitMessage, "message", "m", "", "common commit message for all repositories")
-	commitCmd.Flags().StringArrayVar(&commitMessages, "messages", []string{}, "per-repository messages in format 'repo:message'")
+	commitCmd.Flags().StringArrayVarP(&commitMessages, "message", "m", []string{}, "per-repository message in format 'repo:message' (can be repeated)")
+	commitCmd.Flags().StringVar(&commitAll, "all", "", "common commit message for all repositories")
 	commitCmd.Flags().BoolVarP(&commitYes, "yes", "y", false, "auto-approve without confirmation")
 	commitCmd.Flags().BoolVarP(&commitEdit, "edit", "e", false, "edit messages in $EDITOR before committing")
-	commitCmd.Flags().StringVar(&commitMessagesFile, "messages-file", "", "JSON file with custom messages per repository")
+	commitCmd.Flags().StringVar(&commitMessagesFile, "file", "", "JSON file with custom messages per repository")
 }
 
 func runCommit(cmd *cobra.Command, args []string) error {
@@ -133,7 +133,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		Parallel:          commitFlags.Parallel,
 		MaxDepth:          commitFlags.Depth,
 		DryRun:            commitFlags.DryRun,
-		Message:           commitMessage,
+		Message:           commitAll,
 		Yes:               commitYes,
 		Verbose:           verbose,
 		IncludeSubmodules: commitFlags.IncludeSubmodules,
@@ -153,7 +153,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Parse --messages flag (repo:message format)
+	// Parse -m/--message flag (repo:message format)
 	if len(commitMessages) > 0 {
 		if customMessages == nil {
 			customMessages = make(map[string]string)
@@ -161,7 +161,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		for _, msg := range commitMessages {
 			repo, message, err := parseRepoMessage(msg)
 			if err != nil {
-				return fmt.Errorf("invalid --messages format: %w", err)
+				return fmt.Errorf("invalid --message format: %w", err)
 			}
 			customMessages[repo] = message
 		}
@@ -381,7 +381,7 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 	if err := cmd.Run(); err != nil {
 		// Check for specific error types
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("editor exited with code %d: consider using --messages-file instead", exitErr.ExitCode())
+			return nil, fmt.Errorf("editor exited with code %d: consider using --file instead", exitErr.ExitCode())
 		}
 		return nil, fmt.Errorf("failed to run editor '%s': %w", editor, err)
 	}
