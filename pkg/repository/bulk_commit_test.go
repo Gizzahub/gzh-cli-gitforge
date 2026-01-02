@@ -560,11 +560,11 @@ func TestFilePathParsing(t *testing.T) {
 
 	// Create initial commit
 	initialFiles := map[string]string{
-		"internal/test.go":  "package internal\n",
-		"examples/main.go":  "package main\n",
-		"CI_CD.md":          "# CI/CD\n",
-		"README.md":         "# README\n",
-		"docs/overview.md":  "# Overview\n",
+		"internal/test.go": "package internal\n",
+		"examples/main.go": "package main\n",
+		"CI_CD.md":         "# CI/CD\n",
+		"README.md":        "# README\n",
+		"docs/overview.md": "# Overview\n",
 	}
 
 	for path, content := range initialFiles {
