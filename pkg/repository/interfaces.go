@@ -73,6 +73,14 @@ type Client interface {
 	// This is useful for creating/pushing tags across multiple repositories.
 	BulkTag(ctx context.Context, opts BulkTagOptions) (*BulkTagResult, error)
 
+	// BulkClone clones multiple repositories from URLs in parallel.
+	// Supports --update to pull existing repositories instead of skipping.
+	BulkClone(ctx context.Context, opts BulkCloneOptions) (*BulkCloneResult, error)
+
+	// BulkBranchList scans for repositories and lists their branches in parallel.
+	// This is useful for listing branches across multiple repositories at once.
+	BulkBranchList(ctx context.Context, opts BulkBranchListOptions) (*BulkBranchListResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool
