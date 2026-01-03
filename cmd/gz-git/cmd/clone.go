@@ -371,4 +371,3 @@ func displayCloneResultsJSON(result *repository.BulkCloneResult) {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
 }
-

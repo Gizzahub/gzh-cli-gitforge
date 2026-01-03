@@ -225,7 +225,7 @@ gz-git commit [directory] [flags]
 | `--edit`          | `-e`  | Edit messages in editor                     | false   |
 | `--yes`           | `-y`  | Execute commits without preview             | false   |
 | `--scan-depth`    | `-d`  | Scan depth for repositories                 | 1       |
-| `--include`       |       | Include repos matching pattern              | *       |
+| `--include`       |       | Include repos matching pattern              | \*      |
 | `--exclude`       |       | Exclude repos matching pattern              |         |
 | `--parallel`      | `-j`  | Parallel execution count                    | 5       |
 | `--format`        | `-f`  | Output format (default, compact, json, llm) | default |
@@ -262,8 +262,8 @@ gz-git commit --dry-run --format json
 **Workflow:**
 
 1. **Preview mode** (default, no `-y`): Scans and shows dirty repos
-2. **Execute mode** (`-y`): Commits with auto-generated messages
-3. **Editor mode** (`-e`): Opens editor to customize messages
+1. **Execute mode** (`-y`): Commits with auto-generated messages
+1. **Editor mode** (`-e`): Opens editor to customize messages
 
 **Messages File JSON Schema:**
 
@@ -321,7 +321,7 @@ gz-git diff [flags]
 | -------------- | ----- | ------------------------------------------- | ------- |
 | `--staged`     |       | Show only staged changes                    | false   |
 | `--scan-depth` | `-d`  | Scan depth for repositories                 | 1       |
-| `--include`    |       | Include repos matching pattern              | *       |
+| `--include`    |       | Include repos matching pattern              | \*      |
 | `--exclude`    |       | Exclude repos matching pattern              |         |
 | `--context`    | `-c`  | Context lines around changes                | 3       |
 | `--max-size`   |       | Max diff size per repo (bytes)              | 102400  |
@@ -436,13 +436,13 @@ gz-git branch cleanup [directory] [flags]
 
 **Flags:**
 
-| Flag           | Short | Description                     | Default |
-| -------------- | ----- | ------------------------------- | ------- |
-| `--scan-depth` | `-d`  | Directory depth to scan         | 1       |
-| `--parallel`   | `-j`  | Number of parallel operations   | 5       |
-| `--dry-run`    | `-n`  | Preview without executing       | false   |
-| `--remote`     | `-r`  | Also delete remote branches     | false   |
-| `--force`      | `-f`  | Force delete unmerged branches  | false   |
+| Flag           | Short | Description                    | Default |
+| -------------- | ----- | ------------------------------ | ------- |
+| `--scan-depth` | `-d`  | Directory depth to scan        | 1       |
+| `--parallel`   | `-j`  | Number of parallel operations  | 5       |
+| `--dry-run`    | `-n`  | Preview without executing      | false   |
+| `--remote`     | `-r`  | Also delete remote branches    | false   |
+| `--force`      | `-f`  | Force delete unmerged branches | false   |
 
 **Examples:**
 

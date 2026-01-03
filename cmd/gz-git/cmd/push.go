@@ -21,6 +21,7 @@ var (
 	pushRefspec     string
 	pushRemotes     []string
 	pushAllRemotes  bool
+	pushIgnoreDirty bool
 )
 
 // pushCmd represents the push command for multi-repository operations
@@ -80,6 +81,9 @@ The command pushes your local commits to remote repositories.`,
   # Exclude pattern
   gz-git push --exclude "test.*" ~/projects
 
+  # Skip dirty status check (useful for CI/CD)
+  gz-git push --ignore-dirty ~/projects
+
   # Compact output format
   gz-git push --format compact ~/projects
 
@@ -105,6 +109,7 @@ func init() {
 	pushCmd.Flags().StringVar(&pushRefspec, "refspec", "", "custom refspec (e.g., 'develop:master' to push local develop to remote master)")
 	pushCmd.Flags().StringSliceVar(&pushRemotes, "remote", []string{}, "remote(s) to push to (can be specified multiple times)")
 	pushCmd.Flags().BoolVar(&pushAllRemotes, "all-remotes", false, "push to all configured remotes")
+	pushCmd.Flags().BoolVar(&pushIgnoreDirty, "ignore-dirty", false, "skip dirty status check and warning (useful for CI/CD)")
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
@@ -145,6 +150,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 		Refspec:           pushRefspec,
 		Remotes:           pushRemotes,
 		AllRemotes:        pushAllRemotes,
+		IgnoreDirty:       pushIgnoreDirty,
 		IncludeSubmodules: pushFlags.IncludeSubmodules,
 		IncludePattern:    pushFlags.Include,
 		ExcludePattern:    pushFlags.Exclude,
@@ -265,14 +271,39 @@ func displayPushResults(result *repository.BulkPushResult) {
 			fmt.Println("✓ All repositories pushed successfully")
 		}
 	}
+
+	// Display dirty repositories warning
+	dirtyCount := countDirtyRepositories(result.Repositories)
+	if dirtyCount > 0 {
+		fmt.Println()
+		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
+	}
+}
+
+// countDirtyRepositories counts repositories with uncommitted or untracked files.
+func countDirtyRepositories(repos []repository.RepositoryPushResult) int {
+	count := 0
+	for _, repo := range repos {
+		if repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0 {
+			count++
+		}
+	}
+	return count
 }
 
 func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 	// Determine icon based on actual result, not just status
 	// ✓ = changes pushed, = = no changes (up-to-date)
+	// ⚠ = dirty (has uncommitted/untracked files)
 	icon := getBulkStatusIcon(repo.Status, repo.PushedCommits)
 
-	// Build compact one-line format: icon path (branch) status duration
+	// Override icon if repo is dirty (uncommitted or untracked files)
+	isDirty := repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0
+	if isDirty && repo.Status != "error" && repo.Status != "conflict" {
+		icon = "⚠"
+	}
+
+	// Build compact one-line format: icon path (branch) status duration [dirty]
 	parts := []string{icon}
 
 	// Path with branch
@@ -333,6 +364,13 @@ func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 	if len(parts) > 3 {
 		line += " " + parts[3]
 	}
+
+	// Add dirty status annotation
+	if isDirty {
+		dirtyInfo := fmt.Sprintf("[dirty: %d uncommitted, %d untracked]", repo.UncommittedFiles, repo.UntrackedFiles)
+		line += " " + dirtyInfo
+	}
+
 	fmt.Println(line)
 
 	// Show fix hint for no-upstream status
@@ -357,13 +395,15 @@ type PushJSONOutput struct {
 
 // PushRepositoryJSONOutput represents a single repository in JSON output
 type PushRepositoryJSONOutput struct {
-	Path          string `json:"path"`
-	Branch        string `json:"branch,omitempty"`
-	Status        string `json:"status"`
-	CommitsAhead  int    `json:"commits_ahead,omitempty"`
-	PushedCommits int    `json:"pushed_commits,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Path             string `json:"path"`
+	Branch           string `json:"branch,omitempty"`
+	Status           string `json:"status"`
+	CommitsAhead     int    `json:"commits_ahead,omitempty"`
+	PushedCommits    int    `json:"pushed_commits,omitempty"`
+	UncommittedFiles int    `json:"uncommitted_files,omitempty"`
+	UntrackedFiles   int    `json:"untracked_files,omitempty"`
+	DurationMs       int64  `json:"duration_ms,omitempty"`
+	Error            string `json:"error,omitempty"`
 }
 
 func displayPushResultsJSON(result *repository.BulkPushResult) {
@@ -377,12 +417,14 @@ func displayPushResultsJSON(result *repository.BulkPushResult) {
 
 	for _, repo := range result.Repositories {
 		repoOutput := PushRepositoryJSONOutput{
-			Path:          repo.RelativePath,
-			Branch:        repo.Branch,
-			Status:        repo.Status,
-			CommitsAhead:  repo.CommitsAhead,
-			PushedCommits: repo.PushedCommits,
-			DurationMs:    repo.Duration.Milliseconds(),
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			CommitsAhead:     repo.CommitsAhead,
+			PushedCommits:    repo.PushedCommits,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
 		}
 		if repo.Error != nil {
 			repoOutput.Error = repo.Error.Error()
@@ -408,12 +450,14 @@ func displayPushResultsLLM(result *repository.BulkPushResult) {
 
 	for _, repo := range result.Repositories {
 		repoOutput := PushRepositoryJSONOutput{
-			Path:          repo.RelativePath,
-			Branch:        repo.Branch,
-			Status:        repo.Status,
-			CommitsAhead:  repo.CommitsAhead,
-			PushedCommits: repo.PushedCommits,
-			DurationMs:    repo.Duration.Milliseconds(),
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			CommitsAhead:     repo.CommitsAhead,
+			PushedCommits:    repo.PushedCommits,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
 		}
 		if repo.Error != nil {
 			repoOutput.Error = repo.Error.Error()

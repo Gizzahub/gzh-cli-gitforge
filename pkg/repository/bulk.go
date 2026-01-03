@@ -118,6 +118,12 @@ type RepositoryFetchResult struct {
 
 	// CommitsAhead is the number of commits ahead of remote after fetch
 	CommitsAhead int
+
+	// UncommittedFiles is the number of uncommitted files (modified/staged) - checked after fetch
+	UncommittedFiles int
+
+	// UntrackedFiles is the number of untracked files - checked after fetch
+	UntrackedFiles int
 }
 
 // GetStatus returns the status for summary calculation.
@@ -227,6 +233,12 @@ type RepositoryPullResult struct {
 
 	// Stashed indicates if local changes were stashed
 	Stashed bool
+
+	// UncommittedFiles is the number of uncommitted files (modified/staged) - checked after pull
+	UncommittedFiles int
+
+	// UntrackedFiles is the number of untracked files - checked after pull
+	UntrackedFiles int
 }
 
 // GetStatus returns the status for summary calculation.
@@ -266,6 +278,9 @@ type BulkPushOptions struct {
 
 	// AllRemotes pushes to all configured remotes
 	AllRemotes bool
+
+	// IgnoreDirty skips dirty status check after push (useful for CI/CD)
+	IgnoreDirty bool
 
 	// IncludeSubmodules includes git submodules in the scan (default: false)
 	// When false, only scans for independent nested repositories
@@ -336,6 +351,12 @@ type RepositoryPushResult struct {
 
 	// PushedCommits is the number of commits pushed
 	PushedCommits int
+
+	// UncommittedFiles is the number of uncommitted files (modified/staged) - checked after push
+	UncommittedFiles int
+
+	// UntrackedFiles is the number of untracked files - checked after push
+	UntrackedFiles int
 }
 
 // GetStatus returns the status for summary calculation.
@@ -1285,11 +1306,24 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 		result.Message = "Successfully fetched from remote"
 	}
 
+	// Check dirty status after fetch (for user awareness)
+	c.populateFetchDirtyStatus(ctx, repo, &result)
+
 	result.Duration = time.Since(startTime)
 
 	logger.Info("repository fetched", "path", result.RelativePath, "branch", result.Branch, "behind", result.CommitsBehind, "ahead", result.CommitsAhead)
 
 	return result
+}
+
+// populateFetchDirtyStatus checks and populates the dirty status fields in fetch result.
+func (c *client) populateFetchDirtyStatus(ctx context.Context, repo *Repository, result *RepositoryFetchResult) {
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		return
+	}
+	result.UncommittedFiles = len(status.StagedFiles) + len(status.ModifiedFiles)
+	result.UntrackedFiles = len(status.UntrackedFiles)
 }
 
 // calculateFetchSummary creates a summary of fetch results by status.
@@ -1673,9 +1707,22 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		}
 	}
 
+	// Check dirty status after pull (for user awareness)
+	c.populatePullDirtyStatus(ctx, repo, &result)
+
 	logger.Info("repository pulled", "path", result.RelativePath)
 
 	return result
+}
+
+// populatePullDirtyStatus checks and populates the dirty status fields in pull result.
+func (c *client) populatePullDirtyStatus(ctx context.Context, repo *Repository, result *RepositoryPullResult) {
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		return
+	}
+	result.UncommittedFiles = len(status.StagedFiles) + len(status.ModifiedFiles)
+	result.UntrackedFiles = len(status.UntrackedFiles)
 }
 
 // calculatePullSummary creates a summary of pull results by status.
@@ -2015,6 +2062,13 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		result.Status = StatusUpToDate
 		result.Message = "Already up to date"
 	}
+
+	// Check dirty status after push (for user awareness)
+	// Skip if --ignore-dirty flag is set (useful for CI/CD)
+	if !opts.IgnoreDirty {
+		c.populateDirtyStatus(ctx, repo, &result)
+	}
+
 	result.Duration = time.Since(startTime)
 
 	logger.Info("repository pushed", "path", result.RelativePath, "commits", result.PushedCommits, "remotes", len(remotes))
@@ -2069,6 +2123,20 @@ func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch stri
 // calculatePushSummary creates a summary of push results by status.
 func calculatePushSummary(results []RepositoryPushResult) map[string]int {
 	return calculateSummaryGeneric(results)
+}
+
+// populateDirtyStatus checks and populates the dirty status fields in push result.
+// This is called after push to inform users about uncommitted/untracked files.
+func (c *client) populateDirtyStatus(ctx context.Context, repo *Repository, result *RepositoryPushResult) {
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		// Don't fail the push result, just skip dirty status
+		return
+	}
+
+	// Count uncommitted files (staged + modified)
+	result.UncommittedFiles = len(status.StagedFiles) + len(status.ModifiedFiles)
+	result.UntrackedFiles = len(status.UntrackedFiles)
 }
 
 // BulkStatus scans for repositories and checks their status in parallel.

@@ -244,14 +244,28 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 			fmt.Println("✓ All repositories fetched successfully")
 		}
 	}
+
+	// Display dirty repositories warning
+	dirtyCount := countFetchDirtyRepositories(result.Repositories)
+	if dirtyCount > 0 {
+		fmt.Println()
+		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
+	}
 }
 
 func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	// Determine icon based on actual result, not just status
 	// ✓ = changes fetched, = = no changes (up-to-date)
+	// ⚠ = dirty (has uncommitted/untracked files)
 	icon := getBulkStatusIcon(repo.Status, repo.CommitsBehind)
 
-	// Build compact one-line format: icon path (branch) status duration
+	// Override icon if repo is dirty (uncommitted or untracked files)
+	isDirty := repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0
+	if isDirty && repo.Status != "error" && repo.Status != "conflict" {
+		icon = "⚠"
+	}
+
+	// Build compact one-line format: icon path (branch) status duration [dirty]
 	parts := []string{icon}
 
 	// Path with branch
@@ -313,6 +327,13 @@ func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	if len(parts) > 3 {
 		line += " " + parts[3]
 	}
+
+	// Add dirty status annotation
+	if isDirty {
+		dirtyInfo := fmt.Sprintf("[dirty: %d uncommitted, %d untracked]", repo.UncommittedFiles, repo.UntrackedFiles)
+		line += " " + dirtyInfo
+	}
+
 	fmt.Println(line)
 
 	// Show fix hint for no-upstream status
@@ -326,6 +347,17 @@ func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
 	}
 }
 
+// countFetchDirtyRepositories counts repositories with uncommitted or untracked files.
+func countFetchDirtyRepositories(repos []repository.RepositoryFetchResult) int {
+	count := 0
+	for _, repo := range repos {
+		if repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0 {
+			count++
+		}
+	}
+	return count
+}
+
 // FetchJSONOutput represents the JSON output structure for fetch command
 type FetchJSONOutput struct {
 	TotalScanned   int                         `json:"total_scanned"`
@@ -337,13 +369,15 @@ type FetchJSONOutput struct {
 
 // FetchRepositoryJSONOutput represents a single repository in JSON output
 type FetchRepositoryJSONOutput struct {
-	Path          string `json:"path"`
-	Branch        string `json:"branch,omitempty"`
-	Status        string `json:"status"`
-	CommitsAhead  int    `json:"commits_ahead,omitempty"`
-	CommitsBehind int    `json:"commits_behind,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Path             string `json:"path"`
+	Branch           string `json:"branch,omitempty"`
+	Status           string `json:"status"`
+	CommitsAhead     int    `json:"commits_ahead,omitempty"`
+	CommitsBehind    int    `json:"commits_behind,omitempty"`
+	UncommittedFiles int    `json:"uncommitted_files,omitempty"`
+	UntrackedFiles   int    `json:"untracked_files,omitempty"`
+	DurationMs       int64  `json:"duration_ms,omitempty"`
+	Error            string `json:"error,omitempty"`
 }
 
 func displayFetchResultsJSON(result *repository.BulkFetchResult) {
@@ -357,12 +391,14 @@ func displayFetchResultsJSON(result *repository.BulkFetchResult) {
 
 	for _, repo := range result.Repositories {
 		repoOutput := FetchRepositoryJSONOutput{
-			Path:          repo.RelativePath,
-			Branch:        repo.Branch,
-			Status:        repo.Status,
-			CommitsAhead:  repo.CommitsAhead,
-			CommitsBehind: repo.CommitsBehind,
-			DurationMs:    repo.Duration.Milliseconds(),
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			CommitsAhead:     repo.CommitsAhead,
+			CommitsBehind:    repo.CommitsBehind,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
 		}
 		if repo.Error != nil {
 			repoOutput.Error = repo.Error.Error()
@@ -388,12 +424,14 @@ func displayFetchResultsLLM(result *repository.BulkFetchResult) {
 
 	for _, repo := range result.Repositories {
 		repoOutput := FetchRepositoryJSONOutput{
-			Path:          repo.RelativePath,
-			Branch:        repo.Branch,
-			Status:        repo.Status,
-			CommitsAhead:  repo.CommitsAhead,
-			CommitsBehind: repo.CommitsBehind,
-			DurationMs:    repo.Duration.Milliseconds(),
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			CommitsAhead:     repo.CommitsAhead,
+			CommitsBehind:    repo.CommitsBehind,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
 		}
 		if repo.Error != nil {
 			repoOutput.Error = repo.Error.Error()

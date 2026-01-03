@@ -746,10 +746,10 @@ gz-git commit \
 **Message Input Methods**:
 
 1. **CLI flag** (`--messages`): Inline per-repo messages
-2. **Common message** (`-m`): Same message for all repos
-3. **JSON file** (`--messages-file`): Batch message customization
-4. **Interactive editor** (`-e`): Edit messages in $EDITOR
-5. **Auto-generation**: Based on file changes (default)
+1. **Common message** (`-m`): Same message for all repos
+1. **JSON file** (`--messages-file`): Batch message customization
+1. **Interactive editor** (`-e`): Edit messages in $EDITOR
+1. **Auto-generation**: Based on file changes (default)
 
 **Implementation Details**:
 
