@@ -61,6 +61,10 @@ site/
 cpu.pprof
 mem.pprof
 
+# Benchmarks
+benchmarks/*.txt
+benchmarks/*.json
+
 # Temporary files
 *.bak
 *.orig
