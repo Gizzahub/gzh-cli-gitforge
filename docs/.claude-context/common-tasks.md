@@ -1,5 +1,52 @@
 # Common Tasks - gzh-cli-gitforge
 
+## Core Design: Bulk-First Defaults
+
+gz-git은 **기본적으로 bulk 모드**로 동작합니다. 모든 주요 명령어는 디렉토리를 스캔하여 여러 repository를 병렬 처리합니다.
+
+### 기본값 (pkg/repository/types.go)
+
+```go
+const (
+    DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨
+    DefaultBulkParallel = 5    // 5개 병렬 처리
+)
+```
+
+### 스캔 깊이 설명
+
+```
+depth=0: 현재 디렉토리만 (단일 repo 동작)
+depth=1: 현재 + 1레벨 (기본값)
+depth=2: 현재 + 2레벨
+```
+
+### 단일 repo 작업
+
+경로를 직접 지정하면 해당 repo만 처리:
+
+```bash
+gz-git status /path/to/repo
+gz-git fetch /path/to/repo
+```
+
+### bulk 명령어 플래그 등록 (cmd/gz-git/cmd/bulk_common.go)
+
+```go
+func addBulkFlags(cmd *cobra.Command, flags *BulkFlags) {
+    cmd.Flags().IntVarP(&flags.Depth, "scan-depth", "d",
+        repository.DefaultBulkMaxDepth, "directory depth to scan")
+    cmd.Flags().IntVarP(&flags.Parallel, "parallel", "j",
+        repository.DefaultBulkParallel, "parallel workers")
+    cmd.Flags().BoolVarP(&flags.DryRun, "dry-run", "n",
+        false, "preview without executing")
+    cmd.Flags().StringVar(&flags.Include, "include", "", "include pattern")
+    cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "exclude pattern")
+}
+```
+
+______________________________________________________________________
+
 ## Adding New Git Commands
 
 ### Where to add

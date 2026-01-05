@@ -1,6 +1,6 @@
 # gz-git Plugin for Claude Code
 
-gz-git CLI integration - Safe Git operations with bulk repository support.
+gz-git CLI integration - Safe Git operations with bulk-first design.
 
 ## Installation
 
@@ -12,33 +12,37 @@ gz-git CLI integration - Safe Git operations with bulk repository support.
 ## Requirements
 
 - gz-git binary: `go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest`
-- Git 2.20+
+- Git 2.30+
 
-## Skills
+## Core Concept: Bulk-First
 
-| Skill | Description |
-|-------|-------------|
-| **gz-git** | Single repository operations - commit, branch, tag, stash |
-| **gz-git-bulk** | Multi-repository operations - bulk clone, fetch, pull, push |
+**gz-git operates in BULK MODE by default.** All major commands scan directories and process multiple repositories in parallel.
+
+```bash
+gz-git status          # Scans ALL repos in current dir (depth=1)
+gz-git fetch           # Fetches ALL repos
+gz-git pull            # Pulls ALL repos
+```
+
+### Default Settings
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| Scan Depth | `1` | Current dir + 1 level |
+| Parallel | `5` | 5 concurrent repos |
+
+### Single Repo
+
+```bash
+gz-git status /path/to/repo
+```
+
+## Skill
+
+**gz-git**: Complete CLI reference covering bulk operations, clone, commit, branch, tag, stash, and more.
 
 ## Local Test
 
 ```bash
 claude --plugin-dir ./gz-git-plugin
-```
-
-## Quick Reference
-
-### Single Repo
-```bash
-gz-git status
-gz-git commit auto
-gz-git branch cleanup
-```
-
-### Multi-Repo
-```bash
-gz-git clone --org mycompany --provider github
-gz-git fetch .
-gz-git status . --dirty-only
 ```

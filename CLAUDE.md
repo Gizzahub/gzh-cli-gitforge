@@ -76,32 +76,69 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## Bulk Operations (Core Feature)
+## Core Design: Bulk-First
 
-All major operations support **batch mode** for multi-repository workflows:
+**gz-git은 기본적으로 bulk 모드로 동작합니다.** 모든 주요 명령어는 디렉토리를 스캔하여
+여러 repository를 동시에 처리합니다.
 
-| Command          | Bulk Support | Usage                                     |
-| ---------------- | ------------ | ----------------------------------------- |
-| `fetch`          | ✅           | `gz-git fetch [directory]`                |
-| `pull`           | ✅           | `gz-git pull [directory]`                 |
-| `push`           | ✅           | `gz-git push [directory]`                 |
-| `status`         | ✅           | `gz-git status [directory]`               |
-| `switch`         | ✅           | `gz-git switch <branch> [directory]`      |
-| `diff`           | ✅           | `gz-git diff [directory]`                 |
-| `commit`         | ✅           | `gz-git commit [directory]`               |
-| `branch cleanup` | ✅           | `gz-git branch cleanup [directory]`       |
-| `stash`          | ✅           | `gz-git stash save/list/pop [directory]`  |
-| `tag`            | ✅           | `gz-git tag create/list/push [directory]` |
+### 기본 동작
 
-**Common Bulk Flags:**
+```go
+// pkg/repository/types.go
+DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨 하위
+DefaultBulkParallel = 5    // 5개 병렬 처리
+```
+
+| 명령어 | 기본 동작 |
+|--------|-----------|
+| `gz-git status` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+| `gz-git fetch` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+| `gz-git pull` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+| `gz-git push` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+| `gz-git switch` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+
+### 스캔 깊이 (--scan-depth, -d)
 
 ```
--d, --scan-depth   Directory depth (default: 1)
--j, --parallel     Parallel workers (default: 5)
--n, --dry-run      Simulation mode
---include          Include pattern (regex)
---exclude          Exclude pattern (regex)
+depth=0: 현재 디렉토리만 (단일 repo처럼 동작)
+depth=1: 현재 + 1레벨 (기본값) - ~/projects/repo1, ~/projects/repo2
+depth=2: 현재 + 2레벨 - ~/projects/org/repo1, ~/projects/org/repo2
 ```
+
+### 단일 Repository 작업
+
+경로를 직접 지정하면 해당 repo만 처리:
+
+```bash
+gz-git status /path/to/single/repo
+gz-git fetch /path/to/single/repo
+```
+
+### 공통 플래그
+
+```
+-d, --scan-depth   스캔 깊이 (기본: 1)
+-j, --parallel     병렬 처리 수 (기본: 5)
+-n, --dry-run      실행하지 않고 미리보기
+--include          포함 패턴 (regex)
+--exclude          제외 패턴 (regex)
+-f, --format       출력 형식 (default, compact, json, llm)
+```
+
+### 주요 명령어
+
+| Command | Description |
+|---------|-------------|
+| `status` | 모든 repo 상태 확인 (dirty, ahead/behind) |
+| `fetch` | 모든 repo에서 fetch |
+| `pull` | 모든 repo에서 pull (rebase/merge 지원) |
+| `push` | 모든 repo에서 push |
+| `switch` | 모든 repo 브랜치 전환 |
+| `commit` | 모든 dirty repo에 커밋 |
+| `diff` | 모든 repo diff 보기 |
+| `branch cleanup` | 모든 repo에서 merged/gone 브랜치 삭제 |
+| `stash` | 모든 repo에서 stash 작업 |
+| `tag` | 모든 repo에서 tag 작업 |
 
 ______________________________________________________________________
 

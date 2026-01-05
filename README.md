@@ -113,6 +113,57 @@ make install  # Installs to $GOPATH/bin
 
 ______________________________________________________________________
 
+## Core Concept: Bulk-First Design
+
+**gz-git operates in bulk mode by default.** All major commands automatically scan directories and process multiple repositories in parallel.
+
+### Default Behavior
+
+| Setting | Default Value | Description |
+|---------|---------------|-------------|
+| **Scan Depth** | `1` | Current directory + 1 level deep |
+| **Parallel Workers** | `5` | Process 5 repositories concurrently |
+
+```bash
+# These commands scan for ALL repos in current directory (depth=1)
+gz-git status          # Status of all repos
+gz-git fetch           # Fetch all repos
+gz-git pull            # Pull all repos
+gz-git push            # Push all repos
+```
+
+### Understanding Scan Depth
+
+```
+depth=0: Current directory only (single repo behavior)
+depth=1: Current + immediate children (DEFAULT)
+         ~/projects/repo1, ~/projects/repo2
+depth=2: Current + 2 levels deep
+         ~/projects/org/repo1, ~/projects/team/repo2
+```
+
+### Single Repository Operations
+
+To target a specific repository, provide the path directly:
+
+```bash
+gz-git status /path/to/repo      # Single repo status
+gz-git fetch /path/to/repo       # Fetch single repo
+```
+
+### Common Bulk Flags
+
+```bash
+-d, --scan-depth INT   # Directory depth (default: 1)
+-j, --parallel INT     # Parallel workers (default: 5)
+-n, --dry-run          # Preview without executing
+--include REGEX        # Include repos matching pattern
+--exclude REGEX        # Exclude repos matching pattern
+-f, --format FORMAT    # Output: default, compact, json, llm
+```
+
+______________________________________________________________________
+
 ## Usage
 
 ### As CLI Tool

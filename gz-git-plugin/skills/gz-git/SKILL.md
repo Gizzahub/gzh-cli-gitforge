@@ -2,10 +2,11 @@
 name: gz-git
 description: |
   gz-git CLI for safe Git operations. Use when:
-  - Managing single Git repositories
-  - Commit automation with templates
-  - Branch, tag, stash management
-  - History analysis and diff viewing
+  - Managing Git repositories (single or multiple)
+  - Bulk fetch/pull/push/status across repos
+  - Cloning from GitHub/GitLab organizations
+  - Branch, tag, stash, commit automation
+  gz-git operates in BULK MODE by default (scans directories for repos).
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
@@ -13,166 +14,277 @@ allowed-tools: Bash, Read, Grep, Glob
 
 gz-git provides advanced Git operations with input sanitization and safe command execution.
 
-## Quick Detection
+## Core Concept: Bulk-First Design
+
+**gz-git operates in BULK MODE by default.** All major commands automatically scan directories and process multiple repositories in parallel.
+
+### Default Behavior
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Scan Depth** | `1` | Current directory + 1 level deep |
+| **Parallel** | `5` | Process 5 repos concurrently |
 
 ```bash
-command -v gz-git && echo "gz-git available" || echo "gz-git not installed"
+# These commands scan ALL repos in current directory
+gz-git status          # Status of all repos (depth=1)
+gz-git fetch           # Fetch all repos
+gz-git pull            # Pull all repos
+gz-git push            # Push all repos
 ```
+
+### Understanding Scan Depth
+
+```
+depth=0: Current directory only (single repo behavior)
+depth=1: Current + immediate children (DEFAULT)
+         ~/projects/repo1, ~/projects/repo2
+depth=2: Current + 2 levels deep
+         ~/projects/org/repo1, ~/projects/team/repo2
+```
+
+### Single Repository Operations
+
+Provide the path directly to target a specific repo:
+
+```bash
+gz-git status /path/to/repo      # Single repo status
+gz-git fetch /path/to/repo       # Fetch single repo
+```
+
+______________________________________________________________________
+
+## Common Flags (All Bulk Commands)
+
+```bash
+-d, --scan-depth INT   # Directory depth (default: 1)
+-j, --parallel INT     # Parallel workers (default: 5)
+-n, --dry-run          # Preview without executing
+--include REGEX        # Include repos matching pattern
+--exclude REGEX        # Exclude repos matching pattern
+-f, --format FORMAT    # Output: default, compact, json, llm
+```
+
+______________________________________________________________________
 
 ## Command Reference
 
-### Core Operations
-
-| Command | Description |
-|---------|-------------|
-| `gz-git status [DIR]` | Show repository status |
-| `gz-git fetch [DIR]` | Fetch from remotes |
-| `gz-git pull [DIR]` | Pull changes |
-| `gz-git push [DIR]` | Push changes |
-| `gz-git diff [DIR]` | Show differences |
-| `gz-git clone URL [DIR]` | Clone repository |
+### Status
 
 ```bash
-gz-git status                  # Current repo status
-gz-git fetch                   # Fetch all remotes
-gz-git pull                    # Pull with rebase
-gz-git push                    # Push current branch
-gz-git diff                    # Show unstaged changes
-gz-git diff --staged           # Show staged changes
-gz-git clone https://github.com/org/repo
+gz-git status                     # All repos in current dir
+gz-git status -d 2 ~/projects     # 2 levels deep
+gz-git status --dirty-only        # Only show dirty repos
+gz-git status --behind            # Show repos behind remote
+gz-git status --format compact    # One-line per repo
+gz-git status /path/to/repo       # Single repo
 ```
 
-### Commit Operations
-
-| Command | Description |
-|---------|-------------|
-| `gz-git commit auto` | Auto-generate commit message |
-| `gz-git commit template` | Use commit template |
-| `gz-git commit amend` | Amend last commit |
-| `gz-git commit fixup HASH` | Create fixup commit |
+### Fetch / Pull / Push
 
 ```bash
-gz-git commit auto                        # AI-generated message
-gz-git commit auto --type feat            # Specify type
-gz-git commit template --scope api        # Use template
-gz-git commit amend                       # Amend last commit
-gz-git commit fixup abc1234               # Fixup specific commit
+# Fetch
+gz-git fetch                      # All repos (default)
+gz-git fetch -d 2 ~/projects      # 2 levels deep
+gz-git fetch --all                # Fetch all remotes
+gz-git fetch --prune              # Prune deleted branches
+gz-git fetch -t                   # Fetch tags
+
+# Pull
+gz-git pull                       # All repos
+gz-git pull -s rebase             # Pull with rebase
+gz-git pull -s ff-only            # Fast-forward only
+gz-git pull --stash               # Auto-stash changes
+
+# Push
+gz-git push                       # All repos
+gz-git push -n                    # Dry run
+gz-git push --force-with-lease    # Safe force push
+gz-git push --set-upstream        # Set upstream
+gz-git push --tags                # Push tags
 ```
 
-**Commit Flags:**
-- `--type, -t` : Commit type (feat, fix, docs, refactor, test, chore)
-- `--scope, -s` : Commit scope
-- `--message, -m` : Custom message
-- `--no-verify` : Skip hooks
+### Switch (Branch)
+
+```bash
+gz-git switch main                # Switch all repos to main
+gz-git switch develop -d 2        # 2 levels deep
+gz-git switch feature/x -n        # Dry run
+gz-git switch main --force        # Force switch (DANGEROUS)
+```
+
+### Clone
+
+```bash
+# Single repository
+gz-git clone https://github.com/user/repo.git
+gz-git clone -b develop https://github.com/user/repo.git
+gz-git clone --depth 1 https://github.com/user/repo.git
+
+# Bulk clone from organization
+gz-git clone --org mycompany --provider github
+gz-git clone --org mycompany --provider gitlab
+gz-git clone --org mycompany --include "^api-"
+gz-git clone --org mycompany --exclude "archived"
+
+# Clone from manifest file
+gz-git clone --manifest repos.yml
+gz-git clone --manifest repos.yml -j 10
+```
+
+### Commit
+
+```bash
+gz-git commit auto                # Auto-generate message (all repos)
+gz-git commit auto --type feat    # Specify commit type
+gz-git commit -m "chore: update"  # Common message
+gz-git commit -e                  # Edit in $EDITOR
+
+# Per-repository messages
+gz-git commit \
+  --messages "frontend:feat(ui): add button" \
+  --messages "backend:fix(api): null check" \
+  --yes
+
+gz-git commit --messages-file /tmp/messages.json --yes
+```
 
 ### Branch Management
 
-| Command | Description |
-|---------|-------------|
-| `gz-git branch list` | List branches |
-| `gz-git branch create NAME` | Create branch |
-| `gz-git branch delete NAME` | Delete branch |
-| `gz-git branch cleanup` | Remove merged/gone branches |
-| `gz-git switch BRANCH` | Switch to branch |
-
 ```bash
-gz-git branch list                        # All branches
-gz-git branch list --remote               # Remote branches
-gz-git branch create feature/new          # Create and stay
-gz-git branch create feature/new --switch # Create and switch
-gz-git branch delete old-feature          # Delete local
-gz-git branch delete old-feature --remote # Delete remote too
-gz-git branch cleanup                     # Clean merged branches
-gz-git branch cleanup --gone              # Clean gone branches
-gz-git switch main                        # Switch branch
-gz-git switch feature/x --create          # Create if not exists
+gz-git branch list                # All branches (all repos)
+gz-git branch list --remote       # Remote branches
+gz-git branch create feature/new  # Create branch
+gz-git branch delete old-feature  # Delete branch
+gz-git branch cleanup             # Remove merged branches
+gz-git branch cleanup --gone      # Remove gone branches
 ```
 
-### Stash Management
-
-| Command | Description |
-|---------|-------------|
-| `gz-git stash save` | Save changes to stash |
-| `gz-git stash list` | List stashes |
-| `gz-git stash pop` | Apply and remove top stash |
-| `gz-git stash apply` | Apply stash (keep in list) |
-| `gz-git stash drop` | Remove stash |
-| `gz-git stash clear` | Remove all stashes |
+### Stash
 
 ```bash
-gz-git stash save "WIP: feature work"     # Save with message
-gz-git stash save --include-untracked     # Include untracked files
-gz-git stash list                         # Show all stashes
-gz-git stash pop                          # Apply and remove
-gz-git stash apply stash@{2}              # Apply specific stash
-gz-git stash drop stash@{0}               # Remove specific stash
-gz-git stash clear                        # Remove all
+gz-git stash save "WIP"           # Stash all dirty repos
+gz-git stash list                 # List stashes
+gz-git stash pop                  # Pop stashes
+gz-git stash apply                # Apply (keep in list)
+gz-git stash drop                 # Remove stash
+gz-git stash clear                # Clear all
 ```
 
-### Tag Management
-
-| Command | Description |
-|---------|-------------|
-| `gz-git tag list` | List tags |
-| `gz-git tag create NAME` | Create tag |
-| `gz-git tag delete NAME` | Delete tag |
-| `gz-git tag push` | Push tags to remote |
+### Tag
 
 ```bash
-gz-git tag list                           # All tags
-gz-git tag list --semver                  # Semantic version sorted
-gz-git tag create v1.2.0                  # Create lightweight
-gz-git tag create v1.2.0 -m "Release"     # Create annotated
-gz-git tag create v1.2.0 --sign           # Create signed
-gz-git tag delete v1.0.0                  # Delete local
-gz-git tag delete v1.0.0 --remote         # Delete remote too
-gz-git tag push                           # Push all tags
-gz-git tag push v1.2.0                    # Push specific tag
+gz-git tag list                   # List tags (all repos)
+gz-git tag list --semver          # Sorted by semver
+gz-git tag create v1.0.0          # Create tag
+gz-git tag create v1.0.0 -m "Release"  # Annotated
+gz-git tag delete v1.0.0          # Delete local
+gz-git tag delete v1.0.0 --remote # Delete remote too
+gz-git tag push                   # Push all tags
+gz-git tag push v1.0.0            # Push specific tag
 ```
 
-### Merge Operations
-
-| Command | Description |
-|---------|-------------|
-| `gz-git merge detect SRC DST` | Detect merge conflicts |
-| `gz-git merge do SRC` | Merge branch into current |
+### Diff
 
 ```bash
-gz-git merge detect feature/x main        # Check for conflicts
-gz-git merge do feature/x                 # Merge into current
-gz-git merge do feature/x --no-ff         # No fast-forward
-gz-git merge do feature/x --squash        # Squash merge
+gz-git diff                       # Diff all repos
+gz-git diff --stat                # Stats only
+gz-git diff --staged              # Staged changes
+gz-git diff --name-only           # File names only
 ```
 
 ### History & Info
 
-| Command | Description |
-|---------|-------------|
-| `gz-git history stats` | Commit statistics |
-| `gz-git history contributors` | Contributor list |
-| `gz-git history file PATH` | File history |
-| `gz-git info` | Repository info |
-
 ```bash
-gz-git history stats                      # Overall stats
-gz-git history stats --since "1 month"    # Recent stats
-gz-git history contributors               # All contributors
-gz-git history contributors --top 10      # Top 10
-gz-git history file src/main.go           # File changes
-gz-git info                               # Repo information
+gz-git history stats              # Commit statistics
+gz-git history stats --since "1 month"
+gz-git history contributors       # Contributor list
+gz-git history contributors --top 10
+gz-git history file src/main.go   # File history
+gz-git info                       # Repository info
 ```
 
 ### Watch & Update
 
-| Command | Description |
-|---------|-------------|
-| `gz-git watch` | Watch for changes |
-| `gz-git update` | Update repository |
+```bash
+gz-git watch                      # Monitor all repos
+gz-git watch --interval 5s        # Custom interval
+gz-git update                     # Pull and update deps
+```
+
+### Merge
 
 ```bash
-gz-git watch                              # Monitor changes
-gz-git watch --interval 5s                # Check every 5s
-gz-git update                             # Pull and update deps
+gz-git merge detect feature/x main  # Detect conflicts
+gz-git merge do feature/x           # Merge into current
+gz-git merge do feature/x --no-ff   # No fast-forward
+gz-git merge do feature/x --squash  # Squash merge
+```
+
+______________________________________________________________________
+
+## Common Workflows
+
+### Daily Sync (Multi-Repo)
+
+```bash
+gz-git fetch                 # Get updates
+gz-git status --dirty-only   # Check dirty repos
+gz-git pull                  # Pull all
+```
+
+### Feature Development
+
+```bash
+gz-git switch main
+gz-git pull
+gz-git branch create feature/x --switch
+# ... work ...
+gz-git commit auto --type feat
+gz-git push
+```
+
+### Organization Clone
+
+```bash
+# Clone all org repos
+gz-git clone --org mycompany --provider github ~/work
+
+# Daily sync
+cd ~/work
+gz-git fetch
+gz-git status
+```
+
+### Branch Cleanup
+
+```bash
+# Preview
+gz-git branch cleanup --gone -n
+
+# Execute
+gz-git branch cleanup --gone
+```
+
+### Release Tagging
+
+```bash
+gz-git tag create v1.0.0 -m "Release 1.0.0"
+gz-git tag push
+```
+
+______________________________________________________________________
+
+## Output Format
+
+Bulk operations show:
+
+```
+[repo-name] OK: operation successful
+[repo-name] SKIP: reason
+[repo-name] ERROR: error message
+
+Summary: 10 repos, 8 OK, 1 SKIP, 1 ERROR
 ```
 
 ## Global Flags
@@ -182,31 +294,4 @@ gz-git update                             # Pull and update deps
 -q, --quiet       Quiet mode (errors only)
 --version         Show version
 --help            Show help
-```
-
-## Common Workflows
-
-### Daily Development
-```bash
-gz-git status                 # Check state
-gz-git fetch                  # Get updates
-gz-git pull                   # Merge changes
-# ... work ...
-gz-git commit auto            # Commit with auto message
-gz-git push                   # Push changes
-```
-
-### Feature Branch
-```bash
-gz-git branch create feature/x --switch
-# ... work ...
-gz-git commit auto --type feat --scope api
-gz-git push
-gz-git merge detect feature/x main
-```
-
-### Release
-```bash
-gz-git tag create v1.0.0 -m "Release 1.0.0"
-gz-git tag push v1.0.0
 ```
