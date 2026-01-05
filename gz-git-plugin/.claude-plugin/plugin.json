@@ -1,0 +1,22 @@
+{
+  "name": "gz-git",
+  "version": "1.0.0",
+  "description": "gz-git CLI integration for Claude Code - Safe Git operations with bulk repository support",
+  "author": {
+    "name": "archmagece",
+    "url": "https://github.com/archmagece"
+  },
+  "homepage": "https://github.com/gizzahub/gzh-cli-gitforge",
+  "repository": "https://github.com/gizzahub/gzh-cli-gitforge",
+  "license": "MIT",
+  "keywords": [
+    "git",
+    "bulk-operations",
+    "multi-repo",
+    "branch-management",
+    "stash",
+    "tag",
+    "cli",
+    "automation"
+  ]
+}
