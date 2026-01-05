@@ -8,7 +8,7 @@ ______________________________________________________________________
 
 **Binary**: `gz-git`
 **Module**: `github.com/gizzahub/gzh-cli-gitforge`
-**Go Version**: 1.23+
+**Go Version**: 1.25.1+
 **Architecture**: Safe Git operations CLI
 
 Interface-driven design with strict input sanitization for security.
@@ -65,12 +65,16 @@ ______________________________________________________________________
 │   ├── parser/             # Output parsing
 │   └── testutil/           # Git test helpers
 ├── pkg/                    # Public packages
-│   ├── branch/             # Branch management + cleanup
-│   ├── commit/             # Commit operations
-│   ├── operations/         # Complex operations
 │   ├── repository/         # Repository abstraction + bulk ops
+│   ├── branch/             # Branch utilities + cleanup services
+│   ├── history/            # History analysis
+│   ├── merge/              # Merge conflict detection
 │   ├── stash/              # Stash management
-│   └── tag/                # Tag management + semver
+│   ├── tag/                # Tag management + semver
+│   ├── watch/              # Repo monitoring
+│   ├── sync/               # Sync config/types
+│   ├── reposync/           # Repo sync planner/executor
+│   └── provider/           # Forge providers (github/gitlab/gitea)
 └── docs/.claude-context/   # Context docs
 ```
 
@@ -110,6 +114,8 @@ depth=2: 현재 + 2레벨 - ~/projects/org/repo1, ~/projects/org/repo2
 경로를 직접 지정하면 해당 repo만 처리:
 
 ```bash
+gz-git info /path/to/single/repo
+gz-git watch /path/to/single/repo
 gz-git status /path/to/single/repo
 gz-git fetch /path/to/single/repo
 ```
@@ -129,6 +135,7 @@ gz-git fetch /path/to/single/repo
 
 | Command | Description |
 |---------|-------------|
+| `clone` | 여러 repo를 병렬로 clone (`--url`, `--file`) |
 | `status` | 모든 repo 상태 확인 (dirty, ahead/behind) |
 | `fetch` | 모든 repo에서 fetch |
 | `pull` | 모든 repo에서 pull (rebase/merge 지원) |
@@ -136,7 +143,9 @@ gz-git fetch /path/to/single/repo
 | `switch` | 모든 repo 브랜치 전환 |
 | `commit` | 모든 dirty repo에 커밋 |
 | `diff` | 모든 repo diff 보기 |
-| `branch cleanup` | 모든 repo에서 merged/gone 브랜치 삭제 |
+| `update` | 모든 repo를 안전하게 업데이트 (pull --rebase) |
+| `cleanup branch` | merged/stale/gone 브랜치 정리 (dry-run 기본) |
+| `sync` | GitHub/GitLab/Gitea에서 repo 목록 동기화 |
 | `stash` | 모든 repo에서 stash 작업 |
 | `tag` | 모든 repo에서 tag 작업 |
 

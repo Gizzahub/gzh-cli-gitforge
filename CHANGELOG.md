@@ -19,21 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Auto-generates commit messages based on file changes
   - Supports multiple message input methods
 
-**Per-Repository Custom Messages** - New `--messages` CLI Flag:
+**Per-Repository Custom Messages** - `-m/--message` and `--file`:
 
-- `--messages "repo:message"` flag for inline custom messages (repeatable)
-  - Format: `--messages "frontend:feat: add feature" --messages "backend:fix: bug"`
+- `-m/--message "repo:message"` for inline custom messages (repeatable)
+  - Format: `-m "frontend:feat: add feature" -m "backend:fix: bug"`
   - Supports relative path, base name, or full path matching
-  - Works alongside existing `-m`, `--messages-file`, and `-e` options
+  - Works alongside `--all` (common message), `--file` (JSON), and `-e` (editor)
 - MessageGenerator pattern for flexible message lookup
 - Falls back to auto-generated messages when no custom message matches
 
 **Commit Workflow Features**:
 
 - Interactive message editing with `$EDITOR` via `-e` flag
-- JSON file support for batch message customization via `--messages-file`
-- Common message for all repos via `-m` flag
-- Multiple output formats: default, compact, json
+- JSON file support for batch message customization via `--file`
+- Common message for all repos via `--all`
+- Multiple output formats: default, compact, json, llm
 - Filtering with `--include` and `--exclude` patterns
 - Parallel processing with `-j` flag (default: 5)
 - Dry-run mode with `--dry-run` flag
@@ -49,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Package Cleanup**:
 
-- Deleted `pkg/commit` package (generator, template, validator, push functionality)
-- All commit functionality is now in the CLI layer only
+- Deleted legacy `pkg/commit` package (template/validator experiments)
+- Bulk commit logic lives in `pkg/repository` and is consumed by the CLI
 
 ### Fixed
 
@@ -349,7 +349,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **User Guides** (1,715 lines added):
 
-- `docs/features/WATCH_COMMAND.md`: Complete user guide with examples (369 lines)
+- `docs/commands/watch.md`: Watch command guide with examples (moved from `docs/features/`)
 - `docs/design/WATCH_OUTPUT_FORMATS.md`: Output format design and rationale (597 lines)
 - `docs/design/WATCH_OUTPUT_IMPROVEMENTS.md`: Future enhancement proposals (749 lines)
 
@@ -696,7 +696,7 @@ cmd/gz-git/           # CLI application
 - gopkg.in/yaml.v3 v3.0.1 (YAML parsing)
 - golang.org/x/sync v0.18.0 (Concurrency utilities for bulk operations)
 
-**Go Version**: Requires Go 1.24.0+
+**Go Version**: See `go.mod` for the current minimum (currently Go 1.25.1)
 
 ### Known Issues
 

@@ -36,7 +36,7 @@ ______________________________________________________________________
 
 Before contributing, ensure you have the following installed:
 
-- **Go 1.24+** - [Download Go](https://go.dev/dl/)
+- **Go 1.25.1+** - [Download Go](https://go.dev/dl/)
 - **Git 2.30+** - Required for development and testing
 - **Make** - For build automation
 - **golangci-lint 1.55+** - For code linting

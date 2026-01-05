@@ -1,413 +1,84 @@
 # Frequently Asked Questions (FAQ)
 
-Common questions and answers about gzh-cli-gitforge.
+## What is gzh-cli-gitforge?
 
-## General Questions
+`gzh-cli-gitforge` is a dual-purpose project:
 
-### What is gzh-cli-gitforge?
+1. **CLI (`gz-git`)**: bulk-first Git workflows across many repositories
+2. **Go library**: reusable packages under `pkg/` for integrating Git operations and repo sync into Go programs
 
-gzh-cli-gitforge is a dual-purpose tool:
+## Does gz-git replace git?
 
-1. **CLI Application**: A standalone command-line tool for Git automation
-1. **Go Library**: A reusable library for integrating Git operations into other Go projects
+No. `gz-git` runs the **Git CLI** under the hood and focuses on safer defaults, better bulk workflows, and structured output.
 
-It's designed with a library-first architecture, meaning the core functionality is available as clean Go APIs without any CLI dependencies.
+## What does “bulk-first” mean?
 
-### Why use gzh-cli-gitforge instead of standard Git?
+Most commands scan a directory for repositories and process them in parallel.
 
-gzh-cli-gitforge doesn't replace Git—it enhances it:
+- Default scan depth: `--scan-depth 1`
+- Default parallelism: `--parallel 5`
 
-- **Automation**: Auto-generate commit messages, detect conflicts before merging
-- **Safety**: Smart push with pre-flight checks, conflict detection
-- **Productivity**: Parallel development with worktrees, bulk repository operations
-- **Library Integration**: Use Git operations programmatically in your Go applications
+Control scope with:
 
-### What features are currently available?
+```bash
+gz-git status -d 2 ~/projects
+gz-git fetch --include "gzh-cli.*" --exclude ".*-deprecated" ~/projects
+```
 
-**All Major Features Implemented (v0.3.0):**
-
-✅ **Repository Operations**
-
-- Clone with advanced options (branch, depth, single-branch, recursive)
-- Status checking (clean/dirty, modified/staged/untracked files)
-- Repository information (branch, remote, upstream, ahead/behind)
-- Bulk clone-or-update operations
-
-✅ **Bulk Commit Operations**
-
-- Bulk commit across multiple repositories
-- Auto-generate commit messages from changes
-- Per-repository custom messages
-- Editor-based message editing
-
-✅ **Branch & Worktree Management**
-
-- Create, list, and delete branches
-- Worktree-based parallel development
-- Branch creation with linked worktrees
-
-✅ **History Analysis**
-
-- Commit statistics and trends
-- Contributor analysis with metrics
-- File change tracking and history
-- Multiple output formats (Table, JSON, CSV)
-
-✅ **Advanced Merge/Rebase**
-
-- Pre-merge conflict detection
-- Merge execution with strategies
-- Abort and rebase operations
-
-✅ **Go Library API**
-
-- All 6 pkg/ packages fully implemented
-- Clean APIs with zero CLI dependencies
-- Context-aware operations
-
-> **Note**: Version v0.3.0 accurately reflects feature completeness. See [IMPLEMENTATION_STATUS](../../IMPLEMENTATION_STATUS.md) for historical context.
-
-## Installation & Setup
-
-### How do I install gz-git?
-
-**Option 1: Using Go (Recommended)**
+## How do I install gz-git?
 
 ```bash
 go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
+gz-git --version
 ```
 
-**Option 2: From Source**
+If your shell can’t find `gz-git`, ensure `$(go env GOPATH)/bin` is on `PATH`.
+
+## How do I clone repositories with gz-git?
+
+`clone` is bulk-oriented: pass URLs via `--url` (repeatable) or `--file`.
 
 ```bash
-git clone https://github.com/gizzahub/gzh-cli-gitforge.git
-cd gzh-cli-gitforge
-make build
-sudo make install
+gz-git clone --url https://github.com/user/repo.git
+gz-git clone ~/projects --file repos.txt
+gz-git clone --update --file repos.txt
 ```
 
-See [Installation Guide](../INSTALL.md) for more options.
+## Why is there no `branch create/delete` command?
 
-### What are the system requirements?
+Basic branch creation/deletion is intentionally left to native `git`.
+`gz-git` currently focuses on:
 
-- **Go**: 1.24 or later (for building from source)
-- **Git**: 2.30 or later (required for all operations)
-- **OS**: Linux, macOS, or Windows
+- `gz-git branch list` (bulk)
+- `gz-git cleanup branch` (merged/stale/gone cleanup; dry-run by default)
+- `gz-git switch` (bulk branch switching)
 
-### Why does gz-git require Git to be installed?
-
-gzh-cli-gitforge uses the Git CLI under the hood rather than reimplementing Git functionality. This approach provides:
-
-- Maximum compatibility with all Git features
-- Consistent behavior with standard Git
-- Easier debugging (same commands you'd run manually)
-- Simpler implementation and maintenance
-
-### Command not found after installation
-
-If you see "command not found: gz-git":
-
-1. **Check if Go bin is in PATH:**
-
-   ```bash
-   echo $PATH | grep go/bin
-   ```
-
-1. **Add Go bin to PATH:**
-
-   ```bash
-   # For bash
-   echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.bashrc
-   source ~/.bashrc
-
-   # For zsh
-   echo 'export PATH=$PATH:$HOME/go/bin' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-
-1. **Verify installation:**
-
-   ```bash
-   which gz-git
-   gz-git --version
-   ```
-
-## Usage Questions
-
-### How do I check repository status?
+## Where can I see all flags for a command?
 
 ```bash
-# In current directory
-gz-git status
-
-# Specific repository
-gz-git status /path/to/repo
-
-# Quiet mode (exit code only)
-gz-git status -q
+gz-git --help
+gz-git <command> --help
 ```
 
-Exit codes:
+For curated workflows and examples: `docs/commands/README.md`.
 
-- `0`: Repository is clean
-- `1`: Repository has changes
+## How do I sync all repos from GitHub/GitLab/Gitea?
 
-### How do I clone a repository?
+Use `sync forge`:
 
 ```bash
-# Basic clone
-gz-git clone https://github.com/user/repo.git
-
-# Clone specific branch
-gz-git clone -b develop https://github.com/user/repo.git
-
-# Shallow clone (faster, saves disk space)
-gz-git clone --depth 1 https://github.com/user/repo.git
-
-# Clone to specific directory
-gz-git clone https://github.com/user/repo.git my-project
+gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 ```
 
-### What's the difference between gz-git and regular git?
-
-For basic operations like `status` and `clone`, gz-git provides:
-
-- Cleaner, more structured output
-- Additional validation and safety checks
-- Better error messages
-- Library API for programmatic access
-
-Advanced features are available now, adding automation and intelligence not available in standard Git.
-
-### Can I use gz-git alongside regular git?
-
-Yes! gz-git works with standard Git repositories. You can:
-
-- Use gz-git for some operations
-- Use regular git for others
-- Mix both in the same workflow
-
-They operate on the same `.git` directory and are fully compatible.
-
-## Library Usage
-
-### How do I use gz-git as a library?
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "log"
-
-    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-)
-
-func main() {
-    ctx := context.Background()
-    client := repository.NewClient()
-
-    // Open repository
-    repo, err := client.Open(ctx, ".")
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    // Get status
-    status, err := client.GetStatus(ctx, repo)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    fmt.Printf("Clean: %v\n", status.IsClean)
-}
-```
-
-See [Library Integration Guide](../LIBRARY.md) for more examples.
-
-### Is the library API stable?
-
-Current status (v0.3.0):
-
-- **All major APIs**: Implemented and functional
-- **Core packages**: repository, operations, commit, branch, history, merge
-- **Stability**: Pre-release - API may change before v1.0.0
-
-API stability guarantees:
-
-- Patch versions (0.1.x): No breaking changes
-- Minor versions (0.x.0): May have breaking changes
-- Major versions (v1.0.0+): Full stability guarantee
-
-All packages work correctly with comprehensive test coverage (69.1%).
-
-See [API Stability Policy](../API_STABILITY.md) for details.
-
-### Can I use this in production?
-
-**Current version (v0.3.0)**: Use with caution
-
-- ✅ All major features implemented and functional
-- ✅ Good test coverage (69.1%, 141 tests passing)
-- ✅ Comprehensive error handling
-- ⚠️ API may change before v1.0.0
-- ⚠️ Pre-release version indicates ongoing stabilization
-
-**Considerations:**
-
-- **For personal/internal projects**: Generally safe to use
-- **For production systems**: Wait for v1.0.0 or pin to specific version
-- **For libraries**: Pin exact version to avoid breaking changes
-
-**When fully production-ready (v1.0.0):**
-
-- API stability guarantees
-- 90%+ test coverage
-- Security audit completion
-- Production deployment guides
-
-### How do I integrate with gzh-cli?
-
-gzh-cli-gitforge is designed to be the Git engine for [gzh-cli](https://github.com/gizzahub/gzh-cli):
-
-```go
-import "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-
-// Use in gzh-cli commands
-client := repository.NewClient()
-repo, _ := client.Open(ctx, repoPath)
-```
-
-Full integration planned for v1.0.0 release.
-
-## Troubleshooting
-
-### "Not a git repository" error
-
-This error means you're trying to run gz-git in a directory that isn't a Git repository.
-
-**Solution:**
+Or `sync run` for YAML-based, explicit repo lists:
 
 ```bash
-# Check if current directory is a Git repo
-git status
-
-# Initialize new repository
-git init
-
-# Or navigate to existing repository
-cd /path/to/git/repo
+gz-git sync run -c sync-config.yaml
 ```
 
-### Clone fails with "Permission denied"
+## How do I use it as a Go library?
 
-**Possible causes:**
+See `docs/user/getting-started/library-usage.md` and the GoDoc:
 
-1. **SSH key not configured** (for SSH URLs)
-1. **No access to repository** (private repo)
-1. **Network issues**
+- https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
 
-**Solutions:**
-
-```bash
-# For SSH: Check SSH key
-ssh -T git@github.com
-
-# For HTTPS: Use personal access token
-git clone https://username:token@github.com/user/repo.git
-
-# Check network connectivity
-ping github.com
-```
-
-### Performance: Why is gz-git slower than git?
-
-gz-git adds a thin layer on top of Git for:
-
-- Input validation
-- Output parsing
-- Safety checks
-
-Overhead is typically 10-50ms. For large operations (clone, fetch), the overhead is negligible compared to network time.
-
-**Optimization tips:**
-
-- Use `--depth 1` for faster clones
-- Use `-q` flag to reduce output processing
-- For bulk operations, use library API with parallelization
-
-### How do I report bugs or request features?
-
-1. **Check existing issues**: [GitHub Issues](https://github.com/gizzahub/gzh-cli-gitforge/issues)
-1. **Search documentation**: [docs/](../)
-1. **Create new issue**: Use issue templates
-
-**Include in bug reports:**
-
-- gz-git version (`gz-git --version`)
-- Git version (`git --version`)
-- Operating system
-- Steps to reproduce
-- Expected vs actual behavior
-
-## Advanced Questions
-
-### Does gz-git support Git hooks?
-
-Git hooks work normally with gz-git since it uses standard Git repositories. Future versions may add hook automation features.
-
-### What about submodules?
-
-Submodule support is planned for future releases. Current version focuses on core repository operations.
-
-### Is there a GUI or TUI?
-
-Current version is CLI-only. Terminal UI (TUI) is being considered for future versions.
-
-### How does gz-git handle credentials?
-
-gz-git uses Git's credential system:
-
-- SSH keys (via SSH agent)
-- HTTPS credentials (via Git credential helper)
-- Personal access tokens
-
-No credentials are stored or logged by gz-git.
-
-### Can I extend gz-git with plugins?
-
-Plugin architecture is planned for v2.0+. Current version focuses on core stability.
-
-## Project & Community
-
-### Who maintains gzh-cli-gitforge?
-
-Currently maintained by the Gizzahub team as part of the gzh-cli ecosystem.
-
-### How can I contribute?
-
-See [Contributing Guide](../../CONTRIBUTING.md) for:
-
-- Setting up development environment
-- Code style and standards
-- Pull request process
-- Testing requirements
-
-### What's the license?
-
-MIT License - see [LICENSE](../../LICENSE) for details.
-
-### Where can I get help?
-
-- **Documentation**: [docs/](../)
-- **GitHub Issues**: [Report bugs](https://github.com/gizzahub/gzh-cli-gitforge/issues)
-- **GitHub Discussions**: [Ask questions](https://github.com/gizzahub/gzh-cli-gitforge/discussions)
-
-## See Also
-
-- [Quick Start Guide](../QUICKSTART.md)
-- [Installation Guide](../INSTALL.md)
-- [Troubleshooting Guide](../TROUBLESHOOTING.md)
-- [Library Integration](../LIBRARY.md)
-- [Command Reference](../../commands/README.md)

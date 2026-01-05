@@ -35,7 +35,7 @@ The `gz-git watch` command monitors repositories for changes in real-time. The c
 
 ### 1. Multiple Output Formats
 
-**Decision**: Provide three distinct formats via `--format` flag
+**Decision**: Provide four distinct formats via `--format` flag
 
 **Rationale**:
 
@@ -139,6 +139,24 @@ The `gz-git watch` command monitors repositories for changes in real-time. The c
 - Not human-friendly
 - Verbose for manual reading
 - Requires parsing tools
+
+#### LLM Format
+
+**Target Audience**: LLM tooling (prompt-based automation, AI-assisted workflows)
+
+**Design**:
+
+```
+[15:04:05] repo=my-project type=modified files=3
+    src/main.go
+    pkg/handler.go
+    README.md
+```
+
+**Features**:
+
+- Stable, low-noise formatting (avoids terminal control codes/colors)
+- Easy to embed in prompts and parse deterministically
 
 ### 3. Color Coding Scheme
 

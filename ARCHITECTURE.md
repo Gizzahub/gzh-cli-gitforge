@@ -569,7 +569,7 @@ Library Consumer (gzh-cli)
 └───────────┬──────────┘
             │
             ├──▶ Validate path exists
-            │    (internal/validation)
+            │    (stdlib + pkg/repository checks)
             │
             ├──▶ Check .git directory
             │    (filesystem check)
@@ -609,7 +609,7 @@ Error Occurs in Git CLI
             │
             ▼
 ┌──────────────────────┐
-│ cmd/cli              │  Extract error details
+│ cmd/gz-git/cmd       │  Cobra command layer
 │ Command handler      │  Format user-friendly message
 └───────────┬──────────┘
             │
@@ -630,106 +630,56 @@ ______________________________________________________________________
 ### 7.1 Error Types
 
 ```go
-// pkg/errors/errors.go
-package errors
-
-// GitError wraps Git operation errors
+// internal/gitcmd/executor.go
 type GitError struct {
-    Op       string // Operation: "clone", "commit", etc.
-    Path     string // Repository path
-    Message  string // Human-readable message
-    Err      error  // Underlying error
-    ExitCode int    // Git exit code
-    Output   string // Git stderr output
+    Command  string
+    ExitCode int
+    Stderr   string
+    Cause    error
 }
 
-func (e *GitError) Error() string {
-    return fmt.Sprintf("git %s failed at %s: %v", e.Op, e.Path, e.Err)
-}
-
-func (e *GitError) Unwrap() error {
-    return e.Err
-}
-
-// ConflictError indicates merge conflict
-type ConflictError struct {
-    Files []string
-    Msg   string
-}
-
-// ValidationError indicates invalid input
+// pkg/repository/types.go
 type ValidationError struct {
-    Field   string
-    Value   string
-    Reason  string
+    Field  string
+    Value  string
+    Reason string
 }
+
+// Domain-specific "error-like" results are modeled as types, e.g.:
+//   pkg/merge.ConflictReport
+//   pkg/branch.CleanupReport
 ```
 
 ### 7.2 Error Handling Pattern
 
 ```go
-// Example: pkg/repository/client.go
-func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, error) {
-    // Validate inputs
-    if err := validateCloneOptions(opts); err != nil {
-        return nil, &ValidationError{
-            Field:  "url",
-            Value:  opts.URL,
-            Reason: err.Error(),
-        }
+// pkg/repository/client.go (simplified)
+if opts.URL == "" {
+    return nil, &ValidationError{
+        Field:  "URL",
+        Value:  opts.URL,
+        Reason: "URL is required",
     }
-
-    // Execute Git command
-    result, err := c.executor.Run(ctx, opts.Destination, "clone", opts.URL, ".")
-    if err != nil {
-        return nil, &GitError{
-            Op:       "clone",
-            Path:     opts.Destination,
-            Message:  "failed to clone repository",
-            Err:      err,
-            ExitCode: result.ExitCode,
-            Output:   result.Stderr,
-        }
-    }
-
-    // Parse and return
-    repo, err := c.Open(ctx, opts.Destination)
-    if err != nil {
-        return nil, fmt.Errorf("failed to open cloned repository: %w", err)
-    }
-
-    return repo, nil
 }
+
+// RunOutput/RunLines return *gitcmd.GitError on non-zero exit codes.
+branch, err := c.executor.RunOutput(ctx, repo.Path, "rev-parse", "--abbrev-ref", "HEAD")
+if err != nil {
+    return nil, fmt.Errorf("failed to resolve current branch: %w", err)
+}
+
+_ = branch
 ```
 
 ### 7.3 Error Inspection Helpers
 
 ```go
-// pkg/errors/helpers.go
-package errors
-
-// IsNotRepository checks if error indicates "not a git repository"
+// Example helper when you want to branch on git exit codes/output.
 func IsNotRepository(err error) bool {
-    var gitErr *GitError
+    var gitErr *gitcmd.GitError
     if errors.As(err, &gitErr) {
         return gitErr.ExitCode == 128 &&
-               strings.Contains(gitErr.Output, "not a git repository")
-    }
-    return false
-}
-
-// IsConflict checks if error indicates merge conflict
-func IsConflict(err error) bool {
-    var conflictErr *ConflictError
-    return errors.As(err, &conflictErr)
-}
-
-// IsNetworkError checks for network-related errors
-func IsNetworkError(err error) bool {
-    var gitErr *GitError
-    if errors.As(err, &gitErr) {
-        return strings.Contains(gitErr.Output, "Could not resolve host") ||
-               strings.Contains(gitErr.Output, "Connection refused")
+            strings.Contains(gitErr.Stderr, "not a git repository")
     }
     return false
 }
@@ -758,133 +708,46 @@ ______________________________________________________________________
 
 ### 8.2 Unit Testing Strategy
 
-**Package**: `pkg/commit/`
+**Packages**: `pkg/*`, `internal/*`
 
 ```go
-// pkg/commit/manager_test.go
-package commit
+// Example: pkg/repository/bulk_commit_test.go
+func TestBulkCommit(t *testing.T) {
+    ctx := context.Background()
+    client := repository.NewClient()
 
-import (
-    "context"
-    "testing"
-    "github.com/golang/mock/gomock"
-    "github.com/stretchr/testify/assert"
-)
-
-func TestManager_AutoCommit(t *testing.T) {
-    tests := []struct {
-        name       string
-        setupMock  func(*gomock.Controller) *mockExecutor
-        want       *Result
-        wantErr    bool
-    }{
-        {
-            name: "successful auto-commit",
-            setupMock: func(ctrl *gomock.Controller) *mockExecutor {
-                m := NewMockExecutor(ctrl)
-                m.EXPECT().
-                    Run(gomock.Any(), gomock.Any(), "commit", "-m", gomock.Any()).
-                    Return(&gitcmd.Result{ExitCode: 0}, nil)
-                return m
-            },
-            want: &Result{
-                Hash: "abc123",
-                Message: "feat: add feature",
-            },
-            wantErr: false,
-        },
-        // More test cases...
+    result, err := client.BulkCommit(ctx, repository.BulkCommitOptions{
+        Directory: t.TempDir(),
+        DryRun:    true,
+        Logger:    repository.NewNoopLogger(),
+    })
+    if err != nil {
+        t.Fatalf("BulkCommit failed: %v", err)
     }
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            ctrl := gomock.NewController(t)
-            defer ctrl.Finish()
-
-            executor := tt.setupMock(ctrl)
-            mgr := NewManager(executor, nil)
-
-            got, err := mgr.AutoCommit(context.Background(), testRepo, testPolicy)
-
-            if tt.wantErr {
-                assert.Error(t, err)
-            } else {
-                assert.NoError(t, err)
-                assert.Equal(t, tt.want.Hash, got.Hash)
-            }
-        })
-    }
+    _ = result
 }
 ```
 
 ### 8.3 Integration Testing Strategy
 
-**Package**: `test/integration/`
+**Package**: `tests/integration/`
 
 ```go
-// test/integration/commit_test.go
-// +build integration
+// tests/integration/helper_test.go (snippet)
+repo := NewTestRepo(t)
+repo.SetupWithCommits()
 
-package integration
-
-import (
-    "context"
-    "os"
-    "path/filepath"
-    "testing"
-    "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-    "github.com/gizzahub/gzh-cli-gitforge/pkg/commit"
-)
-
-func TestCommit_Integration(t *testing.T) {
-    // Create temporary Git repository
-    repoPath := t.TempDir()
-    setupGitRepo(t, repoPath)
-
-    // Initialize clients
-    repoClient := repository.NewClient(nil)
-    commitMgr := commit.NewManager(nil)
-
-    repo, err := repoClient.Open(context.Background(), repoPath)
-    if err != nil {
-        t.Fatalf("failed to open repo: %v", err)
-    }
-
-    // Test commit creation
-    result, err := commitMgr.Create(context.Background(), repo, commit.CommitOptions{
-        Message: "test: integration test commit",
-    })
-
-    if err != nil {
-        t.Fatalf("commit failed: %v", err)
-    }
-
-    // Verify commit
-    if result.Hash == "" {
-        t.Error("expected commit hash, got empty")
-    }
-
-    // Cleanup
-    cleanupGitRepo(t, repoPath)
-}
-
-func setupGitRepo(t *testing.T, path string) {
-    t.Helper()
-    exec.Command("git", "-C", path, "init").Run()
-    exec.Command("git", "-C", path, "config", "user.name", "Test").Run()
-    exec.Command("git", "-C", path, "config", "user.email", "test@example.com").Run()
-    // Create test file
-    os.WriteFile(filepath.Join(path, "README.md"), []byte("# Test"), 0644)
-    exec.Command("git", "-C", path, "add", ".").Run()
-}
+output := repo.RunGzhGitSuccess("status")
+AssertContains(t, output, "Bulk Status Results")
 ```
 
 ### 8.4 E2E Testing Strategy
 
-**Package**: `test/e2e/`
+**Package**: `tests/e2e/`
 
 ```go
-// test/e2e/workflow_test.go
+// tests/e2e/basic_workflow_test.go
 // +build e2e
 
 package e2e
@@ -904,8 +767,8 @@ func TestWorkflow_CommitToPush(t *testing.T) {
         cmd  string
         args []string
     }{
-        {"gz-git", []string{"commit", "--auto"}},
-        {"gz-git", []string{"push", "--smart"}},
+        {"gz-git", []string{"commit", "--yes"}},
+        {"gz-git", []string{"push", "--dry-run"}},
     }
 
     for _, step := range steps {
@@ -935,7 +798,7 @@ ______________________________________________________________________
 | ------------------------------ | ------------ | ------------------------------- |
 | `status`                       | \<50ms       | Cached repository state         |
 | `commit`                       | \<100ms      | Minimal validation              |
-| `branch create`                | \<100ms      | Direct Git execution            |
+| `switch`                       | \<100ms      | Skip dirty/in-progress repos    |
 | Bulk update (100 repos)        | \<30s        | Parallel execution (goroutines) |
 | History analysis (10K commits) | \<5s         | Streaming, pagination           |
 
@@ -944,67 +807,25 @@ ______________________________________________________________________
 **Parallel Execution:**
 
 ```go
-// pkg/operations/bulk.go
-func (b *bulkOperator) UpdateAll(ctx context.Context, repos []*Repository) error {
-    semaphore := make(chan struct{}, 10) // Limit to 10 concurrent
-    errChan := make(chan error, len(repos))
+// pkg/repository/bulk_commit.go (simplified)
+semaphore := make(chan struct{}, common.Parallel)
+for _, repoPath := range filteredRepos {
+    wg.Add(1)
+    go func(path string) {
+        defer wg.Done()
+        semaphore <- struct{}{}
+        defer func() { <-semaphore }()
 
-    var wg sync.WaitGroup
-    for _, repo := range repos {
-        wg.Add(1)
-        go func(r *Repository) {
-            defer wg.Done()
-            semaphore <- struct{}{}        // Acquire
-            defer func() { <-semaphore }() // Release
-
-            if err := b.update(ctx, r); err != nil {
-                errChan <- err
-            }
-        }(repo)
-    }
-
-    wg.Wait()
-    close(errChan)
-
-    // Collect errors
-    var errs []error
-    for err := range errChan {
-        errs = append(errs, err)
-    }
-
-    if len(errs) > 0 {
-        return fmt.Errorf("bulk update failed: %d errors", len(errs))
-    }
-    return nil
+        repoResult := c.analyzeRepositoryForCommit(ctx, common.Directory, path, opts)
+        _ = repoResult
+    }(repoPath)
 }
 ```
 
-**Caching:**
+**Avoiding unnecessary work:**
 
-```go
-// pkg/repository/client.go
-type client struct {
-    executor *gitcmd.Executor
-    cache    *ttlcache.Cache // Time-based cache
-}
-
-func (c *client) GetStatus(ctx context.Context, repo *Repository) (*Status, error) {
-    // Check cache
-    if cached, ok := c.cache.Get(repo.Path); ok {
-        return cached.(*Status), nil
-    }
-
-    // Execute Git command
-    status, err := c.getStatusUncached(ctx, repo)
-    if err != nil {
-        return nil, err
-    }
-
-    // Cache for 5 seconds
-    c.cache.Set(repo.Path, status, 5*time.Second)
-    return status, nil
-}
-```
+- Bulk operations short-circuit early (e.g., skip repos without remotes/upstreams, skip dirty repos when unsafe).
+- Watch mode re-runs the same bulk operation at a configurable interval (`--watch`, `--interval`).
 
 **Streaming for Large Results:**
 
@@ -1115,44 +936,8 @@ func isValidGitFlag(flag string) bool {
 
 ### 10.3 Path Validation
 
-```go
-// internal/validation/paths.go
-package validation
-
-import (
-    "path/filepath"
-    "strings"
-)
-
-// ValidateRepositoryPath ensures path is valid and safe
-func ValidateRepositoryPath(path string) error {
-    // Convert to absolute path
-    absPath, err := filepath.Abs(path)
-    if err != nil {
-        return fmt.Errorf("invalid path: %w", err)
-    }
-
-    // Check for path traversal attempts
-    if strings.Contains(absPath, "..") {
-        return errors.New("path traversal not allowed")
-    }
-
-    // Ensure path is within allowed directories
-    // (e.g., not system directories)
-    disallowed := []string{
-        "/etc/", "/usr/", "/bin/", "/sbin/",
-        "C:\\Windows\\", "C:\\Program Files\\",
-    }
-
-    for _, dis := range disallowed {
-        if strings.HasPrefix(absPath, dis) {
-            return fmt.Errorf("access to %s not allowed", dis)
-        }
-    }
-
-    return nil
-}
-```
+- Bulk directory arguments are validated via `os.Stat` before scanning (`cmd/gz-git/cmd/bulk_common.go`).
+- Repository operations verify `.git` presence via `internal/gitcmd.Executor.IsGitRepository` (`internal/gitcmd/executor.go`).
 
 ______________________________________________________________________
 
@@ -1393,18 +1178,17 @@ ______________________________________________________________________
 // go.mod
 module github.com/gizzahub/gzh-cli-gitforge
 
-go 1.24
+go 1.25.1
 
 require (
-    github.com/spf13/cobra v1.9.1       // CLI framework
-    github.com/spf13/viper v1.20.1      // Configuration
-    golang.org/x/sync v0.17.0           // Concurrency utilities
-    gopkg.in/yaml.v3 v3.0.1             // YAML parsing
-)
-
-require ( // Test dependencies
-    github.com/golang/mock v1.6.0
-    github.com/stretchr/testify v1.11.0
+    github.com/fsnotify/fsnotify v1.9.0
+    github.com/gizzahub/gzh-cli-core v0.0.0-20251230045225-725b628c716a
+    github.com/google/go-github/v66 v66.0.0
+    github.com/spf13/cobra v1.10.2
+    github.com/xanzy/go-gitlab v0.115.0
+    golang.org/x/oauth2 v0.34.0
+    golang.org/x/sync v0.19.0
+    gopkg.in/yaml.v3 v3.0.1
 )
 ```
 

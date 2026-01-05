@@ -14,6 +14,7 @@ Files auto-migrated during documentation reorganization. These are superseded by
 | Batch   | Date       | Files | Status                      |
 | ------- | ---------- | ----- | --------------------------- |
 | 2025-12 | 2025-12-31 | 12    | Can delete after 2026-03-31 |
+| 2026-01 | 2026-01-05 | 2     | Review for deletion after 2026-04-05 |
 
 ## To Delete a Batch
 

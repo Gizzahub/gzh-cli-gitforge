@@ -25,7 +25,7 @@ Modern development demands:
 
 The time is right because:
 
-1. Go 1.23+ provides stable generics and improved tooling
+1. Go 1.25+ provides improved tooling and performance
 1. Git 2.30+ has mature worktree and sparse-checkout features
 1. GitHub/GitLab APIs enable powerful automation
 1. Developer expectations for CLI tools have risen (see: gh, ripgrep, fd)

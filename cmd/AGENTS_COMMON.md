@@ -47,9 +47,15 @@ ______________________________________________________________________
 
 ```go
 // Always sanitize user inputs before git commands
-sanitized := sanitize.Path(userInput)
-sanitized := sanitize.BranchName(userInput)
-sanitized := sanitize.RemoteName(userInput)
+if err := gitcmd.SanitizePath(userPath); err != nil {
+    return fmt.Errorf("invalid path: %w", err)
+}
+if err := gitcmd.SanitizeURL(userURL); err != nil {
+    return fmt.Errorf("invalid url: %w", err)
+}
+if err := gitcmd.SanitizeBranchName(branch); err != nil {
+    return fmt.Errorf("invalid branch name: %w", err)
+}
 ```
 
 ### Forbidden Patterns

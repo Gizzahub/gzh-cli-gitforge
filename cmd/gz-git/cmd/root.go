@@ -21,37 +21,41 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "gz-git",
 	Short: "Advanced Git operations CLI",
-	Long: `gz-git is a CLI tool that provides advanced Git operations including:
-  - Commit automation with templates
-  - Branch and worktree management
+	Long: `gz-git is a bulk-first Git CLI that runs safe operations across many repositories in parallel:
+  - Bulk status/fetch/pull/push/update/diff
+  - Bulk commit automation (preview by default)
+  - Branch switching and cleanup helpers
   - Git history analysis
-  - Advanced merge and rebase operations
   - Repository synchronization (filesystem and forge providers)
+  - Real-time monitoring (watch)
 
 This tool can also be used as a Go library for integrating Git operations
 into your own applications.
 
 Command Groups:
 
-  Core Operations      clone, status, fetch, pull, push, diff
-  Branch Management    branch, switch, merge
-  Automation           commit, sync, watch, update
+  Core Operations      clone, status, fetch, pull, push, diff, update
+  Branch & Cleanup     branch, switch, merge, cleanup
+  Automation           commit, sync, watch
   Analysis             history, info
+  Maintenance          stash, tag
 
 Common Workflows:
 
   Daily development:
     gz-git status              # Check all repos in current directory
-    gz-git commit auto         # Auto-generate commit message
+    gz-git diff                # Review changes across repos
+    gz-git commit --dry-run    # Preview bulk commits
+    gz-git commit --yes        # Apply bulk commits
 
   Team sync:
-    gz-git sync forge          # Sync all repos from GitHub/GitLab org
+    gz-git sync forge          # Sync repos from GitHub/GitLab/Gitea org/group/user
     gz-git fetch               # Update remote refs
 
   Branch work:
-    gz-git branch create feature/x --worktree ./wt/feature-x
+    git checkout -b feature/x  # Create a branch (native git)
     gz-git merge detect feature/x main
-    gz-git merge do feature/x`,
+    gz-git cleanup branch --merged`,
 	Version: appVersion,
 	// Uncomment the following line if your application requires Cobra to
 	// check for a config file.

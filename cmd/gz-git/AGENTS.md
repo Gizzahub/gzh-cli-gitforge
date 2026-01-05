@@ -20,13 +20,13 @@ ______________________________________________________________________
 cmd/gz-git/
 ├── AGENTS.md       # This file
 ├── main.go         # Entry point (calls Execute())
-├── root.go         # Root command and subcommand registration
-├── version.go      # Version information
-├── clone.go        # Clone command
-├── status.go       # Status command
-├── branch.go       # Branch commands
-├── commit.go       # Commit commands
-└── ...             # Other git commands
+└── cmd/            # Cobra commands
+    ├── root.go     # Root command and subcommand registration
+    ├── version.go  # Version information
+    ├── clone.go    # Clone command
+    ├── status.go   # Status command
+    ├── commit.go   # Commit command
+    └── ...         # Other git commands
 ```
 
 ______________________________________________________________________
@@ -37,7 +37,7 @@ ______________________________________________________________________
 
 - Defines the root Cobra command
 - Registers all subcommands in `init()`
-- Handles global flags (--verbose, --debug)
+- Handles global flags (`--verbose`, `--quiet`)
 
 ### Adding New Commands
 
@@ -80,39 +80,30 @@ func init() {
 
 ```go
 import (
+    "context"
+
     "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
-    "github.com/gizzahub/gzh-cli-gitforge/internal/parser"
 )
 
-func runClone(url, path string) error {
-    // Use gitcmd for safe execution
-    output, err := gitcmd.Run("clone", url, path)
-    if err != nil {
-        return fmt.Errorf("clone failed: %w", err)
-    }
-
-    // Use parser for output processing
-    result := parser.ParseCloneOutput(output)
-    return nil
-}
+executor := gitcmd.NewExecutor()
+out, err := executor.RunOutput(context.Background(), repoPath, "rev-parse", "--git-dir")
+_ = out
+_ = err
 ```
 
 ### Using Public Packages
 
 ```go
 import (
+    "context"
+
     "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-    "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 )
 
-func runBranch(name string) error {
-    repo, err := repository.Open(".")
-    if err != nil {
-        return err
-    }
-
-    return branch.Create(repo, name)
-}
+client := repository.NewClient()
+repo, err := client.Open(context.Background(), ".")
+_ = repo
+_ = err
 ```
 
 ### Error Handling
@@ -139,7 +130,7 @@ RunE: func(cmd *cobra.Command, args []string) error {
 
 - Use `fmt.Println` for normal output
 - Use `fmt.Fprintln(os.Stderr, ...)` for errors
-- Consider `--json` flag for structured output
+- Prefer `--format json|llm` where supported (bulk commands)
 
 ______________________________________________________________________
 
@@ -152,7 +143,7 @@ func TestCloneCommand(t *testing.T) {
 
     // Test command execution
     cmd := rootCmd
-    cmd.SetArgs([]string{"clone", "https://github.com/test/repo", dir})
+    cmd.SetArgs([]string{"clone", dir, "--url", "https://github.com/test/repo.git", "--dry-run"})
 
     err := cmd.Execute()
     if err != nil {
@@ -173,3 +164,4 @@ ______________________________________________________________________
 ______________________________________________________________________
 
 **Last Updated**: 2024-12-05
+**Last Reviewed**: 2026-01-05

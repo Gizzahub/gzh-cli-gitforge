@@ -4,7 +4,7 @@
 
 ## 요구사항
 
-- Go 1.23+
+- Go 1.25.1+
 - Git 2.30+
 
 ## 설치
@@ -35,9 +35,20 @@ gz-git info
 ### 저장소 복제
 
 ```bash
-gz-git clone https://github.com/user/repo.git
-gz-git clone -b develop https://github.com/user/repo.git   # 특정 브랜치
-gz-git clone --depth 1 https://github.com/user/repo.git    # 얕은 복제
+# 기본: 현재 디렉토리에 clone
+gz-git clone --url https://github.com/user/repo.git
+
+# 특정 디렉토리에 clone
+gz-git clone ~/projects --url https://github.com/user/repo.git
+
+# 특정 브랜치
+gz-git clone -b develop --url https://github.com/user/repo.git
+
+# 얕은 복제
+gz-git clone --depth 1 --url https://github.com/user/repo.git
+
+# URL 목록 파일(한 줄에 하나)로 clone
+gz-git clone --file repos.txt
 ```
 
 ______________________________________________________________________

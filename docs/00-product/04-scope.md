@@ -9,10 +9,13 @@ What we **WILL** build in gzh-cli-gitforge:
 | Category    | Operations                                  |
 | ----------- | ------------------------------------------- |
 | **Status**  | Repository status, branch info, remote info |
-| **Commit**  | Create commits, amend, message templates    |
-| **Branch**  | Create, delete, switch, list, merge         |
-| **History** | Log viewing, commit search, blame           |
-| **Remote**  | Fetch, pull, push (with safety guards)      |
+| **Commit**  | Bulk commit with auto/generated or user-provided messages |
+| **Branch**  | List/switch branches (create/delete remains native `git`) |
+| **History** | Stats, contributors, file history, blame    |
+| **Remote**  | Fetch, pull, push, update (with safety guards) |
+| **Sync**    | Sync repos from forge APIs or YAML config   |
+| **Tag/Stash** | Tag and stash workflows (single or bulk)  |
+| **Watch**   | Real-time monitoring of repositories        |
 
 ### Multi-Repository Operations
 
@@ -20,17 +23,11 @@ What we **WILL** build in gzh-cli-gitforge:
 | --------------- | ------------------------------------------- |
 | **Bulk Status** | Status across multiple repos in one command |
 | **Bulk Fetch**  | Fetch all repos in parallel                 |
-| **Bulk Branch** | Create/switch branches across repos         |
-| **Bulk Commit** | Commit with same message across repos       |
-
-### Worktree Management
-
-| Category   | Operations                              |
-| ---------- | --------------------------------------- |
-| **Create** | Create worktrees with sensible defaults |
-| **List**   | View active worktrees                   |
-| **Remove** | Clean removal with safety checks        |
-| **Switch** | Navigate between worktrees              |
+| **Bulk Switch** | Switch branches across repos (optionally create) |
+| **Bulk Commit** | Commit across repos (preview by default)    |
+| **Bulk Diff**   | Diff across repos with uncommitted changes  |
+| **Bulk Update** | Update repos via `git pull --rebase`        |
+| **Bulk Clone**  | Clone many repos from URL list/file         |
 
 ### Repository Sync
 
@@ -46,12 +43,16 @@ What we **WILL** build in gzh-cli-gitforge:
 | Category           | Packages               |
 | ------------------ | ---------------------- |
 | **pkg/repository** | Repository abstraction |
-| **pkg/branch**     | Branch operations      |
-| **pkg/commit**     | Commit operations      |
-| **pkg/history**    | History/log operations |
-| **pkg/merge**      | Merge operations       |
-| **pkg/reposync**   | Repository sync        |
-| **pkg/operations** | High-level workflows   |
+| **pkg/history**    | History analysis       |
+| **pkg/merge**      | Conflict detection      |
+| **pkg/branch**     | Cleanup services/utilities |
+| **pkg/stash**      | Stash management        |
+| **pkg/tag**        | Tag management          |
+| **pkg/watch**      | Repository monitoring   |
+| **pkg/reposync**   | Repository sync planner/executor |
+| **pkg/provider**   | Forge provider abstraction |
+| **pkg/github/gitlab/gitea** | Provider implementations |
+| **pkg/sync**       | Sync config/types       |
 
 ## Out of Scope
 
