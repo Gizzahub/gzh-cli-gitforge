@@ -3,10 +3,12 @@
 **Project**: gzh-cli-gitforge
 **Feature**: Branch Management (F2)
 **Phase**: Phase 3
-**Version**: 1.0
-**Last Updated**: 2025-11-27
-**Status**: Draft
+**Version**: 2.0
+**Last Updated**: 2026-01-05
+**Status**: ✅ Implemented
 **Priority**: P0 (High)
+
+> **Implementation Note (v0.4.0)**: Branch management is now bulk-first. Commands like `cleanup branch`, `branch list`, and `switch` operate across multiple repositories by default.
 
 ______________________________________________________________________
 
@@ -496,56 +498,58 @@ pkg/branch/
 
 ______________________________________________________________________
 
-## 6. CLI Commands
+## 6. CLI Commands (Updated v0.4.0)
 
-### 6.1 Branch Commands
+### 6.1 Branch Commands (Bulk-First)
 
 ```bash
-# Create branch
-gz-git branch create <name> [ref]
-gz-git branch create feature/auth            # From HEAD
-gz-git branch create fix/bug v1.0.0          # From tag
-gz-git branch create feature/api --checkout  # Create and checkout
+# List branches (BULK by default)
+gz-git branch list                            # All repos in current dir + 1 level
+gz-git branch list -a                         # Include remote branches
+gz-git branch list -d 2                       # Scan depth 2
+gz-git branch list /path/to/single/repo       # Single repo mode
 
-# Delete branch
-gz-git branch delete <name>
-gz-git branch delete feature/old              # Local only
-gz-git branch delete feature/old --remote     # Delete remote too
-gz-git branch delete feature/old --force      # Force delete
+# Switch branches (BULK)
+gz-git switch <branch>                        # Switch all repos to branch
+gz-git switch main                            # Switch all to main
+gz-git switch develop -d 2                    # With depth 2
+gz-git switch feature/x --include "frontend*" # Filter repos
 
-# List branches
-gz-git branch list
-gz-git branch list --merged                   # Only merged
-gz-git branch list --remote                   # Remote branches
-
-# Cleanup
-gz-git branch cleanup
-gz-git branch cleanup --merged                # Merged only
-gz-git branch cleanup --stale                 # Stale only
-gz-git branch cleanup --all                   # All strategies
-gz-git branch cleanup --dry-run               # Preview only
+# Basic branch ops (use native git)
+git checkout -b feature/auth                  # Create branch
+git branch -d feature/old                     # Delete branch
 ```
 
-### 6.2 Worktree Commands
+### 6.2 Cleanup Commands (Bulk-First)
 
 ```bash
-# Add worktree
-gz-git worktree add <path> <branch>
-gz-git worktree add ~/work/fix fix/login     # Existing branch
-gz-git worktree add ~/work/feat feat/new --new  # New branch
+# Branch cleanup (BULK by default, dry-run by default)
+gz-git cleanup branch                         # Preview cleanup for all repos
+gz-git cleanup branch --merged                # Merged branches only
+gz-git cleanup branch --stale                 # Stale branches (30 days)
+gz-git cleanup branch --gone                  # Gone branches (deleted on remote)
+gz-git cleanup branch --force                 # Actually delete (not dry-run)
 
-# Remove worktree
-gz-git worktree remove <path>
-gz-git worktree remove ~/work/fix
-gz-git worktree remove ~/work/fix --force     # Force removal
+# Common flags
+gz-git cleanup branch -d 2                    # Scan depth 2
+gz-git cleanup branch -j 10                   # 10 parallel workers
+gz-git cleanup branch --include "myproject*" # Filter repos
+gz-git cleanup branch --exclude "legacy*"    # Exclude repos
+```
 
-# List worktrees
-gz-git worktree list
-gz-git worktree list --porcelain              # Machine-readable
+### 6.3 Worktree Commands (Library Only)
 
-# Prune orphaned worktrees
-gz-git worktree prune
-gz-git worktree prune --dry-run               # Preview only
+> **Note**: Worktree operations are available via `pkg/branch/worktree.go` library API.
+> CLI commands for worktree are not currently exposed (use native `git worktree`).
+
+```go
+// Library usage
+import "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
+
+mgr := branch.NewWorktreeManager(logger)
+worktrees, _ := mgr.List(ctx, repo)
+mgr.Add(ctx, repo, branch.AddOptions{Path: "~/work/fix", Branch: "fix/bug"})
+mgr.Remove(ctx, repo, branch.RemoveOptions{Path: "~/work/fix"})
 ```
 
 ______________________________________________________________________
@@ -622,6 +626,24 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Specification Status**: Ready for Review
-**Next Steps**: Review → Approve → Implementation
-**Estimated Implementation**: 1 week (Week 4)
+## 11. Revision History
+
+| Version | Date       | Changes |
+| ------- | ---------- | ------- |
+| 1.0     | 2025-11-27 | Initial specification |
+| 2.0     | 2026-01-05 | Updated for v0.4.0: bulk-first operations, cleanup command restructure, worktree as library-only |
+
+______________________________________________________________________
+
+**Specification Status**: ✅ Implemented
+**Implementation Version**: v0.3.0+ (bulk operations), v0.4.0 (cleanup restructure)
+**Key Files**:
+- `cmd/gz-git/cmd/branch.go` - Branch list command
+- `cmd/gz-git/cmd/branch_list.go` - Bulk branch listing
+- `cmd/gz-git/cmd/switch.go` - Bulk switch command
+- `cmd/gz-git/cmd/cleanup.go` - Cleanup command group
+- `cmd/gz-git/cmd/cleanup_branch.go` - Branch cleanup
+- `pkg/branch/manager.go` - Core branch operations
+- `pkg/branch/cleanup.go` - Cleanup service
+- `pkg/branch/worktree.go` - Worktree management
+- `pkg/repository/bulk_cleanup.go` - Bulk cleanup operations

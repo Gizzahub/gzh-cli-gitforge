@@ -2,9 +2,13 @@
 
 **Phase**: 7.2
 **Priority**: P0 (High)
-**Status**: Pending
+**Status**: ⏳ Pending (Awaiting gzh-cli Integration Work)
 **Created**: 2025-11-30
-**Dependencies**: Phase 7.1 (Library Publication)
+**Last Updated**: 2026-01-05
+**Version**: 2.0
+**Dependencies**: Phase 7.1 (Library Publication) ✅ Complete
+
+> **Status Note**: gzh-cli-gitforge v0.4.0 is ready for integration. This spec documents the planned integration approach. Actual implementation in gzh-cli is pending.
 
 ______________________________________________________________________
 
@@ -760,3 +764,31 @@ ______________________________________________________________________
 - gzh-cli-gitforge library: https://github.com/gizzahub/gzh-cli-gitforge
 - Phase 7.1 Spec: `specs/60-library-publication.md`
 - Integration best practices: [Go Library Integration](https://go.dev/doc/modules/managing-dependencies)
+
+______________________________________________________________________
+
+## Revision History
+
+| Version | Date       | Changes |
+| ------- | ---------- | ------- |
+| 1.0     | 2025-11-30 | Initial specification |
+| 2.0     | 2026-01-05 | Updated status: Phase 7.1 complete (v0.4.0), awaiting gzh-cli integration |
+
+______________________________________________________________________
+
+**Specification Status:** ⏳ Pending Implementation
+**Prerequisites:** ✅ Complete (gzh-cli-gitforge v0.4.0 released)
+
+**Next Steps for Integration:**
+1. Add gzh-cli-gitforge v0.4.0 as dependency in gzh-cli
+2. Create `internal/git/` integration package in gzh-cli
+3. Implement adapter layer for gzh-cli infrastructure
+4. Map `gz-git` commands to `gzh git` namespace
+5. Write integration tests
+6. Update gzh-cli documentation
+
+**Ready for Integration:**
+- ✅ Library published (v0.4.0)
+- ✅ All major features implemented
+- ✅ Bulk-first architecture stable
+- ✅ API documentation on pkg.go.dev

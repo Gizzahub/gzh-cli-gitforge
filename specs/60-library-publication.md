@@ -2,9 +2,13 @@
 
 **Phase**: 7.1
 **Priority**: P0 (High)
-**Status**: Pending
+**Status**: ✅ Completed (v0.4.0 Released)
 **Created**: 2025-11-30
+**Last Updated**: 2026-01-05
+**Version**: 2.0
 **Dependencies**: Phase 6 (Complete)
+
+> **Implementation Note**: Library v0.4.0 has been released. Available on pkg.go.dev as `github.com/gizzahub/gzh-cli-gitforge`.
 
 ______________________________________________________________________
 
@@ -37,10 +41,11 @@ ______________________________________________________________________
 ```
 Version Format: vMAJOR.MINOR.PATCH[-PRERELEASE]
 
-v0.1.0-alpha  → Initial library release (current target)
-v0.1.x        → Bug fixes, documentation updates
-v0.2.0        → New features (backward compatible)
-v1.0.0        → Production-ready after gzh-cli integration
+v0.1.0        → Initial library release
+v0.2.0        → Nested repository scanning, watch mode
+v0.3.0        → Bulk-first architecture, sync forge, pull command
+v0.4.0        → Bulk commit, per-repo messages (CURRENT)
+v1.0.0        → Production-ready after gzh-cli integration (PLANNED)
 
 Semantic Versioning Rules:
 - MAJOR: Breaking API changes
@@ -794,4 +799,29 @@ After Phase 7.1 completion, proceed to **Phase 7.2: gzh-cli Integration** (see `
 - [pkg.go.dev Best Practices](https://go.dev/blog/godoc)
 - Phase 6 Completion: `docs/phase-6-completion.md`
 - Current Status: `PROJECT_STATUS.md`
-```
+
+______________________________________________________________________
+
+## Revision History
+
+| Version | Date       | Changes |
+| ------- | ---------- | ------- |
+| 1.0     | 2025-11-30 | Initial specification |
+| 2.0     | 2026-01-05 | Updated for v0.4.0 release |
+
+______________________________________________________________________
+
+**Specification Status:** ✅ Completed
+**Current Version:** v0.4.0
+**Key Achievements**:
+- Library published on pkg.go.dev
+- CHANGELOG.md maintained with full history
+- MIT LICENSE added
+- Semantic versioning in place
+- v0.3.0 → v0.4.0 release cycle established
+
+**Release History**:
+- v0.1.0 - Initial release
+- v0.2.0 - Nested repos, watch mode
+- v0.3.0 - Bulk-first architecture, sync, pull
+- v0.4.0 - Bulk commit, per-repo messages (current)

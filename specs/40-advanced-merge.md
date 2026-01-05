@@ -2,9 +2,17 @@
 
 **Phase**: 5
 **Priority**: P0 (High)
-**Status**: In Progress
+**Status**: ✅ Implemented
 **Created**: 2025-11-27
+**Last Updated**: 2026-01-05
+**Version**: 2.0
 **Dependencies**: Phase 3 (Branch Management), Phase 4 (History Analysis)
+
+> **Implementation Status**:
+> - ✅ Conflict Detection (`pkg/merge/detector.go`)
+> - ✅ Merge Strategies (`pkg/merge/strategy.go`)
+> - ✅ Rebase Operations (`pkg/merge/rebase.go`)
+> - ✅ CLI: `gz-git merge detect` command
 
 ______________________________________________________________________
 
@@ -16,8 +24,7 @@ Phase 5 implements advanced merge and rebase capabilities with intelligent confl
 
 1. **Conflict Detection** - Proactively detect merge conflicts before attempting merge
 1. **Merge Strategies** - Support multiple merge strategies with intelligent selection
-1. **Interactive Rebase** - Safe, guided interactive rebase with conflict resolution
-1. **Auto-Resolution** - Automatically resolve simple conflicts when safe
+1. **Interactive Rebase** - Safe, guided interactive rebase with conflict handling
 1. **Rollback Support** - Easy rollback mechanisms for failed operations
 
 ### Non-Goals
@@ -40,11 +47,9 @@ pkg/merge/
 ├── detector.go        # Conflict detection
 ├── strategy.go        # Merge strategy implementation
 ├── rebase.go          # Rebase operations
-├── resolver.go        # Auto-conflict resolution
 ├── detector_test.go
 ├── strategy_test.go
-├── rebase_test.go
-└── resolver_test.go
+└── rebase_test.go
 ```
 
 ### Core Interfaces
@@ -69,12 +74,6 @@ type RebaseManager interface {
     Continue(ctx context.Context, repo *repository.Repository) error
     Skip(ctx context.Context, repo *repository.Repository) error
     Abort(ctx context.Context, repo *repository.Repository) error
-}
-
-// ConflictResolver attempts automatic conflict resolution
-type ConflictResolver interface {
-    Resolve(ctx context.Context, repo *repository.Repository, conflicts []*Conflict) (*ResolutionResult, error)
-    CanResolve(conflict *Conflict) bool
 }
 ```
 
@@ -525,68 +524,6 @@ func (r *rebaseManager) Rebase(ctx context.Context, repo *repository.Repository,
 
 ______________________________________________________________________
 
-## Component 4: Conflict Resolver
-
-### Purpose
-
-Automatically resolve simple, safe conflicts to reduce manual intervention.
-
-### Auto-Resolution Rules
-
-1. **Whitespace-Only Conflicts**
-
-   - Different whitespace, same content
-   - Safe to normalize
-
-1. **Comment-Only Conflicts**
-
-   - Only comments differ
-   - Can merge both
-
-1. **Import/Dependency Conflicts**
-
-   - Different imports added
-   - Can merge both lists
-
-1. **Non-Overlapping Changes**
-
-   - Changes in different parts of file
-   - Can merge both
-
-### Data Types
-
-```go
-// ResolutionResult contains resolution outcome
-type ResolutionResult struct {
-    TotalConflicts int
-    Resolved       int
-    Failed         int
-    Resolutions    []*Resolution
-}
-
-// Resolution represents a single conflict resolution
-type Resolution struct {
-    FilePath     string
-    ConflictType ConflictType
-    Strategy     ResolutionStrategy
-    Success      bool
-    Error        error
-}
-
-// ResolutionStrategy defines how to resolve
-type ResolutionStrategy string
-
-const (
-    StrategyKeepBoth      ResolutionStrategy = "keep_both"
-    StrategyKeepOurs      ResolutionStrategy = "keep_ours"
-    StrategyKeepTheirs    ResolutionStrategy = "keep_theirs"
-    StrategyMergeLines    ResolutionStrategy = "merge_lines"
-    StrategyNormalize     ResolutionStrategy = "normalize"
-)
-```
-
-______________________________________________________________________
-
 ## Error Handling
 
 ### Custom Errors
@@ -633,13 +570,6 @@ ______________________________________________________________________
    - Continue/skip/abort
    - Conflict handling
    - State validation
-
-1. **Conflict Resolver Tests**
-
-   - Auto-resolve safe conflicts
-   - Skip unsafe conflicts
-   - Resolution strategies
-   - Error handling
 
 ### Integration Tests
 
@@ -709,29 +639,39 @@ func (m *mergeStrategyManager) createBackup(ctx context.Context, repo *repositor
 
 ______________________________________________________________________
 
-## CLI Integration (Deferred to Phase 6)
+## CLI Commands (Implemented)
 
-### Command Structure
+### Available Commands
 
 ```bash
-# Detect conflicts
-gz-git merge detect <source> <target>
+# Detect conflicts (IMPLEMENTED)
+gz-git merge detect <source> <target>    # Detect potential merge conflicts
+gz-git merge detect feature/new main     # Example usage
+```
 
-# Merge with strategy
-gz-git merge <source> [--strategy=<strategy>] [--no-ff]
+### Deferred to Native Git
+
+For actual merge/rebase operations, use native Git commands:
+
+```bash
+# Merge with strategy (use native git)
+git merge <source> --strategy=<strategy> --no-ff
 
 # Abort merge
-gz-git merge abort
+git merge --abort
 
 # Rebase
-gz-git rebase <upstream> [--interactive]
+git rebase <upstream> [--interactive]
 
 # Continue rebase
-gz-git rebase continue
+git rebase --continue
 
 # Abort rebase
-gz-git rebase abort
+git rebase --abort
 ```
+
+> **Design Decision**: gz-git focuses on **analysis and detection** (pre-merge conflict check).
+> Actual merge/rebase execution is delegated to native Git to avoid complexity and ensure reliability.
 
 ______________________________________________________________________
 
@@ -754,7 +694,6 @@ ______________________________________________________________________
 1. ✅ All core interfaces implemented
 1. ✅ Comprehensive unit tests (≥85% coverage)
 1. ✅ Conflict detection accurate (>95%)
-1. ✅ Safe auto-resolution (zero data loss)
 1. ✅ Merge strategies work correctly
 1. ✅ Rebase operations safe and reliable
 1. ✅ Documentation and examples complete
@@ -763,54 +702,44 @@ ______________________________________________________________________
 
 ## Implementation Checklist
 
-### Phase 5.1: Conflict Detector
+### Phase 5.1: Conflict Detector ✅
 
-- [ ] Define types.go (Conflict, ConflictReport, DetectOptions)
-- [ ] Define errors.go (merge-specific errors)
-- [ ] Implement detector.go (ConflictDetector interface)
-- [ ] Write detector_test.go (unit tests)
-- [ ] Validation: All tests passing, ≥85% coverage
+- [x] Define types.go (Conflict, ConflictReport, DetectOptions)
+- [x] Define errors.go (merge-specific errors)
+- [x] Implement detector.go (ConflictDetector interface)
+- [x] Write detector_test.go (unit tests)
+- [x] Validation: All tests passing
 
-### Phase 5.2: Merge Strategy Manager
+### Phase 5.2: Merge Strategy Manager ✅
 
-- [ ] Add MergeStrategy types to types.go
-- [ ] Implement strategy.go (MergeStrategyManager interface)
-- [ ] Write strategy_test.go (unit tests)
-- [ ] Validation: All tests passing, ≥85% coverage
+- [x] Add MergeStrategy types to types.go
+- [x] Implement strategy.go (MergeStrategyManager interface)
+- [x] Write strategy_test.go (unit tests)
+- [x] Validation: All tests passing
 
-### Phase 5.3: Rebase Manager
+### Phase 5.3: Rebase Manager ✅
 
-- [ ] Add Rebase types to types.go
-- [ ] Implement rebase.go (RebaseManager interface)
-- [ ] Write rebase_test.go (unit tests)
-- [ ] Validation: All tests passing, ≥85% coverage
+- [x] Add Rebase types to types.go
+- [x] Implement rebase.go (RebaseManager interface)
+- [x] Write rebase_test.go (unit tests)
+- [x] Validation: All tests passing
 
-### Phase 5.4: Conflict Resolver (Optional)
+### Phase 5.4: CLI Integration ✅
 
-- [ ] Add Resolution types to types.go
-- [ ] Implement resolver.go (ConflictResolver interface)
-- [ ] Write resolver_test.go (unit tests)
-- [ ] Validation: All tests passing, ≥85% coverage
-
-### Phase 5.5: Integration
-
-- [ ] Update specs/00-overview.md
-- [ ] Update PROJECT_STATUS.md
-- [ ] Create docs/phase-5-completion.md
-- [ ] Run full test suite
-- [ ] Validation: All tests passing, documentation complete
+- [x] Implement cmd/gz-git/cmd/merge.go (parent command)
+- [x] Implement cmd/gz-git/cmd/merge_detect.go (conflict detection)
+- [x] Validation: CLI commands functional
 
 ______________________________________________________________________
 
 ## Timeline
 
-- **Phase 5.1**: 1-2 days (Conflict Detector)
-- **Phase 5.2**: 1-2 days (Merge Strategy Manager)
-- **Phase 5.3**: 1-2 days (Rebase Manager)
-- **Phase 5.4**: 1 day (Conflict Resolver - optional)
-- **Phase 5.5**: 1 day (Integration & Documentation)
+- **Phase 5.1**: ✅ Conflict Detector
+- **Phase 5.2**: ✅ Merge Strategy Manager
+- **Phase 5.3**: ✅ Rebase Manager
+- **Phase 5.4**: ✅ CLI Integration
 
-**Total Estimated**: 5-8 days
+**Status**: Complete
 
 ______________________________________________________________________
 
@@ -824,5 +753,24 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Last Updated**: 2025-11-27
-**Version**: 1.0
+## Revision History
+
+| Version | Date       | Changes |
+| ------- | ---------- | ------- |
+| 1.0     | 2025-11-27 | Initial specification |
+| 2.0     | 2026-01-05 | Updated implementation status, CLI section |
+
+______________________________________________________________________
+
+**Specification Status**: ✅ Implemented
+**Implementation Version**: v0.3.0+
+**Key Files**:
+- `cmd/gz-git/cmd/merge.go` - Merge command group
+- `cmd/gz-git/cmd/merge_detect.go` - Conflict detection CLI
+- `pkg/merge/types.go` - Core types
+- `pkg/merge/errors.go` - Error definitions
+- `pkg/merge/detector.go` - Conflict detection ✅
+- `pkg/merge/strategy.go` - Merge strategies ✅
+- `pkg/merge/rebase.go` - Rebase operations ✅
+
+**Note**: Actual merge/rebase execution is delegated to native Git.
