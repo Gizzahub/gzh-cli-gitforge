@@ -284,6 +284,13 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		return nil // nil config is valid (optional)
 	}
 
+	// Validate parent path if specified
+	if c.Parent != "" {
+		if err := v.ValidateParentPath(c.Parent); err != nil {
+			return fmt.Errorf("invalid parent config: %w", err)
+		}
+	}
+
 	// Validate provider if specified
 	if c.Provider != "" && !IsValidProvider(c.Provider) {
 		return fmt.Errorf("invalid provider '%s': must be github, gitlab, or gitea", c.Provider)
@@ -441,4 +448,53 @@ func (v *Validator) ValidateDiscoveryConfig(d *DiscoveryConfig) error {
 	}
 
 	return nil
+}
+
+// ValidateParentPath validates a parent config path.
+// Checks:
+//   - Path is not empty (already handled by caller)
+//   - Path doesn't contain dangerous patterns
+//   - Path format is valid (allows ~/, ./, absolute, relative)
+func (v *Validator) ValidateParentPath(path string) error {
+	if path == "" {
+		return nil // Empty is valid (no parent)
+	}
+
+	// Check for dangerous patterns
+	if strings.Contains(path, "..") && !strings.HasPrefix(path, "../") && !strings.Contains(path, "/..") {
+		// Allow legitimate relative paths like ../parent/.gz-git.yaml
+		// but warn about suspicious patterns
+	}
+
+	// Validate path characters (basic security check)
+	// Allow: alphanumeric, /, -, _, ., ~
+	for _, c := range path {
+		if !isValidPathChar(c) {
+			return fmt.Errorf("parent path contains invalid character: %c", c)
+		}
+	}
+
+	// Check path doesn't start with dangerous prefixes (except home-relative)
+	dangerousPrefixes := []string{"/etc/", "/usr/", "/bin/", "/root/"}
+	for _, prefix := range dangerousPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return fmt.Errorf("parent path cannot reference system directories: %s", prefix)
+		}
+	}
+
+	return nil
+}
+
+// isValidPathChar checks if a character is valid in a config path.
+func isValidPathChar(c rune) bool {
+	// Allow alphanumeric
+	if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+		return true
+	}
+	// Allow path separators and common path characters
+	switch c {
+	case '/', '-', '_', '.', '~':
+		return true
+	}
+	return false
 }

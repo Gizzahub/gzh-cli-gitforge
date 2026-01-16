@@ -32,16 +32,61 @@ import (
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
 func LoadConfigRecursive(path string, configFile string) (*Config, error) {
+	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool))
+}
+
+// loadConfigRecursiveWithVisited loads config with circular reference detection.
+func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool) (*Config, error) {
 	// 1. Load this level's config file
 	configPath := filepath.Join(path, configFile)
-	data, err := os.ReadFile(configPath)
+	absConfigPath, err := filepath.Abs(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to resolve config path %s: %w", configPath, err)
+	}
+
+	// Check for circular reference
+	if visited[absConfigPath] {
+		return nil, fmt.Errorf("circular config reference detected: %s", absConfigPath)
+	}
+	visited[absConfigPath] = true
+
+	data, err := os.ReadFile(absConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config %s: %w", absConfigPath, err)
 	}
 
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config %s: %w", configPath, err)
+		return nil, fmt.Errorf("failed to parse config %s: %w", absConfigPath, err)
+	}
+
+	// Store the config path for relative path resolution
+	config.ConfigPath = absConfigPath
+
+	// 2. Load parent config if specified
+	if config.Parent != "" {
+		parentPath, err := resolvePath(path, config.Parent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve parent path '%s' in %s: %w", config.Parent, absConfigPath, err)
+		}
+
+		// Determine parent config file and directory
+		parentDir, parentFile := filepath.Split(parentPath)
+		if parentFile == "" {
+			// Parent is a directory, use default config file
+			parentDir = parentPath
+			parentFile = ".gz-git.yaml"
+		}
+
+		// Load parent config recursively (with same visited map for cycle detection)
+		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load parent config '%s': %w", config.Parent, err)
+		}
+
+		// Merge parent config (child overrides parent)
+		mergeParentConfig(&config, parentConfig)
+		config.ParentConfig = parentConfig
 	}
 
 	// 2. Recursively load workspaces
@@ -232,6 +277,105 @@ func mergePullConfig(target *PullConfig, override *PullConfig) {
 func mergePushConfig(target *PushConfig, override *PushConfig) {
 	if override.SetUpstream {
 		target.SetUpstream = override.SetUpstream
+	}
+}
+
+// mergeParentConfig merges parent config into child config.
+// Child values override parent values (child takes precedence).
+// This is the inverse of mergeWorkspaceOverrides - parent provides defaults.
+func mergeParentConfig(child *Config, parent *Config) {
+	if parent == nil {
+		return
+	}
+
+	// Merge forge provider settings (parent provides defaults)
+	if child.Provider == "" && parent.Provider != "" {
+		child.Provider = parent.Provider
+	}
+	if child.BaseURL == "" && parent.BaseURL != "" {
+		child.BaseURL = parent.BaseURL
+	}
+	if child.Token == "" && parent.Token != "" {
+		child.Token = parent.Token
+	}
+
+	// Merge clone settings
+	if child.CloneProto == "" && parent.CloneProto != "" {
+		child.CloneProto = parent.CloneProto
+	}
+	if child.SSHPort == 0 && parent.SSHPort != 0 {
+		child.SSHPort = parent.SSHPort
+	}
+
+	// Merge bulk operation settings
+	if child.Parallel == 0 && parent.Parallel != 0 {
+		child.Parallel = parent.Parallel
+	}
+	if !child.IncludeSubgroups && parent.IncludeSubgroups {
+		child.IncludeSubgroups = parent.IncludeSubgroups
+	}
+	if child.SubgroupMode == "" && parent.SubgroupMode != "" {
+		child.SubgroupMode = parent.SubgroupMode
+	}
+	if child.Format == "" && parent.Format != "" {
+		child.Format = parent.Format
+	}
+
+	// Merge command-specific configs (child overrides, but parent provides defaults)
+	if child.Sync == nil && parent.Sync != nil {
+		child.Sync = &SyncConfig{}
+		*child.Sync = *parent.Sync
+	} else if child.Sync != nil && parent.Sync != nil {
+		mergeParentSyncConfig(child.Sync, parent.Sync)
+	}
+
+	if child.Branch == nil && parent.Branch != nil {
+		child.Branch = &BranchConfig{}
+		*child.Branch = *parent.Branch
+	} else if child.Branch != nil && parent.Branch != nil {
+		mergeParentBranchConfig(child.Branch, parent.Branch)
+	}
+
+	if child.Fetch == nil && parent.Fetch != nil {
+		child.Fetch = &FetchConfig{}
+		*child.Fetch = *parent.Fetch
+	}
+
+	if child.Pull == nil && parent.Pull != nil {
+		child.Pull = &PullConfig{}
+		*child.Pull = *parent.Pull
+	}
+
+	if child.Push == nil && parent.Push != nil {
+		child.Push = &PushConfig{}
+		*child.Push = *parent.Push
+	}
+
+	// Note: Profiles are NOT merged automatically.
+	// Profile lookup traverses the parent chain via GetProfileFromChain().
+	// Workspaces are also NOT merged - each level has its own workspaces.
+}
+
+// mergeParentSyncConfig fills empty child fields from parent.
+func mergeParentSyncConfig(child *SyncConfig, parent *SyncConfig) {
+	if child.Strategy == "" && parent.Strategy != "" {
+		child.Strategy = parent.Strategy
+	}
+	if child.MaxRetries == 0 && parent.MaxRetries != 0 {
+		child.MaxRetries = parent.MaxRetries
+	}
+	if child.Timeout == "" && parent.Timeout != "" {
+		child.Timeout = parent.Timeout
+	}
+}
+
+// mergeParentBranchConfig fills empty child fields from parent.
+func mergeParentBranchConfig(child *BranchConfig, parent *BranchConfig) {
+	if child.DefaultBranch == "" && parent.DefaultBranch != "" {
+		child.DefaultBranch = parent.DefaultBranch
+	}
+	if len(child.ProtectedBranches) == 0 && len(parent.ProtectedBranches) > 0 {
+		child.ProtectedBranches = parent.ProtectedBranches
 	}
 }
 
@@ -465,4 +609,75 @@ func HasInlineProfile(config *Config, name string) bool {
 	}
 	_, ok := config.Profiles[name]
 	return ok
+}
+
+// GetProfileFromChain looks up a profile by traversing the parent config chain.
+// Lookup order:
+//  1. Current config's inline profiles (config.Profiles)
+//  2. Parent config's inline profiles (config.ParentConfig.Profiles)
+//  3. Grandparent config's inline profiles (and so on...)
+//
+// Returns nil if profile not found in any level.
+// For external profiles (~/.config/gz-git/profiles/), use Manager.GetProfile().
+func GetProfileFromChain(config *Config, name string) *Profile {
+	if config == nil || name == "" {
+		return nil
+	}
+
+	// 1. Check current config's inline profiles
+	if config.Profiles != nil {
+		if profile, ok := config.Profiles[name]; ok {
+			return profile
+		}
+	}
+
+	// 2. Traverse parent chain
+	if config.ParentConfig != nil {
+		return GetProfileFromChain(config.ParentConfig, name)
+	}
+
+	// 3. Not found in chain - caller should check external profiles
+	return nil
+}
+
+// GetProfileSources returns the source location of a profile.
+// Useful for debugging config precedence.
+// Returns empty string if profile not found.
+func GetProfileSource(config *Config, name string) string {
+	if config == nil || name == "" {
+		return ""
+	}
+
+	// Check current config's inline profiles
+	if config.Profiles != nil {
+		if _, ok := config.Profiles[name]; ok {
+			if config.ConfigPath != "" {
+				return config.ConfigPath
+			}
+			return "inline"
+		}
+	}
+
+	// Traverse parent chain
+	if config.ParentConfig != nil {
+		return GetProfileSource(config.ParentConfig, name)
+	}
+
+	return ""
+}
+
+// GetParentChain returns all configs in the parent chain (including current).
+// Useful for debugging and displaying config precedence.
+func GetParentChain(config *Config) []*Config {
+	if config == nil {
+		return nil
+	}
+
+	chain := []*Config{config}
+	current := config.ParentConfig
+	for current != nil {
+		chain = append(chain, current)
+		current = current.ParentConfig
+	}
+	return chain
 }

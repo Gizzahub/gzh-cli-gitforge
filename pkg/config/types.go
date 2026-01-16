@@ -195,11 +195,27 @@ type ProjectMetadata struct {
 //	    source:
 //	      provider: github
 //	      org: myusername
+//
+// Parent config reference example:
+//
+//	# ~/mydevbox/.gz-git.yaml (workspace level)
+//	parent: ~/devenv/workstation/.gz-git.yaml  # Explicit parent reference
+//	profile: polypia  # Now found in parent's profiles
+//	parallel: 10
 type Config struct {
+	// === Parent config reference ===
+
+	// Parent specifies an explicit path to a parent config file.
+	// When set, the parent config is loaded and merged (child overrides parent).
+	// Profile lookup order: current config → parent config → global config.
+	// Supports: absolute paths, home-relative (~), relative paths (resolved from current config dir).
+	// If not set, falls back to global config (~/.config/gz-git/config.yaml).
+	Parent string `yaml:"parent,omitempty"`
+
 	// === This level's settings ===
 
 	// Profile specifies which profile to use at this level
-	// Profile lookup order: inline (Profiles map) → external (~/.config/gz-git/profiles/)
+	// Profile lookup order: inline (Profiles map) → parent config → external (~/.config/gz-git/profiles/)
 	Profile string `yaml:"profile,omitempty"`
 
 	// === Inline Profiles ===
@@ -245,6 +261,16 @@ type Config struct {
 
 	// Discovery controls how workspaces are discovered
 	Discovery *DiscoveryConfig `yaml:"discovery,omitempty"`
+
+	// === Internal fields (not serialized) ===
+
+	// ParentConfig is the resolved parent config (nil if no parent or not loaded)
+	// This is populated by LoadConfigRecursive when Parent field is set
+	ParentConfig *Config `yaml:"-"`
+
+	// ConfigPath is the absolute path to this config file
+	// Used for circular reference detection and relative path resolution
+	ConfigPath string `yaml:"-"`
 }
 
 // Workspace represents a named workspace in the hierarchy.
