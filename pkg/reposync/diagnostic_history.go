@@ -42,7 +42,7 @@ func (s *FileHistoryStore) Save(ctx context.Context, report *HealthReport) error
 	}
 
 	// Ensure base directory exists
-	if err := os.MkdirAll(s.BaseDir, 0755); err != nil {
+	if err := os.MkdirAll(s.BaseDir, 0o755); err != nil {
 		return fmt.Errorf("create history directory: %w", err)
 	}
 
@@ -60,7 +60,7 @@ func (s *FileHistoryStore) Save(ctx context.Context, report *HealthReport) error
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
 
-	if err := os.WriteFile(filepath, data, 0644); err != nil {
+	if err := os.WriteFile(filepath, data, 0o644); err != nil {
 		return fmt.Errorf("write snapshot: %w", err)
 	}
 

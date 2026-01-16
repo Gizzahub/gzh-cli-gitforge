@@ -154,55 +154,61 @@ type ProjectMetadata struct {
 }
 
 // ================================================================================
-// Recursive Hierarchical Configuration (NEW!)
+// Recursive Hierarchical Configuration with Workspaces
 // ================================================================================
 
 // Config represents a hierarchical configuration that can be nested recursively.
 // This is the unified config type used at ALL levels: workstation, workspace,
 // project, submodule, etc.
 //
-// Example usage (all levels use the same structure):
+// Example usage:
 //
-//	# ~/.gz-git-config.yaml (workstation level)
-//	parallel: 5
-//	cloneProto: ssh
-//	children:
-//	  - path: ~/mydevbox
-//	    type: config
-//	    profile: opensource
-//	  - path: ~/mywork
-//	    type: config
-//	    configFile: .work-config.yaml
-//	    profile: work
+//	# ~/.gz-git.yaml (workstation level)
+//	profile: polypia
+//	parallel: 10
 //
-//	# ~/mydevbox/.gz-git.yaml (workspace level - same structure!)
-//	profile: opensource
-//	sync:
-//	  strategy: reset
-//	  parallel: 10
-//	children:
-//	  - path: gzh-cli
-//	    type: git
-//	  - path: gzh-cli-gitforge
-//	    type: config
+//	# Inline profiles (no external file needed!)
+//	profiles:
+//	  polypia:
+//	    provider: gitlab
+//	    baseURL: https://gitlab.polypia.net
+//	    token: ${GITLAB_POLYPIA_TOKEN}
+//	    cloneProto: ssh
+//	  github-personal:
+//	    provider: github
+//	    token: ${GITHUB_TOKEN}
+//
+//	workspaces:
+//	  devbox:
+//	    path: ~/mydevbox
+//	    source:
+//	      provider: gitlab
+//	      org: devbox
+//	      includeSubgroups: true
+//	      subgroupMode: flat
 //	    sync:
 //	      strategy: pull
 //
-//	# ~/mydevbox/gzh-cli-gitforge/.gz-git.yaml (project level - same structure!)
-//	sync:
-//	  strategy: pull
-//	children:
-//	  - path: vendor/lib
-//	    type: git
-//	    sync:
-//	      strategy: skip
+//	  personal:
+//	    path: ~/personal
+//	    profile: github-personal
+//	    source:
+//	      provider: github
+//	      org: myusername
 type Config struct {
 	// === This level's settings ===
 
 	// Profile specifies which profile to use at this level
+	// Profile lookup order: inline (Profiles map) → external (~/.config/gz-git/profiles/)
 	Profile string `yaml:"profile,omitempty"`
 
-	// Forge provider settings (workstation/workspace level)
+	// === Inline Profiles ===
+
+	// Profiles defines named profiles inline (no external file needed)
+	// These take precedence over external profile files
+	Profiles map[string]*Profile `yaml:"profiles,omitempty"`
+
+	// Forge provider settings (default for workspaces)
 	Provider string `yaml:"provider,omitempty"`
 	BaseURL  string `yaml:"baseURL,omitempty"`
 	Token    string `yaml:"token,omitempty"`
@@ -224,11 +230,11 @@ type Config struct {
 	Pull   *PullConfig   `yaml:"pull,omitempty"`
 	Push   *PushConfig   `yaml:"push,omitempty"`
 
-	// === Children (recursive!) ===
+	// === Workspaces (recursive!) ===
 
-	// Children is the explicit list of child paths (workspaces, projects, git repos)
-	// Each child can have its own config file (type: config) or be a plain git repo (type: git)
-	Children []ChildEntry `yaml:"children,omitempty"`
+	// Workspaces is a map of named workspace configurations
+	// Each workspace can have its own forge source, sync settings, and nested workspaces
+	Workspaces map[string]*Workspace `yaml:"workspaces,omitempty"`
 
 	// === Metadata ===
 
@@ -237,65 +243,132 @@ type Config struct {
 
 	// === Discovery settings ===
 
-	// Discovery controls how children are discovered
+	// Discovery controls how workspaces are discovered
 	Discovery *DiscoveryConfig `yaml:"discovery,omitempty"`
 }
 
-// ChildEntry represents a child path in the hierarchy.
-// Each child can be either:
-//   - A directory with a config file (type: config) - enables recursive nesting
-//   - A plain git repository (type: git) - leaf node
-type ChildEntry struct {
-	// Path is the relative or absolute path to the child
+// Workspace represents a named workspace in the hierarchy.
+// Each workspace can sync from a forge source or manage existing git repos.
+//
+// Example:
+//
+//	devbox:
+//	  path: ./devbox
+//	  source:
+//	    provider: gitlab
+//	    org: devbox
+//	    includeSubgroups: true
+//	    subgroupMode: flat
+//	  sync:
+//	    strategy: pull
+//	  workspaces:
+//	    subproject:
+//	      path: ./subproject
+//	      type: git
+type Workspace struct {
+	// Path is the target directory for this workspace
 	// Supports: absolute (/foo/bar), relative (./foo), home-relative (~/foo)
 	Path string `yaml:"path"`
 
-	// Type specifies what kind of child this is
-	// Values: "config" (has config file, enables recursion), "git" (plain repo)
-	Type ChildType `yaml:"type"`
+	// Type specifies what kind of workspace this is
+	// Values: "forge" (sync from forge), "git" (single repo), "config" (has nested config)
+	// Default: "forge" if Source is set, "git" otherwise
+	Type WorkspaceType `yaml:"type,omitempty"`
 
-	// ConfigFile specifies the config file name (optional)
-	// Only used when Type == "config"
-	// Default: ".gz-git.yaml"
-	// Example custom: ".work-config.yaml"
-	ConfigFile string `yaml:"configFile,omitempty"`
+	// Profile overrides the parent profile for this workspace
+	Profile string `yaml:"profile,omitempty"`
 
-	// === Inline overrides (optional) ===
-	// These override the child's config file settings
+	// === Forge Source (for type=forge) ===
 
-	Profile  string        `yaml:"profile,omitempty"`
-	Parallel int           `yaml:"parallel,omitempty"`
-	Sync     *SyncConfig   `yaml:"sync,omitempty"`
-	Branch   *BranchConfig `yaml:"branch,omitempty"`
-	Fetch    *FetchConfig  `yaml:"fetch,omitempty"`
-	Pull     *PullConfig   `yaml:"pull,omitempty"`
-	Push     *PushConfig   `yaml:"push,omitempty"`
+	// Source defines the forge to sync from
+	Source *ForgeSource `yaml:"source,omitempty"`
+
+	// === Sync settings ===
+
+	Sync     *SyncConfig `yaml:"sync,omitempty"`
+	Parallel int         `yaml:"parallel,omitempty"`
+
+	// === Other settings ===
+
+	CloneProto string        `yaml:"cloneProto,omitempty"`
+	SSHPort    int           `yaml:"sshPort,omitempty"`
+	Branch     *BranchConfig `yaml:"branch,omitempty"`
+	Fetch      *FetchConfig  `yaml:"fetch,omitempty"`
+	Pull       *PullConfig   `yaml:"pull,omitempty"`
+	Push       *PushConfig   `yaml:"push,omitempty"`
+
+	// === Nested workspaces (recursive!) ===
+
+	// Workspaces allows nested workspace definitions
+	Workspaces map[string]*Workspace `yaml:"workspaces,omitempty"`
+
+	// === Metadata ===
+
+	Metadata *Metadata `yaml:"metadata,omitempty"`
 }
 
-// ChildType represents the type of child entry.
-type ChildType string
+// WorkspaceType represents the type of workspace.
+type WorkspaceType string
 
 const (
-	// ChildTypeConfig indicates the child has a config file (enables recursion)
-	// The config file will be loaded recursively
-	ChildTypeConfig ChildType = "config"
+	// WorkspaceTypeForge indicates the workspace syncs from a forge (GitLab/GitHub/Gitea)
+	// This is the default when Source is defined
+	WorkspaceTypeForge WorkspaceType = "forge"
 
-	// ChildTypeGit indicates the child is a plain git repository (no config)
-	// This is a leaf node in the hierarchy
-	ChildTypeGit ChildType = "git"
+	// WorkspaceTypeGit indicates the workspace is a single git repository
+	// No forge sync, just manages an existing repo
+	WorkspaceTypeGit WorkspaceType = "git"
+
+	// WorkspaceTypeConfig indicates the workspace has a nested config file
+	// Loads .gz-git.yaml from the workspace path
+	WorkspaceTypeConfig WorkspaceType = "config"
 )
 
-// DefaultConfigFile returns the default config file name for this child type.
-func (t ChildType) DefaultConfigFile() string {
-	if t == ChildTypeConfig {
-		return ".gz-git.yaml"
-	}
-	return "" // Git repos don't have config files
+// IsValid returns true if this is a valid workspace type.
+func (t WorkspaceType) IsValid() bool {
+	return t == WorkspaceTypeForge || t == WorkspaceTypeGit || t == WorkspaceTypeConfig || t == ""
 }
 
-// IsValid returns true if this is a valid child type.
-func (t ChildType) IsValid() bool {
-	return t == ChildTypeConfig || t == ChildTypeGit
+// Resolve returns the effective type based on context.
+// If type is empty, it's inferred from Source presence.
+func (t WorkspaceType) Resolve(hasSource bool) WorkspaceType {
+	if t != "" {
+		return t
+	}
+	if hasSource {
+		return WorkspaceTypeForge
+	}
+	return WorkspaceTypeGit
+}
+
+// ForgeSource defines a forge (GitLab/GitHub/Gitea) to sync repositories from.
+//
+// Example:
+//
+//	source:
+//	  provider: gitlab
+//	  org: devbox
+//	  baseURL: https://gitlab.polypia.net
+//	  includeSubgroups: true
+//	  subgroupMode: flat
+type ForgeSource struct {
+	// Provider is the forge type: gitlab, github, gitea
+	Provider string `yaml:"provider"`
+
+	// Org is the organization/group to sync from
+	Org string `yaml:"org"`
+
+	// BaseURL is the API endpoint (optional, uses default for provider)
+	BaseURL string `yaml:"baseURL,omitempty"`
+
+	// Token overrides the profile token (use ${ENV_VAR} for security)
+	Token string `yaml:"token,omitempty"`
+
+	// IncludeSubgroups includes subgroups (GitLab only)
+	IncludeSubgroups bool `yaml:"includeSubgroups,omitempty"`
+
+	// SubgroupMode controls directory structure: "flat" or "nested"
+	SubgroupMode string `yaml:"subgroupMode,omitempty"`
 }
 
 // Metadata holds optional information about a config level.

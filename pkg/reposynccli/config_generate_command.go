@@ -154,7 +154,7 @@ func (f CommandFactory) runConfigGenerate(cmd *cobra.Command, opts *ConfigGenera
 		return fmt.Errorf("failed to marshal YAML: %w", err)
 	}
 
-	if err := os.WriteFile(opts.Output, data, 0644); err != nil {
+	if err := os.WriteFile(opts.Output, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

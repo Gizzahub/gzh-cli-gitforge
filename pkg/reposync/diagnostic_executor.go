@@ -203,7 +203,6 @@ func (e DiagnosticExecutor) fetchWithTimeout(ctx context.Context, r *repo.Reposi
 	// Execute git fetch --all --prune with timeout
 	executor := gitcmd.NewExecutor(gitcmd.WithTimeout(timeout))
 	result, err := executor.Run(fetchCtx, r.Path, "fetch", "--all", "--prune")
-
 	if err != nil {
 		// Check for timeout
 		if fetchCtx.Err() == context.DeadlineExceeded {

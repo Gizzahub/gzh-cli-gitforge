@@ -85,7 +85,7 @@ func TestDiagnosticExecutor_WithModifiedFiles(t *testing.T) {
 
 	// Modify the existing README file
 	readmeFile := filepath.Join(tempRepo, "README.md")
-	if err := os.WriteFile(readmeFile, []byte("modified content"), 0644); err != nil {
+	if err := os.WriteFile(readmeFile, []byte("modified content"), 0o644); err != nil {
 		t.Fatalf("failed to modify file: %v", err)
 	}
 

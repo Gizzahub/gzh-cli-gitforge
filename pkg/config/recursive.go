@@ -12,15 +12,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadConfigRecursive loads a config file and recursively loads all children.
+// LoadConfigRecursive loads a config file and recursively loads all workspaces.
 // This function works at ANY level (workstation, workspace, project, etc.)
 //
 // Parameters:
 //   - path: The directory containing the config file
-//   - configFile: The config file name (e.g., ".gz-git.yaml", ".work-config.yaml")
+//   - configFile: The config file name (e.g., ".gz-git.yaml", ".gz-git-config.yaml")
 //
 // Returns:
-//   - *Config: The loaded config with all children recursively loaded
+//   - *Config: The loaded config with all workspaces recursively loaded
 //   - error: Any error encountered during loading
 //
 // Example:
@@ -44,45 +44,68 @@ func LoadConfigRecursive(path string, configFile string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config %s: %w", configPath, err)
 	}
 
-	// 2. Recursively load children
-	for i := range config.Children {
-		child := &config.Children[i]
-
-		// Validate child type
-		if !child.Type.IsValid() {
-			return nil, fmt.Errorf("invalid child type '%s' in %s: must be 'config' or 'git'", child.Type, configPath)
+	// 2. Recursively load workspaces
+	for name, ws := range config.Workspaces {
+		if ws == nil {
+			continue
 		}
 
-		// Resolve child path (handle ~, relative paths)
-		childPath, err := resolvePath(path, child.Path)
+		// Resolve workspace path (handle ~, relative paths)
+		wsPath, err := resolvePath(path, ws.Path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve child path '%s' in %s: %w", child.Path, configPath, err)
+			return nil, fmt.Errorf("failed to resolve workspace '%s' path '%s' in %s: %w", name, ws.Path, configPath, err)
 		}
 
-		if child.Type == ChildTypeConfig {
-			// Child has a config file - recurse!
-			childConfigFile := child.ConfigFile
-			if childConfigFile == "" {
-				childConfigFile = child.Type.DefaultConfigFile() // ".gz-git.yaml"
-			}
+		// Determine effective type
+		effectiveType := ws.Type.Resolve(ws.Source != nil)
 
-			// RECURSIVE CALL!
-			childConfig, err := LoadConfigRecursive(childPath, childConfigFile)
+		switch effectiveType {
+		case WorkspaceTypeConfig:
+			// Workspace has a nested config file - recurse!
+			nestedConfigFile := ".gz-git.yaml"
+			nestedConfig, err := LoadConfigRecursive(wsPath, nestedConfigFile)
 			if err != nil {
-				// Config file not found is OK (use inline overrides only)
-				// This allows defining children without requiring config files
+				// Config file not found is OK (use workspace settings only)
 				continue
 			}
 
-			// Merge inline overrides into loaded config
-			mergeInlineOverrides(childConfig, child)
+			// Merge workspace overrides into loaded config
+			mergeWorkspaceOverrides(nestedConfig, ws)
 
-			// Note: We could store childConfig in child.LoadedConfig for validation/debugging
-			// For now, we just validate that the file loads successfully
-		} else if child.Type == ChildTypeGit {
+		case WorkspaceTypeGit:
 			// Plain git repo - validate that it exists and is a git repo
-			if !isGitRepo(childPath) {
-				return nil, fmt.Errorf("child path is not a git repo: %s (defined in %s)", childPath, configPath)
+			if !isGitRepo(wsPath) {
+				// Git repo doesn't exist yet - this is OK for sync targets
+				// It will be cloned when sync is run
+				continue
+			}
+
+		case WorkspaceTypeForge:
+			// Forge workspace - target directory may not exist yet
+			// It will be created when sync from-forge is run
+			// No validation needed here
+		}
+
+		// Recursively process nested workspaces
+		for nestedName, nestedWs := range ws.Workspaces {
+			if nestedWs == nil {
+				continue
+			}
+
+			nestedPath, err := resolvePath(wsPath, nestedWs.Path)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve nested workspace '%s/%s' path '%s': %w",
+					name, nestedName, nestedWs.Path, err)
+			}
+
+			nestedType := nestedWs.Type.Resolve(nestedWs.Source != nil)
+			if nestedType == WorkspaceTypeConfig {
+				nestedConfigFile := ".gz-git.yaml"
+				_, err := LoadConfigRecursive(nestedPath, nestedConfigFile)
+				if err != nil {
+					// Config not found is OK
+					continue
+				}
 			}
 		}
 	}
@@ -115,44 +138,50 @@ func resolvePath(parentPath string, childPath string) (string, error) {
 	return filepath.Join(parentPath, childPath), nil
 }
 
-// mergeInlineOverrides applies inline overrides from ChildEntry to loaded Config.
-// Inline overrides take precedence over the child's config file settings.
-func mergeInlineOverrides(config *Config, entry *ChildEntry) {
-	if entry.Profile != "" {
-		config.Profile = entry.Profile
+// mergeWorkspaceOverrides applies workspace overrides to loaded Config.
+// Workspace overrides take precedence over the nested config file settings.
+func mergeWorkspaceOverrides(config *Config, ws *Workspace) {
+	if ws.Profile != "" {
+		config.Profile = ws.Profile
 	}
-	if entry.Parallel > 0 {
-		config.Parallel = entry.Parallel
+	if ws.Parallel > 0 {
+		config.Parallel = ws.Parallel
 	}
-	if entry.Sync != nil {
+	if ws.CloneProto != "" {
+		config.CloneProto = ws.CloneProto
+	}
+	if ws.SSHPort > 0 {
+		config.SSHPort = ws.SSHPort
+	}
+	if ws.Sync != nil {
 		if config.Sync == nil {
 			config.Sync = &SyncConfig{}
 		}
-		mergeSyncConfig(config.Sync, entry.Sync)
+		mergeSyncConfig(config.Sync, ws.Sync)
 	}
-	if entry.Branch != nil {
+	if ws.Branch != nil {
 		if config.Branch == nil {
 			config.Branch = &BranchConfig{}
 		}
-		mergeBranchConfig(config.Branch, entry.Branch)
+		mergeBranchConfig(config.Branch, ws.Branch)
 	}
-	if entry.Fetch != nil {
+	if ws.Fetch != nil {
 		if config.Fetch == nil {
 			config.Fetch = &FetchConfig{}
 		}
-		mergeFetchConfig(config.Fetch, entry.Fetch)
+		mergeFetchConfig(config.Fetch, ws.Fetch)
 	}
-	if entry.Pull != nil {
+	if ws.Pull != nil {
 		if config.Pull == nil {
 			config.Pull = &PullConfig{}
 		}
-		mergePullConfig(config.Pull, entry.Pull)
+		mergePullConfig(config.Pull, ws.Pull)
 	}
-	if entry.Push != nil {
+	if ws.Push != nil {
 		if config.Push == nil {
 			config.Push = &PushConfig{}
 		}
-		mergePushConfig(config.Push, entry.Push)
+		mergePushConfig(config.Push, ws.Push)
 	}
 }
 
@@ -181,8 +210,6 @@ func mergeBranchConfig(target *BranchConfig, override *BranchConfig) {
 
 // mergeFetchConfig merges override into target (override takes precedence).
 func mergeFetchConfig(target *FetchConfig, override *FetchConfig) {
-	// For bool fields, we need to check if they were explicitly set
-	// For now, we just copy the values (true overrides false)
 	if override.AllRemotes {
 		target.AllRemotes = override.AllRemotes
 	}
@@ -218,12 +245,12 @@ func isGitRepo(path string) bool {
 	return info.IsDir()
 }
 
-// LoadChildren loads children based on discovery mode.
-// This function is called after LoadConfigRecursive to optionally auto-discover children.
+// LoadWorkspaces loads workspaces based on discovery mode.
+// This function is called after LoadConfigRecursive to optionally auto-discover workspaces.
 //
 // Parameters:
-//   - path: The directory to search for children
-//   - config: The config to append discovered children to
+//   - path: The directory to search for workspaces
+//   - config: The config to append discovered workspaces to
 //   - mode: The discovery mode (explicit, auto, hybrid)
 //
 // Returns:
@@ -232,8 +259,8 @@ func isGitRepo(path string) bool {
 // Example:
 //
 //	config, _ := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
-//	err := LoadChildren("/home/user/mydevbox", config, HybridMode)
-func LoadChildren(path string, config *Config, mode DiscoveryMode) error {
+//	err := LoadWorkspaces("/home/user/mydevbox", config, HybridMode)
+func LoadWorkspaces(path string, config *Config, mode DiscoveryMode) error {
 	// Use the default mode if not specified
 	mode = mode.Default()
 
@@ -243,26 +270,30 @@ func LoadChildren(path string, config *Config, mode DiscoveryMode) error {
 		return nil
 
 	case AutoMode:
-		// Scan directory and replace config.Children with discovered repos
-		config.Children = nil // Clear explicit children
-		return autoDiscoverAndAppend(path, config)
+		// Scan directory and replace config.Workspaces with discovered repos
+		config.Workspaces = nil // Clear explicit workspaces
+		return autoDiscoverWorkspaces(path, config)
 
 	case HybridMode:
-		// Use explicit children if defined, otherwise auto-discover
-		if len(config.Children) > 0 {
+		// Use explicit workspaces if defined, otherwise auto-discover
+		if len(config.Workspaces) > 0 {
 			return nil // Use explicit
 		}
-		return autoDiscoverAndAppend(path, config)
+		return autoDiscoverWorkspaces(path, config)
 	}
 
 	return nil
 }
 
-// autoDiscoverAndAppend scans directory and appends discovered repos to config.Children.
-func autoDiscoverAndAppend(path string, config *Config) error {
+// autoDiscoverWorkspaces scans directory and appends discovered repos to config.Workspaces.
+func autoDiscoverWorkspaces(path string, config *Config) error {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %s: %w", path, err)
+	}
+
+	if config.Workspaces == nil {
+		config.Workspaces = make(map[string]*Workspace)
 	}
 
 	for _, entry := range entries {
@@ -270,23 +301,28 @@ func autoDiscoverAndAppend(path string, config *Config) error {
 			continue
 		}
 
+		// Skip hidden directories
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+
 		childPath := filepath.Join(path, entry.Name())
 
 		// Check if it has a config file
 		if hasFile(childPath, ".gz-git.yaml") {
-			config.Children = append(config.Children, ChildEntry{
+			config.Workspaces[entry.Name()] = &Workspace{
 				Path: childPath,
-				Type: ChildTypeConfig,
-			})
+				Type: WorkspaceTypeConfig,
+			}
 			continue
 		}
 
 		// Check if it's a git repo
 		if isGitRepo(childPath) {
-			config.Children = append(config.Children, ChildEntry{
+			config.Workspaces[entry.Name()] = &Workspace{
 				Path: childPath,
-				Type: ChildTypeGit,
-			})
+				Type: WorkspaceTypeGit,
+			}
 		}
 	}
 
@@ -342,4 +378,91 @@ func FindConfigRecursive(startPath string, configFile string) (string, error) {
 	}
 
 	return "", fmt.Errorf("config file %s not found in %s or any parent directory", configFile, startPath)
+}
+
+// GetWorkspaceByName returns a workspace by name from the config.
+func GetWorkspaceByName(config *Config, name string) *Workspace {
+	if config == nil || config.Workspaces == nil {
+		return nil
+	}
+	return config.Workspaces[name]
+}
+
+// GetAllWorkspaces returns all workspaces as a slice with their names.
+func GetAllWorkspaces(config *Config) []struct {
+	Name      string
+	Workspace *Workspace
+} {
+	if config == nil || config.Workspaces == nil {
+		return nil
+	}
+
+	result := make([]struct {
+		Name      string
+		Workspace *Workspace
+	}, 0, len(config.Workspaces))
+
+	for name, ws := range config.Workspaces {
+		result = append(result, struct {
+			Name      string
+			Workspace *Workspace
+		}{Name: name, Workspace: ws})
+	}
+
+	return result
+}
+
+// GetForgeWorkspaces returns only workspaces that sync from a forge.
+func GetForgeWorkspaces(config *Config) map[string]*Workspace {
+	result := make(map[string]*Workspace)
+
+	if config == nil || config.Workspaces == nil {
+		return result
+	}
+
+	for name, ws := range config.Workspaces {
+		if ws.Source != nil || ws.Type == WorkspaceTypeForge {
+			result[name] = ws
+		}
+	}
+
+	return result
+}
+
+// GetProfileByName returns a profile by name from the config.
+// Lookup order: inline (config.Profiles) → external (~/.config/gz-git/profiles/)
+// Returns nil if profile not found in either location.
+func GetProfileByName(config *Config, name string) *Profile {
+	if config == nil || name == "" {
+		return nil
+	}
+
+	// 1. Check inline profiles first (higher priority)
+	if config.Profiles != nil {
+		if profile, ok := config.Profiles[name]; ok {
+			return profile
+		}
+	}
+
+	// 2. External profiles would be loaded by manager.go
+	// This function only handles inline profiles
+	// For external profile loading, use Manager.GetProfile()
+	return nil
+}
+
+// GetAllProfiles returns all inline profiles from the config.
+func GetAllProfiles(config *Config) map[string]*Profile {
+	if config == nil || config.Profiles == nil {
+		return make(map[string]*Profile)
+	}
+	return config.Profiles
+}
+
+// HasInlineProfile checks if a profile exists in the inline profiles.
+func HasInlineProfile(config *Config, name string) bool {
+	if config == nil || config.Profiles == nil {
+		return false
+	}
+	_, ok := config.Profiles[name]
+	return ok
 }

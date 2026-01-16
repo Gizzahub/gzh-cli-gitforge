@@ -275,7 +275,7 @@ func NormalizeProvider(provider string) string {
 }
 
 // ================================================================================
-// Recursive Configuration Validation (NEW!)
+// Recursive Configuration Validation with Workspaces
 // ================================================================================
 
 // ValidateConfig validates a recursive hierarchical config.
@@ -286,7 +286,7 @@ func (v *Validator) ValidateConfig(c *Config) error {
 
 	// Validate provider if specified
 	if c.Provider != "" && !IsValidProvider(c.Provider) {
-		return fmt.Errorf("invalid provider '%s': must be github, gitlab, gitea, or bitbucket", c.Provider)
+		return fmt.Errorf("invalid provider '%s': must be github, gitlab, or gitea", c.Provider)
 	}
 
 	// Validate clone protocol if specified
@@ -316,10 +316,10 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		}
 	}
 
-	// Validate children
-	for i, child := range c.Children {
-		if err := v.ValidateChildEntry(&child); err != nil {
-			return fmt.Errorf("child[%d] validation failed: %w", i, err)
+	// Validate workspaces
+	for name, ws := range c.Workspaces {
+		if err := v.ValidateWorkspace(ws, name); err != nil {
+			return fmt.Errorf("workspace[%s] validation failed: %w", name, err)
 		}
 	}
 
@@ -333,32 +333,97 @@ func (v *Validator) ValidateConfig(c *Config) error {
 	return nil
 }
 
-// ValidateChildEntry validates a child entry.
-func (v *Validator) ValidateChildEntry(c *ChildEntry) error {
-	if c == nil {
-		return fmt.Errorf("child entry is nil")
+// ValidateWorkspace validates a workspace entry.
+func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
+	if ws == nil {
+		return fmt.Errorf("workspace is nil")
 	}
 
 	// Validate path
-	if c.Path == "" {
-		return fmt.Errorf("child path is empty")
+	if ws.Path == "" {
+		return fmt.Errorf("workspace path is empty")
 	}
 
 	// Validate type
-	if !c.Type.IsValid() {
-		return fmt.Errorf("invalid child type '%s': must be 'config' or 'git'", c.Type)
+	if !ws.Type.IsValid() {
+		return fmt.Errorf("invalid workspace type '%s': must be 'forge', 'git', or 'config'", ws.Type)
 	}
 
-	// Validate that configFile is only used with type=config
-	if c.Type == ChildTypeGit && c.ConfigFile != "" {
-		return fmt.Errorf("configFile cannot be specified for type=git")
+	// Determine effective type
+	effectiveType := ws.Type.Resolve(ws.Source != nil)
+
+	// Validate source is required for forge type
+	if effectiveType == WorkspaceTypeForge && ws.Source == nil {
+		return fmt.Errorf("source is required for forge workspace")
 	}
 
-	// Validate command-specific overrides
-	if c.Sync != nil {
-		if err := v.ValidateSyncConfig(c.Sync); err != nil {
-			return fmt.Errorf("child sync config validation failed: %w", err)
+	// Validate source if provided
+	if ws.Source != nil {
+		if err := v.ValidateForgeSource(ws.Source); err != nil {
+			return fmt.Errorf("forge source validation failed: %w", err)
 		}
+	}
+
+	// Validate sync config if provided
+	if ws.Sync != nil {
+		if err := v.ValidateSyncConfig(ws.Sync); err != nil {
+			return fmt.Errorf("sync config validation failed: %w", err)
+		}
+	}
+
+	// Validate parallel count if specified
+	if ws.Parallel < 0 {
+		return fmt.Errorf("invalid parallel count %d: must be non-negative", ws.Parallel)
+	}
+
+	// Validate clone protocol if specified
+	if ws.CloneProto != "" && !IsValidCloneProto(ws.CloneProto) {
+		return fmt.Errorf("invalid clone protocol '%s': must be ssh or https", ws.CloneProto)
+	}
+
+	// Validate SSH port if specified
+	if ws.SSHPort != 0 && (ws.SSHPort < 1 || ws.SSHPort > 65535) {
+		return fmt.Errorf("invalid SSH port %d: must be between 1 and 65535", ws.SSHPort)
+	}
+
+	// Validate nested workspaces recursively
+	for nestedName, nestedWs := range ws.Workspaces {
+		if err := v.ValidateWorkspace(nestedWs, nestedName); err != nil {
+			return fmt.Errorf("nested workspace[%s] validation failed: %w", nestedName, err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateForgeSource validates a forge source configuration.
+func (v *Validator) ValidateForgeSource(s *ForgeSource) error {
+	if s == nil {
+		return nil
+	}
+
+	// Validate provider
+	if s.Provider == "" {
+		return fmt.Errorf("forge source provider is required")
+	}
+	if !IsValidProvider(s.Provider) {
+		return fmt.Errorf("invalid provider '%s': must be github, gitlab, or gitea", s.Provider)
+	}
+
+	// Validate org
+	if s.Org == "" {
+		return fmt.Errorf("forge source org is required")
+	}
+
+	// Validate subgroup mode if specified
+	if s.SubgroupMode != "" && s.SubgroupMode != "flat" && s.SubgroupMode != "nested" {
+		return fmt.Errorf("invalid subgroup mode '%s': must be flat or nested", s.SubgroupMode)
+	}
+
+	// Warn if includeSubgroups is used with non-gitlab provider
+	if s.IncludeSubgroups && s.Provider != "gitlab" {
+		// This is a warning, not an error - subgroups only apply to GitLab
+		fmt.Fprintf(os.Stderr, "Warning: includeSubgroups is only supported for GitLab provider\n")
 	}
 
 	return nil

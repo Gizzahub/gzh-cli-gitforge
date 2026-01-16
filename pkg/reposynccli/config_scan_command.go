@@ -200,7 +200,7 @@ func (f CommandFactory) generateUnifiedConfig(cmd *cobra.Command, opts *ConfigSc
 		outputPath = filepath.Join(opts.Path, outputPath)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
@@ -263,7 +263,7 @@ func (f CommandFactory) generatePerDirectoryConfigs(cmd *cobra.Command, opts *Co
 			return fmt.Errorf("marshal YAML for %s: %w", dir, err)
 		}
 
-		if err := os.WriteFile(configPath, data, 0644); err != nil {
+		if err := os.WriteFile(configPath, data, 0o644); err != nil {
 			return fmt.Errorf("write config file %s: %w", configPath, err)
 		}
 

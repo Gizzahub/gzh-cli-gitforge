@@ -99,7 +99,7 @@ func (m *Manager) SaveProfile(profile *Profile) error {
 	}
 
 	// Ensure profiles directory exists
-	if err := os.MkdirAll(m.paths.ProfilesDir, 0700); err != nil {
+	if err := os.MkdirAll(m.paths.ProfilesDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create profiles directory: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (m *Manager) SaveProfile(profile *Profile) error {
 
 	// Write to file with restricted permissions (user read/write only)
 	profilePath := m.paths.ProfilePath(profile.Name)
-	if err := os.WriteFile(profilePath, data, 0600); err != nil {
+	if err := os.WriteFile(profilePath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 
@@ -242,7 +242,7 @@ func (m *Manager) SaveGlobalConfig(config *GlobalConfig) error {
 	}
 
 	// Ensure config directory exists
-	if err := os.MkdirAll(m.paths.ConfigDir, 0700); err != nil {
+	if err := os.MkdirAll(m.paths.ConfigDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -253,7 +253,7 @@ func (m *Manager) SaveGlobalConfig(config *GlobalConfig) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(m.paths.GlobalConfigFile, data, 0600); err != nil {
+	if err := os.WriteFile(m.paths.GlobalConfigFile, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write global config file: %w", err)
 	}
 
@@ -371,13 +371,13 @@ func (m *Manager) SaveConfig(path string, configFile string, config *Config) err
 	}
 
 	// Ensure directory exists
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Write to file
 	configPath := fmt.Sprintf("%s/%s", path, configFile)
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -476,7 +476,7 @@ func (m *Manager) SaveProjectConfig(config *ProjectConfig) error {
 
 	// Write to current directory
 	configPath := fmt.Sprintf("%s/%s", cwd, ProjectConfigFileName)
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write project config file: %w", err)
 	}
 

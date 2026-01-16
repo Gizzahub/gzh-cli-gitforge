@@ -65,7 +65,7 @@ Examples:
 			}
 
 			// Write sample config
-			if err := os.WriteFile(outputPath, []byte(sampleConfig), 0644); err != nil {
+			if err := os.WriteFile(outputPath, []byte(sampleConfig), 0o644); err != nil {
 				return fmt.Errorf("failed to write config: %w", err)
 			}
 

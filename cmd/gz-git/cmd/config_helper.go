@@ -6,8 +6,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // LoadEffectiveConfig loads configuration with precedence and merges with command flags.

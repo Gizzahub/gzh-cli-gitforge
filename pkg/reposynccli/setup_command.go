@@ -119,7 +119,7 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(opts.ConfigPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -129,7 +129,7 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(opts.ConfigPath, data, 0644); err != nil {
+	if err := os.WriteFile(opts.ConfigPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 

@@ -175,7 +175,7 @@ func (f CommandFactory) runConfigMerge(cmd *cobra.Command, opts *ConfigMergeOpti
 		return fmt.Errorf("failed to marshal YAML: %w", err)
 	}
 
-	if err := os.WriteFile(opts.Into, data, 0644); err != nil {
+	if err := os.WriteFile(opts.Into, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

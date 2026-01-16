@@ -84,7 +84,7 @@ func (p *Paths) EnsureDirectories() error {
 	}
 
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
@@ -190,12 +190,12 @@ func (p *Paths) GetActiveProfile() (string, error) {
 // SetActiveProfile writes the active profile name to state file.
 func (p *Paths) SetActiveProfile(name string) error {
 	// Ensure state directory exists
-	if err := os.MkdirAll(p.StateDir, 0700); err != nil {
+	if err := os.MkdirAll(p.StateDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create state directory: %w", err)
 	}
 
 	// Write profile name
-	if err := os.WriteFile(p.ActiveProfileFile, []byte(name), 0600); err != nil {
+	if err := os.WriteFile(p.ActiveProfileFile, []byte(name), 0o600); err != nil {
 		return fmt.Errorf("failed to write active profile file: %w", err)
 	}
 

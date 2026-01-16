@@ -10,10 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
 
 var (
@@ -178,57 +179,60 @@ var configProfileDeleteCmd = &cobra.Command{
 	RunE:  runConfigProfileDelete,
 }
 
-// Hierarchical config subcommands
-var configAddChildCmd = &cobra.Command{
-	Use:   "add-child <path>",
-	Short: "Add a child path to the config",
-	Long: `Add a child path to the workspace or workstation configuration.
+// Workspace subcommands
+var configAddWorkspaceCmd = &cobra.Command{
+	Use:   "add-workspace <name> <path>",
+	Short: "Add a workspace to the config",
+	Long: `Add a workspace to the workstation or parent workspace configuration.
 
-The child can be either a git repository or another config directory.
+Each workspace can sync from a forge (GitLab/GitHub/Gitea) or manage existing repos.
 
 Examples:
-  # Add a git repository
-  gz-git config add-child ~/projects/myrepo --type git
+  # Add a forge workspace (sync from GitLab group)
+  gz-git config add-workspace devbox ~/mydevbox \
+    --provider gitlab --org devbox --include-subgroups
 
-  # Add a workspace with custom config file
-  gz-git config add-child ~/mywork --type config --config-file .work-config.yaml
+  # Add a git workspace (single repo)
+  gz-git config add-workspace myrepo ~/projects/myrepo --type git
 
-  # Add with inline overrides
-  gz-git config add-child ~/opensource --type config --profile opensource --parallel 10
+  # Add with sync settings
+  gz-git config add-workspace infra ~/infra \
+    --provider gitlab --org infra-team --sync-strategy reset
 
   # Add to workstation config
-  gz-git config add-child ~/mydevbox --workstation --type config`,
-	Args: cobra.ExactArgs(1),
-	RunE: runConfigAddChild,
+  gz-git config add-workspace devbox ~/mydevbox --workstation \
+    --provider gitlab --org devbox`,
+	Args: cobra.ExactArgs(2),
+	RunE: runConfigAddWorkspace,
 }
 
-var configListChildrenCmd = &cobra.Command{
-	Use:   "list-children",
-	Short: "List all child paths in the config",
-	Long: `List all child paths defined in the workspace or workstation configuration.
+var configListWorkspacesCmd = &cobra.Command{
+	Use:   "list-workspaces",
+	Short: "List all workspaces in the config",
+	Long: `List all workspaces defined in the workstation or parent workspace configuration.
 
 Examples:
-  # List children in workspace config
-  gz-git config list-children
+  # List workspaces in current config
+  gz-git config list-workspaces
 
-  # List children in workstation config
-  gz-git config list-children --workstation`,
-	RunE: runConfigListChildren,
+  # List workspaces in workstation config
+  gz-git config list-workspaces --workstation`,
+	RunE: runConfigListWorkspaces,
 }
 
-var configRemoveChildCmd = &cobra.Command{
-	Use:   "remove-child <path>",
-	Short: "Remove a child path from the config",
-	Long: `Remove a child path from the workspace or workstation configuration.
+var configRemoveWorkspaceCmd = &cobra.Command{
+	Use:   "remove-workspace <name>",
+	Short: "Remove a workspace from the config",
+	Long: `Remove a workspace from the workstation or parent workspace configuration.
 
 Examples:
-  # Remove from workspace config
-  gz-git config remove-child ~/projects/old-repo
+  # Remove from current config
+  gz-git config remove-workspace old-workspace
 
   # Remove from workstation config
-  gz-git config remove-child ~/old-workspace --workstation`,
+  gz-git config remove-workspace old-workspace --workstation`,
 	Args: cobra.ExactArgs(1),
-	RunE: runConfigRemoveChild,
+	RunE: runConfigRemoveWorkspace,
 }
 
 var configHierarchyCmd = &cobra.Command{
@@ -237,7 +241,7 @@ var configHierarchyCmd = &cobra.Command{
 	Long: `Show the hierarchical structure of all configuration files.
 
 Starting from workstation config (~/.gz-git-config.yaml), recursively
-displays all child configs and git repositories.
+displays all workspaces and their settings.
 
 Examples:
   # Show full hierarchy
@@ -251,15 +255,20 @@ Examples:
 	RunE: runConfigHierarchy,
 }
 
-// Hierarchical config flags
+// Workspace flags
 var (
-	childType       string
-	childConfigFile string
-	childProfile    string
-	childParallel   int
-	workstationFlag bool
-	validateFlag    bool
-	compactFlag     bool
+	wsType           string
+	wsProfile        string
+	wsParallel       int
+	wsProvider       string
+	wsOrg            string
+	wsBaseURL        string
+	wsIncludeSubgrps bool
+	wsSubgroupMode   string
+	wsSyncStrategy   string
+	workstationFlag  bool
+	validateFlag     bool
+	compactFlag      bool
 )
 
 // Profile creation flags
@@ -283,9 +292,9 @@ func init() {
 	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configProfileCmd)
-	configCmd.AddCommand(configAddChildCmd)
-	configCmd.AddCommand(configListChildrenCmd)
-	configCmd.AddCommand(configRemoveChildCmd)
+	configCmd.AddCommand(configAddWorkspaceCmd)
+	configCmd.AddCommand(configListWorkspacesCmd)
+	configCmd.AddCommand(configRemoveWorkspaceCmd)
 	configCmd.AddCommand(configHierarchyCmd)
 
 	// Profile subcommands
@@ -300,16 +309,21 @@ func init() {
 	configInitCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Initialize workstation config (~/.gz-git-config.yaml)")
 	configShowCmd.Flags().BoolVar(&configLocal, "local", false, "Show project config only")
 
-	// Hierarchical config command flags
-	configAddChildCmd.Flags().StringVar(&childType, "type", "git", "Child type (config, git)")
-	configAddChildCmd.Flags().StringVar(&childConfigFile, "config-file", "", "Custom config filename (for type=config)")
-	configAddChildCmd.Flags().StringVar(&childProfile, "profile", "", "Override profile for this child")
-	configAddChildCmd.Flags().IntVar(&childParallel, "parallel", 0, "Override parallel count for this child")
-	configAddChildCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Add to workstation config instead of workspace")
+	// Workspace command flags
+	configAddWorkspaceCmd.Flags().StringVar(&wsType, "type", "", "Workspace type (forge, git, config)")
+	configAddWorkspaceCmd.Flags().StringVar(&wsProfile, "profile", "", "Override profile for this workspace")
+	configAddWorkspaceCmd.Flags().IntVar(&wsParallel, "parallel", 0, "Override parallel count")
+	configAddWorkspaceCmd.Flags().StringVar(&wsProvider, "provider", "", "Forge provider (gitlab, github, gitea)")
+	configAddWorkspaceCmd.Flags().StringVar(&wsOrg, "org", "", "Forge organization/group to sync")
+	configAddWorkspaceCmd.Flags().StringVar(&wsBaseURL, "base-url", "", "Forge API base URL")
+	configAddWorkspaceCmd.Flags().BoolVar(&wsIncludeSubgrps, "include-subgroups", false, "Include subgroups (GitLab)")
+	configAddWorkspaceCmd.Flags().StringVar(&wsSubgroupMode, "subgroup-mode", "", "Subgroup mode (flat, nested)")
+	configAddWorkspaceCmd.Flags().StringVar(&wsSyncStrategy, "sync-strategy", "", "Sync strategy (pull, reset, skip)")
+	configAddWorkspaceCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Add to workstation config")
 
-	configListChildrenCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "List children from workstation config")
+	configListWorkspacesCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "List workspaces from workstation config")
 
-	configRemoveChildCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Remove from workstation config instead of workspace")
+	configRemoveWorkspaceCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Remove from workstation config")
 
 	configHierarchyCmd.Flags().BoolVar(&validateFlag, "validate", false, "Validate all config files in hierarchy")
 	configHierarchyCmd.Flags().BoolVar(&compactFlag, "compact", false, "Show compact output")
@@ -663,24 +677,14 @@ func runConfigProfileDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runConfigAddChild adds a child path to config
-func runConfigAddChild(cmd *cobra.Command, args []string) error {
-	childPath := args[0]
+// runConfigAddWorkspace adds a workspace to config
+func runConfigAddWorkspace(cmd *cobra.Command, args []string) error {
+	wsName := args[0]
+	wsPath := args[1]
 
 	mgr, err := config.NewManager()
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	// Validate child type
-	var ct config.ChildType
-	switch childType {
-	case "config":
-		ct = config.ChildTypeConfig
-	case "git":
-		ct = config.ChildTypeGit
-	default:
-		return fmt.Errorf("invalid child type '%s': must be 'config' or 'git'", childType)
 	}
 
 	// Load the appropriate config
@@ -688,32 +692,27 @@ func runConfigAddChild(cmd *cobra.Command, args []string) error {
 	var configPath, configFile string
 
 	if workstationFlag {
-		// Load workstation config
 		cfg, err = mgr.LoadWorkstationConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load workstation config: %w", err)
 		}
 		if cfg == nil {
-			// Create new workstation config
 			cfg = &config.Config{}
 		}
 		home, _ := os.UserHomeDir()
 		configPath = home
 		configFile = ".gz-git-config.yaml"
 	} else {
-		// Load workspace config
 		cfg, err = mgr.LoadWorkspaceConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load workspace config: %w", err)
 		}
 		if cfg == nil {
-			// Create new workspace config in current directory
 			cwd, _ := os.Getwd()
 			cfg = &config.Config{}
 			configPath = cwd
 			configFile = ".gz-git.yaml"
 		} else {
-			// Find where config is located
 			cwd, _ := os.Getwd()
 			configPath, err = config.FindConfigRecursive(cwd, ".gz-git.yaml")
 			if err != nil {
@@ -723,42 +722,69 @@ func runConfigAddChild(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create child entry
-	child := config.ChildEntry{
-		Path:       childPath,
-		Type:       ct,
-		ConfigFile: childConfigFile,
+	// Initialize workspaces map if needed
+	if cfg.Workspaces == nil {
+		cfg.Workspaces = make(map[string]*config.Workspace)
 	}
 
-	// Add inline overrides if provided
-	if childProfile != "" {
-		child.Profile = childProfile
-	}
-	if childParallel > 0 {
-		child.Parallel = childParallel
+	// Check if workspace already exists
+	if _, exists := cfg.Workspaces[wsName]; exists {
+		return fmt.Errorf("workspace '%s' already exists", wsName)
 	}
 
-	// Check if child already exists
-	for _, existing := range cfg.Children {
-		if existing.Path == childPath {
-			return fmt.Errorf("child path '%s' already exists", childPath)
+	// Create workspace
+	ws := &config.Workspace{
+		Path: wsPath,
+	}
+
+	// Set type
+	if wsType != "" {
+		ws.Type = config.WorkspaceType(wsType)
+	}
+
+	// Set profile override
+	if wsProfile != "" {
+		ws.Profile = wsProfile
+	}
+
+	// Set parallel override
+	if wsParallel > 0 {
+		ws.Parallel = wsParallel
+	}
+
+	// Set forge source if provider is specified
+	if wsProvider != "" {
+		ws.Source = &config.ForgeSource{
+			Provider:         wsProvider,
+			Org:              wsOrg,
+			BaseURL:          wsBaseURL,
+			IncludeSubgroups: wsIncludeSubgrps,
+			SubgroupMode:     wsSubgroupMode,
 		}
 	}
 
-	// Add child
-	cfg.Children = append(cfg.Children, child)
+	// Set sync strategy
+	if wsSyncStrategy != "" {
+		ws.Sync = &config.SyncConfig{
+			Strategy: wsSyncStrategy,
+		}
+	}
+
+	// Add workspace
+	cfg.Workspaces[wsName] = ws
 
 	// Save config
 	if err := mgr.SaveConfig(configPath, configFile, cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	fmt.Printf("Added child '%s' (type=%s) to %s/%s\n", childPath, ct, configPath, configFile)
+	typeStr := string(ws.Type.Resolve(ws.Source != nil))
+	fmt.Printf("Added workspace '%s' (type=%s) to %s/%s\n", wsName, typeStr, configPath, configFile)
 	return nil
 }
 
-// runConfigListChildren lists all child paths
-func runConfigListChildren(cmd *cobra.Command, args []string) error {
+// runConfigListWorkspaces lists all workspaces
+func runConfigListWorkspaces(cmd *cobra.Command, args []string) error {
 	mgr, err := config.NewManager()
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
@@ -784,31 +810,52 @@ func runConfigListChildren(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if len(cfg.Children) == 0 {
-		fmt.Printf("No children defined in %s\n", configName)
+	if len(cfg.Workspaces) == 0 {
+		fmt.Printf("No workspaces defined in %s\n", configName)
 		return nil
 	}
 
-	fmt.Printf("Children in %s:\n\n", configName)
-	for i, child := range cfg.Children {
-		fmt.Printf("%d. %s (type=%s)\n", i+1, child.Path, child.Type)
-		if child.ConfigFile != "" {
-			fmt.Printf("   config-file: %s\n", child.ConfigFile)
+	fmt.Printf("Workspaces in %s:\n\n", configName)
+	for name, ws := range cfg.Workspaces {
+		typeStr := string(ws.Type.Resolve(ws.Source != nil))
+		fmt.Printf("  %s:\n", name)
+		fmt.Printf("    path: %s\n", ws.Path)
+		fmt.Printf("    type: %s\n", typeStr)
+		if ws.Profile != "" {
+			fmt.Printf("    profile: %s\n", ws.Profile)
 		}
-		if child.Profile != "" {
-			fmt.Printf("   profile: %s\n", child.Profile)
+		if ws.Source != nil {
+			fmt.Printf("    source:\n")
+			fmt.Printf("      provider: %s\n", ws.Source.Provider)
+			if ws.Source.Org != "" {
+				fmt.Printf("      org: %s\n", ws.Source.Org)
+			}
+			if ws.Source.BaseURL != "" {
+				fmt.Printf("      baseURL: %s\n", ws.Source.BaseURL)
+			}
+			if ws.Source.IncludeSubgroups {
+				fmt.Printf("      includeSubgroups: true\n")
+			}
+			if ws.Source.SubgroupMode != "" {
+				fmt.Printf("      subgroupMode: %s\n", ws.Source.SubgroupMode)
+			}
 		}
-		if child.Parallel > 0 {
-			fmt.Printf("   parallel: %d\n", child.Parallel)
+		if ws.Sync != nil && ws.Sync.Strategy != "" {
+			fmt.Printf("    sync:\n")
+			fmt.Printf("      strategy: %s\n", ws.Sync.Strategy)
 		}
+		if ws.Parallel > 0 {
+			fmt.Printf("    parallel: %d\n", ws.Parallel)
+		}
+		fmt.Println()
 	}
 
 	return nil
 }
 
-// runConfigRemoveChild removes a child path from config
-func runConfigRemoveChild(cmd *cobra.Command, args []string) error {
-	childPath := args[0]
+// runConfigRemoveWorkspace removes a workspace from config
+func runConfigRemoveWorkspace(cmd *cobra.Command, args []string) error {
+	wsName := args[0]
 
 	mgr, err := config.NewManager()
 	if err != nil {
@@ -844,29 +891,24 @@ func runConfigRemoveChild(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no config found")
 	}
 
-	// Find and remove child
-	found := false
-	newChildren := make([]config.ChildEntry, 0, len(cfg.Children))
-	for _, child := range cfg.Children {
-		if child.Path == childPath {
-			found = true
-			continue
-		}
-		newChildren = append(newChildren, child)
+	if cfg.Workspaces == nil {
+		return fmt.Errorf("no workspaces defined")
 	}
 
-	if !found {
-		return fmt.Errorf("child path '%s' not found", childPath)
+	// Check if workspace exists
+	if _, exists := cfg.Workspaces[wsName]; !exists {
+		return fmt.Errorf("workspace '%s' not found", wsName)
 	}
 
-	cfg.Children = newChildren
+	// Remove workspace
+	delete(cfg.Workspaces, wsName)
 
 	// Save config
 	if err := mgr.SaveConfig(configPath, configFile, cfg); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	fmt.Printf("Removed child '%s' from %s/%s\n", childPath, configPath, configFile)
+	fmt.Printf("Removed workspace '%s' from %s/%s\n", wsName, configPath, configFile)
 	return nil
 }
 
@@ -929,50 +971,61 @@ func printConfigTree(cfg *config.Config, path string, configFile string, depth i
 		}
 	}
 
-	// Print children
-	for i, child := range cfg.Children {
-		childIndent := strings.Repeat("  ", depth+1)
+	// Print workspaces
+	for name, ws := range cfg.Workspaces {
+		wsIndent := strings.Repeat("  ", depth+1)
+		effectiveType := ws.Type.Resolve(ws.Source != nil)
 
-		if child.Type == config.ChildTypeConfig {
-			// Recursive: load child config
-			childPath, _ := resolveChildPath(path, child.Path)
-			childConfigFile := child.ConfigFile
-			if childConfigFile == "" {
-				childConfigFile = ".gz-git.yaml"
-			}
+		switch effectiveType {
+		case config.WorkspaceTypeConfig:
+			// Recursive: load workspace config
+			wsPath, _ := resolveWorkspacePath(path, ws.Path)
+			wsConfigFile := ".gz-git.yaml"
 
-			childCfg, err := config.LoadConfigRecursive(childPath, childConfigFile)
+			wsCfg, err := config.LoadConfigRecursive(wsPath, wsConfigFile)
 			if err != nil {
-				fmt.Printf("%s[%d] %s (type=config) ⚠ failed to load: %v\n", childIndent, i+1, child.Path, err)
+				fmt.Printf("%s%s (type=config) ⚠ failed to load: %v\n", wsIndent, name, err)
 			} else {
-				fmt.Printf("%s[%d] ", childIndent, i+1)
-				printConfigTree(childCfg, childPath, childConfigFile, depth+2, validate, compact)
+				fmt.Printf("%s%s: ", wsIndent, name)
+				printConfigTree(wsCfg, wsPath, wsConfigFile, depth+2, validate, compact)
 			}
-		} else {
-			// Leaf: git repo
-			fmt.Printf("%s[%d] %s (type=git)\n", childIndent, i+1, child.Path)
-			if !compact && (child.Profile != "" || child.Parallel > 0) {
-				if child.Profile != "" {
-					fmt.Printf("%s    profile: %s\n", childIndent, child.Profile)
+
+		case config.WorkspaceTypeForge:
+			// Forge workspace
+			fmt.Printf("%s%s (type=forge)\n", wsIndent, name)
+			if !compact {
+				fmt.Printf("%s  path: %s\n", wsIndent, ws.Path)
+				if ws.Source != nil {
+					fmt.Printf("%s  source: %s/%s\n", wsIndent, ws.Source.Provider, ws.Source.Org)
 				}
-				if child.Parallel > 0 {
-					fmt.Printf("%s    parallel: %d\n", childIndent, child.Parallel)
+				if ws.Profile != "" {
+					fmt.Printf("%s  profile: %s\n", wsIndent, ws.Profile)
+				}
+			}
+
+		case config.WorkspaceTypeGit:
+			// Git workspace
+			fmt.Printf("%s%s (type=git)\n", wsIndent, name)
+			if !compact {
+				fmt.Printf("%s  path: %s\n", wsIndent, ws.Path)
+				if ws.Profile != "" {
+					fmt.Printf("%s  profile: %s\n", wsIndent, ws.Profile)
 				}
 			}
 		}
 	}
 }
 
-// resolveChildPath resolves child path relative to parent
-func resolveChildPath(parentPath, childPath string) (string, error) {
-	if strings.HasPrefix(childPath, "~/") {
+// resolveWorkspacePath resolves workspace path relative to parent
+func resolveWorkspacePath(parentPath, wsPath string) (string, error) {
+	if strings.HasPrefix(wsPath, "~/") {
 		home, _ := os.UserHomeDir()
-		return filepath.Join(home, childPath[2:]), nil
+		return filepath.Join(home, wsPath[2:]), nil
 	}
-	if filepath.IsAbs(childPath) {
-		return childPath, nil
+	if filepath.IsAbs(wsPath) {
+		return wsPath, nil
 	}
-	return filepath.Join(parentPath, childPath), nil
+	return filepath.Join(parentPath, wsPath), nil
 }
 
 // printConfigValue prints a config value with its source
@@ -997,3 +1050,4 @@ func sanitizeToken(token string) string {
 	}
 	return token[:4] + "..." + token[len(token)-4:]
 }
+

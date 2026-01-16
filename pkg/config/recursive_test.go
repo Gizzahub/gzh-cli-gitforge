@@ -16,35 +16,38 @@ func TestLoadConfigRecursive(t *testing.T) {
 	// Create workstation config
 	workstationConfig := `parallel: 10
 cloneProto: ssh
-children:
-  - path: workspace
+workspaces:
+  workspace:
+    path: workspace
     type: config
     profile: opensource
     parallel: 10
-  - path: single-repo
+  single-repo:
+    path: single-repo
     type: git
     profile: personal
 metadata:
   name: workstation
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(workstationConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(workstationConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create workspace directory and config
 	workspaceDir := filepath.Join(tmpDir, "workspace")
-	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	workspaceConfig := `profile: opensource
 sync:
   strategy: reset
-  parallel: 10
-children:
-  - path: project1
+workspaces:
+  project1:
+    path: project1
     type: git
-  - path: project2
+  project2:
+    path: project2
     type: config
     sync:
       strategy: pull
@@ -52,46 +55,46 @@ metadata:
   name: workspace
   type: development
 `
-	if err := os.WriteFile(filepath.Join(workspaceDir, ".gz-git.yaml"), []byte(workspaceConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(workspaceDir, ".gz-git.yaml"), []byte(workspaceConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create project1 (git repo)
 	project1Dir := filepath.Join(workspaceDir, "project1")
-	if err := os.MkdirAll(filepath.Join(project1Dir, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(project1Dir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create project2 directory and config
 	project2Dir := filepath.Join(workspaceDir, "project2")
-	if err := os.MkdirAll(project2Dir, 0755); err != nil {
+	if err := os.MkdirAll(project2Dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	project2Config := `sync:
   strategy: pull
-  parallel: 3
-children:
-  - path: vendor
+workspaces:
+  vendor:
+    path: vendor
     type: git
     sync:
       strategy: skip
 metadata:
   name: project2
 `
-	if err := os.WriteFile(filepath.Join(project2Dir, ".gz-git.yaml"), []byte(project2Config), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(project2Dir, ".gz-git.yaml"), []byte(project2Config), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create vendor (git repo)
 	vendorDir := filepath.Join(project2Dir, "vendor")
-	if err := os.MkdirAll(filepath.Join(vendorDir, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(vendorDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create single-repo (git repo)
 	singleRepoDir := filepath.Join(tmpDir, "single-repo")
-	if err := os.MkdirAll(filepath.Join(singleRepoDir, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(singleRepoDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,33 +115,39 @@ metadata:
 		t.Error("Expected metadata.name=workstation")
 	}
 
-	// Verify children
-	if len(config.Children) != 2 {
-		t.Fatalf("Expected 2 children, got %d", len(config.Children))
+	// Verify workspaces
+	if len(config.Workspaces) != 2 {
+		t.Fatalf("Expected 2 workspaces, got %d", len(config.Workspaces))
 	}
 
-	// Verify workspace child
-	workspaceChild := config.Children[0]
-	if workspaceChild.Path != "workspace" {
-		t.Errorf("Expected path=workspace, got %s", workspaceChild.Path)
+	// Verify workspace workspace
+	workspaceWs := config.Workspaces["workspace"]
+	if workspaceWs == nil {
+		t.Fatal("Expected 'workspace' workspace to exist")
 	}
-	if workspaceChild.Type != ChildTypeConfig {
-		t.Errorf("Expected type=config, got %s", workspaceChild.Type)
+	if workspaceWs.Path != "workspace" {
+		t.Errorf("Expected path=workspace, got %s", workspaceWs.Path)
 	}
-	if workspaceChild.Profile != "opensource" {
-		t.Errorf("Expected profile=opensource, got %s", workspaceChild.Profile)
+	if workspaceWs.Type != WorkspaceTypeConfig {
+		t.Errorf("Expected type=config, got %s", workspaceWs.Type)
 	}
-	if workspaceChild.Parallel != 10 {
-		t.Errorf("Expected parallel=10, got %d", workspaceChild.Parallel)
+	if workspaceWs.Profile != "opensource" {
+		t.Errorf("Expected profile=opensource, got %s", workspaceWs.Profile)
+	}
+	if workspaceWs.Parallel != 10 {
+		t.Errorf("Expected parallel=10, got %d", workspaceWs.Parallel)
 	}
 
-	// Verify single-repo child
-	singleRepoChild := config.Children[1]
-	if singleRepoChild.Path != "single-repo" {
-		t.Errorf("Expected path=single-repo, got %s", singleRepoChild.Path)
+	// Verify single-repo workspace
+	singleRepoWs := config.Workspaces["single-repo"]
+	if singleRepoWs == nil {
+		t.Fatal("Expected 'single-repo' workspace to exist")
 	}
-	if singleRepoChild.Type != ChildTypeGit {
-		t.Errorf("Expected type=git, got %s", singleRepoChild.Type)
+	if singleRepoWs.Path != "single-repo" {
+		t.Errorf("Expected path=single-repo, got %s", singleRepoWs.Path)
+	}
+	if singleRepoWs.Type != WorkspaceTypeGit {
+		t.Errorf("Expected type=git, got %s", singleRepoWs.Type)
 	}
 }
 
@@ -156,12 +165,13 @@ func TestLoadConfigRecursive_InvalidYAML(t *testing.T) {
 
 	// Write invalid YAML
 	invalidYAML := `parallel: 10
-children:
-  - path: foo
+workspaces:
+  foo:
+    path: foo
     type: config
     invalid yaml here!!!
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(invalidYAML), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(invalidYAML), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -171,41 +181,33 @@ children:
 	}
 }
 
-func TestLoadConfigRecursive_InvalidChildType(t *testing.T) {
+func TestLoadConfigRecursive_InvalidWorkspaceType(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Write config with invalid child type
+	// Write config with invalid workspace type
 	invalidConfig := `parallel: 10
-children:
-  - path: foo
+workspaces:
+  foo:
+    path: foo
     type: invalid
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(invalidConfig), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(invalidConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := LoadConfigRecursive(tmpDir, ".gz-git-config.yaml")
-	if err == nil {
-		t.Error("Expected error for invalid child type")
-	}
-}
-
-func TestLoadConfigRecursive_GitRepoNotFound(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Write config with git child that doesn't exist
-	config := `parallel: 10
-children:
-  - path: nonexistent-repo
-    type: git
-`
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte(config), 0644); err != nil {
-		t.Fatal(err)
+	// LoadConfigRecursive should succeed - type validation is done separately
+	config, err := LoadConfigRecursive(tmpDir, ".gz-git-config.yaml")
+	if err != nil {
+		t.Fatalf("LoadConfigRecursive failed: %v", err)
 	}
 
-	_, err := LoadConfigRecursive(tmpDir, ".gz-git-config.yaml")
-	if err == nil {
-		t.Error("Expected error for nonexistent git repo")
+	// Verify the invalid type is preserved
+	ws := config.Workspaces["foo"]
+	if ws == nil {
+		t.Fatal("Expected 'foo' workspace to exist")
+	}
+	if ws.Type != "invalid" {
+		t.Errorf("Expected type=invalid, got %s", ws.Type)
 	}
 }
 
@@ -267,7 +269,7 @@ func TestResolvePath(t *testing.T) {
 	})
 }
 
-func TestMergeInlineOverrides(t *testing.T) {
+func TestMergeWorkspaceOverrides(t *testing.T) {
 	config := &Config{
 		Profile:  "original",
 		Parallel: 10,
@@ -276,133 +278,133 @@ func TestMergeInlineOverrides(t *testing.T) {
 		},
 	}
 
-	entry := &ChildEntry{
+	ws := &Workspace{
 		Profile:  "override",
-		Parallel: 10,
+		Parallel: 20,
 		Sync: &SyncConfig{
 			Strategy: "pull",
 		},
 	}
 
-	mergeInlineOverrides(config, entry)
+	mergeWorkspaceOverrides(config, ws)
 
 	if config.Profile != "override" {
 		t.Errorf("Expected profile=override, got %s", config.Profile)
 	}
-	if config.Parallel != 10 {
-		t.Errorf("Expected parallel=10, got %d", config.Parallel)
+	if config.Parallel != 20 {
+		t.Errorf("Expected parallel=20, got %d", config.Parallel)
 	}
 	if config.Sync.Strategy != "pull" {
 		t.Errorf("Expected sync.strategy=pull, got %s", config.Sync.Strategy)
 	}
 }
 
-func TestLoadChildren_ExplicitMode(t *testing.T) {
+func TestLoadWorkspaces_ExplicitMode(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create some git repos
 	repo1 := filepath.Join(tmpDir, "repo1")
-	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	repo2 := filepath.Join(tmpDir, "repo2")
-	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Config with explicit children
+	// Config with explicit workspaces
 	config := &Config{
-		Children: []ChildEntry{
-			{Path: "repo1", Type: ChildTypeGit},
+		Workspaces: map[string]*Workspace{
+			"repo1": {Path: "repo1", Type: WorkspaceTypeGit},
 		},
 	}
 
 	// Explicit mode should NOT auto-discover repo2
-	err := LoadChildren(tmpDir, config, ExplicitMode)
+	err := LoadWorkspaces(tmpDir, config, ExplicitMode)
 	if err != nil {
-		t.Fatalf("LoadChildren failed: %v", err)
+		t.Fatalf("LoadWorkspaces failed: %v", err)
 	}
 
-	if len(config.Children) != 1 {
-		t.Errorf("Expected 1 child (explicit), got %d", len(config.Children))
+	if len(config.Workspaces) != 1 {
+		t.Errorf("Expected 1 workspace (explicit), got %d", len(config.Workspaces))
 	}
 }
 
-func TestLoadChildren_AutoMode(t *testing.T) {
+func TestLoadWorkspaces_AutoMode(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create some git repos
 	repo1 := filepath.Join(tmpDir, "repo1")
-	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	repo2 := filepath.Join(tmpDir, "repo2")
-	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Config with explicit children (will be ignored in auto mode)
+	// Config with explicit workspaces (will be cleared in auto mode)
 	config := &Config{
-		Children: []ChildEntry{
-			{Path: "repo1", Type: ChildTypeGit},
+		Workspaces: map[string]*Workspace{
+			"repo1": {Path: "repo1", Type: WorkspaceTypeGit},
 		},
 	}
 
 	// Auto mode should discover both repos
-	err := LoadChildren(tmpDir, config, AutoMode)
+	err := LoadWorkspaces(tmpDir, config, AutoMode)
 	if err != nil {
-		t.Fatalf("LoadChildren failed: %v", err)
+		t.Fatalf("LoadWorkspaces failed: %v", err)
 	}
 
-	if len(config.Children) != 2 {
-		t.Errorf("Expected 2 children (auto-discovered), got %d", len(config.Children))
+	if len(config.Workspaces) != 2 {
+		t.Errorf("Expected 2 workspaces (auto-discovered), got %d", len(config.Workspaces))
 	}
 }
 
-func TestLoadChildren_HybridMode(t *testing.T) {
+func TestLoadWorkspaces_HybridMode(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create some git repos
 	repo1 := filepath.Join(tmpDir, "repo1")
-	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo1, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	repo2 := filepath.Join(tmpDir, "repo2")
-	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(repo2, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Test 1: Config with explicit children - should use explicit
+	// Test 1: Config with explicit workspaces - should use explicit
 	config1 := &Config{
-		Children: []ChildEntry{
-			{Path: "repo1", Type: ChildTypeGit},
+		Workspaces: map[string]*Workspace{
+			"repo1": {Path: "repo1", Type: WorkspaceTypeGit},
 		},
 	}
 
-	err := LoadChildren(tmpDir, config1, HybridMode)
+	err := LoadWorkspaces(tmpDir, config1, HybridMode)
 	if err != nil {
-		t.Fatalf("LoadChildren failed: %v", err)
+		t.Fatalf("LoadWorkspaces failed: %v", err)
 	}
 
-	if len(config1.Children) != 1 {
-		t.Errorf("Expected 1 child (explicit), got %d", len(config1.Children))
+	if len(config1.Workspaces) != 1 {
+		t.Errorf("Expected 1 workspace (explicit), got %d", len(config1.Workspaces))
 	}
 
-	// Test 2: Config without children - should auto-discover
+	// Test 2: Config without workspaces - should auto-discover
 	config2 := &Config{
-		Children: []ChildEntry{},
+		Workspaces: map[string]*Workspace{},
 	}
 
-	err = LoadChildren(tmpDir, config2, HybridMode)
+	err = LoadWorkspaces(tmpDir, config2, HybridMode)
 	if err != nil {
-		t.Fatalf("LoadChildren failed: %v", err)
+		t.Fatalf("LoadWorkspaces failed: %v", err)
 	}
 
-	if len(config2.Children) != 2 {
-		t.Errorf("Expected 2 children (auto-discovered), got %d", len(config2.Children))
+	if len(config2.Workspaces) != 2 {
+		t.Errorf("Expected 2 workspaces (auto-discovered), got %d", len(config2.Workspaces))
 	}
 }
 
@@ -418,22 +420,22 @@ func TestFindConfigRecursive(t *testing.T) {
 	//       (no config)
 
 	// Write root config
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte("parallel: 10"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte("parallel: 10"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create workspace with config
 	workspaceDir := filepath.Join(tmpDir, "workspace")
-	if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+	if err := os.MkdirAll(workspaceDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspaceDir, ".gz-git.yaml"), []byte("profile: test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(workspaceDir, ".gz-git.yaml"), []byte("profile: test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create project without config
 	projectDir := filepath.Join(workspaceDir, "project")
-	if err := os.MkdirAll(projectDir, 0755); err != nil {
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -462,41 +464,46 @@ func TestFindConfigRecursive(t *testing.T) {
 	}
 }
 
-func TestChildType_DefaultConfigFile(t *testing.T) {
+func TestWorkspaceType_IsValid(t *testing.T) {
 	tests := []struct {
-		childType ChildType
-		want      string
+		wsType WorkspaceType
+		want   bool
 	}{
-		{ChildTypeConfig, ".gz-git.yaml"},
-		{ChildTypeGit, ""},
+		{WorkspaceTypeConfig, true},
+		{WorkspaceTypeGit, true},
+		{WorkspaceTypeForge, true},
+		{"", true}, // Empty is valid (inferred from context)
+		{"invalid", false},
 	}
 
 	for _, tt := range tests {
-		t.Run(string(tt.childType), func(t *testing.T) {
-			got := tt.childType.DefaultConfigFile()
+		t.Run(string(tt.wsType), func(t *testing.T) {
+			got := tt.wsType.IsValid()
 			if got != tt.want {
-				t.Errorf("DefaultConfigFile() = %v, want %v", got, tt.want)
+				t.Errorf("IsValid() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestChildType_IsValid(t *testing.T) {
+func TestWorkspaceType_Resolve(t *testing.T) {
 	tests := []struct {
-		childType ChildType
-		want      bool
+		wsType    WorkspaceType
+		hasSource bool
+		want      WorkspaceType
 	}{
-		{ChildTypeConfig, true},
-		{ChildTypeGit, true},
-		{"invalid", false},
-		{"", false},
+		{WorkspaceTypeConfig, false, WorkspaceTypeConfig},
+		{WorkspaceTypeGit, false, WorkspaceTypeGit},
+		{WorkspaceTypeForge, false, WorkspaceTypeForge},
+		{"", true, WorkspaceTypeForge},  // Empty + hasSource = forge
+		{"", false, WorkspaceTypeGit},   // Empty + no source = git
 	}
 
 	for _, tt := range tests {
-		t.Run(string(tt.childType), func(t *testing.T) {
-			got := tt.childType.IsValid()
+		t.Run(string(tt.wsType), func(t *testing.T) {
+			got := tt.wsType.Resolve(tt.hasSource)
 			if got != tt.want {
-				t.Errorf("IsValid() = %v, want %v", got, tt.want)
+				t.Errorf("Resolve() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -542,5 +549,102 @@ func TestDiscoveryMode_Default(t *testing.T) {
 				t.Errorf("Default() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetWorkspaceByName(t *testing.T) {
+	config := &Config{
+		Workspaces: map[string]*Workspace{
+			"mydevbox": {Path: "~/mydevbox", Type: WorkspaceTypeConfig},
+			"mywork":   {Path: "~/mywork", Type: WorkspaceTypeConfig},
+		},
+	}
+
+	// Test existing workspace
+	ws := GetWorkspaceByName(config, "mydevbox")
+	if ws == nil {
+		t.Fatal("Expected workspace to exist")
+	}
+	if ws.Path != "~/mydevbox" {
+		t.Errorf("Expected path=~/mydevbox, got %s", ws.Path)
+	}
+
+	// Test non-existing workspace
+	ws = GetWorkspaceByName(config, "nonexistent")
+	if ws != nil {
+		t.Error("Expected nil for non-existing workspace")
+	}
+
+	// Test nil config
+	ws = GetWorkspaceByName(nil, "mydevbox")
+	if ws != nil {
+		t.Error("Expected nil for nil config")
+	}
+}
+
+func TestGetAllWorkspaces(t *testing.T) {
+	config := &Config{
+		Workspaces: map[string]*Workspace{
+			"mydevbox": {Path: "~/mydevbox", Type: WorkspaceTypeConfig},
+			"mywork":   {Path: "~/mywork", Type: WorkspaceTypeConfig},
+		},
+	}
+
+	all := GetAllWorkspaces(config)
+	if len(all) != 2 {
+		t.Errorf("Expected 2 workspaces, got %d", len(all))
+	}
+
+	// Test nil config
+	all = GetAllWorkspaces(nil)
+	if all != nil {
+		t.Error("Expected nil for nil config")
+	}
+}
+
+func TestGetForgeWorkspaces(t *testing.T) {
+	config := &Config{
+		Workspaces: map[string]*Workspace{
+			"devbox": {
+				Path: "~/devbox",
+				Type: WorkspaceTypeForge,
+				Source: &ForgeSource{
+					Provider: "gitlab",
+					Org:      "devbox",
+				},
+			},
+			"personal": {
+				Path: "~/personal",
+				Type: WorkspaceTypeGit,
+			},
+			"inferred-forge": {
+				Path: "~/inferred",
+				Source: &ForgeSource{
+					Provider: "github",
+					Org:      "myorg",
+				},
+			},
+		},
+	}
+
+	forgeWs := GetForgeWorkspaces(config)
+	if len(forgeWs) != 2 {
+		t.Errorf("Expected 2 forge workspaces, got %d", len(forgeWs))
+	}
+
+	if _, ok := forgeWs["devbox"]; !ok {
+		t.Error("Expected 'devbox' to be in forge workspaces")
+	}
+	if _, ok := forgeWs["inferred-forge"]; !ok {
+		t.Error("Expected 'inferred-forge' to be in forge workspaces")
+	}
+	if _, ok := forgeWs["personal"]; ok {
+		t.Error("Expected 'personal' NOT to be in forge workspaces")
+	}
+
+	// Test nil config
+	forgeWs = GetForgeWorkspaces(nil)
+	if len(forgeWs) != 0 {
+		t.Error("Expected empty map for nil config")
 	}
 }
