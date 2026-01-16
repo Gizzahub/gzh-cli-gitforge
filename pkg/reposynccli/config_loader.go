@@ -379,7 +379,13 @@ func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (Con
 		return ConfigData{}, errors.New("config has no workspaces defined")
 	}
 
-	// Build profile lookup map (inline profiles)
+	// Load and merge parent config profiles (if parent is specified)
+	if err := mergeProfilesIntoConfig(&cfg, configPath); err != nil {
+		// Log warning but continue - parent profiles are optional
+		fmt.Fprintf(os.Stderr, "Warning: failed to merge parent profiles: %v\n", err)
+	}
+
+	// Build profile lookup map (inline profiles + inherited from parent)
 	profiles := cfg.Profiles
 
 	// Resolve active profile settings
@@ -757,6 +763,99 @@ func getGitRemoteURL(repoPath string) string {
 		}
 	}
 	return ""
+}
+
+// loadParentProfiles recursively loads parent configs and merges profiles.
+// Returns merged profiles map where child profiles override parent profiles.
+// Uses visited set to prevent circular references.
+func loadParentProfiles(configPath string, visited map[string]bool) (map[string]*profileEntry, error) {
+	absPath, err := filepath.Abs(cleanPath(configPath))
+	if err != nil {
+		return nil, fmt.Errorf("resolve config path: %w", err)
+	}
+
+	// Check for circular reference
+	if visited[absPath] {
+		return nil, fmt.Errorf("circular parent reference detected: %s", absPath)
+	}
+	visited[absPath] = true
+
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("read parent config %s: %w", absPath, err)
+	}
+
+	var cfg workspacesConfig
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		return nil, fmt.Errorf("parse parent config %s: %w", absPath, err)
+	}
+
+	// Start with parent's profiles (recursively load if parent has its own parent)
+	profiles := make(map[string]*profileEntry)
+	if cfg.Parent != "" {
+		parentPath := cfg.Parent
+		// Resolve relative path based on current config's directory
+		if !filepath.IsAbs(parentPath) && !strings.HasPrefix(parentPath, "~") {
+			parentPath = filepath.Join(filepath.Dir(absPath), parentPath)
+		}
+		parentProfiles, err := loadParentProfiles(parentPath, visited)
+		if err != nil {
+			// Log warning but continue - parent might not exist
+			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config: %v\n", err)
+		} else {
+			// Copy parent profiles
+			for k, v := range parentProfiles {
+				profiles[k] = v
+			}
+		}
+	}
+
+	// Merge current config's profiles (overrides parent)
+	for k, v := range cfg.Profiles {
+		profiles[k] = v
+	}
+
+	return profiles, nil
+}
+
+// mergeProfilesIntoConfig loads parent profiles and merges them into the current config.
+// Child profiles override parent profiles.
+func mergeProfilesIntoConfig(cfg *workspacesConfig, configPath string) error {
+	if cfg.Parent == "" {
+		return nil // No parent to merge
+	}
+
+	parentPath := cfg.Parent
+	configDir := filepath.Dir(configPath)
+
+	// Resolve relative path
+	if !filepath.IsAbs(parentPath) && !strings.HasPrefix(parentPath, "~") {
+		parentPath = filepath.Join(configDir, parentPath)
+	}
+
+	visited := make(map[string]bool)
+	// Mark current config as visited
+	if absPath, err := filepath.Abs(configPath); err == nil {
+		visited[absPath] = true
+	}
+
+	parentProfiles, err := loadParentProfiles(parentPath, visited)
+	if err != nil {
+		return fmt.Errorf("load parent profiles: %w", err)
+	}
+
+	// Merge: parent profiles first, then child profiles override
+	if cfg.Profiles == nil {
+		cfg.Profiles = make(map[string]*profileEntry)
+	}
+
+	for k, v := range parentProfiles {
+		if _, exists := cfg.Profiles[k]; !exists {
+			cfg.Profiles[k] = v
+		}
+	}
+
+	return nil
 }
 
 func cleanPath(path string) string {
