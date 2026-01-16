@@ -15,13 +15,18 @@ func TestConfigPrecedence(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Unsetenv("HOME")
 
+	// Change to temp directory to avoid finding real project configs
+	oldWd, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	defer os.Chdir(oldWd)
+
 	// Setup: Create config directory structure
 	configDir := filepath.Join(tmpDir, ".config", "gz-git")
 	profilesDir := filepath.Join(configDir, "profiles")
 	stateDir := filepath.Join(configDir, "state")
 
-	os.MkdirAll(profilesDir, 0700)
-	os.MkdirAll(stateDir, 0700)
+	os.MkdirAll(profilesDir, 0o700)
+	os.MkdirAll(stateDir, 0o700)
 
 	// Create global config
 	globalConfig := &GlobalConfig{
@@ -38,7 +43,7 @@ func TestConfigPrecedence(t *testing.T) {
 	defaultProfile := &Profile{
 		Name:     "default",
 		Provider: "github",   // From profile
-		Parallel: 10,          // Profile overrides global
+		Parallel: 10,         // Profile overrides global
 		Token:    "prof-tok", // From profile
 	}
 	mgr.SaveProfile(defaultProfile)
@@ -105,7 +110,7 @@ func TestProjectConfigPrecedence(t *testing.T) {
 
 	// Create project directory
 	projectDir := filepath.Join(tmpDir, "project")
-	os.MkdirAll(projectDir, 0755)
+	os.MkdirAll(projectDir, 0o755)
 
 	// Change to project directory
 	oldWd, _ := os.Getwd()
@@ -115,7 +120,7 @@ func TestProjectConfigPrecedence(t *testing.T) {
 	// Setup global config
 	configDir := filepath.Join(tmpDir, ".config", "gz-git")
 	profilesDir := filepath.Join(configDir, "profiles")
-	os.MkdirAll(profilesDir, 0700)
+	os.MkdirAll(profilesDir, 0o700)
 
 	mgr, _ := NewManager()
 
