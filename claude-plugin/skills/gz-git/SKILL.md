@@ -35,13 +35,13 @@ Most `gz-git` commands scan a directory for repositories and process them in par
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `--scan-depth` | `1` | Current directory + 1 level deep |
-| `--parallel`   | `5` | Process 5 repos concurrently |
+| `--parallel`   | `10` | Process 5 repos concurrently |
 
 ### Common Bulk Flags
 
 ```bash
 -d, --scan-depth INT     # Directory depth (default: 1)
--j, --parallel INT       # Parallel workers (default: 5)
+-j, --parallel INT       # Parallel workers (default: 10)
 -n, --dry-run            # Preview without executing
 -r, --recursive          # Include nested repos/submodules
     --include REGEX      # Include repos matching pattern

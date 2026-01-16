@@ -16,7 +16,7 @@ No. `gz-git` runs the **Git CLI** under the hood and focuses on safer defaults, 
 Most commands scan a directory for repositories and process them in parallel.
 
 - Default scan depth: `--scan-depth 1`
-- Default parallelism: `--parallel 5`
+- Default parallelism: `--parallel 10`
 
 Control scope with:
 

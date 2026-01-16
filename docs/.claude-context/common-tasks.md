@@ -9,7 +9,7 @@ gz-git은 **기본적으로 bulk 모드**로 동작합니다. 모든 주요 명�
 ```go
 const (
     DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨
-    DefaultBulkParallel = 5    // 5개 병렬 처리
+    DefaultBulkParallel = 10    // 10개 병렬 처리
 )
 ```
 

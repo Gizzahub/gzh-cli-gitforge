@@ -111,7 +111,7 @@ func (l *ConfigLoader) ResolveConfig(flags map[string]interface{}) (*EffectiveCo
 
 // applyDefaults applies built-in default values.
 func (l *ConfigLoader) applyDefaults(cfg *EffectiveConfig) {
-	cfg.Parallel = 5
+	cfg.Parallel = 10
 	cfg.CloneProto = "ssh"
 	cfg.Sync.Strategy = "pull"
 	cfg.Fetch.AllRemotes = true

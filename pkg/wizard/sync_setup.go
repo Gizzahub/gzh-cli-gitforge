@@ -48,7 +48,7 @@ func NewSyncSetupWizard() *SyncSetupWizard {
 			CloneProto:     "ssh",
 			SubgroupMode:   "flat",
 			IncludePrivate: true,
-			Parallel:       5,
+			Parallel:       10,
 		},
 	}
 }
@@ -236,7 +236,7 @@ func (w *SyncSetupWizard) runTargetStep() error {
 
 	var targetPath, parallel string
 	targetPath = defaultTarget
-	parallel = "5"
+	parallel = "10"
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -290,7 +290,7 @@ func (w *SyncSetupWizard) runTargetStep() error {
 	}
 
 	w.opts.TargetPath = targetPath
-	w.opts.Parallel = ParseParallel(parallel, 5)
+	w.opts.Parallel = ParseParallel(parallel, 10)
 	return nil
 }
 
@@ -421,7 +421,7 @@ func (w *SyncSetupWizard) BuildCommand() string {
 		}
 	}
 
-	if w.opts.Parallel != 5 {
+	if w.opts.Parallel != 10 {
 		parts = append(parts, "--parallel", strconv.Itoa(w.opts.Parallel))
 	}
 

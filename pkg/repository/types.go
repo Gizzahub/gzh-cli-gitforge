@@ -9,7 +9,7 @@ package repository
 // Default values for bulk operations.
 const (
 	// DefaultBulkParallel is the default number of parallel workers.
-	DefaultBulkParallel = 5
+	DefaultBulkParallel = 10
 
 	// DefaultBulkMaxDepth is the default maximum directory depth to scan
 	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)

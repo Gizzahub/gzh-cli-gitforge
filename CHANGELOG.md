@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Common message for all repos via `--all`
 - Multiple output formats: default, compact, json, llm
 - Filtering with `--include` and `--exclude` patterns
-- Parallel processing with `-j` flag (default: 5)
+- Parallel processing with `-j` flag (default: 10)
 - Dry-run mode with `--dry-run` flag
 
 ### Removed
@@ -111,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--stash` flag: auto-stash local changes before pull
   - `--watch` mode: continuous pulling at intervals (default: 1m)
   - `--dry-run`: preview without actual pull
-  - `--parallel`: concurrent pull operations (default: 5)
+  - `--parallel`: concurrent pull operations (default: 10)
   - `--include/--exclude`: regex filtering
   - `--format`: default or compact output
 - Status icons: ✓ success, ✗ error, = up-to-date, ⚠ no-remote/no-upstream

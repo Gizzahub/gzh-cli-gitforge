@@ -28,8 +28,8 @@ func TestNewSyncSetupWizard(t *testing.T) {
 		t.Error("default IncludePrivate should be true")
 	}
 
-	if w.opts.Parallel != 5 {
-		t.Errorf("default Parallel = %d, want 5", w.opts.Parallel)
+	if w.opts.Parallel != 10 {
+		t.Errorf("default Parallel = %d, want 10", w.opts.Parallel)
 	}
 }
 
@@ -48,7 +48,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				TargetPath:     "/tmp/repos",
 				CloneProto:     "ssh",
 				IncludePrivate: true,
-				Parallel:       5,
+				Parallel:       10,
 			},
 			wantPart: []string{
 				"gz-git sync from-forge",
@@ -58,7 +58,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 			},
 			dontWant: []string{
 				"--clone-proto", // ssh is default
-				"--parallel",    // 5 is default
+				"--parallel",    // 10 is default
 				"--include-subgroups",
 			},
 		},
@@ -85,7 +85,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				"--ssh-port 2224",
 				"--include-subgroups",
 				"--subgroup-mode nested",
-				"--parallel 10",
+				// --parallel 10 is default, so not included
 			},
 		},
 		{
@@ -96,7 +96,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				TargetPath:     "/tmp",
 				CloneProto:     "https",
 				IncludePrivate: true,
-				Parallel:       5,
+				Parallel:       10,
 			},
 			wantPart: []string{
 				"--clone-proto https",
@@ -112,7 +112,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				IncludeArchived: true,
 				IncludeForks:    true,
 				IncludePrivate:  true,
-				Parallel:        5,
+				Parallel:        10,
 			},
 			wantPart: []string{
 				"--include-archived",
@@ -127,7 +127,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				TargetPath:     "/tmp",
 				CloneProto:     "ssh",
 				IncludePrivate: false,
-				Parallel:       5,
+				Parallel:       10,
 			},
 			wantPart: []string{
 				"--include-private=false",
@@ -142,7 +142,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				Token:          "ghp_1234567890abcdef",
 				CloneProto:     "ssh",
 				IncludePrivate: true,
-				Parallel:       5,
+				Parallel:       10,
 			},
 			wantPart: []string{
 				"--token $TOKEN", // Plain token should be masked

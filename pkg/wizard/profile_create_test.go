@@ -42,8 +42,8 @@ func TestNewProfileCreateWizard(t *testing.T) {
 				t.Errorf("default CloneProto = %q, want 'ssh'", w.profile.CloneProto)
 			}
 
-			if w.profile.Parallel != 5 {
-				t.Errorf("default Parallel = %d, want 5", w.profile.Parallel)
+			if w.profile.Parallel != 10 {
+				t.Errorf("default Parallel = %d, want 10", w.profile.Parallel)
 			}
 		})
 	}
@@ -57,8 +57,8 @@ func TestProfileCreateWizard_ProfileDefaults(t *testing.T) {
 		t.Errorf("CloneProto default = %q, want 'ssh'", w.profile.CloneProto)
 	}
 
-	if w.profile.Parallel != 5 {
-		t.Errorf("Parallel default = %d, want 5", w.profile.Parallel)
+	if w.profile.Parallel != 10 {
+		t.Errorf("Parallel default = %d, want 10", w.profile.Parallel)
 	}
 
 	// These should be zero/empty by default

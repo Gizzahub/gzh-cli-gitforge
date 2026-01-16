@@ -22,10 +22,10 @@ type BulkFetchOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
-	// MaxDepth is the maximum directory depth to scan (default: 5)
+	// MaxDepth is the maximum directory depth to scan (default: 10)
 	MaxDepth int
 
 	// DryRun performs simulation without actual changes
@@ -134,10 +134,10 @@ type BulkPullOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
-	// MaxDepth is the maximum directory depth to scan (default: 5)
+	// MaxDepth is the maximum directory depth to scan (default: 10)
 	MaxDepth int
 
 	// DryRun performs simulation without actual changes
@@ -249,10 +249,10 @@ type BulkPushOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
-	// MaxDepth is the maximum directory depth to scan (default: 5)
+	// MaxDepth is the maximum directory depth to scan (default: 10)
 	MaxDepth int
 
 	// DryRun performs simulation without actual changes
@@ -367,10 +367,10 @@ type BulkStatusOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
-	// MaxDepth is the maximum directory depth to scan (default: 5)
+	// MaxDepth is the maximum directory depth to scan (default: 10)
 	MaxDepth int
 
 	// Verbose enables detailed logging for all repositories (including clean ones)
@@ -470,10 +470,10 @@ type BulkUpdateOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
-	// MaxDepth is the maximum directory depth to scan (default: 5)
+	// MaxDepth is the maximum directory depth to scan (default: 10)
 	MaxDepth int
 
 	// DryRun performs simulation without actual changes
@@ -576,7 +576,7 @@ type BulkSwitchOptions struct {
 	// Branch is the target branch to switch to (required)
 	Branch string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
 	// MaxDepth is the maximum directory depth to scan (default: 1)

@@ -108,7 +108,7 @@ activeProfile: work  # Default profile to use
 
 # Global defaults (apply to all profiles unless overridden)
 defaults:
-  parallel: 5
+  parallel: 10
   cloneProto: ssh
   format: default
 

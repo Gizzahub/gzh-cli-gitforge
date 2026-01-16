@@ -51,7 +51,7 @@ specs/
 ```
 Default Behavior:
 - Scan depth: 1 (current directory + 1 level)
-- Parallel workers: 5
+- Parallel workers: 10
 - All repos processed simultaneously
 ```
 

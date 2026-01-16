@@ -40,7 +40,7 @@ func (m *Manager) Initialize() error {
 	if !m.paths.ProfileExists(DefaultProfileName) {
 		defaultProfile := &Profile{
 			Name:       DefaultProfileName,
-			Parallel:   5,
+			Parallel:   10,
 			CloneProto: "ssh",
 		}
 
@@ -54,7 +54,7 @@ func (m *Manager) Initialize() error {
 		globalConfig := &GlobalConfig{
 			ActiveProfile: DefaultProfileName,
 			Defaults: map[string]interface{}{
-				"parallel":   5,
+				"parallel":   10,
 				"cloneProto": "ssh",
 			},
 		}
@@ -268,7 +268,7 @@ func (m *Manager) LoadGlobalConfig() (*GlobalConfig, error) {
 		return &GlobalConfig{
 			ActiveProfile: DefaultProfileName,
 			Defaults: map[string]interface{}{
-				"parallel":   5,
+				"parallel":   10,
 				"cloneProto": "ssh",
 			},
 		}, nil

@@ -125,7 +125,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 │ 12 / 50 completed  [█████░░░░░░░░░░░░░░░░] 24%  ETA: 3m 15s     │
 └───────────────────────────────────────────────────────────────────┘
 
-┌─ Active Operations (Parallel: 5) ─────────────────────────────────┐
+┌─ Active Operations (Parallel: 10) ─────────────────────────────────┐
 │                                                                   │
 │ ⟳ backend-api        Pulling... [████████░░] 85%                 │
 │ ⟳ frontend-web       Cloning... [███░░░░░░░] 35%                 │

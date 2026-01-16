@@ -27,7 +27,7 @@ func NewProfileCreateWizard(name string) *ProfileCreateWizard {
 		profile: &config.Profile{
 			Name:       name,
 			CloneProto: "ssh",
-			Parallel:   5,
+			Parallel:   10,
 		},
 	}
 }
@@ -268,7 +268,7 @@ func (w *ProfileCreateWizard) runGitLabOptionsStep() error {
 
 func (w *ProfileCreateWizard) runParallelStep() error {
 	var parallel string
-	parallel = "5"
+	parallel = "10"
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -285,7 +285,7 @@ func (w *ProfileCreateWizard) runParallelStep() error {
 		return err
 	}
 
-	w.profile.Parallel = ParseParallel(parallel, 5)
+	w.profile.Parallel = ParseParallel(parallel, 10)
 	return nil
 }
 
@@ -309,7 +309,7 @@ func (w *ProfileCreateWizard) printSummary() {
 		"Token":             SanitizeTokenForDisplay(w.profile.Token),
 		"Clone Protocol":    w.profile.CloneProto,
 		"SSH Port":          FormatInt(w.profile.SSHPort, 22),
-		"Parallel Jobs":     FormatInt(w.profile.Parallel, 5),
+		"Parallel Jobs":     FormatInt(w.profile.Parallel, 10),
 		"Include Subgroups": FormatBool(w.profile.IncludeSubgroups),
 		"Subgroup Mode":     w.profile.SubgroupMode,
 	}

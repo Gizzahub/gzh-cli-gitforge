@@ -26,7 +26,7 @@ Most day-to-day commands are **bulk commands**: they scan a directory for Git re
 | Flag           | Short | Description                                       | Default |
 | -------------- | ----- | ------------------------------------------------- | ------- |
 | `--scan-depth` | `-d`  | Directory depth to scan for repositories          | `1`     |
-| `--parallel`   | `-j`  | Number of parallel operations                     | `5`     |
+| `--parallel`   | `-j`  | Number of parallel operations                     | `10`     |
 | `--dry-run`    | `-n`  | Preview without executing                         | `false` |
 | `--recursive`  | `-r`  | Recursively include nested repos and submodules   | `false` |
 | `--include`    |       | Include repositories matching regex               |         |

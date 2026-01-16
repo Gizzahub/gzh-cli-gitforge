@@ -47,7 +47,7 @@ prepare:
 ```
 
 **Benefits**:
-- Parallel execution (5x faster by default)
+- Parallel execution (10x faster by default)
 - Built-in error handling
 - Consistent branch management
 - Single line of logic
@@ -99,8 +99,8 @@ REPO_URLS_HTTPS := $(addsuffix .git,$(addprefix $(GIT_BASE_HTTPS)/,$(REPOS)))
 GZ_CLONE_URLS ?= $(REPO_URLS_SSH)
 GZ_CLONE_URL_ARGS = $(foreach u,$(GZ_CLONE_URLS),--url $(u))
 
-# Parallelism (default: 5)
-GZ_PARALLEL ?= 5
+# Parallelism (default: 10)
+GZ_PARALLEL ?= 10
 
 .PHONY: prepare prepare-https prepare-dry status
 
@@ -140,7 +140,7 @@ status:
 | `--file FILE` | File containing URLs (one per line) | - |
 | `--update` | Update if already cloned | false |
 | `-b, --branch` | Target branch | default branch |
-| `-j, --parallel` | Parallel workers | 5 |
+| `-j, --parallel` | Parallel workers | 10 |
 | `--dry-run` | Preview without executing | false |
 | `-d, --scan-depth` | Directory scan depth | 1 |
 

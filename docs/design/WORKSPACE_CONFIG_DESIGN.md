@@ -98,7 +98,7 @@ N+2. Built-in defaults                                   ← 최저 우선순위
 ```yaml
 # ~/.gz-git-config.yaml (최상위 설정)
 # === 이 레벨의 설정 ===
-parallel: 5
+parallel: 10
 cloneProto: ssh
 format: default
 
@@ -597,7 +597,7 @@ func (l *ConfigLoader) ResolveConfig(flags map[string]interface{}) (*EffectiveCo
 # 워크스테이션 전체 기본값 설정 + 명시적 children 정의
 cat > ~/.gz-git-config.yaml <<EOF
 defaults:
-  parallel: 5
+  parallel: 10
   cloneProto: ssh
   format: default
 
@@ -834,12 +834,12 @@ gz-git status --discovery-mode hybrid
 cd ~/mydevbox/gzh-cli-gitforge
 gz-git config show
 # → profile: work (from global active profile)
-# → parallel: 5 (from built-in defaults)
+# → parallel: 10 (from built-in defaults)
 
 # Step 2: Workstation config 생성
 cat > ~/.gz-git-config.yaml <<EOF
 defaults:
-  parallel: 5
+  parallel: 10
   cloneProto: ssh
 
 children:
@@ -875,7 +875,7 @@ gz-git config show --sources
 cd ~/other-project  # workstation/workspace config 없는 경로
 gz-git config show
 # → profile: work (from global active profile)
-# → parallel: 5 (from built-in defaults)
+# → parallel: 10 (from built-in defaults)
 ```
 
 **호환성**:

@@ -237,7 +237,7 @@ All levels use the same `.gz-git.yaml` format (or custom filename):
 
 ```yaml
 # ~/.gz-git-config.yaml (workstation level)
-parallel: 5
+parallel: 10
 cloneProto: ssh
 
 children:
@@ -361,16 +361,16 @@ ______________________________________________________________________
 ```go
 // pkg/repository/types.go
 DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨 하위
-DefaultBulkParallel = 5    // 5개 병렬 처리
+DefaultBulkParallel = 10    // 10개 병렬 처리
 ```
 
 | 명령어 | 기본 동작 |
 |--------|-----------|
-| `gz-git status` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
-| `gz-git fetch` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
-| `gz-git pull` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
-| `gz-git push` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
-| `gz-git switch` | 현재 디렉토리 + 1레벨 스캔, 5개 병렬 |
+| `gz-git status` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git fetch` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git pull` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git push` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git switch` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
 
 ### 스캔 깊이 (--scan-depth, -d)
 
@@ -395,7 +395,7 @@ gz-git fetch /path/to/single/repo
 
 ```
 -d, --scan-depth   스캔 깊이 (기본: 1)
--j, --parallel     병렬 처리 수 (기본: 5)
+-j, --parallel     병렬 처리 수 (기본: 10)
 -n, --dry-run      실행하지 않고 미리보기
 --include          포함 패턴 (regex)
 --exclude          제외 패턴 (regex)

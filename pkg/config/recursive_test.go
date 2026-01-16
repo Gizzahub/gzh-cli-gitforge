@@ -14,7 +14,7 @@ func TestLoadConfigRecursive(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create workstation config
-	workstationConfig := `parallel: 5
+	workstationConfig := `parallel: 10
 cloneProto: ssh
 children:
   - path: workspace
@@ -102,8 +102,8 @@ metadata:
 	}
 
 	// Verify workstation config
-	if config.Parallel != 5 {
-		t.Errorf("Expected parallel=5, got %d", config.Parallel)
+	if config.Parallel != 10 {
+		t.Errorf("Expected parallel=10, got %d", config.Parallel)
 	}
 	if config.CloneProto != "ssh" {
 		t.Errorf("Expected cloneProto=ssh, got %s", config.CloneProto)
@@ -155,7 +155,7 @@ func TestLoadConfigRecursive_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Write invalid YAML
-	invalidYAML := `parallel: 5
+	invalidYAML := `parallel: 10
 children:
   - path: foo
     type: config
@@ -175,7 +175,7 @@ func TestLoadConfigRecursive_InvalidChildType(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Write config with invalid child type
-	invalidConfig := `parallel: 5
+	invalidConfig := `parallel: 10
 children:
   - path: foo
     type: invalid
@@ -194,7 +194,7 @@ func TestLoadConfigRecursive_GitRepoNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Write config with git child that doesn't exist
-	config := `parallel: 5
+	config := `parallel: 10
 children:
   - path: nonexistent-repo
     type: git
@@ -270,7 +270,7 @@ func TestResolvePath(t *testing.T) {
 func TestMergeInlineOverrides(t *testing.T) {
 	config := &Config{
 		Profile:  "original",
-		Parallel: 5,
+		Parallel: 10,
 		Sync: &SyncConfig{
 			Strategy: "reset",
 		},
@@ -418,7 +418,7 @@ func TestFindConfigRecursive(t *testing.T) {
 	//       (no config)
 
 	// Write root config
-	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte("parallel: 5"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".gz-git-config.yaml"), []byte("parallel: 10"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

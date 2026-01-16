@@ -38,7 +38,7 @@ func TestConfigPrecedence(t *testing.T) {
 	defaultProfile := &Profile{
 		Name:     "default",
 		Provider: "github",   // From profile
-		Parallel: 5,          // Profile overrides global
+		Parallel: 10,          // Profile overrides global
 		Token:    "prof-tok", // From profile
 	}
 	mgr.SaveProfile(defaultProfile)
@@ -63,8 +63,8 @@ func TestConfigPrecedence(t *testing.T) {
 		t.Fatalf("ResolveConfig() error = %v", err)
 	}
 
-	if effective.Parallel != 5 {
-		t.Errorf("Parallel = %d, want 5 (from profile, not global)", effective.Parallel)
+	if effective.Parallel != 10 {
+		t.Errorf("Parallel = %d, want 10 (from profile, not global)", effective.Parallel)
 	}
 	if effective.GetSource("parallel") != "profile:default" {
 		t.Errorf("Source = %s, want profile:default", effective.GetSource("parallel"))
@@ -215,8 +215,8 @@ func TestApplyDefaults(t *testing.T) {
 	loader.applyDefaults(cfg)
 
 	// Check default values
-	if cfg.Parallel != 5 {
-		t.Errorf("Default Parallel = %d, want 5", cfg.Parallel)
+	if cfg.Parallel != 10 {
+		t.Errorf("Default Parallel = %d, want 10", cfg.Parallel)
 	}
 	if cfg.CloneProto != "ssh" {
 		t.Errorf("Default CloneProto = %s, want ssh", cfg.CloneProto)
@@ -277,7 +277,7 @@ func TestApplyProfile(t *testing.T) {
 		t.Errorf("Sync.Strategy = %s, want reset", cfg.Sync.Strategy)
 	}
 	if cfg.Sync.MaxRetries != 5 {
-		t.Errorf("Sync.MaxRetries = %d, want 5", cfg.Sync.MaxRetries)
+		t.Errorf("Sync.MaxRetries = %d, want 10", cfg.Sync.MaxRetries)
 	}
 
 	// Check sources

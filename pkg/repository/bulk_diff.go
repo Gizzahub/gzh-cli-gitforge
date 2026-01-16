@@ -17,7 +17,7 @@ type BulkDiffOptions struct {
 	// Directory is the root directory to scan for repositories
 	Directory string
 
-	// Parallel is the number of concurrent workers (default: 5)
+	// Parallel is the number of concurrent workers (default: 10)
 	Parallel int
 
 	// MaxDepth is the maximum directory depth to scan (default: 1)

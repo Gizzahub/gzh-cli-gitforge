@@ -271,7 +271,7 @@ ok      github.com/gizzahub/gzh-cli-gitforge/pkg/config    0.006s
 
 ```yaml
 # ~/.gz-git-config.yaml
-parallel: 5
+parallel: 10
 cloneProto: ssh
 
 children:

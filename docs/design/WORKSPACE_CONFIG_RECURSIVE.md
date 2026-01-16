@@ -76,7 +76,7 @@ N+2. Built-in defaults                   ← 최저
 
 ```yaml
 # ~/.gz-git-config.yaml (최상위)
-parallel: 5
+parallel: 10
 cloneProto: ssh
 
 children:
@@ -295,7 +295,7 @@ func autoDiscoverAndAppend(path string, config *Config) error {
 ```bash
 # ~/.gz-git-config.yaml 생성
 cat > ~/.gz-git-config.yaml <<EOF
-parallel: 5
+parallel: 10
 cloneProto: ssh
 
 children:

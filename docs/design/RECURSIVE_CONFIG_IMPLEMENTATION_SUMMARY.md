@@ -116,7 +116,7 @@ Config (single type)
 
 ```yaml
 # ~/.gz-git-config.yaml
-parallel: 5
+parallel: 10
 cloneProto: ssh
 
 children:

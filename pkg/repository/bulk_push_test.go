@@ -611,7 +611,7 @@ func BenchmarkBulkPushMultipleRepos(b *testing.B) {
 		Directory: tmpDir,
 		MaxDepth:  2,
 		DryRun:    true,
-		Parallel:  5,
+		Parallel:  10,
 		Logger:    NewNoopLogger(),
 	}
 
@@ -654,7 +654,7 @@ func BenchmarkBulkPushNestedRepos(b *testing.B) {
 		Directory:         tmpDir,
 		MaxDepth:          3,
 		DryRun:            true,
-		Parallel:          5,
+		Parallel:          10,
 		IncludeSubmodules: false,
 		Logger:            NewNoopLogger(),
 	}
