@@ -466,29 +466,55 @@ func (f CommandFactory) runTUI(report *reposync.HealthReport) error {
 		return nil
 	}
 
-	// Execute the requested action
-	fmt.Printf("\n%s %d selected repositories...\n\n",
-		actionVerb(action), len(selectedPaths))
+	// Print selected repositories
+	fmt.Printf("\n✓ Selected %d repositories for %s:\n\n",
+		len(selectedPaths), action)
 
-	// TODO: Execute actual action (sync, pull, fetch)
-	// For now, just print what would be done
-	for _, path := range selectedPaths {
-		fmt.Printf("  • %s → %s\n", action, path)
+	for i, path := range selectedPaths {
+		fmt.Printf("  %d. %s\n", i+1, path)
 	}
+
+	// Generate command to execute
+	fmt.Printf("\n" + generateCommandHelp(action, selectedPaths) + "\n")
 
 	return nil
 }
 
-// actionVerb returns the present participle form of the action.
-func actionVerb(action string) string {
+// generateCommandHelp generates executable command help text.
+func generateCommandHelp(action string, paths []string) string {
+	var cmd string
+	var description string
+
 	switch action {
 	case "sync":
-		return "Syncing"
+		description = "To sync these repositories, run:"
+		cmd = "gz-git sync from-config -c <config-file>"
+		// Note: sync from-config doesn't support path filtering yet
+		// User needs to create a filtered config or use pull
+
 	case "pull":
-		return "Pulling"
+		description = "To pull these repositories, run:"
+		cmd = "gz-git pull"
+		// Add each path as argument
+		for _, path := range paths {
+			cmd += " \\\n    " + path
+		}
+
 	case "fetch":
-		return "Fetching"
+		description = "To fetch these repositories, run:"
+		cmd = "gz-git fetch"
+		// Add each path as argument
+		for _, path := range paths {
+			cmd += " \\\n    " + path
+		}
+
 	default:
-		return "Processing"
+		return ""
 	}
+
+	return fmt.Sprintf(`%s
+
+  %s
+
+Or manually run git commands in each directory.`, description, cmd)
 }

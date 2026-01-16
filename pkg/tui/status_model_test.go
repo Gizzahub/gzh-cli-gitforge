@@ -263,3 +263,70 @@ func TestGetSelectedPaths(t *testing.T) {
 		t.Errorf("expected /path/to/repo1, got %s", paths[0])
 	}
 }
+
+func TestFiltering(t *testing.T) {
+	repos := []reposync.RepoHealth{
+		{
+			Repo:           reposync.RepoSpec{Name: "dirty1", TargetPath: "/path/dirty1"},
+			WorkTreeStatus: reposync.WorkTreeDirty,
+			AheadBy:        2,
+		},
+		{
+			Repo:           reposync.RepoSpec{Name: "clean1", TargetPath: "/path/clean1"},
+			WorkTreeStatus: reposync.WorkTreeClean,
+			AheadBy:        0,
+		},
+		{
+			Repo:           reposync.RepoSpec{Name: "clean2", TargetPath: "/path/clean2"},
+			WorkTreeStatus: reposync.WorkTreeClean,
+			AheadBy:        3,
+		},
+	}
+
+	model := NewStatusModel(repos)
+
+	// Test dirty filter
+	filtered := model.applyFilter(FilterDirty)
+	if len(filtered) != 1 {
+		t.Errorf("FilterDirty: expected 1 repo, got %d", len(filtered))
+	}
+	if filtered[0].Repo.Name != "dirty1" {
+		t.Errorf("FilterDirty: expected dirty1, got %s", filtered[0].Repo.Name)
+	}
+
+	// Test clean filter
+	filtered = model.applyFilter(FilterClean)
+	if len(filtered) != 2 {
+		t.Errorf("FilterClean: expected 2 repos, got %d", len(filtered))
+	}
+
+	// Test ahead filter
+	filtered = model.applyFilter(FilterAhead)
+	if len(filtered) != 2 {
+		t.Errorf("FilterAhead: expected 2 repos, got %d", len(filtered))
+	}
+
+	// Test filter key binding
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}}
+	updated, _ := model.Update(keyMsg)
+	m := updated.(StatusModel)
+
+	if m.filter != FilterDirty {
+		t.Errorf("expected FilterDirty, got %v", m.filter)
+	}
+	if len(m.repos) != 1 {
+		t.Errorf("expected 1 filtered repo, got %d", len(m.repos))
+	}
+
+	// Test reset filter
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'0'}}
+	updated, _ = m.Update(keyMsg)
+	m = updated.(StatusModel)
+
+	if m.filter != FilterNone {
+		t.Errorf("expected FilterNone, got %v", m.filter)
+	}
+	if len(m.repos) != 3 {
+		t.Errorf("expected 3 repos (all), got %d", len(m.repos))
+	}
+}

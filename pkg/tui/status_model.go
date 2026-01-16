@@ -13,27 +13,41 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
+// FilterType represents the type of filter applied.
+type FilterType string
+
+const (
+	FilterNone  FilterType = ""
+	FilterDirty FilterType = "dirty"   // Show only dirty repos
+	FilterClean FilterType = "clean"   // Show only clean repos
+	FilterAhead FilterType = "ahead"   // Show only repos ahead of remote
+	FilterAll   FilterType = "all"     // Show all (reset filter)
+)
+
 // StatusModel represents the TUI state for repository status display.
 type StatusModel struct {
-	repos      []reposync.RepoHealth
-	selected   map[string]bool // repo path -> selected
-	cursor     int             // current cursor position
-	filter     string          // filter text (future)
-	width      int             // terminal width
-	height     int             // terminal height
-	ready      bool            // terminal size received
-	action     string          // pending action: "sync", "pull", "fetch"
-	showDetail bool            // show detail view
-	err        error           // last error
+	repos       []reposync.RepoHealth
+	allRepos    []reposync.RepoHealth // unfiltered list
+	selected    map[string]bool       // repo path -> selected
+	cursor      int                   // current cursor position
+	filter      FilterType            // current filter
+	width       int                   // terminal width
+	height      int                   // terminal height
+	ready       bool                  // terminal size received
+	action      string                // pending action: "sync", "pull", "fetch"
+	showDetail  bool                  // show detail view
+	err         error                 // last error
 }
 
 // NewStatusModel creates a new status TUI model.
 func NewStatusModel(repos []reposync.RepoHealth) StatusModel {
 	return StatusModel{
 		repos:    repos,
+		allRepos: repos, // Keep unfiltered copy
 		selected: make(map[string]bool),
 		cursor:   0,
 		ready:    false,
+		filter:   FilterNone,
 	}
 }
 
@@ -106,6 +120,36 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter": // Show details
 			m.showDetail = !m.showDetail
+
+		case "/": // Toggle filter: dirty repos only
+			if m.filter == FilterDirty {
+				m.filter = FilterNone
+				m.repos = m.allRepos
+			} else {
+				m.filter = FilterDirty
+				m.repos = m.applyFilter(FilterDirty)
+			}
+			m.cursor = 0
+
+		case "1": // Show dirty only
+			m.filter = FilterDirty
+			m.repos = m.applyFilter(FilterDirty)
+			m.cursor = 0
+
+		case "2": // Show clean only
+			m.filter = FilterClean
+			m.repos = m.applyFilter(FilterClean)
+			m.cursor = 0
+
+		case "3": // Show ahead only
+			m.filter = FilterAhead
+			m.repos = m.applyFilter(FilterAhead)
+			m.cursor = 0
+
+		case "0": // Show all (clear filter)
+			m.filter = FilterNone
+			m.repos = m.allRepos
+			m.cursor = 0
 		}
 	}
 
@@ -138,13 +182,24 @@ func (m StatusModel) View() string {
 func renderHeader(m StatusModel) string {
 	selectedCount := len(m.selected)
 	totalCount := len(m.repos)
+	allCount := len(m.allRepos)
+
+	titleText := fmt.Sprintf(" gz-git status --tui (%d selected / %d", selectedCount, totalCount)
+	if m.filter != FilterNone {
+		titleText += fmt.Sprintf(" of %d", allCount)
+	}
+	titleText += ") "
+
+	if m.filter != FilterNone {
+		titleText += fmt.Sprintf(" [Filter: %s]", m.filter)
+	}
 
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("15")).
 		Background(lipgloss.Color("62")).
 		Padding(0, 1).
-		Render(fmt.Sprintf(" gz-git status --tui (%d selected / %d total) ", selectedCount, totalCount))
+		Render(titleText)
 
 	return title
 }
@@ -315,11 +370,15 @@ func renderFooter(m StatusModel) string {
 		)
 	}
 
+	// Filter actions
+	filterActions := []string{"1: Dirty", "2: Clean", "3: Ahead", "0: All"}
+
 	// Detail action
 	detailActions := []string{"Enter: Details"}
 
 	// Combine all actions
 	allActions := append(navActions, batchActions...)
+	allActions = append(allActions, filterActions...)
 	allActions = append(allActions, detailActions...)
 	allActions = append(allActions, "q: Quit")
 
@@ -344,4 +403,32 @@ func (m StatusModel) GetSelectedPaths() []string {
 // GetAction returns the pending action (sync, pull, fetch) or empty string.
 func (m StatusModel) GetAction() string {
 	return m.action
+}
+
+// applyFilter filters repositories based on the filter type.
+func (m StatusModel) applyFilter(filter FilterType) []reposync.RepoHealth {
+	if filter == FilterNone || filter == FilterAll {
+		return m.allRepos
+	}
+
+	filtered := make([]reposync.RepoHealth, 0)
+
+	for _, repo := range m.allRepos {
+		include := false
+
+		switch filter {
+		case FilterDirty:
+			include = repo.WorkTreeStatus == reposync.WorkTreeDirty
+		case FilterClean:
+			include = repo.WorkTreeStatus == reposync.WorkTreeClean
+		case FilterAhead:
+			include = repo.AheadBy > 0
+		}
+
+		if include {
+			filtered = append(filtered, repo)
+		}
+	}
+
+	return filtered
 }
