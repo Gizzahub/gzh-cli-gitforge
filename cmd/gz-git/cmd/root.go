@@ -13,8 +13,9 @@ var (
 	appVersion string
 
 	// Global flags
-	verbose bool
-	quiet   bool
+	verbose         bool
+	quiet           bool
+	profileOverride string // Override active profile
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -78,6 +79,7 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "quiet output (errors only)")
+	rootCmd.PersistentFlags().StringVar(&profileOverride, "profile", "", "override active profile (e.g., --profile work)")
 
 	// Version template
 	rootCmd.SetVersionTemplate(`{{with .Name}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}

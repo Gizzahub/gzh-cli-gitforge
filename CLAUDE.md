@@ -75,9 +75,279 @@ ______________________________________________________________________
 │   ├── scanner/            # Local git repo scanner (NEW!)
 │   ├── reposync/           # Repo sync planner/executor
 │   ├── reposynccli/        # Sync CLI commands (from-forge, from-config, config)
+│   ├── config/             # Configuration management (profiles, precedence) **NEW!**
 │   └── provider/           # Forge providers (github/gitlab/gitea)
 └── docs/.claude-context/   # Context docs
 ```
+
+______________________________________________________________________
+
+## Configuration Profiles (NEW!)
+
+**gz-git** supports configuration profiles to eliminate repetitive flags and enable context switching.
+
+### 5-Layer Precedence (Highest to Lowest)
+
+```
+1. Command flags (--provider gitlab)
+2. Project config (.gz-git.yaml in current dir or parent)
+3. Active profile (~/.config/gz-git/profiles/{active}.yaml)
+4. Global config (~/.config/gz-git/config.yaml)
+5. Built-in defaults
+```
+
+### Config File Locations
+
+```
+~/.config/gz-git/
+├── config.yaml              # Global config
+├── profiles/
+│   ├── default.yaml        # Default profile
+│   ├── work.yaml           # User profiles
+│   └── personal.yaml
+└── state/
+    └── active-profile.txt  # Currently active profile
+
+# Project config (auto-detected)
+~/myproject/.gz-git.yaml
+```
+
+### Profile Management Commands
+
+```bash
+# Initialize config directory
+gz-git config init
+
+# Create profile (interactive)
+gz-git config profile create work
+
+# Create profile (with flags)
+gz-git config profile create work \
+  --provider gitlab \
+  --base-url https://gitlab.company.com \
+  --token ${WORK_TOKEN} \
+  --clone-proto ssh \
+  --ssh-port 2224
+
+# List profiles
+gz-git config profile list
+
+# Set active profile
+gz-git config profile use work
+
+# Show profile details
+gz-git config profile show work
+
+# Delete profile
+gz-git config profile delete work
+
+# Show effective config (with precedence sources)
+gz-git config show
+
+# Get specific value
+gz-git config get provider
+
+# Set global default
+gz-git config set defaults.parallel 10
+```
+
+### Profile Example (work.yaml)
+
+```yaml
+name: work
+provider: gitlab
+baseURL: https://gitlab.company.com
+token: ${WORK_GITLAB_TOKEN}  # Environment variable
+cloneProto: ssh
+sshPort: 2224
+parallel: 10
+includeSubgroups: true
+subgroupMode: flat
+
+# Command-specific overrides
+sync:
+  strategy: reset
+  maxRetries: 3
+```
+
+### Project Config Example (.gz-git.yaml)
+
+```yaml
+profile: work  # Use work profile for this project
+
+# Project-specific overrides
+sync:
+  strategy: pull  # Override profile's reset
+  parallel: 3     # Lower parallelism
+branch:
+  defaultBranch: main
+  protectedBranches: [main, develop]
+
+metadata:
+  team: backend
+  repository: https://gitlab.company.com/backend/myproject
+```
+
+### Usage Example
+
+```bash
+# One-time setup
+gz-git config profile create work \
+  --provider gitlab \
+  --base-url https://gitlab.company.com \
+  --token ${WORK_TOKEN}
+gz-git config profile use work
+
+# Now all commands use work profile automatically
+gz-git sync from-forge --org backend  # Uses gitlab, token, etc.
+gz-git status                         # Uses work profile defaults
+
+# Switch context
+gz-git config profile use personal
+gz-git sync from-forge --org my-projects  # Now uses personal profile
+
+# One-off override
+gz-git sync from-forge --profile work --org backend  # Temporarily use work
+```
+
+### Environment Variable Expansion
+
+Config files support `${VAR_NAME}` syntax for sensitive values:
+
+```yaml
+token: ${GITLAB_TOKEN}      # Recommended
+baseURL: ${GITLAB_URL}
+```
+
+**Security Notes:**
+- Profile files: 0600 permissions (user read/write only)
+- Config directory: 0700 permissions (user access only)
+- Use environment variables for tokens, not plain text
+- No shell command execution (only `${VAR}` expansion)
+
+### Recursive Hierarchical Configuration (NEW!)
+
+**gz-git** now supports recursive hierarchical configuration for managing complex workstation/workspace/project structures.
+
+**Key Concept**: One unified `Config` type that nests recursively at all levels (workstation → workspace → project → submodule, etc.)
+
+#### Unified Config Structure
+
+All levels use the same `.gz-git.yaml` format (or custom filename):
+
+```yaml
+# ~/.gz-git-config.yaml (workstation level)
+parallel: 5
+cloneProto: ssh
+
+children:
+  - path: ~/mydevbox
+    type: config              # Has config file (recursive)
+    profile: opensource
+    parallel: 10
+
+  - path: ~/mywork
+    type: config
+    configFile: .work-config.yaml  # Custom filename!
+    profile: work
+
+  - path: ~/single-repo
+    type: git                 # Plain git repo (no config)
+```
+
+```yaml
+# ~/mydevbox/.gz-git.yaml (workspace level - same structure!)
+profile: opensource
+
+sync:
+  strategy: reset
+  parallel: 10
+
+children:
+  - path: gzh-cli
+    type: git               # Plain repo
+
+  - path: gzh-cli-gitforge
+    type: config           # Has config file
+    sync:
+      strategy: pull       # Inline override
+```
+
+```yaml
+# ~/mydevbox/gzh-cli-gitforge/.gz-git.yaml (project level - same structure!)
+sync:
+  strategy: pull
+
+children:
+  - path: vendor/lib
+    type: git
+    sync:
+      strategy: skip       # Submodule skip sync
+```
+
+#### Child Types
+
+- **`type: config`**: Directory with config file (enables recursive nesting)
+- **`type: git`**: Plain Git repository (leaf node, no config)
+
+#### Discovery Modes
+
+```bash
+# Explicit: Only use children defined in config
+gz-git status --discovery-mode explicit
+
+# Auto: Scan directories, ignore explicit children
+gz-git status --discovery-mode auto
+
+# Hybrid: Use children if defined, otherwise scan (DEFAULT)
+gz-git status --discovery-mode hybrid
+```
+
+#### Precedence (Recursive)
+
+```
+1. Command flags
+2. Current directory config (.gz-git.yaml)
+3. Parent directory config (../.gz-git.yaml)
+4. Grandparent directory config (../../.gz-git.yaml)
+   ... (recursively up to root)
+N. Active profile
+N+1. Global config
+N+2. Built-in defaults
+```
+
+**Simple Rule**: Child overrides parent
+
+#### API (pkg/config)
+
+```go
+// Load config recursively
+config, err := config.LoadConfigRecursive(
+    "/home/user/mydevbox",
+    ".gz-git.yaml",
+)
+
+// Apply discovery mode
+err = config.LoadChildren(
+    "/home/user/mydevbox",
+    config,
+    config.HybridMode,
+)
+
+// Find nearest config file
+configDir, err := config.FindConfigRecursive(
+    "/home/user/mydevbox/project",
+    ".gz-git.yaml",
+)
+```
+
+#### Benefits
+
+- ✅ **Single Type**: One `Config` type for all levels
+- ✅ **Single Filename**: `.gz-git.yaml` everywhere (customizable)
+- ✅ **Infinite Nesting**: Unlimited hierarchy depth
+- ✅ **Inline Overrides**: Children can override parent settings
+- ✅ **Custom Filenames**: `configFile: .custom.yaml`
 
 ______________________________________________________________________
 
@@ -153,6 +423,9 @@ gz-git fetch /path/to/single/repo
 | `sync status` | **Repository health 진단 (fetch, divergence, conflicts)** |
 | `stash` | 모든 repo에서 stash 작업 |
 | `tag` | 모든 repo에서 tag 작업 |
+| `config` | **프로파일 및 설정 관리 (NEW!)** |
+| `config profile` | 프로파일 생성/수정/삭제/전환 |
+| `config show` | 현재 설정 보기 (precedence 포함) |
 
 ### Sync 명령어 (Repository Synchronization)
 
