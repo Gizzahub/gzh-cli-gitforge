@@ -239,7 +239,7 @@ gz-git sync config generate \
 **기타 config 명령어**:
 - `sync config init` - Sample config 생성
 - `sync config validate -c sync.yaml` - Config 검증
-- `sync config merge` - Forge repos를 기존 config에 병합 (TODO)
+- `sync config merge` - Forge repos를 기존 config에 병합 (3가지 모드: append/update/overwrite)
 
 **💡 SSH 포트 자동 감지**: GitLab API는 `ssh_url_to_repo` 필드에 올바른 SSH URL(포트 포함)을 제공합니다.
 

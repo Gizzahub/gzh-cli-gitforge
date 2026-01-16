@@ -116,6 +116,7 @@ gz-git sync from-config -c sync.yaml --dry-run
 gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
 gz-git sync config scan ~/mydevbox --strategy per-directory --no-gitignore
 gz-git sync config generate --provider gitlab --org devbox --token $TOKEN -o sync.yaml
+gz-git sync config merge --provider gitlab --org another-group --into sync.yaml --mode append
 gz-git sync config init -o sample.yaml
 gz-git sync config validate -c sync.yaml
 ```
