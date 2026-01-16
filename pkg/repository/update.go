@@ -62,6 +62,10 @@ type CloneOrUpdateOptions struct {
 
 	// Progress is an optional progress reporter
 	Progress ProgressReporter
+
+	// Env contains additional environment variables for the git command.
+	// Used for authentication (e.g., GIT_SSH_COMMAND for SSH keys).
+	Env []string
 }
 
 // CloneOrUpdateResult contains the result of a clone-or-update operation.
@@ -190,6 +194,7 @@ func (c *client) performCloneOperation(ctx context.Context, opts CloneOrUpdateOp
 		CreateBranch: opts.CreateBranch,
 		Logger:       logger,
 		Progress:     opts.Progress,
+		Env:          opts.Env,
 	}
 
 	repo, err := c.Clone(ctx, cloneOpts)
@@ -255,7 +260,7 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		args = append(args, opts.Branch)
 	}
 
-	result, err := c.executor.Run(ctx, opts.Destination, args...)
+	result, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
@@ -284,7 +289,7 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 		args = append(args, opts.Branch)
 	}
 
-	result, err := c.executor.Run(ctx, opts.Destination, args...)
+	result, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("pull failed: %w", err)
 	}
@@ -308,8 +313,8 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 
 // applyResetStrategy performs a hard reset to match remote state.
 func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
-	// First fetch to get latest remote state
-	fetchResult, err := c.executor.Run(ctx, opts.Destination, "fetch", "origin")
+	// First fetch to get latest remote state (requires auth for remote access)
+	fetchResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, "fetch", "origin")
 	if err != nil {
 		return nil, fmt.Errorf("fetch before reset failed: %w", err)
 	}
@@ -323,7 +328,7 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		resetTarget = fmt.Sprintf("origin/%s", opts.Branch)
 	}
 
-	// Hard reset to remote
+	// Hard reset to remote (local operation, no auth needed)
 	resetResult, err := c.executor.Run(ctx, opts.Destination, "reset", "--hard", resetTarget)
 	if err != nil {
 		return nil, fmt.Errorf("reset failed: %w", err)
@@ -348,8 +353,8 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 
 // applyRebaseStrategy rebases local changes on top of remote changes.
 func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
-	// Fetch latest changes
-	fetchResult, err := c.executor.Run(ctx, opts.Destination, "fetch", "origin")
+	// Fetch latest changes (requires auth for remote access)
+	fetchResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, "fetch", "origin")
 	if err != nil {
 		return nil, fmt.Errorf("fetch before rebase failed: %w", err)
 	}
@@ -357,13 +362,13 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchResult.Error)
 	}
 
-	// Pull with rebase
+	// Pull with rebase (requires auth for remote access)
 	args := []string{"pull", "--rebase", "origin"}
 	if opts.Branch != "" {
 		args = append(args, opts.Branch)
 	}
 
-	rebaseResult, err := c.executor.Run(ctx, opts.Destination, args...)
+	rebaseResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("rebase failed: %w", err)
 	}

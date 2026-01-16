@@ -265,6 +265,10 @@ type CloneOptions struct {
 	// Logger is an optional logger.
 	// If provided, clone operations will be logged.
 	Logger Logger
+
+	// Env contains additional environment variables for the git command.
+	// Used for authentication (e.g., GIT_SSH_COMMAND for SSH keys).
+	Env []string
 }
 
 // CloneOption is a functional option for configuring clone operations.

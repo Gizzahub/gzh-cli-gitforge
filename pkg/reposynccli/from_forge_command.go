@@ -24,6 +24,8 @@ type FromForgeOptions struct {
 	BaseURL          string // API endpoint (http/https only)
 	CloneProto       string // Clone protocol: ssh, https (default: ssh)
 	SSHPort          int    // Custom SSH port (0 = default 22)
+	SSHKeyPath       string // SSH private key file path
+	SSHKeyContent    string // SSH private key content (use env var)
 	Strategy         string
 	Parallel         int
 	MaxRetries       int
@@ -99,6 +101,8 @@ Examples:
 	// Clone options
 	cmd.Flags().StringVar(&opts.CloneProto, "clone-proto", opts.CloneProto, "Clone protocol: ssh, https")
 	cmd.Flags().IntVar(&opts.SSHPort, "ssh-port", 0, "Custom SSH port (0 = default 22)")
+	cmd.Flags().StringVar(&opts.SSHKeyPath, "ssh-key", "", "SSH private key file path")
+	cmd.Flags().StringVar(&opts.SSHKeyContent, "ssh-key-content", "", "SSH private key content (use env var for security)")
 
 	// Sync options
 	cmd.Flags().StringVar(&opts.Strategy, "strategy", opts.Strategy, "Sync strategy (reset, pull, fetch)")
@@ -151,7 +155,7 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 		return fmt.Errorf("invalid strategy: %w", err)
 	}
 
-	// Create ForgePlanner
+	// Create ForgePlanner with authentication config
 	plannerConfig := reposync.ForgePlannerConfig{
 		TargetPath:       opts.TargetPath,
 		Organization:     opts.Organization,
@@ -163,6 +167,13 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 		SSHPort:          opts.SSHPort,
 		IncludeSubgroups: opts.IncludeSubgroups,
 		SubgroupMode:     opts.SubgroupMode,
+		Auth: reposync.AuthConfig{
+			Token:         opts.Token,
+			Provider:      opts.Provider,
+			SSHKeyPath:    opts.SSHKeyPath,
+			SSHKeyContent: opts.SSHKeyContent,
+			SSHPort:       opts.SSHPort,
+		},
 	}
 
 	planner := reposync.NewForgePlanner(forgeProvider, plannerConfig)

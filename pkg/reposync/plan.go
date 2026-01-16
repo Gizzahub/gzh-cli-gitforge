@@ -46,6 +46,10 @@ type RepoSpec struct {
 	TargetPath    string
 	Strategy      Strategy
 	AssumePresent bool // if true, planner treats repo as already present
+
+	// Auth contains authentication config for this repo's clone operation.
+	// If empty, system defaults are used (git credential helper, ssh-agent).
+	Auth AuthConfig
 }
 
 // Action describes a single operation in a plan.

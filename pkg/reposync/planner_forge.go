@@ -58,6 +58,9 @@ type ForgePlannerConfig struct {
 	// Examples: "-", "_", ".", "" (empty = no separator)
 	// Invalid characters: / \ : * ? " < > |
 	FlatSeparator string
+
+	// Auth contains authentication settings for clone operations
+	Auth AuthConfig
 }
 
 // ForgePlanner produces a Plan by querying a gitforge Provider.
@@ -204,11 +207,17 @@ func (p *ForgePlanner) toRepoSpec(repo *provider.Repository) RepoSpec {
 	// Build target path based on subgroup mode
 	targetPath := p.buildTargetPath(repo)
 
+	// Copy auth config with provider name for URL injection
+	auth := p.config.Auth
+	auth.Provider = p.provider.Name()
+	auth.SSHPort = p.config.SSHPort
+
 	return RepoSpec{
 		Name:       repo.Name,
 		Provider:   p.provider.Name(),
 		CloneURL:   cloneURL,
 		TargetPath: targetPath,
+		Auth:       auth,
 	}
 }
 

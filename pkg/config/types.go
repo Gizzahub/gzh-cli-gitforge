@@ -38,8 +38,10 @@ type Profile struct {
 	Token    string `yaml:"token,omitempty"`    // API token (use ${ENV_VAR})
 
 	// Clone settings
-	CloneProto string `yaml:"cloneProto,omitempty"` // ssh, https
-	SSHPort    int    `yaml:"sshPort,omitempty"`    // Custom SSH port
+	CloneProto    string `yaml:"cloneProto,omitempty"`    // ssh, https
+	SSHPort       int    `yaml:"sshPort,omitempty"`       // Custom SSH port
+	SSHKeyPath    string `yaml:"sshKeyPath,omitempty"`    // SSH private key file path (priority)
+	SSHKeyContent string `yaml:"sshKeyContent,omitempty"` // SSH private key content (use ${ENV_VAR})
 
 	// Bulk operation settings
 	Parallel         int    `yaml:"parallel,omitempty"`         // Parallel job count
@@ -230,8 +232,10 @@ type Config struct {
 	Token    string `yaml:"token,omitempty"`
 
 	// Clone settings
-	CloneProto string `yaml:"cloneProto,omitempty"`
-	SSHPort    int    `yaml:"sshPort,omitempty"`
+	CloneProto    string `yaml:"cloneProto,omitempty"`
+	SSHPort       int    `yaml:"sshPort,omitempty"`
+	SSHKeyPath    string `yaml:"sshKeyPath,omitempty"`    // SSH private key file path (priority)
+	SSHKeyContent string `yaml:"sshKeyContent,omitempty"` // SSH private key content (use ${ENV_VAR})
 
 	// Bulk operation settings
 	Parallel         int    `yaml:"parallel,omitempty"`
@@ -316,12 +320,14 @@ type Workspace struct {
 
 	// === Other settings ===
 
-	CloneProto string        `yaml:"cloneProto,omitempty"`
-	SSHPort    int           `yaml:"sshPort,omitempty"`
-	Branch     *BranchConfig `yaml:"branch,omitempty"`
-	Fetch      *FetchConfig  `yaml:"fetch,omitempty"`
-	Pull       *PullConfig   `yaml:"pull,omitempty"`
-	Push       *PushConfig   `yaml:"push,omitempty"`
+	CloneProto    string        `yaml:"cloneProto,omitempty"`
+	SSHPort       int           `yaml:"sshPort,omitempty"`
+	SSHKeyPath    string        `yaml:"sshKeyPath,omitempty"`    // SSH private key file path
+	SSHKeyContent string        `yaml:"sshKeyContent,omitempty"` // SSH private key content
+	Branch        *BranchConfig `yaml:"branch,omitempty"`
+	Fetch         *FetchConfig  `yaml:"fetch,omitempty"`
+	Pull          *PullConfig   `yaml:"pull,omitempty"`
+	Push          *PushConfig   `yaml:"push,omitempty"`
 
 	// === Nested workspaces (recursive!) ===
 
@@ -453,8 +459,10 @@ type EffectiveConfig struct {
 	Token    string
 
 	// Clone settings
-	CloneProto string
-	SSHPort    int
+	CloneProto    string
+	SSHPort       int
+	SSHKeyPath    string
+	SSHKeyContent string
 
 	// Bulk operation settings
 	Parallel         int

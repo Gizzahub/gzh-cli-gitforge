@@ -203,16 +203,35 @@ func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, l
 		action: action,
 	}
 
+	// Prepare authentication (token injection for HTTPS, SSH key for SSH)
+	// If auth config is empty, system defaults are used (fallback)
+	authResult, err := PrepareAuth(action.Repo.CloneURL, action.Repo.Auth)
+	if err != nil {
+		res := ActionResult{
+			Action:  action,
+			Message: fmt.Sprintf("auth setup failed: %v", err),
+			Error:   err,
+		}
+		sink.OnComplete(res)
+		return res, err
+	}
+
+	// Log warnings (e.g., temp SSH key cleanup reminder)
+	for _, warning := range authResult.Warnings {
+		logger.Warn(warning)
+	}
+
+	// Use modified URL (with token for HTTPS) and env vars (for SSH)
 	cloneOpts := repo.CloneOrUpdateOptions{
-		URL:         action.Repo.CloneURL,
+		URL:         authResult.CloneURL,
 		Destination: action.Repo.TargetPath,
 		Strategy:    updateStrategy,
 		Logger:      logger,
 		Progress:    progress,
+		Env:         authResult.Env,
 	}
 
 	var result *repo.CloneOrUpdateResult
-	var err error
 
 	attempts := runOpts.MaxRetries + 1
 	if attempts < 1 {

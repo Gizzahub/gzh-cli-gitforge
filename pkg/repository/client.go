@@ -170,8 +170,8 @@ func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, err
 
 	args = append(args, opts.URL, opts.Destination)
 
-	// Execute clone command
-	result, err := c.executor.Run(ctx, "", args...)
+	// Execute clone command with environment variables (for auth)
+	result, err := c.executor.RunWithEnv(ctx, "", opts.Env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute clone command: %w", err)
 	}
@@ -202,7 +202,7 @@ func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, err
 				}
 				argsWithoutBranch = append(argsWithoutBranch, opts.URL, opts.Destination)
 
-				result, err = c.executor.Run(ctx, "", argsWithoutBranch...)
+				result, err = c.executor.RunWithEnv(ctx, "", opts.Env, argsWithoutBranch...)
 				if err != nil {
 					return nil, fmt.Errorf("failed to clone repository without branch: %w", err)
 				}

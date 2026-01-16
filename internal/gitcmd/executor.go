@@ -96,6 +96,18 @@ func NewExecutor(opts ...Option) *Executor {
 //
 //	result, err := executor.Run(ctx, "/path/to/repo", "status", "--porcelain")
 func (e *Executor) Run(ctx context.Context, dir string, args ...string) (*Result, error) {
+	return e.RunWithEnv(ctx, dir, nil, args...)
+}
+
+// RunWithEnv executes a Git command with additional environment variables.
+// The extraEnv variables are appended to the executor's base environment.
+// This is useful for per-command authentication (e.g., GIT_SSH_COMMAND).
+//
+// Example:
+//
+//	env := []string{"GIT_SSH_COMMAND=ssh -i /path/to/key -o IdentitiesOnly=yes"}
+//	result, err := executor.RunWithEnv(ctx, "/path/to/repo", env, "clone", url)
+func (e *Executor) RunWithEnv(ctx context.Context, dir string, extraEnv []string, args ...string) (*Result, error) {
 	start := time.Now()
 
 	// Sanitize arguments to prevent command injection
@@ -118,7 +130,14 @@ func (e *Executor) Run(ctx context.Context, dir string, args ...string) (*Result
 	// Build command
 	cmd := exec.CommandContext(cmdCtx, e.gitBinary, sanitizedArgs...)
 	cmd.Dir = dir
+
+	// Build environment: inherit system env + executor env + extra env
+	// This ensures system defaults (PATH, HOME, etc.) are available
+	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, e.env...)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(cmd.Env, extraEnv...)
+	}
 
 	// Capture output
 	var stdout, stderr bytes.Buffer
