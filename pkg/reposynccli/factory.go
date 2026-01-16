@@ -76,6 +76,7 @@ Examples:
 	root.AddCommand(f.newFromConfigCmd())
 	root.AddCommand(f.newConfigCmd())
 	root.AddCommand(f.newStatusCmd())
+	root.AddCommand(f.newSetupCmd())
 
 	return root
 }

@@ -423,7 +423,7 @@ func (f CommandFactory) runTUI(report *reposync.HealthReport) error {
 	}
 
 	// Generate command to execute
-	fmt.Printf("\n" + generateCommandHelp(action, selectedPaths) + "\n")
+	fmt.Print("\n" + generateCommandHelp(action, selectedPaths) + "\n")
 
 	return nil
 }
