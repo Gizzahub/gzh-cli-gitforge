@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
 )
@@ -41,8 +42,17 @@ type ForgePlannerConfig struct {
 	// IncludePrivate includes private repositories
 	IncludePrivate bool
 
-	// UseSSH uses SSH URLs instead of HTTPS for cloning
-	UseSSH bool
+	// CloneProto is the clone protocol: ssh, https
+	CloneProto string
+
+	// SSHPort is the custom SSH port (0 = default 22)
+	SSHPort int
+
+	// IncludeSubgroups includes subgroups (GitLab only)
+	IncludeSubgroups bool
+
+	// SubgroupMode is flat (dash-separated) or nested (directories)
+	SubgroupMode string
 }
 
 // ForgePlanner produces a Plan by querying a gitforge Provider.
@@ -160,18 +170,50 @@ func (p *ForgePlanner) filterRepos(repos []*provider.Repository) []*provider.Rep
 
 // toRepoSpec converts a provider.Repository to a RepoSpec.
 func (p *ForgePlanner) toRepoSpec(repo *provider.Repository) RepoSpec {
-	cloneURL := repo.CloneURL
-	if p.config.UseSSH && repo.SSHURL != "" {
+	// Select clone URL based on protocol
+	cloneURL := repo.CloneURL // default: HTTPS
+	if p.config.CloneProto == "ssh" && repo.SSHURL != "" {
 		cloneURL = repo.SSHURL
 	}
 
-	targetPath := filepath.Join(p.config.TargetPath, repo.Name)
+	// Build target path based on subgroup mode
+	targetPath := p.buildTargetPath(repo)
 
 	return RepoSpec{
 		Name:       repo.Name,
 		Provider:   p.provider.Name(),
 		CloneURL:   cloneURL,
 		TargetPath: targetPath,
+	}
+}
+
+// buildTargetPath constructs the target path based on subgroup mode.
+func (p *ForgePlanner) buildTargetPath(repo *provider.Repository) string {
+	basePath := p.config.TargetPath
+
+	// Use FullName for subgroup handling (e.g., "parent-group/subgroup/repo")
+	projectPath := repo.FullName
+
+	// If not including subgroups or mode is empty, use simple name
+	if !p.config.IncludeSubgroups || p.config.SubgroupMode == "" {
+		return filepath.Join(basePath, repo.Name)
+	}
+
+	switch p.config.SubgroupMode {
+	case "flat":
+		// Replace / with - for flat structure
+		// Example: "parent/subgroup/repo" -> "parent-subgroup-repo"
+		flat := strings.ReplaceAll(projectPath, "/", "-")
+		return filepath.Join(basePath, flat)
+
+	case "nested":
+		// Keep directory structure
+		// Example: "parent/subgroup/repo" -> "parent/subgroup/repo"
+		return filepath.Join(basePath, projectPath)
+
+	default:
+		// Default to repo name only
+		return filepath.Join(basePath, repo.Name)
 	}
 }
 

@@ -299,7 +299,7 @@ func TestForgePlanner_toRepoSpec(t *testing.T) {
 		p := &mockForgeProvider{name: "github"}
 		planner := NewForgePlanner(p, ForgePlannerConfig{
 			TargetPath: "/tmp/repos",
-			UseSSH:     true,
+			CloneProto: "ssh",
 		})
 		repo := &provider.Repository{
 			Name:     "myrepo",
@@ -318,7 +318,7 @@ func TestForgePlanner_toRepoSpec(t *testing.T) {
 		p := &mockForgeProvider{name: "github"}
 		planner := NewForgePlanner(p, ForgePlannerConfig{
 			TargetPath: "/tmp/repos",
-			UseSSH:     true,
+			CloneProto: "ssh",
 		})
 		repo := &provider.Repository{
 			Name:     "myrepo",

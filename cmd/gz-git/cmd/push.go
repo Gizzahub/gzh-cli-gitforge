@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -129,6 +130,13 @@ func runPush(cmd *cobra.Command, args []string) error {
 	// Validate format
 	if err := validateBulkFormat(pushFlags.Format); err != nil {
 		return err
+	}
+
+	// Validate refspec if provided
+	if pushRefspec != "" {
+		if _, err := repository.ValidateRefspec(pushRefspec); err != nil {
+			return fmt.Errorf("invalid refspec: %w", err)
+		}
 	}
 
 	// Create client
@@ -378,9 +386,16 @@ func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
 	}
 
-	// Show error details if present
-	if repo.Error != nil && verbose {
-		fmt.Printf("    Error: %v\n", repo.Error)
+	// Show error details - always show for refspec errors, otherwise only in verbose mode
+	if repo.Error != nil {
+		errMsg := repo.Error.Error()
+		isRefspecError := strings.Contains(errMsg, "not found in repository") || strings.Contains(errMsg, "does not exist")
+
+		// Always show refspec source branch errors (critical for user understanding)
+		// Show other errors only in verbose mode
+		if isRefspecError || verbose {
+			fmt.Printf("    ⚠  %v\n", repo.Error)
+		}
 	}
 }
 

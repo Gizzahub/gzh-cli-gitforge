@@ -15,13 +15,15 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
-// ForgeCommandOptions holds options for forge sync command.
-type ForgeCommandOptions struct {
+// FromForgeOptions holds options for from-forge sync command.
+type FromForgeOptions struct {
 	Provider        string
 	Organization    string
 	TargetPath      string
 	Token           string
-	BaseURL         string
+	BaseURL         string // API endpoint (http/https only)
+	CloneProto      string // Clone protocol: ssh, https (default: ssh)
+	SSHPort         int    // Custom SSH port (0 = default 22)
 	Strategy        string
 	Parallel        int
 	MaxRetries      int
@@ -31,21 +33,24 @@ type ForgeCommandOptions struct {
 	IncludeArchived bool
 	IncludeForks    bool
 	IncludePrivate  bool
-	UseSSH          bool
 	CleanupOrphans  bool
 	IsUser          bool
+	IncludeSubgroups bool   // GitLab: include subgroups
+	SubgroupMode     string // GitLab: flat | nested
 }
 
-// newForgeCmd creates a command for syncing from git forges.
-func (f CommandFactory) newForgeCmd() *cobra.Command {
-	opts := &ForgeCommandOptions{
+// newFromForgeCmd creates a command for syncing from git forges.
+func (f CommandFactory) newFromForgeCmd() *cobra.Command {
+	opts := &FromForgeOptions{
 		Strategy:   "reset",
 		Parallel:   4,
 		MaxRetries: 3,
+		CloneProto: "ssh", // Default to SSH
+		SubgroupMode: "flat", // Default to flat
 	}
 
 	cmd := &cobra.Command{
-		Use:   "forge",
+		Use:   "from-forge",
 		Short: "Sync repositories from a Git forge (GitHub, GitLab, Gitea)",
 		Long: `Sync repositories from a Git forge provider.
 
@@ -53,16 +58,31 @@ Supports GitHub organizations, GitLab groups, and Gitea organizations.
 Use --provider to specify the forge type.
 
 Examples:
-  # Sync from GitHub organization
-  gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+  # Sync from GitHub organization (default: SSH clone)
+  gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 
-  # Sync from GitLab group
-  gz-git sync forge --provider gitlab --org mygroup --target ./repos --token $GITLAB_TOKEN
+  # Sync from GitLab group with HTTPS clone
+  gz-git sync from-forge --provider gitlab --org mygroup --target ./repos \
+    --token $GITLAB_TOKEN --clone-proto https
 
-  # Sync from self-hosted GitLab
-  gz-git sync forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com`,
+  # Sync from self-hosted GitLab with custom SSH port
+  gz-git sync from-forge --provider gitlab --org mygroup --target ./repos \
+    --base-url https://gitlab.company.com --token $GITLAB_TOKEN \
+    --clone-proto ssh --ssh-port 2224
+
+  # Sync GitLab with subgroups (flat mode)
+  gz-git sync from-forge --provider gitlab --org parent-group --target ./repos \
+    --include-subgroups --subgroup-mode flat
+
+  # Sync GitLab with subgroups (nested directories)
+  gz-git sync from-forge --provider gitlab --org parent-group --target ./repos \
+    --include-subgroups --subgroup-mode nested
+
+  # Sync from Gitea
+  gz-git sync from-forge --provider gitea --org myorg --target ./repos \
+    --base-url https://gitea.company.com --token $GITEA_TOKEN`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return f.runForgeSync(cmd, opts)
+			return f.runFromForge(cmd, opts)
 		},
 	}
 
@@ -74,7 +94,11 @@ Examples:
 
 	// Authentication
 	cmd.Flags().StringVar(&opts.Token, "token", "", "API token for authentication")
-	cmd.Flags().StringVar(&opts.BaseURL, "base-url", "", "Base URL for self-hosted instances")
+	cmd.Flags().StringVar(&opts.BaseURL, "base-url", "", "Base URL for self-hosted instances (API endpoint)")
+
+	// Clone options
+	cmd.Flags().StringVar(&opts.CloneProto, "clone-proto", opts.CloneProto, "Clone protocol: ssh, https")
+	cmd.Flags().IntVar(&opts.SSHPort, "ssh-port", 0, "Custom SSH port (0 = default 22)")
 
 	// Sync options
 	cmd.Flags().StringVar(&opts.Strategy, "strategy", opts.Strategy, "Sync strategy (reset, pull, fetch)")
@@ -88,8 +112,11 @@ Examples:
 	cmd.Flags().BoolVar(&opts.IncludeArchived, "include-archived", false, "Include archived repositories")
 	cmd.Flags().BoolVar(&opts.IncludeForks, "include-forks", false, "Include forked repositories")
 	cmd.Flags().BoolVar(&opts.IncludePrivate, "include-private", true, "Include private repositories")
-	cmd.Flags().BoolVar(&opts.UseSSH, "ssh", false, "Use SSH URLs for cloning")
 	cmd.Flags().BoolVar(&opts.CleanupOrphans, "cleanup-orphans", false, "Delete directories not in organization")
+
+	// GitLab specific
+	cmd.Flags().BoolVar(&opts.IncludeSubgroups, "include-subgroups", false, "Include subgroups (GitLab only)")
+	cmd.Flags().StringVar(&opts.SubgroupMode, "subgroup-mode", opts.SubgroupMode, "Subgroup mode: flat (dash-separated) or nested (directories)")
 
 	// Required flags
 	_ = cmd.MarkFlagRequired("provider")
@@ -99,11 +126,21 @@ Examples:
 	return cmd
 }
 
-func (f CommandFactory) runForgeSync(cmd *cobra.Command, opts *ForgeCommandOptions) error {
+func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions) error {
 	ctx := cmd.Context()
 
+	// Validate clone protocol
+	if opts.CloneProto != "ssh" && opts.CloneProto != "https" {
+		return fmt.Errorf("invalid --clone-proto: %s (must be ssh or https)", opts.CloneProto)
+	}
+
+	// Validate subgroup mode
+	if opts.SubgroupMode != "flat" && opts.SubgroupMode != "nested" {
+		return fmt.Errorf("invalid --subgroup-mode: %s (must be flat or nested)", opts.SubgroupMode)
+	}
+
 	// Create provider
-	forgeProvider, err := createForgeProvider(opts)
+	forgeProvider, err := createFromForgeProvider(opts)
 	if err != nil {
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
@@ -116,13 +153,16 @@ func (f CommandFactory) runForgeSync(cmd *cobra.Command, opts *ForgeCommandOptio
 
 	// Create ForgePlanner
 	plannerConfig := reposync.ForgePlannerConfig{
-		TargetPath:      opts.TargetPath,
-		Organization:    opts.Organization,
-		IsUser:          opts.IsUser,
-		IncludeArchived: opts.IncludeArchived,
-		IncludeForks:    opts.IncludeForks,
-		IncludePrivate:  opts.IncludePrivate,
-		UseSSH:          opts.UseSSH,
+		TargetPath:       opts.TargetPath,
+		Organization:     opts.Organization,
+		IsUser:           opts.IsUser,
+		IncludeArchived:  opts.IncludeArchived,
+		IncludeForks:     opts.IncludeForks,
+		IncludePrivate:   opts.IncludePrivate,
+		CloneProto:       opts.CloneProto,
+		SSHPort:          opts.SSHPort,
+		IncludeSubgroups: opts.IncludeSubgroups,
+		SubgroupMode:     opts.SubgroupMode,
 	}
 
 	planner := reposync.NewForgePlanner(forgeProvider, plannerConfig)
@@ -181,14 +221,18 @@ func (f CommandFactory) runForgeSync(cmd *cobra.Command, opts *ForgeCommandOptio
 	return nil
 }
 
-// createForgeProvider creates the appropriate provider based on options.
-func createForgeProvider(opts *ForgeCommandOptions) (reposync.ForgeProvider, error) {
+// createFromForgeProvider creates the appropriate provider based on options.
+func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, error) {
 	switch opts.Provider {
 	case "github":
 		return github.NewProvider(opts.Token), nil
 
 	case "gitlab":
-		p, err := gitlab.NewProvider(opts.Token, opts.BaseURL)
+		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
+			Token:   opts.Token,
+			BaseURL: opts.BaseURL,
+			SSHPort: opts.SSHPort,
+		})
 		if err != nil {
 			return nil, err
 		}

@@ -1920,6 +1920,33 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	result.Remote = info.Remote
 	result.CommitsAhead = info.AheadBy
 
+	// CRITICAL: Check refspec validity BEFORE checking remote/state
+	// This ensures we give clear error messages for missing source branches
+	// rather than generic "no remote" errors
+	if opts.Refspec != "" {
+		// Parse refspec to get source branch
+		parsed, err := ValidateRefspec(opts.Refspec)
+		if err != nil {
+			result.Status = StatusError
+			result.Message = "Invalid refspec"
+			result.Error = fmt.Errorf("failed to parse refspec: %w", err)
+			result.Duration = time.Since(startTime)
+			return result
+		}
+
+		// Check if source branch exists locally BEFORE checking remote
+		sourceBranch := parsed.GetSourceBranch()
+		sourceCheckResult, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", sourceBranch)
+		if err != nil || sourceCheckResult.ExitCode != 0 {
+			result.Status = StatusError
+			result.Message = fmt.Sprintf("Source branch '%s' does not exist", sourceBranch)
+			result.Error = fmt.Errorf("refspec source branch '%s' not found in repository (current branch: %s)", sourceBranch, info.Branch)
+			result.Duration = time.Since(startTime)
+			logger.Warn("source branch not found", "path", result.RelativePath, "source", sourceBranch, "current", info.Branch)
+			return result
+		}
+	}
+
 	// Check if repository has remote
 	if info.RemoteURL == "" {
 		result.Status = StatusNoRemote
@@ -2031,6 +2058,49 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		}
 	}
 
+	// Calculate commits to be pushed if using refspec
+	var actualCommitsToPush int
+	if opts.Refspec != "" {
+		// Parse refspec - already validated and checked earlier, so this should not fail
+		parsed, _ := ValidateRefspec(opts.Refspec)
+
+		// Calculate commits between local source branch and remote destination branch
+		// This gives us the actual commit count for refspec push
+		sourceBranch := parsed.GetSourceBranch()
+		destBranch := parsed.GetDestinationBranch()
+
+		// Check if remote branch exists first
+		for _, remote := range remotes {
+			remoteBranch := fmt.Sprintf("%s/%s", remote, destBranch)
+			checkResult, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", remoteBranch)
+			if err == nil && checkResult.ExitCode == 0 {
+				// Remote branch exists, calculate commits ahead
+				countResult, err := c.executor.Run(ctx, repoPath, "rev-list", "--count", remoteBranch+".."+sourceBranch)
+				if err == nil && countResult.ExitCode == 0 {
+					var count int
+					if n, parseErr := fmt.Sscanf(strings.TrimSpace(countResult.Stdout), "%d", &count); parseErr == nil && n == 1 {
+						actualCommitsToPush = count
+						break
+					}
+				}
+			}
+			// If remote branch doesn't exist, count all commits in source branch
+			// This will be a new branch on remote
+			if actualCommitsToPush == 0 {
+				countResult, err := c.executor.Run(ctx, repoPath, "rev-list", "--count", sourceBranch)
+				if err == nil && countResult.ExitCode == 0 {
+					var count int
+					if n, parseErr := fmt.Sscanf(strings.TrimSpace(countResult.Stdout), "%d", &count); parseErr == nil && n == 1 {
+						actualCommitsToPush = count
+						break
+					}
+				}
+			}
+		}
+	} else {
+		actualCommitsToPush = info.AheadBy
+	}
+
 	// Push to each remote
 	var pushErrors []string
 	for _, remote := range remotes {
@@ -2048,16 +2118,14 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	}
 
 	// Use specific statuses: StatusPushed (changes pushed) vs StatusUpToDate (no changes)
-	result.PushedCommits = info.AheadBy
-	if info.AheadBy > 0 {
+	result.PushedCommits = actualCommitsToPush
+	if actualCommitsToPush > 0 {
 		result.Status = StatusPushed
-		result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to %d remote(s)", info.AheadBy, len(remotes))
-	} else if opts.Refspec != "" {
-		// When using refspec, we pushed successfully but can't determine exact commit count
-		// because AheadBy is calculated against the current branch's upstream, not the refspec target
-		// TODO: Calculate actual commits pushed by comparing local branch with remote target branch
-		result.Status = StatusPushed
-		result.Message = fmt.Sprintf("Successfully pushed to %d remote(s) via refspec", len(remotes))
+		if opts.Refspec != "" {
+			result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to %d remote(s) via refspec", actualCommitsToPush, len(remotes))
+		} else {
+			result.Message = fmt.Sprintf("Successfully pushed %d commit(s) to %d remote(s)", actualCommitsToPush, len(remotes))
+		}
 	} else {
 		result.Status = StatusUpToDate
 		result.Message = "Already up to date"

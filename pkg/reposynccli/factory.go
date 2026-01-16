@@ -41,15 +41,12 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 		Short:         short,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Long: `Git repository synchronization for filesystem and forge providers.
+		Long: `Git repository synchronization from various sources.
 
-Two sync modes available:
-
-  forge  - Sync all repositories from a Git forge (GitHub, GitLab, Gitea)
-           Fetches repository list from the provider API and syncs locally.
-
-  run    - Sync repositories from a YAML configuration file.
-           Useful for managing a specific set of repositories.
+Sync Sources:
+  from-forge   - Sync from Git forge (GitHub, GitLab, Gitea) API
+  from-config  - Sync from YAML configuration file
+  config       - Manage configuration files (generate, merge, validate)
 
 Sync Strategies:
   reset  - Hard reset to remote HEAD (default, ensures clean state)
@@ -57,21 +54,23 @@ Sync Strategies:
   fetch  - Fetch only (update refs without modifying working tree)
 
 Examples:
-  # Sync all repos from a GitHub organization
-  gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+  # Sync directly from GitLab organization
+  gz-git sync from-forge --provider gitlab --org devbox --target ~/repos
 
-  # Sync from self-hosted GitLab
-  gz-git sync forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com
+  # Generate config from GitLab
+  gz-git sync config generate --provider gitlab --org devbox -o sync.yaml
 
-  # Sync repos defined in a config file
-  gz-git sync run -c sync-config.yaml
+  # Sync from config file
+  gz-git sync from-config -c sync.yaml
 
-  # Preview sync without making changes
-  gz-git sync run -c sync-config.yaml --dry-run`,
+  # Merge another org into existing config
+  gz-git sync config merge --provider gitlab --org another-group --into sync.yaml`,
 	}
 
-	root.AddCommand(f.newRunCmd())
-	root.AddCommand(f.newForgeCmd())
+	// New command structure (Option A)
+	root.AddCommand(f.newFromForgeCmd())
+	root.AddCommand(f.newFromConfigCmd())
+	root.AddCommand(f.newConfigCmd())
 
 	return root
 }

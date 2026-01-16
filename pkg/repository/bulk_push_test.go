@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -800,4 +801,193 @@ func TestBulkPushDepthBehavior(t *testing.T) {
 			t.Errorf("depth=3 should scan 3 repositories (repo1, repo2, repo3), got %d", result.TotalScanned)
 		}
 	})
+}
+
+func TestBulkPush_RefspecSourceBranchMissing(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test repository with only master branch
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo: %v", err)
+	}
+	if err := initGitRepoWithCommit(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	// Try to push with refspec that references non-existent develop branch
+	opts := BulkPushOptions{
+		Directory: tmpDir,
+		MaxDepth:  2,
+		Refspec:   "develop:master",
+		DryRun:    false,
+		Verbose:   false,
+		Logger:    NewNoopLogger(),
+	}
+
+	result, err := client.BulkPush(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkPush() unexpected error: %v", err)
+	}
+
+	// Should have processed 1 repository
+	if result.TotalProcessed != 1 {
+		t.Errorf("BulkPush() TotalProcessed = %d, want 1", result.TotalProcessed)
+	}
+
+	// Should have 1 repository result
+	if len(result.Repositories) != 1 {
+		t.Fatalf("BulkPush() len(Repositories) = %d, want 1", len(result.Repositories))
+	}
+
+	repoResult := result.Repositories[0]
+
+	// Status should be "error"
+	if repoResult.Status != StatusError {
+		t.Errorf("BulkPush() Status = %q, want %q", repoResult.Status, StatusError)
+	}
+
+	// Error should mention the missing branch
+	if repoResult.Error == nil {
+		t.Fatal("BulkPush() Error = nil, want error about missing branch")
+	}
+
+	errMsg := repoResult.Error.Error()
+	if !strings.Contains(errMsg, "develop") {
+		t.Errorf("BulkPush() Error = %q, want error containing 'develop'", errMsg)
+	}
+
+	if !strings.Contains(errMsg, "not found") {
+		t.Errorf("BulkPush() Error = %q, want error containing 'not found'", errMsg)
+	}
+
+	// Message should indicate source branch missing
+	if !strings.Contains(repoResult.Message, "does not exist") {
+		t.Errorf("BulkPush() Message = %q, want message containing 'does not exist'", repoResult.Message)
+	}
+}
+
+func TestBulkPush_RefspecWithValidSourceBranch(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test repository
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo: %v", err)
+	}
+	if err := initGitRepoWithCommit(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	// Create develop branch
+	cmd := exec.Command("git", "checkout", "-b", "develop")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		t.Skipf("Skipping test: failed to create develop branch: %v", err)
+	}
+
+	// Make a commit on develop
+	testFile := filepath.Join(repoPath, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		t.Skipf("Skipping test: git add failed: %v", err)
+	}
+
+	cmd = exec.Command("git", "commit", "-m", "Test commit")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err != nil {
+		t.Skipf("Skipping test: git commit failed: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	// Push with refspec should work (dry-run to avoid actual remote push)
+	opts := BulkPushOptions{
+		Directory: tmpDir,
+		MaxDepth:  2,
+		Refspec:   "develop:master",
+		DryRun:    true,
+		Verbose:   false,
+		Logger:    NewNoopLogger(),
+	}
+
+	result, err := client.BulkPush(ctx, opts)
+	if err != nil {
+		t.Fatalf("BulkPush() unexpected error: %v", err)
+	}
+
+	// Should have processed 1 repository
+	if result.TotalProcessed != 1 {
+		t.Errorf("BulkPush() TotalProcessed = %d, want 1", result.TotalProcessed)
+	}
+
+	// Should have 1 repository result
+	if len(result.Repositories) != 1 {
+		t.Fatalf("BulkPush() len(Repositories) = %d, want 1", len(result.Repositories))
+	}
+
+	repoResult := result.Repositories[0]
+
+	// Status should NOT be "error" with "not found" message
+	// (Will be "no-remote" or "would-push" since we have no remote)
+	if repoResult.Status == StatusError {
+		if repoResult.Error != nil && strings.Contains(repoResult.Error.Error(), "not found") {
+			t.Errorf("BulkPush() got 'not found' error when source branch exists: %v", repoResult.Error)
+		}
+	}
+}
+
+func TestBulkPush_RefspecInvalidFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo: %v", err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	invalidRefspecs := []string{
+		"develop::master",  // double colon
+		":master",          // empty source
+		"develop:",         // empty destination
+		"branch name:main", // contains space
+	}
+
+	for _, refspec := range invalidRefspecs {
+		t.Run("Invalid_"+refspec, func(t *testing.T) {
+			opts := BulkPushOptions{
+				Directory: tmpDir,
+				MaxDepth:  2,
+				Refspec:   refspec,
+				DryRun:    true,
+				Logger:    NewNoopLogger(),
+			}
+
+			result, err := client.BulkPush(ctx, opts)
+			if err != nil {
+				t.Fatalf("BulkPush() unexpected error: %v", err)
+			}
+
+			// Should have error status for invalid refspec
+			if len(result.Repositories) > 0 {
+				if result.Repositories[0].Status != StatusError {
+					t.Errorf("Expected StatusError for invalid refspec %q, got %q", refspec, result.Repositories[0].Status)
+				}
+			}
+		})
+	}
 }

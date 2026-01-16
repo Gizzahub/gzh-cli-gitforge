@@ -11,7 +11,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
-func (f CommandFactory) newRunCmd() *cobra.Command {
+func (f CommandFactory) newFromConfigCmd() *cobra.Command {
 	var (
 		configPath string
 		strategy   string
@@ -23,8 +23,8 @@ func (f CommandFactory) newRunCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Plan and execute repository synchronization",
+		Use:   "from-config",
+		Short: "Sync repositories from a YAML configuration file",
 		Long: `Sync repositories defined in a YAML configuration file.
 
 This command reads a config file specifying repositories to sync,
@@ -35,6 +35,8 @@ Config File Format (YAML):
   parallel: 4              # concurrent operations
   maxRetries: 3            # retry attempts per repo
   cleanupOrphans: false    # remove dirs not in config
+  cloneProto: ssh          # ssh or https
+  sshPort: 0               # custom SSH port (0 = auto)
   roots:                   # required if cleanupOrphans=true
     - ./repos
   repositories:
@@ -42,30 +44,23 @@ Config File Format (YAML):
       url: https://github.com/owner/my-project.git
       targetPath: ./repos/my-project
       strategy: pull       # per-repo override (optional)
+      cloneProto: ssh      # per-repo override (optional)
     - name: another-repo
       url: git@github.com:owner/another-repo.git
       targetPath: ./repos/another-repo
 
-Alternative gzh.yaml format (auto-detected):
-  provider: github
-  sync_mode:
-    cleanup_orphans: true
-  repositories:
-    - name: repo1
-      clone_url: https://github.com/owner/repo1.git
-
 Examples:
   # Sync from config file
-  gz-git sync run -c config.yaml
+  gz-git sync from-config -c config.yaml
 
   # Preview without making changes
-  gz-git sync run -c config.yaml --dry-run
+  gz-git sync from-config -c config.yaml --dry-run
 
   # Override strategy for all repos
-  gz-git sync run -c config.yaml --strategy pull
+  gz-git sync from-config -c config.yaml --strategy pull
 
   # Resume interrupted sync
-  gz-git sync run -c config.yaml --resume --state-file state.json`,
+  gz-git sync from-config -c config.yaml --resume --state-file state.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -125,14 +120,14 @@ Examples:
 				State:       state,
 			})
 			if err != nil {
-				return fmt.Errorf("run: %w", err)
+				return fmt.Errorf("sync from config failed: %w", err)
 			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to git-sync config file")
+	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to sync config file [required]")
 	_ = cmd.MarkFlagRequired("config")
 	cmd.Flags().StringVar(&strategy, "strategy", "", "Default strategy override (reset|pull|fetch)")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Parallel workers (overrides config)")

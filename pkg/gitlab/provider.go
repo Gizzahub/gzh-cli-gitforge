@@ -3,6 +3,8 @@ package gitlab
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,17 +19,43 @@ type Provider struct {
 	client      *gitlab.Client
 	token       string
 	baseURL     string
+	sshHost     string // SSH hostname (e.g., "gitlab.polypia.net")
+	sshPort     int    // SSH port (e.g., 2224, 0 means default 22)
 	rateLimiter *ratelimit.Limiter
 	mu          sync.RWMutex
 }
 
+// ProviderOptions configures the GitLab Provider.
+type ProviderOptions struct {
+	Token   string
+	BaseURL string // API endpoint (http/https only)
+	SSHPort int    // Custom SSH port (0 = default 22)
+}
+
 // NewProvider creates a new GitLab provider
 func NewProvider(token, baseURL string) (*Provider, error) {
+	return NewProviderWithOptions(ProviderOptions{
+		Token:   token,
+		BaseURL: baseURL,
+	})
+}
+
+// NewProviderWithOptions creates a new GitLab provider with custom options.
+func NewProviderWithOptions(opts ProviderOptions) (*Provider, error) {
 	p := &Provider{
-		token:       token,
-		baseURL:     baseURL,
+		token:       opts.Token,
+		baseURL:     opts.BaseURL,
+		sshPort:     opts.SSHPort,
 		rateLimiter: ratelimit.NewLimiter(2000), // GitLab default
 	}
+
+	// Extract SSH host from baseURL (API endpoint)
+	if opts.BaseURL != "" {
+		p.sshHost = extractHostFromURL(opts.BaseURL)
+	}
+
+	// Set custom SSH port
+	p.sshPort = opts.SSHPort
 
 	if err := p.initClient(); err != nil {
 		return nil, err
@@ -95,7 +123,7 @@ func (p *Provider) ListOrganizationRepos(ctx context.Context, group string) ([]*
 		}
 
 		for _, project := range projects {
-			allRepos = append(allRepos, convertGitLabProject(project))
+			allRepos = append(allRepos, p.convertGitLabProject(project))
 		}
 
 		if resp.NextPage == 0 {
@@ -115,7 +143,7 @@ func (p *Provider) GetRepository(ctx context.Context, owner, repo string) (*prov
 		return nil, fmt.Errorf("failed to get project %s: %w", projectPath, err)
 	}
 
-	return convertGitLabProject(project), nil
+	return p.convertGitLabProject(project), nil
 }
 
 // ListOrganizations lists groups the authenticated user belongs to
@@ -164,7 +192,7 @@ func (p *Provider) ListUserRepos(ctx context.Context, user string) ([]*provider.
 		}
 
 		for _, project := range projects {
-			allRepos = append(allRepos, convertGitLabProject(project))
+			allRepos = append(allRepos, p.convertGitLabProject(project))
 		}
 
 		if resp.NextPage == 0 {
@@ -188,7 +216,7 @@ func (p *Provider) GetRateLimit(ctx context.Context) (*provider.RateLimit, error
 	}, nil
 }
 
-func convertGitLabProject(project *gitlab.Project) *provider.Repository {
+func (p *Provider) convertGitLabProject(project *gitlab.Project) *provider.Repository {
 	var createdAt, updatedAt, pushedAt time.Time
 	if project.CreatedAt != nil {
 		createdAt = *project.CreatedAt
@@ -198,11 +226,21 @@ func convertGitLabProject(project *gitlab.Project) *provider.Repository {
 		pushedAt = *project.LastActivityAt
 	}
 
+	// Use GitLab API's SSH URL (already includes correct port from GitLab config)
+	// Only override if custom SSH port is explicitly specified
+	sshURL := project.SSHURLToRepo
+	if p.sshPort > 0 {
+		// User explicitly specified SSH port - override API response
+		if p.sshHost != "" {
+			sshURL = p.buildSSHURL(project.PathWithNamespace)
+		}
+	}
+
 	return &provider.Repository{
 		Name:          project.Path,
 		FullName:      project.PathWithNamespace,
 		CloneURL:      project.HTTPURLToRepo,
-		SSHURL:        project.SSHURLToRepo,
+		SSHURL:        sshURL,
 		HTMLURL:       project.WebURL,
 		Description:   project.Description,
 		DefaultBranch: project.DefaultBranch,
@@ -218,4 +256,42 @@ func convertGitLabProject(project *gitlab.Project) *provider.Repository {
 		UpdatedAt:     updatedAt,
 		PushedAt:      pushedAt,
 	}
+}
+
+// extractHostFromURL extracts hostname from API base URL.
+// Base URL should be the API endpoint (http/https).
+// Examples:
+//   - "https://gitlab.polypia.net" -> "gitlab.polypia.net"
+//   - "https://gitlab.polypia.net:8443" -> "gitlab.polypia.net"
+//   - "https://gitlab.com/api/v4" -> "gitlab.com"
+func extractHostFromURL(baseURL string) string {
+	// Parse as standard URL
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+
+	// Extract hostname (removes port if present)
+	return u.Hostname()
+}
+
+// buildSSHURL constructs SSH URL for a project.
+// Format: ssh://git@host:port/path/to/repo.git
+func (p *Provider) buildSSHURL(projectPath string) string {
+	if p.sshHost == "" {
+		return ""
+	}
+
+	// Ensure path ends with .git
+	if !strings.HasSuffix(projectPath, ".git") {
+		projectPath = projectPath + ".git"
+	}
+
+	// Build SSH URL
+	if p.sshPort > 0 && p.sshPort != 22 {
+		return fmt.Sprintf("ssh://git@%s:%d/%s", p.sshHost, p.sshPort, projectPath)
+	}
+
+	// Standard SSH URL (port 22)
+	return fmt.Sprintf("git@%s:%s", p.sshHost, projectPath)
 }
