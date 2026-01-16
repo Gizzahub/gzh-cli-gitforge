@@ -17,25 +17,25 @@ type FilterType string
 
 const (
 	FilterNone  FilterType = ""
-	FilterDirty FilterType = "dirty"   // Show only dirty repos
-	FilterClean FilterType = "clean"   // Show only clean repos
-	FilterAhead FilterType = "ahead"   // Show only repos ahead of remote
-	FilterAll   FilterType = "all"     // Show all (reset filter)
+	FilterDirty FilterType = "dirty" // Show only dirty repos
+	FilterClean FilterType = "clean" // Show only clean repos
+	FilterAhead FilterType = "ahead" // Show only repos ahead of remote
+	FilterAll   FilterType = "all"   // Show all (reset filter)
 )
 
 // StatusModel represents the TUI state for repository status display.
 type StatusModel struct {
-	repos       []reposync.RepoHealth
-	allRepos    []reposync.RepoHealth // unfiltered list
-	selected    map[string]bool       // repo path -> selected
-	cursor      int                   // current cursor position
-	filter      FilterType            // current filter
-	width       int                   // terminal width
-	height      int                   // terminal height
-	ready       bool                  // terminal size received
-	action      string                // pending action: "sync", "pull", "fetch"
-	showDetail  bool                  // show detail view
-	err         error                 // last error
+	repos      []reposync.RepoHealth
+	allRepos   []reposync.RepoHealth // unfiltered list
+	selected   map[string]bool       // repo path -> selected
+	cursor     int                   // current cursor position
+	filter     FilterType            // current filter
+	width      int                   // terminal width
+	height     int                   // terminal height
+	ready      bool                  // terminal size received
+	action     string                // pending action: "sync", "pull", "fetch"
+	showDetail bool                  // show detail view
+	err        error                 // last error
 }
 
 // NewStatusModel creates a new status TUI model.

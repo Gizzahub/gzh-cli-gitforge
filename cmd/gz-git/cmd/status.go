@@ -520,34 +520,34 @@ func displayDiagnosticResults(report *reposync.HealthReport) {
 
 func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
 	type RepoHealthJSON struct {
-		Path           string `json:"path"`
-		HealthStatus   string `json:"health_status"`
-		NetworkStatus  string `json:"network_status,omitempty"`
-		DivergenceType string `json:"divergence_type,omitempty"`
-		Branch         string `json:"branch,omitempty"`
-		Upstream       string `json:"upstream,omitempty"`
-		AheadBy        int    `json:"ahead_by,omitempty"`
-		BehindBy       int    `json:"behind_by,omitempty"`
-		ModifiedFiles  int    `json:"modified_files,omitempty"`
-		UntrackedFiles int    `json:"untracked_files,omitempty"`
-		ConflictFiles  int    `json:"conflict_files,omitempty"`
-		Recommendation string `json:"recommendation,omitempty"`
-		Error          string `json:"error,omitempty"`
-		DurationMs     int64  `json:"duration_ms"`
+		Path            string `json:"path"`
+		HealthStatus    string `json:"health_status"`
+		NetworkStatus   string `json:"network_status,omitempty"`
+		DivergenceType  string `json:"divergence_type,omitempty"`
+		Branch          string `json:"branch,omitempty"`
+		Upstream        string `json:"upstream,omitempty"`
+		AheadBy         int    `json:"ahead_by,omitempty"`
+		BehindBy        int    `json:"behind_by,omitempty"`
+		ModifiedFiles   int    `json:"modified_files,omitempty"`
+		UntrackedFiles  int    `json:"untracked_files,omitempty"`
+		ConflictFiles   int    `json:"conflict_files,omitempty"`
+		Recommendation  string `json:"recommendation,omitempty"`
+		Error           string `json:"error,omitempty"`
+		DurationMs      int64  `json:"duration_ms"`
 		FetchDurationMs int64  `json:"fetch_duration_ms,omitempty"`
 	}
 
 	output := struct {
-		TotalRepositories int                       `json:"total_repositories"`
-		DurationMs        int64                     `json:"duration_ms"`
+		TotalRepositories int   `json:"total_repositories"`
+		DurationMs        int64 `json:"duration_ms"`
 		Summary           struct {
 			Healthy     int `json:"healthy"`
 			Warning     int `json:"warning"`
 			Error       int `json:"error"`
 			Unreachable int `json:"unreachable"`
 			Total       int `json:"total"`
-		}                           `json:"summary"`
-		Repositories      []RepoHealthJSON          `json:"repositories"`
+		} `json:"summary"`
+		Repositories []RepoHealthJSON `json:"repositories"`
 	}{
 		TotalRepositories: len(report.Results),
 		DurationMs:        report.TotalDuration.Milliseconds(),
