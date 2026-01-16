@@ -102,7 +102,8 @@ type forgeSource struct {
 	BaseURL          string `yaml:"baseURL"`
 	Token            string `yaml:"token"`
 	IncludeSubgroups bool   `yaml:"includeSubgroups"`
-	SubgroupMode     string `yaml:"subgroupMode"` // flat, nested
+	SubgroupMode     string `yaml:"subgroupMode"`  // flat, nested
+	FlatSeparator    string `yaml:"flatSeparator"` // separator for flat mode (default: "-")
 }
 
 type syncSettings struct {
@@ -120,6 +121,7 @@ type profileEntry struct {
 	Parallel         int           `yaml:"parallel"`
 	IncludeSubgroups bool          `yaml:"includeSubgroups"`
 	SubgroupMode     string        `yaml:"subgroupMode"`
+	FlatSeparator    string        `yaml:"flatSeparator"` // separator for flat mode (default: "-")
 	Sync             *syncSettings `yaml:"sync"`
 }
 
@@ -611,6 +613,12 @@ func (l FileSpecLoader) loadForgeWorkspace(
 		subgroupMode = "flat"
 	}
 
+	flatSeparator := src.FlatSeparator
+	if flatSeparator == "" && profile != nil {
+		flatSeparator = profile.FlatSeparator
+	}
+	// Default separator is "-" (handled in buildTargetPath)
+
 	// Create ForgePlanner and fetch repos
 	forgeProvider, err := createForgeProvider(provider, token, baseURL, sshPort)
 	if err != nil {
@@ -624,6 +632,7 @@ func (l FileSpecLoader) loadForgeWorkspace(
 		SSHPort:          sshPort,
 		IncludeSubgroups: includeSubgroups,
 		SubgroupMode:     subgroupMode,
+		FlatSeparator:    flatSeparator,
 		IncludePrivate:   true,
 	}
 

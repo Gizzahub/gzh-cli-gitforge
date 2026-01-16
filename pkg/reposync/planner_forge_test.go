@@ -489,6 +489,293 @@ func TestForgePlanner_Describe(t *testing.T) {
 	})
 }
 
+func TestForgePlanner_buildTargetPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   ForgePlannerConfig
+		repo     *provider.Repository
+		expected string
+	}{
+		{
+			name: "simple repo without subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:   "/tmp/repos",
+				Organization: "notes",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/my-repo",
+			},
+			expected: "/tmp/repos/my-repo",
+		},
+		{
+			name: "nested mode without subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "nested",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/my-repo",
+			},
+			expected: "/tmp/repos/my-repo",
+		},
+		{
+			name: "nested mode with one-level subgroup",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "nested",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/subgroup/my-repo",
+			},
+			expected: "/tmp/repos/subgroup/my-repo",
+		},
+		{
+			name: "nested mode with multi-level subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "nested",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/parent/child/my-repo",
+			},
+			expected: "/tmp/repos/parent/child/my-repo",
+		},
+		{
+			name: "flat mode without subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/my-repo",
+			},
+			expected: "/tmp/repos/my-repo",
+		},
+		{
+			name: "flat mode with subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/subgroup/my-repo",
+			},
+			expected: "/tmp/repos/subgroup-my-repo",
+		},
+		{
+			name: "flat mode with multi-level subgroups",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/parent/child/my-repo",
+			},
+			expected: "/tmp/repos/parent-child-my-repo",
+		},
+		{
+			name: "flat mode with custom separator (underscore)",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+				FlatSeparator:    "_",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/parent/child/my-repo",
+			},
+			expected: "/tmp/repos/parent_child_my-repo",
+		},
+		{
+			name: "flat mode with custom separator (dot)",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+				FlatSeparator:    ".",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/subgroup/my-repo",
+			},
+			expected: "/tmp/repos/subgroup.my-repo",
+		},
+		{
+			name: "flat mode with empty separator (no separator)",
+			config: ForgePlannerConfig{
+				TargetPath:       "/tmp/repos",
+				Organization:     "notes",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+				FlatSeparator:    "",
+			},
+			repo: &provider.Repository{
+				Name:     "my-repo",
+				FullName: "notes/parent/child/my-repo",
+			},
+			expected: "/tmp/repos/parent-child-my-repo", // empty string defaults to "-"
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &mockForgeProvider{name: "gitlab"}
+			planner := NewForgePlanner(p, tt.config)
+
+			result := planner.buildTargetPath(tt.repo)
+
+			if result != tt.expected {
+				t.Errorf("buildTargetPath() = %s, want %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestForgePlanner_stripOrgPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		org      string
+		fullName string
+		expected string
+	}{
+		{
+			name:     "strips matching organization",
+			org:      "notes",
+			fullName: "notes/my-repo",
+			expected: "my-repo",
+		},
+		{
+			name:     "strips organization with subgroup",
+			org:      "notes",
+			fullName: "notes/subgroup/my-repo",
+			expected: "subgroup/my-repo",
+		},
+		{
+			name:     "strips organization with multi-level subgroups",
+			org:      "notes",
+			fullName: "notes/parent/child/my-repo",
+			expected: "parent/child/my-repo",
+		},
+		{
+			name:     "strips first component if org doesn't match",
+			org:      "notes",
+			fullName: "other-org/my-repo",
+			expected: "my-repo",
+		},
+		{
+			name:     "returns as-is if no slash",
+			org:      "notes",
+			fullName: "my-repo",
+			expected: "my-repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &mockForgeProvider{name: "gitlab"}
+			planner := NewForgePlanner(p, ForgePlannerConfig{
+				Organization: tt.org,
+			})
+
+			result := planner.stripOrgPrefix(tt.fullName)
+
+			if result != tt.expected {
+				t.Errorf("stripOrgPrefix() = %s, want %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestForgePlanner_isValidFlatSeparator(t *testing.T) {
+	tests := []struct {
+		name      string
+		separator string
+		expected  bool
+	}{
+		{"valid dash", "-", true},
+		{"valid underscore", "_", true},
+		{"valid dot", ".", true},
+		{"valid space", " ", true},
+		{"valid empty", "", true},
+		{"invalid slash", "/", false},
+		{"invalid backslash", "\\", false},
+		{"invalid colon", ":", false},
+		{"invalid asterisk", "*", false},
+		{"invalid question", "?", false},
+		{"invalid quote", "\"", false},
+		{"invalid less than", "<", false},
+		{"invalid greater than", ">", false},
+		{"invalid pipe", "|", false},
+		{"valid multi-char", "--", true},
+		{"invalid with slash", "-/-", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isValidFlatSeparator(tt.separator)
+			if result != tt.expected {
+				t.Errorf("isValidFlatSeparator(%q) = %v, want %v", tt.separator, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNewForgePlanner_InvalidSeparator(t *testing.T) {
+	t.Run("falls back to default separator when invalid", func(t *testing.T) {
+		p := &mockForgeProvider{name: "gitlab"}
+		config := ForgePlannerConfig{
+			TargetPath:       "/tmp/repos",
+			Organization:     "notes",
+			IncludeSubgroups: true,
+			SubgroupMode:     "flat",
+			FlatSeparator:    "/", // invalid separator
+		}
+
+		planner := NewForgePlanner(p, config)
+
+		// Should fall back to "-"
+		if planner.config.FlatSeparator != "-" {
+			t.Errorf("expected fallback to '-', got %q", planner.config.FlatSeparator)
+		}
+	})
+
+	t.Run("preserves valid separator", func(t *testing.T) {
+		p := &mockForgeProvider{name: "gitlab"}
+		config := ForgePlannerConfig{
+			SubgroupMode:  "flat",
+			FlatSeparator: "_",
+		}
+
+		planner := NewForgePlanner(p, config)
+
+		if planner.config.FlatSeparator != "_" {
+			t.Errorf("expected '_', got %q", planner.config.FlatSeparator)
+		}
+	})
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
 }

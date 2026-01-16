@@ -53,6 +53,11 @@ type ForgePlannerConfig struct {
 
 	// SubgroupMode is flat (dash-separated) or nested (directories)
 	SubgroupMode string
+
+	// FlatSeparator is the separator for flat mode (default: "-")
+	// Examples: "-", "_", ".", "" (empty = no separator)
+	// Invalid characters: / \ : * ? " < > |
+	FlatSeparator string
 }
 
 // ForgePlanner produces a Plan by querying a gitforge Provider.
@@ -63,10 +68,30 @@ type ForgePlanner struct {
 
 // NewForgePlanner creates a new ForgePlanner with the given provider and config.
 func NewForgePlanner(provider ForgeProvider, config ForgePlannerConfig) *ForgePlanner {
+	// Validate flat separator for filesystem safety
+	if config.SubgroupMode == "flat" && config.FlatSeparator != "" {
+		if !isValidFlatSeparator(config.FlatSeparator) {
+			// Fall back to default separator for safety
+			config.FlatSeparator = "-"
+		}
+	}
+
 	return &ForgePlanner{
 		provider: provider,
 		config:   config,
 	}
+}
+
+// isValidFlatSeparator checks if the separator is safe for filesystem use.
+func isValidFlatSeparator(sep string) bool {
+	// Invalid characters that could cause filesystem issues
+	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+	for _, invalid := range invalidChars {
+		if strings.Contains(sep, invalid) {
+			return false
+		}
+	}
+	return true
 }
 
 // Plan implements the Planner interface.
@@ -199,22 +224,49 @@ func (p *ForgePlanner) buildTargetPath(repo *provider.Repository) string {
 		return filepath.Join(basePath, repo.Name)
 	}
 
+	// Strip organization prefix from projectPath
+	// Example: "notes/repo" -> "repo", "notes/subgroup/repo" -> "subgroup/repo"
+	subPath := p.stripOrgPrefix(projectPath)
+
 	switch p.config.SubgroupMode {
 	case "flat":
-		// Replace / with - for flat structure
-		// Example: "parent/subgroup/repo" -> "parent-subgroup-repo"
-		flat := strings.ReplaceAll(projectPath, "/", "-")
+		// Replace / with configured separator for flat structure
+		// Default separator: "-"
+		// Example: "subgroup/repo" -> "subgroup-repo" (or "subgroup_repo" with "_")
+		separator := p.config.FlatSeparator
+		if separator == "" {
+			separator = "-" // default for backward compatibility
+		}
+		flat := strings.ReplaceAll(subPath, "/", separator)
 		return filepath.Join(basePath, flat)
 
 	case "nested":
 		// Keep directory structure
-		// Example: "parent/subgroup/repo" -> "parent/subgroup/repo"
-		return filepath.Join(basePath, projectPath)
+		// Example: "subgroup/repo" -> "subgroup/repo"
+		return filepath.Join(basePath, subPath)
 
 	default:
 		// Default to repo name only
 		return filepath.Join(basePath, repo.Name)
 	}
+}
+
+// stripOrgPrefix removes the organization prefix from FullName.
+// Example: "org/repo" -> "repo", "org/sub/repo" -> "sub/repo"
+func (p *ForgePlanner) stripOrgPrefix(fullName string) string {
+	// Split by / and remove first component (organization)
+	parts := strings.Split(fullName, "/")
+	if len(parts) <= 1 {
+		return fullName // No organization prefix
+	}
+
+	// If organization matches, strip it
+	if parts[0] == p.config.Organization {
+		return strings.Join(parts[1:], "/")
+	}
+
+	// Fallback: strip first component anyway (might be parent group)
+	return strings.Join(parts[1:], "/")
 }
 
 // planOrphanCleanup identifies directories that should be deleted.
