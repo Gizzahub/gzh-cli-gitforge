@@ -150,12 +150,13 @@ gz-git fetch /path/to/single/repo
 | `sync from-config` | YAML config 기반 repo 동기화 |
 | `sync config scan` | **로컬 디렉토리 스캔 → config 생성** |
 | `sync config generate` | **Forge API → config 생성** |
+| `sync status` | **Repository health 진단 (fetch, divergence, conflicts)** |
 | `stash` | 모든 repo에서 stash 작업 |
 | `tag` | 모든 repo에서 tag 작업 |
 
 ### Sync 명령어 (Repository Synchronization)
 
-**gz-git sync**는 여러 repository를 관리하는 3가지 방법을 제공합니다:
+**gz-git sync**는 여러 repository를 관리하는 4가지 방법을 제공합니다:
 
 #### 1. **`sync from-forge`** - Git Forge에서 직접 동기화
 
@@ -242,6 +243,62 @@ gz-git sync config generate \
 - `sync config merge` - Forge repos를 기존 config에 병합 (3가지 모드: append/update/overwrite)
 
 **💡 SSH 포트 자동 감지**: GitLab API는 `ssh_url_to_repo` 필드에 올바른 SSH URL(포트 포함)을 제공합니다.
+
+#### 4. **`sync status`** - Repository Health 진단
+
+**진단 기능**:
+- ✅ **모든 remote fetch** (timeout 지원, 기본 30초)
+- ✅ **네트워크 문제 감지** (timeout, unreachable, auth failed)
+- ✅ **local/remote HEAD 비교** (ahead/behind/diverged)
+- ✅ **충돌 가능성 탐지** (dirty + behind, merge conflicts)
+- ✅ **실행 가능한 권장사항 제공** (다음 명령어 안내)
+
+```bash
+# Config 기반 health check
+gz-git sync status -c sync.yaml
+
+# 디렉토리 스캔 + health check
+gz-git sync status --target ~/repos --depth 2
+
+# 빠른 체크 (remote fetch 생략, 기존 데이터 사용)
+gz-git sync status -c sync.yaml --skip-fetch
+
+# Custom timeout (느린 네트워크)
+gz-git sync status -c sync.yaml --timeout 60s
+
+# 상세 출력 (branch, divergence, working tree)
+gz-git sync status -c sync.yaml --verbose
+```
+
+**출력 예시**:
+```
+Checking repository health...
+
+✓ gzh-cli (master)              healthy     up-to-date
+⚠ gzh-cli-gitforge (develop)   warning     3↓ 2↑ diverged
+  → Diverged: 2 ahead, 3 behind. Use 'git pull --rebase' or 'git merge' to reconcile
+✗ gzh-cli-quality (main)        error       dirty + 5↓ behind
+  → Commit or stash 3 modified files, then pull 5 commits from upstream
+⊘ gzh-cli-template (master)     timeout     fetch failed (30s timeout)
+  → Check network connection and verify remote URL is accessible
+
+Summary: 1 healthy, 1 warning, 1 error, 1 unreachable (4 total)
+Total time: 32.5s
+```
+
+**Health Status**:
+- `✓ healthy` - 최신 상태, clean working tree
+- `⚠ warning` - diverged, behind, ahead (해결 가능)
+- `✗ error` - conflicts, dirty + behind (수동 개입 필요)
+- `⊘ unreachable` - network timeout, auth failed
+
+**Divergence Types**:
+- `up-to-date` - local == remote
+- `N↓ behind` - fast-forward 가능
+- `N↑ ahead` - push 가능
+- `N↑ N↓ diverged` - merge/rebase 필요
+- `conflict` - merge conflict 존재
+- `no-upstream` - upstream branch 미설정
 
 ### Push with Refspec (브랜치 매핑)
 
@@ -403,5 +460,17 @@ A: `internal/parser/` - git output parsing
 
 ______________________________________________________________________
 
-**Last Updated**: 2026-01-01
-**Previous**: 153 lines → **Current**: ~190 lines (added bulk ops docs)
+## Future Development
+
+**Phase 8: Advanced Features** (PLANNED)
+- [Phase 8 Overview](docs/design/PHASE8_OVERVIEW.md) - Complete feature roadmap
+- [Config Profiles](docs/design/CONFIG_PROFILES.md) - Per-project and global settings (P2)
+- [Advanced TUI](docs/design/ADVANCED_TUI.md) - Interactive terminal UI (P1)
+- [Interactive Mode](docs/design/INTERACTIVE_MODE.md) - Guided workflows and wizards (P2)
+
+See [Roadmap](docs/00-product/06-roadmap.md) for full development plan.
+
+______________________________________________________________________
+
+**Last Updated**: 2026-01-16
+**Previous**: 153 lines → **Current**: ~470 lines (added bulk ops, sync redesign, Phase 8)

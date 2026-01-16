@@ -43,7 +43,6 @@
 | Advanced TUI     | Rich terminal UI for complex operations | P1       |
 | Interactive mode | Guided workflows for common tasks       | P2       |
 | Config profiles  | Per-project and global settings         | P2       |
-| Plugin system    | Extensible command architecture         | P3       |
 
 **Entry criteria**: Phase 7 complete, user feedback collected
 
@@ -67,7 +66,6 @@
 | Additional forge support | Bitbucket, Azure DevOps       | P2       |
 | Submodule support        | Full submodule workflow       | P3       |
 | LFS integration          | Large file storage operations | P3       |
-| Community plugins        | Plugin marketplace            | P3       |
 
 ## Milestones
 
@@ -98,12 +96,11 @@
 
 ## Decision Points
 
-| Decision            | When           | Options                        |
-| ------------------- | -------------- | ------------------------------ |
-| TUI framework       | Phase 8 start  | Bubble Tea, tview, custom      |
-| Plugin architecture | Phase 8 mid    | Go plugins, subprocess, RPC    |
-| Additional forges   | Phase 10 start | Bitbucket, Azure, Gitea        |
-| API stability       | Pre-v1.0.0     | Semantic versioning commitment |
+| Decision          | When           | Options                        |
+| ----------------- | -------------- | ------------------------------ |
+| TUI framework     | Phase 8 start  | Bubble Tea, tview, custom      |
+| Additional forges | Phase 10 start | Bitbucket, Azure, Gitea        |
+| API stability     | Pre-v1.0.0     | Semantic versioning commitment |
 
 ## Legend
 
