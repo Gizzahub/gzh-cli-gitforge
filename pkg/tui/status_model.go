@@ -1,0 +1,287 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
+package tui
+
+import (
+	"fmt"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
+)
+
+// StatusModel represents the TUI state for repository status display.
+type StatusModel struct {
+	repos    []reposync.RepoHealth
+	selected map[string]bool // repo path -> selected
+	cursor   int             // current cursor position
+	filter   string          // filter text (future)
+	width    int             // terminal width
+	height   int             // terminal height
+	ready    bool            // terminal size received
+}
+
+// NewStatusModel creates a new status TUI model.
+func NewStatusModel(repos []reposync.RepoHealth) StatusModel {
+	return StatusModel{
+		repos:    repos,
+		selected: make(map[string]bool),
+		cursor:   0,
+		ready:    false,
+	}
+}
+
+// Init initializes the model (required by Bubble Tea).
+func (m StatusModel) Init() tea.Cmd {
+	return nil
+}
+
+// Update handles all messages and updates the model state.
+func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.ready = true
+		return m, nil
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+
+		case "down", "j":
+			if m.cursor < len(m.repos)-1 {
+				m.cursor++
+			}
+
+		case " ": // Space - toggle selection
+			if m.cursor < len(m.repos) {
+				path := m.repos[m.cursor].Repo.TargetPath
+				m.selected[path] = !m.selected[path]
+			}
+
+		case "a": // Select all
+			for _, repo := range m.repos {
+				m.selected[repo.Repo.TargetPath] = true
+			}
+
+		case "n": // Deselect all
+			m.selected = make(map[string]bool)
+
+		case "home", "g":
+			m.cursor = 0
+
+		case "end", "G":
+			m.cursor = len(m.repos) - 1
+		}
+	}
+
+	return m, nil
+}
+
+// View renders the current UI state.
+func (m StatusModel) View() string {
+	if !m.ready {
+		return "Initializing..."
+	}
+
+	var b strings.Builder
+
+	// Header
+	b.WriteString(renderHeader(m))
+	b.WriteString("\n\n")
+
+	// Repository list
+	b.WriteString(renderRepoList(m))
+	b.WriteString("\n\n")
+
+	// Footer with actions
+	b.WriteString(renderFooter(m))
+
+	return b.String()
+}
+
+// renderHeader renders the header section.
+func renderHeader(m StatusModel) string {
+	selectedCount := len(m.selected)
+	totalCount := len(m.repos)
+
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("62")).
+		Padding(0, 1).
+		Render(fmt.Sprintf(" gz-git status --tui (%d selected / %d total) ", selectedCount, totalCount))
+
+	return title
+}
+
+// renderRepoList renders the list of repositories.
+func renderRepoList(m StatusModel) string {
+	if len(m.repos) == 0 {
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  No repositories found")
+	}
+
+	var b strings.Builder
+
+	// Calculate visible range (simple scrolling)
+	visibleHeight := m.height - 10 // Reserve space for header/footer
+	if visibleHeight < 1 {
+		visibleHeight = 10
+	}
+
+	start := m.cursor - visibleHeight/2
+	if start < 0 {
+		start = 0
+	}
+	end := start + visibleHeight
+	if end > len(m.repos) {
+		end = len(m.repos)
+		start = end - visibleHeight
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	for i := start; i < end; i++ {
+		repo := m.repos[i]
+		isCursor := i == m.cursor
+		isSelected := m.selected[repo.Repo.TargetPath]
+
+		b.WriteString(renderRepoLine(repo, isCursor, isSelected))
+		b.WriteString("\n")
+	}
+
+	// Show scroll indicator if needed
+	if len(m.repos) > visibleHeight {
+		scrollInfo := fmt.Sprintf("  (%d-%d of %d)", start+1, end, len(m.repos))
+		b.WriteString(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render(scrollInfo))
+	}
+
+	return b.String()
+}
+
+// renderRepoLine renders a single repository line.
+func renderRepoLine(repo reposync.RepoHealth, isCursor, isSelected bool) string {
+	// Checkbox
+	checkbox := "[ ]"
+	if isSelected {
+		checkbox = "[✓]"
+	}
+
+	// Repository name (shortened path)
+	name := repo.Repo.Name
+	if name == "" {
+		name = repo.Repo.TargetPath
+	}
+	if len(name) > 30 {
+		name = "..." + name[len(name)-27:]
+	}
+
+	// Branch
+	branch := repo.CurrentBranch
+	if branch == "" {
+		branch = "HEAD"
+	}
+	if len(branch) > 15 {
+		branch = branch[:12] + "..."
+	}
+
+	// Ahead/Behind
+	divergence := fmt.Sprintf("↑%d ↓%d", repo.AheadBy, repo.BehindBy)
+
+	// Status icon and text
+	statusIcon, statusText := getStatusDisplay(repo)
+
+	// Build line
+	line := fmt.Sprintf("  %s %-30s %-15s %-10s %s %s",
+		checkbox,
+		name,
+		branch,
+		divergence,
+		statusIcon,
+		statusText,
+	)
+
+	// Apply styling
+	style := lipgloss.NewStyle()
+
+	if isCursor {
+		// Cursor - highlighted
+		style = style.
+			Foreground(lipgloss.Color("0")).
+			Background(lipgloss.Color("6")).
+			Bold(true)
+	} else if repo.HealthStatus != reposync.HealthHealthy {
+		// Unhealthy - warning color
+		style = style.Foreground(lipgloss.Color("9"))
+	} else if repo.WorkTreeStatus != reposync.WorkTreeClean {
+		// Dirty - yellow
+		style = style.Foreground(lipgloss.Color("11"))
+	}
+
+	return style.Render(line)
+}
+
+// getStatusDisplay returns status icon and text for a repository.
+func getStatusDisplay(repo reposync.RepoHealth) (string, string) {
+	// Health status
+	switch repo.HealthStatus {
+	case reposync.HealthHealthy:
+		if repo.WorkTreeStatus != reposync.WorkTreeClean {
+			return "✗", fmt.Sprintf("Dirty (%d files)", repo.ModifiedFiles+repo.UntrackedFiles)
+		}
+		if repo.DivergenceType != reposync.DivergenceNone {
+			return "⚠", "Diverged"
+		}
+		return "✓", "Clean"
+
+	case reposync.HealthWarning:
+		if repo.ConflictFiles > 0 {
+			return "✗", fmt.Sprintf("Conflict (%d files)", repo.ConflictFiles)
+		}
+		return "⚠", "Warning"
+
+	case reposync.HealthError:
+		if repo.NetworkStatus == reposync.NetworkUnreachable {
+			return "✗", "Network error"
+		}
+		return "✗", "Error"
+
+	case reposync.HealthUnreachable:
+		return "⊘", "Unreachable"
+
+	default:
+		return "?", "Unknown"
+	}
+}
+
+// renderFooter renders the footer with action hints.
+func renderFooter(m StatusModel) string {
+	actions := []string{
+		"Space: Toggle",
+		"a: Select All",
+		"n: Deselect All",
+		"↑↓/j/k: Navigate",
+		"q: Quit",
+	}
+
+	footer := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render("  " + strings.Join(actions, "  │  "))
+
+	return footer
+}
