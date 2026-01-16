@@ -444,9 +444,51 @@ func (f CommandFactory) runTUI(report *reposync.HealthReport) error {
 
 	// Start Bubble Tea program
 	p := tea.NewProgram(model)
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)
 	}
 
+	// Check if user selected an action
+	m, ok := finalModel.(tui.StatusModel)
+	if !ok {
+		return nil
+	}
+
+	action := m.GetAction()
+	if action == "" {
+		// No action selected, just quit
+		return nil
+	}
+
+	selectedPaths := m.GetSelectedPaths()
+	if len(selectedPaths) == 0 {
+		return nil
+	}
+
+	// Execute the requested action
+	fmt.Printf("\n%s %d selected repositories...\n\n",
+		actionVerb(action), len(selectedPaths))
+
+	// TODO: Execute actual action (sync, pull, fetch)
+	// For now, just print what would be done
+	for _, path := range selectedPaths {
+		fmt.Printf("  • %s → %s\n", action, path)
+	}
+
 	return nil
+}
+
+// actionVerb returns the present participle form of the action.
+func actionVerb(action string) string {
+	switch action {
+	case "sync":
+		return "Syncing"
+	case "pull":
+		return "Pulling"
+	case "fetch":
+		return "Fetching"
+	default:
+		return "Processing"
+	}
 }

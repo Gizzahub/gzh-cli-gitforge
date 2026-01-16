@@ -182,3 +182,84 @@ func TestGetStatusDisplay(t *testing.T) {
 		})
 	}
 }
+
+func TestBatchActions(t *testing.T) {
+	repos := []reposync.RepoHealth{
+		{
+			Repo: reposync.RepoSpec{
+				Name:       "repo1",
+				TargetPath: "/path/to/repo1",
+			},
+			HealthStatus: reposync.HealthHealthy,
+		},
+		{
+			Repo: reposync.RepoSpec{
+				Name:       "repo2",
+				TargetPath: "/path/to/repo2",
+			},
+			HealthStatus: reposync.HealthWarning,
+		},
+	}
+
+	model := NewStatusModel(repos)
+
+	// Select repos
+	model.selected["/path/to/repo1"] = true
+	model.selected["/path/to/repo2"] = true
+
+	tests := []struct {
+		key            rune
+		expectedAction string
+	}{
+		{'s', "sync"},
+		{'p', "pull"},
+		{'f', "fetch"},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.key), func(t *testing.T) {
+			m := model
+			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{tt.key}}
+			updated, cmd := m.Update(keyMsg)
+			m = updated.(StatusModel)
+
+			if m.GetAction() != tt.expectedAction {
+				t.Errorf("expected action %q, got %q", tt.expectedAction, m.GetAction())
+			}
+
+			// Should quit after action
+			if cmd == nil {
+				t.Error("expected quit command, got nil")
+			}
+		})
+	}
+}
+
+func TestGetSelectedPaths(t *testing.T) {
+	repos := []reposync.RepoHealth{
+		{
+			Repo: reposync.RepoSpec{
+				Name:       "repo1",
+				TargetPath: "/path/to/repo1",
+			},
+		},
+		{
+			Repo: reposync.RepoSpec{
+				Name:       "repo2",
+				TargetPath: "/path/to/repo2",
+			},
+		},
+	}
+
+	model := NewStatusModel(repos)
+	model.selected["/path/to/repo1"] = true
+
+	paths := model.GetSelectedPaths()
+	if len(paths) != 1 {
+		t.Errorf("expected 1 selected path, got %d", len(paths))
+	}
+
+	if paths[0] != "/path/to/repo1" {
+		t.Errorf("expected /path/to/repo1, got %s", paths[0])
+	}
+}

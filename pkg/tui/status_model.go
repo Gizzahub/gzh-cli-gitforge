@@ -15,13 +15,16 @@ import (
 
 // StatusModel represents the TUI state for repository status display.
 type StatusModel struct {
-	repos    []reposync.RepoHealth
-	selected map[string]bool // repo path -> selected
-	cursor   int             // current cursor position
-	filter   string          // filter text (future)
-	width    int             // terminal width
-	height   int             // terminal height
-	ready    bool            // terminal size received
+	repos      []reposync.RepoHealth
+	selected   map[string]bool // repo path -> selected
+	cursor     int             // current cursor position
+	filter     string          // filter text (future)
+	width      int             // terminal width
+	height     int             // terminal height
+	ready      bool            // terminal size received
+	action     string          // pending action: "sync", "pull", "fetch"
+	showDetail bool            // show detail view
+	err        error           // last error
 }
 
 // NewStatusModel creates a new status TUI model.
@@ -82,6 +85,27 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "end", "G":
 			m.cursor = len(m.repos) - 1
+
+		case "s": // Sync selected repos
+			if len(m.selected) > 0 {
+				m.action = "sync"
+				return m, tea.Quit
+			}
+
+		case "p": // Pull selected repos
+			if len(m.selected) > 0 {
+				m.action = "pull"
+				return m, tea.Quit
+			}
+
+		case "f": // Fetch selected repos
+			if len(m.selected) > 0 {
+				m.action = "fetch"
+				return m, tea.Quit
+			}
+
+		case "enter": // Show details
+			m.showDetail = !m.showDetail
 		}
 	}
 
@@ -271,17 +295,53 @@ func getStatusDisplay(repo reposync.RepoHealth) (string, string) {
 
 // renderFooter renders the footer with action hints.
 func renderFooter(m StatusModel) string {
-	actions := []string{
+	selectedCount := len(m.selected)
+
+	// Navigation actions (always visible)
+	navActions := []string{
+		"↑↓/j/k: Navigate",
 		"Space: Toggle",
 		"a: Select All",
-		"n: Deselect All",
-		"↑↓/j/k: Navigate",
-		"q: Quit",
+		"n: None",
 	}
+
+	// Batch actions (visible when items selected)
+	batchActions := []string{}
+	if selectedCount > 0 {
+		batchActions = append(batchActions,
+			fmt.Sprintf("s: Sync (%d)", selectedCount),
+			fmt.Sprintf("p: Pull (%d)", selectedCount),
+			fmt.Sprintf("f: Fetch (%d)", selectedCount),
+		)
+	}
+
+	// Detail action
+	detailActions := []string{"Enter: Details"}
+
+	// Combine all actions
+	allActions := append(navActions, batchActions...)
+	allActions = append(allActions, detailActions...)
+	allActions = append(allActions, "q: Quit")
 
 	footer := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("  " + strings.Join(actions, "  │  "))
+		Render("  " + strings.Join(allActions, "  │  "))
 
 	return footer
+}
+
+// GetSelectedPaths returns the list of selected repository paths.
+func (m StatusModel) GetSelectedPaths() []string {
+	paths := make([]string, 0, len(m.selected))
+	for path, selected := range m.selected {
+		if selected {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+// GetAction returns the pending action (sync, pull, fetch) or empty string.
+func (m StatusModel) GetAction() string {
+	return m.action
 }
