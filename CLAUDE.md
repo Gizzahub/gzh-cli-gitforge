@@ -137,8 +137,8 @@ gz-git fetch /path/to/single/repo
 | Command | Description |
 |---------|-------------|
 | `clone` | 여러 repo를 병렬로 clone (`--url`, `--file`) |
-| `status` | 모든 repo 상태 확인 (dirty, ahead/behind) |
-| `fetch` | 모든 repo에서 fetch |
+| `status` | **종합 health check** (fetch + divergence + 추천) - 모든 remote fetch |
+| `fetch` | 모든 repo에서 fetch - **기본적으로 모든 remote** (`--all-remotes` 기본값) |
 | `pull` | 모든 repo에서 pull (rebase/merge 지원) |
 | `push` | 모든 repo에서 push (**refspec 지원**: `develop:master`) |
 | `switch` | 모든 repo 브랜치 전환 |

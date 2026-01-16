@@ -22,17 +22,23 @@ var statusFlags BulkCommandFlags
 var statusCmd = &cobra.Command{
 	Use:   "status [directory]",
 	Short: "Check status of multiple repositories",
-	Long: `Scan for Git repositories and check their status in parallel.
+	Long: `Scan for Git repositories and check their comprehensive health status in parallel.
 
 This command recursively scans the specified directory (or current directory)
-for Git repositories and checks their working tree status in parallel.
+for Git repositories and performs comprehensive health checks including:
+  - Fetches from all remotes with timeout detection
+  - Analyzes divergence (ahead/behind/conflict)
+  - Checks work tree status (dirty/clean)
+  - Network error classification (timeout/unreachable/auth-failed)
+  - Provides smart recommendations for next actions
 
 By default:
   - Scans 1 directory level deep
   - Processes 5 repositories in parallel
-  - Shows repositories with uncommitted changes, ahead/behind status
+  - Fetches from all remotes (30s timeout per fetch)
+  - Shows only repositories with issues (use --verbose for all)
 
-The command is read-only and will not modify your repositories.`,
+The command fetches to update remote tracking but does not modify your working tree.`,
 	Example: `  # Check status of all repositories in current directory (1-level scan)
   gz-git status --scan-depth 1
 

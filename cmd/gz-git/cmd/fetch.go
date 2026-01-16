@@ -34,7 +34,7 @@ For single repository operations, use 'git fetch' directly.
 By default:
   - Scans 1 directory level deep
   - Processes 5 repositories in parallel
-  - Fetches from origin remote only
+  - Fetches from all remotes (changed from origin-only)
   - Skips repositories without remotes
 
 The command is safe to run and will not modify your working tree.
@@ -48,8 +48,8 @@ It only updates remote-tracking branches.`,
   # Fetch with custom parallelism
   gz-git fetch --parallel 10 ~/projects
 
-  # Fetch from all remotes
-  gz-git fetch --all-remotes ~/workspace
+  # Fetch from origin only (override default)
+  gz-git fetch --no-all-remotes ~/workspace
 
   # Fetch and prune deleted remote branches
   gz-git fetch --prune ~/projects
@@ -85,7 +85,7 @@ func init() {
 	addBulkFlags(fetchCmd, &fetchFlags)
 
 	// Fetch-specific flags
-	fetchCmd.Flags().BoolVar(&fetchAllRemotes, "all-remotes", false, "fetch from all remotes (not just origin)")
+	fetchCmd.Flags().BoolVar(&fetchAllRemotes, "all-remotes", true, "fetch from all remotes (default: true, use --no-all-remotes for origin only)")
 	fetchCmd.Flags().BoolVarP(&fetchPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
 	fetchCmd.Flags().BoolVarP(&fetchTags, "tags", "t", false, "fetch all tags from remote")
 }
