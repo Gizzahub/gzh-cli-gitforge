@@ -147,6 +147,22 @@ $ gz-git sync setup
 
 **Total Estimate**: 4-7 weeks (with testing/docs)
 
+## Flag and Command Design
+
+**Clear separation to avoid confusion**:
+
+| Feature | Activation | Examples |
+|---------|-----------|----------|
+| **Advanced TUI** | `--tui` flag | `gz-git status --tui`<br>`gz-git cleanup branch --tui` |
+| **Interactive Mode** | Dedicated commands | `gz-git sync setup`<br>`gz-git cleanup wizard`<br>`gz-git config profile create` |
+| **Config Profiles** | Profile commands | `gz-git config profile create`<br>`gz-git config profile use work` |
+
+**Why not --interactive?**
+- ❌ Ambiguous: Could mean TUI or wizard
+- ❌ Conflicts between two features
+- ✅ `--tui` is specific to terminal UI
+- ✅ Dedicated commands (`setup`, `wizard`) clearly indicate guided workflows
+
 ## Feature Relationships
 
 ```
@@ -166,7 +182,7 @@ Advanced TUI
 ## Success Metrics
 
 ### Quantitative
-- TUI adoption: 40%+ of users use `--interactive` flag
+- TUI adoption: 40%+ of users use `--tui` flag
 - Profile usage: 60%+ of users create at least one profile
 - Wizard completion: 80%+ complete wizard without errors
 

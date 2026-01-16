@@ -73,7 +73,7 @@ gz-git cleanup branch --delete feature/old-1 feature/old-2 ...
 
 #### Workflow 1: Sync Setup Wizard
 
-**Command**: `gz-git sync setup` or `gz-git sync from-forge --interactive`
+**Command**: `gz-git sync setup`
 
 ```
 $ gz-git sync setup
@@ -192,10 +192,10 @@ func runSyncSetup() error {
 
 #### Workflow 2: Branch Cleanup Wizard
 
-**Command**: `gz-git cleanup branch --interactive`
+**Command**: `gz-git cleanup wizard`
 
 ```
-$ gz-git cleanup branch --interactive
+$ gz-git cleanup wizard
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  🧹 Branch Cleanup Wizard
@@ -285,10 +285,10 @@ func runBranchCleanupWizard(repos []string) error {
 
 #### Workflow 3: Profile Creation Wizard
 
-**Command**: `gz-git config profile create --interactive`
+**Command**: `gz-git config profile create`
 
 ```
-$ gz-git config profile create --interactive
+$ gz-git config profile create
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  ⚙️  Create Configuration Profile
@@ -536,26 +536,24 @@ func runWizard() error {
 
 ## Command Integration
 
-**Two approaches**:
+**Design Decision**: Dedicated wizard commands (not flags)
 
-### Approach 1: --interactive flag
 ```bash
-gz-git sync from-forge --interactive
-gz-git cleanup branch --interactive
-gz-git config profile create --interactive
+gz-git sync setup           # Wizard for sync setup
+gz-git cleanup wizard       # Wizard for cleanup
+gz-git config profile create  # Profile creation (already wizard-style)
 ```
 
-### Approach 2: Dedicated wizard commands
-```bash
-gz-git sync setup        # Wizard for sync setup
-gz-git cleanup wizard    # Wizard for cleanup
-gz-git config wizard     # Wizard for profile creation
-```
+**Rationale**:
+- ✅ Clearer intent - `setup` and `wizard` clearly indicate guided workflow
+- ✅ No flag confusion - `--tui` is for TUI, dedicated commands for wizards
+- ✅ Separate help text - Each command can have detailed help
+- ✅ Shorter commands - `setup` vs `from-forge --interactive`
 
-**Recommendation**: Use Approach 2 (dedicated commands)
-- ✅ Clearer intent
-- ✅ Separate help text
-- ✅ Can be shorter names (`setup` vs `from-forge --interactive`)
+**vs. --interactive flag**:
+- ❌ Conflicts with TUI's `--tui` flag
+- ❌ Ambiguous meaning (TUI or wizard?)
+- ❌ Less discoverable
 
 ## Testing Strategy
 

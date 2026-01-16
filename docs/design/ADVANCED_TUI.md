@@ -50,7 +50,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 2. **Interactivity**: Select repos, filter, sort
 3. **Batch operations**: Act on selected repos
 4. **Real-time feedback**: Live progress updates
-5. **Optional**: TUI is opt-in (`--interactive` flag)
+5. **Optional**: TUI is opt-in (`--tui` flag)
 
 ## Design
 
@@ -76,7 +76,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ gz-git status --interactive                              Filter: │
+┃ gz-git status --tui                              Filter: │
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 ┌─ Repositories (12 selected / 50 total) ──────────────────────────┐
@@ -118,7 +118,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ gz-git sync from-config --interactive                            ┃
+┃ gz-git sync from-config --tui                            ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 ┌─ Overall Progress ────────────────────────────────────────────────┐
@@ -161,7 +161,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ gz-git cleanup branch --interactive                              ┃
+┃ gz-git cleanup branch --tui                              ┃
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 Repository: backend-api (15 stale branches found)
@@ -236,7 +236,7 @@ func (m StatusModel) View() string {
     var b strings.Builder
 
     // Header
-    b.WriteString(headerStyle.Render("gz-git status --interactive"))
+    b.WriteString(headerStyle.Render("gz-git status --tui"))
 
     // Repo list
     for i, repo := range m.repos {
@@ -349,22 +349,20 @@ func listenForProgress(ch <-chan syncProgressMsg) tea.Cmd {
 gz-git status
 
 # Interactive TUI
-gz-git status --interactive
-# or
-gz-git status -i
+gz-git status --tui
 ```
 
 **Implementation**:
 ```go
 func runStatus(cmd *cobra.Command, args []string) error {
-    interactive, _ := cmd.Flags().GetBool("interactive")
+    useTUI, _ := cmd.Flags().GetBool("tui")
 
     repos, err := loadRepos()
     if err != nil {
         return err
     }
 
-    if interactive {
+    if useTUI {
         // Launch TUI
         model := NewStatusModel(repos)
         p := tea.NewProgram(model)
