@@ -66,7 +66,10 @@ Examples:
   gz-git sync status -c sync.yaml --timeout 60s
 
   # Detailed output
-  gz-git sync status -c sync.yaml --verbose`,
+  gz-git sync status -c sync.yaml --verbose
+
+  # Auto-detect config in current directory
+  gz-git sync status`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runStatus(cmd, opts)
 		},
@@ -101,6 +104,18 @@ func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error
 	var repos []reposync.RepoSpec
 	var err error
 
+	// Auto-detect config if neither --config nor --target specified
+	if opts.ConfigFile == "" && opts.TargetPath == "" {
+		detected, detectErr := detectConfigFile(".")
+		if detectErr == nil {
+			opts.ConfigFile = detected
+			fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", detected)
+		} else {
+			// Fall back to scanning current directory
+			opts.TargetPath = "."
+		}
+	}
+
 	if opts.ConfigFile != "" {
 		// Load from config file
 		configData, loadErr := f.SpecLoader.Load(ctx, opts.ConfigFile)
@@ -127,8 +142,6 @@ func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error
 		for _, action := range plan.Actions {
 			repos = append(repos, action.Repo)
 		}
-	} else {
-		return fmt.Errorf("must specify either --config or --target")
 	}
 
 	if len(repos) == 0 {

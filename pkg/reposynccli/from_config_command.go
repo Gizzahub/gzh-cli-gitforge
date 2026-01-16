@@ -5,6 +5,8 @@ package reposynccli
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -60,9 +62,22 @@ Examples:
   gz-git sync from-config -c config.yaml --strategy pull
 
   # Resume interrupted sync
-  gz-git sync from-config -c config.yaml --resume --state-file state.json`,
+  gz-git sync from-config -c config.yaml --resume --state-file state.json
+
+  # Auto-detect config in current directory
+  gz-git sync from-config`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			// Auto-detect config file if not specified
+			if configPath == "" {
+				detected, err := detectConfigFile(".")
+				if err != nil {
+					return fmt.Errorf("no config file specified and auto-detection failed: %w", err)
+				}
+				configPath = detected
+				fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
+			}
 
 			loader := f.SpecLoader
 			if loader == nil {
@@ -127,8 +142,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to sync config file [required]")
-	_ = cmd.MarkFlagRequired("config")
+	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to sync config file (auto-detects .gz-git.yaml or .gz-git.yml)")
 	cmd.Flags().StringVar(&strategy, "strategy", "", "Default strategy override (reset|pull|fetch)")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Parallel workers (overrides config)")
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 0, "Retry attempts per repo (overrides config)")
@@ -137,4 +151,19 @@ Examples:
 	cmd.Flags().StringVar(&stateFile, "state-file", "", "Path to persist and load run state for resume")
 
 	return cmd
+}
+
+// detectConfigFile searches for config files in the given directory.
+// Priority: .gz-git.yaml > .gz-git.yml (current directory only, no parent scan)
+func detectConfigFile(dir string) (string, error) {
+	candidates := []string{".gz-git.yaml", ".gz-git.yml"}
+
+	for _, name := range candidates {
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("config file not found (tried: %v)", candidates)
 }

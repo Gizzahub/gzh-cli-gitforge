@@ -26,9 +26,22 @@ Checks:
 
 Examples:
   # Validate config file
-  gz-git sync config validate -c sync.yaml`,
+  gz-git sync config validate -c sync.yaml
+
+  # Auto-detect config in current directory
+  gz-git sync config validate`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			// Auto-detect config file if not specified
+			if configPath == "" {
+				detected, err := detectConfigFile(".")
+				if err != nil {
+					return fmt.Errorf("no config file specified and auto-detection failed: %w", err)
+				}
+				configPath = detected
+				fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
+			}
 
 			loader := f.SpecLoader
 			if loader == nil {
@@ -45,8 +58,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file [required]")
-	_ = cmd.MarkFlagRequired("config")
+	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file (auto-detects .gz-git.yaml or .gz-git.yml)")
 
 	return cmd
 }
