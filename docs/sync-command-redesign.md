@@ -463,8 +463,63 @@ gz-git sync from-forge \
 # ~/work/platform/frontend/mobile
 ```
 
+## Breaking Changes
+
+### v2.0: Clone Protocol 플래그 재설계
+
+**변경 사항**:
+- ❌ `--ssh` (boolean) - 제거
+- ✅ `--clone-proto` (string) - 신규: `ssh` | `https` (기본: `ssh`)
+- ✅ `--ssh-port` (int) - 신규: 커스텀 SSH 포트 (기본: 0 = auto)
+
+**마이그레이션**:
+
+```bash
+# Before (v1.x)
+gz-git sync forge --provider gitlab --org mygroup \
+  --base-url https://gitlab.com --token $TOKEN --ssh
+
+# After (v2.0+)
+gz-git sync from-forge --provider gitlab --org mygroup \
+  --base-url https://gitlab.com --token $TOKEN
+  # --clone-proto ssh (기본값)
+
+# Before: Self-hosted GitLab with custom SSH port
+gz-git sync forge --provider gitlab --org devbox \
+  --base-url ssh://git@gitlab.polypia.net:2224 --token $TOKEN --ssh
+
+# After: 명확한 역할 분리
+gz-git sync from-forge --provider gitlab --org devbox \
+  --base-url https://gitlab.polypia.net --token $TOKEN \
+  --clone-proto ssh --ssh-port 2224
+```
+
+**개선점**:
+1. 역할 분리: `--base-url` (API endpoint), `--clone-proto` (Clone 방식), `--ssh-port` (SSH 포트)
+2. 확장성: `--clone-proto`가 string이므로 향후 `git://` 등 추가 가능
+3. 명시성: SSH 포트를 명시적으로 지정
+
+### v2.1: 명령어 구조 재설계
+
+**변경 사항**:
+- ❌ `sync forge` → ✅ `sync from-forge`
+- ❌ `sync run` → ✅ `sync from-config`
+- ✅ `sync config` (신규 명령어 그룹)
+
+**마이그레이션**:
+
+```bash
+# Before (v2.0)
+gz-git sync forge --provider gitlab --org mygroup --target ~/repos
+gz-git sync run -c sync.yaml
+
+# After (v2.1+)
+gz-git sync from-forge --provider gitlab --org mygroup --target ~/repos
+gz-git sync from-config -c sync.yaml
+```
+
 ---
 
-**Version**: 2.0 → 3.0 (Breaking)
-**Status**: Design Complete, Ready for Implementation
+**Version**: 2.0 → 2.1 (Breaking)
+**Status**: ✅ Implemented
 **Date**: 2026-01-16
