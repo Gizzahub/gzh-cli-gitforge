@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
@@ -101,55 +100,35 @@ func (m StatusModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = len(m.repos) - 1
 
 		case "s": // Sync selected repos
-			if len(m.selected) > 0 {
-				m.action = "sync"
-				return m, tea.Quit
-			}
+			return m.executeAction("sync")
 
 		case "p": // Pull selected repos
-			if len(m.selected) > 0 {
-				m.action = "pull"
-				return m, tea.Quit
-			}
+			return m.executeAction("pull")
 
 		case "f": // Fetch selected repos
-			if len(m.selected) > 0 {
-				m.action = "fetch"
-				return m, tea.Quit
-			}
+			return m.executeAction("fetch")
 
 		case "enter": // Show details
 			m.showDetail = !m.showDetail
 
 		case "/": // Toggle filter: dirty repos only
 			if m.filter == FilterDirty {
-				m.filter = FilterNone
-				m.repos = m.allRepos
+				m.setFilter(FilterNone)
 			} else {
-				m.filter = FilterDirty
-				m.repos = m.applyFilter(FilterDirty)
+				m.setFilter(FilterDirty)
 			}
-			m.cursor = 0
 
 		case "1": // Show dirty only
-			m.filter = FilterDirty
-			m.repos = m.applyFilter(FilterDirty)
-			m.cursor = 0
+			m.setFilter(FilterDirty)
 
 		case "2": // Show clean only
-			m.filter = FilterClean
-			m.repos = m.applyFilter(FilterClean)
-			m.cursor = 0
+			m.setFilter(FilterClean)
 
 		case "3": // Show ahead only
-			m.filter = FilterAhead
-			m.repos = m.applyFilter(FilterAhead)
-			m.cursor = 0
+			m.setFilter(FilterAhead)
 
 		case "0": // Show all (clear filter)
-			m.filter = FilterNone
-			m.repos = m.allRepos
-			m.cursor = 0
+			m.setFilter(FilterNone)
 		}
 	}
 
@@ -194,22 +173,13 @@ func renderHeader(m StatusModel) string {
 		titleText += fmt.Sprintf(" [Filter: %s]", m.filter)
 	}
 
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("62")).
-		Padding(0, 1).
-		Render(titleText)
-
-	return title
+	return HeaderStyle.Render(titleText)
 }
 
 // renderRepoList renders the list of repositories.
 func renderRepoList(m StatusModel) string {
 	if len(m.repos) == 0 {
-		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render("  No repositories found")
+		return SubtleStyle.Render("  No repositories found")
 	}
 
 	var b strings.Builder
@@ -245,9 +215,7 @@ func renderRepoList(m StatusModel) string {
 	// Show scroll indicator if needed
 	if len(m.repos) > visibleHeight {
 		scrollInfo := fmt.Sprintf("  (%d-%d of %d)", start+1, end, len(m.repos))
-		b.WriteString(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render(scrollInfo))
+		b.WriteString(SubtleStyle.Render(scrollInfo))
 	}
 
 	return b.String()
@@ -296,23 +264,15 @@ func renderRepoLine(repo reposync.RepoHealth, isCursor, isSelected bool) string 
 	)
 
 	// Apply styling
-	style := lipgloss.NewStyle()
-
 	if isCursor {
-		// Cursor - highlighted
-		style = style.
-			Foreground(lipgloss.Color("0")).
-			Background(lipgloss.Color("6")).
-			Bold(true)
+		return CursorStyle.Render(line)
 	} else if repo.HealthStatus != reposync.HealthHealthy {
-		// Unhealthy - warning color
-		style = style.Foreground(lipgloss.Color("9"))
+		return UnhealthyStyle.Render(line)
 	} else if repo.WorkTreeStatus != reposync.WorkTreeClean {
-		// Dirty - yellow
-		style = style.Foreground(lipgloss.Color("11"))
+		return DirtyStyle.Render(line)
 	}
 
-	return style.Render(line)
+	return line
 }
 
 // getStatusDisplay returns status icon and text for a repository.
@@ -382,11 +342,7 @@ func renderFooter(m StatusModel) string {
 	allActions = append(allActions, detailActions...)
 	allActions = append(allActions, "q: Quit")
 
-	footer := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render("  " + strings.Join(allActions, "  │  "))
-
-	return footer
+	return SubtleStyle.Render("  " + strings.Join(allActions, "  │  "))
 }
 
 // GetSelectedPaths returns the list of selected repository paths.
@@ -403,6 +359,26 @@ func (m StatusModel) GetSelectedPaths() []string {
 // GetAction returns the pending action (sync, pull, fetch) or empty string.
 func (m StatusModel) GetAction() string {
 	return m.action
+}
+
+// setFilter applies a filter and resets cursor position.
+func (m *StatusModel) setFilter(filter FilterType) {
+	m.filter = filter
+	if filter == FilterNone || filter == FilterAll {
+		m.repos = m.allRepos
+	} else {
+		m.repos = m.applyFilter(filter)
+	}
+	m.cursor = 0
+}
+
+// executeAction sets the action and quits if items are selected.
+func (m *StatusModel) executeAction(action string) (tea.Model, tea.Cmd) {
+	if len(m.selected) > 0 {
+		m.action = action
+		return m, tea.Quit
+	}
+	return m, nil
 }
 
 // applyFilter filters repositories based on the filter type.

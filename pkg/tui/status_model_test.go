@@ -221,10 +221,17 @@ func TestBatchActions(t *testing.T) {
 			m := model
 			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{tt.key}}
 			updated, cmd := m.Update(keyMsg)
-			m = updated.(StatusModel)
 
-			if m.GetAction() != tt.expectedAction {
-				t.Errorf("expected action %q, got %q", tt.expectedAction, m.GetAction())
+			// executeAction returns pointer, so check both types
+			var finalModel StatusModel
+			if pm, ok := updated.(*StatusModel); ok {
+				finalModel = *pm
+			} else {
+				finalModel = updated.(StatusModel)
+			}
+
+			if finalModel.GetAction() != tt.expectedAction {
+				t.Errorf("expected action %q, got %q", tt.expectedAction, finalModel.GetAction())
 			}
 
 			// Should quit after action

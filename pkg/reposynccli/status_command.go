@@ -263,67 +263,15 @@ func (f CommandFactory) printVerboseHealth(out interface{ Write([]byte) (int, er
 }
 
 func getHealthIcon(status reposync.HealthStatus) string {
-	switch status {
-	case reposync.HealthHealthy:
-		return "✓"
-	case reposync.HealthWarning:
-		return "⚠"
-	case reposync.HealthError:
-		return "✗"
-	case reposync.HealthUnreachable:
-		return "⊘"
-	default:
-		return "?"
-	}
+	return tui.FormatHealthIcon(status)
 }
 
 func getStatusString(health reposync.RepoHealth) string {
-	var parts []string
-
-	// Health status
-	parts = append(parts, string(health.HealthStatus))
-
-	// Divergence info
-	switch health.DivergenceType {
-	case reposync.DivergenceNone:
-		parts = append(parts, "up-to-date")
-	case reposync.DivergenceFastForward:
-		parts = append(parts, fmt.Sprintf("%d↓ behind", health.BehindBy))
-	case reposync.DivergenceDiverged:
-		parts = append(parts, fmt.Sprintf("%d↑ %d↓ diverged", health.AheadBy, health.BehindBy))
-	case reposync.DivergenceAhead:
-		parts = append(parts, fmt.Sprintf("%d↑ ahead", health.AheadBy))
-	case reposync.DivergenceConflict:
-		parts = append(parts, "conflict")
-	case reposync.DivergenceNoUpstream:
-		parts = append(parts, "no-upstream")
-	}
-
-	// Working tree status
-	if health.WorkTreeStatus == reposync.WorkTreeDirty {
-		parts = append(parts, "dirty")
-	} else if health.WorkTreeStatus == reposync.WorkTreeConflict {
-		parts = append(parts, "conflict")
-	}
-
-	result := parts[0]
-	if len(parts) > 1 {
-		result += "    " + parts[1]
-		for i := 2; i < len(parts); i++ {
-			result += " + " + parts[i]
-		}
-	}
-
-	return result
+	return tui.FormatStatusText(health)
 }
 
 func formatRepoName(repo reposync.RepoSpec) string {
-	name := repo.Name
-	if name == "" {
-		// Extract from path
-		name = repo.TargetPath
-	}
-	return name
+	return tui.FormatRepoName(repo)
 }
 
 // printHealthReportJSON outputs the health report in JSON format.
