@@ -16,6 +16,7 @@ func (f CommandFactory) newConfigCmd() *cobra.Command {
 
 Subcommands:
   init      - Create a sample configuration file
+  scan      - Scan local directory for git repositories
   generate  - Generate config from Git forge (GitHub, GitLab, Gitea)
   merge     - Merge repositories from forge into existing config
   validate  - Validate configuration file format
@@ -23,6 +24,9 @@ Subcommands:
 Examples:
   # Create sample config
   gz-git sync config init
+
+  # Scan local directory for git repos
+  gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
 
   # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o sync.yaml
@@ -35,6 +39,7 @@ Examples:
 	}
 
 	cmd.AddCommand(f.newConfigInitCmd())
+	cmd.AddCommand(f.newConfigScanCmd())
 	cmd.AddCommand(f.newConfigGenerateCmd())
 	cmd.AddCommand(f.newConfigMergeCmd())
 	cmd.AddCommand(f.newConfigValidateCmd())
