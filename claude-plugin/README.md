@@ -44,5 +44,5 @@ gz-git status /path/to/repo
 ## Local Test
 
 ```bash
-claude --plugin-dir ./gz-git-plugin
+claude --plugin-dir ./claude-plugin
 ```
