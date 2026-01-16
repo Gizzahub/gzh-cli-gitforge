@@ -81,7 +81,7 @@ func init() {
 	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchGone, "gone", false, "clean up gone branches (remote deleted)")
 	cleanupBranchCmd.Flags().IntVar(&cleanupBranchStaleDays, "stale-days", 30, "days threshold for stale branches")
 	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchDryRun, "dry-run", "n", true, "preview changes without deleting (default: true)")
-	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchForce, "force", "f", false, "actually delete branches (disables dry-run)")
+	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchForce, "force", false, "actually delete branches (disables dry-run)")
 	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchRemote, "remote", "r", false, "also delete remote branches")
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchProtect, "protect", "", "additional branches to protect (comma-separated)")
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBaseBranch, "base", "", "base branch for merge detection (default: auto-detect)")

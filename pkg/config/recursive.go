@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -111,7 +112,11 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 			nestedConfig, err := LoadConfigRecursive(wsPath, nestedConfigFile)
 			if err != nil {
 				// Config file not found is OK (use workspace settings only)
-				continue
+				// But other errors (permission denied, disk I/O) should be reported
+				if errors.Is(err, os.ErrNotExist) {
+					continue
+				}
+				return nil, fmt.Errorf("failed to load workspace '%s' config: %w", name, err)
 			}
 
 			// Merge workspace overrides into loaded config
@@ -148,8 +153,12 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 				nestedConfigFile := ".gz-git.yaml"
 				_, err := LoadConfigRecursive(nestedPath, nestedConfigFile)
 				if err != nil {
-					// Config not found is OK
-					continue
+					// Config not found is OK, but report other errors
+					if errors.Is(err, os.ErrNotExist) {
+						continue
+					}
+					return nil, fmt.Errorf("failed to load nested workspace '%s/%s' config: %w",
+						name, nestedName, err)
 				}
 			}
 		}

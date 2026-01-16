@@ -57,7 +57,7 @@ Examples:
   gz-git sync status -c sync.yaml
 
   # Check repositories in a directory
-  gz-git sync status --target ~/repos --depth 2
+  gz-git sync status --target ~/repos --scan-depth 2
 
   # Quick check (skip remote fetch)
   gz-git sync status -c sync.yaml --skip-fetch
@@ -75,7 +75,7 @@ Examples:
 	// Config or target path (mutually exclusive in practice)
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Sync config file")
 	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory to scan")
-	cmd.Flags().IntVarP(&opts.ScanDepth, "depth", "d", opts.ScanDepth, "Directory scan depth (when using --target)")
+	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth (when using --target)")
 
 	// Diagnostic options
 	cmd.Flags().BoolVar(&opts.SkipFetch, "skip-fetch", false, "Skip remote fetch (faster but may show stale data)")
