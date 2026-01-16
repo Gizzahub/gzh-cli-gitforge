@@ -219,3 +219,139 @@ func runGitCommand(ctx context.Context, args ...string) error {
     return nil
 }
 ```
+
+______________________________________________________________________
+
+## Repository Health Diagnostics (sync status)
+
+### Overview
+
+`gz-git sync status` provides comprehensive health checks for multiple repositories:
+- Fetches from all remotes (with timeout)
+- Detects network connectivity issues
+- Compares local vs remote branches
+- Identifies potential conflicts
+- Provides actionable recommendations
+
+### Architecture
+
+```
+DiagnosticExecutor (pkg/reposync/diagnostic_executor.go)
+    ├── CheckHealth() - Main entry point
+    ├── checkOne() - Per-repository health check
+    ├── fetchWithTimeout() - Remote fetch with timeout
+    ├── classifyDivergence() - Analyze local vs remote
+    ├── classifyHealth() - Determine overall health
+    └── generateRecommendation() - Create actionable guidance
+```
+
+### Type Hierarchy
+
+```go
+// Health classification
+type HealthStatus string
+const (
+    HealthHealthy      // up-to-date, clean
+    HealthWarning      // diverged, can be resolved
+    HealthError        // conflicts, dirty + behind
+    HealthUnreachable  // network timeout, auth failed
+)
+
+// Divergence analysis
+type DivergenceType string
+const (
+    DivergenceNone         // local == remote
+    DivergenceFastForward  // can fast-forward pull
+    DivergenceDiverged     // merge/rebase needed
+    DivergenceAhead        // can push
+    DivergenceConflict     // merge conflicts exist
+    DivergenceNoUpstream   // no upstream configured
+)
+
+// Network status
+type NetworkStatus string
+const (
+    NetworkOK           // fetch succeeded
+    NetworkTimeout      // fetch timed out
+    NetworkUnreachable  // DNS/connection failed
+    NetworkAuthFailed   // authentication failed
+)
+```
+
+### Adding New Health Checks
+
+```go
+// pkg/reposync/diagnostic_executor.go
+func (e DiagnosticExecutor) checkOne(ctx context.Context, ...) RepoHealth {
+    // ... existing checks ...
+
+    // Add custom health check
+    if opts.CheckCustom {
+        customStatus := e.checkCustomCondition(ctx, r)
+        health.CustomStatus = customStatus
+    }
+
+    return health
+}
+```
+
+### Customizing Recommendations
+
+```go
+// pkg/reposync/diagnostic_executor.go
+func generateRecommendation(health RepoHealth) string {
+    switch health.HealthStatus {
+    case HealthWarning:
+        if health.CustomCondition {
+            return "Custom recommendation for your case"
+        }
+    }
+    // ... existing logic ...
+}
+```
+
+### Testing Health Checks
+
+```go
+// Integration test example
+func TestCustomHealthCheck(t *testing.T) {
+    repo := testutil.TempGitRepoWithCommit(t)
+    defer os.RemoveAll(filepath.Dir(repo))
+
+    executor := DiagnosticExecutor{
+        Client: repo.NewClient(),
+    }
+
+    opts := DiagnosticOptions{
+        SkipFetch: true, // Fast test without network
+        CheckWorkTree: true,
+    }
+
+    report, err := executor.CheckHealth(ctx, repos, opts)
+    // Assert on report.Results
+}
+```
+
+### CLI Integration
+
+```go
+// pkg/reposynccli/status_command.go
+func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error {
+    // Load repositories from config or scan directory
+    repos := loadRepos(opts)
+
+    // Execute health check
+    executor := reposync.DiagnosticExecutor{}
+    report, err := executor.CheckHealth(ctx, repos, diagOpts)
+
+    // Display results
+    f.printHealthReport(cmd, report, opts.Verbose)
+}
+```
+
+### Performance Considerations
+
+- **Parallel execution**: Default 4 workers, configurable with `--parallel`
+- **Timeout handling**: Default 30s per fetch, configurable with `--timeout`
+- **Skip fetch**: Use `--skip-fetch` for fast checks (may show stale data)
+- **Network classification**: Errors are parsed from git stderr for specific guidance

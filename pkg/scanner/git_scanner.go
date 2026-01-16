@@ -16,11 +16,11 @@ import (
 
 // GitRepoScanner scans directories for git repositories.
 type GitRepoScanner struct {
-	RootPath       string
-	MaxDepth       int
+	RootPath         string
+	MaxDepth         int
 	RespectGitIgnore bool
-	ExcludePatterns []string
-	IncludePatterns []string
+	ExcludePatterns  []string
+	IncludePatterns  []string
 }
 
 // ScannedRepo represents a discovered git repository.

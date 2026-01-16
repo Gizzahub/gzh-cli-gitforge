@@ -332,30 +332,30 @@ func (f CommandFactory) printHealthReportJSON(cmd *cobra.Command, report *reposy
 
 	// Create JSON-friendly structure
 	type JSONRepoHealth struct {
-		Name           string  `json:"name"`
-		Path           string  `json:"path"`
-		HealthStatus   string  `json:"health_status"`
-		NetworkStatus  string  `json:"network_status"`
-		DivergenceType string  `json:"divergence_type"`
-		WorkTreeStatus string  `json:"worktree_status"`
-		CurrentBranch  string  `json:"current_branch"`
-		UpstreamBranch string  `json:"upstream_branch,omitempty"`
-		AheadBy        int     `json:"ahead_by"`
-		BehindBy       int     `json:"behind_by"`
-		ModifiedFiles  int     `json:"modified_files"`
-		UntrackedFiles int     `json:"untracked_files"`
-		ConflictFiles  int     `json:"conflict_files"`
-		Recommendation string  `json:"recommendation,omitempty"`
-		Error          string  `json:"error,omitempty"`
-		DurationMs     float64 `json:"duration_ms"`
+		Name            string  `json:"name"`
+		Path            string  `json:"path"`
+		HealthStatus    string  `json:"health_status"`
+		NetworkStatus   string  `json:"network_status"`
+		DivergenceType  string  `json:"divergence_type"`
+		WorkTreeStatus  string  `json:"worktree_status"`
+		CurrentBranch   string  `json:"current_branch"`
+		UpstreamBranch  string  `json:"upstream_branch,omitempty"`
+		AheadBy         int     `json:"ahead_by"`
+		BehindBy        int     `json:"behind_by"`
+		ModifiedFiles   int     `json:"modified_files"`
+		UntrackedFiles  int     `json:"untracked_files"`
+		ConflictFiles   int     `json:"conflict_files"`
+		Recommendation  string  `json:"recommendation,omitempty"`
+		Error           string  `json:"error,omitempty"`
+		DurationMs      float64 `json:"duration_ms"`
 		FetchDurationMs float64 `json:"fetch_duration_ms"`
 	}
 
 	type JSONHealthReport struct {
-		Results     []JSONRepoHealth `json:"results"`
-		Summary     reposync.HealthSummary `json:"summary"`
-		TotalMs     float64 `json:"total_duration_ms"`
-		CheckedAt   string `json:"checked_at"`
+		Results   []JSONRepoHealth       `json:"results"`
+		Summary   reposync.HealthSummary `json:"summary"`
+		TotalMs   float64                `json:"total_duration_ms"`
+		CheckedAt string                 `json:"checked_at"`
 	}
 
 	jsonResults := make([]JSONRepoHealth, len(report.Results))

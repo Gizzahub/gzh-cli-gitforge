@@ -47,6 +47,7 @@ Sync Sources:
   from-forge   - Sync from Git forge (GitHub, GitLab, Gitea) API
   from-config  - Sync from YAML configuration file
   config       - Manage configuration files (generate, merge, validate)
+  status       - Check repository health and sync status
 
 Sync Strategies:
   reset  - Hard reset to remote HEAD (default, ensures clean state)
@@ -54,6 +55,9 @@ Sync Strategies:
   fetch  - Fetch only (update refs without modifying working tree)
 
 Examples:
+  # Check repository health before sync
+  gz-git sync status -c sync.yaml
+
   # Sync directly from GitLab organization
   gz-git sync from-forge --provider gitlab --org devbox --target ~/repos
 
@@ -71,6 +75,7 @@ Examples:
 	root.AddCommand(f.newFromForgeCmd())
 	root.AddCommand(f.newFromConfigCmd())
 	root.AddCommand(f.newConfigCmd())
+	root.AddCommand(f.newStatusCmd())
 
 	return root
 }

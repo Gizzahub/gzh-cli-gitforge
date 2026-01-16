@@ -17,24 +17,24 @@ import (
 
 // FromForgeOptions holds options for from-forge sync command.
 type FromForgeOptions struct {
-	Provider        string
-	Organization    string
-	TargetPath      string
-	Token           string
-	BaseURL         string // API endpoint (http/https only)
-	CloneProto      string // Clone protocol: ssh, https (default: ssh)
-	SSHPort         int    // Custom SSH port (0 = default 22)
-	Strategy        string
-	Parallel        int
-	MaxRetries      int
-	Resume          bool
-	DryRun          bool
-	StateFile       string
-	IncludeArchived bool
-	IncludeForks    bool
-	IncludePrivate  bool
-	CleanupOrphans  bool
-	IsUser          bool
+	Provider         string
+	Organization     string
+	TargetPath       string
+	Token            string
+	BaseURL          string // API endpoint (http/https only)
+	CloneProto       string // Clone protocol: ssh, https (default: ssh)
+	SSHPort          int    // Custom SSH port (0 = default 22)
+	Strategy         string
+	Parallel         int
+	MaxRetries       int
+	Resume           bool
+	DryRun           bool
+	StateFile        string
+	IncludeArchived  bool
+	IncludeForks     bool
+	IncludePrivate   bool
+	CleanupOrphans   bool
+	IsUser           bool
 	IncludeSubgroups bool   // GitLab: include subgroups
 	SubgroupMode     string // GitLab: flat | nested
 }
@@ -42,10 +42,10 @@ type FromForgeOptions struct {
 // newFromForgeCmd creates a command for syncing from git forges.
 func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	opts := &FromForgeOptions{
-		Strategy:   "reset",
-		Parallel:   4,
-		MaxRetries: 3,
-		CloneProto: "ssh", // Default to SSH
+		Strategy:     "reset",
+		Parallel:     4,
+		MaxRetries:   3,
+		CloneProto:   "ssh",  // Default to SSH
 		SubgroupMode: "flat", // Default to flat
 	}
 

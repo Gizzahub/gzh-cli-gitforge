@@ -30,11 +30,11 @@ func TestMergeWorkflow(t *testing.T) {
 		detectOutput := repo.RunGzhGitExpectError("merge", "detect", "nonexistent", "master")
 		AssertContains(t, detectOutput, "not found")
 
-		// 2. Verify repository is still operational (bulk status completes)
-		// Note: Local test repos show "no-remote" since they have no remote configured
+		// 2. Verify repository is still operational (diagnostic status completes)
+		// Note: Local test repos show "no-upstream" since they have no remote configured
 		statusOutput := repo.RunGzhGitSuccess("status")
-		AssertContains(t, statusOutput, "Bulk Status Results")
-		AssertContains(t, statusOutput, "Total processed: 1")
+		AssertContains(t, statusOutput, "Repository Health Status")
+		AssertContains(t, statusOutput, "Total repositories: 1")
 	})
 
 	// Note: For actual merge operations, use native git commands:

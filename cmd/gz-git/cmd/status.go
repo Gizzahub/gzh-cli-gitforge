@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 var statusFlags BulkCommandFlags
@@ -89,8 +92,32 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	// Create logger for verbose mode
 	logger := createBulkLogger(verbose)
 
-	// Build options
-	opts := repository.BulkStatusOptions{
+	// Watch mode: continuously check at intervals
+	if statusFlags.Watch {
+		return runStatusWatch(ctx, client, directory, logger)
+	}
+
+	// One-time status check with diagnostic
+	if shouldShowProgress(statusFlags.Format, quiet) {
+		printScanningMessage(directory, statusFlags.Depth, statusFlags.Parallel, false)
+	}
+
+	result, err := runDiagnosticStatus(ctx, client, directory, logger)
+	if err != nil {
+		return fmt.Errorf("status check failed: %w", err)
+	}
+
+	// Display results (always output for JSON format, otherwise respect quiet flag)
+	if statusFlags.Format == "json" || !quiet {
+		displayDiagnosticResults(result)
+	}
+
+	return nil
+}
+
+func runDiagnosticStatus(ctx context.Context, client repository.Client, directory string, logger repository.Logger) (*reposync.HealthReport, error) {
+	// Use BulkStatus to scan for repositories, then convert to diagnostic format
+	bulkOpts := repository.BulkStatusOptions{
 		Directory:         directory,
 		Parallel:          statusFlags.Parallel,
 		MaxDepth:          statusFlags.Depth,
@@ -99,62 +126,74 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		IncludePattern:    statusFlags.Include,
 		ExcludePattern:    statusFlags.Exclude,
 		Logger:            logger,
-		ProgressCallback:  createProgressCallback("Checking status", statusFlags.Format, quiet),
 	}
 
-	// Watch mode: continuously check at intervals
-	if statusFlags.Watch {
-		return runStatusWatch(ctx, client, opts)
-	}
-
-	// One-time status check
-	if shouldShowProgress(statusFlags.Format, quiet) {
-		printScanningMessage(directory, statusFlags.Depth, statusFlags.Parallel, false)
-	}
-
-	result, err := client.BulkStatus(ctx, opts)
+	// Get basic status first to find all repositories
+	bulkResult, err := client.BulkStatus(ctx, bulkOpts)
 	if err != nil {
-		return fmt.Errorf("bulk status failed: %w", err)
+		return nil, fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Display scan completion message
-	if shouldShowProgress(statusFlags.Format, quiet) && result.TotalScanned == 0 {
-		fmt.Printf("Scan complete: no repositories found\n")
+	// Convert repository results to RepoSpec instances for diagnostic
+	var repoSpecs []reposync.RepoSpec
+	for _, repoResult := range bulkResult.Repositories {
+		// Reconstruct full path (RelativePath is relative to directory)
+		fullPath := filepath.Join(directory, repoResult.RelativePath)
+
+		repoSpecs = append(repoSpecs, reposync.RepoSpec{
+			CloneURL:   "", // Not needed for local status check
+			TargetPath: fullPath,
+		})
 	}
 
-	// Display results (always output for JSON format, otherwise respect quiet flag)
-	if statusFlags.Format == "json" || !quiet {
-		displayStatusResults(result)
+	// Handle empty result
+	if len(repoSpecs) == 0 {
+		return &reposync.HealthReport{
+			Results:       []reposync.RepoHealth{},
+			Summary:       reposync.HealthSummary{},
+			TotalDuration: bulkResult.Duration,
+			CheckedAt:     time.Now(),
+		}, nil
 	}
 
-	return nil
+	// Run diagnostic health check
+	executor := reposync.DiagnosticExecutor{
+		Client: client,
+		Logger: logger,
+	}
+
+	opts := reposync.DefaultDiagnosticOptions()
+	opts.Parallel = statusFlags.Parallel
+	opts.SkipFetch = false // Always fetch for comprehensive status
+
+	return executor.CheckHealth(ctx, repoSpecs, opts)
 }
 
-func runStatusWatch(ctx context.Context, client repository.Client, opts repository.BulkStatusOptions) error {
+func runStatusWatch(ctx context.Context, client repository.Client, directory string, logger repository.Logger) error {
 	cfg := WatchConfig{
 		Interval:      statusFlags.Interval,
 		Format:        statusFlags.Format,
 		Quiet:         quiet,
 		OperationName: "status check",
-		Directory:     opts.Directory,
-		MaxDepth:      opts.MaxDepth,
-		Parallel:      opts.Parallel,
+		Directory:     directory,
+		MaxDepth:      statusFlags.Depth,
+		Parallel:      statusFlags.Parallel,
 	}
 
 	return RunBulkWatch(cfg, func() error {
-		return executeStatus(ctx, client, opts)
+		return executeStatusDiagnostic(ctx, client, directory, logger)
 	})
 }
 
-func executeStatus(ctx context.Context, client repository.Client, opts repository.BulkStatusOptions) error {
-	result, err := client.BulkStatus(ctx, opts)
+func executeStatusDiagnostic(ctx context.Context, client repository.Client, directory string, logger repository.Logger) error {
+	result, err := runDiagnosticStatus(ctx, client, directory, logger)
 	if err != nil {
-		return fmt.Errorf("bulk status failed: %w", err)
+		return fmt.Errorf("diagnostic status failed: %w", err)
 	}
 
 	// Display results
 	if !quiet {
-		displayStatusResults(result)
+		displayDiagnosticResults(result)
 	}
 
 	return nil
@@ -403,4 +442,246 @@ func FormatUpstreamFixHint(branch, remote string) string {
 		remote = "origin"
 	}
 	return fmt.Sprintf("    → Fix: git branch --set-upstream-to=%s/%s %s\n", remote, branch, branch)
+}
+
+func displayDiagnosticResults(report *reposync.HealthReport) {
+	// JSON output mode
+	if statusFlags.Format == "json" {
+		displayDiagnosticResultsJSON(report)
+		return
+	}
+
+	// Compact output mode
+	if statusFlags.Format == "compact" {
+		displayDiagnosticResultsCompact(report)
+		return
+	}
+
+	// Default detailed output
+	fmt.Println()
+	fmt.Println("=== Repository Health Status ===")
+	fmt.Printf("Total repositories: %d\n", len(report.Results))
+	fmt.Printf("Duration:           %s\n", report.TotalDuration.Round(100_000_000)) // Round to 0.1s
+	fmt.Println()
+
+	// Display summary by health status
+	if report.Summary.Total > 0 {
+		fmt.Println("Summary by health:")
+		if report.Summary.Healthy > 0 {
+			icon := getHealthIcon(reposync.HealthHealthy)
+			fmt.Printf("  %s %-15s %d\n", icon, "healthy:", report.Summary.Healthy)
+		}
+		if report.Summary.Warning > 0 {
+			icon := getHealthIcon(reposync.HealthWarning)
+			fmt.Printf("  %s %-15s %d\n", icon, "warning:", report.Summary.Warning)
+		}
+		if report.Summary.Error > 0 {
+			icon := getHealthIcon(reposync.HealthError)
+			fmt.Printf("  %s %-15s %d\n", icon, "error:", report.Summary.Error)
+		}
+		if report.Summary.Unreachable > 0 {
+			icon := getHealthIcon(reposync.HealthUnreachable)
+			fmt.Printf("  %s %-15s %d\n", icon, "unreachable:", report.Summary.Unreachable)
+		}
+		fmt.Println()
+	}
+
+	// Display individual repository details
+	if len(report.Results) > 0 {
+		if verbose {
+			fmt.Println("Repository details:")
+			for _, repo := range report.Results {
+				displayHealthRepositoryResult(repo)
+			}
+		} else {
+			// Show only repos with issues
+			hasIssues := false
+			for _, repo := range report.Results {
+				if repo.HealthStatus != reposync.HealthHealthy {
+					if !hasIssues {
+						fmt.Println("Repositories with issues:")
+						hasIssues = true
+					}
+					displayHealthRepositoryResult(repo)
+				}
+			}
+			if !hasIssues {
+				fmt.Println("✓ All repositories are healthy")
+			}
+		}
+	}
+}
+
+func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
+	type RepoHealthJSON struct {
+		Path           string `json:"path"`
+		HealthStatus   string `json:"health_status"`
+		NetworkStatus  string `json:"network_status,omitempty"`
+		DivergenceType string `json:"divergence_type,omitempty"`
+		Branch         string `json:"branch,omitempty"`
+		Upstream       string `json:"upstream,omitempty"`
+		AheadBy        int    `json:"ahead_by,omitempty"`
+		BehindBy       int    `json:"behind_by,omitempty"`
+		ModifiedFiles  int    `json:"modified_files,omitempty"`
+		UntrackedFiles int    `json:"untracked_files,omitempty"`
+		ConflictFiles  int    `json:"conflict_files,omitempty"`
+		Recommendation string `json:"recommendation,omitempty"`
+		Error          string `json:"error,omitempty"`
+		DurationMs     int64  `json:"duration_ms"`
+		FetchDurationMs int64  `json:"fetch_duration_ms,omitempty"`
+	}
+
+	output := struct {
+		TotalRepositories int                       `json:"total_repositories"`
+		DurationMs        int64                     `json:"duration_ms"`
+		Summary           struct {
+			Healthy     int `json:"healthy"`
+			Warning     int `json:"warning"`
+			Error       int `json:"error"`
+			Unreachable int `json:"unreachable"`
+			Total       int `json:"total"`
+		}                           `json:"summary"`
+		Repositories      []RepoHealthJSON          `json:"repositories"`
+	}{
+		TotalRepositories: len(report.Results),
+		DurationMs:        report.TotalDuration.Milliseconds(),
+		Repositories:      make([]RepoHealthJSON, 0, len(report.Results)),
+	}
+
+	// Convert summary
+	output.Summary.Healthy = report.Summary.Healthy
+	output.Summary.Warning = report.Summary.Warning
+	output.Summary.Error = report.Summary.Error
+	output.Summary.Unreachable = report.Summary.Unreachable
+	output.Summary.Total = report.Summary.Total
+
+	// Convert repositories
+	for _, repo := range report.Results {
+		repoJSON := RepoHealthJSON{
+			Path:            repo.Repo.TargetPath,
+			HealthStatus:    string(repo.HealthStatus),
+			NetworkStatus:   string(repo.NetworkStatus),
+			DivergenceType:  string(repo.DivergenceType),
+			Branch:          repo.CurrentBranch,
+			Upstream:        repo.UpstreamBranch,
+			AheadBy:         repo.AheadBy,
+			BehindBy:        repo.BehindBy,
+			ModifiedFiles:   repo.ModifiedFiles,
+			UntrackedFiles:  repo.UntrackedFiles,
+			ConflictFiles:   repo.ConflictFiles,
+			Recommendation:  repo.Recommendation,
+			DurationMs:      repo.Duration.Milliseconds(),
+			FetchDurationMs: repo.FetchDuration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoJSON.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoJSON)
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displayDiagnosticResultsCompact(report *reposync.HealthReport) {
+	for _, repo := range report.Results {
+		if repo.HealthStatus != reposync.HealthHealthy {
+			icon := getHealthIcon(repo.HealthStatus)
+			fmt.Printf("%s %s (%s) - %s\n",
+				icon,
+				filepath.Base(repo.Repo.TargetPath),
+				repo.CurrentBranch,
+				repo.Recommendation,
+			)
+		}
+	}
+}
+
+func displayHealthRepositoryResult(health reposync.RepoHealth) {
+	icon := getHealthIcon(health.HealthStatus)
+	repoName := filepath.Base(health.Repo.TargetPath)
+
+	// Build status line
+	statusParts := []string{icon, repoName}
+	if health.CurrentBranch != "" {
+		statusParts = append(statusParts, fmt.Sprintf("(%s)", health.CurrentBranch))
+	}
+
+	// Add divergence info
+	if health.DivergenceType != reposync.DivergenceNone {
+		divergenceStr := ""
+		switch health.DivergenceType {
+		case reposync.DivergenceFastForward:
+			divergenceStr = fmt.Sprintf("↓%d", health.BehindBy)
+		case reposync.DivergenceAhead:
+			divergenceStr = fmt.Sprintf("↑%d", health.AheadBy)
+		case reposync.DivergenceDiverged:
+			divergenceStr = fmt.Sprintf("↓%d ↑%d", health.BehindBy, health.AheadBy)
+		case reposync.DivergenceConflict:
+			divergenceStr = fmt.Sprintf("CONFLICT: %d files", health.ConflictFiles)
+		case reposync.DivergenceNoUpstream:
+			divergenceStr = "no upstream"
+		}
+		if divergenceStr != "" {
+			statusParts = append(statusParts, divergenceStr)
+		}
+	}
+
+	// Add work tree status
+	if health.WorkTreeStatus == reposync.WorkTreeDirty {
+		dirtyDetails := []string{}
+		if health.ModifiedFiles > 0 {
+			dirtyDetails = append(dirtyDetails, fmt.Sprintf("%d modified", health.ModifiedFiles))
+		}
+		if health.UntrackedFiles > 0 {
+			dirtyDetails = append(dirtyDetails, fmt.Sprintf("%d untracked", health.UntrackedFiles))
+		}
+		if len(dirtyDetails) > 0 {
+			statusParts = append(statusParts, fmt.Sprintf("[%s]", dirtyDetails[0]))
+		}
+	}
+
+	// Print status line
+	fmt.Printf("  %s\n", statusParts[0]+" "+statusParts[1])
+	for i := 2; i < len(statusParts); i++ {
+		fmt.Printf("     %s\n", statusParts[i])
+	}
+
+	// Print recommendation
+	if health.Recommendation != "" {
+		fmt.Printf("     → %s\n", health.Recommendation)
+	}
+
+	// Print error if present and verbose
+	if health.Error != nil && verbose {
+		fmt.Printf("     ⚠  Error: %v\n", health.Error)
+	}
+
+	// Print timing if verbose
+	if verbose {
+		fmt.Printf("     ⏱  Check: %s, Fetch: %s\n",
+			health.Duration.Round(10*time.Millisecond),
+			health.FetchDuration.Round(10*time.Millisecond),
+		)
+	}
+
+	fmt.Println()
+}
+
+func getHealthIcon(status reposync.HealthStatus) string {
+	switch status {
+	case reposync.HealthHealthy:
+		return "✓"
+	case reposync.HealthWarning:
+		return "⚠"
+	case reposync.HealthError:
+		return "✗"
+	case reposync.HealthUnreachable:
+		return "⊘"
+	default:
+		return "?"
+	}
 }

@@ -14,12 +14,12 @@ import (
 
 // StatusProgressIndicator provides real-time progress updates for health checks.
 type StatusProgressIndicator struct {
-	out      io.Writer
-	total    int
-	current  int
-	mu       sync.Mutex
+	out       io.Writer
+	total     int
+	current   int
+	mu        sync.Mutex
 	startTime time.Time
-	quiet    bool
+	quiet     bool
 }
 
 // NewStatusProgressIndicator creates a progress indicator.
