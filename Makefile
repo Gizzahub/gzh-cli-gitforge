@@ -90,6 +90,12 @@ help-build: ## show build and deployment help
 	@echo -e "  $(CYAN)release-snapshot$(RESET)   Create a snapshot release"
 	@echo -e "  $(CYAN)release-check$(RESET)      Check goreleaser configuration"
 	@echo -e "  $(CYAN)build-info$(RESET)         Show build environment information"
+	@echo ""
+	@echo -e "$(GREEN)🏷️  Version Bump Commands:$(RESET)"
+	@echo -e "  $(CYAN)verup-show$(RESET)         Show current version"
+	@echo -e "  $(CYAN)verup-a$(RESET)            Bump major version (X.0.0)"
+	@echo -e "  $(CYAN)verup-b$(RESET)            Bump minor version (0.X.0)"
+	@echo -e "  $(CYAN)verup-c$(RESET)            Bump patch version (0.0.X)"
 
 help-test: ## show testing help
 	@echo -e "$(GREEN)🧪 Testing and Validation Commands:$(RESET)"

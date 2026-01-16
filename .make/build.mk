@@ -118,6 +118,60 @@ release-check: ## check goreleaser configuration
 deploy: release-dry-run ## alias for release-dry-run
 
 # ==============================================================================
+# Version Bump Targets
+# ==============================================================================
+
+.PHONY: verup-a verup-b verup-c verup-show
+
+# Parse current version components
+CURRENT_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
+VERSION_MAJOR := $(shell echo $(CURRENT_VERSION) | cut -d. -f1)
+VERSION_MINOR := $(shell echo $(CURRENT_VERSION) | cut -d. -f2)
+VERSION_PATCH := $(shell echo $(CURRENT_VERSION) | cut -d. -f3)
+
+verup-show: ## show current version
+	@echo -e "$(CYAN)Current version: $(YELLOW)$(CURRENT_VERSION)$(RESET)"
+	@echo -e "  Major: $(VERSION_MAJOR)"
+	@echo -e "  Minor: $(VERSION_MINOR)"
+	@echo -e "  Patch: $(VERSION_PATCH)"
+
+verup-a: ## bump major version (X.0.0)
+	@echo -e "$(CYAN)Bumping major version...$(RESET)"
+	@NEW_MAJOR=$$(( $(VERSION_MAJOR) + 1 )); \
+	NEW_VERSION="$$NEW_MAJOR.0.0"; \
+	echo -e "$(YELLOW)$(CURRENT_VERSION)$(RESET) → $(GREEN)$$NEW_VERSION$(RESET)"; \
+	echo "$$NEW_VERSION" > VERSION; \
+	perl -i -pe 's/Version = "[^"]*"/Version = "'$$NEW_VERSION'"/' version.go; \
+	echo -e "$(GREEN)✅ Version bumped to $$NEW_VERSION$(RESET)"; \
+	echo -e "$(CYAN)Updated files:$(RESET)"; \
+	echo "  - VERSION"; \
+	echo "  - version.go"
+
+verup-b: ## bump minor version (0.X.0)
+	@echo -e "$(CYAN)Bumping minor version...$(RESET)"
+	@NEW_MINOR=$$(( $(VERSION_MINOR) + 1 )); \
+	NEW_VERSION="$(VERSION_MAJOR).$$NEW_MINOR.0"; \
+	echo -e "$(YELLOW)$(CURRENT_VERSION)$(RESET) → $(GREEN)$$NEW_VERSION$(RESET)"; \
+	echo "$$NEW_VERSION" > VERSION; \
+	perl -i -pe 's/Version = "[^"]*"/Version = "'$$NEW_VERSION'"/' version.go; \
+	echo -e "$(GREEN)✅ Version bumped to $$NEW_VERSION$(RESET)"; \
+	echo -e "$(CYAN)Updated files:$(RESET)"; \
+	echo "  - VERSION"; \
+	echo "  - version.go"
+
+verup-c: ## bump patch version (0.0.X)
+	@echo -e "$(CYAN)Bumping patch version...$(RESET)"
+	@NEW_PATCH=$$(( $(VERSION_PATCH) + 1 )); \
+	NEW_VERSION="$(VERSION_MAJOR).$(VERSION_MINOR).$$NEW_PATCH"; \
+	echo -e "$(YELLOW)$(CURRENT_VERSION)$(RESET) → $(GREEN)$$NEW_VERSION$(RESET)"; \
+	echo "$$NEW_VERSION" > VERSION; \
+	perl -i -pe 's/Version = "[^"]*"/Version = "'$$NEW_VERSION'"/' version.go; \
+	echo -e "$(GREEN)✅ Version bumped to $$NEW_VERSION$(RESET)"; \
+	echo -e "$(CYAN)Updated files:$(RESET)"; \
+	echo "  - VERSION"; \
+	echo "  - version.go"
+
+# ==============================================================================
 # Build Information
 # ==============================================================================
 
