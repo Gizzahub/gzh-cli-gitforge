@@ -1,10 +1,10 @@
 # Breaking Changes - v2.0
 
-## sync forge 명령어 재설계
+## sync from-forge 명령어 재설계
 
 ### 개요
 
-`gz-git sync forge` 명령어를 Breaking Change로 재설계했습니다.
+`gz-git sync from-forge` 명령어를 Breaking Change로 재설계했습니다.
 기존의 혼란스러운 `--ssh` boolean 플래그와 `--base-url`의 이중 역할을 제거하고,
 명확한 역할 분리와 확장 가능한 설계를 적용했습니다.
 
@@ -41,7 +41,7 @@
 
 **Before**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
@@ -52,7 +52,7 @@ gz-git sync forge \
 
 **After**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
@@ -65,7 +65,7 @@ gz-git sync forge \
 
 **Before**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org devbox \
   --target ~/.mydevbox \
@@ -76,7 +76,7 @@ gz-git sync forge \
 
 **After**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org devbox \
   --target ~/.mydevbox \
@@ -90,7 +90,7 @@ gz-git sync forge \
 
 **Before**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
@@ -101,7 +101,7 @@ gz-git sync forge \
 
 **After**:
 ```bash
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
@@ -186,7 +186,7 @@ Flags:
 
 ```bash
 # Sync from self-hosted GitLab with custom SSH port
-gz-git sync forge --provider gitlab --org mygroup --target ./repos \
+gz-git sync from-forge --provider gitlab --org mygroup --target ./repos \
   --base-url https://gitlab.company.com --token $GITLAB_TOKEN \
   --clone-proto ssh --ssh-port 2224
 ```
@@ -226,6 +226,126 @@ ok  	github.com/gizzahub/gzh-cli-gitforge/pkg/reposync	0.004s
 
 ---
 
-**버전**: 2.0.0
+## sync 명령어 구조 재설계 (v2.1)
+
+### 개요
+
+**Breaking Change**: `sync forge` → `sync from-forge`, `sync run` → `sync from-config`
+
+Source-centric 명령어 구조로 전면 재설계하여 명령어 일관성과 확장성을 개선했습니다.
+
+### 변경 사항
+
+#### 1. 명령어 이름 변경 (Breaking!)
+
+| Old (v2.0) | New (v2.1) | 설명 |
+|------------|------------|------|
+| `sync forge` | `sync from-forge` | Git forge (API) 기반 동기화 |
+| `sync run` | `sync from-config` | YAML config 파일 기반 동기화 |
+| N/A | `sync config` | Config 관리 명령어 그룹 |
+
+#### 2. 새로운 config 관리 명령어
+
+```bash
+# Sample config 생성
+gz-git sync config init -o sync.yaml
+
+# 로컬 디렉토리 스캔 → config 생성 (NEW!)
+gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
+gz-git sync config scan ~/mydevbox --strategy per-directory --depth 3
+
+# Forge API → config 생성 (NEW!)
+gz-git sync config generate --provider gitlab --org devbox --token $TOKEN -o sync.yaml
+
+# Config 검증
+gz-git sync config validate -c sync.yaml
+
+# Config 병합 (Placeholder)
+gz-git sync config merge --provider gitlab --org another-group --into sync.yaml
+```
+
+#### 3. 로컬 스캔 기능 (sync config scan)
+
+**기능**: 로컬 디렉토리를 재귀적으로 스캔하여 git repo 발견 → YAML config 생성
+
+**전략**:
+- **unified**: 단일 config 파일에 모든 repo 등록
+- **per-directory**: 각 디렉토리 레벨마다 config 파일 생성
+
+**특징**:
+- `.gitignore` 패턴 자동 존중 (disable 가능: `--no-gitignore`)
+- 중첩 repo 지원 (상위 repo + 하위 repo 모두 포함)
+- Multiple remote URL 처리 (`url` vs `urls` field)
+- 패턴 기반 제외/포함 (`--exclude`, `--include`)
+
+**예제**:
+```bash
+# ~/mydevbox 스캔 (19개 repo 발견)
+gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
+
+# .gitignore 무시하고 스캔
+gz-git sync config scan ~/mydevbox --no-gitignore --depth 2
+
+# 특정 패턴 제외
+gz-git sync config scan ~/mydevbox --exclude "vendor,node_modules,tmp/*"
+```
+
+#### 4. GitLab Subgroup 지원 (NEW!)
+
+GitLab 하위 그룹을 포함하여 동기화:
+
+```bash
+# Flat mode: parent-group/subgroup/repo → parent-group-subgroup-repo
+gz-git sync from-forge --provider gitlab --org parent-group \
+  --include-subgroups --subgroup-mode flat --target ~/repos
+
+# Nested mode: parent-group/subgroup/repo (directory hierarchy)
+gz-git sync from-forge --provider gitlab --org parent-group \
+  --include-subgroups --subgroup-mode nested --target ~/repos
+```
+
+### 마이그레이션 가이드
+
+#### Case 1: Forge 동기화
+
+**Before (v2.0)**:
+```bash
+gz-git sync forge --provider gitlab --org mygroup --target ~/repos --token $TOKEN
+```
+
+**After (v2.1)**:
+```bash
+gz-git sync from-forge --provider gitlab --org mygroup --target ~/repos --token $TOKEN
+```
+
+#### Case 2: Config 파일 동기화
+
+**Before (v2.0)**:
+```bash
+gz-git sync run -c sync.yaml
+```
+
+**After (v2.1)**:
+```bash
+gz-git sync from-config -c sync.yaml
+```
+
+### 신규 파일
+
+- `pkg/scanner/git_scanner.go` - 로컬 git repo 스캐너
+- `pkg/reposynccli/config_scan_command.go` - Scan 명령어
+- `pkg/reposynccli/config_generate_command.go` - Generate 명령어
+- `pkg/reposynccli/from_forge_command.go` - Renamed from `forge_command.go`
+- `pkg/reposynccli/from_config_command.go` - Renamed from `run_command.go`
+
+### 문서
+
+- ✅ [CLAUDE.md](../CLAUDE.md) - sync 섹션 전면 개편
+- ✅ [sync-command-redesign.md](sync-command-redesign.md) - 설계 문서
+- ✅ Help messages - 모든 명령어 업데이트
+
+---
+
+**버전**: 2.1.0
 **날짜**: 2026-01-16
-**영향**: Breaking Change - CLI 플래그 변경
+**영향**: Breaking Change - 명령어 이름 변경, 신규 기능 추가

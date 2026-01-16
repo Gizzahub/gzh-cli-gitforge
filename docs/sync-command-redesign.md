@@ -159,7 +159,86 @@ repositories:
     provider: gitlab
 ```
 
-### 4. `gz-git sync config merge`
+### 4. `gz-git sync config scan`
+
+**로컬 디렉토리를 스캔**하여 git repository를 발견하고 config 파일을 생성합니다.
+
+```bash
+# Unified: 단일 config 파일
+gz-git sync config scan ~/mydevbox \
+  --strategy unified \
+  --output sync.yaml \
+  --depth 2
+
+# Per-directory: 계층별 config 파일
+gz-git sync config scan ~/mydevbox \
+  --strategy per-directory \
+  --per-dir-name .gz-git-sync.yaml \
+  --depth 3
+
+# .gitignore 무시
+gz-git sync config scan ~/mydevbox \
+  --no-gitignore \
+  --output sync.yaml
+
+# 패턴 제외/포함
+gz-git sync config scan ~/mydevbox \
+  --exclude "vendor,node_modules,tmp/*" \
+  --include "important-submodules/*" \
+  --output sync.yaml
+```
+
+**스캔 전략**:
+- `unified` (기본): 모든 repo를 하나의 config 파일에 저장
+- `per-directory`: 각 디렉토리 레벨마다 config 파일 생성
+
+**특징**:
+- `.gitignore` 패턴 자동 존중 (disable: `--no-gitignore`)
+- 중첩 repository 지원 (상위 + 하위 모두 포함)
+- Multiple remote URL 처리 (`url` vs `urls` field)
+- Empty remote 처리 (`url: ""`)
+
+**생성되는 Config 형식**:
+
+```yaml
+# Generated: 2026-01-16T11:00:00+09:00
+# Path: /home/user/mydevbox
+# Strategy: unified
+# Scanned: 19
+
+strategy: reset
+parallel: 4
+maxRetries: 3
+cloneProto: ssh
+sshPort: 0
+
+repositories:
+  - name: gzh-cli-devbox
+    url: ssh://git@gitlab.polypia.net:2224/devbox/gzh-cli-devbox.git
+    targetPath: /home/user/mydevbox/gzh-cli-devbox
+
+  - '# depth': 1
+    name: gzh-cli
+    url: git@github.com:Gizzahub/gzh-cli.git
+    targetPath: /home/user/mydevbox/gzh-cli-devbox/gzh-cli
+
+  # Multiple remotes
+  - name: multi-origin-repo
+    urls:
+      - git@github.com:user/repo.git
+      - git@gitlab.com:user/repo.git
+    targetPath: /home/user/mydevbox/multi-origin-repo
+```
+
+### 5. `gz-git sync config init`
+
+샘플 config 파일을 생성합니다.
+
+```bash
+gz-git sync config init -o sync.yaml
+```
+
+### 6. `gz-git sync config merge`
 
 기존 config에 새로운 repository들을 **중복 없이** 추가합니다.
 
@@ -185,7 +264,7 @@ gz-git sync config merge \
 - `overwrite`: 기존 파일 완전 교체
 - `update`: 동일 repo는 업데이트, 없으면 추가
 
-### 5. `gz-git sync config validate`
+### 7. `gz-git sync config validate`
 
 Config 파일을 검증합니다.
 
@@ -199,39 +278,6 @@ gz-git sync config validate -c sync.yaml
 - targetPath 중복
 - URL 형식
 - Strategy 값
-
-### 6. `gz-git sync config init`
-
-기본 샘플 config 파일을 생성합니다.
-
-```bash
-gz-git sync config init
-gz-git sync config init --output my-sync.yaml
-gz-git sync config init --provider gitlab  # Provider별 샘플
-```
-
-**생성되는 샘플**:
-
-```yaml
-# Sample gz-git sync configuration
-# Documentation: https://github.com/gizzahub/gzh-cli-gitforge
-
-strategy: reset
-parallel: 4
-maxRetries: 3
-cleanupOrphans: false
-
-# Clone protocol (ssh or https)
-cloneProto: ssh
-
-repositories:
-  - name: example-repo
-    url: https://github.com/example/repo.git
-    targetPath: ./repos/example-repo
-    # strategy: pull  # Optional: override default strategy
-
-  # Add more repositories here
-```
 
 ## 마이그레이션 계획
 

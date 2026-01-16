@@ -4,7 +4,8 @@ description: |
   gz-git CLI for safe Git operations. Use when:
   - Managing Git repositories (single or multiple)
   - Bulk status/fetch/pull/push/update/diff/commit/switch across repos
-  - Syncing repos from GitHub/GitLab/Gitea (sync forge/run)
+  - Syncing repos from GitHub/GitLab/Gitea (sync from-forge/from-config)
+  - Generating config from local scan or forge API (sync config scan/generate)
   - Watching repos for changes (watch)
   gz-git operates in BULK MODE by default (scans directories for repos).
 allowed-tools: Bash, Read, Grep, Glob
@@ -101,11 +102,22 @@ gz-git clone ~/projects --file repos.txt
 gz-git clone --update --file repos.txt
 ```
 
-### Sync (Forge / Config)
+### Sync (Multi-Repo Management)
 
 ```bash
-gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
-gz-git sync run -c sync-config.yaml --dry-run
+# From Git Forge (GitHub/GitLab/Gitea)
+gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+gz-git sync from-forge --provider gitlab --org devbox --include-subgroups --subgroup-mode flat
+
+# From YAML Config
+gz-git sync from-config -c sync.yaml --dry-run
+
+# Config Management
+gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
+gz-git sync config scan ~/mydevbox --strategy per-directory --no-gitignore
+gz-git sync config generate --provider gitlab --org devbox --token $TOKEN -o sync.yaml
+gz-git sync config init -o sample.yaml
+gz-git sync config validate -c sync.yaml
 ```
 
 ### Watch

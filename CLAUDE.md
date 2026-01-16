@@ -72,8 +72,9 @@ ______________________________________________________________________
 │   ├── stash/              # Stash management
 │   ├── tag/                # Tag management + semver
 │   ├── watch/              # Repo monitoring
-│   ├── sync/               # Sync config/types
+│   ├── scanner/            # Local git repo scanner (NEW!)
 │   ├── reposync/           # Repo sync planner/executor
+│   ├── reposynccli/        # Sync CLI commands (from-forge, from-config, config)
 │   └── provider/           # Forge providers (github/gitlab/gitea)
 └── docs/.claude-context/   # Context docs
 ```
@@ -145,59 +146,102 @@ gz-git fetch /path/to/single/repo
 | `diff` | 모든 repo diff 보기 |
 | `update` | 모든 repo를 안전하게 업데이트 (pull --rebase) |
 | `cleanup branch` | merged/stale/gone 브랜치 정리 (dry-run 기본) |
-| `sync forge` | **GitHub/GitLab/Gitea org 전체 동기화** (아래 참조) |
+| `sync from-forge` | **GitHub/GitLab/Gitea org 전체 동기화** |
+| `sync from-config` | YAML config 기반 repo 동기화 |
+| `sync config scan` | **로컬 디렉토리 스캔 → config 생성** |
+| `sync config generate` | **Forge API → config 생성** |
 | `stash` | 모든 repo에서 stash 작업 |
 | `tag` | 모든 repo에서 tag 작업 |
 
-### Sync Forge (Org 전체 동기화)
+### Sync 명령어 (Repository Synchronization)
 
-**GitLab/GitHub/Gitea organization 전체를 로컬에 동기화**합니다.
+**gz-git sync**는 여러 repository를 관리하는 3가지 방법을 제공합니다:
+
+#### 1. **`sync from-forge`** - Git Forge에서 직접 동기화
+
+GitLab/GitHub/Gitea organization 전체를 API로 조회하여 동기화:
 
 ```bash
-# GitLab (기본: SSH clone, GitLab 설정 포트 자동 사용)
-gz-git sync forge \
+# GitLab (기본: SSH clone, SSH 포트 자동 감지)
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
   --base-url https://gitlab.com \
   --token $GITLAB_TOKEN
 
-# Self-hosted GitLab (SSH 포트 자동 감지! --ssh-port 불필요)
-gz-git sync forge \
+# Self-hosted GitLab with subgroups (flat mode)
+gz-git sync from-forge \
   --provider gitlab \
-  --org devbox \
-  --target ~/.mydevbox \
+  --org parent-group \
+  --target ~/repos \
   --base-url https://gitlab.polypia.net \
-  --token $GITLAB_TOKEN
+  --token $GITLAB_TOKEN \
+  --include-subgroups \
+  --subgroup-mode flat
 
 # HTTPS clone (SSH 대신)
-gz-git sync forge \
+gz-git sync from-forge \
   --provider gitlab \
   --org mygroup \
   --target ~/repos \
-  --base-url https://gitlab.com \
   --token $GITLAB_TOKEN \
   --clone-proto https
-
-# SSH 포트 강제 지정 (API 응답 무시, 거의 불필요)
-gz-git sync forge \
-  --provider gitlab \
-  --org devbox \
-  --target ~/.mydevbox \
-  --base-url https://gitlab.polypia.net \
-  --token $GITLAB_TOKEN \
-  --ssh-port 2224
 ```
 
 **주요 옵션**:
 - `--base-url`: API endpoint (http/https)
-- `--clone-proto`: Clone 프로토콜 (`ssh` 또는 `https`, 기본: `ssh`)
-- `--ssh-port`: SSH 포트 강제 지정 (**선택**, GitLab API 자동 제공)
+- `--clone-proto`: Clone 프로토콜 (`ssh` | `https`, 기본: `ssh`)
+- `--ssh-port`: SSH 포트 강제 지정 (GitLab은 API 자동 제공)
+- `--include-subgroups`: GitLab 하위 그룹 포함
+- `--subgroup-mode`: `flat` (dash-separated) | `nested` (directories)
 - `--dry-run`: 미리보기
-- `--include-archived`: Archived repo 포함
-- `--include-forks`: Fork repo 포함
 
-**💡 SSH 포트 자동 감지**: GitLab API는 `ssh_url_to_repo` 필드에 올바른 SSH URL(포트 포함)을 제공합니다. `--ssh-port`는 특별한 경우에만 사용하세요.
+#### 2. **`sync from-config`** - YAML Config 기반 동기화
+
+Config 파일에 정의된 repositories 동기화:
+
+```bash
+gz-git sync from-config -c sync.yaml
+gz-git sync from-config -c sync.yaml --dry-run
+gz-git sync from-config -c sync.yaml --strategy pull
+```
+
+#### 3. **`sync config`** - Config 관리 명령어
+
+**`sync config scan`** - 로컬 디렉토리 스캔하여 config 생성 (NEW!):
+
+```bash
+# Unified: 단일 config 파일
+gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
+
+# Per-directory: 계층별 config 파일
+gz-git sync config scan ~/mydevbox --strategy per-directory --depth 3
+
+# .gitignore 무시
+gz-git sync config scan ~/mydevbox --no-gitignore -o sync.yaml
+
+# 패턴 제외/포함
+gz-git sync config scan ~/mydevbox --exclude "vendor,tmp/*" --include "submodules/*"
+```
+
+**`sync config generate`** - Forge API에서 config 생성:
+
+```bash
+gz-git sync config generate \
+  --provider gitlab \
+  --org devbox \
+  --target ~/repos \
+  --token $GITLAB_TOKEN \
+  -o sync.yaml
+```
+
+**기타 config 명령어**:
+- `sync config init` - Sample config 생성
+- `sync config validate -c sync.yaml` - Config 검증
+- `sync config merge` - Forge repos를 기존 config에 병합 (TODO)
+
+**💡 SSH 포트 자동 감지**: GitLab API는 `ssh_url_to_repo` 필드에 올바른 SSH URL(포트 포함)을 제공합니다.
 
 ### Push with Refspec (브랜치 매핑)
 
