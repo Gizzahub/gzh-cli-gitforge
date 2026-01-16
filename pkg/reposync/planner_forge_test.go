@@ -637,6 +637,21 @@ func TestForgePlanner_buildTargetPath(t *testing.T) {
 			},
 			expected: "/tmp/repos/parent-child-my-repo", // empty string defaults to "-"
 		},
+		{
+			name: "flat mode with devbox org (user's exact scenario)",
+			config: ForgePlannerConfig{
+				TargetPath:       "~/mydevbox",
+				Organization:     "devbox",
+				IncludeSubgroups: true,
+				SubgroupMode:     "flat",
+				FlatSeparator:    "",
+			},
+			repo: &provider.Repository{
+				Name:     "agent-mesh-devbox",
+				FullName: "devbox/agent-mesh-devbox",
+			},
+			expected: "~/mydevbox/agent-mesh-devbox", // should NOT have devbox- prefix
+		},
 	}
 
 	for _, tt := range tests {
