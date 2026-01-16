@@ -98,6 +98,26 @@ func init() {
 func runPull(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	// Load config with profile support
+	effective, _ := LoadEffectiveConfig(cmd, nil)
+	if effective != nil {
+		// Apply config if flag not explicitly set
+		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
+			pullFlags.Parallel = effective.Parallel
+		}
+		// Apply pull strategy from config (rebase or ff-only)
+		if !cmd.Flags().Changed("strategy") {
+			if effective.Pull.FFOnly {
+				pullStrategy = "ff-only"
+			} else if effective.Pull.Rebase {
+				pullStrategy = "rebase"
+			}
+		}
+		if verbose {
+			PrintConfigSources(cmd, effective)
+		}
+	}
+
 	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)
 	if err != nil {

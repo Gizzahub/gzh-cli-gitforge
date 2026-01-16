@@ -93,6 +93,24 @@ func init() {
 func runFetch(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	// Load config with profile support
+	effective, _ := LoadEffectiveConfig(cmd, nil)
+	if effective != nil {
+		// Apply config if flag not explicitly set
+		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
+			fetchFlags.Parallel = effective.Parallel
+		}
+		if !cmd.Flags().Changed("all-remotes") {
+			fetchAllRemotes = effective.Fetch.AllRemotes
+		}
+		if !cmd.Flags().Changed("prune") {
+			fetchPrune = effective.Fetch.Prune
+		}
+		if verbose {
+			PrintConfigSources(cmd, effective)
+		}
+	}
+
 	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)
 	if err != nil {
