@@ -288,6 +288,11 @@ func classifyHealth(health RepoHealth) HealthStatus {
 		return HealthWarning
 	}
 
+	// Warning if dirty working tree (uncommitted changes need attention)
+	if health.WorkTreeStatus == WorkTreeDirty {
+		return HealthWarning
+	}
+
 	// Healthy if up-to-date and clean
 	return HealthHealthy
 }
@@ -307,6 +312,7 @@ func generateRecommendation(health RepoHealth) string {
 		return "Manual intervention required"
 
 	case HealthWarning:
+		// Check divergence-related warnings first
 		switch health.DivergenceType {
 		case DivergenceFastForward:
 			return fmt.Sprintf("Pull %d commits from upstream (fast-forward): gz-git sync from-config --strategy pull", health.BehindBy)
@@ -316,6 +322,15 @@ func generateRecommendation(health RepoHealth) string {
 			return fmt.Sprintf("Push %d local commits to upstream: gz-git push", health.AheadBy)
 		case DivergenceNoUpstream:
 			return "No upstream branch configured. Set upstream with: git branch --set-upstream-to=origin/" + health.CurrentBranch
+		}
+		// Check dirty working tree (when divergence is none)
+		if health.WorkTreeStatus == WorkTreeDirty {
+			if health.UntrackedFiles > 0 && health.ModifiedFiles > 0 {
+				return fmt.Sprintf("Uncommitted changes: %d modified, %d untracked files. Commit or stash before syncing", health.ModifiedFiles, health.UntrackedFiles)
+			} else if health.ModifiedFiles > 0 {
+				return fmt.Sprintf("Uncommitted changes: %d modified files. Commit or stash before syncing", health.ModifiedFiles)
+			}
+			return "Uncommitted changes detected. Commit or stash before syncing"
 		}
 
 	case HealthHealthy:

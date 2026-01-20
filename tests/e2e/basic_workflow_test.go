@@ -254,10 +254,13 @@ func TestRepositoryCleanupWorkflow(t *testing.T) {
 		// Check status
 		output := repo.RunGzhGit("status")
 
-		// Diagnostic status shows healthy (modified files alone don't trigger warning)
-		// But repository health check still completes successfully
-		if !strings.Contains(output, "healthy") {
-			t.Errorf("Expected status to show healthy, got: %s", output)
+		// Diagnostic status shows warning (modified files need attention)
+		// Repository health check completes successfully with warning
+		if !strings.Contains(output, "warning") {
+			t.Errorf("Expected status to show warning, got: %s", output)
+		}
+		if !strings.Contains(output, "modified") {
+			t.Errorf("Expected status to show modified files, got: %s", output)
 		}
 	})
 }

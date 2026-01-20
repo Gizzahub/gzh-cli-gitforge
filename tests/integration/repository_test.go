@@ -27,9 +27,11 @@ func TestStatusCommand(t *testing.T) {
 
 		output := repo.RunGzhGitSuccess("status")
 
-		// Diagnostic status shows healthy (staged changes don't trigger warning)
+		// Diagnostic status shows warning (staged changes are uncommitted and need attention)
+		// Note: Local test repos show "no-upstream" warning which takes precedence in recommendations
 		AssertContains(t, output, "Repository Health Status")
-		AssertContains(t, output, "healthy")
+		AssertContains(t, output, "warning")
+		AssertContains(t, output, "modified")
 	})
 
 	t.Run("with untracked files", func(t *testing.T) {
@@ -39,7 +41,7 @@ func TestStatusCommand(t *testing.T) {
 
 		output := repo.RunGzhGitSuccess("status")
 
-		// Diagnostic status shows healthy (untracked files alone don't trigger warning)
+		// Diagnostic status shows healthy (untracked files alone are not considered dirty)
 		AssertContains(t, output, "Repository Health Status")
 		AssertContains(t, output, "healthy")
 	})

@@ -142,6 +142,16 @@ func TestClassifyHealth(t *testing.T) {
 			expected: HealthWarning,
 		},
 		{
+			name: "dirty but not behind (warning)",
+			health: RepoHealth{
+				NetworkStatus:  NetworkOK,
+				WorkTreeStatus: WorkTreeDirty,
+				DivergenceType: DivergenceNone,
+				ModifiedFiles:  3,
+			},
+			expected: HealthWarning,
+		},
+		{
 			name: "healthy (up to date and clean)",
 			health: RepoHealth{
 				NetworkStatus:  NetworkOK,
@@ -220,6 +230,16 @@ func TestGenerateRecommendation(t *testing.T) {
 				AheadBy:        2,
 			},
 			contains: "Push",
+		},
+		{
+			name: "dirty only",
+			health: RepoHealth{
+				HealthStatus:   HealthWarning,
+				WorkTreeStatus: WorkTreeDirty,
+				DivergenceType: DivergenceNone,
+				ModifiedFiles:  3,
+			},
+			contains: "Uncommitted",
 		},
 		{
 			name: "healthy",
