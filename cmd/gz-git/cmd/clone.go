@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -618,9 +620,7 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, updateStr, suffix)
 	}
 
-	// Build custom clone operations
-	// For now, we'll use a simple sequential approach with per-repo options
-	// TODO: Implement parallel execution with custom per-repo settings
+	// Build custom clone operations with parallel execution
 	results := &repository.BulkCloneResult{
 		TotalRequested: totalRepos,
 		Summary:        make(map[string]int),
@@ -629,28 +629,69 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 
 	startTime := time.Now()
 
-	for i, repoSpec := range config.Repositories {
-		// Determine repository name
-		repoName := repoSpec.Name
-		if repoName == "" {
-			extracted, _ := repository.ExtractRepoNameFromURL(repoSpec.URL)
-			repoName = extracted
+	// Create work channel and results channel
+	type workItem struct {
+		index    int
+		repoSpec CloneRepoSpec
+		repoName string
+	}
+
+	workChan := make(chan workItem, totalRepos)
+	resultsChan := make(chan repository.RepositoryCloneResult, totalRepos)
+
+	// Start worker pool
+	var wg sync.WaitGroup
+	for w := 0; w < baseOpts.Parallel; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for work := range workChan {
+				// Show progress
+				if baseOpts.ProgressCallback != nil {
+					baseOpts.ProgressCallback(work.index+1, totalRepos, work.repoSpec.URL)
+				}
+
+				// Clone single repository
+				result := cloneSingleRepository(
+					ctx,
+					client,
+					work.repoSpec,
+					work.repoName,
+					baseOpts,
+				)
+
+				resultsChan <- result
+			}
+		}()
+	}
+
+	// Send work items
+	go func() {
+		for i, repoSpec := range config.Repositories {
+			// Determine repository name
+			repoName := repoSpec.Name
+			if repoName == "" {
+				extracted, _ := repository.ExtractRepoNameFromURL(repoSpec.URL)
+				repoName = extracted
+			}
+
+			workChan <- workItem{
+				index:    i,
+				repoSpec: repoSpec,
+				repoName: repoName,
+			}
 		}
+		close(workChan)
+	}()
 
-		// Show progress
-		if baseOpts.ProgressCallback != nil {
-			baseOpts.ProgressCallback(i+1, totalRepos, repoSpec.URL)
-		}
+	// Wait for workers to finish
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
 
-		// Clone single repository with custom settings
-		result := cloneSingleRepository(
-			ctx,
-			client,
-			repoSpec,
-			repoName,
-			baseOpts,
-		)
-
+	// Collect results
+	for result := range resultsChan {
 		results.Repositories = append(results.Repositories, result)
 
 		// Update counters
@@ -666,6 +707,9 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 		}
 
 		// Update summary
+		if results.Summary == nil {
+			results.Summary = make(map[string]int)
+		}
 		results.Summary[result.Status]++
 	}
 
@@ -760,9 +804,21 @@ func cloneSingleRepository(
 	var status string
 
 	if exists && isGitRepo && baseOpts.Update {
-		// TODO: Implement pull/update logic for existing repositories
-		// For now, mark as skipped to avoid errors
-		status = "skipped"
+		// Update existing repository using git pull
+		pullCmd := exec.CommandContext(ctx, "git", "-C", destination, "pull", "--rebase")
+		output, pullErr := pullCmd.CombinedOutput()
+
+		if pullErr != nil {
+			err = fmt.Errorf("git pull failed: %w (output: %s)", pullErr, string(output))
+			status = "error"
+		} else {
+			// Check if there were any changes
+			if strings.Contains(string(output), "Already up to date") {
+				status = "up-to-date"
+			} else {
+				status = "updated"
+			}
+		}
 	} else {
 		// Clone new repository
 		_, err = client.Clone(ctx, cloneOpts)
