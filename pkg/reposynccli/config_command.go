@@ -7,42 +7,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newConfigCmd creates the root config management command.
+// newConfigCmd creates the config command for forge-based config generation.
 func (f CommandFactory) newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Manage sync configuration files",
-		Long: `Manage sync configuration files for repository synchronization.
+		Short: "Generate config from Git forge",
+		Long: `Generate configuration files from Git forge (GitHub, GitLab, Gitea).
 
-Subcommands:
-  init      - Create a sample configuration file
-  scan      - Scan local directory for git repositories
-  generate  - Generate config from Git forge (GitHub, GitLab, Gitea)
-  merge     - Merge repositories from forge into existing config
-  validate  - Validate configuration file format
+The generated config can be used with 'gz-git workspace sync'.
+
+For local config management (init, scan, validate), use 'gz-git workspace' instead.
 
 Examples:
-  # Create sample config
-  gz-git sync config init
-
-  # Scan local directory for git repos
-  gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
-
   # Generate config from GitLab
-  gz-git sync config generate --provider gitlab --org devbox -o sync.yaml
+  gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
 
-  # Merge another org into existing config
-  gz-git sync config merge --provider gitlab --org another-group --into sync.yaml
-
-  # Validate config file
-  gz-git sync config validate -c sync.yaml`,
+  # Then use with workspace
+  gz-git workspace sync`,
 	}
 
-	cmd.AddCommand(f.newConfigInitCmd())
-	cmd.AddCommand(f.newConfigScanCmd())
 	cmd.AddCommand(f.newConfigGenerateCmd())
-	cmd.AddCommand(f.newConfigMergeCmd())
-	cmd.AddCommand(f.newConfigValidateCmd())
 
 	return cmd
 }

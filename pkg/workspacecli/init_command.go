@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
-package reposynccli
+package workspacecli
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const sampleConfig = `# gz-git sync configuration file
+const sampleConfig = `# gz-git workspace configuration
 # Documentation: https://github.com/gizzahub/gzh-cli-gitforge
 
 strategy: reset
@@ -21,7 +21,7 @@ cleanupOrphans: false
 # Clone protocol (ssh or https)
 cloneProto: ssh
 
-# Custom SSH port (0 = auto-detect from GitLab API)
+# Custom SSH port (0 = auto-detect)
 sshPort: 0
 
 repositories:
@@ -34,13 +34,13 @@ repositories:
   # Add more repositories here
 `
 
-func (f CommandFactory) newConfigInitCmd() *cobra.Command {
+func (f CommandFactory) newInitCmd() *cobra.Command {
 	var outputPath string
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Create a sample configuration file",
-		Long: `Create a sample configuration file with common settings.
+		Short: "Create empty workspace config file",
+		Long: `Create a sample workspace configuration file.
 
 The generated file includes:
   - Default sync strategy (reset)
@@ -49,14 +49,14 @@ The generated file includes:
   - Example repository entries
 
 Examples:
-  # Create config.yaml in current directory
-  gz-git sync config init
+  # Create .gz-git.yaml in current directory
+  gz-git workspace init
 
   # Create with custom name
-  gz-git sync config init -o my-sync.yaml`,
+  gz-git workspace init -c myworkspace.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outputPath == "" {
-				outputPath = "config.yaml"
+				outputPath = DefaultConfigFile
 			}
 
 			// Check if file exists
@@ -69,15 +69,15 @@ Examples:
 				return fmt.Errorf("failed to write config: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "✓ Created sample configuration: %s\n", outputPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "✓ Created workspace config: %s\n", outputPath)
 			fmt.Fprintln(cmd.OutOrStdout(), "\nEdit the file and add your repositories, then run:")
-			fmt.Fprintf(cmd.OutOrStdout(), "  gz-git sync from-config -c %s\n", outputPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "  gz-git workspace sync\n")
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (default: config.yaml)")
+	cmd.Flags().StringVarP(&outputPath, "config", "c", "", "Output file path (default: "+DefaultConfigFile+")")
 
 	return cmd
 }

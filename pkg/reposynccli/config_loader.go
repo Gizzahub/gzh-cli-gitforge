@@ -892,3 +892,18 @@ func cleanRoots(roots []string) []string {
 	}
 	return out
 }
+
+// detectConfigFile searches for config files in the given directory.
+// Priority: .gz-git.yaml > .gz-git.yml (current directory only, no parent scan)
+func detectConfigFile(dir string) (string, error) {
+	candidates := []string{".gz-git.yaml", ".gz-git.yml"}
+
+	for _, name := range candidates {
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("config file not found (tried: %v)", candidates)
+}

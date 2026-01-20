@@ -41,13 +41,14 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 		Short:         short,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Long: `Git repository synchronization from various sources.
+		Long: `Git repository synchronization from Git forges (GitHub, GitLab, Gitea).
 
-Sync Sources:
-  from-forge   - Sync from Git forge (GitHub, GitLab, Gitea) API
-  from-config  - Sync from YAML configuration file
-  config       - Manage configuration files (generate, merge, validate)
-  status       - Check repository health and sync status
+Commands:
+  from-forge   - Sync repositories from Git forge API
+  config       - Generate config from forge (for use with 'workspace' command)
+  status       - Check repository health after sync
+
+For local config-based operations, use 'gz-git workspace' command instead.
 
 Sync Strategies:
   reset  - Hard reset to remote HEAD (default, ensures clean state)
@@ -55,25 +56,18 @@ Sync Strategies:
   fetch  - Fetch only (update refs without modifying working tree)
 
 Examples:
-  # Check repository health before sync
-  gz-git sync status -c sync.yaml
-
   # Sync directly from GitLab organization
   gz-git sync from-forge --provider gitlab --org devbox --target ~/repos
 
-  # Generate config from GitLab
-  gz-git sync config generate --provider gitlab --org devbox -o sync.yaml
+  # Generate config from GitLab (then use with workspace)
+  gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
+  gz-git workspace sync
 
-  # Sync from config file
-  gz-git sync from-config -c sync.yaml
-
-  # Merge another org into existing config
-  gz-git sync config merge --provider gitlab --org another-group --into sync.yaml`,
+  # Check repository health
+  gz-git sync status --target ~/repos`,
 	}
 
-	// New command structure (Option A)
 	root.AddCommand(f.newFromForgeCmd())
-	root.AddCommand(f.newFromConfigCmd())
 	root.AddCommand(f.newConfigCmd())
 	root.AddCommand(f.newStatusCmd())
 	root.AddCommand(f.newSetupCmd())

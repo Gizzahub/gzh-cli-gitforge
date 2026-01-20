@@ -74,7 +74,8 @@ ______________________________________________________________________
 │   ├── watch/              # Repo monitoring
 │   ├── scanner/            # Local git repo scanner (NEW!)
 │   ├── reposync/           # Repo sync planner/executor
-│   ├── reposynccli/        # Sync CLI commands (from-forge, from-config, config)
+│   ├── reposynccli/        # Sync CLI commands (from-forge, config generate)
+│   ├── workspacecli/       # Workspace CLI commands (init, scan, sync, status, add, validate)
 │   ├── config/             # Configuration management (profiles, precedence) **NEW!**
 │   └── provider/           # Forge providers (github/gitlab/gitea)
 └── docs/.claude-context/   # Context docs
@@ -417,23 +418,58 @@ gz-git fetch /path/to/single/repo
 | `update` | 모든 repo를 안전하게 업데이트 (pull --rebase) |
 | `cleanup branch` | merged/stale/gone 브랜치 정리 (dry-run 기본) |
 | `sync from-forge` | **GitHub/GitLab/Gitea org 전체 동기화** |
-| `sync from-config` | YAML config 기반 repo 동기화 |
-| `sync config scan` | **로컬 디렉토리 스캔 → config 생성** |
 | `sync config generate` | **Forge API → config 생성** |
 | `sync status` | **Repository health 진단 (fetch, divergence, conflicts)** |
+| `workspace init` | **빈 config 파일 생성** (.gz-git.yaml) |
+| `workspace scan` | **로컬 디렉토리 스캔 → config 생성** |
+| `workspace sync` | **Config 기반 repo clone/update** |
+| `workspace status` | **Workspace health check** |
+| `workspace add` | **Config에 repo 추가** |
+| `workspace validate` | **Config 파일 검증** |
 | `stash` | 모든 repo에서 stash 작업 |
 | `tag` | 모든 repo에서 tag 작업 |
 | `config` | **프로파일 및 설정 관리 (NEW!)** |
 | `config profile` | 프로파일 생성/수정/삭제/전환 |
 | `config show` | 현재 설정 보기 (precedence 포함) |
 
-### Sync 명령어 (Repository Synchronization)
+### Workspace 명령어 (Local Config Management)
 
-**gz-git sync**는 여러 repository를 관리하는 4가지 방법을 제공합니다:
+**gz-git workspace**는 로컬 config 파일 기반 워크스페이스 관리를 제공합니다:
 
-#### 1. **`sync from-forge`** - Git Forge에서 직접 동기화
+```bash
+# 워크스페이스 초기화
+gz-git workspace init                    # .gz-git.yaml 생성
+gz-git workspace init -c myworkspace.yaml
 
-GitLab/GitHub/Gitea organization 전체를 API로 조회하여 동기화:
+# 디렉토리 스캔 → config 생성
+gz-git workspace scan ~/mydevbox
+gz-git workspace scan ~/mydevbox --depth 3 --exclude "vendor,tmp"
+
+# Config 기반 clone/update
+gz-git workspace sync
+gz-git workspace sync -c myworkspace.yaml --dry-run
+
+# 워크스페이스 health check
+gz-git workspace status
+gz-git workspace status --verbose
+
+# Repo 추가
+gz-git workspace add https://github.com/user/repo.git
+gz-git workspace add --from-current
+
+# Config 검증
+gz-git workspace validate
+```
+
+______________________________________________________________________
+
+### Sync 명령어 (Forge Synchronization)
+
+**gz-git sync**는 Git Forge (GitHub/GitLab/Gitea) API를 통한 동기화를 제공합니다.
+
+로컬 config 기반 작업은 `gz-git workspace` 명령어를 사용하세요.
+
+#### **`sync from-forge`** - Git Forge에서 직접 동기화
 
 ```bash
 # GitLab (기본: SSH clone, SSH 포트 자동 감지)
@@ -453,14 +489,6 @@ gz-git sync from-forge \
   --token $GITLAB_TOKEN \
   --include-subgroups \
   --subgroup-mode flat
-
-# HTTPS clone (SSH 대신)
-gz-git sync from-forge \
-  --provider gitlab \
-  --org mygroup \
-  --target ~/repos \
-  --token $GITLAB_TOKEN \
-  --clone-proto https
 ```
 
 **주요 옵션**:
@@ -469,37 +497,8 @@ gz-git sync from-forge \
 - `--ssh-port`: SSH 포트 강제 지정 (GitLab은 API 자동 제공)
 - `--include-subgroups`: GitLab 하위 그룹 포함
 - `--subgroup-mode`: `flat` (dash-separated) | `nested` (directories)
-- `--dry-run`: 미리보기
 
-#### 2. **`sync from-config`** - YAML Config 기반 동기화
-
-Config 파일에 정의된 repositories 동기화:
-
-```bash
-gz-git sync from-config -c sync.yaml
-gz-git sync from-config -c sync.yaml --dry-run
-gz-git sync from-config -c sync.yaml --strategy pull
-```
-
-#### 3. **`sync config`** - Config 관리 명령어
-
-**`sync config scan`** - 로컬 디렉토리 스캔하여 config 생성 (NEW!):
-
-```bash
-# Unified: 단일 config 파일
-gz-git sync config scan ~/mydevbox --strategy unified -o sync.yaml
-
-# Per-directory: 계층별 config 파일
-gz-git sync config scan ~/mydevbox --strategy per-directory --depth 3
-
-# .gitignore 무시
-gz-git sync config scan ~/mydevbox --no-gitignore -o sync.yaml
-
-# 패턴 제외/포함
-gz-git sync config scan ~/mydevbox --exclude "vendor,tmp/*" --include "submodules/*"
-```
-
-**`sync config generate`** - Forge API에서 config 생성:
+#### **`sync config generate`** - Forge API에서 config 생성
 
 ```bash
 gz-git sync config generate \
@@ -507,17 +506,13 @@ gz-git sync config generate \
   --org devbox \
   --target ~/repos \
   --token $GITLAB_TOKEN \
-  -o sync.yaml
+  -o .gz-git.yaml
+
+# 생성된 config로 workspace 사용
+gz-git workspace sync
 ```
 
-**기타 config 명령어**:
-- `sync config init` - Sample config 생성
-- `sync config validate -c sync.yaml` - Config 검증
-- `sync config merge` - Forge repos를 기존 config에 병합 (3가지 모드: append/update/overwrite)
-
-**💡 SSH 포트 자동 감지**: GitLab API는 `ssh_url_to_repo` 필드에 올바른 SSH URL(포트 포함)을 제공합니다.
-
-#### 4. **`sync status`** - Repository Health 진단
+#### **`sync status`** - Repository Health 진단
 
 **진단 기능**:
 - ✅ **모든 remote fetch** (timeout 지원, 기본 30초)

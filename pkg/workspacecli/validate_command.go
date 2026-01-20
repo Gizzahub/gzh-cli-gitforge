@@ -1,7 +1,7 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
-package reposynccli
+package workspacecli
 
 import (
 	"fmt"
@@ -9,13 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (f CommandFactory) newConfigValidateCmd() *cobra.Command {
+func (f CommandFactory) newValidateCmd() *cobra.Command {
 	var configPath string
 
 	cmd := &cobra.Command{
 		Use:   "validate",
-		Short: "Validate configuration file format",
-		Long: `Validate a sync configuration file for correctness.
+		Short: "Validate workspace config file",
+		Long: `Validate a workspace configuration file for correctness.
 
 Checks:
   - YAML syntax
@@ -26,10 +26,10 @@ Checks:
 
 Examples:
   # Validate config file
-  gz-git sync config validate -c sync.yaml
+  gz-git workspace validate -c myworkspace.yaml
 
   # Auto-detect config in current directory
-  gz-git sync config validate`,
+  gz-git workspace validate`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -43,11 +43,7 @@ Examples:
 				fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
 			}
 
-			loader := f.SpecLoader
-			if loader == nil {
-				loader = FileSpecLoader{}
-			}
-
+			loader := FileSpecLoader{}
 			_, err := loader.Load(ctx, configPath)
 			if err != nil {
 				return fmt.Errorf("validation failed: %w", err)
@@ -58,7 +54,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file (auto-detects .gz-git.yaml or .gz-git.yml)")
+	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file (auto-detects "+DefaultConfigFile+")")
 
 	return cmd
 }
