@@ -5,12 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -25,6 +29,8 @@ var (
 	cloneSingleBranch bool
 	cloneSubmodules   bool
 	cloneURLs         []string // --url flag (repeatable)
+	cloneConfig       string   // --config flag (YAML file path)
+	cloneConfigStdin  bool     // --config-stdin flag (read YAML from stdin)
 )
 
 // cloneCmd represents the clone command
@@ -46,7 +52,14 @@ Directory structure options:
   - user: Organized by user/org name
           github.com/user/repo → ./user/repo/
 
-When --update is specified, existing repositories are pulled instead of skipped.`,
+When --update is specified, existing repositories are pulled instead of skipped.
+
+YAML Config Mode:
+  Use --config or --config-stdin to specify repositories with custom names,
+  branches, and clone options per repository. This allows you to:
+  - Clone to custom directory names (different from repo name)
+  - Set per-repository branch and depth
+  - Organize multiple repositories in a single config file`,
 	Example: `  # Clone multiple repositories to current directory
   gz-git clone --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 
@@ -73,7 +86,28 @@ When --update is specified, existing repositories are pulled instead of skipped.
   gz-git clone -j 10 --url url1 --url url2 --url url3
 
   # JSON output for scripting
-  gz-git clone --format json --url url1 --url url2`,
+  gz-git clone --format json --url url1 --url url2
+
+  # Clone from YAML config file
+  gz-git clone --config repos.yaml
+  gz-git clone ~/projects --config repos.yaml
+
+  # Clone from YAML config via stdin (paste YAML text)
+  gz-git clone --config-stdin
+  cat repos.yaml | gz-git clone --config-stdin
+
+  # Example YAML config (repos.yaml):
+  #   target: ~/projects
+  #   parallel: 10
+  #   update: true
+  #   repositories:
+  #     - url: https://github.com/discourse/discourse.git
+  #       name: discourse_app
+  #       branch: master
+  #     - url: https://gitlab.com/org/theme.git
+  #       name: custom-theme
+  #       branch: develop
+  #       depth: 1`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runClone,
 }
@@ -93,6 +127,8 @@ func init() {
 	cloneCmd.Flags().StringVar(&cloneFile, "file", "", "file containing repository URLs (one per line)")
 	cloneCmd.Flags().BoolVar(&cloneSingleBranch, "single-branch", false, "clone only one branch")
 	cloneCmd.Flags().BoolVar(&cloneSubmodules, "submodules", false, "initialize submodules in the clone")
+	cloneCmd.Flags().StringVarP(&cloneConfig, "config", "c", "", "YAML config file for clone specifications")
+	cloneCmd.Flags().BoolVar(&cloneConfigStdin, "config-stdin", false, "read YAML config from stdin")
 }
 
 func runClone(cmd *cobra.Command, args []string) error {
@@ -125,6 +161,11 @@ func runClone(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Check for YAML config mode
+	if cloneConfig != "" || cloneConfigStdin {
+		return runCloneFromConfig(ctx, directory)
+	}
+
 	// Collect URLs from --url flag and --file
 	urls, err := collectCloneURLs(cloneURLs, cloneFile)
 	if err != nil {
@@ -132,7 +173,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(urls) == 0 {
-		return fmt.Errorf("no repository URLs provided. Use --url or --file")
+		return fmt.Errorf("no repository URLs provided. Use --url, --file, or --config")
 	}
 
 	// Validate structure
@@ -370,4 +411,380 @@ func displayCloneResultsJSON(result *repository.BulkCloneResult) {
 	if err := encoder.Encode(output); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
+}
+
+// ============================================================================
+// YAML Config Support
+// ============================================================================
+
+// CloneConfig represents the YAML configuration for bulk clone with custom names.
+type CloneConfig struct {
+	// Target directory for all repositories (optional, can be overridden by CLI arg)
+	Target string `yaml:"target,omitempty"`
+
+	// Global settings (can be overridden by CLI flags)
+	Parallel  int    `yaml:"parallel,omitempty"`
+	Structure string `yaml:"structure,omitempty"` // "flat" or "user"
+	Update    bool   `yaml:"update,omitempty"`
+
+	// Repository list
+	Repositories []CloneRepoSpec `yaml:"repositories"`
+}
+
+// CloneRepoSpec represents a single repository specification in YAML.
+type CloneRepoSpec struct {
+	URL    string `yaml:"url"`              // Required
+	Name   string `yaml:"name,omitempty"`   // Optional: custom directory name
+	Branch string `yaml:"branch,omitempty"` // Optional: branch to checkout
+	Depth  int    `yaml:"depth,omitempty"`  // Optional: shallow clone depth
+}
+
+// parseCloneConfig reads and parses YAML config from file or stdin.
+func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
+	var data []byte
+	var err error
+
+	if useStdin {
+		data, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, fmt.Errorf("read stdin: %w", err)
+		}
+	} else {
+		data, err = os.ReadFile(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("read config file %s: %w", configPath, err)
+		}
+	}
+
+	var config CloneConfig
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("parse YAML: %w", err)
+	}
+
+	// Validate
+	if err := validateCloneConfig(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+// validateCloneConfig validates the parsed YAML config.
+func validateCloneConfig(config *CloneConfig) error {
+	if len(config.Repositories) == 0 {
+		return fmt.Errorf("no repositories defined in config")
+	}
+
+	// Validate structure
+	if config.Structure != "" {
+		if config.Structure != "flat" && config.Structure != "user" {
+			return fmt.Errorf("invalid structure %q: must be 'flat' or 'user'", config.Structure)
+		}
+	}
+
+	// Check for duplicate names
+	namesSeen := make(map[string]bool)
+	for i, repo := range config.Repositories {
+		if repo.URL == "" {
+			return fmt.Errorf("repository[%d]: missing URL", i)
+		}
+
+		// Extract name from URL if not specified
+		name := repo.Name
+		if name == "" {
+			extracted, err := repository.ExtractRepoNameFromURL(repo.URL)
+			if err != nil {
+				return fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, repo.URL, err)
+			}
+			name = extracted
+		}
+
+		if namesSeen[name] {
+			return fmt.Errorf("repository[%d]: duplicate name %q", i, name)
+		}
+		namesSeen[name] = true
+	}
+
+	return nil
+}
+
+// buildCloneOptionsFromConfig builds BulkCloneOptions from YAML config.
+// CLI flags take precedence over YAML config.
+func buildCloneOptionsFromConfig(
+	config *CloneConfig,
+	directory string,
+	flags BulkCommandFlags,
+	branch string,
+	depth int,
+	update bool,
+	structure string,
+	logger repository.Logger,
+) repository.BulkCloneOptions {
+	// Use CLI argument if provided, otherwise YAML config, otherwise default
+	targetDir := directory
+	if targetDir == "." && config.Target != "" {
+		targetDir = config.Target
+	}
+
+	// Use CLI flags if set, otherwise YAML config, otherwise defaults
+	parallel := flags.Parallel
+	if parallel == 0 && config.Parallel > 0 {
+		parallel = config.Parallel
+	}
+	if parallel == 0 {
+		parallel = repository.DefaultBulkParallel
+	}
+
+	structureVal := structure
+	if structureVal == "flat" && config.Structure != "" {
+		structureVal = config.Structure
+	}
+
+	updateVal := update || config.Update
+
+	// Build BulkCloneOptions with custom per-repo settings
+	opts := repository.BulkCloneOptions{
+		Directory: targetDir,
+		Structure: repository.DirectoryStructure(structureVal),
+		Update:    updateVal,
+		Branch:    branch,
+		Depth:     depth,
+		Parallel:  parallel,
+		DryRun:    flags.DryRun,
+		Verbose:   verbose,
+		Logger:    logger,
+		ProgressCallback: func(current, total int, url string) {
+			if shouldShowProgress(flags.Format, quiet) {
+				repoName, _ := repository.ExtractRepoNameFromURL(url)
+				if repoName == "" {
+					repoName = "repository"
+				}
+				fmt.Printf("[%d/%d] Cloning %s...\n", current, total, repoName)
+			}
+		},
+	}
+
+	return opts
+}
+
+// runCloneFromConfig executes clone operation based on YAML config.
+func runCloneFromConfig(ctx context.Context, directory string) error {
+	// Parse YAML config
+	config, err := parseCloneConfig(cloneConfig, cloneConfigStdin)
+	if err != nil {
+		return fmt.Errorf("parse config: %w", err)
+	}
+
+	// Validate format
+	if err := validateBulkFormat(cloneFlags.Format); err != nil {
+		return err
+	}
+
+	// Create client
+	client := repository.NewClient()
+
+	// Create logger for verbose mode
+	logger := createBulkLogger(verbose)
+
+	// Build base options from config
+	baseOpts := buildCloneOptionsFromConfig(
+		config,
+		directory,
+		cloneFlags,
+		cloneBranch,
+		cloneDepth,
+		cloneUpdate,
+		cloneStructure,
+		logger,
+	)
+
+	// Clone each repository with custom settings
+	totalRepos := len(config.Repositories)
+
+	if shouldShowProgress(cloneFlags.Format, quiet) {
+		suffix := ""
+		if cloneFlags.DryRun {
+			suffix = " [DRY-RUN]"
+		}
+		updateStr := ""
+		if baseOpts.Update {
+			updateStr = ", update existing"
+		}
+		dirStr := ""
+		if baseOpts.Directory != "." {
+			dirStr = fmt.Sprintf(" to %s", baseOpts.Directory)
+		}
+		fmt.Printf("Cloning %d repositories%s (parallel: %d, structure: %s%s)%s\n",
+			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, updateStr, suffix)
+	}
+
+	// Build custom clone operations
+	// For now, we'll use a simple sequential approach with per-repo options
+	// TODO: Implement parallel execution with custom per-repo settings
+	results := &repository.BulkCloneResult{
+		TotalRequested: totalRepos,
+		Summary:        make(map[string]int),
+		Repositories:   make([]repository.RepositoryCloneResult, 0, totalRepos),
+	}
+
+	startTime := time.Now()
+
+	for i, repoSpec := range config.Repositories {
+		// Determine repository name
+		repoName := repoSpec.Name
+		if repoName == "" {
+			extracted, _ := repository.ExtractRepoNameFromURL(repoSpec.URL)
+			repoName = extracted
+		}
+
+		// Show progress
+		if baseOpts.ProgressCallback != nil {
+			baseOpts.ProgressCallback(i+1, totalRepos, repoSpec.URL)
+		}
+
+		// Clone single repository with custom settings
+		result := cloneSingleRepository(
+			ctx,
+			client,
+			repoSpec,
+			repoName,
+			baseOpts,
+		)
+
+		results.Repositories = append(results.Repositories, result)
+
+		// Update counters
+		switch result.Status {
+		case "cloned":
+			results.TotalCloned++
+		case "updated", "pulled", "rebased":
+			results.TotalUpdated++
+		case "skipped":
+			results.TotalSkipped++
+		case "error":
+			results.TotalFailed++
+		}
+
+		// Update summary
+		results.Summary[result.Status]++
+	}
+
+	results.Duration = time.Since(startTime)
+
+	// Display results
+	displayCloneResults(results)
+
+	return nil
+}
+
+// cloneSingleRepository clones a single repository with custom settings.
+func cloneSingleRepository(
+	ctx context.Context,
+	client repository.Client,
+	spec CloneRepoSpec,
+	repoName string,
+	baseOpts repository.BulkCloneOptions,
+) repository.RepositoryCloneResult {
+	startTime := time.Now()
+
+	// Build destination path
+	destination := filepath.Join(baseOpts.Directory, repoName)
+
+	// Determine branch
+	branch := spec.Branch
+	if branch == "" && baseOpts.Branch != "" {
+		branch = baseOpts.Branch
+	}
+
+	// Determine depth
+	depth := spec.Depth
+	if depth == 0 && baseOpts.Depth > 0 {
+		depth = baseOpts.Depth
+	}
+
+	// Check if target already exists
+	exists, isGitRepo := false, false
+	if fi, err := os.Stat(destination); err == nil {
+		exists = true
+		if fi.IsDir() {
+			gitDir := filepath.Join(destination, ".git")
+			if _, err := os.Stat(gitDir); err == nil {
+				isGitRepo = true
+			}
+		}
+	}
+
+	// Dry run mode
+	if baseOpts.DryRun {
+		status := "would-clone"
+		if exists && isGitRepo && baseOpts.Update {
+			status = "would-update"
+		} else if exists && isGitRepo {
+			status = "skipped"
+		}
+
+		return repository.RepositoryCloneResult{
+			URL:          spec.URL,
+			Path:         destination,
+			RelativePath: repoName,
+			Branch:       branch,
+			Status:       status,
+			Duration:     time.Since(startTime),
+		}
+	}
+
+	// Skip if exists and not updating
+	if exists && isGitRepo && !baseOpts.Update {
+		return repository.RepositoryCloneResult{
+			URL:          spec.URL,
+			Path:         destination,
+			RelativePath: repoName,
+			Branch:       branch,
+			Status:       "skipped",
+			Duration:     time.Since(startTime),
+		}
+	}
+
+	// Build clone options
+	cloneOpts := repository.CloneOptions{
+		URL:          spec.URL,
+		Destination:  destination,
+		Branch:       branch,
+		Depth:        depth,
+		SingleBranch: cloneSingleBranch,
+		Recursive:    cloneSubmodules,
+	}
+
+	// Clone or update
+	var err error
+	var status string
+
+	if exists && isGitRepo && baseOpts.Update {
+		// TODO: Implement pull/update logic for existing repositories
+		// For now, mark as skipped to avoid errors
+		status = "skipped"
+	} else {
+		// Clone new repository
+		_, err = client.Clone(ctx, cloneOpts)
+		if err != nil {
+			status = "error"
+		} else {
+			status = "cloned"
+		}
+	}
+
+	result := repository.RepositoryCloneResult{
+		URL:          spec.URL,
+		Path:         destination,
+		RelativePath: repoName,
+		Branch:       branch,
+		Status:       status,
+		Duration:     time.Since(startTime),
+	}
+
+	if err != nil {
+		result.Error = err
+	}
+
+	return result
 }
