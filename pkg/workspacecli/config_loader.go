@@ -7,10 +7,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -36,20 +36,20 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 	}
 
 	var raw struct {
-		Strategy       string `yaml:"strategy"`
-		Parallel       int    `yaml:"parallel"`
-		MaxRetries     int    `yaml:"maxRetries"`
-		CleanupOrphans bool   `yaml:"cleanupOrphans"`
-		CloneProto     string `yaml:"cloneProto"`
-		SSHPort        int    `yaml:"sshPort"`
+		Strategy       string   `yaml:"strategy"`
+		Parallel       int      `yaml:"parallel"`
+		MaxRetries     int      `yaml:"maxRetries"`
+		CleanupOrphans bool     `yaml:"cleanupOrphans"`
+		CloneProto     string   `yaml:"cloneProto"`
+		SSHPort        int      `yaml:"sshPort"`
 		Roots          []string `yaml:"roots"`
 		Repositories   []struct {
-			Name       string `yaml:"name"`
-			URL        string `yaml:"url"`
+			Name       string   `yaml:"name"`
+			URL        string   `yaml:"url"`
 			URLs       []string `yaml:"urls"`
-			TargetPath string `yaml:"targetPath"`
-			Strategy   string `yaml:"strategy"`
-			CloneProto string `yaml:"cloneProto"`
+			TargetPath string   `yaml:"targetPath"`
+			Strategy   string   `yaml:"strategy"`
+			CloneProto string   `yaml:"cloneProto"`
 		} `yaml:"repositories"`
 	}
 
@@ -124,15 +124,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 
 // detectConfigFile searches for config files in the given directory.
 // Priority: .gz-git.yaml > .gz-git.yml
+// This is a wrapper around config.DetectConfigFile for backward compatibility.
 func detectConfigFile(dir string) (string, error) {
-	candidates := []string{DefaultConfigFile, ".gz-git.yml"}
-
-	for _, name := range candidates {
-		path := filepath.Join(dir, name)
-		if _, err := os.Stat(path); err == nil {
-			return path, nil
-		}
-	}
-
-	return "", fmt.Errorf("config file not found (tried: %v)", candidates)
+	return config.DetectConfigFile(dir)
 }

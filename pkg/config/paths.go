@@ -201,3 +201,19 @@ func (p *Paths) SetActiveProfile(name string) error {
 
 	return nil
 }
+
+// DetectConfigFile searches for config files in the given directory.
+// Priority: .gz-git.yaml > .gz-git.yml
+// Returns the full path to the found config file, or an error if not found.
+func DetectConfigFile(dir string) (string, error) {
+	candidates := []string{ProjectConfigFileName, ".gz-git.yml"}
+
+	for _, name := range candidates {
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("config file not found (tried: %v)", candidates)
+}
