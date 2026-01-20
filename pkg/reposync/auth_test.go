@@ -135,7 +135,7 @@ func TestPrepareAuth_SSH_WithKeyPath(t *testing.T) {
 	// Create a temporary SSH key file
 	tmpDir := t.TempDir()
 	keyPath := filepath.Join(tmpDir, "test_key")
-	if err := os.WriteFile(keyPath, []byte("fake-ssh-key\n"), 0600); err != nil {
+	if err := os.WriteFile(keyPath, []byte("fake-ssh-key\n"), 0o600); err != nil {
 		t.Fatalf("Failed to create test key file: %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestPrepareAuth_SSH_WithKeyContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Temp key file not found: %v", err)
 	}
-	if info.Mode().Perm() != 0600 {
+	if info.Mode().Perm() != 0o600 {
 		t.Errorf("Temp key file permissions = %o, want 0600", info.Mode().Perm())
 	}
 

@@ -769,9 +769,9 @@ ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date       | Changes |
-| ------- | ---------- | ------- |
-| 1.0     | 2025-11-30 | Initial specification |
+| Version | Date       | Changes                                                                   |
+| ------- | ---------- | ------------------------------------------------------------------------- |
+| 1.0     | 2025-11-30 | Initial specification                                                     |
 | 2.0     | 2026-01-05 | Updated status: Phase 7.1 complete (v0.4.0), awaiting gzh-cli integration |
 
 ______________________________________________________________________
@@ -780,14 +780,16 @@ ______________________________________________________________________
 **Prerequisites:** ✅ Complete (gzh-cli-gitforge v0.4.0 released)
 
 **Next Steps for Integration:**
+
 1. Add gzh-cli-gitforge v0.4.0 as dependency in gzh-cli
-2. Create `internal/git/` integration package in gzh-cli
-3. Implement adapter layer for gzh-cli infrastructure
-4. Map `gz-git` commands to `gzh git` namespace
-5. Write integration tests
-6. Update gzh-cli documentation
+1. Create `internal/git/` integration package in gzh-cli
+1. Implement adapter layer for gzh-cli infrastructure
+1. Map `gz-git` commands to `gzh git` namespace
+1. Write integration tests
+1. Update gzh-cli documentation
 
 **Ready for Integration:**
+
 - ✅ Library published (v0.4.0)
 - ✅ All major features implemented
 - ✅ Bulk-first architecture stable

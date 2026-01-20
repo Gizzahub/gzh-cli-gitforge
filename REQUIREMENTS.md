@@ -23,4 +23,3 @@ This file is a short index so requirements stay discoverable without duplicating
 ## Archived
 
 - Historical TRD (v1.0, 2025-11-27): `docs/_deprecated/2026-01/REQUIREMENTS_v1.0_2025-11-27.md`
-

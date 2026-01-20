@@ -13,10 +13,11 @@ gz-git sync
 ```
 
 **문제**:
+
 1. `forge`는 "어디서", `run`은 "어떻게" - 서로 다른 차원
-2. 새로운 소스 추가 시 일관성 없음
-3. Config 생성 기능 없음
-4. `forge` → config → `run` 워크플로우가 자연스럽지 않음
+1. 새로운 소스 추가 시 일관성 없음
+1. Config 생성 기능 없음
+1. `forge` → config → `run` 워크플로우가 자연스럽지 않음
 
 ## 새로운 구조 (Option A)
 
@@ -49,6 +50,7 @@ gz-git sync from-forge \
 ```
 
 **주요 옵션**:
+
 - `--provider`: github | gitlab | gitea
 - `--org`: Organization/Group name
 - `--target`: 로컬 디렉토리
@@ -94,6 +96,7 @@ gz-git sync from-config -c sync.yaml --strategy pull
 ```
 
 **주요 옵션**:
+
 - `-c, --config`: Config 파일 경로 (필수)
 - `--strategy`: 전체 override (reset | pull | fetch)
 - `--parallel`: 병렬 처리 수 override
@@ -189,10 +192,12 @@ gz-git sync config scan ~/mydevbox \
 ```
 
 **스캔 전략**:
+
 - `unified` (기본): 모든 repo를 하나의 config 파일에 저장
 - `per-directory`: 각 디렉토리 레벨마다 config 파일 생성
 
 **특징**:
+
 - `.gitignore` 패턴 자동 존중 (disable: `--no-gitignore`)
 - 중첩 repository 지원 (상위 + 하위 모두 포함)
 - Multiple remote URL 처리 (`url` vs `urls` field)
@@ -260,6 +265,7 @@ gz-git sync config merge \
 ```
 
 **Merge 모드**:
+
 - `append` (기본): 중복 없이 추가만
 - `overwrite`: 기존 파일 완전 교체
 - `update`: 동일 repo는 업데이트, 없으면 추가
@@ -273,6 +279,7 @@ gz-git sync config validate -c sync.yaml
 ```
 
 **검증 항목**:
+
 - YAML 문법
 - 필수 필드 (name, url, targetPath)
 - targetPath 중복
@@ -354,12 +361,14 @@ projects, _, err := client.Groups.ListGroupProjects(group, opts)
 ### Path 생성 로직
 
 **Flat mode**:
+
 ```
 Input:  parent-group/subgroup1/repo1
 Output: ~/repos/parent-group-subgroup1-repo1
 ```
 
 **Nested mode**:
+
 ```
 Input:  parent-group/subgroup1/repo1
 Output: ~/repos/parent-group/subgroup1/repo1
@@ -388,25 +397,29 @@ func buildTargetPath(basePath, projectPath string, mode SubgroupMode) string {
 ## 구현 우선순위
 
 ### Phase 1: 명령어 재구성 (주)
+
 1. ✅ `sync from-forge` (forge 복사 + alias)
-2. ✅ `sync from-config` (run 복사 + alias)
-3. ⏳ Deprecation 경고 추가
+1. ✅ `sync from-config` (run 복사 + alias)
+1. ⏳ Deprecation 경고 추가
 
 ### Phase 2: Config 관리 (중요)
+
 4. ⏳ `sync config init` (샘플 생성)
-5. ⏳ `sync config generate` (forge → config)
-6. ⏳ `sync config merge` (config 병합)
-7. ⏳ `sync config validate` (검증)
+1. ⏳ `sync config generate` (forge → config)
+1. ⏳ `sync config merge` (config 병합)
+1. ⏳ `sync config validate` (검증)
 
 ### Phase 3: GitLab 고급 기능 (부가)
+
 8. ⏳ `--include-subgroups` 지원
-9. ⏳ `--subgroup-mode` (flat | nested)
-10. ⏳ Config 파일에 subgroup 정보 포함
+1. ⏳ `--subgroup-mode` (flat | nested)
+1. ⏳ Config 파일에 subgroup 정보 포함
 
 ### Phase 4: 정리
+
 11. ⏳ 문서 업데이트
-12. ⏳ 마이그레이션 가이드
-13. ⏳ Breaking change (v3.0)
+01. ⏳ 마이그레이션 가이드
+01. ⏳ Breaking change (v3.0)
 
 ## 예상 사용 시나리오
 
@@ -468,6 +481,7 @@ gz-git sync from-forge \
 ### v2.0: Clone Protocol 플래그 재설계
 
 **변경 사항**:
+
 - ❌ `--ssh` (boolean) - 제거
 - ✅ `--clone-proto` (string) - 신규: `ssh` | `https` (기본: `ssh`)
 - ✅ `--ssh-port` (int) - 신규: 커스텀 SSH 포트 (기본: 0 = auto)
@@ -495,13 +509,15 @@ gz-git sync from-forge --provider gitlab --org devbox \
 ```
 
 **개선점**:
+
 1. 역할 분리: `--base-url` (API endpoint), `--clone-proto` (Clone 방식), `--ssh-port` (SSH 포트)
-2. 확장성: `--clone-proto`가 string이므로 향후 `git://` 등 추가 가능
-3. 명시성: SSH 포트를 명시적으로 지정
+1. 확장성: `--clone-proto`가 string이므로 향후 `git://` 등 추가 가능
+1. 명시성: SSH 포트를 명시적으로 지정
 
 ### v2.1: 명령어 구조 재설계
 
 **변경 사항**:
+
 - ❌ `sync forge` → ✅ `sync from-forge`
 - ❌ `sync run` → ✅ `sync from-config`
 - ✅ `sync config` (신규 명령어 그룹)
@@ -518,7 +534,7 @@ gz-git sync from-forge --provider gitlab --org mygroup --target ~/repos
 gz-git sync from-config -c sync.yaml
 ```
 
----
+______________________________________________________________________
 
 **Version**: 2.0 → 2.1 (Breaking)
 **Status**: ✅ Implemented

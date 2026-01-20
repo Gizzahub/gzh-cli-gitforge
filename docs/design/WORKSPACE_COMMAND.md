@@ -63,21 +63,21 @@ workspace sync -c myworkspace.yaml
 
 ### 즉시 제거 (breaking change)
 
-| 기존 명령어 | 신규 명령어 |
-|-------------|-------------|
-| `sync from-config` | `workspace sync` |
-| `sync config scan` | `workspace scan` |
-| `sync config init` | `workspace init` |
-| `sync config validate` | `workspace validate` |
-| `sync config merge` | `workspace add` 또는 제거 |
+| 기존 명령어            | 신규 명령어               |
+| ---------------------- | ------------------------- |
+| `sync from-config`     | `workspace sync`          |
+| `sync config scan`     | `workspace scan`          |
+| `sync config init`     | `workspace init`          |
+| `sync config validate` | `workspace validate`      |
+| `sync config merge`    | `workspace add` 또는 제거 |
 
 ### 유지
 
-| 명령어 | 비고 |
-|--------|------|
-| `sync from-forge` | Forge API 동기화 |
+| 명령어                 | 비고                    |
+| ---------------------- | ----------------------- |
+| `sync from-forge`      | Forge API 동기화        |
 | `sync config generate` | Forge API → config 출력 |
-| `sync status` | Forge 기준 상태 확인 |
+| `sync status`          | Forge 기준 상태 확인    |
 
 ## 명령어 상세
 
@@ -150,14 +150,14 @@ workspace validate -c custom.yaml
 ## 구현 순서
 
 1. `workspace` 루트 명령어 생성
-2. `workspace scan` (기존 코드 이전)
-3. `workspace sync` (기존 코드 이전)
-4. `workspace status` (기존 코드 이전)
-5. `workspace init` (기존 코드 이전)
-6. `workspace validate` (기존 코드 이전)
-7. `workspace add` (신규 또는 merge 이전)
-8. 기존 `sync config *`, `sync from-config` 제거
-9. CLAUDE.md, 문서 업데이트
+1. `workspace scan` (기존 코드 이전)
+1. `workspace sync` (기존 코드 이전)
+1. `workspace status` (기존 코드 이전)
+1. `workspace init` (기존 코드 이전)
+1. `workspace validate` (기존 코드 이전)
+1. `workspace add` (신규 또는 merge 이전)
+1. 기존 `sync config *`, `sync from-config` 제거
+1. CLAUDE.md, 문서 업데이트
 
 ## 파일 변경 예상
 

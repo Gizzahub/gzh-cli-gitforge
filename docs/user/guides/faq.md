@@ -5,7 +5,7 @@
 `gzh-cli-gitforge` is a dual-purpose project:
 
 1. **CLI (`gz-git`)**: bulk-first Git workflows across many repositories
-2. **Go library**: reusable packages under `pkg/` for integrating Git operations and repo sync into Go programs
+1. **Go library**: reusable packages under `pkg/` for integrating Git operations and repo sync into Go programs
 
 ## Does gz-git replace git?
 
@@ -81,4 +81,3 @@ gz-git sync run -c sync-config.yaml
 See `docs/user/getting-started/library-usage.md` and the GoDoc:
 
 - https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge
-

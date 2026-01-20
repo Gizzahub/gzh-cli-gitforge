@@ -6,7 +6,7 @@
 **Date**: 2026-01-16
 **Updated**: 2026-01-16 (재귀적 구조로 대폭 간소화)
 
----
+______________________________________________________________________
 
 ## 📋 요구사항 분석
 
@@ -17,6 +17,7 @@
 > 그리고 각각의 프로젝트의 config를 그 하위에 놓는식으로 관리
 
 > **각 설정파일은 하위 설정파일의 경로를 확인할 수 있어야 한다.**
+>
 > - 하위 경로가 **단순히 git 저장소**일 수도 있고
 > - 하위 경로가 **또 다른 설정파일**을 가진 디렉토리일 수도 있어야 한다
 > - 설정파일에 **하위 경로의 설정파일명도 명시** 가능해야 함
@@ -27,6 +28,7 @@
 **기존 설계의 문제점**: WorkstationConfig, WorkspaceConfig, ProjectConfig 3가지 타입 → 복잡함
 
 **새로운 접근**: **단 하나의 Config 타입**이 **재귀적으로 중첩**되는 구조
+
 - ✅ 단순함: 하나의 타입만 존재
 - ✅ 유연함: 원하는 만큼 깊이 중첩 가능
 - ✅ 일관성: 모든 레벨에서 동일한 로직
@@ -34,6 +36,7 @@
 ### 기존 한계점
 
 **현재 2-Tier 시스템** (Phase 8.2):
+
 ```
 ~/.config/gz-git/         ← Global profiles
     ↓
@@ -41,11 +44,12 @@
 ```
 
 **문제점**:
+
 - ❌ 계층적 설정 미지원
 - ❌ ~/mydevbox, ~/mywork 같은 워크스페이스별 설정 불가능
 - ❌ 하위 경로 명시적 관리 불가능
 
----
+______________________________________________________________________
 
 ## 🎯 설계 목표
 
@@ -80,16 +84,17 @@ N+2. Built-in defaults                                   ← 최저 우선순위
 
 **단순화**: 깊이에 상관없이 **자식이 부모를 override**하는 일관된 규칙
 
----
+______________________________________________________________________
 
 ## 📁 파일 구조 (재귀적 설계)
 
 ### 핵심 개념: 단일 통합 Config
 
 **모든 레벨에서 동일한 구조**:
+
 1. **자신의 설정**: profile, parallel, sync, branch 등
-2. **children**: 하위 경로 목록 (재귀적으로 같은 구조 반복)
-3. **type**: 하위 경로 타입 (`git` 또는 `config`)
+1. **children**: 하위 경로 목록 (재귀적으로 같은 구조 반복)
+1. **type**: 하위 경로 타입 (`git` 또는 `config`)
 
 ### 통합 Config 파일 (.gz-git.yaml)
 
@@ -204,15 +209,15 @@ metadata:
 ### 핵심 장점
 
 1. **단순함**: 모든 파일이 `.gz-git.yaml` (통일된 형식)
-2. **재귀성**: 같은 구조가 무한히 중첩 가능
-3. **타입 단순화**: `git` vs `config` 두 가지만
+1. **재귀성**: 같은 구조가 무한히 중첩 가능
+1. **타입 단순화**: `git` vs `config` 두 가지만
    - `git`: 설정파일 없는 Git 저장소
    - `config`: 설정파일 있음 (재귀적 중첩 가능)
-4. **유연함**: `configFile`로 커스텀 파일명 지정 가능
+1. **유연함**: `configFile`로 커스텀 파일명 지정 가능
 
----
+______________________________________________________________________
 
----
+______________________________________________________________________
 
 ## 🏗️ 재귀적 데이터 구조
 
@@ -281,17 +286,19 @@ func (t ChildType) DefaultConfigFile() string {
 ### 간소화된 설계
 
 **Before (복잡함)**:
+
 - `WorkstationConfig` (174 lines)
 - `WorkspaceConfig` (182 lines)
 - `ProjectConfig` (167 lines)
 - 3가지 타입, 3가지 파일명, 복잡한 로직
 
 **After (단순함)**:
+
 - `Config` (하나의 타입)
 - `.gz-git.yaml` (하나의 파일명, 커스텀 가능)
 - 재귀적 로딩 (모든 레벨에서 동일한 로직)
 
----
+______________________________________________________________________
 
 ## 🔍 재귀적 로딩 알고리즘
 
@@ -456,28 +463,32 @@ func autoDiscoverAndAppend(path string, config *Config) error {
 ### 간소화 요약
 
 **Before (복잡함)**:
+
 - `LoadExplicitChildren()` (45 lines)
 - `AutoDiscoverChildren()` (43 lines)
 - `LoadChildrenWithMode()` (20 lines)
 - 다양한 Child 타입 처리
 
 **After (단순함)**:
+
 - `LoadConfigRecursive()` (재귀 한 번!)
 - `autoDiscoverAndAppend()` (auto mode 지원)
 - 모든 레벨에서 동일한 로직
 
----
+______________________________________________________________________
 
 ## 💻 구현 상태 (업데이트)
 
 2. **Config Discovery** (`pkg/config/workspace.go`)
+
    ```go
    func FindWorkstationConfig() (string, error)
    func FindWorkspaceConfig() (string, error)
    func FindAllConfigs() (workstation, workspace, project string, err error)
    ```
 
-3. **Manager Extensions** (`pkg/config/manager.go`)
+1. **Manager Extensions** (`pkg/config/manager.go`)
+
    ```go
    func LoadWorkstationConfig() (*WorkstationConfig, error)
    func LoadWorkspaceConfig() (*WorkspaceConfig, error)
@@ -488,10 +499,10 @@ func autoDiscoverAndAppend(path string, config *Config) error {
 ### ⏸️ 진행 중
 
 4. **Loader Update** - 7-layer precedence 구현
-5. **CLI Commands** - workspace init, show 명령어
-6. **Tests** - 계층 config 테스트
+1. **CLI Commands** - workspace init, show 명령어
+1. **Tests** - 계층 config 테스트
 
----
+______________________________________________________________________
 
 ## 🔄 Precedence 알고리즘
 
@@ -587,7 +598,7 @@ func (l *ConfigLoader) ResolveConfig(flags map[string]interface{}) (*EffectiveCo
 }
 ```
 
----
+______________________________________________________________________
 
 ## 🎨 사용 시나리오
 
@@ -637,6 +648,7 @@ gz-git config show
 ```
 
 **개선점**:
+
 - ✅ **명시적 children 정의**: 어떤 워크스페이스가 있는지 명확
 - ✅ **커스텀 파일명 지원**: ~/mywork는 `.work-config.yaml` 사용
 - ✅ **타입 구분**: workspace vs git 구분
@@ -711,6 +723,7 @@ gz-git status
 ```
 
 **개선점**:
+
 - ✅ **명시적 프로젝트 목록**: 어떤 프로젝트가 있는지 명확
 - ✅ **타입별 처리**: git(설정 없음) vs project(설정 있음)
 - ✅ **Inline override**: children에 직접 sync, parallel 지정
@@ -760,6 +773,7 @@ gz-git status
 ```
 
 **개선점**:
+
 - ✅ **Submodule 관리**: Git submodule도 계층에 포함
 - ✅ **Submodule별 전략**: 각 submodule마다 다른 sync 전략 지정
 - ✅ **Nested repo 지원**: 프로젝트 내부의 Git 저장소 관리
@@ -823,6 +837,7 @@ gz-git status --discovery-mode hybrid
 ```
 
 **사용 케이스**:
+
 - **Explicit Mode**: 일부 프로젝트만 선택적으로 관리
 - **Auto Mode**: 모든 Git 저장소 자동 탐지
 - **Hybrid Mode**: 유연하게 두 가지 방식 혼용
@@ -879,11 +894,12 @@ gz-git config show
 ```
 
 **호환성**:
+
 - ✅ **기존 시스템 유지**: workstation/workspace config 없으면 기존대로 동작
 - ✅ **점진적 마이그레이션**: 필요한 계층만 추가
 - ✅ **Zero breaking changes**: 모든 기존 명령어 그대로 작동
 
----
+______________________________________________________________________
 
 ## 🔨 CLI 명령어 추가
 
@@ -1049,61 +1065,71 @@ discovery:
 EOF
 ```
 
----
+______________________________________________________________________
 
 ## ✅ 구현 체크리스트
 
 ### Phase 1: Core Data Structures (✅ DONE)
 
 - [x] **ChildEntry type** (`pkg/config/types.go`)
+
   - [x] Path, Type, ConfigFile fields
   - [x] Inline override fields (Profile, Parallel, Sync, Branch)
   - [x] ChildType enum (workspace, project, git)
   - [x] DefaultConfigFile() method
 
 - [x] **Updated Config types** (`pkg/config/types.go`)
+
   - [x] WorkstationConfig with Children []ChildEntry
   - [x] WorkspaceConfig with Children []ChildEntry
   - [x] ProjectConfig with Children []ChildEntry
 
 - [x] **Config discovery** (`pkg/config/workspace.go`)
+
   - [x] FindWorkstationConfig() (~/.gz-git-config.yaml)
   - [x] FindWorkspaceConfig() (walk up from current dir)
   - [x] FindAllConfigs() (workstation → workspace → project)
 
 - [x] **Manager extensions** (`pkg/config/manager.go`)
+
   - [x] LoadWorkstationConfig(), SaveWorkstationConfig()
   - [x] LoadWorkspaceConfig(), SaveWorkspaceConfig()
 
 ### Phase 2: Children Loading & Discovery (🔨 IN PROGRESS)
 
 - [ ] **DiscoveryMode type** (`pkg/config/types.go`)
+
   - [ ] DiscoveryMode enum (explicit, auto, hybrid)
   - [ ] Add to WorkstationConfig, WorkspaceConfig, ProjectConfig
 
 - [ ] **Child type** (`pkg/config/workspace.go`)
+
   - [ ] Child struct (Path, Type, ConfigFile, Config, Entry)
   - [ ] LoadChildrenWithMode(parentPath, config, mode)
 
 - [ ] **Explicit children loading** (`pkg/config/workspace.go`)
+
   - [ ] LoadExplicitChildren(parentPath, entries []ChildEntry)
   - [ ] resolvePath() for ~, relative paths
   - [ ] loadChildConfig() for each child type
   - [ ] Handle missing config files gracefully
 
 - [ ] **Auto-discovery** (`pkg/config/workspace.go`)
+
   - [ ] AutoDiscoverChildren(parentPath)
   - [ ] hasFile() helper
   - [ ] isGitRepo() helper
   - [ ] Detect workspace/project/git by config file presence
 
 - [ ] **Hybrid discovery** (`pkg/config/workspace.go`)
+
   - [ ] Use children if len(children) > 0
   - [ ] Otherwise auto-discover
 
 ### Phase 3: 7-Layer Precedence (⏸️ PENDING)
 
 - [ ] **ConfigLoader update** (`pkg/config/loader.go`)
+
   - [ ] Load() - add workstation and workspace config loading
   - [ ] ResolveConfig() - add layers 4 and 5
   - [ ] applyWorkstationConfig(effective)
@@ -1111,6 +1137,7 @@ EOF
   - [ ] determineActiveProfile() - check workspace → workstation → global
 
 - [ ] **Profile selection logic** (`pkg/config/loader.go`)
+
   - [ ] Workspace config profile override
   - [ ] Workstation mapping by current path
   - [ ] Fallback to global active profile
@@ -1118,71 +1145,87 @@ EOF
 ### Phase 4: CLI Commands - Workstation (⏸️ PENDING)
 
 - [ ] **`config init --workstation`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Create ~/.gz-git-config.yaml
   - [ ] Interactive mode: prompt for defaults
   - [ ] Template with children example
 
 - [ ] **`config show --workstation`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Display workstation config
   - [ ] Show children list with types
 
 - [ ] **`config edit --workstation`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Open ~/.gz-git-config.yaml in $EDITOR
 
 - [ ] **`config workstation add-workspace`** (`cmd/gz-git/cmd/config_workstation.go` - NEW)
+
   - [ ] Add child to workstation config
   - [ ] Flags: --profile, --parallel, --config-file, --type
   - [ ] Validate path exists
   - [ ] Create config file if not exists
 
 - [ ] **`config workstation remove-workspace`** (`cmd/gz-git/cmd/config_workstation.go`)
+
   - [ ] Remove child from workstation config
   - [ ] Optionally delete config file (--delete-config flag)
 
 - [ ] **`config workstation list`** (`cmd/gz-git/cmd/config_workstation.go`)
+
   - [ ] List all children with types and config files
 
 ### Phase 5: CLI Commands - Workspace (⏸️ PENDING)
 
 - [ ] **`config init --workspace`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Create .gz-git-workspace.yaml in current dir
   - [ ] Support --config-file for custom name
   - [ ] Interactive mode: prompt for profile, sync strategy
 
 - [ ] **`config show --workspace`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Display workspace config
   - [ ] Show children list with types
 
 - [ ] **`config workspace add-child`** (`cmd/gz-git/cmd/config_workspace.go` - NEW)
+
   - [ ] Add child to workspace config
   - [ ] Flags: --type, --config-file, --profile, --sync-strategy, --parallel
   - [ ] Validate path exists
   - [ ] Create config file if not exists
 
 - [ ] **`config workspace remove-child`** (`cmd/gz-git/cmd/config_workspace.go`)
+
   - [ ] Remove child from workspace config
 
 - [ ] **`config workspace list`** (`cmd/gz-git/cmd/config_workspace.go`)
+
   - [ ] List all children with types
 
 - [ ] **`config workspace set-discovery-mode`** (`cmd/gz-git/cmd/config_workspace.go`)
+
   - [ ] Set discovery mode (explicit, auto, hybrid)
 
 ### Phase 6: CLI Commands - Project (⏸️ PENDING)
 
 - [ ] **`config project add-child`** (`cmd/gz-git/cmd/config_project.go` - NEW)
+
   - [ ] Add child (submodule, nested repo) to project config
   - [ ] Flags: --type, --config-file, --sync-strategy
 
 - [ ] **`config project remove-child`** (`cmd/gz-git/cmd/config_project.go`)
+
   - [ ] Remove child from project config
 
 - [ ] **`config project list`** (`cmd/gz-git/cmd/config_project.go`)
+
   - [ ] List all children with sync strategies
 
 ### Phase 7: CLI Commands - Hierarchy (⏸️ PENDING)
 
 - [ ] **`config hierarchy`** (`cmd/gz-git/cmd/config.go`)
+
   - [ ] Display all 7 layers with file paths
   - [ ] Show which layers are active (✓)
   - [ ] Show children for each layer
@@ -1190,6 +1233,7 @@ EOF
   - [ ] Flag: --validate (check config validity)
 
 - [ ] **Hierarchy validation** (`pkg/config/validator.go`)
+
   - [ ] ValidateHierarchy() function
   - [ ] Check all config files are valid YAML
   - [ ] Check all children paths exist
@@ -1206,6 +1250,7 @@ EOF
 ### Phase 9: Testing (⏸️ PENDING)
 
 - [ ] **Unit tests** (`pkg/config/`)
+
   - [ ] ChildEntry.DefaultConfigFile()
   - [ ] LoadExplicitChildren()
   - [ ] AutoDiscoverChildren()
@@ -1214,12 +1259,14 @@ EOF
   - [ ] 7-layer precedence resolution
 
 - [ ] **Integration tests** (`pkg/config/`)
+
   - [ ] Full hierarchy (workstation → workspace → project)
   - [ ] Profile selection from workspace
   - [ ] Children loading with custom config files
   - [ ] Discovery mode switching
 
 - [ ] **CLI tests** (`cmd/gz-git/cmd/`)
+
   - [ ] config init --workstation
   - [ ] config workstation add-workspace
   - [ ] config workspace add-child
@@ -1229,16 +1276,19 @@ EOF
 ### Phase 10: Documentation (⏸️ PENDING)
 
 - [ ] **CLAUDE.md** update
+
   - [ ] Add 3-tier hierarchy section
   - [ ] Update precedence order (7 layers)
   - [ ] Add workspace config examples
 
 - [ ] **Migration guide** (`docs/guides/MIGRATION_2TIER_TO_3TIER.md` - NEW)
+
   - [ ] Step-by-step migration process
   - [ ] Backward compatibility notes
   - [ ] Common migration scenarios
 
 - [ ] **User guide** (`docs/guides/WORKSPACE_CONFIG_GUIDE.md` - NEW)
+
   - [ ] How to set up workstation config
   - [ ] How to organize workspaces
   - [ ] Children management best practices
@@ -1247,21 +1297,24 @@ EOF
 ### Phase 11: Polish (⏸️ PENDING)
 
 - [ ] **Error messages**
+
   - [ ] Clear error when config file not found
   - [ ] Clear error when child path doesn't exist
   - [ ] Suggestions for fixing hierarchy issues
 
 - [ ] **Performance**
+
   - [ ] Cache config file reads
   - [ ] Lazy load children configs
   - [ ] Parallel children loading
 
 - [ ] **Security**
+
   - [ ] Validate file paths (no ../ escaping)
   - [ ] Check file permissions (warn on 644 for sensitive configs)
   - [ ] Sanitize custom config file names
 
----
+______________________________________________________________________
 
 ## 📊 Benefits
 
@@ -1279,43 +1332,50 @@ EOF
 ✅ **점진적 적용** - 필요한 계층만 추가
 ✅ **Zero breaking changes**
 
----
+______________________________________________________________________
 
 ## 🚀 Implementation Roadmap
 
 ### Completed (Phase 1)
+
 1. ✅ WorkstationConfig, WorkspaceConfig 타입 정의
-2. ✅ Config discovery 함수 구현
-3. ✅ Manager에 load/save 함수 추가
-4. ✅ **설계 문서 개선 완료** (명시적 children 관리)
+1. ✅ Config discovery 함수 구현
+1. ✅ Manager에 load/save 함수 추가
+1. ✅ **설계 문서 개선 완료** (명시적 children 관리)
 
 ### Next Steps (Phase 2-4)
+
 5. 🔨 **Phase 2**: Children loading & discovery 구현
+
    - DiscoveryMode enum
    - LoadExplicitChildren(), AutoDiscoverChildren()
    - Child type 정의
 
-6. ⏸️ **Phase 3**: 7-layer precedence 구현
+1. ⏸️ **Phase 3**: 7-layer precedence 구현
+
    - ConfigLoader 업데이트
    - applyWorkstationConfig(), applyWorkspaceConfig()
    - Automatic profile selection
 
-7. ⏸️ **Phase 4-7**: CLI commands 구현
+1. ⏸️ **Phase 4-7**: CLI commands 구현
+
    - Workstation commands (init, add-workspace, list)
    - Workspace commands (init, add-child, list)
    - Project commands (add-child, list)
    - Hierarchy command (show, validate)
 
-8. ⏸️ **Phase 8-9**: Global flags & testing
+1. ⏸️ **Phase 8-9**: Global flags & testing
+
    - --discovery-mode flag for all bulk commands
    - Unit tests, integration tests, CLI tests
 
-9. ⏸️ **Phase 10-11**: Documentation & polish
+1. ⏸️ **Phase 10-11**: Documentation & polish
+
    - CLAUDE.md update
    - Migration guide
    - User guide
 
----
+______________________________________________________________________
 
 ## 📝 Design Summary
 
@@ -1324,34 +1384,42 @@ EOF
 이 설계는 사용자의 요구사항을 완벽하게 반영합니다:
 
 ✅ **"각 설정파일은 하위 설정파일의 경로를 확인할 수 있어야 한다"**
+
 - → `children: []ChildEntry` 배열로 명시적 정의
 
 ✅ **"하위 경로가 단순히 git일수도 있고 하위 설정파일일 수도 있어야한다"**
+
 - → `type: workspace | project | git` 구분
 
 ✅ **"하위 경로의 설정파일명도 명시 가능해야 함"**
+
 - → `configFile: string` 필드로 커스텀 파일명 지정
 
 ✅ **"파일명 없는경우 기본파일명 사용"**
+
 - → `configFile` 생략 시 `DefaultConfigFile()` 사용
 
 ### 주요 설계 특징
 
 1. **명시적 계층 관리** (Explicit Hierarchy)
+
    - 각 config 파일에 children 명시
    - 타입별 구분 (workspace, project, git)
    - 커스텀 config 파일명 지원
 
-2. **유연한 탐색 모드** (Flexible Discovery)
+1. **유연한 탐색 모드** (Flexible Discovery)
+
    - Explicit: children만 사용
    - Auto: 디렉토리 스캔
    - Hybrid: children 우선, 없으면 스캔 (기본값)
 
-3. **7-Layer Precedence**
+1. **7-Layer Precedence**
+
    - Command flags → Project → Workspace → Workstation → Profile → Global → Defaults
    - 각 layer마다 children 정의 가능
 
-4. **100% Backward Compatibility**
+1. **100% Backward Compatibility**
+
    - 기존 2-tier 시스템 그대로 작동
    - 점진적 마이그레이션 가능
    - Zero breaking changes
@@ -1379,18 +1447,18 @@ EOF
 
 ### Use Cases
 
-| Use Case | Solution |
-|----------|----------|
-| Workstation-wide defaults | `~/.gz-git-config.yaml` |
-| Workspace-specific settings | `.gz-git-workspace.yaml` |
-| Project-specific overrides | `.gz-git.yaml` |
-| Custom config file names | `configFile: .custom.yaml` |
-| Mixed git/project repos | `type: git \| project` |
-| Selective repo management | `discovery: explicit` |
-| Auto-detect all repos | `discovery: auto` |
-| Submodule management | Project config children |
+| Use Case                    | Solution                   |
+| --------------------------- | -------------------------- |
+| Workstation-wide defaults   | `~/.gz-git-config.yaml`    |
+| Workspace-specific settings | `.gz-git-workspace.yaml`   |
+| Project-specific overrides  | `.gz-git.yaml`             |
+| Custom config file names    | `configFile: .custom.yaml` |
+| Mixed git/project repos     | `type: git \| project`     |
+| Selective repo management   | `discovery: explicit`      |
+| Auto-detect all repos       | `discovery: auto`          |
+| Submodule management        | Project config children    |
 
----
+______________________________________________________________________
 
 **Status**: 🎨 **DESIGN COMPLETE** → Ready for Phase 2 implementation
 **Target**: Phase 8.2 확장 (Workspace Config)

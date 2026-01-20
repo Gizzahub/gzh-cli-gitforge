@@ -12,6 +12,7 @@
 ### Current Pain Points (v0.4.0)
 
 **Problem 1: Repetitive flags**
+
 ```bash
 # Work context - every command needs these flags
 gz-git sync from-forge \
@@ -31,12 +32,14 @@ gz-git sync from-forge \
 ```
 
 **Problem 2: No project-specific defaults**
+
 ```bash
 cd ~/work/monorepo/
 gz-git status  # Uses global defaults, not project-specific
 ```
 
 **Problem 3: Configuration scattered**
+
 - Sync config: `sync.yaml` (custom location)
 - No global config file
 - No profile concept
@@ -45,9 +48,9 @@ gz-git status  # Uses global defaults, not project-specific
 ## Goals
 
 1. **Reduce typing**: Named profiles eliminate repetitive flags
-2. **Context switching**: Easy switching between work/personal/etc.
-3. **Project-specific**: Auto-detect `.gz-git.yaml` in projects
-4. **Clear precedence**: Flags > Project > Profile > Defaults
+1. **Context switching**: Easy switching between work/personal/etc.
+1. **Project-specific**: Auto-detect `.gz-git.yaml` in projects
+1. **Clear precedence**: Flags > Project > Profile > Defaults
 
 ## Design
 
@@ -94,11 +97,12 @@ branch:
 ```
 
 **Config File Priority** (highest to lowest):
+
 1. **Command flags** (e.g., `--provider gitlab`)
-2. **Project config** (`.gz-git.yaml` in current dir or parent)
-3. **Active profile** (`~/.config/gz-git/profiles/{active}.yaml`)
-4. **Global config** (`~/.config/gz-git/config.yaml`)
-5. **Built-in defaults**
+1. **Project config** (`.gz-git.yaml` in current dir or parent)
+1. **Active profile** (`~/.config/gz-git/profiles/{active}.yaml`)
+1. **Global config** (`~/.config/gz-git/config.yaml`)
+1. **Built-in defaults**
 
 ### 3. Global Config Format
 
@@ -295,6 +299,7 @@ gz-git sync from-forge --org backend --clone-proto https
 ## Implementation Plan
 
 ### Phase 1: Basic Profile Management (Week 1)
+
 - [ ] Config directory structure (`~/.config/gz-git/`)
 - [ ] Profile YAML format
 - [ ] CRUD operations:
@@ -305,6 +310,7 @@ gz-git sync from-forge --org backend --clone-proto https
 - [ ] Active profile tracking
 
 ### Phase 2: Config Loading & Precedence (Week 1-2)
+
 - [ ] Config loader with precedence rules
 - [ ] Environment variable expansion (`${VAR}`)
 - [ ] Validation (required fields, types)
@@ -312,12 +318,14 @@ gz-git sync from-forge --org backend --clone-proto https
 - [ ] `config show` (effective config viewer)
 
 ### Phase 3: Project Config (Week 2)
+
 - [ ] `.gz-git.yaml` auto-detection (walk up directory tree)
 - [ ] `config init --local`
 - [ ] Project config precedence
 - [ ] `config show --local`
 
 ### Phase 4: Polish & Testing (Week 2)
+
 - [ ] Interactive profile creation wizard
 - [ ] Profile templates (GitLab, GitHub, Gitea)
 - [ ] Migration guide for existing users
@@ -419,12 +427,14 @@ func ResolveConfig(flags map[string]interface{}, cwd string) (*EffectiveConfig, 
 ## Testing Strategy
 
 ### Unit Tests
+
 - Config parsing (YAML unmarshal)
 - Precedence rules (flags > project > profile > global)
 - Environment variable expansion
 - Validation (invalid values, missing required fields)
 
 ### Integration Tests
+
 ```go
 func TestProfilePrecedence(t *testing.T) {
     // Setup: Create global config, profile, project config
@@ -440,6 +450,7 @@ func TestProjectConfigAutoDetection(t *testing.T) {
 ```
 
 ### User Acceptance Tests
+
 - Create profile → Use in sync command
 - Switch profiles → Verify different behavior
 - Project config overrides profile
@@ -450,11 +461,13 @@ func TestProjectConfigAutoDetection(t *testing.T) {
 ### For Existing Users
 
 **Before (v0.4.0)**:
+
 ```bash
 gz-git sync from-forge --provider gitlab --base-url ... --token ...
 ```
 
 **After (with profiles)**:
+
 ```bash
 # One-time
 gz-git config profile create work --provider gitlab --base-url ...
@@ -465,6 +478,7 @@ gz-git sync from-forge --org backend
 ```
 
 **Backward Compatibility**:
+
 - ✅ All existing commands work without profiles
 - ✅ Flags always override profiles
 - ✅ No breaking changes
@@ -478,15 +492,18 @@ gz-git sync from-forge --org backend
 ## Security Considerations
 
 1. **Token storage**:
+
    - ⚠️ Tokens in plain text YAML (like Git config)
    - ✅ Recommend environment variables: `token: ${GITLAB_TOKEN}`
    - ✅ Document secure practices
 
-2. **File permissions**:
+1. **File permissions**:
+
    - Profile files: `0600` (user read/write only)
    - Config directory: `0700` (user access only)
 
-3. **Environment variable expansion**:
+1. **Environment variable expansion**:
+
    - ✅ Only expand `${VAR}` syntax
    - ❌ No shell command execution
 
@@ -504,7 +521,7 @@ gz-git sync from-forge --org backend
 - [Git config precedence](https://git-scm.com/docs/git-config#_configuration_file) - Inspiration
 - [AWS CLI profiles](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html) - Similar pattern
 
----
+______________________________________________________________________
 
 **Version**: 1.0
 **Last Updated**: 2026-01-16

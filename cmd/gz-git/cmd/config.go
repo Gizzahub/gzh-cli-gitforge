@@ -17,9 +17,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
 
-var (
-	configLocal bool // For init --local
-)
+var configLocal bool // For init --local
 
 // configCmd represents the config command
 var configCmd = &cobra.Command{
@@ -1050,4 +1048,3 @@ func sanitizeToken(token string) string {
 	}
 	return token[:4] + "..." + token[len(token)-4:]
 }
-

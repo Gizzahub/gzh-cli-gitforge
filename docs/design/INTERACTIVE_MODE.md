@@ -12,6 +12,7 @@
 ### Current Pain Points (v0.4.0)
 
 **Problem 1: Steep learning curve**
+
 ```bash
 # New user wants to sync from GitLab
 # Must know: all flags, provider name, token location, SSH vs HTTPS
@@ -29,12 +30,14 @@ gz-git sync from-forge \
 ```
 
 **Issues**:
+
 - ❌ Requires reading docs to know all flags
 - ❌ Easy to make mistakes (typos, wrong values)
 - ❌ No validation until command runs
 - ❌ Unclear which flags are required vs optional
 
 **Problem 2: Trial and error for complex workflows**
+
 ```bash
 # User wants to clean up old branches
 # Must: run cleanup, read output, manually select branches to delete
@@ -47,10 +50,10 @@ gz-git cleanup branch --delete feature/old-1 feature/old-2 ...
 ## Goals
 
 1. **Lower barriers**: New users can complete tasks without reading docs
-2. **Guided workflows**: Step-by-step prompts for common tasks
-3. **Validation**: Catch errors before execution
-4. **Discoverability**: Learn available options through prompts
-5. **Opt-in**: Interactive mode doesn't replace traditional CLI
+1. **Guided workflows**: Step-by-step prompts for common tasks
+1. **Validation**: Catch errors before execution
+1. **Discoverability**: Learn available options through prompts
+1. **Opt-in**: Interactive mode doesn't replace traditional CLI
 
 ## Design
 
@@ -59,12 +62,14 @@ gz-git cleanup branch --delete feature/old-1 feature/old-2 ...
 **Decision**: survey (AlecAivazis/survey)
 
 **Why**:
+
 - ✅ Popular, well-maintained
 - ✅ Rich prompt types (input, select, multiselect, confirm, password)
 - ✅ Validation support
 - ✅ Good UX (colors, icons, help text)
 
 **Alternatives**:
+
 - promptui: Less feature-rich
 - go-prompt: More complex (autocomplete focus)
 - bubbletea: Too heavy for simple wizards
@@ -152,6 +157,7 @@ Next steps:
 ```
 
 **Implementation**:
+
 ```go
 func runSyncSetup() error {
     // Provider selection
@@ -246,6 +252,7 @@ Skipped (user choice): 7
 ```
 
 **Implementation**:
+
 ```go
 func runBranchCleanupWizard(repos []string) error {
     for _, repo := range repos {
@@ -352,6 +359,7 @@ Try it:
 ### 3. Prompt Types
 
 #### Input (Text Entry)
+
 ```go
 survey.Input{
     Message: "Enter organization name:",
@@ -366,6 +374,7 @@ survey.Input{
 ```
 
 #### Select (Single Choice)
+
 ```go
 survey.Select{
     Message: "Select provider:",
@@ -376,6 +385,7 @@ survey.Select{
 ```
 
 #### MultiSelect (Multiple Choices)
+
 ```go
 survey.MultiSelect{
     Message: "Select branches to delete:",
@@ -386,6 +396,7 @@ survey.MultiSelect{
 ```
 
 #### Confirm (Yes/No)
+
 ```go
 survey.Confirm{
     Message: "Delete 5 branches?",
@@ -395,6 +406,7 @@ survey.Confirm{
 ```
 
 #### Password (Hidden Input)
+
 ```go
 survey.Password{
     Message: "Enter API token:",
@@ -405,6 +417,7 @@ survey.Password{
 ### 4. Validation
 
 **Real-time validation**:
+
 ```go
 survey.Input{
     Message: "SSH port:",
@@ -423,6 +436,7 @@ survey.Input{
 ```
 
 **API validation** (check if token works):
+
 ```go
 func validateToken(provider, baseURL, token string) error {
     // Try API call with token
@@ -451,6 +465,7 @@ fmt.Println("✓ Token valid")
 ### 5. Help Text & Context
 
 **Inline help**:
+
 ```go
 survey.Select{
     Message: "Clone protocol:",
@@ -461,6 +476,7 @@ HTTPS: Username/password or token, standard port 443`,
 ```
 
 **Dynamic help based on choice**:
+
 ```go
 if provider == "GitLab" {
     survey.Confirm{
@@ -475,6 +491,7 @@ if provider == "GitLab" {
 ### 6. Error Handling
 
 **Graceful errors with recovery**:
+
 ```go
 func runWizard() error {
     var qs []*survey.Question
@@ -503,33 +520,41 @@ func runWizard() error {
 ## Implementation Plan
 
 ### Week 1: Foundation
+
 - [ ] **Day 1**: Survey library integration
+
   - Add dependency
   - Basic prompt examples
   - Styling/theming
 
 - [ ] **Day 2**: Sync setup wizard
+
   - Provider selection
   - Basic prompts (org, token, target)
   - Execute sync from answers
 
 - [ ] **Day 3**: Validation
+
   - Input validation (required, format)
   - API token validation
   - Error messages
 
 ### Week 2: Additional Wizards
+
 - [ ] **Day 1-2**: Branch cleanup wizard
+
   - Scan repos for stale branches
   - MultiSelect prompt
   - Batch deletion with confirmation
 
 - [ ] **Day 3-4**: Profile creation wizard
+
   - All profile fields
   - Environment variable option
   - Save and activate
 
 - [ ] **Day 5**: Polish
+
   - Help text
   - Colors/icons
   - Loading indicators
@@ -545,12 +570,14 @@ gz-git config profile create  # Profile creation (already wizard-style)
 ```
 
 **Rationale**:
+
 - ✅ Clearer intent - `setup` and `wizard` clearly indicate guided workflow
 - ✅ No flag confusion - `--tui` is for TUI, dedicated commands for wizards
 - ✅ Separate help text - Each command can have detailed help
 - ✅ Shorter commands - `setup` vs `from-forge --interactive`
 
 **vs. --interactive flag**:
+
 - ❌ Conflicts with TUI's `--tui` flag
 - ❌ Ambiguous meaning (TUI or wizard?)
 - ❌ Less discoverable
@@ -558,6 +585,7 @@ gz-git config profile create  # Profile creation (already wizard-style)
 ## Testing Strategy
 
 ### Unit Tests
+
 ```go
 func TestSyncSetupWizard(t *testing.T) {
     // Mock survey prompts
@@ -566,6 +594,7 @@ func TestSyncSetupWizard(t *testing.T) {
 ```
 
 ### Integration Tests
+
 ```go
 func TestWizardFlow(t *testing.T) {
     // Simulate user input (automated)
@@ -574,6 +603,7 @@ func TestWizardFlow(t *testing.T) {
 ```
 
 ### Manual Testing
+
 - [ ] Complete wizard without errors
 - [ ] Test all validation rules
 - [ ] Test error recovery (Ctrl+C, invalid input)
@@ -592,10 +622,10 @@ require (
 ## User Experience Principles
 
 1. **Progressive disclosure**: Show advanced options only if needed
-2. **Sensible defaults**: Pre-select recommended options
-3. **Clear help**: Explain what each option does
-4. **Forgiving**: Allow correction of mistakes
-5. **Fast path**: Skip wizard with flags for power users
+1. **Sensible defaults**: Pre-select recommended options
+1. **Clear help**: Explain what each option does
+1. **Forgiving**: Allow correction of mistakes
+1. **Fast path**: Skip wizard with flags for power users
 
 ## Accessibility
 
@@ -618,7 +648,7 @@ require (
 - [aws configure](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-wizard.html) - Similar wizard pattern
 - [helm create](https://helm.sh/docs/helm/helm_create/) - Interactive chart creation
 
----
+______________________________________________________________________
 
 **Version**: 1.0
 **Last Updated**: 2026-01-16

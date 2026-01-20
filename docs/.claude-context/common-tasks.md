@@ -227,6 +227,7 @@ ______________________________________________________________________
 ### Overview
 
 `gz-git sync status` provides comprehensive health checks for multiple repositories:
+
 - Fetches from all remotes (with timeout)
 - Detects network connectivity issues
 - Compares local vs remote branches

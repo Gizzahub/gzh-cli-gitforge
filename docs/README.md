@@ -45,7 +45,7 @@ Root-level docs (`README.md`, `QUICK_START.md`, `CONTRIBUTING.md`, `ARCHITECTURE
 
 ### Archives
 
-- Deprecated / historical docs (not maintained): [docs/_deprecated/](./_deprecated/)
+- Deprecated / historical docs (not maintained): [docs/\_deprecated/](./_deprecated/)
 
 ## Maintenance Policy
 

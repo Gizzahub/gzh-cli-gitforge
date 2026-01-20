@@ -55,14 +55,14 @@ Default Behavior:
 - All repos processed simultaneously
 ```
 
-| Command | Default Behavior |
-|---------|-----------------|
-| `status` | Scan and show status for all repos |
-| `fetch` | Fetch from all repos in parallel |
-| `pull` | Pull all repos with merge strategy |
-| `push` | Push all dirty repos |
-| `commit` | Commit across all dirty repos (preview by default) |
-| `cleanup branch` | Clean branches across all repos |
+| Command          | Default Behavior                                   |
+| ---------------- | -------------------------------------------------- |
+| `status`         | Scan and show status for all repos                 |
+| `fetch`          | Fetch from all repos in parallel                   |
+| `pull`           | Pull all repos with merge strategy                 |
+| `push`           | Push all dirty repos                               |
+| `commit`         | Commit across all dirty repos (preview by default) |
+| `cleanup branch` | Clean branches across all repos                    |
 
 Common flags: `-d/--depth`, `-j/--parallel`, `-n/--dry-run`, `--include`, `--exclude`, `-f/--format`
 
@@ -167,25 +167,25 @@ gzh-cli-gitforge (gz-git)
 
 ### 3.2 Feature Implementation Status (v0.4.0)
 
-| Feature               | Status | Phase   | Notes |
-| --------------------- | ------ | ------- | ----- |
-| **Core Bulk Operations** | ✅ | v0.3.0+ | clone, status, fetch, pull, push, diff, update |
-| **Commit Automation** | ✅ | Phase 2 | Bulk commit with auto-messages, per-repo messages |
-| Template System       | ❌ | - | Removed in v0.4.0 (simplified to auto-generation) |
-| Auto-Commit           | ✅ | Phase 2 | Based on file changes analysis |
-| Smart Push            | ✅ | Phase 2 | Safety checks, ahead/behind detection |
-| **Branch Management** | ✅ | Phase 3 | list, switch, cleanup |
-| Worktree Operations   | ✅ | Phase 3 | pkg/branch/worktree.go |
-| Branch Cleanup        | ✅ | Phase 3 | merged, stale, gone branches |
-| **History Analysis**  | ✅ | Phase 4 | stats, contributors, file, blame |
-| Commit Stats          | ✅ | Phase 4 | Commit statistics and trends |
-| Contributor Analysis  | ✅ | Phase 4 | Top contributors, additions/deletions |
-| **Merge Detection**   | ✅ | Phase 5 | Implementation complete |
-| Conflict Detection    | ✅ | Phase 5 | Pre-merge conflict analysis |
-| **Sync & Watch**      | ✅ | v0.3.0+ | New features not in original spec |
-| Forge Sync            | ✅ | v0.3.0 | GitHub/GitLab/Gitea provider sync |
-| Watch Mode            | ✅ | v0.3.0 | Real-time monitoring with fsnotify |
-| **Library API**       | ✅ | All | Clean interfaces, 10+ packages |
+| Feature                  | Status | Phase   | Notes                                             |
+| ------------------------ | ------ | ------- | ------------------------------------------------- |
+| **Core Bulk Operations** | ✅     | v0.3.0+ | clone, status, fetch, pull, push, diff, update    |
+| **Commit Automation**    | ✅     | Phase 2 | Bulk commit with auto-messages, per-repo messages |
+| Template System          | ❌     | -       | Removed in v0.4.0 (simplified to auto-generation) |
+| Auto-Commit              | ✅     | Phase 2 | Based on file changes analysis                    |
+| Smart Push               | ✅     | Phase 2 | Safety checks, ahead/behind detection             |
+| **Branch Management**    | ✅     | Phase 3 | list, switch, cleanup                             |
+| Worktree Operations      | ✅     | Phase 3 | pkg/branch/worktree.go                            |
+| Branch Cleanup           | ✅     | Phase 3 | merged, stale, gone branches                      |
+| **History Analysis**     | ✅     | Phase 4 | stats, contributors, file, blame                  |
+| Commit Stats             | ✅     | Phase 4 | Commit statistics and trends                      |
+| Contributor Analysis     | ✅     | Phase 4 | Top contributors, additions/deletions             |
+| **Merge Detection**      | ✅     | Phase 5 | Implementation complete                           |
+| Conflict Detection       | ✅     | Phase 5 | Pre-merge conflict analysis                       |
+| **Sync & Watch**         | ✅     | v0.3.0+ | New features not in original spec                 |
+| Forge Sync               | ✅     | v0.3.0  | GitHub/GitLab/Gitea provider sync                 |
+| Watch Mode               | ✅     | v0.3.0  | Real-time monitoring with fsnotify                |
+| **Library API**          | ✅     | All     | Clean interfaces, 10+ packages                    |
 
 ______________________________________________________________________
 
@@ -576,18 +576,19 @@ ______________________________________________________________________
 
 ### 7.1 Phase Overview (Updated 2026-01-05)
 
-| Phase       | Status | Focus                 | Deliverables                                |
-| ----------- | ------ | --------------------- | ------------------------------------------- |
-| **Phase 1** | ✅ Done | Foundation            | Project structure, core docs, basic Git ops |
-| **Phase 2** | ✅ Done | Commit Automation     | Bulk commit, auto-messages, smart push      |
-| **Phase 3** | ✅ Done | Branch Management     | Branch list/switch, cleanup, worktree       |
-| **Phase 4** | ✅ Done | History Analysis      | Stats, contributors, file history, blame    |
-| **Phase 5** | ✅ Done | Advanced Merge        | Conflict detection, merge strategies, rebase ops |
-| **Phase 6** | ✅ Done | Integration & Testing | Test suite, benchmarks, CI                  |
-| **Phase 7.1** | ✅ Done | Library Publication | v0.4.0 released on pkg.go.dev              |
-| **Phase 7.2** | ⏳ Pending | gzh-cli Integration | Integration with main CLI                 |
+| Phase         | Status     | Focus                 | Deliverables                                     |
+| ------------- | ---------- | --------------------- | ------------------------------------------------ |
+| **Phase 1**   | ✅ Done    | Foundation            | Project structure, core docs, basic Git ops      |
+| **Phase 2**   | ✅ Done    | Commit Automation     | Bulk commit, auto-messages, smart push           |
+| **Phase 3**   | ✅ Done    | Branch Management     | Branch list/switch, cleanup, worktree            |
+| **Phase 4**   | ✅ Done    | History Analysis      | Stats, contributors, file history, blame         |
+| **Phase 5**   | ✅ Done    | Advanced Merge        | Conflict detection, merge strategies, rebase ops |
+| **Phase 6**   | ✅ Done    | Integration & Testing | Test suite, benchmarks, CI                       |
+| **Phase 7.1** | ✅ Done    | Library Publication   | v0.4.0 released on pkg.go.dev                    |
+| **Phase 7.2** | ⏳ Pending | gzh-cli Integration   | Integration with main CLI                        |
 
 **Additional Features (Not in Original Spec)**:
+
 - Bulk operations (clone, status, fetch, pull, push, diff, update, switch)
 - Sync forge (GitHub/GitLab/Gitea provider sync)
 - Watch mode (real-time monitoring)
@@ -651,16 +652,16 @@ ______________________________________________________________________
 
 ### 8.1 Document Status (Updated 2026-01-05)
 
-| Specification           | Spec Status | Implementation | Notes |
-| ----------------------- | ----------- | -------------- | ----- |
-| 00-overview.md          | ✅ Updated  | ✅ Complete    | This document |
-| 10-commit-automation.md | ✅ Updated  | ✅ Complete    | v0.4.0 bulk commit |
-| 20-branch-management.md | ✅ Updated  | ✅ Complete    | Bulk cleanup added |
-| 30-history-analysis.md  | ✅ Updated  | ✅ Complete    | CLI commands added |
-| 40-advanced-merge.md    | ✅ Updated  | ✅ Complete    | Conflict detection, strategies, rebase |
-| 50-integration-testing.md | ✅ Updated | ✅ Complete   | Test coverage achieved |
-| 60-library-publication.md | ✅ Updated | ✅ Complete   | v0.4.0 released |
-| 70-gzh-cli-integration.md | ⏳ Pending | ⏳ Pending    | Awaiting integration |
+| Specification             | Spec Status | Implementation | Notes                                  |
+| ------------------------- | ----------- | -------------- | -------------------------------------- |
+| 00-overview.md            | ✅ Updated  | ✅ Complete    | This document                          |
+| 10-commit-automation.md   | ✅ Updated  | ✅ Complete    | v0.4.0 bulk commit                     |
+| 20-branch-management.md   | ✅ Updated  | ✅ Complete    | Bulk cleanup added                     |
+| 30-history-analysis.md    | ✅ Updated  | ✅ Complete    | CLI commands added                     |
+| 40-advanced-merge.md      | ✅ Updated  | ✅ Complete    | Conflict detection, strategies, rebase |
+| 50-integration-testing.md | ✅ Updated  | ✅ Complete    | Test coverage achieved                 |
+| 60-library-publication.md | ✅ Updated  | ✅ Complete    | v0.4.0 released                        |
+| 70-gzh-cli-integration.md | ⏳ Pending  | ⏳ Pending     | Awaiting integration                   |
 
 ### 8.2 Specification Template
 
@@ -840,9 +841,9 @@ ______________________________________________________________________
 
 ### A.3 Revision History
 
-| Version | Date       | Author      | Changes                        |
-| ------- | ---------- | ----------- | ------------------------------ |
-| 1.0     | 2025-11-27 | Claude (AI) | Initial specification overview |
+| Version | Date       | Author      | Changes                                                                                                            |
+| ------- | ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial specification overview                                                                                     |
 | 2.0     | 2026-01-05 | Claude (AI) | Updated for v0.4.0 release: bulk-first architecture, implementation status, new features (sync, watch, stash, tag) |
 
 ______________________________________________________________________

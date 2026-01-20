@@ -221,6 +221,7 @@ baseURL: ${GITLAB_URL}
 ```
 
 **Security Notes:**
+
 - Profile files: 0600 permissions (user read/write only)
 - Config directory: 0700 permissions (user access only)
 - Use environment variables for tokens, not plain text
@@ -365,12 +366,12 @@ DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨 하위
 DefaultBulkParallel = 10    // 10개 병렬 처리
 ```
 
-| 명령어 | 기본 동작 |
-|--------|-----------|
+| 명령어          | 기본 동작                             |
+| --------------- | ------------------------------------- |
 | `gz-git status` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
-| `gz-git fetch` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
-| `gz-git pull` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
-| `gz-git push` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git fetch`  | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git pull`   | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
+| `gz-git push`   | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
 | `gz-git switch` | 현재 디렉토리 + 1레벨 스캔, 10개 병렬 |
 
 ### 스캔 깊이 (--scan-depth, -d)
@@ -405,32 +406,32 @@ gz-git fetch /path/to/single/repo
 
 ### 주요 명령어
 
-| Command | Description |
-|---------|-------------|
-| `clone` | 여러 repo를 병렬로 clone (`--url`, `--file`) |
-| `status` | **종합 health check** (fetch + divergence + 추천) - 모든 remote fetch |
-| `fetch` | 모든 repo에서 fetch - **기본적으로 모든 remote** (`--all-remotes` 기본값) |
-| `pull` | 모든 repo에서 pull (rebase/merge 지원) |
-| `push` | 모든 repo에서 push (**refspec 지원**: `develop:master`) |
-| `switch` | 모든 repo 브랜치 전환 |
-| `commit` | 모든 dirty repo에 커밋 |
-| `diff` | 모든 repo diff 보기 |
-| `update` | 모든 repo를 안전하게 업데이트 (pull --rebase) |
-| `cleanup branch` | merged/stale/gone 브랜치 정리 (dry-run 기본) |
-| `sync from-forge` | **GitHub/GitLab/Gitea org 전체 동기화** |
-| `sync config generate` | **Forge API → config 생성** |
-| `sync status` | **Repository health 진단 (fetch, divergence, conflicts)** |
-| `workspace init` | **빈 config 파일 생성** (.gz-git.yaml) |
-| `workspace scan` | **로컬 디렉토리 스캔 → config 생성** |
-| `workspace sync` | **Config 기반 repo clone/update** |
-| `workspace status` | **Workspace health check** |
-| `workspace add` | **Config에 repo 추가** |
-| `workspace validate` | **Config 파일 검증** |
-| `stash` | 모든 repo에서 stash 작업 |
-| `tag` | 모든 repo에서 tag 작업 |
-| `config` | **프로파일 및 설정 관리 (NEW!)** |
-| `config profile` | 프로파일 생성/수정/삭제/전환 |
-| `config show` | 현재 설정 보기 (precedence 포함) |
+| Command                | Description                                                               |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `clone`                | 여러 repo를 병렬로 clone (`--url`, `--file`)                              |
+| `status`               | **종합 health check** (fetch + divergence + 추천) - 모든 remote fetch     |
+| `fetch`                | 모든 repo에서 fetch - **기본적으로 모든 remote** (`--all-remotes` 기본값) |
+| `pull`                 | 모든 repo에서 pull (rebase/merge 지원)                                    |
+| `push`                 | 모든 repo에서 push (**refspec 지원**: `develop:master`)                   |
+| `switch`               | 모든 repo 브랜치 전환                                                     |
+| `commit`               | 모든 dirty repo에 커밋                                                    |
+| `diff`                 | 모든 repo diff 보기                                                       |
+| `update`               | 모든 repo를 안전하게 업데이트 (pull --rebase)                             |
+| `cleanup branch`       | merged/stale/gone 브랜치 정리 (dry-run 기본)                              |
+| `sync from-forge`      | **GitHub/GitLab/Gitea org 전체 동기화**                                   |
+| `sync config generate` | **Forge API → config 생성**                                               |
+| `sync status`          | **Repository health 진단 (fetch, divergence, conflicts)**                 |
+| `workspace init`       | **빈 config 파일 생성** (.gz-git.yaml)                                    |
+| `workspace scan`       | **로컬 디렉토리 스캔 → config 생성**                                      |
+| `workspace sync`       | **Config 기반 repo clone/update**                                         |
+| `workspace status`     | **Workspace health check**                                                |
+| `workspace add`        | **Config에 repo 추가**                                                    |
+| `workspace validate`   | **Config 파일 검증**                                                      |
+| `stash`                | 모든 repo에서 stash 작업                                                  |
+| `tag`                  | 모든 repo에서 tag 작업                                                    |
+| `config`               | **프로파일 및 설정 관리 (NEW!)**                                          |
+| `config profile`       | 프로파일 생성/수정/삭제/전환                                              |
+| `config show`          | 현재 설정 보기 (precedence 포함)                                          |
 
 ### Workspace 명령어 (Local Config Management)
 
@@ -492,6 +493,7 @@ gz-git sync from-forge \
 ```
 
 **주요 옵션**:
+
 - `--base-url`: API endpoint (http/https)
 - `--clone-proto`: Clone 프로토콜 (`ssh` | `https`, 기본: `ssh`)
 - `--ssh-port`: SSH 포트 강제 지정 (GitLab은 API 자동 제공)
@@ -515,6 +517,7 @@ gz-git workspace sync
 #### **`sync status`** - Repository Health 진단
 
 **진단 기능**:
+
 - ✅ **모든 remote fetch** (timeout 지원, 기본 30초)
 - ✅ **네트워크 문제 감지** (timeout, unreachable, auth failed)
 - ✅ **local/remote HEAD 비교** (ahead/behind/diverged)
@@ -539,6 +542,7 @@ gz-git sync status -c sync.yaml --verbose
 ```
 
 **출력 예시**:
+
 ```
 Checking repository health...
 
@@ -555,12 +559,14 @@ Total time: 32.5s
 ```
 
 **Health Status**:
+
 - `✓ healthy` - 최신 상태, clean working tree
 - `⚠ warning` - diverged, behind, ahead (해결 가능)
 - `✗ error` - conflicts, dirty + behind (수동 개입 필요)
 - `⊘ unreachable` - network timeout, auth failed
 
 **Divergence Types**:
+
 - `up-to-date` - local == remote
 - `N↓ behind` - fast-forward 가능
 - `N↑ ahead` - push 가능
@@ -587,12 +593,14 @@ gz-git push --refspec develop:master --dry-run
 ```
 
 **Refspec 검증** (자동으로 수행):
+
 - ✅ **형식 검증**: Git 브랜치명 규칙 준수 체크 (명령어 실행 전)
 - ✅ **소스 브랜치 확인**: 로컬에 소스 브랜치 존재 여부 확인 (원격 체크 전)
 - ✅ **커밋 수 계산**: 실제 push될 커밋 수를 정확히 계산
 - ✅ **원격 브랜치 확인**: 원격 브랜치 존재 여부 체크
 
 **에러 메시지 예시**:
+
 ```bash
 # 소스 브랜치 없음
 ✗ agent-mesh-cli (master)  failed  10ms
@@ -603,12 +611,14 @@ Error: invalid refspec: refspec contains invalid character: ":"
 ```
 
 **유효한 형식**:
+
 - `branch` - 같은 이름으로 push
 - `local:remote` - 로컬 브랜치를 원격 브랜치로
 - `+local:remote` - force push (--force-with-lease 사용)
 - `refs/heads/main:refs/heads/master` - 전체 ref 경로
 
 **Invalid 형식** (자동으로 에러 발생):
+
 - `develop::master` - 이중 콜론
 - `branch name` - 공백 포함
 - `-invalid` - 하이픈으로 시작
@@ -731,6 +741,7 @@ ______________________________________________________________________
 ## Future Development
 
 **Phase 8: Advanced Features** (PLANNED)
+
 - [Phase 8 Overview](docs/design/PHASE8_OVERVIEW.md) - Complete feature roadmap
 - [Config Profiles](docs/design/CONFIG_PROFILES.md) - Per-project and global settings (P2)
 - [Advanced TUI](docs/design/ADVANCED_TUI.md) - Interactive terminal UI (P1)

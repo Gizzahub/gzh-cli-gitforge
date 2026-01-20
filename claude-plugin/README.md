@@ -26,10 +26,10 @@ gz-git pull            # Pulls ALL repos
 
 ### Default Settings
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Scan Depth | `1` | Current dir + 1 level |
-| Parallel | `10` | 5 concurrent repos |
+| Setting    | Value | Description           |
+| ---------- | ----- | --------------------- |
+| Scan Depth | `1`   | Current dir + 1 level |
+| Parallel   | `10`  | 5 concurrent repos    |
 
 ### Single Repo
 

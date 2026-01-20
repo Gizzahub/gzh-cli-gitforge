@@ -9,6 +9,7 @@
 **Dependencies**: Phase 3 (Branch Management), Phase 4 (History Analysis)
 
 > **Implementation Status**:
+>
 > - ✅ Conflict Detection (`pkg/merge/detector.go`)
 > - ✅ Merge Strategies (`pkg/merge/strategy.go`)
 > - ✅ Rebase Operations (`pkg/merge/rebase.go`)
@@ -755,9 +756,9 @@ ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date       | Changes |
-| ------- | ---------- | ------- |
-| 1.0     | 2025-11-27 | Initial specification |
+| Version | Date       | Changes                                    |
+| ------- | ---------- | ------------------------------------------ |
+| 1.0     | 2025-11-27 | Initial specification                      |
 | 2.0     | 2026-01-05 | Updated implementation status, CLI section |
 
 ______________________________________________________________________
@@ -765,6 +766,7 @@ ______________________________________________________________________
 **Specification Status**: ✅ Implemented
 **Implementation Version**: v0.3.0+
 **Key Files**:
+
 - `cmd/gz-git/cmd/merge.go` - Merge command group
 - `cmd/gz-git/cmd/merge_detect.go` - Conflict detection CLI
 - `pkg/merge/types.go` - Core types

@@ -31,6 +31,7 @@ prepare:
 ```
 
 **Issues**:
+
 - Sequential execution (slow)
 - Complex error handling
 - Branch logic duplication
@@ -47,6 +48,7 @@ prepare:
 ```
 
 **Benefits**:
+
 - Parallel execution (10x faster by default)
 - Built-in error handling
 - Consistent branch management
@@ -134,48 +136,53 @@ status:
 
 ## gz-git clone Key Flags
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--url URL` | Repository URL (repeatable) | - |
-| `--file FILE` | File containing URLs (one per line) | - |
-| `--update` | Update if already cloned | false |
-| `-b, --branch` | Target branch | default branch |
-| `-j, --parallel` | Parallel workers | 10 |
-| `--dry-run` | Preview without executing | false |
-| `-d, --scan-depth` | Directory scan depth | 1 |
+| Flag               | Description                         | Default        |
+| ------------------ | ----------------------------------- | -------------- |
+| `--url URL`        | Repository URL (repeatable)         | -              |
+| `--file FILE`      | File containing URLs (one per line) | -              |
+| `--update`         | Update if already cloned            | false          |
+| `-b, --branch`     | Target branch                       | default branch |
+| `-j, --parallel`   | Parallel workers                    | 10             |
+| `--dry-run`        | Preview without executing           | false          |
+| `-d, --scan-depth` | Directory scan depth                | 1              |
 
 ## Migration Checklist
 
 When converting existing Makefile prepare targets:
 
 1. **Identify repository list**
+
    ```makefile
    # Extract from existing loop
    REPOS := repo1 repo2 repo3
    ```
 
-2. **Define Git base URL**
+1. **Define Git base URL**
+
    ```makefile
    GIT_BASE := git@github.com:myorg
    # or for GitLab:
    GIT_BASE := ssh://git@gitlab.example.com:2224/mygroup
    ```
 
-3. **Build URL arguments**
+1. **Build URL arguments**
+
    ```makefile
    REPO_URLS := $(addsuffix .git,$(addprefix $(GIT_BASE)/,$(REPOS)))
    GZ_CLONE_URL_ARGS = $(foreach u,$(REPO_URLS),--url $(u))
    ```
 
-4. **Replace for-loop with gz-git**
+1. **Replace for-loop with gz-git**
+
    ```makefile
    prepare:
    	@$(GZ) clone --update -b $(branch_name) $(GZ_CLONE_URL_ARGS)
    ```
 
-5. **Remove fallback logic** - gz-git handles errors internally
+1. **Remove fallback logic** - gz-git handles errors internally
 
-6. **Test with dry-run first**
+1. **Test with dry-run first**
+
    ```bash
    make prepare-dry
    ```
@@ -191,6 +198,7 @@ prepare:
 ```
 
 **repos.txt**:
+
 ```
 git@github.com:myorg/repo1.git
 git@github.com:myorg/repo2.git
@@ -221,21 +229,23 @@ prepare:
 
 ## Performance Comparison
 
-| Method | 8 repos | 20 repos | Notes |
-|--------|---------|----------|-------|
-| Shell for-loop | ~40s | ~100s | Sequential |
-| gz-git (j=5) | ~10s | ~25s | 5 parallel |
-| gz-git (j=10) | ~8s | ~15s | 10 parallel |
+| Method         | 8 repos | 20 repos | Notes       |
+| -------------- | ------- | -------- | ----------- |
+| Shell for-loop | ~40s    | ~100s    | Sequential  |
+| gz-git (j=5)   | ~10s    | ~25s     | 5 parallel  |
+| gz-git (j=10)  | ~8s     | ~15s     | 10 parallel |
 
 ## Troubleshooting
 
 ### "gz-git: command not found"
+
 ```bash
 # Install gz-git
 go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@latest
 ```
 
 ### SSH authentication issues
+
 ```bash
 # Test SSH connection first
 ssh -T git@github.com
@@ -245,6 +255,7 @@ make prepare-https
 ```
 
 ### Branch doesn't exist
+
 ```bash
 # gz-git will report which repos lack the branch
 # Use default branch or check branch existence first

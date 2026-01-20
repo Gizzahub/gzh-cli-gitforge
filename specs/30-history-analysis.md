@@ -720,9 +720,9 @@ ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date       | Changes |
-| ------- | ---------- | ------- |
-| 1.0     | 2025-11-27 | Initial specification |
+| Version | Date       | Changes                                                                       |
+| ------- | ---------- | ----------------------------------------------------------------------------- |
+| 1.0     | 2025-11-27 | Initial specification                                                         |
 | 2.0     | 2026-01-05 | Updated for implementation: CLI commands added, all checklist items completed |
 
 ______________________________________________________________________
@@ -730,6 +730,7 @@ ______________________________________________________________________
 **Specification Status**: ✅ Implemented
 **Implementation Version**: v0.3.0+
 **Key Files**:
+
 - `cmd/gz-git/cmd/history.go` - History command group
 - `cmd/gz-git/cmd/history_stats.go` - Statistics subcommand
 - `cmd/gz-git/cmd/history_contributors.go` - Contributors subcommand

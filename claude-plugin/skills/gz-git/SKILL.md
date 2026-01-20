@@ -32,10 +32,10 @@ Most `gz-git` commands scan a directory for repositories and process them in par
 
 ### Defaults
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `--scan-depth` | `1` | Current directory + 1 level deep |
-| `--parallel`   | `10` | Process 5 repos concurrently |
+| Setting        | Default | Description                      |
+| -------------- | ------- | -------------------------------- |
+| `--scan-depth` | `1`     | Current directory + 1 level deep |
+| `--parallel`   | `10`    | Process 5 repos concurrently     |
 
 ### Common Bulk Flags
 
@@ -140,4 +140,3 @@ gz-git tag create v1.0.0 . -m "Release 1.0.0"
 gz-git tag auto . --bump=patch
 gz-git tag push .
 ```
-

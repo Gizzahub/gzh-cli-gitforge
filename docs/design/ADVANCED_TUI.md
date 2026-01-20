@@ -12,6 +12,7 @@
 ### Current Limitations (v0.4.0)
 
 **Problem 1: Text-only output lacks interactivity**
+
 ```bash
 $ gz-git status
 Repository: /home/user/repo1 (main)
@@ -31,6 +32,7 @@ Repository: /home/user/repo3 (feature/new-api)
 ```
 
 **Issues**:
+
 - ❌ No way to select specific repos
 - ❌ Cannot perform batch operations
 - ❌ No real-time updates during sync
@@ -38,6 +40,7 @@ Repository: /home/user/repo3 (feature/new-api)
 - ❌ No filtering or sorting
 
 **Problem 2: Complex multi-repo workflows are tedious**
+
 ```bash
 # Want to sync only dirty repos?
 # Must: read output → identify repos → run sync with paths manually
@@ -47,10 +50,10 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 ## Goals
 
 1. **Visual clarity**: Easy to scan status of many repos
-2. **Interactivity**: Select repos, filter, sort
-3. **Batch operations**: Act on selected repos
-4. **Real-time feedback**: Live progress updates
-5. **Optional**: TUI is opt-in (`--tui` flag)
+1. **Interactivity**: Select repos, filter, sort
+1. **Batch operations**: Act on selected repos
+1. **Real-time feedback**: Live progress updates
+1. **Optional**: TUI is opt-in (`--tui` flag)
 
 ## Design
 
@@ -59,6 +62,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 **Decision**: Bubble Tea (Charm.sh)
 
 **Why**:
+
 - ✅ Modern, actively maintained
 - ✅ Rich ecosystem (lipgloss for styling, bubbles for components)
 - ✅ Elm-inspired architecture (predictable state management)
@@ -66,6 +70,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 - ✅ Used by popular tools (gh dash, soft serve)
 
 **Alternatives considered**:
+
 - tview: More widget-based, but heavier
 - termui: Unmaintained
 - Custom: Too much effort
@@ -107,6 +112,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 ```
 
 **Key Features**:
+
 - Checkbox selection (`[x]` / `[ ]`)
 - Status icons (`✓` clean, `✗` dirty, `⟳` syncing)
 - Ahead/behind indicators (`↑2 ↓1`)
@@ -151,6 +157,7 @@ gz-git sync from-config -c sync.yaml /path/to/repo2 /path/to/repo7 ...
 ```
 
 **Key Features**:
+
 - Overall progress bar with ETA
 - Live updates of active operations
 - Per-repo progress bars
@@ -344,6 +351,7 @@ func listenForProgress(ch <-chan syncProgressMsg) tea.Cmd {
 ### 5. Command Integration
 
 **Flag-based activation**:
+
 ```bash
 # Traditional text output
 gz-git status
@@ -353,6 +361,7 @@ gz-git status --tui
 ```
 
 **Implementation**:
+
 ```go
 func runStatus(cmd *cobra.Command, args []string) error {
     useTUI, _ := cmd.Flags().GetBool("tui")
@@ -384,53 +393,65 @@ func runStatus(cmd *cobra.Command, args []string) error {
 ## Implementation Plan
 
 ### Week 1: Foundation
+
 - [ ] **Day 1-2**: Bubble Tea setup and basic model
+
   - Initialize Bubble Tea project
   - Create basic status model (repos list)
   - Keyboard navigation (j/k, arrows)
   - Quit functionality (q)
 
 - [ ] **Day 3-4**: Styling and layout
+
   - Lipgloss integration
   - Header, list, details, actions sections
   - Colors and icons
   - Responsive layout
 
 - [ ] **Day 5**: Selection mechanism
+
   - Checkbox toggling (Space)
   - Select all / none (a, n)
   - Track selected repos
 
 ### Week 2: Interactivity
+
 - [ ] **Day 1-2**: Filtering and sorting
+
   - Filter input (/)
   - Filter by status (dirty, clean)
   - Sort by name, status, ahead/behind
 
 - [ ] **Day 3-4**: Real-time sync
+
   - Background sync execution
   - Progress updates via channels
   - Live progress bars
   - Error handling
 
 - [ ] **Day 5**: Polish
+
   - Help screen (?)
   - Keyboard shortcuts hints
   - Error messages
   - Loading states
 
 ### Week 3: Additional Views
+
 - [ ] **Day 1-2**: Cleanup TUI
+
   - Branch selection view
   - Merged/stale detection
   - Batch delete confirmation
 
 - [ ] **Day 3-4**: Testing
+
   - Unit tests (model logic)
   - Integration tests (full TUI flow)
   - Manual testing (various terminal sizes)
 
 - [ ] **Day 5**: Documentation
+
   - TUI usage guide
   - Keyboard shortcuts reference
   - Screenshots/GIFs
@@ -438,6 +459,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 ## Testing Strategy
 
 ### Unit Tests
+
 ```go
 func TestStatusModel_ToggleSelection(t *testing.T) {
     m := StatusModel{
@@ -450,6 +472,7 @@ func TestStatusModel_ToggleSelection(t *testing.T) {
 ```
 
 ### Integration Tests
+
 ```go
 func TestTUI_SelectAndSync(t *testing.T) {
     // Send key sequence: Space, s, Enter
@@ -458,6 +481,7 @@ func TestTUI_SelectAndSync(t *testing.T) {
 ```
 
 ### Manual Testing
+
 - [ ] Different terminal sizes (80x24, 120x40, 200x50)
 - [ ] Color terminal vs monochrome
 - [ ] Tmux/screen compatibility
@@ -477,16 +501,19 @@ require (
 ## Performance Considerations
 
 1. **Large repo lists** (1000+):
+
    - Virtualized scrolling (render only visible rows)
    - Lazy loading (load repos on demand)
    - Pagination
 
-2. **Real-time updates**:
+1. **Real-time updates**:
+
    - Throttle updates (max 10 FPS)
    - Batch UI updates
    - Debounce rapid changes
 
-3. **Memory usage**:
+1. **Memory usage**:
+
    - Don't load full git history in TUI
    - Stream output instead of buffering
    - Clean up goroutines on exit
@@ -515,7 +542,7 @@ require (
 - [gh dash](https://github.com/dlvhdr/gh-dash) - Similar TUI for GitHub
 - [lazygit](https://github.com/jesseduffield/lazygit) - TUI Git client (inspiration)
 
----
+______________________________________________________________________
 
 **Version**: 1.0
 **Last Updated**: 2026-01-16

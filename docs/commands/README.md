@@ -23,17 +23,17 @@ Most day-to-day commands are **bulk commands**: they scan a directory for Git re
 
 ### Common Bulk Flags
 
-| Flag           | Short | Description                                       | Default |
-| -------------- | ----- | ------------------------------------------------- | ------- |
-| `--scan-depth` | `-d`  | Directory depth to scan for repositories          | `1`     |
-| `--parallel`   | `-j`  | Number of parallel operations                     | `10`     |
-| `--dry-run`    | `-n`  | Preview without executing                         | `false` |
-| `--recursive`  | `-r`  | Recursively include nested repos and submodules   | `false` |
-| `--include`    |       | Include repositories matching regex               |         |
-| `--exclude`    |       | Exclude repositories matching regex               |         |
+| Flag           | Short | Description                                        | Default   |
+| -------------- | ----- | -------------------------------------------------- | --------- |
+| `--scan-depth` | `-d`  | Directory depth to scan for repositories           | `1`       |
+| `--parallel`   | `-j`  | Number of parallel operations                      | `10`      |
+| `--dry-run`    | `-n`  | Preview without executing                          | `false`   |
+| `--recursive`  | `-r`  | Recursively include nested repos and submodules    | `false`   |
+| `--include`    |       | Include repositories matching regex                |           |
+| `--exclude`    |       | Exclude repositories matching regex                |           |
 | `--format`     | `-f`  | Output format: `default`, `compact`, `json`, `llm` | `default` |
-| `--watch`      |       | Run continuously at intervals                     | `false` |
-| `--interval`   |       | Interval when watching                            | `5m`    |
+| `--watch`      |       | Run continuously at intervals                      | `false`   |
+| `--interval`   |       | Interval when watching                             | `5m`      |
 
 ### Output Formats
 

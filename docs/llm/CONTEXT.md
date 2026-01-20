@@ -12,10 +12,10 @@ This document is intentionally short. Canonical agent guidance lives in `CLAUDE.
 ## Read Order (Recommended)
 
 1. `CLAUDE.md`
-2. `cmd/AGENTS_COMMON.md`
-3. `cmd/gz-git/AGENTS.md`
-4. `docs/.claude-context/security-guide.md`
-5. `docs/.claude-context/common-tasks.md`
+1. `cmd/AGENTS_COMMON.md`
+1. `cmd/gz-git/AGENTS.md`
+1. `docs/.claude-context/security-guide.md`
+1. `docs/.claude-context/common-tasks.md`
 
 ## Repo Map
 
@@ -32,4 +32,3 @@ This document is intentionally short. Canonical agent guidance lives in `CLAUDE.
 ## Archived Context
 
 - Historical v0.3.0 snapshot: `docs/_deprecated/2026-01/LLM_CONTEXT_v0.3.0_2025-12-01.md`
-

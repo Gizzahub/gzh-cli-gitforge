@@ -126,21 +126,21 @@ ______________________________________________________________________
 
 ## 사용 가능한 패키지
 
-| 패키지           | 용도                              |
-| ---------------- | --------------------------------- |
+| 패키지           | 용도                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
 | `pkg/repository` | 저장소 + bulk 작업 (status/fetch/pull/push/update/diff/commit/clone) |
-| `pkg/watch`      | 저장소 변경 감시 (watch)          |
-| `pkg/history`    | 히스토리 분석 (stats/contributors/file/blame) |
-| `pkg/merge`      | 머지 충돌 감지                    |
-| `pkg/branch`     | 브랜치 유틸/정리(merged/stale/gone) |
-| `pkg/stash`      | stash 관리                        |
-| `pkg/tag`        | tag 관리 + semver                 |
-| `pkg/reposync`   | repo 동기화 플래너/실행기         |
-| `pkg/provider`   | Git forge provider 추상화         |
-| `pkg/github`     | GitHub provider 구현              |
-| `pkg/gitlab`     | GitLab provider 구현              |
-| `pkg/gitea`      | Gitea provider 구현               |
-| `pkg/sync`       | sync 설정/타입                    |
+| `pkg/watch`      | 저장소 변경 감시 (watch)                                             |
+| `pkg/history`    | 히스토리 분석 (stats/contributors/file/blame)                        |
+| `pkg/merge`      | 머지 충돌 감지                                                       |
+| `pkg/branch`     | 브랜치 유틸/정리(merged/stale/gone)                                  |
+| `pkg/stash`      | stash 관리                                                           |
+| `pkg/tag`        | tag 관리 + semver                                                    |
+| `pkg/reposync`   | repo 동기화 플래너/실행기                                            |
+| `pkg/provider`   | Git forge provider 추상화                                            |
+| `pkg/github`     | GitHub provider 구현                                                 |
+| `pkg/gitlab`     | GitLab provider 구현                                                 |
+| `pkg/gitea`      | Gitea provider 구현                                                  |
+| `pkg/sync`       | sync 설정/타입                                                       |
 
 ______________________________________________________________________
 

@@ -825,3 +825,4 @@ ______________________________________________________________________
 - v0.2.0 - Nested repos, watch mode
 - v0.3.0 - Bulk-first architecture, sync, pull
 - v0.4.0 - Bulk commit, per-repo messages (current)
+```

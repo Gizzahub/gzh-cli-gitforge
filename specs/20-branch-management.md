@@ -628,9 +628,9 @@ ______________________________________________________________________
 
 ## 11. Revision History
 
-| Version | Date       | Changes |
-| ------- | ---------- | ------- |
-| 1.0     | 2025-11-27 | Initial specification |
+| Version | Date       | Changes                                                                                          |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| 1.0     | 2025-11-27 | Initial specification                                                                            |
 | 2.0     | 2026-01-05 | Updated for v0.4.0: bulk-first operations, cleanup command restructure, worktree as library-only |
 
 ______________________________________________________________________
@@ -638,6 +638,7 @@ ______________________________________________________________________
 **Specification Status**: ✅ Implemented
 **Implementation Version**: v0.3.0+ (bulk operations), v0.4.0 (cleanup restructure)
 **Key Files**:
+
 - `cmd/gz-git/cmd/branch.go` - Branch list command
 - `cmd/gz-git/cmd/branch_list.go` - Bulk branch listing
 - `cmd/gz-git/cmd/switch.go` - Bulk switch command

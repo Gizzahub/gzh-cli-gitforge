@@ -222,7 +222,7 @@ func buildSSHCommand(keyPath string, sshPort int) string {
 func createTempSSHKey(content string) (string, error) {
 	// Create temp directory for gz-git keys if not exists
 	tempDir := filepath.Join(os.TempDir(), "gz-git-keys")
-	if err := os.MkdirAll(tempDir, 0700); err != nil {
+	if err := os.MkdirAll(tempDir, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create temp directory: %w", err)
 	}
 
@@ -234,7 +234,7 @@ func createTempSSHKey(content string) (string, error) {
 	defer tempFile.Close()
 
 	// Set restrictive permissions (required by SSH)
-	if err := os.Chmod(tempFile.Name(), 0600); err != nil {
+	if err := os.Chmod(tempFile.Name(), 0o600); err != nil {
 		os.Remove(tempFile.Name())
 		return "", fmt.Errorf("failed to set file permissions: %w", err)
 	}
