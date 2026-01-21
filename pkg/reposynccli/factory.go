@@ -119,10 +119,37 @@ Examples:
     --into sync.yaml --mode update`,
 	}
 
-	root.AddCommand(f.newFromForgeCmd())
-	root.AddCommand(f.newConfigCmd())
-	root.AddCommand(f.newStatusCmd())
-	root.AddCommand(f.newSetupCmd())
+	// Define Groups
+	// ANSI color codes
+	const (
+		colorCyanBold = "\033[1;36m"
+		colorReset    = "\033[0m"
+	)
+
+	syncGroup := &cobra.Group{ID: "sync", Title: colorCyanBold + "Sync Operations" + colorReset}
+	configGroup := &cobra.Group{ID: "config", Title: colorCyanBold + "Configuration" + colorReset}
+	diagGroup := &cobra.Group{ID: "diag", Title: colorCyanBold + "Diagnostics" + colorReset}
+
+	root.AddGroup(syncGroup, configGroup, diagGroup)
+
+	// Sync Operations
+	fromForgeCmd := f.newFromForgeCmd()
+	fromForgeCmd.GroupID = syncGroup.ID
+	root.AddCommand(fromForgeCmd)
+
+	setupCmd := f.newSetupCmd()
+	setupCmd.GroupID = syncGroup.ID
+	root.AddCommand(setupCmd)
+
+	// Configuration
+	configCmd := f.newConfigCmd()
+	configCmd.GroupID = configGroup.ID
+	root.AddCommand(configCmd)
+
+	// Diagnostics
+	statusCmd := f.newStatusCmd()
+	statusCmd.GroupID = diagGroup.ID
+	root.AddCommand(statusCmd)
 
 	return root
 }

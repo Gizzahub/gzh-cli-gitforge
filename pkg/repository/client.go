@@ -298,12 +298,35 @@ func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 		info.Branch = strings.TrimSpace(output)
 	}
 
-	// Get remote URL (default to "origin")
-	output, err = c.executor.RunOutput(ctx, repo.Path, "remote", "get-url", "origin")
+	// Get all remotes
+	info.Remotes = make(map[string]string)
+	output, err = c.executor.RunOutput(ctx, repo.Path, "remote", "-v")
 	if err != nil {
-		c.logger.Debug("Failed to get remote URL: %v", err)
+		c.logger.Debug("Failed to get configured remotes: %v", err)
 	} else {
-		info.RemoteURL = strings.TrimSpace(output)
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			// Format: name\turl (purpose)
+			// Example: origin  https://github.com/user/repo.git (fetch)
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				name := parts[0]
+				url := parts[1]
+				info.Remotes[name] = url
+			}
+		}
+	}
+
+	// Set primary remote URL (prefer origin, fallback to random first)
+	info.Remote = "origin"
+	if url, ok := info.Remotes["origin"]; ok {
+		info.RemoteURL = url
+	} else if len(info.Remotes) > 0 {
+		for name, url := range info.Remotes {
+			info.Remote = name
+			info.RemoteURL = url
+			break
+		}
 	}
 
 	// Get upstream branch
@@ -327,6 +350,55 @@ func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 				info.AheadBy = ahead
 				info.BehindBy = behind
 			}
+		}
+	}
+
+	// Get additional details (HeadSHA, Describe, LastCommit)
+	// Consolidate into one command interaction if possible? git log -1 --format is useful
+	// Format: %h|%s|%cr|%an
+	output, err = c.executor.RunOutput(ctx, repo.Path, "log", "-1", "--format=%h|%s|%cr|%an")
+	if err == nil {
+		parts := strings.Split(strings.TrimSpace(output), "|")
+		if len(parts) >= 4 {
+			info.HeadSHA = parts[0]
+			info.LastCommitMsg = parts[1]
+			info.LastCommitDate = parts[2]
+			info.LastCommitAuthor = parts[3]
+		}
+	} else {
+		// Try just getting hash if log fails (e.g. empty repo)
+		output, err = c.executor.RunOutput(ctx, repo.Path, "rev-parse", "--short", "HEAD")
+		if err == nil {
+			info.HeadSHA = strings.TrimSpace(output)
+		}
+	}
+
+	// Get Describe (version)
+	output, err = c.executor.RunOutput(ctx, repo.Path, "describe", "--tags", "--always", "--dirty")
+	if err == nil {
+		info.Describe = strings.TrimSpace(output)
+	}
+
+	// Get Branch Count
+	output, err = c.executor.RunOutput(ctx, repo.Path, "branch", "--list")
+	if err == nil {
+		lines := strings.Split(strings.TrimSpace(output), "\n")
+		count := 0
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				count++
+			}
+		}
+		info.LocalBranchCount = count
+	}
+
+	// Get Stash Count
+	output, err = c.executor.RunOutput(ctx, repo.Path, "stash", "list")
+	if err == nil {
+		if strings.TrimSpace(output) == "" {
+			info.StashCount = 0
+		} else {
+			info.StashCount = len(strings.Split(strings.TrimSpace(output), "\n"))
 		}
 	}
 

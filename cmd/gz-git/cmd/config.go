@@ -17,7 +17,11 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
 
-var configLocal bool // For init --local
+var (
+	configGlobal  bool // For init --global, set --global
+	configLocal   bool // For init --local, show --local
+	showEffective bool // For show --effective
+)
 
 // configCmd represents the config command
 var configCmd = &cobra.Command{
@@ -33,7 +37,7 @@ Configuration Layers (highest to lowest priority):
   5. Built-in defaults
 
 Quick Start Workflow:
-  1. Initialize:      gz-git config init
+  1. Initialize:      gz-git config init        # Create local .gz-git.yaml
   2. Create profile:  gz-git config profile create work
   3. Activate:        gz-git config profile use work
   4. Verify:          gz-git config show
@@ -51,8 +55,11 @@ Profile Lifecycle:
   - All values are shown with their source in 'config show'
 
 Examples:
-  # Initialize config directory
+  # Initialize project config (.gz-git.yaml)
   gz-git config init
+
+  # Initialize global config (~/.config/gz-git/)
+  gz-git config init --global
 
   # Create a profile
   gz-git config profile create work
@@ -71,28 +78,34 @@ Examples:
 // configInitCmd initializes configuration
 var configInitCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize configuration directory or project config",
-	Long: `Initialize gz-git configuration directory or project-specific config.
+	Short: "Initialize project or global configuration",
+	Long: `Initialize gz-git configuration.
 
-Without --local: Creates ~/.config/gz-git/ with default profile
-With --local: Creates .gz-git.yaml in current directory
+Default: Creates .gz-git.yaml in current directory (Project config)
+With --global: Creates ~/.config/gz-git/ with default profile (Global config)
 
 Examples:
-  # Initialize global config
+  # Initialize project config (default)
   gz-git config init
 
-  # Initialize project config
-  gz-git config init --local`,
+  # Initialize project config (explicit)
+  gz-git config init --local
+
+  # Initialize global config
+  gz-git config init --global`,
 	RunE: runConfigInit,
 }
 
 // configShowCmd shows effective configuration
 var configShowCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show effective configuration with sources",
-	Long: `Show the effective configuration after applying all precedence layers.
+	Short: "Show project or effective configuration",
+	Long: `Show configuration content.
 
-Understanding the Output:
+Default: Shows project configuration (.gz-git.yaml) in current directory.
+With --effective: Shows effective configuration after applying all precedence layers.
+
+Understanding the Output (Effective Mode):
   Each configuration value is displayed with its source attribution:
     [flag]    - Value from command-line flag (highest priority)
     [project] - Value from .gz-git.yaml in current/parent directory
@@ -101,56 +114,20 @@ Understanding the Output:
     [default] - Built-in default value (lowest priority)
 
 Use Cases:
-  - Debugging: "Why is this value being used?"
-  - Verification: "Is my profile active?"
-  - Documentation: "What are the current settings?"
+  - Check local settings: "gz-git config show"
+  - Debugging: "gz-git config show --effective"
   - Troubleshooting: "Which config layer is overriding my value?"
 
 Examples:
-  # Show effective config with source attribution
+  # Show project config (.gz-git.yaml) - Default
   gz-git config show
 
-  # Show project config only
+  # Show project config (explicit)
   gz-git config show --local
 
-  # Typical output:
-  # provider: gitlab [profile:work]
-  # baseURL: https://gitlab.company.com [profile:work]
-  # cloneProto: ssh [default]
-  # parallel: 10 [project]`,
+  # Show effective config with source attribution
+  gz-git config show --effective`,
 	RunE: runConfigShow,
-}
-
-// configGetCmd gets a specific config value
-var configGetCmd = &cobra.Command{
-	Use:   "get <key>",
-	Short: "Get a specific configuration value",
-	Long: `Get a specific configuration value from the effective config.
-
-Examples:
-  # Get provider
-  gz-git config get provider
-
-  # Get parallel count
-  gz-git config get parallel`,
-	Args: cobra.ExactArgs(1),
-	RunE: runConfigGet,
-}
-
-// configSetCmd sets a global default
-var configSetCmd = &cobra.Command{
-	Use:   "set <key> <value>",
-	Short: "Set a global default value",
-	Long: `Set a global default value in ~/.config/gz-git/config.yaml.
-
-Examples:
-  # Set default parallel count
-  gz-git config set defaults.parallel 10
-
-  # Set default clone protocol
-  gz-git config set defaults.cloneProto ssh`,
-	Args: cobra.ExactArgs(2),
-	RunE: runConfigSet,
 }
 
 // Profile subcommands
@@ -333,8 +310,6 @@ func init() {
 	// Subcommands
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configShowCmd)
-	configCmd.AddCommand(configGetCmd)
-	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configProfileCmd)
 	configCmd.AddCommand(configHierarchyCmd)
 
@@ -346,7 +321,11 @@ func init() {
 	configProfileCmd.AddCommand(configProfileDeleteCmd)
 
 	// Flags
-	configInitCmd.Flags().BoolVar(&configLocal, "local", false, "Initialize project config (.gz-git.yaml)")
+	configInitCmd.Flags().BoolVar(&configGlobal, "global", false, "Initialize global configuration (~/.config/gz-git)")
+	configInitCmd.Flags().BoolVar(&configLocal, "local", false, "Initialize project config (default)")
+
+	configShowCmd.Flags().BoolVar(&showEffective, "effective", false, "Show effective configuration (merged)")
+	configShowCmd.Flags().BoolVar(&configLocal, "local", false, "Show project config (default)")
 
 	configHierarchyCmd.Flags().BoolVar(&validateFlag, "validate", false, "Validate all config files in hierarchy")
 	configHierarchyCmd.Flags().BoolVar(&compactFlag, "compact", false, "Show compact output")
@@ -369,30 +348,29 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create manager: %w", err)
 	}
 
-	if configLocal {
-		// Initialize project config
-		projectConfig := &config.ProjectConfig{
-			Profile: config.DefaultProfileName,
+	if configGlobal {
+		// Initialize global config
+		if err := mgr.Initialize(); err != nil {
+			return fmt.Errorf("failed to initialize config: %w", err)
 		}
 
-		if err := mgr.SaveProjectConfig(projectConfig); err != nil {
-			return fmt.Errorf("failed to create project config: %w", err)
-		}
-
-		cwd, _ := os.Getwd()
-		fmt.Printf("Created .gz-git.yaml in %s\n", cwd)
+		paths, _ := config.NewPaths()
+		fmt.Printf("Initialized configuration in %s\n", paths.ConfigDir)
+		fmt.Println("Created default profile")
 		return nil
 	}
 
-	// Initialize global config
-	if err := mgr.Initialize(); err != nil {
-		return fmt.Errorf("failed to initialize config: %w", err)
+	// Initialize project config (Default)
+	projectConfig := &config.ProjectConfig{
+		Profile: config.DefaultProfileName,
 	}
 
-	paths, _ := config.NewPaths()
-	fmt.Printf("Initialized configuration in %s\n", paths.ConfigDir)
-	fmt.Println("Created default profile")
+	if err := mgr.SaveProjectConfig(projectConfig); err != nil {
+		return fmt.Errorf("failed to create project config: %w", err)
+	}
 
+	cwd, _ := os.Getwd()
+	fmt.Printf("Created .gz-git.yaml in %s\n", cwd)
 	return nil
 }
 
@@ -403,15 +381,15 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create manager: %w", err)
 	}
 
-	if configLocal {
-		// Show project config only
+	if !showEffective {
+		// Show project config (Default)
 		projectConfig, err := mgr.LoadProjectConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load project config: %w", err)
 		}
 
 		if projectConfig == nil {
-			fmt.Println("No project config found")
+			fmt.Println("No project config found (.gz-git.yaml)")
 			return nil
 		}
 
@@ -456,86 +434,6 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		printConfigValue("Subgroup Mode", effective.SubgroupMode, effective.GetSource("subgroupMode"))
 	}
 
-	return nil
-}
-
-// runConfigGet gets a specific config value
-func runConfigGet(cmd *cobra.Command, args []string) error {
-	key := args[0]
-
-	loader, err := config.NewLoader()
-	if err != nil {
-		return fmt.Errorf("failed to create loader: %w", err)
-	}
-
-	if err := loader.Load(); err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	effective, err := loader.ResolveConfig(nil)
-	if err != nil {
-		return fmt.Errorf("failed to resolve config: %w", err)
-	}
-
-	// Try to get value
-	if val, ok := effective.GetString(key); ok {
-		fmt.Println(val)
-		return nil
-	}
-	if val, ok := effective.GetInt(key); ok {
-		fmt.Println(val)
-		return nil
-	}
-	if val, ok := effective.GetBool(key); ok {
-		fmt.Println(val)
-		return nil
-	}
-
-	return fmt.Errorf("key '%s' not found or has no value", key)
-}
-
-// runConfigSet sets a global default
-func runConfigSet(cmd *cobra.Command, args []string) error {
-	key := args[0]
-	value := args[1]
-
-	mgr, err := config.NewManager()
-	if err != nil {
-		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	// Load global config
-	globalConfig, err := mgr.LoadGlobalConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load global config: %w", err)
-	}
-
-	// Set value in defaults
-	if globalConfig.Defaults == nil {
-		globalConfig.Defaults = make(map[string]interface{})
-	}
-
-	// Parse key (e.g., defaults.parallel)
-	parts := strings.Split(key, ".")
-	if len(parts) != 2 || parts[0] != "defaults" {
-		return fmt.Errorf("key must be in format 'defaults.key' (e.g., defaults.parallel)")
-	}
-
-	// Try to parse value as int, otherwise treat as string
-	if intVal, err := fmt.Sscanf(value, "%d", new(int)); err == nil && intVal == 1 {
-		var i int
-		fmt.Sscanf(value, "%d", &i)
-		globalConfig.Defaults[parts[1]] = i
-	} else {
-		globalConfig.Defaults[parts[1]] = value
-	}
-
-	// Save global config
-	if err := mgr.SaveGlobalConfig(globalConfig); err != nil {
-		return fmt.Errorf("failed to save global config: %w", err)
-	}
-
-	fmt.Printf("Set %s = %s\n", key, value)
 	return nil
 }
 

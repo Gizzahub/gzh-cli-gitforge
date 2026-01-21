@@ -29,14 +29,6 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 Workspace commands handle local config file operations for managing
 multiple git repositories as a workspace.
 
-Commands:
-  init      - Create empty config file
-  scan      - Scan directory for git repos and generate config
-  sync      - Clone/update repositories based on config
-  status    - Check workspace health
-  add       - Add repository to config
-  validate  - Validate config file
-
 Config File:
   Default: .gz-git.yaml (in current directory)
   Custom:  Use -c/--config flag to specify different file
@@ -60,12 +52,45 @@ Examples:
 		SilenceErrors: true,
 	}
 
-	root.AddCommand(f.newInitCmd())
-	root.AddCommand(f.newScanCmd())
-	root.AddCommand(f.newSyncCmd())
-	root.AddCommand(f.newStatusCmd())
-	root.AddCommand(f.newAddCmd())
-	root.AddCommand(f.newValidateCmd())
+	// Define Groups
+	// ANSI color codes
+	const (
+		colorCyanBold = "\033[1;36m"
+		colorReset    = "\033[0m"
+	)
+
+	mgmtGroup := &cobra.Group{ID: "mgmt", Title: colorCyanBold + "Management" + colorReset}
+	opsGroup := &cobra.Group{ID: "ops", Title: colorCyanBold + "Operations" + colorReset}
+	diagGroup := &cobra.Group{ID: "diag", Title: colorCyanBold + "Diagnostics" + colorReset}
+
+	root.AddGroup(mgmtGroup, opsGroup, diagGroup)
+
+	// Management
+	initCmd := f.newInitCmd()
+	initCmd.GroupID = mgmtGroup.ID
+	root.AddCommand(initCmd)
+
+	scanCmd := f.newScanCmd()
+	scanCmd.GroupID = mgmtGroup.ID
+	root.AddCommand(scanCmd)
+
+	addCmd := f.newAddCmd()
+	addCmd.GroupID = mgmtGroup.ID
+	root.AddCommand(addCmd)
+
+	// Operations
+	syncCmd := f.newSyncCmd()
+	syncCmd.GroupID = opsGroup.ID
+	root.AddCommand(syncCmd)
+
+	// Diagnostics
+	statusCmd := f.newStatusCmd()
+	statusCmd.GroupID = diagGroup.ID
+	root.AddCommand(statusCmd)
+
+	validateCmd := f.newValidateCmd()
+	validateCmd.GroupID = diagGroup.ID
+	root.AddCommand(validateCmd)
 
 	return root
 }

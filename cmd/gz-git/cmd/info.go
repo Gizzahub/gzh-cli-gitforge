@@ -4,25 +4,31 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
-	"syscall"
+	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-var infoVerbose bool
+var infoFlags BulkCommandFlags
 
 // infoCmd represents the info command
 var infoCmd = &cobra.Command{
-	Use:   "info [path]",
+	Use:   "info [directory]",
 	Short: "Display repository information",
-	Long: `Display information about the current Git repository.
+	Long: `Display information about Git repositories in the specified directory.
 
-Shows basic repository details like current branch, status, and remote info.
-Use --verbose for additional details.`,
+Scans for repositories and shows metadata such as current branch, remote URL,
+and status summary.
+
+By default:
+  - Scans 1 directory level deep
+  - Processes 10 repositories in parallel
+  - Shows result in a table format`,
+	Args: cobra.MaximumNArgs(1),
 	Example: `  # Show info for current directory
   gz-git info
 
@@ -36,101 +42,168 @@ Use --verbose for additional details.`,
 
 func init() {
 	rootCmd.AddCommand(infoCmd)
-	infoCmd.Flags().BoolVarP(&infoVerbose, "verbose", "v", false, "show verbose output")
+
+	// Common bulk operation flags
+	addBulkFlags(infoCmd, &infoFlags)
 }
 
 func runInfo(cmd *cobra.Command, args []string) error {
-	// Setup context with signal handling
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		cancel()
-	}()
-
-	// Determine repository path
-	repoPath := "."
-	if len(args) > 0 {
-		repoPath = args[0]
+	// Load config with profile support
+	effective, _ := LoadEffectiveConfig(cmd, nil)
+	if effective != nil {
+		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
+			infoFlags.Parallel = effective.Parallel
+		}
+		if verbose {
+			PrintConfigSources(cmd, effective)
+		}
 	}
 
-	// Get absolute path
-	absPath, err := filepath.Abs(repoPath)
+	// Validate and parse directory
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+		return err
 	}
 
-	// Create client and open repository
+	// Validate depth
+	if err := validateBulkDepth(cmd, infoFlags.Depth); err != nil {
+		return err
+	}
+
+	// Create client
 	client := repository.NewClient()
 
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+	// Create logger for verbose mode
+	logger := createBulkLogger(verbose)
+
+	if shouldShowProgress(infoFlags.Format, quiet) {
+		printScanningMessage(directory, infoFlags.Depth, infoFlags.Parallel, false)
 	}
 
-	// Get repository info
-	info, err := client.GetInfo(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("failed to get repository info: %w", err)
+	// Setup bulk scan options
+	bulkOpts := repository.BulkStatusOptions{
+		Directory:         directory,
+		Parallel:          infoFlags.Parallel,
+		MaxDepth:          infoFlags.Depth,
+		Verbose:           verbose,
+		IncludeSubmodules: infoFlags.IncludeSubmodules,
+		IncludePattern:    infoFlags.Include,
+		ExcludePattern:    infoFlags.Exclude,
+		Logger:            logger,
 	}
 
-	// Get repository status for clean/dirty
-	status, err := client.GetStatus(ctx, repo)
+	// Execute scan
+	result, err := client.BulkStatus(ctx, bulkOpts)
 	if err != nil {
-		return fmt.Errorf("failed to get repository status: %w", err)
+		return fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Display info
-	displayInfo(absPath, info, status, infoVerbose)
+	// Display results
+	if infoFlags.Format == "json" {
+		displayInfoResultsJSON(result)
+		return nil
+	}
+
+	displayInfoResultsTable(result)
 
 	return nil
 }
 
-func displayInfo(path string, info *repository.Info, status *repository.Status, verbose bool) {
-	fmt.Printf("Repository: %s\n", path)
-	fmt.Printf("Branch: %s\n", info.Branch)
-
-	// Status line
-	if status.IsClean {
-		fmt.Println("Status: clean")
-	} else {
-		fmt.Println("Status: dirty")
+func displayInfoResultsTable(result *repository.BulkStatusResult) {
+	if len(result.Repositories) == 0 {
+		fmt.Println("No repositories found.")
+		return
 	}
 
-	// Always show remote URL if available (commonly expected)
-	if info.RemoteURL != "" {
-		fmt.Printf("Remote URL: %s\n", info.RemoteURL)
-	}
+	fmt.Println()
+	fmt.Printf("found %d repositories (scanned in %s)\n", len(result.Repositories), result.Duration.Round(10*time.Millisecond))
+	fmt.Println()
 
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+	// Header
 	if verbose {
-		fmt.Printf("Commit: %s\n", info.Commit)
+		fmt.Fprintln(w, "REPOSITORY\tBRANCH (SHA)\tVERSION\tSTATUS\tUPDATE\tAUTHOR\tREMOTE")
+	} else {
+		fmt.Fprintln(w, "REPOSITORY\tBRANCH\tVERSION\tSTATUS\tUPDATE\tREMOTE")
+	}
 
-		if info.Remote != "" {
-			fmt.Printf("Remote: %s\n", info.Remote)
-		}
-		if info.Upstream != "" {
-			fmt.Printf("Upstream: %s\n", info.Upstream)
-		}
-
-		// Ahead/behind info
-		if info.AheadBy > 0 || info.BehindBy > 0 {
-			fmt.Printf("Ahead: %d, Behind: %d\n", info.AheadBy, info.BehindBy)
+	for _, repo := range result.Repositories {
+		// Format Path (basename unless verbose)
+		path := filepath.Base(repo.Path)
+		if verbose {
+			path = repo.RelativePath
 		}
 
-		// File counts if dirty
-		if !status.IsClean {
-			if len(status.StagedFiles) > 0 {
-				fmt.Printf("Staged: %d files\n", len(status.StagedFiles))
+		// Format Status
+		status := "clean"
+		if repo.Status != "clean" {
+			status = repo.Status
+			if repo.UncommittedFiles > 0 {
+				status = fmt.Sprintf("dirty (%d)", repo.UncommittedFiles)
 			}
-			if len(status.ModifiedFiles) > 0 {
-				fmt.Printf("Modified: %d files\n", len(status.ModifiedFiles))
+		}
+		// Add stash count to status
+		if repo.StashCount > 0 {
+			status += fmt.Sprintf(" (%d stash)", repo.StashCount)
+		}
+
+		// Format Remote (shorten if too long)
+		remote := repo.RemoteURL
+		if remote == "" {
+			remote = "-"
+		} else {
+			// Add indicator for multiple remotes
+			if len(repo.Remotes) > 1 {
+				remote += fmt.Sprintf(" (+%d)", len(repo.Remotes)-1)
 			}
-			if len(status.UntrackedFiles) > 0 {
-				fmt.Printf("Untracked: %d files\n", len(status.UntrackedFiles))
+
+			if !verbose && len(remote) > 40 {
+				remote = "..." + remote[len(remote)-37:]
 			}
+		}
+
+		// Format Branch & SHA
+		branch := repo.Branch
+		if branch == "" {
+			branch = "DETACHED"
+		}
+		if repo.HeadSHA != "" {
+			branch += fmt.Sprintf(" (%s)", repo.HeadSHA)
+		}
+		// Add branch count if meaningful
+		if repo.LocalBranchCount > 1 {
+			// We iterate local branches, so >1 means there are others.
+			// But showing (+N) might clutter the branch column too much if SHA is there.
+			// Let's keep it simple or show only in verbose.
+		}
+
+		// Format Version (Describe)
+		version := repo.Describe
+		if version == "" {
+			version = "-"
+		}
+
+		// Format Update (Time)
+		update := repo.LastCommitDate
+		if update == "" {
+			update = "-"
+		}
+
+		if verbose {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				path, branch, version, status, update, repo.LastCommitAuthor, remote)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				path, branch, version, status, update, remote)
 		}
 	}
+	w.Flush()
+	fmt.Println()
+}
+
+func displayInfoResultsJSON(result *repository.BulkStatusResult) {
+	// Re-use status JSON output format as it contains all info
+	displayStatusResultsJSON(result)
 }

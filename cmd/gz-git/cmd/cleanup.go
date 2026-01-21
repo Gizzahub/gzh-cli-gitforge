@@ -13,11 +13,6 @@ var cleanupCmd = &cobra.Command{
 This command provides subcommands for cleaning up:
   - branch: merged, stale, or gone branches
 
-Future cleanup targets:
-  - worktree: orphaned worktrees
-  - stash: old stashes
-  - remote: non-existent remotes
-
 All cleanup commands support bulk mode for multi-repository operations.`,
 	Example: `  # Clean up merged branches (dry-run)
   gz-git cleanup branch --merged

@@ -185,6 +185,30 @@ type Info struct {
 
 	// BehindBy is the number of commits behind upstream.
 	BehindBy int
+
+	// Remotes contains all configured remotes (name -> url).
+	Remotes map[string]string
+
+	// HeadSHA is the short hash of the current commit.
+	HeadSHA string
+
+	// Describe is the result of 'git describe' (e.g. v1.0.0-5-g123abc).
+	Describe string
+
+	// LastCommitMsg is the subject of the last commit.
+	LastCommitMsg string
+
+	// LastCommitDate is the relative date of the last commit (e.g. "2 hours ago").
+	LastCommitDate string
+
+	// LastCommitAuthor is the author of the last commit.
+	LastCommitAuthor string
+
+	// LocalBranchCount is the number of local branches.
+	LocalBranchCount int
+
+	// StashCount is the number of stash entries.
+	StashCount int
 }
 
 // Status represents the working tree and staging area status.

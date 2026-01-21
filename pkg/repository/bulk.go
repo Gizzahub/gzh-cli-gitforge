@@ -440,6 +440,18 @@ type RepositoryStatusResult struct {
 	// Remote is the remote name (e.g., "origin")
 	Remote string
 
+	// Remotes contains all configured remotes (name -> url).
+	Remotes map[string]string
+
+	// Metadata
+	HeadSHA          string
+	Describe         string
+	LastCommitMsg    string
+	LastCommitDate   string
+	LastCommitAuthor string
+	LocalBranchCount int
+	StashCount       int
+
 	// CommitsBehind is how many commits behind remote
 	CommitsBehind int
 
@@ -2334,6 +2346,14 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 	result.Branch = info.Branch
 	result.RemoteURL = info.RemoteURL
 	result.Remote = info.Remote
+	result.Remotes = info.Remotes
+	result.HeadSHA = info.HeadSHA
+	result.Describe = info.Describe
+	result.LastCommitMsg = info.LastCommitMsg
+	result.LastCommitDate = info.LastCommitDate
+	result.LastCommitAuthor = info.LastCommitAuthor
+	result.LocalBranchCount = info.LocalBranchCount
+	result.StashCount = info.StashCount
 	result.CommitsBehind = info.BehindBy
 	result.CommitsAhead = info.AheadBy
 

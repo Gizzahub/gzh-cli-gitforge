@@ -1,0 +1,169 @@
+// Copyright (c) 2025 Archmagece
+// SPDX-License-Identifier: MIT
+
+package config
+
+// ExampleConfig is a documented example configuration showing all available options.
+const ExampleConfig = `# gz-git Configuration Reference
+# ==================================
+# This file serves as a reference for all available configuration options.
+# You can use this structure in:
+#   - Project config: .gz-git.yaml
+#   - Global config:  ~/.config/gz-git/config.yaml
+#   - Profile config: ~/.config/gz-git/profiles/*.yaml
+
+# -----------------------------------------------------------------------------
+# Core Settings
+# -----------------------------------------------------------------------------
+
+# Profile to use for this configuration scope
+# Type: string
+# Default: "default"
+profile: work
+
+# -----------------------------------------------------------------------------
+# Forge Provider Settings (Source)
+# -----------------------------------------------------------------------------
+
+# Provider type (required for forge sync)
+# Type: string ("gitlab" | "github" | "gitea")
+provider: gitlab
+
+# API Base URL (required for self-hosted instances)
+# Type: string (url)
+baseURL: https://gitlab.company.com
+
+# Authentication Token
+# Type: string (recommended: use ${ENV_VAR} syntax)
+token: ${GITLAB_TOKEN}
+
+# -----------------------------------------------------------------------------
+# Clone & Network Settings
+# -----------------------------------------------------------------------------
+
+# Protocol to use for cloning
+# Type: string ("ssh" | "https")
+# Default: "ssh"
+cloneProto: ssh
+
+# Custom SSH port (if non-standard)
+# Type: integer
+sshPort: 2222
+
+# SSH Key path preference (optional)
+# Type: string (path)
+sshKeyPath: ~/.ssh/id_ed25519_work
+
+# -----------------------------------------------------------------------------
+# Bulk Operation Settings
+# -----------------------------------------------------------------------------
+
+# Number of parallel operations
+# Type: integer
+# Default: 10
+parallel: 10
+
+# Include subgroups when syncing from GitLab
+# Type: boolean
+# Default: false
+includeSubgroups: true
+
+# Directory structure for subgroups
+# Type: string ("flat" | "nested")
+# Default: "flat"
+# - flat:  group-subgroup-project
+# - nested: group/subgroup/project
+subgroupMode: flat
+
+# -----------------------------------------------------------------------------
+# Command-Specific Overrides
+# -----------------------------------------------------------------------------
+
+# Sync Command Settings
+sync:
+  # Strategy for updating existing repos
+  # Type: string ("pull" | "reset" | "skip")
+  # - pull:  git pull (fast-forward or rebase based on settings)
+  # - reset: git fetch --all && git reset --hard @{u} (destructive!)
+  # - skip:  skip updating existing repos
+  strategy: pull
+
+  # Max retry attempts for network operations
+  # Type: integer
+  maxRetries: 3
+
+  # Operation timeout
+  # Type: string (duration, e.g. "30s", "1m")
+  timeout: 60s
+
+# Branch Command Settings
+branch:
+  # Default branch name to expect
+  # Type: string
+  defaultBranch: main
+
+  # Protected branches (prevent accidental deletion/overwrite)
+  # Type: list of strings
+  protectedBranches:
+    - main
+    - master
+    - develop
+    - release/*
+
+# Fetch Command Settings
+fetch:
+  # Fetch all remotes, not just origin
+  # Type: boolean
+  allRemotes: true
+
+  # Prune deleted remote branches
+  # Type: boolean
+  prune: true
+
+# Pull Command Settings
+pull:
+  # Use rebase instead of merge
+  # Type: boolean
+  rebase: false
+
+  # Only allow fast-forward
+  # Type: boolean
+  ffOnly: false
+
+# Push Command Settings
+push:
+  # Automatically set upstream on push
+  # Type: boolean
+  setUpstream: true
+
+# -----------------------------------------------------------------------------
+# Workspace Structure (Recursive)
+# -----------------------------------------------------------------------------
+# Define child workspaces or repositories.
+# Discovery Mode controls how children are found:
+# - hybrid: Use defined children + scan directories (default)
+# - auto:   Scan directories only
+# - explicit: Use defined children only
+
+discovery:
+  mode: hybrid
+
+# Child definitions
+children:
+  # 1. Recursive Config Child
+  - path: backend
+    type: config        # Load .gz-git.yaml from this dir
+
+  # 2. Simple Git Repo Child
+  - path: frontend
+    type: git           # Treat as single git repo
+    profile: personal   # Override profile for this child
+
+# -----------------------------------------------------------------------------
+# Metadata (Optional)
+# -----------------------------------------------------------------------------
+metadata:
+  team: backend-team
+  owner: archmagece
+  description: "Main backend services"
+`

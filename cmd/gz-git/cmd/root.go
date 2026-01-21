@@ -24,56 +24,12 @@ var rootCmd = &cobra.Command{
 	Short: "Advanced Git operations CLI",
 	Long: `gz-git is a bulk-first Git CLI that runs safe operations across many repositories in parallel.
 
-Key Features:
-
-  ⚙ Configuration Profiles    - Switch contexts instantly (work/personal/client)
-  🏥 Health Diagnostics        - Real-time repository health monitoring
-  🔀 Refspec Support           - Push local:remote branch mapping
-  📁 Recursive Configuration   - Hierarchical config for complex workspaces
-  🌐 Network Resilience        - Timeout detection, smart retries
-  🔍 Smart Recommendations     - Context-aware next actions
-  🔐 Security First            - Input sanitization, safe execution
-
-Quick Start:
-
-  # Set up profiles
+[1;36mQuick Start:[0m
+  # Initialize workspace and check status
   gz-git config init
-  gz-git config profile create work
-  gz-git config profile use work
+  gz-git status
 
-  # Check repository health
-  gz-git status ~/projects
-
-  # Sync from Git forge
-  gz-git sync from-forge --provider gitlab --org myteam
-
-This tool can also be used as a Go library for integrating Git operations
-into your own applications.
-
-Command Groups:
-
-  Core Operations      clone, status, fetch, pull, push, diff, update
-  Branch & Cleanup     branch, switch, merge, cleanup
-  Automation           commit, sync, watch, config
-  Analysis             history, info
-  Maintenance          stash, tag
-
-Common Workflows:
-
-  Daily development:
-    gz-git status              # Check all repos (health diagnostics)
-    gz-git diff                # Review changes across repos
-    gz-git commit --dry-run    # Preview bulk commits
-    gz-git commit --yes        # Apply bulk commits
-
-  Team sync:
-    gz-git sync from-forge --provider gitlab --org myteam
-    gz-git fetch               # Update remote refs
-
-  Branch work:
-    git checkout -b feature/x  # Create a branch (native git)
-    gz-git push --refspec feature/x:release/x
-    gz-git cleanup branch --merged`,
+See 'gz-git schema' for configuration reference.`,
 	Version: appVersion,
 	// Uncomment the following line if your application requires Cobra to
 	// check for a config file.
@@ -86,9 +42,41 @@ func Execute(version string) {
 	appVersion = version
 	rootCmd.Version = version
 
+	setCommandGroups(rootCmd)
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+func setCommandGroups(cmd *cobra.Command) {
+	// ANSI color codes
+	const (
+		colorCyanBold = "\033[1;36m"
+		colorReset    = "\033[0m"
+	)
+
+	coreGroup := &cobra.Group{ID: "core", Title: colorCyanBold + "Core Git Operations" + colorReset}
+	mgmtGroup := &cobra.Group{ID: "mgmt", Title: colorCyanBold + "Management & Configuration" + colorReset}
+	toolGroup := &cobra.Group{ID: "tool", Title: colorCyanBold + "Additional Tools" + colorReset}
+
+	cmd.AddGroup(coreGroup, mgmtGroup, toolGroup)
+
+	for _, c := range cmd.Commands() {
+		// Skip internal commands
+		if c.Name() == "help" || c.Name() == "completion" || c.Name() == "version" {
+			continue
+		}
+
+		switch c.Name() {
+		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update":
+			c.GroupID = coreGroup.ID
+		case "workspace", "config", "sync", "schema", "cleanup":
+			c.GroupID = mgmtGroup.ID
+		default:
+			c.GroupID = toolGroup.ID
+		}
 	}
 }
 
