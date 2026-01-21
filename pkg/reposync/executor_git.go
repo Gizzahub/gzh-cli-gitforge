@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -271,6 +272,28 @@ func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, l
 		msg = fmt.Sprintf("%s %s", result.Action, action.Repo.TargetPath)
 	}
 
+	// Checkout branch if specified
+	if action.Repo.Branch != "" {
+		branchMsg, branchErr := checkoutBranch(ctx, action.Repo.TargetPath, action.Repo.Branch, logger)
+		if branchErr != nil {
+			if action.Repo.StrictBranchCheckout {
+				// Strict mode: treat branch checkout failure as action failure
+				res := ActionResult{
+					Action:  action,
+					Message: fmt.Sprintf("%s (branch checkout failed: %v)", msg, branchErr),
+					Error:   branchErr,
+				}
+				sink.OnComplete(res)
+				return res, branchErr
+			}
+			// Lenient mode: warn but continue
+			msg = fmt.Sprintf("%s (warning: branch checkout failed: %v)", msg, branchErr)
+			logger.Warn(fmt.Sprintf("%s: branch checkout warning: %v", action.Repo.Name, branchErr))
+		} else if branchMsg != "" {
+			msg = fmt.Sprintf("%s (%s)", msg, branchMsg)
+		}
+	}
+
 	res := ActionResult{
 		Action:  action,
 		Message: msg,
@@ -326,3 +349,18 @@ func (nopGitLogger) Debug(string, ...interface{}) {}
 func (nopGitLogger) Info(string, ...interface{})  {}
 func (nopGitLogger) Warn(string, ...interface{})  {}
 func (nopGitLogger) Error(string, ...interface{}) {}
+
+// checkoutBranch attempts to checkout the specified branch in the given repository path.
+// Returns a success message and nil error on success, or an error on failure.
+func checkoutBranch(ctx context.Context, repoPath, branch string, logger repo.Logger) (string, error) {
+	// Use exec.CommandContext to respect context cancellation/timeout
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "checkout", branch)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git checkout %s failed: %w (output: %s)", branch, err, string(output))
+	}
+	
+	logger.Debug("branch checkout: %s -> %s", repoPath, branch)
+	return fmt.Sprintf("checked out %s", branch), nil
+}
