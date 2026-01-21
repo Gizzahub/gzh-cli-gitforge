@@ -449,7 +449,7 @@ type RepositoryStatusResult struct {
 	LastCommitMsg    string
 	LastCommitDate   string
 	LastCommitAuthor string
-	LocalBranchCount int
+	LocalBranches    []string
 	StashCount       int
 
 	// CommitsBehind is how many commits behind remote
@@ -2352,7 +2352,7 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 	result.LastCommitMsg = info.LastCommitMsg
 	result.LastCommitDate = info.LastCommitDate
 	result.LastCommitAuthor = info.LastCommitAuthor
-	result.LocalBranchCount = info.LocalBranchCount
+	result.LocalBranches = info.LocalBranches
 	result.StashCount = info.StashCount
 	result.CommitsBehind = info.BehindBy
 	result.CommitsAhead = info.AheadBy

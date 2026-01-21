@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"text/tabwriter"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -106,12 +106,12 @@ func runInfo(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	displayInfoResultsTable(result)
+	displayInfoResultsDetailed(result)
 
 	return nil
 }
 
-func displayInfoResultsTable(result *repository.BulkStatusResult) {
+func displayInfoResultsDetailed(result *repository.BulkStatusResult) {
 	if len(result.Repositories) == 0 {
 		fmt.Println("No repositories found.")
 		return
@@ -119,87 +119,78 @@ func displayInfoResultsTable(result *repository.BulkStatusResult) {
 
 	fmt.Println()
 	fmt.Printf("found %d repositories (scanned in %s)\n", len(result.Repositories), result.Duration.Round(10*time.Millisecond))
-	fmt.Println()
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-	// Header
-	if verbose {
-		fmt.Fprintln(w, "REPOSITORY\tBRANCH (SHA)\tVERSION\tSTATUS\tUPDATE\tAUTHOR\tREMOTE")
-	} else {
-		fmt.Fprintln(w, "REPOSITORY\tBRANCH\tVERSION\tSTATUS\tUPDATE\tREMOTE")
-	}
 
 	for _, repo := range result.Repositories {
-		// Format Path (basename unless verbose)
+		fmt.Println()
+		// Header with nice formatting
+		// 📦 repo-name (relative/path)
 		path := filepath.Base(repo.Path)
 		if verbose {
 			path = repo.RelativePath
 		}
+		fmt.Printf("📦 %s\n", path)
+		fmt.Println(strings.Repeat("-", 60))
 
-		// Format Status
-		status := "clean"
-		if repo.Status != "clean" {
-			status = repo.Status
-			if repo.UncommittedFiles > 0 {
-				status = fmt.Sprintf("dirty (%d)", repo.UncommittedFiles)
-			}
-		}
-		// Add stash count to status
-		if repo.StashCount > 0 {
-			status += fmt.Sprintf(" (%d stash)", repo.StashCount)
-		}
-
-		// Format Remote (shorten if too long)
-		remote := repo.RemoteURL
-		if remote == "" {
-			remote = "-"
-		} else {
-			// Add indicator for multiple remotes
-			if len(repo.Remotes) > 1 {
-				remote += fmt.Sprintf(" (+%d)", len(repo.Remotes)-1)
-			}
-
-			if !verbose && len(remote) > 40 {
-				remote = "..." + remote[len(remote)-37:]
-			}
-		}
-
-		// Format Branch & SHA
-		branch := repo.Branch
-		if branch == "" {
-			branch = "DETACHED"
+		// 1. Current Branch & Hash
+		branchInfo := repo.Branch
+		if branchInfo == "" {
+			branchInfo = "DETACHED"
 		}
 		if repo.HeadSHA != "" {
-			branch += fmt.Sprintf(" (%s)", repo.HeadSHA)
+			branchInfo += fmt.Sprintf(" (%s)", repo.HeadSHA)
 		}
-		// Add branch count if meaningful
-		if repo.LocalBranchCount > 1 {
-			// We iterate local branches, so >1 means there are others.
-			// But showing (+N) might clutter the branch column too much if SHA is there.
-			// Let's keep it simple or show only in verbose.
+		fmt.Printf("  Current Branch: %s\n", branchInfo)
+
+		// 2. Version
+		if repo.Describe != "" {
+			fmt.Printf("  Version:        %s\n", repo.Describe)
 		}
 
-		// Format Version (Describe)
-		version := repo.Describe
-		if version == "" {
-			version = "-"
+		// 3. Status
+		status := repo.Status
+		if repo.Status != "clean" && repo.UncommittedFiles > 0 {
+			status = fmt.Sprintf("%s (%d uncommitted)", repo.Status, repo.UncommittedFiles)
+		}
+		if repo.StashCount > 0 {
+			status += fmt.Sprintf(", %d stash(es)", repo.StashCount)
+		}
+		fmt.Printf("  Status:         %s\n", status)
+
+		// 4. Update Info
+		if repo.LastCommitDate != "" {
+			msg := repo.LastCommitMsg
+			if len(msg) > 50 {
+				msg = msg[:47] + "..."
+			}
+			fmt.Printf("  Last Update:    %s (%s)\n", repo.LastCommitDate, msg)
+			if verbose {
+				fmt.Printf("  Author:         %s\n", repo.LastCommitAuthor)
+			}
 		}
 
-		// Format Update (Time)
-		update := repo.LastCommitDate
-		if update == "" {
-			update = "-"
-		}
-
-		if verbose {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				path, branch, version, status, update, repo.LastCommitAuthor, remote)
+		// 5. Remotes (Full List)
+		if len(repo.Remotes) > 0 {
+			fmt.Println("  Remotes:")
+			// Sort keys for consistent output
+			var keys []string
+			for k := range repo.Remotes {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				fmt.Printf("    - %-10s %s\n", k, repo.Remotes[k])
+			}
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-				path, branch, version, status, update, remote)
+			fmt.Println("  Remotes:        (none)")
+		}
+
+		// 6. Local Branches (Full List)
+		if len(repo.LocalBranches) > 0 {
+			// Sort branches
+			sort.Strings(repo.LocalBranches)
+			fmt.Printf("  Branches (%d):   %s\n", len(repo.LocalBranches), strings.Join(repo.LocalBranches, ", "))
 		}
 	}
-	w.Flush()
 	fmt.Println()
 }
 

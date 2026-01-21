@@ -379,17 +379,15 @@ func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 		info.Describe = strings.TrimSpace(output)
 	}
 
-	// Get Branch Count
-	output, err = c.executor.RunOutput(ctx, repo.Path, "branch", "--list")
+	// Get Local Branches
+	output, err = c.executor.RunOutput(ctx, repo.Path, "branch", "--list", "--format=%(refname:short)")
 	if err == nil {
 		lines := strings.Split(strings.TrimSpace(output), "\n")
-		count := 0
 		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				count++
+			if name := strings.TrimSpace(line); name != "" {
+				info.LocalBranches = append(info.LocalBranches, name)
 			}
 		}
-		info.LocalBranchCount = count
 	}
 
 	// Get Stash Count

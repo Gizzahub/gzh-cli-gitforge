@@ -204,8 +204,8 @@ type Info struct {
 	// LastCommitAuthor is the author of the last commit.
 	LastCommitAuthor string
 
-	// LocalBranchCount is the number of local branches.
-	LocalBranchCount int
+	// LocalBranches contains the list of local branch names.
+	LocalBranches []string
 
 	// StashCount is the number of stash entries.
 	StashCount int
