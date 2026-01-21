@@ -6,18 +6,18 @@ import (
 	"github.com/spf13/cobra"
 
 	gzhcligitforge "github.com/gizzahub/gzh-cli-gitforge"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Long: `Quick Start:
-  # Show full version info
+	Long: cliutil.QuickStartHelp(`  # Show full version info
   gz-git version
 
   # Show short version number
-  gz-git version --short`,
+  gz-git version --short`),
 	Run: func(cmd *cobra.Command, args []string) {
 		short, _ := cmd.Flags().GetBool("short")
 

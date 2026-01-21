@@ -5,6 +5,8 @@ package reposynccli
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 // newConfigCmd creates the config command for forge-based config generation.
@@ -12,8 +14,7 @@ func (f CommandFactory) newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Generate config from Git forge",
-		Long: `Quick Start:
-  # Generate config from GitLab
+		Long: cliutil.QuickStartHelp(`  # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
 
   # Then use with workspace
@@ -23,7 +24,7 @@ func (f CommandFactory) newConfigCmd() *cobra.Command {
   gz-git sync config merge --provider gitlab --org another-group --into sync.yaml
 
   # Validate config file
-  gz-git sync config validate -c sync.yaml`,
+  gz-git sync config validate -c sync.yaml`),
 		Args: cobra.NoArgs,
 	}
 

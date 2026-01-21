@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/tui"
 )
@@ -41,8 +42,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check workspace health",
-		Long: `Quick Start:
-  # Check all repositories from config
+		Long: cliutil.QuickStartHelp(`  # Check all repositories from config
   gz-git workspace status
 
   # Check with specific config
@@ -55,7 +55,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
   gz-git workspace status --skip-fetch
 
   # Detailed output (show branches/divergence)
-  gz-git workspace status --verbose`,
+  gz-git workspace status --verbose`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runStatus(cmd, opts)
 		},

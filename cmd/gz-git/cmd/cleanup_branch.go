@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -33,8 +34,7 @@ var (
 var cleanupBranchCmd = &cobra.Command{
 	Use:   "branch [directory]",
 	Short: "Clean up merged, stale, or gone branches",
-	Long: `Quick Start:
-  # Preview merged branches in current repo
+	Long: cliutil.QuickStartHelp(`  # Preview merged branches in current repo
   gz-git cleanup branch --merged
 
   # Preview stale branches (no activity for 30 days)
@@ -47,7 +47,7 @@ var cleanupBranchCmd = &cobra.Command{
   gz-git cleanup branch --merged --force .
 
   # Protect additional branches
-  gz-git cleanup branch --merged --protect "staging,qa" --force`,
+  gz-git cleanup branch --merged --protect "staging,qa" --force`),
 	Example: ``,
 	RunE:    runCleanupBranch,
 }

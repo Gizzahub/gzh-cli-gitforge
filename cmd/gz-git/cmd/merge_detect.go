@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/merge"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -22,15 +23,14 @@ var (
 var detectCmd = &cobra.Command{
 	Use:   "detect <source> <target>",
 	Short: "Detect potential merge conflicts",
-	Long: `Quick Start:
-  # Detect conflicts between branches
+	Long: cliutil.QuickStartHelp(`  # Detect conflicts between branches
   gz-git merge detect feature/new-feature main
 
   # Include binary file conflicts
   gz-git merge detect feature/new-feature main --include-binary
 
   # Detect with specific base commit
-  gz-git merge detect feature/new-feature main --base abc123`,
+  gz-git merge detect feature/new-feature main --base abc123`),
 	Example: ``,
 	Args:    cobra.ExactArgs(2),
 	RunE:    runMergeDetect,

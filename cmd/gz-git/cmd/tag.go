@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/tag"
 )
@@ -26,8 +27,7 @@ var (
 var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "Tag management commands",
-	Long: `Quick Start:
-  # Create a tag
+	Long: cliutil.QuickStartHelp(`  # Create a tag
   gz-git tag create v1.0.0 -m "Release 1.0.0"
 
   # Auto-bump version (patch: v1.0.0 -> v1.0.1)
@@ -43,7 +43,7 @@ var tagCmd = &cobra.Command{
   gz-git tag create v1.0.0 . -m "Release"
 
   # BULK: Check tag status
-  gz-git tag status .`,
+  gz-git tag status .`),
 	Example: ``,
 	Args:    cobra.NoArgs,
 }
@@ -52,15 +52,14 @@ var tagCmd = &cobra.Command{
 var tagCreateCmd = &cobra.Command{
 	Use:   "create <name> [directory]",
 	Short: "Create a tag",
-	Long: `Quick Start:
-  # Create annotated tag
+	Long: cliutil.QuickStartHelp(`  # Create annotated tag
   gz-git tag create v1.0.0 -m "Release 1.0.0"
 
   # Force overwrite existing tag
   gz-git tag create v1.0.0 -f
 
   # BULK: Create tag in all repos
-  gz-git tag create v1.0.0 . -m "Release"`,
+  gz-git tag create v1.0.0 . -m "Release"`),
 	Example: ``,
 	Args:    cobra.MinimumNArgs(1),
 	RunE:    runTagCreate,
@@ -70,15 +69,14 @@ var tagCreateCmd = &cobra.Command{
 var tagAutoCmd = &cobra.Command{
 	Use:   "auto [directory]",
 	Short: "Auto-generate next version tag",
-	Long: `Quick Start:
-  # Bump patch version (v1.0.0 -> v1.0.1)
+	Long: cliutil.QuickStartHelp(`  # Bump patch version (v1.0.0 -> v1.0.1)
   gz-git tag auto --bump=patch
 
   # Bump minor version (v1.0.0 -> v1.1.0)
   gz-git tag auto --bump=minor
 
   # Bump major version (v1.0.0 -> v2.0.0)
-  gz-git tag auto --bump=major`,
+  gz-git tag auto --bump=major`),
 	Example: ``,
 	RunE:    runTagAuto,
 }
@@ -87,12 +85,11 @@ var tagAutoCmd = &cobra.Command{
 var tagListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List tags",
-	Long: `Quick Start:
-  # List tags
+	Long: cliutil.QuickStartHelp(`  # List tags
   gz-git tag list
 
   # BULK: List tags across all repos
-  gz-git tag list .`,
+  gz-git tag list .`),
 	Example: ``,
 	RunE:    runTagList,
 }
@@ -101,12 +98,11 @@ var tagListCmd = &cobra.Command{
 var tagPushCmd = &cobra.Command{
 	Use:   "push [directory]",
 	Short: "Push tags to remote",
-	Long: `Quick Start:
-  # Push all tags
+	Long: cliutil.QuickStartHelp(`  # Push all tags
   gz-git tag push
 
   # BULK: Push tags from all repos
-  gz-git tag push .`,
+  gz-git tag push .`),
 	Example: ``,
 	RunE:    runTagPush,
 }

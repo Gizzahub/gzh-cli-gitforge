@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -22,8 +23,7 @@ var (
 var updateCmd = &cobra.Command{
 	Use:   "update [directory]",
 	Short: "Update multiple repositories in parallel",
-	Long: `Quick Start:
-  # Update all repositories in current directory
+	Long: cliutil.QuickStartHelp(`  # Update all repositories in current directory
   gz-git update
 
   # Update all repositories up to 2 levels deep
@@ -33,7 +33,7 @@ var updateCmd = &cobra.Command{
   gz-git update --no-fetch ~/workspace
 
   # Detailed output
-  gz-git update --verbose`,
+  gz-git update --verbose`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runUpdate,
 }

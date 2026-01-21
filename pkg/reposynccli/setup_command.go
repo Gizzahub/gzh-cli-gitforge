@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
@@ -24,12 +25,11 @@ func (f CommandFactory) newSetupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Interactive setup wizard for repository synchronization",
-		Long: `Quick Start:
-  # Start the setup wizard
+		Long: cliutil.QuickStartHelp(`  # Start the setup wizard
   gz-git sync setup
 
   # After setup, run the generated command:
-  gz-git sync from-forge --provider gitlab --org myorg --target ~/repos`,
+  gz-git sync from-forge --provider gitlab --org myorg --target ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runSetup(cmd)
 		},

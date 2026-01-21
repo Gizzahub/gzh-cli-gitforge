@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -19,8 +20,7 @@ var (
 var branchListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List branches in repositories",
-	Long: `Quick Start:
-  # List branches in current directory
+	Long: cliutil.QuickStartHelp(`  # List branches in current directory
   gz-git branch list
 
   # List all branches (including remote)
@@ -30,7 +30,7 @@ var branchListCmd = &cobra.Command{
   gz-git branch list ~/projects
 
   # List with filters
-  gz-git branch list --include "gzh-cli.*" .`,
+  gz-git branch list --include "gzh-cli.*" .`),
 	RunE: runBranchList,
 }
 

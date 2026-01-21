@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
 
@@ -15,12 +16,11 @@ import (
 var cleanupWizardCmd = &cobra.Command{
 	Use:   "wizard [directory]",
 	Short: "Interactive wizard for branch cleanup",
-	Long: `Quick Start:
-  # Start wizard in current directory
+	Long: cliutil.QuickStartHelp(`  # Start wizard in current directory
   gz-git cleanup wizard
 
   # Start wizard in specific directory
-  gz-git cleanup wizard ~/projects`,
+  gz-git cleanup wizard ~/projects`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCleanupWizard,
 }

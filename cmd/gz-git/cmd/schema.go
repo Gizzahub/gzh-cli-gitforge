@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
@@ -15,12 +16,11 @@ import (
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "Show configuration schema reference",
-	Long: `Quick Start:
-  # View schema
+	Long: cliutil.QuickStartHelp(`  # View schema
   gz-git schema
 
   # Save default config template
-  gz-git schema > .gz-git.yaml`,
+  gz-git schema > .gz-git.yaml`),
 	Example: ``,
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {

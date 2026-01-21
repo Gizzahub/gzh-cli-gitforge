@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
@@ -54,8 +55,7 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-forge",
 		Short: "Sync repositories from a Git forge (GitHub, GitLab, Gitea)",
-		Long: `Quick Start:
-  # Sync from GitHub organization (default: SSH clone)
+		Long: cliutil.QuickStartHelp(`  # Sync from GitHub organization (default: SSH clone)
   gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 
   # Sync from GitLab group with HTTPS clone
@@ -73,7 +73,7 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 
   # Sync from Gitea
   gz-git sync from-forge --provider gitea --org myorg --target ./repos \
-    --base-url https://gitea.company.com --token $GITEA_TOKEN`,
+    --base-url https://gitea.company.com --token $GITEA_TOKEN`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runFromForge(cmd, opts)
 		},

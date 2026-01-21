@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -24,8 +25,7 @@ var (
 var switchCmd = &cobra.Command{
 	Use:   "switch <branch> [directory]",
 	Short: "Switch branches across multiple repositories",
-	Long: `Quick Start:
-  # Switch all repos to develop branch
+	Long: cliutil.QuickStartHelp(`  # Switch all repos to develop branch
   gz-git switch develop
 
   # Create branch if it doesn't exist
@@ -38,7 +38,7 @@ var switchCmd = &cobra.Command{
   gz-git switch develop --include "gzh-cli-.*"
 
   # Force switch (discards uncommitted changes - DANGEROUS!)
-  gz-git switch main --force`,
+  gz-git switch main --force`),
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runSwitch,
 }

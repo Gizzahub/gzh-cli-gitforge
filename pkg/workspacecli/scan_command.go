@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/scanner"
 )
 
@@ -35,8 +36,7 @@ func (f CommandFactory) newScanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan [path]",
 		Short: "Scan directory for git repos and generate config",
-		Long: `Quick Start:
-  # Scan current directory
+		Long: cliutil.QuickStartHelp(`  # Scan current directory
   gz-git workspace scan
 
   # Scan specific directory
@@ -52,7 +52,7 @@ func (f CommandFactory) newScanCmd() *cobra.Command {
   gz-git workspace scan ~/mydevbox --exclude "vendor,node_modules,tmp/*"
 
   # Ignore .gitignore
-  gz-git workspace scan ~/mydevbox --no-gitignore`,
+  gz-git workspace scan ~/mydevbox --no-gitignore`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				opts.Path = args[0]

@@ -10,6 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 // AddOptions holds options for the add command.
@@ -27,8 +29,7 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [url]",
 		Short: "Add repository to workspace config",
-		Long: `Quick Start:
-  # Add repository by URL
+		Long: cliutil.QuickStartHelp(`  # Add repository by URL
   gz-git workspace add https://github.com/user/repo.git
 
   # Add with custom name and path
@@ -38,7 +39,7 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
   gz-git workspace add --from-current
 
   # Add to specific config file
-  gz-git workspace add https://github.com/user/repo.git -c myworkspace.yaml`,
+  gz-git workspace add https://github.com/user/repo.git -c myworkspace.yaml`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
 				opts.URL = args[0]

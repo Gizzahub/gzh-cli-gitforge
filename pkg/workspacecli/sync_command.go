@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -26,8 +27,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Clone/update repositories from config",
-		Long: `Quick Start:
-  # Sync from default config (.gz-git.yaml)
+		Long: cliutil.QuickStartHelp(`  # Sync from default config (.gz-git.yaml)
   gz-git workspace sync
 
   # Sync from specific config
@@ -48,7 +48,7 @@ Config File Structure (Reference):
   repositories:
     - name: my-project
       url: https://github.com/owner/my-project.git
-      targetPath: ./repos/my-project`,
+      targetPath: ./repos/my-project`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

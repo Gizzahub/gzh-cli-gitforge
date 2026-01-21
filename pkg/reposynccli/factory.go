@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -44,8 +45,7 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 		Long: `Git repository synchronization from Git forges (GitHub, GitLab, Gitea).
 Use this command to interact directly with Forge APIs. For local config-based operations, use 'gz-git workspace'.
 
- ` + "\033[1;36m" + `Quick Start:` + "\033[0m" + `
-  # 1. Generate config from Forge
+` + cliutil.QuickStartHelp(`  # 1. Generate config from Forge
   gz-git sync config generate --provider gitlab --org myteam -o .gz-git.yaml
 
   # 2. Sync directly from Forge (One-off)
@@ -54,7 +54,7 @@ Use this command to interact directly with Forge APIs. For local config-based op
   # 3. Check repository health
   gz-git sync status --target ~/repos
 
-See 'gz-git workspace' for managing synced repositories via config file.`,
+See 'gz-git workspace' for managing synced repositories via config file.`),
 	}
 
 	// Define Groups

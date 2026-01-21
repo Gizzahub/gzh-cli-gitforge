@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/tui"
 )
@@ -43,8 +44,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check repository health and sync status",
-		Long: `Quick Start:
-  # Check all repositories from config
+		Long: cliutil.QuickStartHelp(`  # Check all repositories from config
   gz-git sync status -c sync.yaml
 
   # Check repositories in a directory
@@ -60,7 +60,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
   gz-git sync status -c sync.yaml --verbose
 
   # Auto-detect config in current directory
-  gz-git sync status`,
+  gz-git sync status`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runStatus(cmd, opts)
 		},

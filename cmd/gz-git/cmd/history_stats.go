@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/history"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -26,8 +27,7 @@ var (
 var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Show commit statistics",
-	Long: `Quick Start:
-  # Show overall statistics
+	Long: cliutil.QuickStartHelp(`  # Show overall statistics
   gz-git history stats
 
   # Statistics for last month
@@ -37,7 +37,7 @@ var statsCmd = &cobra.Command{
   gz-git history stats --branch feature/new-feature
 
   # Export as JSON
-  gz-git history stats --format json > stats.json`,
+  gz-git history stats --format json > stats.json`),
 	Example: ``,
 	RunE:    runHistoryStats,
 }

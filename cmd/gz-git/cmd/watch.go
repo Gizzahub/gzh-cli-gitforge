@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/watch"
 )
@@ -28,8 +29,7 @@ var (
 var watchCmd = &cobra.Command{
 	Use:   "watch [paths...]",
 	Short: "Monitor repositories for changes",
-	Long: `Quick Start:
-  # Watch current directory
+	Long: cliutil.QuickStartHelp(`  # Watch current directory
   gz-git watch
 
   # Watch multiple repositories
@@ -42,7 +42,7 @@ var watchCmd = &cobra.Command{
   gz-git watch --include-clean
 
   # Compact output format
-  gz-git watch --format compact`,
+  gz-git watch --format compact`),
 	Example: ``,
 	RunE:    runWatch,
 }

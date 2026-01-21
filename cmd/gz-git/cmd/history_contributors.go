@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/history"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -27,8 +28,7 @@ var (
 var contributorsCmd = &cobra.Command{
 	Use:   "contributors",
 	Short: "Analyze repository contributors",
-	Long: `Quick Start:
-  # List all contributors
+	Long: cliutil.QuickStartHelp(`  # List all contributors
   gz-git history contributors
 
   # Top 10 contributors
@@ -41,7 +41,7 @@ var contributorsCmd = &cobra.Command{
   gz-git history contributors --since "2024-10-01"
 
   # Export as JSON
-  gz-git history contributors --format json > contributors.json`,
+  gz-git history contributors --format json > contributors.json`),
 	Example: ``,
 	RunE:    runHistoryContributors,
 }

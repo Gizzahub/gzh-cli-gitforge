@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -29,8 +30,7 @@ var (
 var diffCmd = &cobra.Command{
 	Use:   "diff [directory]",
 	Short: "Show diffs across multiple repositories",
-	Long: `Quick Start:
-  # Show diffs for all repositories in current directory
+	Long: cliutil.QuickStartHelp(`  # Show diffs for all repositories in current directory
   gz-git diff --scan-depth 1
 
   # Show only staged changes
@@ -43,7 +43,7 @@ var diffCmd = &cobra.Command{
   gz-git diff --no-content ~/projects
 
   # JSON output (for scripting/LLM)
-  gz-git diff --format json ~/projects`,
+  gz-git diff --format json ~/projects`),
 	Example: ``,
 	Args:    cobra.MaximumNArgs(1),
 	RunE:    runDiff,

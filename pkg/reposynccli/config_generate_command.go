@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
@@ -52,8 +53,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate config from Git forge (GitHub, GitLab, Gitea)",
-		Long: `Quick Start:
-  # Generate config from GitLab
+		Long: cliutil.QuickStartHelp(`  # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o sync.yaml \
     --token $GITLAB_TOKEN --target ~/repos
 
@@ -70,7 +70,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
   # Self-hosted GitLab with custom SSH port
   gz-git sync config generate --provider gitlab --org mygroup \
     --base-url https://gitlab.company.com --ssh-port 2224 -o sync.yaml \
-    --token $GITLAB_TOKEN --target ~/repos`,
+    --token $GITLAB_TOKEN --target ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runConfigGenerate(cmd, opts)
 		},

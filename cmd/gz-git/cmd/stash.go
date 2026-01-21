@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/stash"
 )
@@ -24,8 +25,7 @@ var (
 var stashCmd = &cobra.Command{
 	Use:   "stash",
 	Short: "Stash management commands",
-	Long: `Quick Start:
-  # Stash changes in current repo
+	Long: cliutil.QuickStartHelp(`  # Stash changes in current repo
   gz-git stash save -m "WIP: feature"
 
   # Stash all dirty repos (Bulk)
@@ -35,7 +35,7 @@ var stashCmd = &cobra.Command{
   gz-git stash list
 
   # Pop latest stash
-  gz-git stash pop`,
+  gz-git stash pop`),
 	Example: ``,
 	Args:    cobra.NoArgs,
 }
@@ -44,15 +44,14 @@ var stashCmd = &cobra.Command{
 var stashSaveCmd = &cobra.Command{
 	Use:   "save [directory]",
 	Short: "Save changes to stash",
-	Long: `Quick Start:
-  # Stash changes with message
+	Long: cliutil.QuickStartHelp(`  # Stash changes with message
   gz-git stash save -m "WIP: refactoring"
 
   # Include untracked files
   gz-git stash save -u -m "WIP: new files"
 
   # BULK: Stash all dirty repos
-  gz-git stash save . -m "WIP: before branch switch"`,
+  gz-git stash save . -m "WIP: before branch switch"`),
 	Example: ``,
 	RunE:    runStashSave,
 }
@@ -61,12 +60,11 @@ var stashSaveCmd = &cobra.Command{
 var stashListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List stash entries",
-	Long: `Quick Start:
-  # List stashes in current repo
+	Long: cliutil.QuickStartHelp(`  # List stashes in current repo
   gz-git stash list
 
   # BULK: List stashes across all repos
-  gz-git stash list .`,
+  gz-git stash list .`),
 	Example: ``,
 	RunE:    runStashList,
 }
@@ -75,15 +73,14 @@ var stashListCmd = &cobra.Command{
 var stashPopCmd = &cobra.Command{
 	Use:   "pop [directory]",
 	Short: "Pop latest stash",
-	Long: `Quick Start:
-  # Pop latest stash
+	Long: cliutil.QuickStartHelp(`  # Pop latest stash
   gz-git stash pop
 
   # BULK: Pop stashes in all repos
   gz-git stash pop .
 
   # BULK: Dry-run to preview
-  gz-git stash pop . -n`,
+  gz-git stash pop . -n`),
 	Example: ``,
 	RunE:    runStashPop,
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/history"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -26,8 +27,7 @@ var (
 var fileCmd = &cobra.Command{
 	Use:   "file <path>",
 	Short: "Show file change history",
-	Long: `Quick Start:
-  # Show file history
+	Long: cliutil.QuickStartHelp(`  # Show file history
   gz-git history file src/main.go
 
   # Follow renames
@@ -37,7 +37,7 @@ var fileCmd = &cobra.Command{
   gz-git history file --max 10 src/main.go
 
   # Export as JSON
-  gz-git history file --format json src/main.go > history.json`,
+  gz-git history file --format json src/main.go > history.json`),
 	Example: ``,
 	Args:    cobra.ExactArgs(1),
 	RunE:    runHistoryFile,
@@ -47,12 +47,11 @@ var fileCmd = &cobra.Command{
 var blameCmd = &cobra.Command{
 	Use:   "blame <file>",
 	Short: "Show line-by-line authorship",
-	Long: `Quick Start:
-  # Show blame for a file
+	Long: cliutil.QuickStartHelp(`  # Show blame for a file
   gz-git history blame src/main.go
 
   # Export as JSON
-  gz-git history blame --format json src/main.go`,
+  gz-git history blame --format json src/main.go`),
 	Example: ``,
 	Args:    cobra.ExactArgs(1),
 	RunE:    runHistoryBlame,

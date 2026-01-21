@@ -140,24 +140,26 @@ push:
 # Workspace Structure (Recursive)
 # -----------------------------------------------------------------------------
 # Define child workspaces or repositories.
-# Discovery Mode controls how children are found:
-# - hybrid: Use defined children + scan directories (default)
+# Discovery Mode controls how workspaces are found:
+# - hybrid: Use defined workspaces + scan directories (default)
 # - auto:   Scan directories only
-# - explicit: Use defined children only
+# - explicit: Use defined workspaces only
 
 discovery:
   mode: hybrid
 
-# Child definitions
-children:
-  # 1. Recursive Config Child
-  - path: backend
+# Workspace definitions (Map format: name -> config)
+workspaces:
+  # 1. Recursive Config Workspace
+  backend:
+    path: backend
     type: config        # Load .gz-git.yaml from this dir
 
-  # 2. Simple Git Repo Child
-  - path: frontend
+  # 2. Simple Git Repo Workspace
+  frontend:
+    path: frontend
     type: git           # Treat as single git repo
-    profile: personal   # Override profile for this child
+    profile: personal   # Override profile for this workspace
 
 # -----------------------------------------------------------------------------
 # Metadata (Optional)

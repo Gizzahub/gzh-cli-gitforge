@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
@@ -27,8 +28,7 @@ var (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration profiles and settings",
-	Long: `Quick Start:
-  # Initialize project config (.gz-git.yaml)
+	Long: cliutil.QuickStartHelp(`  # Initialize project config (.gz-git.yaml)
   gz-git config init
 
   # Create a profile
@@ -38,7 +38,7 @@ var configCmd = &cobra.Command{
   gz-git config profile use work
 
   # Show effective config
-  gz-git config show`,
+  gz-git config show`),
 	Example: ``,
 }
 
@@ -46,15 +46,14 @@ var configCmd = &cobra.Command{
 var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize project or global configuration",
-	Long: `Quick Start:
-  # Initialize project config (default)
+	Long: cliutil.QuickStartHelp(`  # Initialize project config (default)
   gz-git config init
 
   # Initialize project config (explicit)
   gz-git config init --local
 
   # Initialize global config
-  gz-git config init --global`,
+  gz-git config init --global`),
 	Example: ``,
 }
 
@@ -62,15 +61,14 @@ var configInitCmd = &cobra.Command{
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show project or effective configuration",
-	Long: `Quick Start:
-  # Show project config (.gz-git.yaml) - Default
+	Long: cliutil.QuickStartHelp(`  # Show project config (.gz-git.yaml) - Default
   gz-git config show
 
   # Show project config (explicit)
   gz-git config show --local
 
   # Show effective config with source attribution
-  gz-git config show --effective`,
+  gz-git config show --effective`),
 	Example: ``,
 }
 
@@ -78,8 +76,7 @@ var configShowCmd = &cobra.Command{
 var configProfileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Manage configuration profiles",
-	Long: `Quick Start:
-  # Create a profile
+	Long: cliutil.QuickStartHelp(`  # Create a profile
   gz-git config profile create work
 
   # List all profiles
@@ -89,7 +86,7 @@ var configProfileCmd = &cobra.Command{
   gz-git config profile use work
 
   # Show profile details
-  gz-git config profile show work`,
+  gz-git config profile show work`),
 	Example: ``,
 }
 
@@ -111,8 +108,7 @@ var configProfileShowCmd = &cobra.Command{
 var configProfileCreateCmd = &cobra.Command{
 	Use:   "create <name>",
 	Short: "Create a new profile",
-	Long: `Quick Start:
-  # Interactive creation (recommended for first-time)
+	Long: cliutil.QuickStartHelp(`  # Interactive creation (recommended for first-time)
   gz-git config profile create work
 
   # Create work profile with all settings
@@ -124,7 +120,7 @@ var configProfileCreateCmd = &cobra.Command{
     --ssh-port 2224
 
   # After creation, activate the profile
-  gz-git config profile use work`,
+  gz-git config profile use work`),
 	Example: ``,
 	RunE:    runConfigProfileCreate,
 }
@@ -148,15 +144,14 @@ var configProfileDeleteCmd = &cobra.Command{
 var configHierarchyCmd = &cobra.Command{
 	Use:   "hierarchy",
 	Short: "Show config hierarchy tree",
-	Long: `Quick Start:
-  # Show full hierarchy from current directory
+	Long: cliutil.QuickStartHelp(`  # Show full hierarchy from current directory
   gz-git config hierarchy
 
   # Show hierarchy with validation (check for errors)
   gz-git config hierarchy --validate
 
   # Show compact format (less verbose)
-  gz-git config hierarchy --compact`,
+  gz-git config hierarchy --compact`),
 	Example: ``,
 	RunE:    runConfigHierarchy,
 }

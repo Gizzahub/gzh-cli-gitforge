@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 func (f CommandFactory) newValidateCmd() *cobra.Command {
@@ -15,12 +17,11 @@ func (f CommandFactory) newValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate workspace config file",
-		Long: `Quick Start:
-  # Validate config file
+		Long: cliutil.QuickStartHelp(`  # Validate config file
   gz-git workspace validate -c myworkspace.yaml
 
   # Auto-detect config in current directory
-  gz-git workspace validate`,
+  gz-git workspace validate`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

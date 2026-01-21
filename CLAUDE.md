@@ -242,18 +242,20 @@ All levels use the same `.gz-git.yaml` format (or custom filename):
 parallel: 10
 cloneProto: ssh
 
-children:
-  - path: ~/mydevbox
+workspaces:
+  mydevbox:
+    path: ~/mydevbox
     type: config              # Has config file (recursive)
     profile: opensource
     parallel: 10
 
-  - path: ~/mywork
+  mywork:
+    path: ~/mywork
     type: config
-    configFile: .work-config.yaml  # Custom filename!
     profile: work
 
-  - path: ~/single-repo
+  single-repo:
+    path: ~/single-repo
     type: git                 # Plain git repo (no config)
 ```
 
@@ -265,11 +267,13 @@ sync:
   strategy: reset
   parallel: 10
 
-children:
-  - path: gzh-cli
+workspaces:
+  gzh-cli:
+    path: gzh-cli
     type: git               # Plain repo
 
-  - path: gzh-cli-gitforge
+  gzh-cli-gitforge:
+    path: gzh-cli-gitforge
     type: config           # Has config file
     sync:
       strategy: pull       # Inline override
@@ -280,14 +284,15 @@ children:
 sync:
   strategy: pull
 
-children:
-  - path: vendor/lib
+workspaces:
+  vendor-lib:
+    path: vendor/lib
     type: git
     sync:
       strategy: skip       # Submodule skip sync
 ```
 
-#### Child Types
+#### Workspace Types
 
 - **`type: config`**: Directory with config file (enables recursive nesting)
 - **`type: git`**: Plain Git repository (leaf node, no config)
@@ -295,13 +300,13 @@ children:
 #### Discovery Modes
 
 ```bash
-# Explicit: Only use children defined in config
+# Explicit: Only use workspaces defined in config
 gz-git status --discovery-mode explicit
 
-# Auto: Scan directories, ignore explicit children
+# Auto: Scan directories, ignore explicit workspaces
 gz-git status --discovery-mode auto
 
-# Hybrid: Use children if defined, otherwise scan (DEFAULT)
+# Hybrid: Use workspaces if defined, otherwise scan (DEFAULT)
 gz-git status --discovery-mode hybrid
 ```
 
@@ -330,7 +335,7 @@ config, err := config.LoadConfigRecursive(
 )
 
 // Apply discovery mode
-err = config.LoadChildren(
+err = config.LoadWorkspaces(
     "/home/user/mydevbox",
     config,
     config.HybridMode,
@@ -348,8 +353,8 @@ configDir, err := config.FindConfigRecursive(
 - ✅ **Single Type**: One `Config` type for all levels
 - ✅ **Single Filename**: `.gz-git.yaml` everywhere (customizable)
 - ✅ **Infinite Nesting**: Unlimited hierarchy depth
-- ✅ **Inline Overrides**: Children can override parent settings
-- ✅ **Custom Filenames**: `configFile: .custom.yaml`
+- ✅ **Inline Overrides**: Workspaces can override parent settings
+- ✅ **Map-Based Structure**: Named workspaces for clarity
 
 ______________________________________________________________________
 
@@ -432,6 +437,91 @@ gz-git fetch /path/to/single/repo
 | `config`               | **프로파일 및 설정 관리 (NEW!)**                                          |
 | `config profile`       | 프로파일 생성/수정/삭제/전환                                              |
 | `config show`          | 현재 설정 보기 (precedence 포함)                                          |
+
+______________________________________________________________________
+
+## Config Systems: Two Complementary Approaches
+
+**gz-git**은 두 가지 독립적인 config 시스템을 제공합니다:
+
+### 1️⃣ **Workspace CLI** (`repositories`)
+
+**용도**: 간단한 로컬 repo 목록 관리
+
+**Config 형식** (배열):
+```yaml
+# .gz-git.yaml (workspace CLI용)
+repositories:
+  - name: proxynd-core
+    url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-core.git
+    branch: develop
+  - name: proxynd-enterprise
+    url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-enterprise.git
+    branch: develop
+```
+
+**사용 명령어**:
+- `gz-git workspace init` - 빈 config 생성
+- `gz-git workspace scan` - 로컬 디렉토리 스캔 → config 생성
+- `gz-git workspace sync` - config 기반 clone/update
+- `gz-git workspace status` - health check
+
+**특징**:
+- ✅ 간단한 배열 구조
+- ✅ 빠른 설정
+- ✅ 로컬 파일 관리 중심
+
+---
+
+### 2️⃣ **Hierarchical Config** (`workspaces`)
+
+**용도**: 복잡한 계층 구조, forge 동기화, profile 관리
+
+**Config 형식** (Map):
+```yaml
+# .gz-git.yaml (hierarchical config용)
+profile: polypia
+parallel: 10
+
+workspaces:
+  devbox:
+    path: ~/mydevbox
+    type: config
+    source:
+      provider: gitlab
+      org: devbox
+      includeSubgroups: true
+
+  personal:
+    path: ~/personal
+    type: git
+```
+
+**사용 API**:
+- `config.LoadConfigRecursive()` - 계층적 로드
+- `config.LoadWorkspaces()` - Discovery mode 적용
+- `config.GetProfileFromChain()` - Profile 체인 탐색
+
+**특징**:
+- ✅ Map 기반 named workspaces
+- ✅ 무한 depth 계층 구조
+- ✅ Inline profiles 지원
+- ✅ Parent config 참조
+- ✅ Forge 동기화 통합
+
+---
+
+### 🤔 **어떤 시스템을 사용해야 하나?**
+
+| 상황 | 추천 시스템 |
+|------|-----------|
+| 단순 repo 목록 관리 | **Workspace CLI** (`repositories`) |
+| Forge에서 org 전체 sync | **Hierarchical Config** (`workspaces`) |
+| 여러 환경 프로파일 관리 | **Hierarchical Config** (`workspaces`) |
+| Workstation → Workspace → Project 구조 | **Hierarchical Config** (`workspaces`) |
+| 빠른 설정, 간단한 구조 | **Workspace CLI** (`repositories`) |
+
+______________________________________________________________________
 
 ### Workspace 명령어 (Local Config Management)
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -29,8 +30,7 @@ var (
 var commitCmd = &cobra.Command{
 	Use:   "commit [directory]",
 	Short: "Commit changes across multiple repositories",
-	Long: `Quick Start:
-  # Commit with per-repository messages (most common usage)
+	Long: cliutil.QuickStartHelp(`  # Commit with per-repository messages (most common usage)
   gz-git commit -m "repo1:feat: add feature" -m "repo2:fix: bug fix"
 
   # Commit with same message for all repositories
@@ -43,7 +43,7 @@ var commitCmd = &cobra.Command{
   gz-git commit
 
   # Skip confirmation
-  gz-git commit --yes`,
+  gz-git commit --yes`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCommit,
 }

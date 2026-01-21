@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
@@ -22,8 +23,7 @@ var statusFlags BulkCommandFlags
 var statusCmd = &cobra.Command{
 	Use:   "status [directory]",
 	Short: "Check status of multiple repositories",
-	Long: `Quick Start:
-  # Check status of current directory (default)
+	Long: cliutil.QuickStartHelp(`  # Check status of current directory (default)
   gz-git status
 
   # Check specific directory with filter
@@ -36,7 +36,7 @@ var statusCmd = &cobra.Command{
   gz-git status --format compact ~/projects
 
   # Continuously check at intervals (watch mode)
-  gz-git status --scan-depth 2 --watch --interval 30s ~/projects`,
+  gz-git status --scan-depth 2 --watch --interval 30s ~/projects`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runStatus,
 }

@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 const sampleConfig = `# gz-git workspace configuration
@@ -40,12 +42,11 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create empty workspace config file",
-		Long: `Quick Start:
-  # Create .gz-git.yaml in current directory
+		Long: cliutil.QuickStartHelp(`  # Create .gz-git.yaml in current directory
   gz-git workspace init
 
   # Create with custom name
-  gz-git workspace init -c myworkspace.yaml`,
+  gz-git workspace init -c myworkspace.yaml`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if outputPath == "" {
 				outputPath = DefaultConfigFile
