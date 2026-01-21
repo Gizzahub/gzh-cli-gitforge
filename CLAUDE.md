@@ -63,21 +63,25 @@ ______________________________________________________________________
 ├── internal/               # Private packages
 │   ├── gitcmd/             # Git command executor
 │   ├── parser/             # Output parsing
+│   ├── config/             # Internal config utilities
 │   └── testutil/           # Git test helpers
 ├── pkg/                    # Public packages
 │   ├── repository/         # Repository abstraction + bulk ops
+│   ├── config/             # Configuration management (profiles, precedence)
+│   ├── provider/           # Forge providers (github/gitlab/gitea)
+│   ├── reposync/           # Repo sync planner/executor
+│   ├── reposynccli/        # Sync CLI commands (from-forge, config generate)
+│   ├── workspacecli/       # Workspace CLI commands (init, scan, sync, status, add, validate)
+│   ├── scanner/            # Local git repo scanner
 │   ├── branch/             # Branch utilities + cleanup services
 │   ├── history/            # History analysis
 │   ├── merge/              # Merge conflict detection
 │   ├── stash/              # Stash management
 │   ├── tag/                # Tag management + semver
 │   ├── watch/              # Repo monitoring
-│   ├── scanner/            # Local git repo scanner (NEW!)
-│   ├── reposync/           # Repo sync planner/executor
-│   ├── reposynccli/        # Sync CLI commands (from-forge, config generate)
-│   ├── workspacecli/       # Workspace CLI commands (init, scan, sync, status, add, validate)
-│   ├── config/             # Configuration management (profiles, precedence) **NEW!**
-│   └── provider/           # Forge providers (github/gitlab/gitea)
+│   ├── cliutil/            # CLI utilities and formatters
+│   ├── tui/                # Terminal UI components
+│   └── wizard/             # Interactive wizards
 └── docs/.claude-context/   # Context docs
 ```
 
@@ -142,14 +146,14 @@ gz-git config profile show work
 # Delete profile
 gz-git config profile delete work
 
-# Show effective config (with precedence sources)
+# Show project config (default)
 gz-git config show
 
-# Get specific value
-gz-git config get provider
+# Show effective config with precedence sources
+gz-git config show --effective
 
-# Set global default
-gz-git config set defaults.parallel 10
+# Show config hierarchy tree
+gz-git config hierarchy
 ```
 
 ### Profile Example (work.yaml)
