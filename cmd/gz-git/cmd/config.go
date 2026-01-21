@@ -65,6 +65,7 @@ Examples:
 
   # Show effective config with precedence sources
   gz-git config show`,
+	Args: cobra.NoArgs,
 }
 
 // configInitCmd initializes configuration
@@ -183,6 +184,7 @@ Examples:
 
   # Show profile details
   gz-git config profile show work`,
+	Args: cobra.NoArgs,
 }
 
 var configProfileListCmd = &cobra.Command{
@@ -263,75 +265,19 @@ var configProfileDeleteCmd = &cobra.Command{
 	RunE:  runConfigProfileDelete,
 }
 
-// Workspace subcommands
-var configAddWorkspaceCmd = &cobra.Command{
-	Use:   "add-workspace <name> <path>",
-	Short: "Add a workspace to the config",
-	Long: `Add a workspace to the workstation or parent workspace configuration.
-
-Each workspace can sync from a forge (GitLab/GitHub/Gitea) or manage existing repos.
-
-Examples:
-  # Add a forge workspace (sync from GitLab group)
-  gz-git config add-workspace devbox ~/mydevbox \
-    --provider gitlab --org devbox --include-subgroups
-
-  # Add a git workspace (single repo)
-  gz-git config add-workspace myrepo ~/projects/myrepo --type git
-
-  # Add with sync settings
-  gz-git config add-workspace infra ~/infra \
-    --provider gitlab --org infra-team --sync-strategy reset
-
-  # Add to workstation config
-  gz-git config add-workspace devbox ~/mydevbox --workstation \
-    --provider gitlab --org devbox`,
-	Args: cobra.ExactArgs(2),
-	RunE: runConfigAddWorkspace,
-}
-
-var configListWorkspacesCmd = &cobra.Command{
-	Use:   "list-workspaces",
-	Short: "List all workspaces in the config",
-	Long: `List all workspaces defined in the workstation or parent workspace configuration.
-
-Examples:
-  # List workspaces in current config
-  gz-git config list-workspaces
-
-  # List workspaces in workstation config
-  gz-git config list-workspaces --workstation`,
-	RunE: runConfigListWorkspaces,
-}
-
-var configRemoveWorkspaceCmd = &cobra.Command{
-	Use:   "remove-workspace <name>",
-	Short: "Remove a workspace from the config",
-	Long: `Remove a workspace from the workstation or parent workspace configuration.
-
-Examples:
-  # Remove from current config
-  gz-git config remove-workspace old-workspace
-
-  # Remove from workstation config
-  gz-git config remove-workspace old-workspace --workstation`,
-	Args: cobra.ExactArgs(1),
-	RunE: runConfigRemoveWorkspace,
-}
-
 var configHierarchyCmd = &cobra.Command{
 	Use:   "hierarchy",
 	Short: "Show config hierarchy tree",
 	Long: `Show the hierarchical structure of all configuration files.
 
 What is Hierarchical Configuration?
-  gz-git supports recursive configuration for complex workstation/workspace/project structures:
-    Workstation (~/.gz-git-config.yaml)
-      ├── Workspace (~/mydevbox/.gz-git.yaml)
-      │     ├── Project (gzh-cli/.gz-git.yaml)
-      │     └── Project (gzh-cli-gitforge/.gz-git.yaml)
-      └── Workspace (~/work/.work-config.yaml)  # Custom filename!
-            └── Project (client-app/.gz-git.yaml)
+  gz-git supports recursive configuration with unlimited nesting:
+    ~/.gz-git.yaml (home)
+      ├── ~/mydevbox/.gz-git.yaml
+      │     ├── gzh-cli/.gz-git.yaml
+      │     └── gzh-cli-gitforge/.gz-git.yaml
+      └── ~/work/.work-config.yaml  # Custom filename!
+            └── client-app/.gz-git.yaml
 
 Precedence Rule: Child Overrides Parent
   - Child configs inherit from parent
@@ -344,7 +290,7 @@ Discovery Modes:
   hybrid   - Use defined children, otherwise scan (DEFAULT)
 
 Examples:
-  # Show full hierarchy
+  # Show full hierarchy from current directory
   gz-git config hierarchy
 
   # Show hierarchy with validation (check for errors)
@@ -354,29 +300,19 @@ Examples:
   gz-git config hierarchy --compact
 
   # Typical output:
-  # ~/.gz-git-config.yaml (workstation)
-  # ├── ~/mydevbox/.gz-git.yaml (workspace)
-  # │   ├── gzh-cli/ (git repo)
-  # │   └── gzh-cli-gitforge/.gz-git.yaml (project)
-  # └── ~/work/.work-config.yaml (workspace)
-  #     └── client-app/.gz-git.yaml (project)`,
+  # ~/.gz-git.yaml
+  # ├── ~/mydevbox/.gz-git.yaml
+  # │   ├── gzh-cli/ (type=git)
+  # │   └── gzh-cli-gitforge/.gz-git.yaml (type=config)
+  # └── ~/work/.work-config.yaml
+  #     └── client-app/.gz-git.yaml`,
 	RunE: runConfigHierarchy,
 }
 
-// Workspace flags
+// Config command flags
 var (
-	wsType           string
-	wsProfile        string
-	wsParallel       int
-	wsProvider       string
-	wsOrg            string
-	wsBaseURL        string
-	wsIncludeSubgrps bool
-	wsSubgroupMode   string
-	wsSyncStrategy   string
-	workstationFlag  bool
-	validateFlag     bool
-	compactFlag      bool
+	validateFlag bool
+	compactFlag  bool
 )
 
 // Profile creation flags
@@ -400,9 +336,6 @@ func init() {
 	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configProfileCmd)
-	configCmd.AddCommand(configAddWorkspaceCmd)
-	configCmd.AddCommand(configListWorkspacesCmd)
-	configCmd.AddCommand(configRemoveWorkspaceCmd)
 	configCmd.AddCommand(configHierarchyCmd)
 
 	// Profile subcommands
@@ -414,24 +347,6 @@ func init() {
 
 	// Flags
 	configInitCmd.Flags().BoolVar(&configLocal, "local", false, "Initialize project config (.gz-git.yaml)")
-	configInitCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Initialize workstation config (~/.gz-git-config.yaml)")
-	configShowCmd.Flags().BoolVar(&configLocal, "local", false, "Show project config only")
-
-	// Workspace command flags
-	configAddWorkspaceCmd.Flags().StringVar(&wsType, "type", "", "Workspace type (forge, git, config)")
-	configAddWorkspaceCmd.Flags().StringVar(&wsProfile, "profile", "", "Override profile for this workspace")
-	configAddWorkspaceCmd.Flags().IntVar(&wsParallel, "parallel", 0, "Override parallel count")
-	configAddWorkspaceCmd.Flags().StringVar(&wsProvider, "provider", "", "Forge provider (gitlab, github, gitea)")
-	configAddWorkspaceCmd.Flags().StringVar(&wsOrg, "org", "", "Forge organization/group to sync")
-	configAddWorkspaceCmd.Flags().StringVar(&wsBaseURL, "base-url", "", "Forge API base URL")
-	configAddWorkspaceCmd.Flags().BoolVar(&wsIncludeSubgrps, "include-subgroups", false, "Include subgroups (GitLab)")
-	configAddWorkspaceCmd.Flags().StringVar(&wsSubgroupMode, "subgroup-mode", "", "Subgroup mode (flat, nested)")
-	configAddWorkspaceCmd.Flags().StringVar(&wsSyncStrategy, "sync-strategy", "", "Sync strategy (pull, reset, skip)")
-	configAddWorkspaceCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Add to workstation config")
-
-	configListWorkspacesCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "List workspaces from workstation config")
-
-	configRemoveWorkspaceCmd.Flags().BoolVar(&workstationFlag, "workstation", false, "Remove from workstation config")
 
 	configHierarchyCmd.Flags().BoolVar(&validateFlag, "validate", false, "Validate all config files in hierarchy")
 	configHierarchyCmd.Flags().BoolVar(&compactFlag, "compact", false, "Show compact output")
@@ -452,21 +367,6 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	mgr, err := config.NewManager()
 	if err != nil {
 		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	if workstationFlag {
-		// Initialize workstation config
-		cfg := &config.Config{
-			Profile: config.DefaultProfileName,
-		}
-
-		home, _ := os.UserHomeDir()
-		if err := mgr.SaveConfig(home, ".gz-git-config.yaml", cfg); err != nil {
-			return fmt.Errorf("failed to create workstation config: %w", err)
-		}
-
-		fmt.Printf("Created ~/.gz-git-config.yaml\n")
-		return nil
 	}
 
 	if configLocal {
@@ -785,265 +685,37 @@ func runConfigProfileDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// runConfigAddWorkspace adds a workspace to config
-func runConfigAddWorkspace(cmd *cobra.Command, args []string) error {
-	wsName := args[0]
-	wsPath := args[1]
-
-	mgr, err := config.NewManager()
+// runConfigHierarchy shows config hierarchy tree
+func runConfigHierarchy(cmd *cobra.Command, args []string) error {
+	// Load config from home directory or current directory
+	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to create manager: %w", err)
+		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Load the appropriate config
-	var cfg *config.Config
-	var configPath, configFile string
-
-	if workstationFlag {
-		cfg, err = mgr.LoadWorkstationConfig()
-		if err != nil {
-			return fmt.Errorf("failed to load workstation config: %w", err)
-		}
-		if cfg == nil {
-			cfg = &config.Config{}
-		}
+	// Try to find config starting from current directory
+	configDir, err := config.FindConfigRecursive(cwd, ".gz-git.yaml")
+	if err != nil {
+		// If not found, try home directory
 		home, _ := os.UserHomeDir()
-		configPath = home
-		configFile = ".gz-git-config.yaml"
-	} else {
-		cfg, err = mgr.LoadWorkspaceConfig()
-		if err != nil {
-			return fmt.Errorf("failed to load workspace config: %w", err)
-		}
-		if cfg == nil {
-			cwd, _ := os.Getwd()
-			cfg = &config.Config{}
-			configPath = cwd
-			configFile = ".gz-git.yaml"
-		} else {
-			cwd, _ := os.Getwd()
-			configPath, err = config.FindConfigRecursive(cwd, ".gz-git.yaml")
-			if err != nil {
-				configPath, _ = os.Getwd()
-			}
-			configFile = ".gz-git.yaml"
-		}
+		configDir = home
 	}
 
-	// Initialize workspaces map if needed
-	if cfg.Workspaces == nil {
-		cfg.Workspaces = make(map[string]*config.Workspace)
-	}
-
-	// Check if workspace already exists
-	if _, exists := cfg.Workspaces[wsName]; exists {
-		return fmt.Errorf("workspace '%s' already exists", wsName)
-	}
-
-	// Create workspace
-	ws := &config.Workspace{
-		Path: wsPath,
-	}
-
-	// Set type
-	if wsType != "" {
-		ws.Type = config.WorkspaceType(wsType)
-	}
-
-	// Set profile override
-	if wsProfile != "" {
-		ws.Profile = wsProfile
-	}
-
-	// Set parallel override
-	if wsParallel > 0 {
-		ws.Parallel = wsParallel
-	}
-
-	// Set forge source if provider is specified
-	if wsProvider != "" {
-		ws.Source = &config.ForgeSource{
-			Provider:         wsProvider,
-			Org:              wsOrg,
-			BaseURL:          wsBaseURL,
-			IncludeSubgroups: wsIncludeSubgrps,
-			SubgroupMode:     wsSubgroupMode,
-		}
-	}
-
-	// Set sync strategy
-	if wsSyncStrategy != "" {
-		ws.Sync = &config.SyncConfig{
-			Strategy: wsSyncStrategy,
-		}
-	}
-
-	// Add workspace
-	cfg.Workspaces[wsName] = ws
-
-	// Save config
-	if err := mgr.SaveConfig(configPath, configFile, cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-
-	typeStr := string(ws.Type.Resolve(ws.Source != nil))
-	fmt.Printf("Added workspace '%s' (type=%s) to %s/%s\n", wsName, typeStr, configPath, configFile)
-	return nil
-}
-
-// runConfigListWorkspaces lists all workspaces
-func runConfigListWorkspaces(cmd *cobra.Command, args []string) error {
-	mgr, err := config.NewManager()
-	if err != nil {
-		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	var cfg *config.Config
-	var configName string
-
-	if workstationFlag {
-		cfg, err = mgr.LoadWorkstationConfig()
-		configName = "workstation config (~/.gz-git-config.yaml)"
-	} else {
-		cfg, err = mgr.LoadWorkspaceConfig()
-		configName = "workspace config (.gz-git.yaml)"
-	}
-
+	cfg, err := config.LoadConfigRecursive(configDir, ".gz-git.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	if cfg == nil {
-		fmt.Printf("No %s found\n", configName)
-		return nil
-	}
-
-	if len(cfg.Workspaces) == 0 {
-		fmt.Printf("No workspaces defined in %s\n", configName)
-		return nil
-	}
-
-	fmt.Printf("Workspaces in %s:\n\n", configName)
-	for name, ws := range cfg.Workspaces {
-		typeStr := string(ws.Type.Resolve(ws.Source != nil))
-		fmt.Printf("  %s:\n", name)
-		fmt.Printf("    path: %s\n", ws.Path)
-		fmt.Printf("    type: %s\n", typeStr)
-		if ws.Profile != "" {
-			fmt.Printf("    profile: %s\n", ws.Profile)
-		}
-		if ws.Source != nil {
-			fmt.Printf("    source:\n")
-			fmt.Printf("      provider: %s\n", ws.Source.Provider)
-			if ws.Source.Org != "" {
-				fmt.Printf("      org: %s\n", ws.Source.Org)
-			}
-			if ws.Source.BaseURL != "" {
-				fmt.Printf("      baseURL: %s\n", ws.Source.BaseURL)
-			}
-			if ws.Source.IncludeSubgroups {
-				fmt.Printf("      includeSubgroups: true\n")
-			}
-			if ws.Source.SubgroupMode != "" {
-				fmt.Printf("      subgroupMode: %s\n", ws.Source.SubgroupMode)
-			}
-		}
-		if ws.Sync != nil && ws.Sync.Strategy != "" {
-			fmt.Printf("    sync:\n")
-			fmt.Printf("      strategy: %s\n", ws.Sync.Strategy)
-		}
-		if ws.Parallel > 0 {
-			fmt.Printf("    parallel: %d\n", ws.Parallel)
-		}
-		fmt.Println()
-	}
-
-	return nil
-}
-
-// runConfigRemoveWorkspace removes a workspace from config
-func runConfigRemoveWorkspace(cmd *cobra.Command, args []string) error {
-	wsName := args[0]
-
-	mgr, err := config.NewManager()
-	if err != nil {
-		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	// Load the appropriate config
-	var cfg *config.Config
-	var configPath, configFile string
-
-	if workstationFlag {
-		cfg, err = mgr.LoadWorkstationConfig()
-		if err != nil {
-			return fmt.Errorf("failed to load workstation config: %w", err)
-		}
-		home, _ := os.UserHomeDir()
-		configPath = home
-		configFile = ".gz-git-config.yaml"
-	} else {
-		cfg, err = mgr.LoadWorkspaceConfig()
-		if err != nil {
-			return fmt.Errorf("failed to load workspace config: %w", err)
-		}
-		cwd, _ := os.Getwd()
-		configPath, err = config.FindConfigRecursive(cwd, ".gz-git.yaml")
-		if err != nil {
-			configPath, _ = os.Getwd()
-		}
-		configFile = ".gz-git.yaml"
-	}
-
-	if cfg == nil {
-		return fmt.Errorf("no config found")
-	}
-
-	if cfg.Workspaces == nil {
-		return fmt.Errorf("no workspaces defined")
-	}
-
-	// Check if workspace exists
-	if _, exists := cfg.Workspaces[wsName]; !exists {
-		return fmt.Errorf("workspace '%s' not found", wsName)
-	}
-
-	// Remove workspace
-	delete(cfg.Workspaces, wsName)
-
-	// Save config
-	if err := mgr.SaveConfig(configPath, configFile, cfg); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-
-	fmt.Printf("Removed workspace '%s' from %s/%s\n", wsName, configPath, configFile)
-	return nil
-}
-
-// runConfigHierarchy shows config hierarchy tree
-func runConfigHierarchy(cmd *cobra.Command, args []string) error {
-	mgr, err := config.NewManager()
-	if err != nil {
-		return fmt.Errorf("failed to create manager: %w", err)
-	}
-
-	// Load workstation config
-	cfg, err := mgr.LoadWorkstationConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load workstation config: %w", err)
-	}
-
-	if cfg == nil {
-		fmt.Println("No workstation config found (~/.gz-git-config.yaml)")
-		fmt.Println("Create one with: gz-git config init --workstation")
+		fmt.Println("No config found (.gz-git.yaml)")
+		fmt.Println("Create one with: gz-git config init --local")
 		return nil
 	}
 
 	fmt.Println("Configuration Hierarchy:")
 	fmt.Println()
 
-	home, _ := os.UserHomeDir()
-	printConfigTree(cfg, home, ".gz-git-config.yaml", 0, validateFlag, compactFlag)
+	printConfigTree(cfg, configDir, ".gz-git.yaml", 0, validateFlag, compactFlag)
 
 	return nil
 }
@@ -1053,11 +725,7 @@ func printConfigTree(cfg *config.Config, path string, configFile string, depth i
 	indent := strings.Repeat("  ", depth)
 
 	// Print this level
-	if depth == 0 {
-		fmt.Printf("%s~/.gz-git-config.yaml (workstation)\n", indent)
-	} else {
-		fmt.Printf("%s%s/%s\n", indent, path, configFile)
-	}
+	fmt.Printf("%s%s/%s\n", indent, path, configFile)
 
 	// Print config summary if not compact
 	if !compact {
@@ -1082,20 +750,20 @@ func printConfigTree(cfg *config.Config, path string, configFile string, depth i
 	// Print workspaces
 	for name, ws := range cfg.Workspaces {
 		wsIndent := strings.Repeat("  ", depth+1)
+		wsPath, _ := resolveChildPath(path, ws.Path)
+
 		effectiveType := ws.Type.Resolve(ws.Source != nil)
 
 		switch effectiveType {
 		case config.WorkspaceTypeConfig:
 			// Recursive: load workspace config
-			wsPath, _ := resolveWorkspacePath(path, ws.Path)
 			wsConfigFile := ".gz-git.yaml"
 
 			wsCfg, err := config.LoadConfigRecursive(wsPath, wsConfigFile)
 			if err != nil {
 				fmt.Printf("%s%s (type=config) ⚠ failed to load: %v\n", wsIndent, name, err)
 			} else {
-				fmt.Printf("%s%s: ", wsIndent, name)
-				printConfigTree(wsCfg, wsPath, wsConfigFile, depth+2, validate, compact)
+				printConfigTree(wsCfg, wsPath, wsConfigFile, depth+1, validate, compact)
 			}
 
 		case config.WorkspaceTypeForge:
@@ -1124,16 +792,16 @@ func printConfigTree(cfg *config.Config, path string, configFile string, depth i
 	}
 }
 
-// resolveWorkspacePath resolves workspace path relative to parent
-func resolveWorkspacePath(parentPath, wsPath string) (string, error) {
-	if strings.HasPrefix(wsPath, "~/") {
+// resolveChildPath resolves child path relative to parent
+func resolveChildPath(parentPath, childPath string) (string, error) {
+	if strings.HasPrefix(childPath, "~/") {
 		home, _ := os.UserHomeDir()
-		return filepath.Join(home, wsPath[2:]), nil
+		return filepath.Join(home, childPath[2:]), nil
 	}
-	if filepath.IsAbs(wsPath) {
-		return wsPath, nil
+	if filepath.IsAbs(childPath) {
+		return childPath, nil
 	}
-	return filepath.Join(parentPath, wsPath), nil
+	return filepath.Join(parentPath, childPath), nil
 }
 
 // printConfigValue prints a config value with its source

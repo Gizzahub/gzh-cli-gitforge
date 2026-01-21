@@ -355,12 +355,12 @@ func (nopGitLogger) Error(string, ...interface{}) {}
 func checkoutBranch(ctx context.Context, repoPath, branch string, logger repo.Logger) (string, error) {
 	// Use exec.CommandContext to respect context cancellation/timeout
 	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "checkout", branch)
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git checkout %s failed: %w (output: %s)", branch, err, string(output))
 	}
-	
+
 	logger.Debug("branch checkout: %s -> %s", repoPath, branch)
 	return fmt.Sprintf("checked out %s", branch), nil
 }

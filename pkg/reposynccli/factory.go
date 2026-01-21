@@ -112,7 +112,11 @@ Examples:
   gz-git workspace sync
 
   # Override strategy for workspace sync
-  gz-git workspace sync --strategy pull`,
+  gz-git workspace sync --strategy pull
+
+  # Merge another org into existing config (update mode)
+  gz-git sync config merge --provider gitlab --org another-group \
+    --into sync.yaml --mode update`,
 	}
 
 	root.AddCommand(f.newFromForgeCmd())

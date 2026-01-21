@@ -26,6 +26,7 @@ This command provides subcommands for:
 
   # Show line-by-line authorship
   gz-git history blame src/main.go`,
+	Args: cobra.NoArgs,
 }
 
 func init() {

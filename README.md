@@ -3,7 +3,7 @@
 > Bulk-first Git operations CLI (`gz-git`) + Go library
 
 [![Go Version](https://img.shields.io/badge/go-1.25.1%2B-blue)](https://go.dev)
-[![Version](https://img.shields.io/badge/version-v0.4.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/version-v3.0.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v3.0.0)
 [![CI](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml/badge.svg)](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-gitforge.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
@@ -20,8 +20,8 @@ ______________________________________________________________________
 - Bulk operations with `--scan-depth` and `--parallel`: `status`, `fetch`, `pull`, `push`, `update`, `diff`, `commit`, `switch`
 - Bulk clone: `clone --url ...` / `clone --file ...` (+ `--update`)
 - Repo sync:
-  - `sync forge` (GitHub/GitLab/Gitea org/group/user)
-  - `sync run` (YAML config)
+  - `sync from-forge` (GitHub/GitLab/Gitea org/group/user)
+  - `sync from-config` (YAML config)
 - Maintenance: `cleanup branch` (dry-run by default)
 - Monitoring: `watch` (default/compact/json/llm)
 - Insights: `history` (stats/contributors/file/blame), `info`, `merge detect`
@@ -61,7 +61,7 @@ gz-git switch feature/foo --create -d 2 ~/projects
 gz-git clone ~/projects --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 
 # Sync all repos from a GitHub org
-gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 ```
 
 ______________________________________________________________________

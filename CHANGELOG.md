@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-01-21
+
+### BREAKING CHANGES
+
+**Config System Cleanup - Removed Legacy Workspace Management**:
+
+- **Removed Commands**:
+  - `gz-git config add-workspace` - Edit `.gz-git.yaml` files directly instead
+  - `gz-git config list-workspaces` - Use `gz-git config hierarchy` instead
+  - `gz-git config remove-workspace` - Edit `.gz-git.yaml` files directly instead
+  - `gz-git config init --workstation` flag - Use `config init` (global) or `config init --local` (project)
+
+- **Renamed Commands** (for consistency):
+  - `gz-git sync forge` → `gz-git sync from-forge`
+  - `gz-git sync run` → `gz-git sync from-config`
+
+### Removed
+
+**Code Cleanup**:
+
+- Deleted `pkg/config/workspace.go` (190 lines - unused legacy types)
+- Removed 4 legacy manager methods from `pkg/config/manager.go`:
+  - `LoadWorkstationConfig()` - Use `LoadConfigRecursiveFromPath()` instead
+  - `SaveWorkstationConfig()` - Use `SaveConfig()` instead
+  - `LoadWorkspaceConfig()` - Use `LoadConfigRecursiveFromPath()` instead
+  - `SaveWorkspaceConfig()` - Use `SaveConfig()` instead
+- Removed 3 workspace management commands from `cmd/gz-git/cmd/config.go` (418 lines)
+
+### Documentation
+
+- Updated README.md, CLAUDE.md, and all docs to use new command names
+- Added comprehensive migration guide: `docs/MIGRATION_V2_TO_V3.md`
+- Updated sync command redesign documentation as "IMPLEMENTED"
+
+### Migration
+
+See `docs/MIGRATION_V2_TO_V3.md` for detailed migration instructions.
+
+**Quick Summary**:
+1. Replace `sync forge` with `sync from-forge` in scripts
+2. Replace `sync run` with `sync from-config` in scripts
+3. Edit `.gz-git.yaml` files directly instead of using workspace commands
+4. Use `config hierarchy` to view configuration structure
+
+**Note**: All existing config files continue to work without modification.
+
 ## [0.4.0] - 2025-01-02
 
 ### Added

@@ -16,6 +16,7 @@ For basic merge operations, use git directly:
   git rebase <branch>        # rebase`,
 	Example: `  # Detect conflicts before merging
   gz-git merge detect feature/new-feature main`,
+	Args: cobra.NoArgs,
 }
 
 func init() {

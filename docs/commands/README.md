@@ -227,23 +227,23 @@ More details: [docs/commands/watch.md](watch.md).
 
 ## Sync (Forge / Config)
 
-### sync forge
+### sync from-forge
 
 Sync repositories from a forge provider (GitHub, GitLab, Gitea).
 
 ```bash
-gz-git sync forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
-gz-git sync forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com
+gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+gz-git sync from-forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com
 ```
 
-### sync run
+### sync from-config
 
 Plan and execute sync from a YAML config file.
 
 ```bash
-gz-git sync run -c sync-config.yaml
-gz-git sync run -c sync-config.yaml --dry-run
-gz-git sync run -c sync-config.yaml --strategy pull
+gz-git sync from-config -c sync-config.yaml
+gz-git sync from-config -c sync-config.yaml --dry-run
+gz-git sync from-config -c sync-config.yaml --strategy pull
 ```
 
 ## Stash

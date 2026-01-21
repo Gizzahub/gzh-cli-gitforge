@@ -385,63 +385,6 @@ func (m *Manager) SaveConfig(path string, configFile string, config *Config) err
 }
 
 // LoadWorkstationConfig loads the workstation-level config (~/.gz-git-config.yaml).
-func (m *Manager) LoadWorkstationConfig() (*Config, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	// Try to load workstation config
-	config, err := m.LoadConfigRecursiveFromPath(home, ".gz-git-config.yaml")
-	if err != nil {
-		// Workstation config is optional
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return config, nil
-}
-
-// SaveWorkstationConfig saves the workstation-level config.
-func (m *Manager) SaveWorkstationConfig(config *Config) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	return m.SaveConfig(home, ".gz-git-config.yaml", config)
-}
-
-// LoadWorkspaceConfig loads the workspace-level config from current or parent directory.
-func (m *Manager) LoadWorkspaceConfig() (*Config, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	// Try to find workspace config by walking up
-	configDir, err := FindConfigRecursive(cwd, ".gz-git.yaml")
-	if err != nil {
-		// Workspace config is optional
-		return nil, nil
-	}
-
-	return m.LoadConfigRecursiveFromPath(configDir, ".gz-git.yaml")
-}
-
-// SaveWorkspaceConfig saves the workspace-level config to current directory.
-func (m *Manager) SaveWorkspaceConfig(config *Config) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	return m.SaveConfig(cwd, ".gz-git.yaml", config)
-}
-
-// FindNearestConfig finds the nearest config file by walking up the directory tree.
 func (m *Manager) FindNearestConfig(configFile string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -1,5 +1,8 @@
 # gz-git sync 명령어 재구성 (Option A)
 
+**STATUS**: ✅ IMPLEMENTED - v3.0.0 (2026-01-XX)
+**NOTE**: Old commands (`sync forge`, `sync run`) have been removed in v3.0. Use `sync from-forge` and `sync from-config` instead.
+
 ## 목표
 
 Source 중심의 일관성 있는 명령어 구조로 재설계하여 확장성과 사용성을 개선합니다.

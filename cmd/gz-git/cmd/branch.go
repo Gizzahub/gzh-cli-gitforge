@@ -28,6 +28,7 @@ For basic branch operations (create, delete), use git directly:
 
   # Clean up branches
   gz-git cleanup branch --merged`,
+	Args: cobra.NoArgs,
 }
 
 func init() {

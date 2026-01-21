@@ -238,7 +238,7 @@ baseURL: ${GITLAB_URL}
 All levels use the same `.gz-git.yaml` format (or custom filename):
 
 ```yaml
-# ~/.gz-git-config.yaml (workstation level)
+# ~/.gz-git.yaml (workstation level)
 parallel: 10
 cloneProto: ssh
 

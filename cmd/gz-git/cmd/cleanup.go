@@ -27,6 +27,7 @@ All cleanup commands support bulk mode for multi-repository operations.`,
 
   # BULK: Clean up all repos in directory
   gz-git cleanup branch --merged --force .`,
+	Args: cobra.NoArgs,
 }
 
 func init() {

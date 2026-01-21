@@ -54,6 +54,7 @@ MODES:
 
   # BULK: Check tag status
   gz-git tag status .`,
+	Args: cobra.NoArgs,
 }
 
 // tagCreateCmd creates a tag

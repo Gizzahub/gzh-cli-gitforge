@@ -48,6 +48,7 @@ MODES:
 
   # BULK: Pop stashes in all repos
   gz-git stash pop .`,
+	Args: cobra.NoArgs,
 }
 
 // stashSaveCmd saves changes to stash
