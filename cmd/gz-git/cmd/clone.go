@@ -41,77 +41,20 @@ var cloneCmd = &cobra.Command{
 	Short: "Clone multiple repositories in parallel",
 	Long: `Clone one or more repositories from remote URLs in parallel.
 
-This command is optimized for bulk cloning. For single repository cloning,
-consider using 'gcl' alias which is simpler.
-
-Supported URL formats:
-  - HTTPS: https://github.com/user/repo.git
-  - SSH: git@github.com:user/repo.git
-
-Directory structure options:
-  - flat: All repos in target directory (default)
-          github.com/user/repo → ./repo/
-  - user: Organized by user/org name
-          github.com/user/repo → ./user/repo/
-
-When --update is specified, existing repositories are pulled instead of skipped.
-
-YAML Config Mode:
-  Use --config or --config-stdin to specify repositories with custom names,
-  branches, and clone options per repository. This allows you to:
-  - Clone to custom directory names (different from repo name)
-  - Set per-repository branch and depth
-  - Organize multiple repositories in a single config file` + WatchModeHelpText,
-	Example: `  # Clone multiple repositories to current directory
+ ` + "\033[1;36m" + `Quick Start:` + "\033[0m" + `
+  # 1. Clone multiple URLs to current directory
   gz-git clone --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 
-  # Clone to specific directory
-  gz-git clone ~/projects --url url1 --url url2
-
-  # Clone from a file containing URLs (one per line)
+  # 2. Clone from a file containing URLs
   gz-git clone --file repos.txt
-  gz-git clone ~/projects --file repos.txt
 
-  # Clone with user directory structure
-  gz-git clone --structure user --url url1 --url url2
+  # 3. Clone with user directory structure (user/repo)
+  gz-git clone --structure user --url ...
 
-  # Clone and update existing repos (pull if exists)
-  gz-git clone --update --url url1 --url url2
-
-  # Dry run to see what would be done
-  gz-git clone --dry-run --url url1 --url url2
-
-  # Clone with specific branch
-  gz-git clone -b develop --url url1 --url url2
-
-  # Clone in parallel with custom workers
-  gz-git clone -j 10 --url url1 --url url2 --url url3
-
-  # JSON output for scripting
-  gz-git clone --format json --url url1 --url url2
-
-  # Clone from YAML config file
-  gz-git clone --config repos.yaml
-  gz-git clone ~/projects --config repos.yaml
-
-  # Clone from YAML config via stdin (paste YAML text)
-  gz-git clone --config-stdin
-  cat repos.yaml | gz-git clone --config-stdin
-
-  # Example YAML config (repos.yaml):
-  #   target: ~/projects
-  #   parallel: 10
-  #   update: true
-  #   repositories:
-  #     - url: https://github.com/discourse/discourse.git
-  #       name: discourse_app
-  #       branch: master
-  #     - url: https://gitlab.com/org/theme.git
-  #       name: custom-theme
-  #       branch: develop
-  #       depth: 1`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runClone,
+See 'gcl' alias for single repository cloning.`,
+	Example: "",
+	Args:    cobra.MaximumNArgs(1),
+	RunE:    runClone,
 }
 
 func init() {

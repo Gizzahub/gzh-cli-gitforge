@@ -27,11 +27,8 @@ var (
 var contributorsCmd = &cobra.Command{
 	Use:   "contributors",
 	Short: "Analyze repository contributors",
-	Long: `Analyze and rank repository contributors by commits, lines changed, and activity.
-
-Shows contributor statistics including total commits, lines added/removed,
-first and last commit dates, and activity trends.`,
-	Example: `  # List all contributors
+	Long: `Quick Start:
+  # List all contributors
   gz-git history contributors
 
   # Top 10 contributors
@@ -45,7 +42,8 @@ first and last commit dates, and activity trends.`,
 
   # Export as JSON
   gz-git history contributors --format json > contributors.json`,
-	RunE: runHistoryContributors,
+	Example: ``,
+	RunE:    runHistoryContributors,
 }
 
 func init() {

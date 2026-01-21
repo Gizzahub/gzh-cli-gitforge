@@ -26,12 +26,8 @@ var (
 var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Show commit statistics",
-	Long: `Display commit statistics including total commits, contributors,
-lines changed, and activity trends.
-
-Statistics can be filtered by date range, branch, and author.
-Output can be formatted as table, JSON, CSV, or markdown.`,
-	Example: `  # Show overall statistics
+	Long: `Quick Start:
+  # Show overall statistics
   gz-git history stats
 
   # Statistics for last month
@@ -42,7 +38,8 @@ Output can be formatted as table, JSON, CSV, or markdown.`,
 
   # Export as JSON
   gz-git history stats --format json > stats.json`,
-	RunE: runHistoryStats,
+	Example: ``,
+	RunE:    runHistoryStats,
 }
 
 func init() {

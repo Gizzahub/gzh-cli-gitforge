@@ -28,43 +28,23 @@ var (
 var watchCmd = &cobra.Command{
 	Use:   "watch [paths...]",
 	Short: "Monitor repositories for changes",
-	Long: `Monitor one or more Git repositories for changes in real-time.
-
-The watch command continuously monitors specified repositories and reports
-changes as they happen, including:
-  - Modified files (unstaged changes)
-  - Staged files (ready to commit)
-  - Untracked files (new files)
-  - Deleted files
-  - Branch switches
-  - Repository becoming clean
-
-By default, it monitors the current directory. You can specify multiple
-repository paths to monitor them simultaneously.`,
-	Example: `  # Watch current directory
+	Long: `Quick Start:
+  # Watch current directory
   gz-git watch
-
-  # Watch specific repository
-  gz-git watch /path/to/repo
 
   # Watch multiple repositories
   gz-git watch /path/to/repo1 /path/to/repo2
 
-  # Watch with custom interval (default: 2s)
+  # Watch with custom interval
   gz-git watch --interval 5s
 
-  # Include notifications when repository becomes clean
+  # Notify when repository becomes clean
   gz-git watch --include-clean
 
   # Compact output format
-  gz-git watch --format compact
-
-  # JSON output format (machine-readable)
-  gz-git watch --format json
-
-  # LLM-friendly output format
-  gz-git watch --format llm`,
-	RunE: runWatch,
+  gz-git watch --format compact`,
+	Example: ``,
+	RunE:    runWatch,
 }
 
 func init() {

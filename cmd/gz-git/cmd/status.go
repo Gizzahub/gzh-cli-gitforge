@@ -22,63 +22,11 @@ var statusFlags BulkCommandFlags
 var statusCmd = &cobra.Command{
 	Use:   "status [directory]",
 	Short: "Check status of multiple repositories",
-	Long: `Scan for Git repositories and check their comprehensive health status in parallel.
+	Long: `Quick Start:
+  # Check status of current directory (default)
+  gz-git status
 
-Health Status Indicators:
-  ✓ healthy      - Up-to-date, clean working tree
-  ⚠ warning      - Diverged, ahead, or behind (resolvable)
-  ✗ error        - Conflicts, dirty+behind (manual intervention required)
-  ⊘ unreachable  - Network timeout, auth failure
-
-Divergence Types:
-  up-to-date     - Local matches remote HEAD
-  N↓ behind      - Fast-forward available (use 'pull')
-  N↑ ahead       - Ready to push (use 'push')
-  N↑ N↓ diverged - Requires merge/rebase decision
-  conflict       - Merge conflict exists
-  no-upstream    - Upstream branch not configured
-  dirty          - Uncommitted changes in working tree
-
-Diagnostic Checks (per repository):
-  1. Fetch from all remotes (with timeout detection)
-  2. Compare local/remote HEAD commits
-  3. Detect merge conflicts
-  4. Check working tree status
-  5. Generate smart recommendations
-
-Network Error Classification:
-  - timeout        - Remote fetch exceeded timeout (default 30s)
-  - unreachable    - Remote host unreachable
-  - auth-failed    - Authentication/permission denied
-  - unknown-error  - Other network/git errors
-
-Smart Recommendations:
-  Behind only    → "Use 'git pull' to update"
-  Ahead only     → "Use 'git push' to publish"
-  Diverged       → "Use 'git pull --rebase' or 'git merge'"
-  Dirty + Behind → "Commit or stash, then pull"
-  Conflicts      → "Resolve conflicts manually"
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Fetches from all remotes (30s timeout per fetch)
-  - Shows only repositories with issues (use --verbose for all)
-
-The command fetches to update remote tracking but does not modify your working tree.` + WatchModeHelpText,
-	Example: `  # Check status of all repositories in current directory (1-level scan)
-  gz-git status --scan-depth 1
-
-  # Check status of all repositories up to 2 levels deep
-  gz-git status -d 2 ~/projects
-
-  # Check with custom parallelism
-  gz-git status --parallel 10 ~/workspace
-
-  # Show all repositories (including clean ones)
-  gz-git status --verbose ~/projects
-
-  # Filter by pattern
+  # Check specific directory with filter
   gz-git status --include "myproject.*" ~/workspace
 
   # Exclude pattern

@@ -33,30 +33,12 @@ var (
 var cleanupBranchCmd = &cobra.Command{
 	Use:   "branch [directory]",
 	Short: "Clean up merged, stale, or gone branches",
-	Long: `Analyze and clean up branches that are no longer needed.
-
-This command identifies branches that can be safely deleted:
-  - Merged branches: fully merged into the base branch
-  - Stale branches: no commits for a specified number of days
-  - Gone branches: remote tracking branches where the remote branch was deleted
-
-MODES:
-  - Single repo: Run without directory argument in a git repository
-  - Bulk mode: Provide a directory to scan for multiple repositories
-
-By default, runs in dry-run mode to preview what would be deleted.
-Use --force to actually delete branches.
-
-Protected branches (main, master, develop, release/*, hotfix/*) are never deleted
-unless explicitly overridden.`,
-	Example: `  # Preview merged branches in current repo
+	Long: `Quick Start:
+  # Preview merged branches in current repo
   gz-git cleanup branch --merged
 
   # Preview stale branches (no activity for 30 days)
   gz-git cleanup branch --stale
-
-  # Preview all cleanup-eligible branches
-  gz-git cleanup branch --merged --stale --gone
 
   # Actually delete merged branches
   gz-git cleanup branch --merged --force
@@ -64,12 +46,10 @@ unless explicitly overridden.`,
   # BULK MODE: Clean up merged branches across all repos
   gz-git cleanup branch --merged --force .
 
-  # BULK MODE: Preview cleanup with parallel workers
-  gz-git cleanup branch --merged --stale -j 10 ~/projects
-
   # Protect additional branches
   gz-git cleanup branch --merged --protect "staging,qa" --force`,
-	RunE: runCleanupBranch,
+	Example: ``,
+	RunE:    runCleanupBranch,
 }
 
 func init() {

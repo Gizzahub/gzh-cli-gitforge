@@ -24,42 +24,28 @@ var (
 var stashCmd = &cobra.Command{
 	Use:   "stash",
 	Short: "Stash management commands",
-	Long: `Manage Git stashes across single or multiple repositories.
-
-This command provides subcommands for:
-  - Saving (stashing) uncommitted changes
-  - Listing stash entries
-  - Popping (applying and removing) stash entries
-
-MODES:
-  - Single repo: Run without directory argument in a git repository
-  - Bulk mode: Provide a directory to scan for multiple repositories`,
-	Example: `  # Stash changes in current repo
+	Long: `Quick Start:
+  # Stash changes in current repo
   gz-git stash save -m "WIP: feature"
+
+  # Stash all dirty repos (Bulk)
+  gz-git stash save . -m "WIP: bulk stash"
 
   # List stashes
   gz-git stash list
 
   # Pop latest stash
-  gz-git stash pop
-
-  # BULK: Stash all dirty repos
-  gz-git stash save . -m "WIP: before branch switch"
-
-  # BULK: Pop stashes in all repos
-  gz-git stash pop .`,
-	Args: cobra.NoArgs,
+  gz-git stash pop`,
+	Example: ``,
+	Args:    cobra.NoArgs,
 }
 
 // stashSaveCmd saves changes to stash
 var stashSaveCmd = &cobra.Command{
 	Use:   "save [directory]",
 	Short: "Save changes to stash",
-	Long: `Save uncommitted changes to stash.
-
-In single repo mode (no directory), stashes changes in current repository.
-In bulk mode (with directory), stashes changes in all dirty repositories.`,
-	Example: `  # Stash changes with message
+	Long: `Quick Start:
+  # Stash changes with message
   gz-git stash save -m "WIP: refactoring"
 
   # Include untracked files
@@ -67,34 +53,30 @@ In bulk mode (with directory), stashes changes in all dirty repositories.`,
 
   # BULK: Stash all dirty repos
   gz-git stash save . -m "WIP: before branch switch"`,
-	RunE: runStashSave,
+	Example: ``,
+	RunE:    runStashSave,
 }
 
 // stashListCmd lists stash entries
 var stashListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List stash entries",
-	Long: `List stash entries in repository.
-
-In single repo mode, shows stashes in current repository.
-In bulk mode, shows stash counts across all repositories.`,
-	Example: `  # List stashes in current repo
+	Long: `Quick Start:
+  # List stashes in current repo
   gz-git stash list
 
   # BULK: List stashes across all repos
   gz-git stash list .`,
-	RunE: runStashList,
+	Example: ``,
+	RunE:    runStashList,
 }
 
 // stashPopCmd pops latest stash
 var stashPopCmd = &cobra.Command{
 	Use:   "pop [directory]",
 	Short: "Pop latest stash",
-	Long: `Apply and remove the latest stash entry.
-
-In single repo mode, pops stash in current repository.
-In bulk mode, pops stash in all repositories that have stashes.`,
-	Example: `  # Pop latest stash
+	Long: `Quick Start:
+  # Pop latest stash
   gz-git stash pop
 
   # BULK: Pop stashes in all repos
@@ -102,7 +84,8 @@ In bulk mode, pops stash in all repositories that have stashes.`,
 
   # BULK: Dry-run to preview
   gz-git stash pop . -n`,
-	RunE: runStashPop,
+	Example: ``,
+	RunE:    runStashPop,
 }
 
 func init() {

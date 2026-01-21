@@ -13,7 +13,10 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
-var infoFlags BulkCommandFlags
+var (
+	infoFlags BulkCommandFlags
+	itemLimit int
+)
 
 // infoCmd represents the info command
 var infoCmd = &cobra.Command{
@@ -44,7 +47,11 @@ func init() {
 	rootCmd.AddCommand(infoCmd)
 
 	// Common bulk operation flags
+	// Add bulk flags
 	addBulkFlags(infoCmd, &infoFlags)
+
+	// Add info-specific flags
+	infoCmd.Flags().IntVar(&itemLimit, "limit", 10, "max items to show in lists (branches, remotes)")
 }
 
 func runInfo(cmd *cobra.Command, args []string) error {
@@ -168,7 +175,7 @@ func displayInfoResultsDetailed(result *repository.BulkStatusResult) {
 			}
 		}
 
-		// 5. Remotes (Full List)
+		// 5. Remotes (Full List with Limit)
 		if len(repo.Remotes) > 0 {
 			fmt.Println("  Remotes:")
 			// Sort keys for consistent output
@@ -177,18 +184,35 @@ func displayInfoResultsDetailed(result *repository.BulkStatusResult) {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
+
+			displayCount := 0
 			for _, k := range keys {
+				if displayCount >= itemLimit {
+					remaining := len(keys) - displayCount
+					fmt.Printf("    ... (%d more)\n", remaining)
+					break
+				}
 				fmt.Printf("    - %-10s %s\n", k, repo.Remotes[k])
+				displayCount++
 			}
 		} else {
 			fmt.Println("  Remotes:        (none)")
 		}
 
-		// 6. Local Branches (Full List)
+		// 6. Local Branches (Full List with Limit)
 		if len(repo.LocalBranches) > 0 {
 			// Sort branches
 			sort.Strings(repo.LocalBranches)
-			fmt.Printf("  Branches (%d):   %s\n", len(repo.LocalBranches), strings.Join(repo.LocalBranches, ", "))
+
+			branchesStr := ""
+			if len(repo.LocalBranches) <= itemLimit {
+				branchesStr = strings.Join(repo.LocalBranches, ", ")
+			} else {
+				visible := repo.LocalBranches[:itemLimit]
+				branchesStr = strings.Join(visible, ", ") + fmt.Sprintf(", ... (%d more)", len(repo.LocalBranches)-itemLimit)
+			}
+
+			fmt.Printf("  Branches (%d):   %s\n", len(repo.LocalBranches), branchesStr)
 		}
 	}
 	fmt.Println()

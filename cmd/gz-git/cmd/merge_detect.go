@@ -22,11 +22,8 @@ var (
 var detectCmd = &cobra.Command{
 	Use:   "detect <source> <target>",
 	Short: "Detect potential merge conflicts",
-	Long: `Analyze potential conflicts between source and target branches.
-
-This command performs a dry-run merge analysis to identify files that would
-conflict during an actual merge, without modifying your working directory.`,
-	Example: `  # Detect conflicts between branches
+	Long: `Quick Start:
+  # Detect conflicts between branches
   gz-git merge detect feature/new-feature main
 
   # Include binary file conflicts
@@ -34,8 +31,9 @@ conflict during an actual merge, without modifying your working directory.`,
 
   # Detect with specific base commit
   gz-git merge detect feature/new-feature main --base abc123`,
-	Args: cobra.ExactArgs(2),
-	RunE: runMergeDetect,
+	Example: ``,
+	Args:    cobra.ExactArgs(2),
+	RunE:    runMergeDetect,
 }
 
 func init() {

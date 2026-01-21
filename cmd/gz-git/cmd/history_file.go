@@ -26,11 +26,8 @@ var (
 var fileCmd = &cobra.Command{
 	Use:   "file <path>",
 	Short: "Show file change history",
-	Long: `Show the commit history for a specific file.
-
-Displays all commits that modified the file, including commit hash, author,
-date, and commit message.`,
-	Example: `  # Show file history
+	Long: `Quick Start:
+  # Show file history
   gz-git history file src/main.go
 
   # Follow renames
@@ -41,25 +38,24 @@ date, and commit message.`,
 
   # Export as JSON
   gz-git history file --format json src/main.go > history.json`,
-	Args: cobra.ExactArgs(1),
-	RunE: runHistoryFile,
+	Example: ``,
+	Args:    cobra.ExactArgs(1),
+	RunE:    runHistoryFile,
 }
 
 // blameCmd represents the history blame command
 var blameCmd = &cobra.Command{
 	Use:   "blame <file>",
 	Short: "Show line-by-line authorship",
-	Long: `Show who last modified each line of a file (git blame).
-
-Displays the commit hash, author, date, and line number for each line,
-showing who is responsible for the current content.`,
-	Example: `  # Show blame for a file
+	Long: `Quick Start:
+  # Show blame for a file
   gz-git history blame src/main.go
 
   # Export as JSON
   gz-git history blame --format json src/main.go`,
-	Args: cobra.ExactArgs(1),
-	RunE: runHistoryBlame,
+	Example: ``,
+	Args:    cobra.ExactArgs(1),
+	RunE:    runHistoryBlame,
 }
 
 func init() {

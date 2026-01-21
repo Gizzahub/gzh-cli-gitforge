@@ -26,21 +26,11 @@ var (
 var tagCmd = &cobra.Command{
 	Use:   "tag",
 	Short: "Tag management commands",
-	Long: `Manage Git tags across single or multiple repositories.
-
-This command provides subcommands for:
-  - Creating tags (with auto-versioning support)
-  - Listing tags
-  - Pushing tags to remote
-  - Checking tag status
-
-MODES:
-  - Single repo: Run without directory argument in a git repository
-  - Bulk mode: Provide a directory to scan for multiple repositories`,
-	Example: `  # Create a tag
+	Long: `Quick Start:
+  # Create a tag
   gz-git tag create v1.0.0 -m "Release 1.0.0"
 
-  # Auto-bump version
+  # Auto-bump version (patch: v1.0.0 -> v1.0.1)
   gz-git tag auto --bump=patch
 
   # List tags
@@ -54,18 +44,16 @@ MODES:
 
   # BULK: Check tag status
   gz-git tag status .`,
-	Args: cobra.NoArgs,
+	Example: ``,
+	Args:    cobra.NoArgs,
 }
 
 // tagCreateCmd creates a tag
 var tagCreateCmd = &cobra.Command{
 	Use:   "create <name> [directory]",
 	Short: "Create a tag",
-	Long: `Create a new tag.
-
-In single repo mode, creates tag in current repository.
-In bulk mode (with directory), creates same tag in all repositories.`,
-	Example: `  # Create annotated tag
+	Long: `Quick Start:
+  # Create annotated tag
   gz-git tag create v1.0.0 -m "Release 1.0.0"
 
   # Force overwrite existing tag
@@ -73,19 +61,17 @@ In bulk mode (with directory), creates same tag in all repositories.`,
 
   # BULK: Create tag in all repos
   gz-git tag create v1.0.0 . -m "Release"`,
-	Args: cobra.MinimumNArgs(1),
-	RunE: runTagCreate,
+	Example: ``,
+	Args:    cobra.MinimumNArgs(1),
+	RunE:    runTagCreate,
 }
 
 // tagAutoCmd auto-generates next version
 var tagAutoCmd = &cobra.Command{
 	Use:   "auto [directory]",
 	Short: "Auto-generate next version tag",
-	Long: `Automatically determine and create the next version tag.
-
-Uses semantic versioning: major.minor.patch
-Bump types: major, minor, patch (default: patch)`,
-	Example: `  # Bump patch version (v1.0.0 -> v1.0.1)
+	Long: `Quick Start:
+  # Bump patch version (v1.0.0 -> v1.0.1)
   gz-git tag auto --bump=patch
 
   # Bump minor version (v1.0.0 -> v1.1.0)
@@ -93,39 +79,36 @@ Bump types: major, minor, patch (default: patch)`,
 
   # Bump major version (v1.0.0 -> v2.0.0)
   gz-git tag auto --bump=major`,
-	RunE: runTagAuto,
+	Example: ``,
+	RunE:    runTagAuto,
 }
 
 // tagListCmd lists tags
 var tagListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List tags",
-	Long: `List tags in repository.
-
-In single repo mode, shows tags in current repository.
-In bulk mode, shows tag counts and latest tags across all repositories.`,
-	Example: `  # List tags
+	Long: `Quick Start:
+  # List tags
   gz-git tag list
 
   # BULK: List tags across all repos
   gz-git tag list .`,
-	RunE: runTagList,
+	Example: ``,
+	RunE:    runTagList,
 }
 
 // tagPushCmd pushes tags
 var tagPushCmd = &cobra.Command{
 	Use:   "push [directory]",
 	Short: "Push tags to remote",
-	Long: `Push tags to remote repository.
-
-In single repo mode, pushes tags from current repository.
-In bulk mode, pushes tags from all repositories.`,
-	Example: `  # Push all tags
+	Long: `Quick Start:
+  # Push all tags
   gz-git tag push
 
   # BULK: Push tags from all repos
   gz-git tag push .`,
-	RunE: runTagPush,
+	Example: ``,
+	RunE:    runTagPush,
 }
 
 // tagStatusCmd shows tag status

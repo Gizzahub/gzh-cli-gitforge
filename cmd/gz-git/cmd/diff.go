@@ -29,26 +29,9 @@ var (
 var diffCmd = &cobra.Command{
 	Use:   "diff [directory]",
 	Short: "Show diffs across multiple repositories",
-	Long: `Scan for Git repositories and show their diffs in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories with uncommitted changes and shows their diffs.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Shows both staged and unstaged changes
-  - Limits diff size to 100KB per repository
-
-This is useful for:
-  - Reviewing changes across multiple repositories
-  - Providing context for LLM-based commit message generation
-  - Bulk change auditing before commits`,
-	Example: `  # Show diffs for all repositories in current directory
+	Long: `Quick Start:
+  # Show diffs for all repositories in current directory
   gz-git diff --scan-depth 1
-
-  # Show diffs up to 2 levels deep
-  gz-git diff -d 2 ~/projects
 
   # Show only staged changes
   gz-git diff --staged ~/projects
@@ -56,25 +39,14 @@ This is useful for:
   # Include untracked files
   gz-git diff --include-untracked ~/projects
 
-  # Increase context lines (default: 3)
-  gz-git diff --context 5 ~/projects
-
-  # JSON output (for scripting/LLM)
-  gz-git diff --format json ~/projects
-
   # Summary only (no diff content)
   gz-git diff --no-content ~/projects
 
-  # Filter by pattern
-  gz-git diff --include "myproject.*" ~/workspace
-
-  # Exclude pattern
-  gz-git diff --exclude "test.*" ~/projects
-
-  # Compact output (summary per repo)
-  gz-git diff --format compact ~/projects`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runDiff,
+  # JSON output (for scripting/LLM)
+  gz-git diff --format json ~/projects`,
+	Example: ``,
+	Args:    cobra.MaximumNArgs(1),
+	RunE:    runDiff,
 }
 
 func init() {

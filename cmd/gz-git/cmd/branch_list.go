@@ -19,13 +19,8 @@ var (
 var branchListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List branches in repositories",
-	Long: `List Git branches across repositories.
-
-Scans the specified directory (or current directory) for Git repositories
-and lists their branches in parallel.
-
-By default, shows local branches only. Use -a/--all to include remote branches.`,
-	Example: `  # List branches in current directory
+	Long: `Quick Start:
+  # List branches in current directory
   gz-git branch list
 
   # List all branches (including remote)

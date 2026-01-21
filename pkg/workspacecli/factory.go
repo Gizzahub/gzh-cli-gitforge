@@ -53,15 +53,17 @@ Examples:
 	}
 
 	// Define Groups
+	// Define Groups
 	// ANSI color codes
 	const (
-		colorCyanBold = "\033[1;36m"
-		colorReset    = "\033[0m"
+		colorCyanBold   = "\033[1;36m"
+		colorYellowBold = "\033[1;33m"
+		colorReset      = "\033[0m"
 	)
 
-	mgmtGroup := &cobra.Group{ID: "mgmt", Title: colorCyanBold + "Management" + colorReset}
-	opsGroup := &cobra.Group{ID: "ops", Title: colorCyanBold + "Operations" + colorReset}
-	diagGroup := &cobra.Group{ID: "diag", Title: colorCyanBold + "Diagnostics" + colorReset}
+	mgmtGroup := &cobra.Group{ID: "mgmt", Title: colorYellowBold + "Management" + colorReset}
+	opsGroup := &cobra.Group{ID: "ops", Title: colorYellowBold + "Operations" + colorReset}
+	diagGroup := &cobra.Group{ID: "diag", Title: colorYellowBold + "Diagnostics" + colorReset}
 
 	root.AddGroup(mgmtGroup, opsGroup, diagGroup)
 
