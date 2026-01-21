@@ -31,10 +31,29 @@ var pushCmd = &cobra.Command{
 	Short: "Push commits to multiple repositories in parallel",
 	Long: `Scan for Git repositories and push local commits to remote in parallel.
 
-This command recursively scans the specified directory (or current directory)
-for Git repositories and pushes local commits to their remotes in parallel.
+Refspec (Branch Mapping):
+  Use --refspec to push local branch to different remote branch.
 
-For single repository operations, use 'git push' directly.
+  Syntax:
+    local:remote     - Push local 'local' to remote 'remote'
+    +local:remote    - Force push (uses --force-with-lease)
+    branch           - Same name (default)
+
+  Common Use Cases:
+    develop:master        - Push develop to master
+    feature/x:release/x   - Map feature to release branch
+    +hotfix:main          - Force push hotfix (use with caution!)
+
+  Automatic Validation (performed before push):
+    ✓ Refspec format validation (Git branch naming rules)
+    ✓ Source branch existence check (local branch must exist)
+    ✓ Commit count calculation (exact commits to be pushed)
+    ✓ Remote branch existence check
+
+  Error Examples:
+    ⚠ refspec source branch 'develop' not found in repository
+    ⚠ invalid refspec: contains invalid character ":"
+    ⚠ branch name cannot start with hyphen
 
 By default:
   - Scans 1 directory level deep
@@ -42,7 +61,7 @@ By default:
   - Pushes to origin remote only
   - Skips repositories without remotes or upstreams
 
-The command pushes your local commits to remote repositories.`,
+The command pushes your local commits to remote repositories.` + WatchModeHelpText,
 	Example: `  # Push all repositories in current directory
   gz-git push
 

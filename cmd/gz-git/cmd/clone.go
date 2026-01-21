@@ -61,7 +61,7 @@ YAML Config Mode:
   branches, and clone options per repository. This allows you to:
   - Clone to custom directory names (different from repo name)
   - Set per-repository branch and depth
-  - Organize multiple repositories in a single config file`,
+  - Organize multiple repositories in a single config file` + WatchModeHelpText,
 	Example: `  # Clone multiple repositories to current directory
   gz-git clone --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 

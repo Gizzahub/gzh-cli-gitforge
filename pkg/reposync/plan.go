@@ -40,12 +40,14 @@ type Plan struct {
 
 // RepoSpec describes a repository to manage.
 type RepoSpec struct {
-	Name          string
-	Provider      string
-	CloneURL      string
-	TargetPath    string
-	Strategy      Strategy
-	AssumePresent bool // if true, planner treats repo as already present
+	Name                 string
+	Provider             string
+	CloneURL             string
+	TargetPath           string
+	Branch               string // optional: branch to checkout after clone/update (empty = no checkout)
+	StrictBranchCheckout bool   // if true, branch checkout failure causes action failure (default: false)
+	Strategy             Strategy
+	AssumePresent        bool // if true, planner treats repo as already present
 
 	// Auth contains authentication config for this repo's clone operation.
 	// If empty, system defaults are used (git credential helper, ssh-agent).

@@ -39,7 +39,7 @@ By default:
   - Uses merge strategy (can use rebase or ff-only)
   - Skips repositories without remotes or upstreams
 
-The command updates your working tree with changes from the remote.`,
+The command updates your working tree with changes from the remote.` + WatchModeHelpText,
 	Example: `  # Pull all repositories in current directory
   gz-git pull
 

@@ -23,14 +23,32 @@ var configLocal bool // For init --local
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration profiles and settings",
-	Long: `Manage gz-git configuration including profiles, global settings, and project-specific overrides.
+	Long: `Manage gz-git configuration using a 5-layer precedence system.
 
-Configuration follows a 5-layer precedence (highest to lowest):
-  1. Command flags (e.g., --provider gitlab)
-  2. Project config (.gz-git.yaml in current dir or parent)
-  3. Active profile (~/.config/gz-git/profiles/{active}.yaml)
-  4. Global config (~/.config/gz-git/config.yaml)
+Configuration Layers (highest to lowest priority):
+  1. Command flags           (--provider gitlab)
+  2. Project config          (.gz-git.yaml in current/parent dir)
+  3. Active profile          (~/.config/gz-git/profiles/{active}.yaml)
+  4. Global config           (~/.config/gz-git/config.yaml)
   5. Built-in defaults
+
+Quick Start Workflow:
+  1. Initialize:      gz-git config init
+  2. Create profile:  gz-git config profile create work
+  3. Activate:        gz-git config profile use work
+  4. Verify:          gz-git config show
+
+Security Best Practices:
+  - Use environment variables for sensitive values: token: ${GITLAB_TOKEN}
+  - Profiles are created with 0600 permissions (user read/write only)
+  - Config directory has 0700 permissions (user access only)
+  - Never commit tokens in plain text
+
+Profile Lifecycle:
+  - Create profiles for different contexts (work, personal, client projects)
+  - Switch contexts instantly with 'profile use'
+  - Project configs can reference profiles and override settings
+  - All values are shown with their source in 'config show'
 
 Examples:
   # Initialize config directory
@@ -45,7 +63,7 @@ Examples:
   # Set active profile
   gz-git config profile use work
 
-  # Show effective config
+  # Show effective config with precedence sources
   gz-git config show`,
 }
 
@@ -73,15 +91,32 @@ var configShowCmd = &cobra.Command{
 	Short: "Show effective configuration with sources",
 	Long: `Show the effective configuration after applying all precedence layers.
 
-This displays the final configuration values and indicates where each value came from
-(flag, project, profile, global, or default).
+Understanding the Output:
+  Each configuration value is displayed with its source attribution:
+    [flag]    - Value from command-line flag (highest priority)
+    [project] - Value from .gz-git.yaml in current/parent directory
+    [profile] - Value from active profile (~/.config/gz-git/profiles/{active}.yaml)
+    [global]  - Value from global config (~/.config/gz-git/config.yaml)
+    [default] - Built-in default value (lowest priority)
+
+Use Cases:
+  - Debugging: "Why is this value being used?"
+  - Verification: "Is my profile active?"
+  - Documentation: "What are the current settings?"
+  - Troubleshooting: "Which config layer is overriding my value?"
 
 Examples:
-  # Show effective config
+  # Show effective config with source attribution
   gz-git config show
 
   # Show project config only
-  gz-git config show --local`,
+  gz-git config show --local
+
+  # Typical output:
+  # provider: gitlab [profile:work]
+  # baseURL: https://gitlab.company.com [profile:work]
+  # cloneProto: ssh [default]
+  # parallel: 10 [project]`,
 	RunE: runConfigShow,
 }
 
@@ -121,7 +156,33 @@ Examples:
 var configProfileCmd = &cobra.Command{
 	Use:   "profile",
 	Short: "Manage configuration profiles",
-	Long:  `Manage configuration profiles for different contexts (work, personal, etc.).`,
+	Long: `Manage configuration profiles for different contexts (work, personal, etc.).
+
+Profile Concept:
+  Profiles are named configuration sets that let you switch contexts instantly.
+  Each profile can have different providers, credentials, clone protocols, etc.
+
+Common Use Cases:
+  - Work vs Personal GitHub/GitLab accounts
+  - Different client projects with separate credentials
+  - Self-hosted vs cloud Git forges
+  - SSH vs HTTPS clone preferences
+
+Profile Lifecycle:
+  create → use → show → (modify) → delete
+
+Examples:
+  # Create a profile
+  gz-git config profile create work
+
+  # List all profiles
+  gz-git config profile list
+
+  # Switch to a profile
+  gz-git config profile use work
+
+  # Show profile details
+  gz-git config profile show work`,
 }
 
 var configProfileListCmd = &cobra.Command{
@@ -142,21 +203,46 @@ var configProfileShowCmd = &cobra.Command{
 var configProfileCreateCmd = &cobra.Command{
 	Use:   "create <name>",
 	Short: "Create a new profile",
-	Long: `Create a new configuration profile.
+	Long: `Create a new configuration profile for different contexts.
 
-Interactive mode: Prompts for common settings
-Flag mode: Provide settings via flags
+What are Profiles?
+  Profiles let you switch between different Git forge configurations instantly.
+  Common use cases:
+    - Work vs Personal accounts
+    - Different clients or organizations
+    - Self-hosted vs cloud providers
+    - SSH vs HTTPS clone preferences
+
+Creation Modes:
+  Interactive mode: Prompts for common settings (provider, base URL, token, etc.)
+  Flag mode:        Provide all settings via command-line flags
+
+Security Best Practices:
+  - Store tokens in environment variables: --token ${GITLAB_TOKEN}
+  - Profile files are created with 0600 permissions (user-only read/write)
+  - Never commit profiles containing plain-text tokens
+  - Use different tokens for different profiles when possible
 
 Examples:
-  # Interactive creation
+  # Interactive creation (recommended for first-time)
   gz-git config profile create work
 
-  # Create with flags
+  # Create work profile with all settings
   gz-git config profile create work \
     --provider gitlab \
     --base-url https://gitlab.company.com \
+    --token ${WORK_GITLAB_TOKEN} \
     --clone-proto ssh \
-    --ssh-port 2224`,
+    --ssh-port 2224
+
+  # Create personal profile (GitHub)
+  gz-git config profile create personal \
+    --provider github \
+    --token ${GITHUB_TOKEN} \
+    --clone-proto https
+
+  # After creation, activate the profile
+  gz-git config profile use work`,
 	Args: cobra.ExactArgs(1),
 	RunE: runConfigProfileCreate,
 }
@@ -238,18 +324,42 @@ var configHierarchyCmd = &cobra.Command{
 	Short: "Show config hierarchy tree",
 	Long: `Show the hierarchical structure of all configuration files.
 
-Starting from workstation config (~/.gz-git-config.yaml), recursively
-displays all workspaces and their settings.
+What is Hierarchical Configuration?
+  gz-git supports recursive configuration for complex workstation/workspace/project structures:
+    Workstation (~/.gz-git-config.yaml)
+      ├── Workspace (~/mydevbox/.gz-git.yaml)
+      │     ├── Project (gzh-cli/.gz-git.yaml)
+      │     └── Project (gzh-cli-gitforge/.gz-git.yaml)
+      └── Workspace (~/work/.work-config.yaml)  # Custom filename!
+            └── Project (client-app/.gz-git.yaml)
+
+Precedence Rule: Child Overrides Parent
+  - Child configs inherit from parent
+  - Child settings override parent settings
+  - Discovery modes: explicit (defined), auto (scan), hybrid (both)
+
+Discovery Modes:
+  explicit - Only use children defined in config
+  auto     - Scan directories, ignore explicit children
+  hybrid   - Use defined children, otherwise scan (DEFAULT)
 
 Examples:
   # Show full hierarchy
   gz-git config hierarchy
 
-  # Show hierarchy with validation
+  # Show hierarchy with validation (check for errors)
   gz-git config hierarchy --validate
 
-  # Show compact format
-  gz-git config hierarchy --compact`,
+  # Show compact format (less verbose)
+  gz-git config hierarchy --compact
+
+  # Typical output:
+  # ~/.gz-git-config.yaml (workstation)
+  # ├── ~/mydevbox/.gz-git.yaml (workspace)
+  # │   ├── gzh-cli/ (git repo)
+  # │   └── gzh-cli-gitforge/.gz-git.yaml (project)
+  # └── ~/work/.work-config.yaml (workspace)
+  #     └── client-app/.gz-git.yaml (project)`,
 	RunE: runConfigHierarchy,
 }
 

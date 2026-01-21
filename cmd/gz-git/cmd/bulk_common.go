@@ -12,6 +12,32 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
+// WatchModeHelpText provides consistent documentation for watch mode across commands.
+//
+// This constant centralizes watch mode documentation to ensure consistency
+// across all commands that support the --watch flag (status, fetch, pull, push, clone).
+const WatchModeHelpText = `
+Watch Mode:
+  Use --watch to continuously execute the operation at regular intervals.
+
+  Interval Format (Go duration syntax):
+    30s   - 30 seconds
+    5m    - 5 minutes
+    2h    - 2 hours
+    1h30m - 1 hour 30 minutes
+
+  Behavior:
+    - Clears screen between iterations
+    - Shows timestamp for each run
+    - Ctrl+C to stop gracefully
+    - Errors don't stop watch mode (continues on next interval)
+
+  Use Cases:
+    - Monitor repositories for incoming changes
+    - Auto-fetch every 5 minutes to stay updated
+    - Track sync status in real-time
+    - CI/CD polling for git state changes`
+
 // BulkCommandFlags holds common flags for bulk operations (fetch, pull, push)
 type BulkCommandFlags struct {
 	Depth             int

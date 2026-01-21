@@ -50,21 +50,69 @@ Commands:
 
 For local config-based operations, use 'gz-git workspace' command instead.
 
-Sync Strategies:
+Sync Strategies (choose based on use case):
   reset  - Hard reset to remote HEAD (default, ensures clean state)
+           Use for: Clean workspaces, CI/CD, fresh clones
   pull   - Pull with rebase (preserves local changes)
+           Use for: Active development, preserve local commits
   fetch  - Fetch only (update refs without modifying working tree)
+           Use for: Status checks, pre-merge verification
+  skip   - Skip sync (clone only if missing)
+           Use for: Submodules, archived repos
+
+SSH Port Auto-Detection:
+  GitLab API provides correct SSH URLs with ports in 'ssh_url_to_repo' field.
+  No manual --ssh-port needed for GitLab (API provides it automatically).
+  For other providers, use --ssh-port if non-standard (not 22).
+
+Recommended Workflow:
+
+  1. Initial Setup (one-time):
+     gz-git config profile create work --provider gitlab
+     gz-git config profile use work
+
+  2. Generate Config (from forge):
+     gz-git sync config generate --org myteam -o .gz-git.yaml
+
+  3. Check Health (before sync):
+     gz-git workspace status
+
+  4. Sync Repositories:
+     gz-git workspace sync
+
+  5. Regular Updates:
+     gz-git workspace sync --strategy pull
+
+Config Management Workflows:
+
+  • Scan Local Directory → Config:
+    gz-git workspace scan ~/mydevbox -o .gz-git.yaml
+
+  • Forge API → Config:
+    gz-git sync config generate --provider gitlab --org team -o .gz-git.yaml
+
+  • Use workspace command for local operations:
+    gz-git workspace sync -c .gz-git.yaml
 
 Examples:
-  # Sync directly from GitLab organization
+  # Check repository health before sync
+  gz-git sync status --target ~/repos
+
+  # Sync directly from GitLab (SSH, auto-detect port)
   gz-git sync from-forge --provider gitlab --org devbox --target ~/repos
 
-  # Generate config from GitLab (then use with workspace)
-  gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
+  # Sync with HTTPS clone instead of SSH
+  gz-git sync from-forge --provider gitlab --org devbox --clone-proto https
+
+  # Generate config from GitLab with subgroups (flat mode)
+  gz-git sync config generate --provider gitlab --org parent \
+    --include-subgroups --subgroup-mode flat -o .gz-git.yaml
+
+  # Use workspace command for local config-based sync
   gz-git workspace sync
 
-  # Check repository health
-  gz-git sync status --target ~/repos`,
+  # Override strategy for workspace sync
+  gz-git workspace sync --strategy pull`,
 	}
 
 	root.AddCommand(f.newFromForgeCmd())

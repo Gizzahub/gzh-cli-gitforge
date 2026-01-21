@@ -31,10 +31,28 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 This command reads a config file specifying repositories to sync,
 then clones or updates each repository according to the sync strategy.
 
-Sync Strategies:
-  reset  - Hard reset to remote HEAD (default, ensures clean state)
-  pull   - Pull with rebase (preserves local changes)
-  fetch  - Fetch only (update refs without modifying working tree)
+Config File Format (YAML):
+  strategy: reset               # default strategy: reset|pull|fetch
+  parallel: 4                   # concurrent operations
+  maxRetries: 3                 # retry attempts per repo
+  cleanupOrphans: false         # remove dirs not in config
+  strictBranchCheckout: false   # fail on branch checkout error (default: false, lenient)
+  cloneProto: ssh               # ssh or https
+  sshPort: 0                    # custom SSH port (0 = auto)
+  roots:                        # required if cleanupOrphans=true
+    - ./repos
+  repositories:
+    - name: my-project
+      url: https://github.com/owner/my-project.git
+      targetPath: ./repos/my-project
+      branch: develop           # optional: checkout branch after clone/update
+      strategy: pull            # per-repo override (optional)
+      strictBranchCheckout: true  # per-repo override (optional)
+      cloneProto: ssh           # per-repo override (optional)
+    - name: another-repo
+      url: git@github.com:owner/another-repo.git
+      targetPath: ./repos/another-repo
+      branch: main              # optional: checkout main after clone/update
 
 Examples:
   # Sync from default config (.gz-git.yaml)

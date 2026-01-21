@@ -38,7 +38,7 @@ By default:
   - Skips repositories without remotes
 
 The command is safe to run and will not modify your working tree.
-It only updates remote-tracking branches.`,
+It only updates remote-tracking branches.` + WatchModeHelpText,
 	Example: `  # Fetch all repositories in current directory
   gz-git fetch
 

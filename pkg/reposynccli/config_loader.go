@@ -40,23 +40,26 @@ type FileSpecLoader struct {
 }
 
 type fileConfig struct {
-	Strategy       string      `yaml:"strategy"`
-	Parallel       int         `yaml:"parallel"`
-	MaxRetries     *int        `yaml:"maxRetries"`
-	Resume         bool        `yaml:"resume"`
-	DryRun         bool        `yaml:"dryRun"`
-	CleanupOrphans bool        `yaml:"cleanupOrphans"`
-	Roots          []string    `yaml:"roots"`
-	Repositories   []repoEntry `yaml:"repositories"`
+	Strategy             string      `yaml:"strategy"`
+	Parallel             int         `yaml:"parallel"`
+	MaxRetries           *int        `yaml:"maxRetries"`
+	Resume               bool        `yaml:"resume"`
+	DryRun               bool        `yaml:"dryRun"`
+	CleanupOrphans       bool        `yaml:"cleanupOrphans"`
+	StrictBranchCheckout bool        `yaml:"strictBranchCheckout"` // default: false (lenient)
+	Roots                []string    `yaml:"roots"`
+	Repositories         []repoEntry `yaml:"repositories"`
 }
 
 type repoEntry struct {
-	Name          string `yaml:"name"`
-	Provider      string `yaml:"provider"`
-	URL           string `yaml:"url"`
-	TargetPath    string `yaml:"targetPath"`
-	Strategy      string `yaml:"strategy"`
-	AssumePresent bool   `yaml:"assumePresent"`
+	Name                 string `yaml:"name"`
+	Provider             string `yaml:"provider"`
+	URL                  string `yaml:"url"`
+	TargetPath           string `yaml:"targetPath"`
+	Branch               string `yaml:"branch"`               // optional: branch to checkout after clone/update
+	StrictBranchCheckout *bool  `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
+	Strategy             string `yaml:"strategy"`
+	AssumePresent        bool   `yaml:"assumePresent"`
 }
 
 type gzhYamlConfig struct {
@@ -216,13 +219,21 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 		}
 		seenTargets[targetPath] = struct{}{}
 
+		// Determine strictBranchCheckout: use per-repo override if set, otherwise global
+		strictBranchCheckout := cfg.StrictBranchCheckout
+		if repo.StrictBranchCheckout != nil {
+			strictBranchCheckout = *repo.StrictBranchCheckout
+		}
+
 		plan.Input.Repos = append(plan.Input.Repos, reposync.RepoSpec{
-			Name:          repo.Name,
-			Provider:      repo.Provider,
-			CloneURL:      repo.URL,
-			TargetPath:    targetPath,
-			Strategy:      repoStrategy,
-			AssumePresent: repo.AssumePresent,
+			Name:                 repo.Name,
+			Provider:             repo.Provider,
+			CloneURL:             repo.URL,
+			TargetPath:           targetPath,
+			Branch:               repo.Branch,
+			StrictBranchCheckout: strictBranchCheckout,
+			Strategy:             repoStrategy,
+			AssumePresent:        repo.AssumePresent,
 		})
 	}
 
