@@ -52,12 +52,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate config from Git forge (GitHub, GitLab, Gitea)",
-		Long: `Generate a configuration file from a Git forge organization.
-
-This command queries the forge API to list all repositories and creates
-a YAML configuration file ready for use with 'sync from-config'.
-
-Examples:
+		Long: `Quick Start:
   # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o sync.yaml \
     --token $GITLAB_TOKEN --target ~/repos

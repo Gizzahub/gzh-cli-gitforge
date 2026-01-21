@@ -27,9 +27,7 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [url]",
 		Short: "Add repository to workspace config",
-		Long: `Add a repository to workspace configuration.
-
-Examples:
+		Long: `Quick Start:
   # Add repository by URL
   gz-git workspace add https://github.com/user/repo.git
 

@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -41,8 +42,7 @@ var cloneCmd = &cobra.Command{
 	Short: "Clone multiple repositories in parallel",
 	Long: `Clone one or more repositories from remote URLs in parallel.
 
- ` + "\033[1;36m" + `Quick Start:` + "\033[0m" + `
-  # 1. Clone multiple URLs to current directory
+` + cliutil.QuickStartHelp(`  # 1. Clone multiple URLs to current directory
   gz-git clone --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 
   # 2. Clone from a file containing URLs
@@ -51,7 +51,7 @@ var cloneCmd = &cobra.Command{
   # 3. Clone with user directory structure (user/repo)
   gz-git clone --structure user --url ...
 
-See 'gcl' alias for single repository cloning.`,
+See 'gcl' alias for single repository cloning.`),
 	Example: "",
 	Args:    cobra.MaximumNArgs(1),
 	RunE:    runClone,

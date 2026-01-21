@@ -12,13 +12,7 @@ func (f CommandFactory) newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
 		Short: "Generate config from Git forge",
-		Long: `Generate configuration files from Git forge (GitHub, GitLab, Gitea).
-
-The generated config can be used with 'gz-git workspace sync'.
-
-For local config management (init, scan, validate), use 'gz-git workspace' instead.
-
-Examples:
+		Long: `Quick Start:
   # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
 

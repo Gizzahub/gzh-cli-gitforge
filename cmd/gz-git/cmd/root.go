@@ -4,8 +4,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 var (
@@ -16,6 +20,7 @@ var (
 	verbose         bool
 	quiet           bool
 	profileOverride string // Override active profile
+	rootFormat      string // Root command format (local)
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -23,17 +28,112 @@ var rootCmd = &cobra.Command{
 	Use:   "gz-git",
 	Short: "Advanced Git operations CLI",
 	Long: `gz-git is a bulk-first Git CLI that runs safe operations across many repositories in parallel.
-
-[1;36mQuick Start:[0m
-  # Initialize workspace and check status
+` + cliutil.QuickStartHelp(`  # Initialize workspace and check status
   gz-git config init
   gz-git status
 
-See 'gz-git schema' for configuration reference.`,
+  See 'gz-git schema' for configuration reference.`),
 	Version: appVersion,
-	// Uncomment the following line if your application requires Cobra to
-	// check for a config file.
-	// PersistentPreRun: initConfig,
+	Run:     runRoot,
+}
+
+func runRoot(cmd *cobra.Command, args []string) {
+	if rootFormat == "llm" {
+		generateLLMDocs(cmd)
+		return
+	}
+	cmd.Help()
+}
+
+func generateLLMDocs(cmd *cobra.Command) {
+	fmt.Println("# GZ-Git CLI Tool Specification")
+	fmt.Println("\nThis document defines the capabilities and interface of the gz-git CLI for AI Agents.")
+	fmt.Println("Hierarchy: Top-level commands (##) -> Subcommands (###)")
+
+	fmt.Println("\n## Global Flags")
+	fmt.Println("- `-v, --verbose`: Enable verbose logging (use for debugging)")
+	fmt.Println("- `-q, --quiet`: Suppress output (errors only)")
+	fmt.Println("- `--profile <name>`: Switch configuration profile")
+
+	fmt.Println("\n## Available Commands")
+	// Start recursion with level 2 (##)
+	printCommandRecursive(cmd, 2)
+}
+
+func printCommandRecursive(cmd *cobra.Command, level int) {
+	for _, c := range cmd.Commands() {
+		if !c.IsAvailableCommand() || c.Name() == "help" {
+			continue
+		}
+
+		// Calculate header string based on level
+		header := strings.Repeat("#", level)
+
+		// Header
+		// Use just the name for subcommands to save horizontal space, but fully qualified usage line is there
+		fmt.Printf("\n%s `%s`\n", header, c.Name())
+		fmt.Printf("- **Path**: `%s`\n", c.CommandPath())
+		fmt.Printf("- **Purpose**: %s\n", c.Short)
+		fmt.Printf("- **Usage**: `%s`\n", c.UseLine())
+
+		// Flags
+		hasLocalFlags := false
+		var flagLines []string
+		c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+			if f.Hidden {
+				return
+			}
+			hasLocalFlags = true
+			var typeStr string
+			if f.Value.Type() == "bool" {
+				typeStr = ""
+			} else {
+				typeStr = fmt.Sprintf(" <%s>", f.Value.Type())
+			}
+			flagLines = append(flagLines, fmt.Sprintf("  - `--%s%s`: %s", f.Name, typeStr, f.Usage))
+		})
+
+		if hasLocalFlags {
+			fmt.Println("- **Flags**:")
+			for _, line := range flagLines {
+				fmt.Println(line)
+			}
+		}
+
+		// Examples (only in verbose mode to save tokens)
+		if verbose && c.Long != "" {
+			lines := strings.Split(c.Long, "\n")
+			inQuickStart := false
+			var exampleLines []string
+
+			for _, line := range lines {
+				trimmed := strings.TrimSpace(line)
+				if strings.Contains(trimmed, "Quick Start:") {
+					inQuickStart = true
+					continue
+				}
+				if inQuickStart {
+					if trimmed == "" {
+						continue
+					}
+					exampleLines = append(exampleLines, "  "+line)
+				}
+			}
+
+			if len(exampleLines) > 0 {
+				fmt.Println("- **Examples**:")
+				for _, line := range exampleLines {
+					fmt.Println(line)
+				}
+			} else if !inQuickStart && len(lines) < 5 {
+				// Fallback description embedded if short
+				// Don't print long descriptions to save tokens
+			}
+		}
+
+		// Recurse with deeper indentation
+		printCommandRecursive(c, level+1)
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -55,9 +155,9 @@ func Execute(version string) {
 }
 
 func setCommandGroups(cmd *cobra.Command) {
-	coreGroup := &cobra.Group{ID: "core", Title: colorYellowBold + "Core Git Operations" + colorReset}
-	mgmtGroup := &cobra.Group{ID: "mgmt", Title: colorYellowBold + "Management & Configuration" + colorReset}
-	toolGroup := &cobra.Group{ID: "tool", Title: colorYellowBold + "Additional Tools" + colorReset}
+	coreGroup := &cobra.Group{ID: "core", Title: cliutil.ColorYellowBold + "Core Git Operations" + cliutil.ColorReset}
+	mgmtGroup := &cobra.Group{ID: "mgmt", Title: cliutil.ColorYellowBold + "Management & Configuration" + cliutil.ColorReset}
+	toolGroup := &cobra.Group{ID: "tool", Title: cliutil.ColorYellowBold + "Additional Tools" + cliutil.ColorReset}
 
 	cmd.AddGroup(coreGroup, mgmtGroup, toolGroup)
 
@@ -68,7 +168,7 @@ func setCommandGroups(cmd *cobra.Command) {
 		}
 
 		switch c.Name() {
-		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update":
+		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update", "diff":
 			c.GroupID = coreGroup.ID
 		case "workspace", "config", "sync", "schema", "cleanup":
 			c.GroupID = mgmtGroup.ID
@@ -91,6 +191,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "quiet output (errors only)")
 	rootCmd.PersistentFlags().StringVar(&profileOverride, "profile", "", "override active profile (e.g., --profile work)")
 
+	// Local flags for root command
+	rootCmd.Flags().StringVar(&rootFormat, "format", "", "output format for help (supported: llm)")
+
 	// Version template
 	rootCmd.SetVersionTemplate(`{{with .Name}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}
 `)
@@ -99,22 +202,14 @@ func init() {
 	rootCmd.SetUsageTemplate(usageTemplate)
 }
 
-const (
-	colorCyanBold    = "\033[1;36m"
-	colorGreenBold   = "\033[1;32m"
-	colorYellowBold  = "\033[1;33m"
-	colorMagentaBold = "\033[1;35m"
-	colorReset       = "\033[0m"
-)
-
-const usageTemplate = `{{if .Runnable}}` + colorGreenBold + `Usage:` + colorReset + `
-  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}` + colorGreenBold + `Usage:` + colorReset + `
+const usageTemplate = `{{if .Runnable}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
 Aliases:
   {{.NameAndAliases}}{{end}}{{if .HasExample}}
 
-` + colorGreenBold + `Examples:` + colorReset + `
+` + cliutil.ColorGreenBold + `Examples:` + cliutil.ColorReset + `
 {{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
 
 Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
@@ -123,13 +218,13 @@ Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help")
 {{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
 
-` + colorMagentaBold + `Additional Commands:` + colorReset + `{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
+` + cliutil.ColorMagentaBold + `Additional Commands:` + cliutil.ColorReset + `{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
-` + colorGreenBold + `Flags:` + colorReset + `
+` + cliutil.ColorGreenBold + `Flags:` + cliutil.ColorReset + `
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
 
-` + colorGreenBold + `Global Flags:` + colorReset + `
+` + cliutil.ColorGreenBold + `Global Flags:` + cliutil.ColorReset + `
 {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
 
 Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}

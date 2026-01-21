@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -24,32 +25,14 @@ var (
 var fetchCmd = &cobra.Command{
 	Use:   "fetch [directory]",
 	Short: "Fetch updates from multiple repositories in parallel",
-	Long: `Scan for Git repositories and fetch updates from remote in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories and fetches updates from their remotes in parallel.
-
-For single repository operations, use 'git fetch' directly.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Fetches from all remotes (changed from origin-only)
-  - Skips repositories without remotes
-
-The command is safe to run and will not modify your working tree.
-It only updates remote-tracking branches.` + WatchModeHelpText,
-	Example: `  # Fetch all repositories in current directory
+	Long: cliutil.QuickStartHelp(`  # Fetch all repositories in current directory
   gz-git fetch
 
   # Fetch all repositories up to 2 levels deep
   gz-git fetch -d 2 .
 
-  # Fetch with custom parallelism
-  gz-git fetch --parallel 10 ~/projects
-
-  # Fetch from origin only (override default)
-  gz-git fetch --no-all-remotes ~/workspace
+  # Fetch from origin only (default is all remotes)
+  gz-git fetch --all-remotes=false ~/workspace
 
   # Fetch and prune deleted remote branches
   gz-git fetch --prune ~/projects
@@ -57,23 +40,8 @@ It only updates remote-tracking branches.` + WatchModeHelpText,
   # Fetch all tags
   gz-git fetch --tags ~/repos
 
-  # Dry run to see what would be fetched
-  gz-git fetch --dry-run ~/projects
-
   # Filter by pattern
-  gz-git fetch --include "myproject.*" ~/workspace
-
-  # Exclude pattern
-  gz-git fetch --exclude "test.*" ~/projects
-
-  # Compact output format
-  gz-git fetch --format compact ~/projects
-
-  # Continuously fetch at intervals (watch mode)
-  gz-git fetch --scan-depth 2 --watch --interval 5m ~/projects
-
-  # Watch with shorter interval
-  gz-git fetch --watch --interval 1m ~/work`,
+  gz-git fetch --include "myproject.*" ~/workspace`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runFetch,
 }

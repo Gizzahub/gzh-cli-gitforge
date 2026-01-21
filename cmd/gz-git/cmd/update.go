@@ -22,50 +22,18 @@ var (
 var updateCmd = &cobra.Command{
 	Use:   "update [directory]",
 	Short: "Update multiple repositories in parallel",
-	Long: `Scan for Git repositories and update them from remote in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories and updates them using git pull --rebase.
-
-For single repository operations, use 'git pull' directly.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Uses rebase strategy (git pull --rebase)
-  - Skips repositories with uncommitted changes
-  - Skips repositories without upstream branch
-
-The command is safe: it will NOT modify repositories with local changes.`,
-	Example: `  # Update all repositories in current directory
+	Long: `Quick Start:
+  # Update all repositories in current directory
   gz-git update
 
   # Update all repositories up to 2 levels deep
   gz-git update -d 2 .
 
-  # Update with custom parallelism
-  gz-git update --parallel 10 ~/projects
-
-  # Dry run to see what would be updated
-  gz-git update --dry-run ~/projects
-
   # Skip fetching (only update already fetched repos)
   gz-git update --no-fetch ~/workspace
 
-  # Filter by pattern
-  gz-git update --include "myproject.*" ~/workspace
-
-  # Exclude pattern
-  gz-git update --exclude "test.*" ~/projects
-
-  # Compact output format
-  gz-git update --format compact ~/projects
-
-  # Continuously update at intervals (watch mode)
-  gz-git update --scan-depth 2 --watch --interval 5m ~/projects
-
-  # Watch with shorter interval
-  gz-git update --watch --interval 1m ~/work`,
+  # Detailed output
+  gz-git update --verbose`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runUpdate,
 }

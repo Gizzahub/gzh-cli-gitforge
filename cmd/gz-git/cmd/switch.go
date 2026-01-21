@@ -24,42 +24,18 @@ var (
 var switchCmd = &cobra.Command{
 	Use:   "switch <branch> [directory]",
 	Short: "Switch branches across multiple repositories",
-	Long: `Scan for Git repositories and switch their branches in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories and switches them to the specified branch.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Skips repositories with uncommitted changes
-  - Skips repositories where the branch doesn't exist
-
-The command will skip repositories that:
-  - Already on the target branch
-  - Have uncommitted changes (unless --force)
-  - Have rebase or merge in progress
-  - Don't have the target branch (unless --create)`,
-	Example: `  # Switch all repos to develop branch
+	Long: `Quick Start:
+  # Switch all repos to develop branch
   gz-git switch develop
-
-  # Preview what would happen (dry-run)
-  gz-git switch main --dry-run
 
   # Create branch if it doesn't exist
   gz-git switch feature/new --create
 
-  # Switch with custom directory depth
-  gz-git switch develop -d 2
-
-  # Process more repos in parallel
+  # Use custom parallelism
   gz-git switch main -j 10
 
   # Only include specific repos
   gz-git switch develop --include "gzh-cli-.*"
-
-  # Exclude certain repos
-  gz-git switch develop --exclude ".*-mcp-.*"
 
   # Force switch (discards uncommitted changes - DANGEROUS!)
   gz-git switch main --force`,

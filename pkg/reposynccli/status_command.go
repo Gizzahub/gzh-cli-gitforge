@@ -43,16 +43,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check repository health and sync status",
-		Long: `Check the health status of synced repositories.
-
-This command performs comprehensive diagnostics:
-  - Fetches from all remotes (with timeout)
-  - Detects network connectivity issues
-  - Compares local vs remote branches (ahead/behind)
-  - Identifies potential conflicts
-  - Provides actionable recommendations
-
-Examples:
+		Long: `Quick Start:
   # Check all repositories from config
   gz-git sync status -c sync.yaml
 

@@ -15,16 +15,7 @@ func (f CommandFactory) newValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate workspace config file",
-		Long: `Validate a workspace configuration file for correctness.
-
-Checks:
-  - YAML syntax
-  - Required fields (name, url, targetPath)
-  - Duplicate targetPath entries
-  - URL format
-  - Strategy values
-
-Examples:
+		Long: `Quick Start:
   # Validate config file
   gz-git workspace validate -c myworkspace.yaml
 

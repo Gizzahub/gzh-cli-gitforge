@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -29,47 +30,14 @@ var (
 var pushCmd = &cobra.Command{
 	Use:   "push [directory]",
 	Short: "Push commits to multiple repositories in parallel",
-	Long: `Scan for Git repositories and push local commits to remote in parallel.
-
-Refspec (Branch Mapping):
-  Use --refspec to push local branch to different remote branch.
-
-  Syntax:
-    local:remote     - Push local 'local' to remote 'remote'
-    +local:remote    - Force push (uses --force-with-lease)
-    branch           - Same name (default)
-
-  Common Use Cases:
-    develop:master        - Push develop to master
-    feature/x:release/x   - Map feature to release branch
-    +hotfix:main          - Force push hotfix (use with caution!)
-
-  Automatic Validation (performed before push):
-    ✓ Refspec format validation (Git branch naming rules)
-    ✓ Source branch existence check (local branch must exist)
-    ✓ Commit count calculation (exact commits to be pushed)
-    ✓ Remote branch existence check
-
-  Error Examples:
-    ⚠ refspec source branch 'develop' not found in repository
-    ⚠ invalid refspec: contains invalid character ":"
-    ⚠ branch name cannot start with hyphen
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Pushes to origin remote only
-  - Skips repositories without remotes or upstreams
-
-The command pushes your local commits to remote repositories.` + WatchModeHelpText,
-	Example: `  # Push all repositories in current directory
+	Long: cliutil.QuickStartHelp(`  # Push all repositories in current directory
   gz-git push
 
-  # Push all repositories up to 2 levels deep
-  gz-git push -d 2 ~/projects
+  # Push to multiple remotes
+  gz-git push --remote origin --remote backup ~/projects
 
-  # Push with custom parallelism
-  gz-git push --parallel 10 ~/workspace
+  # Push with custom refspec (local:remote branch mapping)
+  gz-git push --refspec develop:master ~/projects
 
   # Force push (use with caution!)
   gz-git push --force ~/projects
@@ -80,38 +48,8 @@ The command pushes your local commits to remote repositories.` + WatchModeHelpTe
   # Push all tags
   gz-git push --tags ~/repos
 
-  # Push with custom refspec (local:remote branch mapping)
-  gz-git push --refspec develop:master ~/projects
-
-  # Push to multiple remotes
-  gz-git push --remote origin --remote backup ~/projects
-
-  # Push to all configured remotes
-  gz-git push --all-remotes ~/projects
-
-  # Combine refspec with multiple remotes
-  gz-git push --refspec develop:master --remote origin --remote backup ~/work
-
-  # Dry run to see what would be pushed
-  gz-git push --dry-run ~/projects
-
-  # Filter by pattern
-  gz-git push --include "myproject.*" ~/workspace
-
-  # Exclude pattern
-  gz-git push --exclude "test.*" ~/projects
-
   # Skip dirty status check (useful for CI/CD)
-  gz-git push --ignore-dirty ~/projects
-
-  # Compact output format
-  gz-git push --format compact ~/projects
-
-  # Continuously push at intervals (watch mode)
-  gz-git push --scan-depth 2 --watch --interval 10m ~/projects
-
-  # Watch with shorter interval
-  gz-git push --watch --interval 5m ~/work`,
+  gz-git push --ignore-dirty ~/projects`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runPush,
 }

@@ -24,19 +24,7 @@ func (f CommandFactory) newSetupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Interactive setup wizard for repository synchronization",
-		Long: `Interactive setup wizard for configuring repository synchronization.
-
-This wizard guides you through:
-  1. Selecting a Git forge provider (GitHub, GitLab, Gitea)
-  2. Configuring authentication
-  3. Setting clone options (SSH/HTTPS, ports)
-  4. Choosing target directory and filtering options
-  5. Optionally saving the configuration for reuse
-
-The wizard produces the same result as running 'sync from-forge' with flags,
-but with a guided, interactive experience.
-
-Examples:
+		Long: `Quick Start:
   # Start the setup wizard
   gz-git sync setup
 

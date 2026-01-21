@@ -54,12 +54,7 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "from-forge",
 		Short: "Sync repositories from a Git forge (GitHub, GitLab, Gitea)",
-		Long: `Sync repositories from a Git forge provider.
-
-Supports GitHub organizations, GitLab groups, and Gitea organizations.
-Use --provider to specify the forge type.
-
-Examples:
+		Long: `Quick Start:
   # Sync from GitHub organization (default: SSH clone)
   gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
 
@@ -75,10 +70,6 @@ Examples:
   # Sync GitLab with subgroups (flat mode)
   gz-git sync from-forge --provider gitlab --org parent-group --target ./repos \
     --include-subgroups --subgroup-mode flat
-
-  # Sync GitLab with subgroups (nested directories)
-  gz-git sync from-forge --provider gitlab --org parent-group --target ./repos \
-    --include-subgroups --subgroup-mode nested
 
   # Sync from Gitea
   gz-git sync from-forge --provider gitea --org myorg --target ./repos \

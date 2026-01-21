@@ -40,15 +40,7 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Create empty workspace config file",
-		Long: `Create a sample workspace configuration file.
-
-The generated file includes:
-  - Default sync strategy (reset)
-  - Parallel worker settings
-  - Clone protocol settings
-  - Example repository entries
-
-Examples:
+		Long: `Quick Start:
   # Create .gz-git.yaml in current directory
   gz-git workspace init
 

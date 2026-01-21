@@ -35,12 +35,7 @@ func (f CommandFactory) newScanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan [path]",
 		Short: "Scan directory for git repos and generate config",
-		Long: `Scan a local directory tree for git repositories and generate configuration.
-
-This command recursively scans for .git directories and creates a YAML
-configuration file for workspace management.
-
-Examples:
+		Long: `Quick Start:
   # Scan current directory
   gz-git workspace scan
 
@@ -50,7 +45,7 @@ Examples:
   # Scan with custom output
   gz-git workspace scan ~/mydevbox -c myworkspace.yaml
 
-  # Scan with depth limit
+  # Scan with depth limit (default: 2)
   gz-git workspace scan ~/mydevbox --depth 3
 
   # Exclude patterns

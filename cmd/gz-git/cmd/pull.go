@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-core/cli"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -25,22 +26,7 @@ var (
 var pullCmd = &cobra.Command{
 	Use:   "pull [directory]",
 	Short: "Pull updates from multiple repositories in parallel",
-	Long: `Scan for Git repositories and pull updates from remote in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories and pulls updates (fetch + merge/rebase) from their remotes
-in parallel.
-
-For single repository operations, use 'git pull' directly.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Uses merge strategy (can use rebase or ff-only)
-  - Skips repositories without remotes or upstreams
-
-The command updates your working tree with changes from the remote.` + WatchModeHelpText,
-	Example: `  # Pull all repositories in current directory
+	Long: cliutil.QuickStartHelp(`  # Pull all repositories in current directory
   gz-git pull
 
   # Pull all repositories up to 2 levels deep
@@ -58,26 +44,11 @@ The command updates your working tree with changes from the remote.` + WatchMode
   # Pull and prune deleted remote branches
   gz-git pull --prune ~/projects
 
-  # Dry run to see what would be pulled
-  gz-git pull --dry-run ~/projects
-
   # Automatically stash local changes before pull
   gz-git pull --stash ~/projects
 
   # Filter by pattern
-  gz-git pull --include "myproject.*" ~/workspace
-
-  # Exclude pattern
-  gz-git pull --exclude "test.*" ~/projects
-
-  # Compact output format
-  gz-git pull --format compact ~/projects
-
-  # Continuously pull at intervals (watch mode)
-  gz-git pull --scan-depth 2 --watch --interval 10m ~/projects
-
-  # Watch with shorter interval
-  gz-git pull --watch --interval 5m ~/work`,
+  gz-git pull --include "myproject.*" ~/workspace`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runPull,
 }

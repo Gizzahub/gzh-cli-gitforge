@@ -26,35 +26,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Clone/update repositories from config",
-		Long: `Sync repositories defined in workspace configuration.
-
-This command reads a config file specifying repositories to sync,
-then clones or updates each repository according to the sync strategy.
-
-Config File Format (YAML):
-  strategy: reset               # default strategy: reset|pull|fetch
-  parallel: 4                   # concurrent operations
-  maxRetries: 3                 # retry attempts per repo
-  cleanupOrphans: false         # remove dirs not in config
-  strictBranchCheckout: false   # fail on branch checkout error (default: false, lenient)
-  cloneProto: ssh               # ssh or https
-  sshPort: 0                    # custom SSH port (0 = auto)
-  roots:                        # required if cleanupOrphans=true
-    - ./repos
-  repositories:
-    - name: my-project
-      url: https://github.com/owner/my-project.git
-      targetPath: ./repos/my-project
-      branch: develop           # optional: checkout branch after clone/update
-      strategy: pull            # per-repo override (optional)
-      strictBranchCheckout: true  # per-repo override (optional)
-      cloneProto: ssh           # per-repo override (optional)
-    - name: another-repo
-      url: git@github.com:owner/another-repo.git
-      targetPath: ./repos/another-repo
-      branch: main              # optional: checkout main after clone/update
-
-Examples:
+		Long: `Quick Start:
   # Sync from default config (.gz-git.yaml)
   gz-git workspace sync
 
@@ -68,7 +40,15 @@ Examples:
   gz-git workspace sync --strategy pull
 
   # Resume interrupted sync
-  gz-git workspace sync --resume --state-file state.json`,
+  gz-git workspace sync --resume --state-file state.json
+
+Config File Structure (Reference):
+  strategy: reset # reset|pull|fetch
+  parallel: 4
+  repositories:
+    - name: my-project
+      url: https://github.com/owner/my-project.git
+      targetPath: ./repos/my-project`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

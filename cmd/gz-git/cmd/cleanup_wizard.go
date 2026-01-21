@@ -15,29 +15,12 @@ import (
 var cleanupWizardCmd = &cobra.Command{
 	Use:   "wizard [directory]",
 	Short: "Interactive wizard for branch cleanup",
-	Long: `Interactive wizard for cleaning up branches across repositories.
-
-This wizard guides you through:
-  1. Selecting cleanup types (merged, stale, gone branches)
-  2. Scanning repositories
-  3. Reviewing and selecting branches to delete
-  4. Executing the cleanup
-
-The wizard provides a safe, interactive way to clean up branches
-with clear visibility into what will be deleted.
-
-Examples:
+	Long: `Quick Start:
   # Start wizard in current directory
   gz-git cleanup wizard
 
   # Start wizard in specific directory
-  gz-git cleanup wizard ~/projects
-
-  # The wizard will interactively ask about:
-  # - Which types of branches to clean (merged, stale, gone)
-  # - Stale threshold (days without activity)
-  # - Whether to include remote branches
-  # - Which specific branches to delete`,
+  gz-git cleanup wizard ~/projects`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCleanupWizard,
 }

@@ -29,46 +29,21 @@ var (
 var commitCmd = &cobra.Command{
 	Use:   "commit [directory]",
 	Short: "Commit changes across multiple repositories",
-	Long: `Scan for Git repositories and commit uncommitted changes in parallel.
-
-This command recursively scans the specified directory (or current directory)
-for Git repositories with uncommitted changes and commits them in batch.
-
-By default:
-  - Scans 1 directory level deep
-  - Processes 5 repositories in parallel
-  - Shows preview only (use --yes to commit)
-  - Auto-generates commit messages based on changed files
-
-The workflow is:
-  1. Scan repositories and identify dirty ones
-  2. Show preview table with repositories and suggested messages
-  3. Execute commits if --yes is specified
-
-Use --yes to commit, --edit to modify messages in $EDITOR first.`,
-	Example: `  # Commit all dirty repositories in current directory
-  gz-git commit -d 1
-
+	Long: `Quick Start:
   # Commit with per-repository messages (most common usage)
   gz-git commit -m "repo1:feat: add feature" -m "repo2:fix: bug fix"
 
   # Commit with same message for all repositories
   gz-git commit --all "chore: update dependencies"
 
-  # Dry run to see what would be committed
-  gz-git commit --dry-run
-
-  # Skip confirmation
-  gz-git commit --yes
-
-  # Edit messages in editor before committing
+  # Interactive mode: edit messages in editor before committing
   gz-git commit -e
 
-  # Use messages from JSON file
-  gz-git commit --file /tmp/messages.json
+  # Scan and show dirty repos (preview only)
+  gz-git commit
 
-  # JSON output (for scripting)
-  gz-git commit --format json`,
+  # Skip confirmation
+  gz-git commit --yes`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCommit,
 }

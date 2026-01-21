@@ -12,9 +12,12 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Long: `Display the version of gz-git CLI tool.
+	Long: `Quick Start:
+  # Show full version info
+  gz-git version
 
-Shows the current version number, git commit SHA, and build date.`,
+  # Show short version number
+  gz-git version --short`,
 	Run: func(cmd *cobra.Command, args []string) {
 		short, _ := cmd.Flags().GetBool("short")
 
