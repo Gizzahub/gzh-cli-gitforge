@@ -3,10 +3,20 @@ title: Unify target/path directory naming across CLI and config
 priority: P1
 effort: M
 created: 2026-01-22
-status: todo
+moved-at: 2026-01-22T00:00:00Z
 type: refactor
 area: cli, config
 tags: [consistency, api-design, ux]
+context: "CLI uses --target, YAML uses path. Need to choose one naming convention."
+options:
+  - label: "Option A: Standardize on 'path'"
+    pros: "Shorter, cleaner; matches YAML field; common convention"
+    cons: "Requires CLI flag rename"
+  - label: "Option B: Standardize on 'target'"
+    pros: "Already used in CLI; no CLI changes needed"
+    cons: "Longer; breaking change for existing config files"
+recommendation: "Option A (path)"
+recommendation-reason: "Matches existing YAML convention; shorter; more idiomatic"
 ---
 
 # Unify target/path directory naming
@@ -24,45 +34,7 @@ The same concept (destination directory) uses different names across CLI flags, 
 
 This inconsistency confuses users when switching between CLI and config files.
 
-## Current State
-
-### CLI Flags (--target)
-
-```go
-// pkg/reposynccli/from_forge_command.go:85
-cmd.Flags().StringVarP(&opts.TargetPath, "target", "t", ".", "target directory")
-
-// pkg/workspacecli/add_command.go:54
-cmd.Flags().StringVarP(&addTarget, "target", "t", "", "target path")
-
-// pkg/workspacecli/status_command.go:50
-cmd.Flags().StringVarP(&statusTarget, "target", "t", ".", "directory to scan")
-```
-
-### YAML Config (path)
-
-```yaml
-# .gz-git.yaml
-workspaces:
-  myproject:
-    path: ~/mydevbox/myproject  # Uses 'path', not 'target'
-```
-
-### Struct Fields (mixed)
-
-```go
-// pkg/reposynccli/from_forge_command.go
-type FromForgeOptions struct {
-    TargetPath string  // Uses 'TargetPath'
-}
-
-// pkg/config/types.go:301
-type Workspace struct {
-    Path string `yaml:"path"`  // Uses 'Path'
-}
-```
-
-## Proposed Solution
+## Decision Required
 
 ### Option A: Standardize on "path" (RECOMMENDED)
 
@@ -99,23 +71,12 @@ pkg/workspacecli/generate_command.go:47    # --target flag
 pkg/config/types.go:301                    # Workspace.Path
 ```
 
-## Acceptance Criteria
+## AI Recommendation
 
-- [ ] **Decision**: Choose "path" or "target"
-- [ ] **Implementation**:
-  - [ ] Rename CLI flags to chosen name
-  - [ ] Add backward compatibility alias
-  - [ ] Align struct field names
-  - [ ] Ensure YAML field matches
-- [ ] **Documentation**:
-  - [ ] Update CLAUDE.md
-  - [ ] Update example configs
-- [ ] **Testing**:
-  - [ ] Test new flag name
-  - [ ] Test backward compatibility
-- [ ] **Quality**:
-  - [ ] Run `make quality`
+**Option A (path)** because:
+1. YAML already uses `path` - changing CLI is less disruptive than changing config format
+2. Existing config files would break with Option B
+3. "path" is shorter and more idiomatic in CLI tools
 
-## Priority Justification
-
-**P1 (High)**: Core UX issue affecting daily usage of CLI vs config files.
+---
+**Awaiting decision to proceed with implementation.**

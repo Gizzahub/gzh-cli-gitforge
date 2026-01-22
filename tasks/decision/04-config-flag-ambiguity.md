@@ -3,10 +3,20 @@ title: Clarify --config flag usage (input vs output)
 priority: P2
 effort: S
 created: 2026-01-22
-status: todo
+moved-at: 2026-01-22T00:00:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
+context: "--config is used for both input (read) and output (write) across commands"
+options:
+  - label: "Option A: Rename output flags to --output, -o"
+    pros: "Clear distinction; follows common CLI conventions (many tools use -o for output)"
+    cons: "Requires changing init command flag"
+  - label: "Option B: Context-specific naming (--input-config, --output-config)"
+    pros: "Very explicit about direction"
+    cons: "Longer flag names; breaks existing usage"
+recommendation: "Option A (--output, -o for output files)"
+recommendation-reason: "Standard convention; -o for output is widely recognized; minimal breaking change"
 ---
 
 # Clarify --config flag ambiguity
@@ -24,26 +34,7 @@ The `--config` flag is used for both **input** (read config) and **output** (wri
 
 This is confusing because users expect `--config` to specify an input file.
 
-## Current State
-
-### Input usage (correct intuition)
-
-```go
-// cmd/gz-git/cmd/clone.go:77
-cloneCmd.Flags().StringVarP(&cloneConfig, "config", "c", "", "YAML config file for clone specifications")
-
-// pkg/workspacecli/sync_command.go:185
-cmd.Flags().StringVarP(&syncConfigPath, "config", "c", "", "config file path")
-```
-
-### Output usage (counterintuitive)
-
-```go
-// pkg/workspacecli/init_command.go:73
-cmd.Flags().StringVarP(&initConfigPath, "config", "c", ".gz-git.yaml", "output config file path")
-```
-
-## Proposed Solution
+## Decision Required
 
 ### Option A: Rename output flags (RECOMMENDED)
 
@@ -73,22 +64,12 @@ pkg/workspacecli/init_command.go:73  # --config used for output
 pkg/workspacecli/scan_command.go     # Check if uses --config for output
 ```
 
-## Acceptance Criteria
+## AI Recommendation
 
-- [ ] **Decision**: Choose naming convention
-- [ ] **Implementation**:
-  - [ ] Rename output flags to `--output, -o`
-  - [ ] Keep `--config` as deprecated alias where needed
-  - [ ] Update help text to clarify direction
-- [ ] **Documentation**:
-  - [ ] Update CLAUDE.md
-  - [ ] Update command examples
-- [ ] **Testing**:
-  - [ ] Test new flag name
-  - [ ] Test backward compatibility
-- [ ] **Quality**:
-  - [ ] Run `make quality`
+**Option A (--output, -o for output files)** because:
+1. `-o` for output is a widely recognized convention
+2. Minimal change - only affects init/scan commands
+3. Maintains backward compatibility with deprecation warning
 
-## Priority Justification
-
-**P2 (Medium)**: Affects usability but users can infer from context. Less critical than P1 issues.
+---
+**Awaiting decision to proceed with implementation.**
