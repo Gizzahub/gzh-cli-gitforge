@@ -13,6 +13,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -46,7 +47,7 @@ type FromForgeOptions struct {
 func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	opts := &FromForgeOptions{
 		Strategy:     "reset",
-		Parallel:     4,
+		Parallel:     repository.DefaultBulkParallel,
 		MaxRetries:   3,
 		CloneProto:   "ssh",  // Default to SSH
 		SubgroupMode: "flat", // Default to flat

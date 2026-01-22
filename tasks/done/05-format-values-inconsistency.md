@@ -81,7 +81,7 @@ ______________________________________________________________________
 
 **Awaiting decision to proceed with implementation.**
 
----
+______________________________________________________________________
 
 ## Implementation Summary
 
@@ -90,15 +90,18 @@ ______________________________________________________________________
 **Changes Made (Option A - Core + Extended Formats):**
 
 **Core formats** (all commands):
+
 - `default` - Human-readable (default)
 - `json` - Machine-parseable
 - `llm` - LLM-optimized
 
 **Extended formats** (command-specific):
+
 - `compact` - Bulk/status commands only
 - `table`, `csv`, `markdown` - History/report commands only
 
 **Files Modified:**
+
 - cmd/gz-git/cmd/bulk_common.go:
   - Added CoreFormats constant
   - Updated ValidHistoryFormats to include "default"
@@ -107,12 +110,14 @@ ______________________________________________________________________
 - pkg/workspacecli/status_command.go: Updated help text to include llm
 
 **Verification:**
+
 - ✅ Build successful (`make fmt && make build`)
 - ✅ History commands now support "default" format
 - ✅ All commands support core formats (default, json, llm)
 - ✅ Extended formats remain command-specific
 
 **Benefits:**
+
 - Consistent core format support across all commands
 - Clear documentation of format categories
 - Command-specific formats where appropriate
