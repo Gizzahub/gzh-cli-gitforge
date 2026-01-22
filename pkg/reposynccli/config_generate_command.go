@@ -23,7 +23,7 @@ import (
 type ConfigGenerateOptions struct {
 	Provider         string
 	Organization     string
-	TargetPath       string
+	Path             string
 	Token            string
 	BaseURL          string
 	CloneProto       string
@@ -79,7 +79,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	// Provider and target (required)
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name [required]")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory for cloned repositories [required]")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
@@ -264,7 +264,7 @@ func generateConfigYAML(repos []*provider.Repository, opts *ConfigGenerateOption
 }
 
 func buildTargetPath(repo *provider.Repository, opts *ConfigGenerateOptions) string {
-	basePath := opts.TargetPath
+	basePath := opts.Path
 	projectPath := repo.FullName
 
 	if !opts.IncludeSubgroups || opts.SubgroupMode == "" {

@@ -47,7 +47,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Workspace config file")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory to scan (instead of config)")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory to scan (instead of config)")
 	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth")
 
 	cmd.Flags().BoolVar(&opts.SkipFetch, "skip-fetch", false, "Skip remote fetch (faster but may show stale data)")
@@ -63,4 +63,3 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 
 	return cmd
 }
-

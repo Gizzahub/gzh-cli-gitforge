@@ -21,7 +21,7 @@ import (
 // StatusOptions holds options for the status command.
 type StatusOptions struct {
 	ConfigFile  string
-	TargetPath  string
+	Path        string
 	ScanDepth   int
 	SkipFetch   bool
 	Timeout     time.Duration
@@ -68,7 +68,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 
 	// Config or target path (mutually exclusive in practice)
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Sync config file")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory to scan")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory to scan")
 	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth (when using --target)")
 
 	// Diagnostic options
@@ -96,14 +96,14 @@ func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error
 	var repos []reposync.RepoSpec
 
 	// Auto-detect config if neither --config nor --target specified
-	if opts.ConfigFile == "" && opts.TargetPath == "" {
+	if opts.ConfigFile == "" && opts.Path == "" {
 		detected, detectErr := detectConfigFile(".")
 		if detectErr == nil {
 			opts.ConfigFile = detected
 			fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", detected)
 		} else {
 			// Fall back to scanning current directory
-			opts.TargetPath = "."
+			opts.Path = "."
 		}
 	}
 
@@ -116,12 +116,12 @@ func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error
 
 		// Extract repos from plan
 		repos = configData.Plan.Input.Repos
-	} else if opts.TargetPath != "" {
+	} else if opts.Path != "" {
 		// Scan directory
 		planner := reposync.FSPlanner{}
 		plan, planErr := planner.Plan(ctx, reposync.PlanRequest{
 			Options: reposync.PlanOptions{
-				Roots:           []string{opts.TargetPath},
+				Roots:           []string{opts.Path},
 				DefaultStrategy: reposync.StrategyFetch, // Doesn't matter for status
 			},
 		})
@@ -227,7 +227,7 @@ func printHealthReport(cmd *cobra.Command, report *reposync.HealthReport, verbos
 
 		// Verbose mode: show detailed diagnostics
 		if verbose {
-		printVerboseHealth(out, health)
+			printVerboseHealth(out, health)
 		}
 
 		if health.Error != nil {

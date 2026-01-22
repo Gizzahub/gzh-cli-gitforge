@@ -19,7 +19,7 @@ type AddOptions struct {
 	ConfigFile  string
 	Name        string
 	URL         string
-	TargetPath  string
+	Path        string
 	FromCurrent bool
 }
 
@@ -51,7 +51,7 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Config file (default: "+DefaultConfigFile+")")
 	cmd.Flags().StringVar(&opts.Name, "name", "", "Repository name")
 	cmd.Flags().StringVar(&opts.URL, "url", "", "Repository URL")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target path for clone")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Target path for clone")
 	cmd.Flags().BoolVar(&opts.FromCurrent, "from-current", false, "Add current directory's repo")
 
 	return cmd
@@ -88,7 +88,7 @@ func (f CommandFactory) runAdd(cmd *cobra.Command, opts *AddOptions) error {
 	}
 
 	// Auto-generate target path if not provided
-	targetPath := opts.TargetPath
+	targetPath := opts.Path
 	if targetPath == "" {
 		targetPath = "./" + name
 	}

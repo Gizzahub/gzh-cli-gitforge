@@ -44,7 +44,7 @@ func (f CommandFactory) newGenerateCmd() *cobra.Command {
 	// Provider and target (required)
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name [required]")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory for cloned repositories [required]")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
