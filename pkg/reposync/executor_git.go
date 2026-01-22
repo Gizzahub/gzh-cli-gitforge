@@ -294,6 +294,18 @@ func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, l
 		}
 	}
 
+	// Configure additional remotes if specified
+	if len(action.Repo.AdditionalRemotes) > 0 {
+		remoteMsg, remoteErr := addAdditionalRemotes(ctx, action.Repo.TargetPath, action.Repo.AdditionalRemotes, logger)
+		if remoteErr != nil {
+			// Non-fatal: warn but continue
+			msg = fmt.Sprintf("%s (warning: remote config failed: %v)", msg, remoteErr)
+			logger.Warn(fmt.Sprintf("%s: additional remotes warning: %v", action.Repo.Name, remoteErr))
+		} else if remoteMsg != "" {
+			msg = fmt.Sprintf("%s (%s)", msg, remoteMsg)
+		}
+	}
+
 	res := ActionResult{
 		Action:  action,
 		Message: msg,
@@ -363,4 +375,47 @@ func checkoutBranch(ctx context.Context, repoPath, branch string, logger repo.Lo
 
 	logger.Debug("branch checkout: %s -> %s", repoPath, branch)
 	return fmt.Sprintf("checked out %s", branch), nil
+}
+
+// addAdditionalRemotes configures additional git remotes in the given repository path.
+// Returns a success message and nil error on success, or an error on failure.
+func addAdditionalRemotes(ctx context.Context, repoPath string, remotes map[string]string, logger repo.Logger) (string, error) {
+	if len(remotes) == 0 {
+		return "", nil
+	}
+
+	var addedRemotes []string
+
+	for remoteName, remoteURL := range remotes {
+		// Check if remote already exists
+		checkCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "remote", "get-url", remoteName)
+		existingURL, _ := checkCmd.Output()
+
+		if len(existingURL) > 0 {
+			// Remote exists - update URL if different
+			currentURL := string(existingURL)
+			if currentURL != remoteURL+"\n" {
+				updateCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "remote", "set-url", remoteName, remoteURL)
+				if output, err := updateCmd.CombinedOutput(); err != nil {
+					return "", fmt.Errorf("git remote set-url %s failed: %w (output: %s)", remoteName, err, string(output))
+				}
+				logger.Debug("updated remote: %s -> %s (in %s)", remoteName, remoteURL, repoPath)
+				addedRemotes = append(addedRemotes, remoteName)
+			}
+		} else {
+			// Remote doesn't exist - add it
+			addCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "remote", "add", remoteName, remoteURL)
+			if output, err := addCmd.CombinedOutput(); err != nil {
+				return "", fmt.Errorf("git remote add %s failed: %w (output: %s)", remoteName, err, string(output))
+			}
+			logger.Debug("added remote: %s -> %s (in %s)", remoteName, remoteURL, repoPath)
+			addedRemotes = append(addedRemotes, remoteName)
+		}
+	}
+
+	if len(addedRemotes) > 0 {
+		return fmt.Sprintf("configured %d remote(s)", len(addedRemotes)), nil
+	}
+
+	return "", nil
 }

@@ -52,14 +52,15 @@ type fileConfig struct {
 }
 
 type repoEntry struct {
-	Name                 string `yaml:"name"`
-	Provider             string `yaml:"provider"`
-	URL                  string `yaml:"url"`
-	TargetPath           string `yaml:"targetPath"`
-	Branch               string `yaml:"branch"`               // optional: branch to checkout after clone/update
-	StrictBranchCheckout *bool  `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
-	Strategy             string `yaml:"strategy"`
-	AssumePresent        bool   `yaml:"assumePresent"`
+	Name                 string            `yaml:"name"`
+	Provider             string            `yaml:"provider"`
+	URL                  string            `yaml:"url"`
+	AdditionalRemotes    map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
+	TargetPath           string            `yaml:"targetPath"`
+	Branch               string            `yaml:"branch"`               // optional: branch to checkout after clone/update
+	StrictBranchCheckout *bool             `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
+	Strategy             string            `yaml:"strategy"`
+	AssumePresent        bool              `yaml:"assumePresent"`
 }
 
 type gzhYamlConfig struct {
@@ -235,6 +236,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 			Name:                 repo.Name,
 			Provider:             repo.Provider,
 			CloneURL:             repo.URL,
+			AdditionalRemotes:    repo.AdditionalRemotes,
 			TargetPath:           targetPath,
 			Branch:               repo.Branch,
 			StrictBranchCheckout: strictBranchCheckout,

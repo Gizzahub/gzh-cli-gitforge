@@ -44,12 +44,13 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		SSHPort        int      `yaml:"sshPort"`
 		Roots          []string `yaml:"roots"`
 		Repositories   []struct {
-			Name       string   `yaml:"name"`
-			URL        string   `yaml:"url"`
-			URLs       []string `yaml:"urls"`
-			Path       string   `yaml:"path"`
-			Strategy   string   `yaml:"strategy"`
-			CloneProto string   `yaml:"cloneProto"`
+			Name              string            `yaml:"name"`
+			URL               string            `yaml:"url"`
+			URLs              []string          `yaml:"urls"`              // Deprecated: use url + additionalRemotes
+			AdditionalRemotes map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
+			Path              string            `yaml:"path"`
+			Strategy          string            `yaml:"strategy"`
+			CloneProto        string            `yaml:"cloneProto"`
 		} `yaml:"repositories"`
 	}
 
@@ -82,9 +83,10 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		}
 
 		spec := reposync.RepoSpec{
-			Name:       r.Name,
-			CloneURL:   url,
-			TargetPath: path,
+			Name:              r.Name,
+			CloneURL:          url,
+			AdditionalRemotes: r.AdditionalRemotes,
+			TargetPath:        path,
 		}
 
 		// Per-repo strategy override

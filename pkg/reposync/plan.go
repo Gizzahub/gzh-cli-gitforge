@@ -43,6 +43,7 @@ type RepoSpec struct {
 	Name                 string
 	Provider             string
 	CloneURL             string
+	AdditionalRemotes    map[string]string // Additional git remotes (name: url), configured after clone
 	TargetPath           string
 	Branch               string // optional: branch to checkout after clone/update (empty = no checkout)
 	StrictBranchCheckout bool   // if true, branch checkout failure causes action failure (default: false)
