@@ -33,7 +33,7 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
   gz-git workspace add https://github.com/user/repo.git
 
   # Add with custom name and path
-  gz-git workspace add --name myrepo --url git@github.com:user/repo.git --target ./repos/myrepo
+  gz-git workspace add --name myrepo --url git@github.com:user/repo.git --path ./repos/myrepo
 
   # Add current directory's repo to config
   gz-git workspace add --from-current
@@ -51,7 +51,9 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Config file (default: "+DefaultConfigFile+")")
 	cmd.Flags().StringVar(&opts.Name, "name", "", "Repository name")
 	cmd.Flags().StringVar(&opts.URL, "url", "", "Repository URL")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Target path for clone")
+	cmd.Flags().StringVar(&opts.Path, "path", "", "Path for clone")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.FromCurrent, "from-current", false, "Add current directory's repo")
 
 	return cmd

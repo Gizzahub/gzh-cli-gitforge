@@ -29,7 +29,7 @@ func (f CommandFactory) newSetupCmd() *cobra.Command {
   gz-git sync setup
 
   # After setup, run the generated command:
-  gz-git sync from-forge --provider gitlab --org myorg --target ~/repos`),
+  gz-git sync from-forge --provider gitlab --org myorg --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runSetup(cmd)
 		},

@@ -55,31 +55,33 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 		Short: "Generate config from Git forge (GitHub, GitLab, Gitea)",
 		Long: cliutil.QuickStartHelp(`  # Generate config from GitLab
   gz-git sync config generate --provider gitlab --org devbox -o sync.yaml \
-    --token $GITLAB_TOKEN --target ~/repos
+    --token $GITLAB_TOKEN --path ~/repos
 
   # Include subgroups with flat naming
   gz-git sync config generate --provider gitlab --org parent-group \
     --include-subgroups --subgroup-mode flat -o sync.yaml \
-    --token $GITLAB_TOKEN --target ~/repos
+    --token $GITLAB_TOKEN --path ~/repos
 
   # Generate from GitHub with HTTPS clone
   gz-git sync config generate --provider github --org myorg \
     --clone-proto https -o sync.yaml \
-    --token $GITHUB_TOKEN --target ~/repos
+    --token $GITHUB_TOKEN --path ~/repos
 
   # Self-hosted GitLab with custom SSH port
   gz-git sync config generate --provider gitlab --org mygroup \
     --base-url https://gitlab.company.com --ssh-port 2224 -o sync.yaml \
-    --token $GITLAB_TOKEN --target ~/repos`),
+    --token $GITLAB_TOKEN --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runConfigGenerate(cmd, opts)
 		},
 	}
 
-	// Provider and target (required)
+	// Provider and path (required)
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name [required]")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "path", "", "Directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
@@ -110,7 +112,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	// Mark required
 	cmd.MarkFlagRequired("provider")
 	cmd.MarkFlagRequired("org")
-	cmd.MarkFlagRequired("target")
+	cmd.MarkFlagRequired("path")
 
 	return cmd
 }

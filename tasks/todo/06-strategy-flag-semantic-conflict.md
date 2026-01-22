@@ -3,20 +3,21 @@ title: Resolve --strategy flag semantic conflict across commands
 priority: P1
 effort: M
 created: 2026-01-22
-moved-at: 2026-01-22T00:00:00Z
+decision: Option B - Rename all strategy flags
+decision-at: 2026-01-23T00:00:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux, breaking-change]
-context: "--strategy means Git merge strategy in pull, but repo handling strategy in clone/sync"
+context: --strategy means Git merge strategy in pull, but repo handling strategy in clone/sync
 options:
   - label: "Option A: Rename pull's --strategy to --merge-strategy"
-    pros: "Minimal change (only pull); clone/sync already consistent; clear distinction"
-    cons: "Breaking change for pull command users"
-  - label: "Option B: Rename all --strategy flags"
-    pros: "All flags become explicit about their purpose"
-    cons: "Larger change scope; more breaking changes"
-recommendation: "Option A (rename pull's --strategy only)"
-recommendation-reason: "Pull is the odd one out; clone/sync already share consistent meaning"
+    pros: Minimal change (only pull); clone/sync already consistent; clear distinction
+    cons: Breaking change for pull command users
+  - label: 'Option B: Rename all --strategy flags'
+    pros: All flags become explicit about their purpose
+    cons: Larger change scope; more breaking changes
+recommendation: Option A (rename pull's --strategy only)
+recommendation-reason: Pull is the odd one out; clone/sync already share consistent meaning
 ---
 
 # Resolve --strategy flag semantic conflict
@@ -25,11 +26,11 @@ recommendation-reason: "Pull is the odd one out; clone/sync already share consis
 
 `--strategy` 플래그가 명령어마다 완전히 다른 의미로 사용됨:
 
-| 명령어 | 의미 | 값 |
-|--------|------|-----|
-| `pull --strategy` | Git merge 전략 | `merge, rebase, ff-only` |
-| `clone --strategy` | 기존 repo 처리 방식 | `skip, pull, reset, rebase, fetch` |
-| `sync from-forge --strategy` | 동기화 전략 | `reset, pull, fetch` |
+| 명령어                       | 의미                | 값                                 |
+| ---------------------------- | ------------------- | ---------------------------------- |
+| `pull --strategy`            | Git merge 전략      | `merge, rebase, ff-only`           |
+| `clone --strategy`           | 기존 repo 처리 방식 | `skip, pull, reset, rebase, fetch` |
+| `sync from-forge --strategy` | 동기화 전략         | `reset, pull, fetch`               |
 
 **핵심 문제**: 같은 `rebase` 값이 다른 동작을 의미함
 
@@ -38,6 +39,7 @@ recommendation-reason: "Pull is the odd one out; clone/sync already share consis
 ### Option A: Rename pull's --strategy (RECOMMENDED)
 
 **Changes**:
+
 - `pull --strategy` → `pull --merge-strategy` or `--pull-mode`
 - `clone`, `sync`의 `--strategy`는 유지 (일관된 의미)
 
@@ -50,17 +52,20 @@ gz-git pull --merge-strategy rebase
 ```
 
 **Benefits**:
+
 - pull만 변경하면 됨 (영향 범위 최소화)
 - clone/sync는 이미 일관된 의미로 사용 중
 
 ### Option B: 모든 명령어에서 rename
 
 **Changes**:
+
 - `pull --strategy` → `--merge-strategy`
 - `clone --strategy` → `--update-strategy`
 - `sync --strategy` → `--sync-strategy`
 
 **Drawbacks**:
+
 - 변경 범위가 큼
 - 모든 사용자 영향
 
@@ -75,9 +80,11 @@ pkg/reposynccli/from_forge_command.go:99  # --strategy (sync) - 유지
 ## AI Recommendation
 
 **Option A (rename pull's --strategy only)** because:
-1. Pull is the semantic outlier (Git merge vs repo handling)
-2. Clone/sync already share consistent semantics
-3. Minimal breaking change surface
 
----
+1. Pull is the semantic outlier (Git merge vs repo handling)
+1. Clone/sync already share consistent semantics
+1. Minimal breaking change surface
+
+______________________________________________________________________
+
 **Awaiting decision to proceed with implementation.**

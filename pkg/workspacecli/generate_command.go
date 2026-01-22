@@ -25,26 +25,28 @@ func (f CommandFactory) newGenerateCmd() *cobra.Command {
 		Short: "Generate workspace config from Git forge",
 		Long: cliutil.QuickStartHelp(`  # Generate config from GitLab
   gz-git workspace generate-config --provider gitlab --org devbox -o .gz-git.yaml \
-    --token $GITLAB_TOKEN --target ~/repos
+    --token $GITLAB_TOKEN --path ~/repos
 
   # Include subgroups with flat naming
   gz-git workspace generate-config --provider gitlab --org parent-group \
     --include-subgroups --subgroup-mode flat -o .gz-git.yaml \
-    --token $GITLAB_TOKEN --target ~/repos
+    --token $GITLAB_TOKEN --path ~/repos
 
   # Generate from GitHub
   gz-git workspace generate-config --provider github --org myorg \
     --clone-proto ssh -o .gz-git.yaml \
-    --token $GITHUB_TOKEN --target ~/repos`),
+    --token $GITHUB_TOKEN --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return reposynccli.RunConfigGenerate(cmd, opts)
 		},
 	}
 
-	// Provider and target (required)
+	// Provider and path (required)
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name [required]")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "path", "", "Directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
@@ -75,7 +77,7 @@ func (f CommandFactory) newGenerateCmd() *cobra.Command {
 	// Mark required
 	_ = cmd.MarkFlagRequired("provider")
 	_ = cmd.MarkFlagRequired("org")
-	_ = cmd.MarkFlagRequired("target")
+	_ = cmd.MarkFlagRequired("path")
 
 	return cmd
 }

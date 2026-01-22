@@ -48,7 +48,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
   gz-git sync status -c sync.yaml
 
   # Check repositories in a directory
-  gz-git sync status --target ~/repos --scan-depth 2
+  gz-git sync status --path ~/repos --scan-depth 2
 
   # Quick check (skip remote fetch)
   gz-git sync status -c sync.yaml --skip-fetch
@@ -66,10 +66,12 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 		},
 	}
 
-	// Config or target path (mutually exclusive in practice)
+	// Config or path (mutually exclusive in practice)
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Sync config file")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory to scan")
-	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth (when using --target)")
+	cmd.Flags().StringVar(&opts.Path, "path", "", "Directory to scan")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
+	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth (when using --path)")
 
 	// Diagnostic options
 	cmd.Flags().BoolVar(&opts.SkipFetch, "skip-fetch", false, "Skip remote fetch (faster but may show stale data)")
@@ -95,7 +97,7 @@ func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error
 	// Load repositories from config or scan directory
 	var repos []reposync.RepoSpec
 
-	// Auto-detect config if neither --config nor --target specified
+	// Auto-detect config if neither --config nor --path specified
 	if opts.ConfigFile == "" && opts.Path == "" {
 		detected, detectErr := detectConfigFile(".")
 		if detectErr == nil {

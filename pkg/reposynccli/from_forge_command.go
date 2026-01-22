@@ -56,33 +56,35 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 		Use:   "from-forge",
 		Short: "Sync repositories from a Git forge (GitHub, GitLab, Gitea)",
 		Long: cliutil.QuickStartHelp(`  # Sync from GitHub organization (default: SSH clone)
-  gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+  gz-git sync from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
 
   # Sync from GitLab group with HTTPS clone
-  gz-git sync from-forge --provider gitlab --org mygroup --target ./repos \
+  gz-git sync from-forge --provider gitlab --org mygroup --path ./repos \
     --token $GITLAB_TOKEN --clone-proto https
 
   # Sync from self-hosted GitLab with custom SSH port
-  gz-git sync from-forge --provider gitlab --org mygroup --target ./repos \
+  gz-git sync from-forge --provider gitlab --org mygroup --path ./repos \
     --base-url https://gitlab.company.com --token $GITLAB_TOKEN \
     --clone-proto ssh --ssh-port 2224
 
   # Sync GitLab with subgroups (flat mode)
-  gz-git sync from-forge --provider gitlab --org parent-group --target ./repos \
+  gz-git sync from-forge --provider gitlab --org parent-group --path ./repos \
     --include-subgroups --subgroup-mode flat
 
   # Sync from Gitea
-  gz-git sync from-forge --provider gitea --org myorg --target ./repos \
+  gz-git sync from-forge --provider gitea --org myorg --path ./repos \
     --base-url https://gitea.company.com --token $GITEA_TOKEN`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runFromForge(cmd, opts)
 		},
 	}
 
-	// Provider and target (required)
+	// Provider and path (required)
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name to sync [required]")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Target directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.TargetPath, "path", "", "Directory for cloned repositories [required]")
+	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
@@ -116,7 +118,7 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	// Required flags
 	_ = cmd.MarkFlagRequired("provider")
 	_ = cmd.MarkFlagRequired("org")
-	_ = cmd.MarkFlagRequired("target")
+	_ = cmd.MarkFlagRequired("path")
 
 	return cmd
 }

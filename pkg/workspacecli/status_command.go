@@ -29,7 +29,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
   gz-git workspace status -c myworkspace.yaml
 
   # Check repositories in a directory (no config)
-  gz-git workspace status --target ~/repos --scan-depth 2
+  gz-git workspace status --path ~/repos --scan-depth 2
 
   # Quick check (skip remote fetch)
   gz-git workspace status --skip-fetch
@@ -47,7 +47,9 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "Workspace config file")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Target directory to scan (instead of config)")
+	cmd.Flags().StringVar(&opts.Path, "path", "", "Directory to scan (instead of config)")
+	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
+	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().IntVarP(&opts.ScanDepth, "scan-depth", "d", opts.ScanDepth, "Directory scan depth")
 
 	cmd.Flags().BoolVar(&opts.SkipFetch, "skip-fetch", false, "Skip remote fetch (faster but may show stale data)")

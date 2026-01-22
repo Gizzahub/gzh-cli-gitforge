@@ -8,7 +8,7 @@ completed-at: 2026-01-22T00:00:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
-completion-summary: "Changed workspace scan --depth to --scan-depth with -d shorthand; added deprecated alias"
+completion-summary: Changed workspace scan --depth to --scan-depth with -d shorthand; added deprecated alias
 ---
 
 # Unify workspace scan --depth to --scan-depth
@@ -35,6 +35,7 @@ cmd.Flags().IntVar(&opts.Depth, "depth", opts.Depth, "[DEPRECATED] use --scan-de
 ```
 
 **Backward Compatibility**:
+
 - `--depth`를 deprecated alias로 유지
 - Help text에 `[DEPRECATED]` 표시
 
