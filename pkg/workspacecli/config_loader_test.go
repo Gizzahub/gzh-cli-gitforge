@@ -203,8 +203,8 @@ repositories:
 	}
 
 	// Check default parallel
-	if result.Run.Parallel != 4 {
-		t.Errorf("default parallel = %d, want 4", result.Run.Parallel)
+	if result.Run.Parallel != 10 {
+		t.Errorf("default parallel = %d, want 10", result.Run.Parallel)
 	}
 
 	// Check default maxRetries

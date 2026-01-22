@@ -171,7 +171,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 	defaultParallel := l.DefaultParallel
 	if defaultParallel <= 0 {
-		defaultParallel = 4
+		defaultParallel = 10
 	}
 
 	defaultRetries := l.DefaultRetries
@@ -331,7 +331,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 
 	defaultParallel := l.DefaultParallel
 	if defaultParallel <= 0 {
-		defaultParallel = 4
+		defaultParallel = 10
 	}
 
 	defaultRetries := l.DefaultRetries
