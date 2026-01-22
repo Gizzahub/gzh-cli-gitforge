@@ -453,6 +453,7 @@ ______________________________________________________________________
 **용도**: 간단한 로컬 repo 목록 관리
 
 **Config 형식** (배열):
+
 ```yaml
 # .gz-git.yaml (workspace CLI용)
 repositories:
@@ -465,23 +466,26 @@ repositories:
 ```
 
 **사용 명령어**:
+
 - `gz-git workspace init` - 빈 config 생성
 - `gz-git workspace scan` - 로컬 디렉토리 스캔 → config 생성
 - `gz-git workspace sync` - config 기반 clone/update
 - `gz-git workspace status` - health check
 
 **특징**:
+
 - ✅ 간단한 배열 구조
 - ✅ 빠른 설정
 - ✅ 로컬 파일 관리 중심
 
----
+______________________________________________________________________
 
 ### 2️⃣ **Hierarchical Config** (`workspaces`)
 
 **용도**: 복잡한 계층 구조, forge 동기화, profile 관리
 
 **Config 형식** (Map):
+
 ```yaml
 # .gz-git.yaml (hierarchical config용)
 profile: polypia
@@ -502,28 +506,30 @@ workspaces:
 ```
 
 **사용 API**:
+
 - `config.LoadConfigRecursive()` - 계층적 로드
 - `config.LoadWorkspaces()` - Discovery mode 적용
 - `config.GetProfileFromChain()` - Profile 체인 탐색
 
 **특징**:
+
 - ✅ Map 기반 named workspaces
 - ✅ 무한 depth 계층 구조
 - ✅ Inline profiles 지원
 - ✅ Parent config 참조
 - ✅ Forge 동기화 통합
 
----
+______________________________________________________________________
 
 ### 🤔 **어떤 시스템을 사용해야 하나?**
 
-| 상황 | 추천 시스템 |
-|------|-----------|
-| 단순 repo 목록 관리 | **Workspace CLI** (`repositories`) |
-| Forge에서 org 전체 sync | **Hierarchical Config** (`workspaces`) |
-| 여러 환경 프로파일 관리 | **Hierarchical Config** (`workspaces`) |
+| 상황                                   | 추천 시스템                            |
+| -------------------------------------- | -------------------------------------- |
+| 단순 repo 목록 관리                    | **Workspace CLI** (`repositories`)     |
+| Forge에서 org 전체 sync                | **Hierarchical Config** (`workspaces`) |
+| 여러 환경 프로파일 관리                | **Hierarchical Config** (`workspaces`) |
 | Workstation → Workspace → Project 구조 | **Hierarchical Config** (`workspaces`) |
-| 빠른 설정, 간단한 구조 | **Workspace CLI** (`repositories`) |
+| 빠른 설정, 간단한 구조                 | **Workspace CLI** (`repositories`)     |
 
 ______________________________________________________________________
 

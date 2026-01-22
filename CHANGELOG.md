@@ -14,12 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Config System Cleanup - Removed Legacy Workspace Management**:
 
 - **Removed Commands**:
+
   - `gz-git config add-workspace` - Edit `.gz-git.yaml` files directly instead
   - `gz-git config list-workspaces` - Use `gz-git config hierarchy` instead
   - `gz-git config remove-workspace` - Edit `.gz-git.yaml` files directly instead
   - `gz-git config init --workstation` flag - Use `config init` (global) or `config init --local` (project)
 
 - **Renamed Commands** (for consistency):
+
   - `gz-git sync forge` → `gz-git sync from-forge`
   - `gz-git sync run` → `gz-git sync from-config`
 
@@ -46,10 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 See `docs/MIGRATION_V2_TO_V3.md` for detailed migration instructions.
 
 **Quick Summary**:
+
 1. Replace `sync forge` with `sync from-forge` in scripts
-2. Replace `sync run` with `sync from-config` in scripts
-3. Edit `.gz-git.yaml` files directly instead of using workspace commands
-4. Use `config hierarchy` to view configuration structure
+1. Replace `sync run` with `sync from-config` in scripts
+1. Edit `.gz-git.yaml` files directly instead of using workspace commands
+1. Use `config hierarchy` to view configuration structure
 
 **Note**: All existing config files continue to work without modification.
 

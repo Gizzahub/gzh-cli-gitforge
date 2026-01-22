@@ -4,19 +4,20 @@
 **Status**: Breaking Changes
 **Impact**: Command-line interface, config file naming
 
----
+______________________________________________________________________
 
 ## Executive Summary
 
 gz-git v3.0 removes legacy workspace management commands and simplifies the configuration system. The underlying data structures (Workspaces map) remain unchanged, but the command-line interface has been cleaned up.
 
 **Key Changes**:
+
 - ❌ Removed 3 workspace management commands
 - ❌ Removed 1 deprecated flag from `config init`
 - ✅ Simplified command naming (`sync forge` → `sync from-forge`)
 - ✅ All existing config files continue to work
 
----
+______________________________________________________________________
 
 ## Breaking Changes
 
@@ -24,11 +25,11 @@ gz-git v3.0 removes legacy workspace management commands and simplifies the conf
 
 The following commands have been removed entirely:
 
-| Old Command | Status | Alternative |
-|-------------|--------|-------------|
-| `gz-git config add-workspace` | ❌ Removed | Edit `.gz-git.yaml` directly |
-| `gz-git config list-workspaces` | ❌ Removed | Use `config hierarchy` to view structure |
-| `gz-git config remove-workspace` | ❌ Removed | Edit `.gz-git.yaml` directly |
+| Old Command                      | Status     | Alternative                              |
+| -------------------------------- | ---------- | ---------------------------------------- |
+| `gz-git config add-workspace`    | ❌ Removed | Edit `.gz-git.yaml` directly             |
+| `gz-git config list-workspaces`  | ❌ Removed | Use `config hierarchy` to view structure |
+| `gz-git config remove-workspace` | ❌ Removed | Edit `.gz-git.yaml` directly             |
 
 **Migration**: Instead of using workspace commands, manually edit `.gz-git.yaml` files to define your project structure using the `workspaces:` map.
 
@@ -69,10 +70,10 @@ gz-git config hierarchy
 
 ### 2. Sync Command Naming (RENAMED)
 
-| Old Command | New Command | Notes |
-|-------------|-------------|-------|
-| `gz-git sync forge` | `gz-git sync from-forge` | More explicit naming |
-| `gz-git sync run` | `gz-git sync from-config` | Clearer intent |
+| Old Command         | New Command               | Notes                |
+| ------------------- | ------------------------- | -------------------- |
+| `gz-git sync forge` | `gz-git sync from-forge`  | More explicit naming |
+| `gz-git sync run`   | `gz-git sync from-config` | Clearer intent       |
 
 **Migration**: Update all scripts and aliases to use the new command names.
 
@@ -94,11 +95,12 @@ gz-git sync from-config -c sync.yaml
 
 The `--workstation` flag has been removed from `gz-git config init`.
 
-| Old Flag | Status | Alternative |
-|----------|--------|-------------|
+| Old Flag        | Status     | Alternative                       |
+| --------------- | ---------- | --------------------------------- |
 | `--workstation` | ❌ Removed | Use `--local` or default behavior |
 
 **Migration**:
+
 - For global config: `gz-git config init` (no flag)
 - For project config: `gz-git config init --local`
 
@@ -119,7 +121,7 @@ gz-git config init
 gz-git config init --local
 ```
 
----
+______________________________________________________________________
 
 ## Non-Breaking Changes
 
@@ -141,7 +143,7 @@ gz-git config init --local
 - ✅ All sync functionality (`from-forge`, `from-config`, `status`)
 - ✅ Discovery modes (explicit, auto, hybrid)
 
----
+______________________________________________________________________
 
 ## Quick Migration Checklist
 
@@ -159,8 +161,8 @@ sed -i 's/config init --workstation/config init/g' ~/bin/*.sh
 If you were using workspace management commands, convert to manual config editing:
 
 1. Run `gz-git config hierarchy` to see current structure
-2. Edit `.gz-git.yaml` files directly instead of using commands
-3. Use `gz-git config hierarchy --validate` to check for errors
+1. Edit `.gz-git.yaml` files directly instead of using commands
+1. Use `gz-git config hierarchy --validate` to check for errors
 
 ### Step 3: Test Your Workflow
 
@@ -175,7 +177,7 @@ gz-git config hierarchy
 gz-git sync from-config -c sync.yaml --dry-run
 ```
 
----
+______________________________________________________________________
 
 ## API Changes (Go Library)
 
@@ -232,7 +234,7 @@ err = mgr.SaveConfig(home, ".gz-git.yaml", cfg)
 
 - `pkg/config/workspace.go` - All types and functions removed
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -256,23 +258,23 @@ err = mgr.SaveConfig(home, ".gz-git.yaml", cfg)
 
 **A**: It was removed. Use `gz-git config init` for global config or `gz-git config init --local` for project config.
 
----
+______________________________________________________________________
 
 ## Support
 
 If you encounter issues during migration:
 
 1. Check this guide first
-2. Run `gz-git config hierarchy --validate` to check for config errors
-3. File an issue at https://github.com/gizzahub/gzh-cli-gitforge/issues
+1. Run `gz-git config hierarchy --validate` to check for config errors
+1. File an issue at https://github.com/gizzahub/gzh-cli-gitforge/issues
 
----
+______________________________________________________________________
 
 ## Version History
 
 - **v3.0.0** (2026-01-21): Initial v3.0 release with breaking changes
 - **v2.x**: Last version with workspace management commands
 
----
+______________________________________________________________________
 
 **Last Updated**: 2026-01-21
