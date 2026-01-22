@@ -135,6 +135,10 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 			return nil, fmt.Errorf("failed to resolve workspace '%s' path '%s' in %s: %w", name, ws.Path, configPath, err)
 		}
 
+		// CRITICAL: Update the workspace path with the resolved absolute path
+		// This ensures that downstream code (e.g., sync_command.go) uses the expanded path
+		ws.Path = wsPath
+
 		// Determine effective type
 		effectiveType := ws.Type.Resolve(ws.Source != nil)
 
