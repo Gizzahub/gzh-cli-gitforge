@@ -75,10 +75,16 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			url = r.URLs[0]
 		}
 
+		// Default TargetPath to "./{name}" if not specified
+		targetPath := r.TargetPath
+		if targetPath == "" {
+			targetPath = r.Name
+		}
+
 		spec := reposync.RepoSpec{
 			Name:       r.Name,
 			CloneURL:   url,
-			TargetPath: r.TargetPath,
+			TargetPath: targetPath,
 		}
 
 		// Per-repo strategy override

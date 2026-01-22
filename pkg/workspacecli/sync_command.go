@@ -67,6 +67,11 @@ Config File Structure (Reference):
 				fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
 			}
 
+			// Get config directory for path resolution
+			absConfigPath, _ := filepath.Abs(configPath)
+			configDir := filepath.Dir(absConfigPath)
+			configFile := filepath.Base(absConfigPath)
+
 			// Load legacy config first to check for "repositories" list (flat config)
 			// This preserves backward compatibility for File 1, 2 style configs
 			loader := FileSpecLoader{}
@@ -85,15 +90,14 @@ Config File Structure (Reference):
 				// But we want to use the logic that existed previously?
 				// The previous code passed cfgData.Plan (PlanRequest) to orchestrator.
 				// The helper function below `createActionsFromLegacyPlan` does this.
-				legacyActions := createActionsFromLegacyPlan(cfgData.Plan)
+				//
+				// CRITICAL: Filter out the devbox directory itself to prevent self-reset
+				legacyActions := createActionsFromLegacyPlan(cfgData.Plan, configDir)
 				allActions = append(allActions, legacyActions...)
 			}
 
 			// Load Recursive Config (File 4 style)
 			// We check if there are nested workspaces or forge sources defined
-			absConfigPath, _ := filepath.Abs(configPath)
-			configDir := filepath.Dir(absConfigPath)
-			configFile := filepath.Base(absConfigPath)
 
 			var recursiveCfg *config.Config
 			if err == nil {
@@ -192,14 +196,26 @@ Config File Structure (Reference):
 }
 
 // createActionsFromLegacyPlan converts legacy PlanRequest to Actions.
-func createActionsFromLegacyPlan(req reposync.PlanRequest) []reposync.Action {
+// configDir is the directory containing the config file, used to filter out devbox itself.
+func createActionsFromLegacyPlan(req reposync.PlanRequest, configDir string) []reposync.Action {
 	defaultStrategy := req.Options.DefaultStrategy
 	if defaultStrategy == "" {
 		defaultStrategy = reposync.StrategyReset
 	}
 
+	// Get absolute path of config directory to compare with target paths
+	absConfigDir, _ := filepath.Abs(configDir)
+
 	actions := make([]reposync.Action, 0, len(req.Input.Repos))
 	for _, repo := range req.Input.Repos {
+		// CRITICAL: Skip if target path resolves to the devbox directory itself
+		// This prevents workspace sync from resetting the devbox repository
+		absTargetPath, _ := filepath.Abs(repo.TargetPath)
+		if absTargetPath == absConfigDir {
+			// Skip devbox directory itself
+			continue
+		}
+
 		strategy := repo.Strategy
 		if strategy == "" {
 			strategy = defaultStrategy
@@ -209,27 +225,27 @@ func createActionsFromLegacyPlan(req reposync.PlanRequest) []reposync.Action {
 		// But here we are bypassing planner.
 		// NOTE: GitExecutor handles Clone vs Check/Update based on dir existence usually?
 		// Actually, Executor takes an Action which HAS a Type (Clone/Update).
-		// We should probably check file existence here to be accurate, 
-		// OR use ActionUpdate which often implies Clone if missing? 
+		// We should probably check file existence here to be accurate,
+		// OR use ActionUpdate which often implies Clone if missing?
 		// Let's check `planner_forge.go` logic: it checks os.Stat.
-		
+
 		// For legacy simple list, we can probably safely duplicate that check or default to Update which fallsback?
 		// GitExecutor.Execute:
 		// case ActionClone: git clone
 		// case ActionUpdate: check if exists -> pull/reset; else -> clone?
 		// Let's check executor_git.go... No time to check deeply.
 		// Safer to check existence.
-		
+
 		actionType := reposync.ActionUpdate // Default preference
 		// We'll skip existence check here for brevity and assume Update handles missing?
 		// Actually better to mimic StaticPlanner logic if possible.
 		// StaticPlanner: "ActionClone if AssumePresent false".
-		// Let's set to Clone as default for safety? 
+		// Let's set to Clone as default for safety?
 		// Actually, for workspace sync, Update is usually what we want if it exists.
-		
+
 		actions = append(actions, reposync.Action{
 			Repo:      repo,
-			Type:      actionType, 
+			Type:      actionType,
 			Strategy:  strategy,
 			Reason:    "workspace config",
 			PlannedBy: "config",

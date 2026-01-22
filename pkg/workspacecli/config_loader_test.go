@@ -127,6 +127,19 @@ repositories:
 			wantRepos: 1,
 			wantErr:   false,
 		},
+		{
+			name: "missing targetPath defaults to repo name",
+			yaml: `
+strategy: reset
+repositories:
+  - name: my-project
+    url: https://github.com/test/my-project.git
+  - name: another-repo
+    url: https://github.com/test/another.git
+`,
+			wantRepos: 2,
+			wantErr:   false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -197,6 +210,46 @@ repositories:
 	// Check default maxRetries
 	if result.Run.MaxRetries != 3 {
 		t.Errorf("default maxRetries = %d, want 3", result.Run.MaxRetries)
+	}
+}
+
+func TestFileSpecLoader_Load_MissingTargetPath(t *testing.T) {
+	yaml := `
+strategy: reset
+repositories:
+  - name: my-project
+    url: https://github.com/test/my-project.git
+  - name: another-repo
+    url: https://github.com/test/another.git
+    targetPath: ./custom/path
+`
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test-config.yaml")
+
+	if err := os.WriteFile(configPath, []byte(yaml), 0o644); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	loader := FileSpecLoader{}
+	result, err := loader.Load(context.Background(), configPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Plan.Input.Repos) != 2 {
+		t.Fatalf("expected 2 repos, got %d", len(result.Plan.Input.Repos))
+	}
+
+	// Check first repo defaults to name
+	if result.Plan.Input.Repos[0].TargetPath != "my-project" {
+		t.Errorf("first repo targetPath = %q, want %q",
+			result.Plan.Input.Repos[0].TargetPath, "my-project")
+	}
+
+	// Check second repo uses explicit path
+	if result.Plan.Input.Repos[1].TargetPath != "./custom/path" {
+		t.Errorf("second repo targetPath = %q, want %q",
+			result.Plan.Input.Repos[1].TargetPath, "./custom/path")
 	}
 }
 
