@@ -81,6 +81,7 @@ examples/**/output/
 test/integration/repos/
 test/e2e/repos/
 configs/templates/*.local.yaml
+.claude/settings.local.json
 
 # Release artifacts
 *.tar.gz

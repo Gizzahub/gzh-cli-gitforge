@@ -32,6 +32,7 @@ import (
 //
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
+//
 // LoadConfigRecursive loads a config file and recursively loads all workspaces.
 // This function works at ANY level (workstation, workspace, project, etc.)
 //
