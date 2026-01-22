@@ -35,7 +35,7 @@ maxRetries: 3
 repositories:
   - name: test-repo
     url: https://github.com/test/repo.git
-    targetPath: ./repos/test
+    path: ./repos/test
 `
 	if err := os.WriteFile(configPath, []byte(validConfig), 0o644); err != nil {
 		t.Fatal(err)

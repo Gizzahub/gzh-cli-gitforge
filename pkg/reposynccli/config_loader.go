@@ -201,8 +201,14 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 	seenTargets := make(map[string]struct{}, len(cfg.Repositories))
 
 	for _, repo := range cfg.Repositories {
-		if repo.Name == "" || repo.URL == "" || repo.TargetPath == "" {
-			return ConfigData{}, fmt.Errorf("repository entry is missing required fields (name/url/targetPath)")
+		// Default path to repo name if not specified
+		targetPath := repo.TargetPath
+		if targetPath == "" {
+			targetPath = repo.Name
+		}
+
+		if repo.Name == "" || repo.URL == "" {
+			return ConfigData{}, fmt.Errorf("repository entry is missing required fields (name/url)")
 		}
 
 		repoStrategy := parsedStrategy
@@ -213,9 +219,9 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 			}
 		}
 
-		targetPath := cleanPath(repo.TargetPath)
+		targetPath = cleanPath(targetPath)
 		if _, exists := seenTargets[targetPath]; exists {
-			return ConfigData{}, fmt.Errorf("duplicate targetPath detected: %s", targetPath)
+			return ConfigData{}, fmt.Errorf("duplicate path detected: %s", targetPath)
 		}
 		seenTargets[targetPath] = struct{}{}
 
@@ -354,7 +360,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 
 		targetPath := cleanPath(filepath.Join(root, repo.Name))
 		if _, exists := seenTargets[targetPath]; exists {
-			return ConfigData{}, fmt.Errorf("duplicate targetPath detected: %s", targetPath)
+			return ConfigData{}, fmt.Errorf("duplicate path detected: %s", targetPath)
 		}
 		seenTargets[targetPath] = struct{}{}
 

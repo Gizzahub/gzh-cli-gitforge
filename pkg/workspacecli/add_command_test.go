@@ -74,7 +74,7 @@ parallel: 8
 repositories:
   - name: existing-repo
     url: https://github.com/test/repo.git
-    targetPath: ./repos/existing
+    path: ./repos/existing
 `
 	if err := os.WriteFile(configPath, []byte(existing), 0o644); err != nil {
 		t.Fatal(err)

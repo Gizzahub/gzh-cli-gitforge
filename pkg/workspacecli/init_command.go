@@ -29,7 +29,7 @@ sshPort: 0
 repositories:
   - name: example-repo
     url: https://github.com/example/repo.git
-    targetPath: ./repos/example-repo
+    path: ./repos/example-repo
     # strategy: pull  # Optional: override default strategy
     # cloneProto: ssh # Optional: override default clone protocol
 
