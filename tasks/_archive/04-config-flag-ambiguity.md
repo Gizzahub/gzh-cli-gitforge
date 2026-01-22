@@ -7,10 +7,18 @@ decision: Option A - Use --output, -o for output files
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T02:30:00Z
 completed-at: 2026-01-23T03:00:00Z
+archived-at: 2026-01-23T04:30:00Z
+verified-at: 2026-01-23T04:30:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
 context: --config is used for both input (read) and output (write) across commands
+verification-summary: |
+  - Verified: workspace init/scan use `--output, -o` for output files
+  - Evidence: pkg/workspacecli/scan_command.go:66-68 uses `--output, -o` with deprecated `--config`
+  - Files checked: init_command.go and scan_command.go
+  - Build: Successful (committed as refactor(cli): clarify --config → --output)
+---
 options:
   - label: 'Option A: Rename output flags to --output, -o'
     pros: Clear distinction; follows common CLI conventions (many tools use -o for output)

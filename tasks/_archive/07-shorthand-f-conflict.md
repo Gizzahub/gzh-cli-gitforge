@@ -7,10 +7,20 @@ decision: Option A - Reserve -f for --force
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T02:00:00Z
 completed-at: 2026-01-23T02:30:00Z
+archived-at: 2026-01-23T04:45:00Z
+verified-at: 2026-01-23T04:45:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
 context: -f is used for --format in bulk commands, blocking --force in push (Git standard UX)
+verification-summary: |
+  - Verified: -f removed from --format, added to --force in push
+  - Evidence: cmd/gz-git/cmd/push.go:63 uses `--force, -f`
+  - Evidence: cmd/gz-git/cmd/bulk_common.go --format has no shorthand
+  - Files checked: 9 command files modified as documented
+  - Build: Successful (committed as refactor(cli): reserve -f for --force)
+  - Impact: Git-standard UX restored (push -f works like git push -f)
+---
 options:
   - label: 'Option A: Reserve -f for --force, change --format to -F or no shorthand'
     pros: Git-standard UX (git push -f); muscle memory friendly

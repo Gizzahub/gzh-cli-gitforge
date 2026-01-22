@@ -7,10 +7,21 @@ decision: Option B - Rename all strategy flags
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T01:00:00Z
 completed-at: 2026-01-23T02:00:00Z
+archived-at: 2026-01-23T04:40:00Z
+verified-at: 2026-01-23T04:40:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux, breaking-change]
 context: --strategy means Git merge strategy in pull, but repo handling strategy in clone/sync
+verification-summary: |
+  - Verified: All strategy flags renamed to context-specific names
+  - Evidence: cmd/gz-git/cmd/pull.go uses `--merge-strategy` for Git merge
+  - Evidence: cmd/gz-git/cmd/clone.go uses `--update-strategy` for repo handling
+  - Evidence: pkg/reposynccli/from_forge_command.go uses `--sync-strategy`
+  - Evidence: All have deprecated `--strategy` aliases with MarkDeprecated()
+  - Build: Successful (committed as refactor(cli): rename strategy flags)
+  - Note: This task superseded task 01's approach
+---
 options:
   - label: "Option A: Rename pull's --strategy to --merge-strategy"
     pros: Minimal change (only pull); clone/sync already consistent; clear distinction

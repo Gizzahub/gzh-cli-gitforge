@@ -7,10 +7,19 @@ decision: Option A - Core + extended formats
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T03:00:00Z
 completed-at: 2026-01-23T03:30:00Z
+archived-at: 2026-01-23T04:35:00Z
+verified-at: 2026-01-23T04:35:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
 context: Different commands support different --format values (default, compact, json, llm, table, csv, markdown)
+verification-summary: |
+  - Verified: Core formats (default, json, llm) defined for all commands
+  - Evidence: cmd/gz-git/cmd/bulk_common.go defines CoreFormats constant
+  - Evidence: ValidBulkFormats includes core + compact (extended)
+  - Evidence: ValidHistoryFormats includes core + table/csv/markdown (extended)
+  - Build: Successful (committed as refactor(cli): standardize format values)
+---
 options:
   - label: 'Option A: Define core + extended formats'
     pros: Flexible; all commands support essentials; specialized formats where needed

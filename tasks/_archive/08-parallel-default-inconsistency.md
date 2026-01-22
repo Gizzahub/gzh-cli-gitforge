@@ -7,10 +7,19 @@ decision: Option A - Unify to 10 for all commands
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T03:30:00Z
 completed-at: 2026-01-23T04:00:00Z
+archived-at: 2026-01-23T04:50:00Z
+verified-at: 2026-01-23T04:50:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design]
 context: --parallel default is 10 for bulk commands but 4 for sync from-forge
+verification-summary: |
+  - Verified: sync from-forge now uses repository.DefaultBulkParallel (10)
+  - Evidence: pkg/reposynccli/from_forge_command.go:50 uses DefaultBulkParallel
+  - Evidence: repository package imported for constant access
+  - Build: Successful (committed as refactor(cli): standardize parallel default)
+  - Impact: All bulk operations now use consistent default (10)
+---
 options:
   - label: 'Option A: Unify to 10 for all commands'
     pros: Consistent; single constant to manage; faster sync

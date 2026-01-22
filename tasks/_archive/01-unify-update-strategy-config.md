@@ -3,10 +3,23 @@ title: Unify update/strategy config options across clone and sync commands
 priority: P2
 effort: M
 created: 2026-01-22
-status: done
+status: superseded
+superseded-by: 06-strategy-flag-semantic-conflict.md
+superseded-at: 2026-01-23T01:00:00Z
+archived-at: 2026-01-23T04:15:00Z
+verified-at: 2026-01-23T04:15:00Z
 type: refactor
 area: config
 tags: [consistency, api-design, backward-compatibility]
+verification-summary: |
+  - Superseded: Task 06 implemented a different approach than proposed here
+  - Proposed: Add `--strategy` flag to clone command
+  - Actually implemented: Task 06 renamed ALL strategy flags to context-specific names
+    - `clone --strategy` → `--update-strategy`
+    - `pull --strategy` → `--merge-strategy`
+    - `sync --strategy` → `--sync-strategy`
+  - Evidence: cmd/gz-git/cmd/clone.go:72 uses `--update-strategy` not `--strategy`
+  - Conclusion: Task 01's goal (unify strategy naming) was achieved via task 06's approach
 ---
 
 # Unify update/strategy config options

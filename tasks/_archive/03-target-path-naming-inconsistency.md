@@ -7,10 +7,19 @@ decision: Option A - Standardize on --path
 decision-at: 2026-01-23T00:00:00Z
 started-at: 2026-01-23T00:00:00Z
 completed-at: 2026-01-23T01:00:00Z
+archived-at: 2026-01-23T04:25:00Z
+verified-at: 2026-01-23T04:25:00Z
 type: refactor
 area: cli, config
 tags: [consistency, api-design, ux]
 context: CLI uses --target, YAML uses path. Need to choose one naming convention.
+verification-summary: |
+  - Verified: All commands use `--path` as primary flag
+  - Evidence: pkg/reposynccli/from_forge_command.go:86 uses `--path` for cloned repos
+  - Evidence: Deprecated `--target` alias present with MarkDeprecated()
+  - Files checked: 7 command files modified as documented
+  - Build: Successful (committed as refactor(cli): unify --target to --path)
+---
 options:
   - label: "Option A: Standardize on 'path'"
     pros: Shorter, cleaner; matches YAML field; common convention

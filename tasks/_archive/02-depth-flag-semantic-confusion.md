@@ -5,10 +5,18 @@ effort: S
 created: 2026-01-22
 started-at: 2026-01-22T00:00:00Z
 completed-at: 2026-01-22T00:00:00Z
+archived-at: 2026-01-23T04:20:00Z
+verified-at: 2026-01-23T04:20:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
 completion-summary: Changed workspace scan --depth to --scan-depth with -d shorthand; added deprecated alias
+verification-summary: |
+  - Verified: workspace scan uses `--scan-depth, -d` as primary flag
+  - Evidence: pkg/workspacecli/scan_command.go:69 defines `--scan-depth, -d`
+  - Evidence: pkg/workspacecli/scan_command.go:70 defines deprecated `--depth` alias
+  - Note: Uses [DEPRECATED] in help text instead of MarkDeprecated() (functional, minor style difference)
+  - Build: Successful (make quality passed as documented)
 ---
 
 # Unify workspace scan --depth to --scan-depth
