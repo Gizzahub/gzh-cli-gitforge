@@ -214,6 +214,66 @@ func (v *Validator) ExpandEnvVarsInGlobalConfig(g *GlobalConfig) error {
 	return nil
 }
 
+// ExpandEnvVarsInConfig expands environment variables in a recursive config.
+func (v *Validator) ExpandEnvVarsInConfig(c *Config) error {
+	if !v.ExpandEnvVars || c == nil {
+		return nil
+	}
+
+	var err error
+
+	// Expand provider token/url if set at root level
+	c.Token, err = v.expandString(c.Token)
+	if err != nil {
+		return fmt.Errorf("failed to expand token: %w", err)
+	}
+
+	c.BaseURL, err = v.expandString(c.BaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to expand baseURL: %w", err)
+	}
+
+	// Expand workspaces
+	for name, ws := range c.Workspaces {
+		if err := v.ExpandEnvVarsInWorkspace(ws); err != nil {
+			return fmt.Errorf("failed to expand workspace[%s]: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+// ExpandEnvVarsInWorkspace expands environment variables in a workspace.
+func (v *Validator) ExpandEnvVarsInWorkspace(ws *Workspace) error {
+	if !v.ExpandEnvVars || ws == nil {
+		return nil
+	}
+
+	var err error
+
+	// Expand source
+	if ws.Source != nil {
+		ws.Source.Token, err = v.expandString(ws.Source.Token)
+		if err != nil {
+			return fmt.Errorf("failed to expand source token: %w", err)
+		}
+
+		ws.Source.BaseURL, err = v.expandString(ws.Source.BaseURL)
+		if err != nil {
+			return fmt.Errorf("failed to expand source baseURL: %w", err)
+		}
+	}
+
+	// Recurse
+	for name, nestedWs := range ws.Workspaces {
+		if err := v.ExpandEnvVarsInWorkspace(nestedWs); err != nil {
+			return fmt.Errorf("failed to expand nested workspace[%s]: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
 // expandString expands environment variables in a string.
 // Returns the expanded string or an error if expansion fails.
 func (v *Validator) expandString(s string) (string, error) {

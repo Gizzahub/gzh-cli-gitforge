@@ -115,7 +115,8 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	return cmd
 }
 
-func (f CommandFactory) runConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
+// RunConfigGenerate executes the config generation logic.
+func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 	ctx := cmd.Context()
 
 	// Validate clone protocol
@@ -157,6 +158,10 @@ func (f CommandFactory) runConfigGenerate(cmd *cobra.Command, opts *ConfigGenera
 	fmt.Fprintf(cmd.OutOrStdout(), "\nReview the file and run:\n  gz-git sync from-config -c %s\n", opts.Output)
 
 	return nil
+}
+
+func (f CommandFactory) runConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
+	return RunConfigGenerate(cmd, opts)
 }
 
 func createConfigGenerateProvider(opts *ConfigGenerateOptions) (provider.Provider, error) {

@@ -32,12 +32,31 @@ import (
 //
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
+// LoadConfigRecursive loads a config file and recursively loads all workspaces.
+// This function works at ANY level (workstation, workspace, project, etc.)
+//
+// Parameters:
+//   - path: The directory containing the config file
+//   - configFile: The config file name (e.g., ".gz-git.yaml", ".gz-git-config.yaml")
+//
+// Returns:
+//   - *Config: The loaded config with all workspaces recursively loaded
+//   - error: Any error encountered during loading
+//
+// Example:
+//
+//	// Load workstation config
+//	home, _ := os.UserHomeDir()
+//	config, err := LoadConfigRecursive(home, ".gz-git-config.yaml")
+//
+//	// Load workspace config
+//	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
 func LoadConfigRecursive(path string, configFile string) (*Config, error) {
-	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool))
+	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), true)
 }
 
 // loadConfigRecursiveWithVisited loads config with circular reference detection.
-func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool) (*Config, error) {
+func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool, loadWorkspaces bool) (*Config, error) {
 	// 1. Load this level's config file
 	configPath := filepath.Join(path, configFile)
 	absConfigPath, err := filepath.Abs(configPath)
@@ -64,6 +83,12 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 	// Store the config path for relative path resolution
 	config.ConfigPath = absConfigPath
 
+	// Expand environment variables
+	validator := NewValidator()
+	if err := validator.ExpandEnvVarsInConfig(&config); err != nil {
+		return nil, fmt.Errorf("failed to expand env vars in %s: %w", absConfigPath, err)
+	}
+
 	// 2. Load parent config if specified
 	if config.Parent != "" {
 		parentPath, err := resolvePath(path, config.Parent)
@@ -80,7 +105,9 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 		}
 
 		// Load parent config recursively (with same visited map for cycle detection)
-		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited)
+		// IMPORTANT: Pass loadWorkspaces=false to prevent infinite recursion
+		// We only want the parent's settings, not to traverse its workspaces again
+		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load parent config '%s': %w", config.Parent, err)
 		}
@@ -90,7 +117,12 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 		config.ParentConfig = parentConfig
 	}
 
-	// 2. Recursively load workspaces
+	// 3. Recursively load workspaces
+	// Skip if disabled (e.g., when we are being loaded as a parent)
+	if !loadWorkspaces {
+		return &config, nil
+	}
+
 	for name, ws := range config.Workspaces {
 		if ws == nil {
 			continue

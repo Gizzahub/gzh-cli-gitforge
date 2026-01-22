@@ -88,12 +88,12 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	return cmd
 }
 
-func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error {
+// RunStatus executes the status checks.
+func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error {
 	ctx := cmd.Context()
 
 	// Load repositories from config or scan directory
 	var repos []reposync.RepoSpec
-	var err error
 
 	// Auto-detect config if neither --config nor --target specified
 	if opts.ConfigFile == "" && opts.TargetPath == "" {
@@ -109,7 +109,7 @@ func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error
 
 	if opts.ConfigFile != "" {
 		// Load from config file
-		configData, loadErr := f.SpecLoader.Load(ctx, opts.ConfigFile)
+		configData, loadErr := loader.Load(ctx, opts.ConfigFile)
 		if loadErr != nil {
 			return fmt.Errorf("failed to load config: %w", loadErr)
 		}
@@ -185,22 +185,26 @@ func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error
 
 	// Display results
 	if opts.UseTUI {
-		return f.runTUI(report)
+		return runTUI(report)
 	}
 
 	switch opts.Format {
 	case "json":
-		return f.printHealthReportJSON(cmd, report)
+		return printHealthReportJSON(cmd, report)
 	case "compact":
-		f.printHealthReportCompact(cmd, report)
+		printHealthReportCompact(cmd, report)
 	default:
-		f.printHealthReport(cmd, report, opts.Verbose)
+		printHealthReport(cmd, report, opts.Verbose)
 	}
 
 	return nil
 }
 
-func (f CommandFactory) printHealthReport(cmd *cobra.Command, report *reposync.HealthReport, verbose bool) {
+func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error {
+	return RunStatus(cmd, opts, f.SpecLoader)
+}
+
+func printHealthReport(cmd *cobra.Command, report *reposync.HealthReport, verbose bool) {
 	out := cmd.OutOrStdout()
 
 	fmt.Fprintf(out, "\nChecking repository health...\n\n")
@@ -223,7 +227,7 @@ func (f CommandFactory) printHealthReport(cmd *cobra.Command, report *reposync.H
 
 		// Verbose mode: show detailed diagnostics
 		if verbose {
-			f.printVerboseHealth(out, health)
+		printVerboseHealth(out, health)
 		}
 
 		if health.Error != nil {
@@ -243,7 +247,7 @@ func (f CommandFactory) printHealthReport(cmd *cobra.Command, report *reposync.H
 	fmt.Fprintf(out, "Total time: %v\n", report.TotalDuration.Round(time.Millisecond))
 }
 
-func (f CommandFactory) printVerboseHealth(out interface{ Write([]byte) (int, error) }, health reposync.RepoHealth) {
+func printVerboseHealth(out interface{ Write([]byte) (int, error) }, health reposync.RepoHealth) {
 	fmt.Fprintf(out, "     Branch: %s", health.CurrentBranch)
 	if health.UpstreamBranch != "" {
 		fmt.Fprintf(out, " → %s", health.UpstreamBranch)
@@ -279,7 +283,7 @@ func formatRepoName(repo reposync.RepoSpec) string {
 }
 
 // printHealthReportJSON outputs the health report in JSON format.
-func (f CommandFactory) printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport) error {
+func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport) error {
 	out := cmd.OutOrStdout()
 
 	// Create JSON-friendly structure
@@ -351,7 +355,7 @@ func (f CommandFactory) printHealthReportJSON(cmd *cobra.Command, report *reposy
 }
 
 // printHealthReportCompact outputs a compact one-line-per-repo summary.
-func (f CommandFactory) printHealthReportCompact(cmd *cobra.Command, report *reposync.HealthReport) {
+func printHealthReportCompact(cmd *cobra.Command, report *reposync.HealthReport) {
 	out := cmd.OutOrStdout()
 
 	for _, health := range report.Results {
@@ -390,7 +394,7 @@ func (f CommandFactory) printHealthReportCompact(cmd *cobra.Command, report *rep
 }
 
 // runTUI launches the interactive TUI for repository status.
-func (f CommandFactory) runTUI(report *reposync.HealthReport) error {
+func runTUI(report *reposync.HealthReport) error {
 	// Create TUI model with health results
 	model := tui.NewStatusModel(report.Results)
 

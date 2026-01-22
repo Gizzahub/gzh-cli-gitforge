@@ -80,6 +80,10 @@ Examples:
 	addCmd.GroupID = mgmtGroup.ID
 	root.AddCommand(addCmd)
 
+	generateCmd := f.newGenerateCmd()
+	generateCmd.GroupID = mgmtGroup.ID
+	root.AddCommand(generateCmd)
+
 	// Operations
 	syncCmd := f.newSyncCmd()
 	syncCmd.GroupID = opsGroup.ID
