@@ -87,3 +87,7 @@ configs/templates/*.local.yaml
 *.zip
 checksums.txt
 tests/cli/example/
+
+# Manual test artifacts
+tmp-repos/
+task-root.yaml

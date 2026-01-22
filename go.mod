@@ -10,13 +10,12 @@ require (
 	github.com/gizzahub/gzh-cli-core v0.0.0-20251230045225-725b628c716a
 	github.com/google/go-github/v66 v66.0.0
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/xanzy/go-gitlab v0.115.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/gizzahub/gzh-cli-core => ../gzh-cli-core
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -46,7 +45,6 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sys v0.40.0 // indirect

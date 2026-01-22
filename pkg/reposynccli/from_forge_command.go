@@ -252,3 +252,15 @@ func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, er
 type forgeProviderAdapter struct {
 	provider.Provider
 }
+
+// CreateForgeProviderRaw creates a provider from raw strings.
+// This is a helper for other packages (like workspacecli) to avoid duplicating provider creation logic.
+func CreateForgeProviderRaw(providerName, token, baseURL string, sshPort int) (reposync.ForgeProvider, error) {
+	opts := &FromForgeOptions{
+		Provider: providerName,
+		Token:    token,
+		BaseURL:  baseURL,
+		SSHPort:  sshPort,
+	}
+	return createFromForgeProvider(opts)
+}

@@ -1,0 +1,7 @@
+workspaces:
+  test-ws:
+    path: ./tmp-repos/gizzahub
+    source:
+      provider: github
+      org: gizzahub
+      cloneProto: https

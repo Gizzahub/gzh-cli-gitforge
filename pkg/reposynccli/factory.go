@@ -82,6 +82,7 @@ See 'gz-git workspace' for managing synced repositories via config file.`),
 
 	// Configuration
 	configCmd := f.newConfigCmd()
+
 	configCmd.GroupID = configGroup.ID
 	root.AddCommand(configCmd)
 
