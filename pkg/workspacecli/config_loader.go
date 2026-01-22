@@ -47,7 +47,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Name       string   `yaml:"name"`
 			URL        string   `yaml:"url"`
 			URLs       []string `yaml:"urls"`
-			TargetPath string   `yaml:"targetPath"`
+			Path       string   `yaml:"path"`
 			Strategy   string   `yaml:"strategy"`
 			CloneProto string   `yaml:"cloneProto"`
 		} `yaml:"repositories"`
@@ -75,16 +75,16 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			url = r.URLs[0]
 		}
 
-		// Default TargetPath to "./{name}" if not specified
-		targetPath := r.TargetPath
-		if targetPath == "" {
-			targetPath = r.Name
+		// Default path to repo name if not specified
+		path := r.Path
+		if path == "" {
+			path = r.Name
 		}
 
 		spec := reposync.RepoSpec{
 			Name:       r.Name,
 			CloneURL:   url,
-			TargetPath: targetPath,
+			TargetPath: path,
 		}
 
 		// Per-repo strategy override

@@ -26,7 +26,7 @@ maxRetries: 3
 repositories:
   - name: test-repo
     url: https://github.com/test/repo.git
-    targetPath: ./repos/test-repo
+    path: ./repos/test-repo
 `,
 			wantRepos: 1,
 			wantErr:   false,
@@ -40,10 +40,10 @@ maxRetries: 5
 repositories:
   - name: repo1
     url: https://github.com/test/repo1.git
-    targetPath: ./repos/repo1
+    path: ./repos/repo1
   - name: repo2
     url: git@github.com:test/repo2.git
-    targetPath: ./repos/repo2
+    path: ./repos/repo2
 `,
 			wantRepos: 2,
 			wantErr:   false,
@@ -57,7 +57,7 @@ repositories:
     urls:
       - https://github.com/test/repo.git
       - git@github.com:test/repo.git
-    targetPath: ./repos/multi
+    path: ./repos/multi
 `,
 			wantRepos: 1,
 			wantErr:   false,
@@ -69,7 +69,7 @@ strategy: reset
 repositories:
   - name: repo1
     url: https://github.com/test/repo1.git
-    targetPath: ./repos/repo1
+    path: ./repos/repo1
     strategy: pull
 `,
 			wantRepos: 1,
@@ -97,7 +97,7 @@ strategy: reset
 repositories:
   - name: repo1
     url: https://github.com/test/repo.git
-    targetPath: ./repos/repo1
+    path: ./repos/repo1
     strategy: not-valid
 `,
 			wantRepos: 0,
@@ -122,13 +122,13 @@ roots:
 repositories:
   - name: repo1
     url: https://github.com/test/repo.git
-    targetPath: ./repos/repo1
+    path: ./repos/repo1
 `,
 			wantRepos: 1,
 			wantErr:   false,
 		},
 		{
-			name: "missing targetPath defaults to repo name",
+			name: "missing path defaults to repo name",
 			yaml: `
 strategy: reset
 repositories:
@@ -187,7 +187,7 @@ func TestFileSpecLoader_Load_DefaultValues(t *testing.T) {
 repositories:
   - name: test
     url: https://github.com/test/repo.git
-    targetPath: ./test
+    path: ./test
 `
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -213,7 +213,7 @@ repositories:
 	}
 }
 
-func TestFileSpecLoader_Load_MissingTargetPath(t *testing.T) {
+func TestFileSpecLoader_Load_MissingPath(t *testing.T) {
 	yaml := `
 strategy: reset
 repositories:
@@ -221,7 +221,7 @@ repositories:
     url: https://github.com/test/my-project.git
   - name: another-repo
     url: https://github.com/test/another.git
-    targetPath: ./custom/path
+    path: ./custom/path
 `
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test-config.yaml")
@@ -242,13 +242,13 @@ repositories:
 
 	// Check first repo defaults to name
 	if result.Plan.Input.Repos[0].TargetPath != "my-project" {
-		t.Errorf("first repo targetPath = %q, want %q",
+		t.Errorf("first repo path = %q, want %q",
 			result.Plan.Input.Repos[0].TargetPath, "my-project")
 	}
 
 	// Check second repo uses explicit path
 	if result.Plan.Input.Repos[1].TargetPath != "./custom/path" {
-		t.Errorf("second repo targetPath = %q, want %q",
+		t.Errorf("second repo path = %q, want %q",
 			result.Plan.Input.Repos[1].TargetPath, "./custom/path")
 	}
 }

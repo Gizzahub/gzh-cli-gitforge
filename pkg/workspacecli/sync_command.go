@@ -53,7 +53,7 @@ Config File Structure (Reference):
   repositories:
     - name: my-project
       url: https://github.com/owner/my-project.git
-      targetPath: ./repos/my-project`),
+      path: ./repos/my-project  # Optional: defaults to name if omitted`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
