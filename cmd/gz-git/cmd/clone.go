@@ -26,8 +26,8 @@ var (
 	cloneFlags        BulkCommandFlags
 	cloneBranch       string
 	cloneDepth        int
-	cloneStrategy     string // --strategy flag (skip, pull, reset, rebase, fetch)
-	cloneUpdate       bool   // Deprecated: use --strategy instead
+	cloneStrategy     string // --update-strategy flag (skip, pull, reset, rebase, fetch)
+	cloneUpdate       bool   // Deprecated: use --update-strategy instead
 	cloneStructure    string
 	cloneFile         string
 	cloneSingleBranch bool
@@ -68,8 +68,10 @@ func init() {
 	cloneCmd.Flags().StringArrayVar(&cloneURLs, "url", nil, "repository URL to clone (can be repeated)")
 	cloneCmd.Flags().StringVarP(&cloneBranch, "branch", "b", "", "checkout specific branch")
 	cloneCmd.Flags().IntVar(&cloneDepth, "depth", 0, "create a shallow clone with truncated history")
-	cloneCmd.Flags().StringVarP(&cloneStrategy, "strategy", "s", "", "existing repo strategy: skip (default), pull, reset, rebase, fetch")
-	cloneCmd.Flags().BoolVar(&cloneUpdate, "update", false, "[DEPRECATED] use --strategy=pull instead")
+	cloneCmd.Flags().StringVarP(&cloneStrategy, "update-strategy", "s", "", "existing repo handling: skip (default), pull, reset, rebase, fetch")
+	cloneCmd.Flags().StringVar(&cloneStrategy, "strategy", "", "Deprecated: use --update-strategy")
+	_ = cloneCmd.Flags().MarkDeprecated("strategy", "use --update-strategy instead")
+	cloneCmd.Flags().BoolVar(&cloneUpdate, "update", false, "[DEPRECATED] use --update-strategy=pull instead")
 	cloneCmd.Flags().StringVar(&cloneStructure, "structure", "flat", "directory structure: flat or user")
 	cloneCmd.Flags().StringVar(&cloneFile, "file", "", "file containing repository URLs (one per line)")
 	cloneCmd.Flags().BoolVar(&cloneSingleBranch, "single-branch", false, "clone only one branch")
@@ -539,15 +541,15 @@ func buildCloneOptionsFromConfig(
 }
 
 // resolveCloneStrategy resolves the effective strategy with precedence:
-// CLI --strategy > CLI --update > YAML strategy > YAML update > default (skip)
+// CLI --update-strategy > CLI --update > YAML strategy > YAML update > default (skip)
 func resolveCloneStrategy(cliStrategy string, cliUpdate bool, yamlStrategy string, yamlUpdate bool) repository.UpdateStrategy {
-	// CLI --strategy takes highest precedence
+	// CLI --update-strategy takes highest precedence
 	if cliStrategy != "" {
 		return repository.UpdateStrategy(cliStrategy)
 	}
 	// CLI --update (deprecated) maps to pull
 	if cliUpdate {
-		fmt.Fprintln(os.Stderr, "Warning: --update is deprecated, use --strategy=pull instead")
+		fmt.Fprintln(os.Stderr, "Warning: --update is deprecated, use --update-strategy=pull instead")
 		return repository.StrategyPull
 	}
 	// YAML strategy

@@ -36,10 +36,10 @@ var pullCmd = &cobra.Command{
   gz-git pull --parallel 10 ~/workspace
 
   # Pull with rebase strategy
-  gz-git pull --strategy rebase ~/projects
+  gz-git pull --merge-strategy rebase ~/projects
 
   # Pull with fast-forward only strategy
-  gz-git pull --strategy ff-only ~/repos
+  gz-git pull --merge-strategy ff-only ~/repos
 
   # Pull and prune deleted remote branches
   gz-git pull --prune ~/projects
@@ -60,7 +60,9 @@ func init() {
 	addBulkFlags(pullCmd, &pullFlags)
 
 	// Pull-specific flags
-	pullCmd.Flags().StringVarP(&pullStrategy, "strategy", "s", "merge", "pull strategy: merge, rebase, ff-only")
+	pullCmd.Flags().StringVarP(&pullStrategy, "merge-strategy", "s", "merge", "merge strategy: merge, rebase, ff-only")
+	pullCmd.Flags().StringVar(&pullStrategy, "strategy", "merge", "Deprecated: use --merge-strategy")
+	_ = pullCmd.Flags().MarkDeprecated("strategy", "use --merge-strategy instead")
 	pullCmd.Flags().BoolVarP(&pullPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
 	pullCmd.Flags().BoolVarP(&pullTags, "tags", "t", false, "fetch all tags from remote")
 	pullCmd.Flags().BoolVar(&pullStash, "stash", false, "automatically stash local changes before pull")
@@ -77,7 +79,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 			pullFlags.Parallel = effective.Parallel
 		}
 		// Apply pull strategy from config (rebase or ff-only)
-		if !cmd.Flags().Changed("strategy") {
+		if !cmd.Flags().Changed("merge-strategy") && !cmd.Flags().Changed("strategy") {
 			if effective.Pull.FFOnly {
 				pullStrategy = "ff-only"
 			} else if effective.Pull.Rebase {
