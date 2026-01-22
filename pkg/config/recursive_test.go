@@ -127,8 +127,10 @@ metadata:
 	if workspaceWs == nil {
 		t.Fatal("Expected 'workspace' workspace to exist")
 	}
-	if workspaceWs.Path != "workspace" {
-		t.Errorf("Expected path=workspace, got %s", workspaceWs.Path)
+	// Path should be expanded to absolute path
+	expectedPath := filepath.Join(tmpDir, "workspace")
+	if workspaceWs.Path != expectedPath {
+		t.Errorf("Expected path=%s, got %s", expectedPath, workspaceWs.Path)
 	}
 	if workspaceWs.Type != WorkspaceTypeConfig {
 		t.Errorf("Expected type=config, got %s", workspaceWs.Type)
@@ -145,8 +147,10 @@ metadata:
 	if singleRepoWs == nil {
 		t.Fatal("Expected 'single-repo' workspace to exist")
 	}
-	if singleRepoWs.Path != "single-repo" {
-		t.Errorf("Expected path=single-repo, got %s", singleRepoWs.Path)
+	// Path should be expanded to absolute path
+	expectedSingleRepoPath := filepath.Join(tmpDir, "single-repo")
+	if singleRepoWs.Path != expectedSingleRepoPath {
+		t.Errorf("Expected path=%s, got %s", expectedSingleRepoPath, singleRepoWs.Path)
 	}
 	if singleRepoWs.Type != WorkspaceTypeGit {
 		t.Errorf("Expected type=git, got %s", singleRepoWs.Type)
