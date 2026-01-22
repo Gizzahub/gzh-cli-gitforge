@@ -284,6 +284,35 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			return nil, fmt.Errorf("failed to create provider for workspace '%s': %w", name, err)
 		}
 
+		// Resolve values with profile fallback
+		cloneProto := ws.CloneProto
+		sshPort := ws.SSHPort
+		token := ws.Source.Token
+
+		// Fallback to profile values if not set
+		if ws.Profile != "" && cfg != nil {
+			profile := config.GetProfileFromChain(cfg, ws.Profile)
+			if profile != nil {
+				if cloneProto == "" {
+					cloneProto = profile.CloneProto
+				}
+				if sshPort == 0 {
+					sshPort = profile.SSHPort
+				}
+				if token == "" {
+					token = profile.Token
+				}
+			}
+		}
+
+		// Fallback to root config values
+		if cloneProto == "" && cfg != nil {
+			cloneProto = cfg.CloneProto
+		}
+		if sshPort == 0 && cfg != nil {
+			sshPort = cfg.SSHPort
+		}
+
 		plannerConfig := reposync.ForgePlannerConfig{
 			TargetPath:       ws.Path,
 			Organization:     ws.Source.Org,
@@ -291,21 +320,12 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			SubgroupMode:     ws.Source.SubgroupMode,
 			IncludePrivate:   true, // workspace sync should include private/internal repos
 			Auth: reposync.AuthConfig{
-				Token:    ws.Source.Token,
+				Token:    token,
 				Provider: ws.Source.Provider,
-				SSHPort:  ws.SSHPort,
+				SSHPort:  sshPort,
 			},
-			CloneProto: ws.CloneProto,
-		}
-
-		if ws.CloneProto != "" {
-			plannerConfig.CloneProto = ws.CloneProto
-		}
-		if ws.SSHPort != 0 {
-			plannerConfig.SSHPort = ws.SSHPort
-		}
-		if ws.Source.Token != "" {
-			plannerConfig.Auth.Token = ws.Source.Token
+			CloneProto: cloneProto,
+			SSHPort:    sshPort,
 		}
 
 		planner := reposync.NewForgePlanner(prov, plannerConfig)
