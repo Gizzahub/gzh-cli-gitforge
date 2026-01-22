@@ -280,7 +280,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 
 		fmt.Fprintf(out, "Planning nested workspace '%s' (%s/%s)...\n", name, ws.Source.Provider, ws.Source.Org)
 
-		prov, err := createProviderFromSource(ws.Source, ws)
+		prov, err := createProviderFromSource(ws.Source, ws, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create provider for workspace '%s': %w", name, err)
 		}
@@ -290,11 +290,11 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			Organization:     ws.Source.Org,
 			IncludeSubgroups: ws.Source.IncludeSubgroups,
 			SubgroupMode:     ws.Source.SubgroupMode,
+			IncludePrivate:   true, // workspace sync should include private/internal repos
 			Auth: reposync.AuthConfig{
 				Token:    ws.Source.Token,
-				Provider: ws.Source.Provider, // Missing provider mapping?
-				// Source.Provider is string, AuthConfig expects string. OK.
-				SSHPort: ws.SSHPort,
+				Provider: ws.Source.Provider,
+				SSHPort:  ws.SSHPort,
 			},
 			CloneProto: ws.CloneProto,
 		}
@@ -344,24 +344,33 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 // We need to implement createProviderFromSource here or import it if public?
 // It was private. We recreate it.
 
-func createProviderFromSource(src *config.ForgeSource, ws *config.Workspace) (reposync.ForgeProvider, error) {
-	// We need to bridge to reposynccli's createFromForgeProvider?
-	// It's in the same package `workspacecli`? No, that was in `reposynccli`.
-	// `workspacecli` imports `reposynccli`?
-	// `workspacecli` -> `reposynccli`?
-	// `reposynccli` likely imports `workspacecli`?
-	// Let's check imports.
-	// `workspacecli` imports `reposynccli` in new file.
-	// `reposynccli` imports `workspacecli`? No.
-	// We can use `reposynccli.CreateFromForgeProvider` if it was public. It was `createFromForgeProvider` (private).
-	// We can't access it.
-	// We have to RE-IMPLEMENT provider creation here or make it public.
-	// Re-implementing is safer to avoid modifying other package exports for now.
-	// OR better: Move provider creation logic to `pkg/provider/factory`?
-	// For now, I'll copy the switch case logic, it's small.
-	// Wait, we need `github`, `gitlab` packages.
+func createProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg *config.Config) (reposync.ForgeProvider, error) {
+	// Extract values from source
+	token := src.Token
+	baseURL := src.BaseURL
+	sshPort := ws.SSHPort
+	providerName := src.Provider
 
-	return reposynccli.CreateForgeProviderRaw(src.Provider, src.Token, src.BaseURL, ws.SSHPort)
+	// Fallback to profile values if not set in source
+	if ws.Profile != "" && cfg != nil {
+		profile := config.GetProfileFromChain(cfg, ws.Profile)
+		if profile != nil {
+			if token == "" {
+				token = profile.Token
+			}
+			if baseURL == "" {
+				baseURL = profile.BaseURL
+			}
+			if sshPort == 0 {
+				sshPort = profile.SSHPort
+			}
+			if providerName == "" {
+				providerName = profile.Provider
+			}
+		}
+	}
+
+	return reposynccli.CreateForgeProviderRaw(providerName, token, baseURL, sshPort)
 }
 
 // Helper types
