@@ -70,7 +70,9 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputPath, "config", "c", "", "Output file path (default: "+DefaultConfigFile+")")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "Output file path (default: "+DefaultConfigFile+")")
+	cmd.Flags().StringVarP(&outputPath, "config", "c", "", "Deprecated: use --output")
+	_ = cmd.Flags().MarkDeprecated("config", "use --output instead")
 
 	return cmd
 }

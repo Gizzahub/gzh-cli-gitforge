@@ -43,7 +43,7 @@ func (f CommandFactory) newScanCmd() *cobra.Command {
   gz-git workspace scan ~/mydevbox
 
   # Scan with custom output
-  gz-git workspace scan ~/mydevbox -c myworkspace.yaml
+  gz-git workspace scan ~/mydevbox -o myworkspace.yaml
 
   # Scan with depth limit (default: 2)
   gz-git workspace scan ~/mydevbox --scan-depth 3
@@ -63,7 +63,9 @@ func (f CommandFactory) newScanCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.Output, "config", "c", opts.Output, "Output config file")
+	cmd.Flags().StringVarP(&opts.Output, "output", "o", opts.Output, "Output config file")
+	cmd.Flags().StringVarP(&opts.Output, "config", "c", opts.Output, "Deprecated: use --output")
+	_ = cmd.Flags().MarkDeprecated("config", "use --output instead")
 	cmd.Flags().IntVarP(&opts.Depth, "scan-depth", "d", opts.Depth, "Directory scan depth")
 	cmd.Flags().IntVar(&opts.Depth, "depth", opts.Depth, "[DEPRECATED] use --scan-depth")
 	cmd.Flags().StringVar(&opts.ExcludePattern, "exclude", "", "Exclude patterns (comma-separated)")

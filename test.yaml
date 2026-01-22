@@ -1,0 +1,22 @@
+# gz-git workspace configuration
+# Documentation: https://github.com/gizzahub/gzh-cli-gitforge
+
+strategy: reset
+parallel: 4
+maxRetries: 3
+cleanupOrphans: false
+
+# Clone protocol (ssh or https)
+cloneProto: ssh
+
+# Custom SSH port (0 = auto-detect)
+sshPort: 0
+
+repositories:
+  - name: example-repo
+    url: https://github.com/example/repo.git
+    path: ./repos/example-repo
+    # strategy: pull  # Optional: override default strategy
+    # cloneProto: ssh # Optional: override default clone protocol
+
+  # Add more repositories here

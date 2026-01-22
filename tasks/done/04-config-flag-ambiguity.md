@@ -5,6 +5,8 @@ effort: S
 created: 2026-01-22
 decision: Option A - Use --output, -o for output files
 decision-at: 2026-01-23T00:00:00Z
+started-at: 2026-01-23T02:30:00Z
+completed-at: 2026-01-23T03:00:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
@@ -80,3 +82,29 @@ pkg/workspacecli/scan_command.go     # Check if uses --config for output
 ______________________________________________________________________
 
 **Awaiting decision to proceed with implementation.**
+
+---
+
+## Implementation Summary
+
+**Completed:** 2026-01-23
+
+**Changes Made (Option A):**
+1. Renamed `workspace init --config` → `--output, -o`
+2. Renamed `workspace scan --config` → `--output, -o`
+3. Added deprecated `--config, -c` alias for backward compatibility
+4. Updated usage examples to use `-o`
+
+**Files Modified:**
+- pkg/workspacecli/init_command.go
+- pkg/workspacecli/scan_command.go
+
+**Verification:**
+- ✅ Build successful (`make fmt && make build`)
+- ✅ Deprecation warning works: `Flag --config has been deprecated, use --output instead`
+- ✅ New `--output, -o` flag works correctly
+
+**Impact:**
+- Clear distinction: `--config` for input, `--output` for output
+- Follows common CLI convention (`-o` for output)
+- Backward compatible with deprecation warnings
