@@ -57,7 +57,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&opts.Parallel, "parallel", "j", opts.Parallel, "Parallel health checks")
 
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Verbose output")
-	cmd.Flags().StringVar(&opts.Format, "format", "default", "Output format: default, json, compact")
+	cmd.Flags().StringVar(&opts.Format, "format", "default", "Output format: default, json, compact, llm")
 	cmd.Flags().BoolVar(&opts.UseTUI, "tui", false, "Interactive TUI mode")
 
 	cmd.Flags().BoolVar(&opts.SaveHistory, "save-history", false, "Save health snapshot to history")

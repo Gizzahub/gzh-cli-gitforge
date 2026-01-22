@@ -5,6 +5,8 @@ effort: M
 created: 2026-01-22
 decision: Option A - Core + extended formats
 decision-at: 2026-01-23T00:00:00Z
+started-at: 2026-01-23T03:00:00Z
+completed-at: 2026-01-23T03:30:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
@@ -78,3 +80,39 @@ cmd/gz-git/cmd/history.go              # History format validation
 ______________________________________________________________________
 
 **Awaiting decision to proceed with implementation.**
+
+---
+
+## Implementation Summary
+
+**Completed:** 2026-01-23
+
+**Changes Made (Option A - Core + Extended Formats):**
+
+**Core formats** (all commands):
+- `default` - Human-readable (default)
+- `json` - Machine-parseable
+- `llm` - LLM-optimized
+
+**Extended formats** (command-specific):
+- `compact` - Bulk/status commands only
+- `table`, `csv`, `markdown` - History/report commands only
+
+**Files Modified:**
+- cmd/gz-git/cmd/bulk_common.go:
+  - Added CoreFormats constant
+  - Updated ValidHistoryFormats to include "default"
+  - Added documentation comments
+- pkg/reposynccli/status_command.go: Updated help text to include llm
+- pkg/workspacecli/status_command.go: Updated help text to include llm
+
+**Verification:**
+- ✅ Build successful (`make fmt && make build`)
+- ✅ History commands now support "default" format
+- ✅ All commands support core formats (default, json, llm)
+- ✅ Extended formats remain command-specific
+
+**Benefits:**
+- Consistent core format support across all commands
+- Clear documentation of format categories
+- Command-specific formats where appropriate
