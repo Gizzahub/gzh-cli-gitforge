@@ -417,7 +417,7 @@ gz-git fetch /path/to/single/repo
 
 | Command                | Description                                                               |
 | ---------------------- | ------------------------------------------------------------------------- |
-| `clone`                | 여러 repo를 병렬로 clone (`--url`, `--file`)                              |
+| `clone`                | 여러 repo를 병렬로 clone (`--url`, `--file`, `--strategy`)                |
 | `status`               | **종합 health check** (fetch + divergence + 추천) - 모든 remote fetch     |
 | `fetch`                | 모든 repo에서 fetch - **기본적으로 모든 remote** (`--all-remotes` 기본값) |
 | `pull`                 | 모든 repo에서 pull (rebase/merge 지원)                                    |

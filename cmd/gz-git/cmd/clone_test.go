@@ -423,3 +423,184 @@ func stringContains(s, substr string) bool {
 	}
 	return false
 }
+
+// ============================================================================
+// Strategy Tests
+// ============================================================================
+
+func TestResolveCloneStrategy(t *testing.T) {
+	tests := []struct {
+		name         string
+		cliStrategy  string
+		cliUpdate    bool
+		yamlStrategy string
+		yamlUpdate   bool
+		want         repository.UpdateStrategy
+	}{
+		{
+			name:         "defaults to skip",
+			cliStrategy:  "",
+			cliUpdate:    false,
+			yamlStrategy: "",
+			yamlUpdate:   false,
+			want:         repository.StrategySkip,
+		},
+		{
+			name:         "CLI strategy takes precedence",
+			cliStrategy:  "reset",
+			cliUpdate:    true,
+			yamlStrategy: "pull",
+			yamlUpdate:   true,
+			want:         repository.StrategyReset,
+		},
+		{
+			name:         "CLI update maps to pull",
+			cliStrategy:  "",
+			cliUpdate:    true,
+			yamlStrategy: "",
+			yamlUpdate:   false,
+			want:         repository.StrategyPull,
+		},
+		{
+			name:         "YAML strategy when no CLI flags",
+			cliStrategy:  "",
+			cliUpdate:    false,
+			yamlStrategy: "rebase",
+			yamlUpdate:   false,
+			want:         repository.StrategyRebase,
+		},
+		{
+			name:         "YAML update maps to pull",
+			cliStrategy:  "",
+			cliUpdate:    false,
+			yamlStrategy: "",
+			yamlUpdate:   true,
+			want:         repository.StrategyPull,
+		},
+		{
+			name:         "CLI strategy overrides YAML update",
+			cliStrategy:  "skip",
+			cliUpdate:    false,
+			yamlStrategy: "",
+			yamlUpdate:   true,
+			want:         repository.StrategySkip,
+		},
+		{
+			name:         "YAML strategy overrides YAML update",
+			cliStrategy:  "",
+			cliUpdate:    false,
+			yamlStrategy: "fetch",
+			yamlUpdate:   true,
+			want:         repository.StrategyFetch,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveCloneStrategy(tt.cliStrategy, tt.cliUpdate, tt.yamlStrategy, tt.yamlUpdate)
+			if got != tt.want {
+				t.Errorf("resolveCloneStrategy() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateCloneConfig_Strategy(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy string
+		wantErr  bool
+	}{
+		{"valid skip", "skip", false},
+		{"valid pull", "pull", false},
+		{"valid reset", "reset", false},
+		{"valid rebase", "rebase", false},
+		{"valid fetch", "fetch", false},
+		{"empty is valid", "", false},
+		{"invalid strategy", "invalid", true},
+		{"invalid merge", "merge", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &CloneConfig{
+				Strategy: tt.strategy,
+				Repositories: []CloneRepoSpec{
+					{URL: "https://github.com/user/repo.git"},
+				},
+			}
+			err := validateCloneConfig(config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateCloneConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseCloneConfig_WithStrategy(t *testing.T) {
+	yaml := `
+strategy: reset
+repositories:
+  - url: https://github.com/user/repo.git
+`
+	tmpfile, err := os.CreateTemp("", "clone-config-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg, err := parseCloneConfig(tmpfile.Name(), false)
+	if err != nil {
+		t.Errorf("parseCloneConfig() error = %v", err)
+		return
+	}
+
+	if cfg.Strategy != "reset" {
+		t.Errorf("expected strategy reset, got %s", cfg.Strategy)
+	}
+}
+
+func TestParseCloneConfig_StrategyWithDeprecatedUpdate(t *testing.T) {
+	// When both strategy and update are specified, strategy should be used
+	yaml := `
+strategy: reset
+update: true
+repositories:
+  - url: https://github.com/user/repo.git
+`
+	tmpfile, err := os.CreateTemp("", "clone-config-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg, err := parseCloneConfig(tmpfile.Name(), false)
+	if err != nil {
+		t.Errorf("parseCloneConfig() error = %v", err)
+		return
+	}
+
+	// Both should be parsed
+	if cfg.Strategy != "reset" {
+		t.Errorf("expected strategy reset, got %s", cfg.Strategy)
+	}
+	if !cfg.Update {
+		t.Error("expected update true")
+	}
+
+	// Resolution should prefer strategy
+	resolved := resolveCloneStrategy("", false, cfg.Strategy, cfg.Update)
+	if resolved != repository.StrategyReset {
+		t.Errorf("expected resolved strategy reset, got %s", resolved)
+	}
+}

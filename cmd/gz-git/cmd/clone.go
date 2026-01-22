@@ -26,7 +26,8 @@ var (
 	cloneFlags        BulkCommandFlags
 	cloneBranch       string
 	cloneDepth        int
-	cloneUpdate       bool
+	cloneStrategy     string // --strategy flag (skip, pull, reset, rebase, fetch)
+	cloneUpdate       bool   // Deprecated: use --strategy instead
 	cloneStructure    string
 	cloneFile         string
 	cloneSingleBranch bool
@@ -67,7 +68,8 @@ func init() {
 	cloneCmd.Flags().StringArrayVar(&cloneURLs, "url", nil, "repository URL to clone (can be repeated)")
 	cloneCmd.Flags().StringVarP(&cloneBranch, "branch", "b", "", "checkout specific branch")
 	cloneCmd.Flags().IntVar(&cloneDepth, "depth", 0, "create a shallow clone with truncated history")
-	cloneCmd.Flags().BoolVar(&cloneUpdate, "update", false, "pull existing repositories instead of skipping")
+	cloneCmd.Flags().StringVarP(&cloneStrategy, "strategy", "s", "", "existing repo strategy: skip (default), pull, reset, rebase, fetch")
+	cloneCmd.Flags().BoolVar(&cloneUpdate, "update", false, "[DEPRECATED] use --strategy=pull instead")
 	cloneCmd.Flags().StringVar(&cloneStructure, "structure", "flat", "directory structure: flat or user")
 	cloneCmd.Flags().StringVar(&cloneFile, "file", "", "file containing repository URLs (one per line)")
 	cloneCmd.Flags().BoolVar(&cloneSingleBranch, "single-branch", false, "clone only one branch")
@@ -138,12 +140,15 @@ func runClone(cmd *cobra.Command, args []string) error {
 	// Create logger for verbose mode
 	logger := createBulkLogger(verbose)
 
+	// Resolve strategy from CLI flags
+	strategy := resolveCloneStrategy(cloneStrategy, cloneUpdate, "", false)
+
 	// Build options
 	opts := repository.BulkCloneOptions{
 		URLs:      urls,
 		Directory: directory,
 		Structure: structure,
-		Update:    cloneUpdate,
+		Strategy:  strategy,
 		Branch:    cloneBranch,
 		Depth:     cloneDepth,
 		Parallel:  cloneFlags.Parallel,
@@ -167,16 +172,16 @@ func runClone(cmd *cobra.Command, args []string) error {
 		if cloneFlags.DryRun {
 			suffix = " [DRY-RUN]"
 		}
-		updateStr := ""
-		if cloneUpdate {
-			updateStr = ", update existing"
+		strategyStr := ""
+		if strategy != repository.StrategySkip {
+			strategyStr = fmt.Sprintf(", strategy: %s", strategy)
 		}
 		dirStr := ""
 		if directory != "." {
 			dirStr = fmt.Sprintf(" to %s", directory)
 		}
 		fmt.Printf("Cloning %d repositories%s (parallel: %d, structure: %s%s)%s\n",
-			len(urls), dirStr, cloneFlags.Parallel, cloneStructure, updateStr, suffix)
+			len(urls), dirStr, cloneFlags.Parallel, cloneStructure, strategyStr, suffix)
 	}
 
 	// Execute bulk clone
@@ -370,7 +375,16 @@ type CloneConfig struct {
 	// Global settings (can be overridden by CLI flags)
 	Parallel  int    `yaml:"parallel,omitempty"`
 	Structure string `yaml:"structure,omitempty"` // "flat" or "user"
-	Update    bool   `yaml:"update,omitempty"`
+
+	// Strategy determines how to handle existing repositories.
+	// Values: "skip" (default), "pull", "reset", "rebase", "fetch"
+	// This field takes precedence over Update if both are set.
+	Strategy string `yaml:"strategy,omitempty"`
+
+	// Update pulls existing repositories instead of skipping.
+	// Deprecated: Use Strategy instead. Will be removed in a future version.
+	// When Update=true and Strategy is empty, it maps to Strategy="pull".
+	Update bool `yaml:"update,omitempty"`
 
 	// Repository list
 	Repositories []CloneRepoSpec `yaml:"repositories"`
@@ -427,6 +441,16 @@ func validateCloneConfig(config *CloneConfig) error {
 		}
 	}
 
+	// Validate strategy
+	if config.Strategy != "" {
+		validStrategies := map[string]bool{
+			"skip": true, "pull": true, "reset": true, "rebase": true, "fetch": true,
+		}
+		if !validStrategies[config.Strategy] {
+			return fmt.Errorf("invalid strategy %q: must be one of 'skip', 'pull', 'reset', 'rebase', 'fetch'", config.Strategy)
+		}
+	}
+
 	// Check for duplicate names
 	namesSeen := make(map[string]bool)
 	for i, repo := range config.Repositories {
@@ -461,6 +485,7 @@ func buildCloneOptionsFromConfig(
 	flags BulkCommandFlags,
 	branch string,
 	depth int,
+	strategy string,
 	update bool,
 	structure string,
 	logger repository.Logger,
@@ -485,13 +510,14 @@ func buildCloneOptionsFromConfig(
 		structureVal = config.Structure
 	}
 
-	updateVal := update || config.Update
+	// Resolve strategy: CLI flag > YAML config > deprecated update field
+	strategyVal := resolveCloneStrategy(strategy, update, config.Strategy, config.Update)
 
 	// Build BulkCloneOptions with custom per-repo settings
 	opts := repository.BulkCloneOptions{
 		Directory: targetDir,
 		Structure: repository.DirectoryStructure(structureVal),
-		Update:    updateVal,
+		Strategy:  strategyVal,
 		Branch:    branch,
 		Depth:     depth,
 		Parallel:  parallel,
@@ -510,6 +536,31 @@ func buildCloneOptionsFromConfig(
 	}
 
 	return opts
+}
+
+// resolveCloneStrategy resolves the effective strategy with precedence:
+// CLI --strategy > CLI --update > YAML strategy > YAML update > default (skip)
+func resolveCloneStrategy(cliStrategy string, cliUpdate bool, yamlStrategy string, yamlUpdate bool) repository.UpdateStrategy {
+	// CLI --strategy takes highest precedence
+	if cliStrategy != "" {
+		return repository.UpdateStrategy(cliStrategy)
+	}
+	// CLI --update (deprecated) maps to pull
+	if cliUpdate {
+		fmt.Fprintln(os.Stderr, "Warning: --update is deprecated, use --strategy=pull instead")
+		return repository.StrategyPull
+	}
+	// YAML strategy
+	if yamlStrategy != "" {
+		return repository.UpdateStrategy(yamlStrategy)
+	}
+	// YAML update (deprecated) maps to pull
+	if yamlUpdate {
+		fmt.Fprintln(os.Stderr, "Warning: 'update: true' in config is deprecated, use 'strategy: pull' instead")
+		return repository.StrategyPull
+	}
+	// Default: skip
+	return repository.StrategySkip
 }
 
 // runCloneFromConfig executes clone operation based on YAML config.
@@ -538,6 +589,7 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 		cloneFlags,
 		cloneBranch,
 		cloneDepth,
+		cloneStrategy,
 		cloneUpdate,
 		cloneStructure,
 		logger,
@@ -551,16 +603,16 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 		if cloneFlags.DryRun {
 			suffix = " [DRY-RUN]"
 		}
-		updateStr := ""
-		if baseOpts.Update {
-			updateStr = ", update existing"
+		strategyStr := ""
+		if baseOpts.Strategy != repository.StrategySkip {
+			strategyStr = fmt.Sprintf(", strategy: %s", baseOpts.Strategy)
 		}
 		dirStr := ""
 		if baseOpts.Directory != "." {
 			dirStr = fmt.Sprintf(" to %s", baseOpts.Directory)
 		}
 		fmt.Printf("Cloning %d repositories%s (parallel: %d, structure: %s%s)%s\n",
-			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, updateStr, suffix)
+			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, strategyStr, suffix)
 	}
 
 	// Build custom clone operations with parallel execution
@@ -701,10 +753,13 @@ func cloneSingleRepository(
 		}
 	}
 
+	// Determine if we should update existing repos (any strategy except skip)
+	shouldUpdate := baseOpts.Strategy != "" && baseOpts.Strategy != repository.StrategySkip
+
 	// Dry run mode
 	if baseOpts.DryRun {
 		status := "would-clone"
-		if exists && isGitRepo && baseOpts.Update {
+		if exists && isGitRepo && shouldUpdate {
 			status = "would-update"
 		} else if exists && isGitRepo {
 			status = "skipped"
@@ -721,7 +776,7 @@ func cloneSingleRepository(
 	}
 
 	// Skip if exists and not updating
-	if exists && isGitRepo && !baseOpts.Update {
+	if exists && isGitRepo && !shouldUpdate {
 		return repository.RepositoryCloneResult{
 			URL:          spec.URL,
 			Path:         destination,
@@ -746,8 +801,8 @@ func cloneSingleRepository(
 	var err error
 	var status string
 
-	if exists && isGitRepo && baseOpts.Update {
-		// Update existing repository using git pull
+	if exists && isGitRepo && shouldUpdate {
+		// Update existing repository based on strategy
 		pullCmd := exec.CommandContext(ctx, "git", "-C", destination, "pull", "--rebase")
 		output, pullErr := pullCmd.CombinedOutput()
 

@@ -24,7 +24,7 @@ var schemaCmd = &cobra.Command{
 	Example: ``,
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(config.ExampleConfig)
+		fmt.Print(config.ExampleConfig)
 	},
 }
 

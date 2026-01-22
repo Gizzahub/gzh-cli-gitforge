@@ -1,0 +1,61 @@
+# CLAUDE.md Location Analysis
+# Generated: 2026-01-22
+
+project_type: go-library
+root: .
+
+locations:
+  - path: .
+    type: root
+    score: 10
+    priority: high
+    reasons:
+      - Root project (auto +10)
+      - go.mod exists (+3)
+      - Makefile exists (+1)
+      - 106 Go files (+3, capped at 10 files = +1)
+      - Has tests/ directory (+1)
+    status: exists
+    action: skip
+    notes: CLAUDE.md already exists at root
+
+  - path: cmd/gz-git
+    type: subproject
+    score: 6
+    priority: high
+    reasons:
+      - CLI entry point (important subproject)
+      - 33 Go files (+3, 30+ files)
+      - Dedicated binary build target (+1)
+      - Has own CLAUDE.md (+0, but validates importance)
+    status: exists
+    action: skip
+    notes: CLAUDE.md already exists
+
+  - path: pkg
+    type: package-directory
+    score: 8
+    priority: high
+    reasons:
+      - Main package directory
+      - 101 Go files (+3, max)
+      - Multiple subpackages (17 packages)
+      - Core library logic
+    status: missing
+    action: create
+    template: subproject
+    context_path: ../docs/.claude-context
+    notes: Large package directory with diverse functionality
+
+analysis_summary:
+  total_locations: 3
+  high_priority: 3
+  medium_priority: 0
+  low_priority: 0
+  existing: 2
+  to_create: 1
+  
+recommended_action:
+  - Create CLAUDE.md in pkg/ (score: 8)
+  - Skip root (exists)
+  - Skip cmd/gz-git (exists)

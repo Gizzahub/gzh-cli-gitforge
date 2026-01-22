@@ -35,7 +35,14 @@ type BulkCloneOptions struct {
 	// Structure determines directory organization (flat or user).
 	Structure DirectoryStructure
 
+	// Strategy determines how to handle existing repositories.
+	// Values: "skip" (default), "pull", "reset", "rebase", "fetch"
+	// This field takes precedence over Update if both are set.
+	Strategy UpdateStrategy
+
 	// Update pulls existing repositories instead of skipping.
+	// Deprecated: Use Strategy instead. Will be removed in a future version.
+	// When Update=true and Strategy is empty, it maps to Strategy="pull".
 	Update bool
 
 	// Branch is the branch to checkout after cloning.
@@ -58,6 +65,22 @@ type BulkCloneOptions struct {
 
 	// ProgressCallback is called during bulk operations.
 	ProgressCallback func(current, total int, repo string)
+}
+
+// resolveCloneStrategy resolves the effective strategy from Strategy and deprecated Update fields.
+// Strategy field takes precedence. If Strategy is empty and Update is true, returns StrategyPull.
+// Default is StrategySkip.
+func resolveCloneStrategy(strategy UpdateStrategy, update bool) UpdateStrategy {
+	// Strategy field takes precedence
+	if strategy != "" {
+		return strategy
+	}
+	// Backward compatibility: Update=true maps to pull
+	if update {
+		return StrategyPull
+	}
+	// Default: skip existing repos
+	return StrategySkip
 }
 
 // BulkCloneResult contains the result of a bulk clone operation.
@@ -236,17 +259,14 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 		relPath = filepath.Base(destination)
 	}
 
-	// Determine strategy based on --update flag
-	strategy := StrategySkip
-	if opts.Update {
-		strategy = StrategyPull
-	}
+	// Determine strategy: Strategy field takes precedence over deprecated Update field
+	strategy := resolveCloneStrategy(opts.Strategy, opts.Update)
 
 	// Dry run mode
 	if opts.DryRun {
 		exists, isGitRepo, _ := checkTargetDirectory(destination)
 		if exists && isGitRepo {
-			if opts.Update {
+			if strategy != StrategySkip {
 				return RepositoryCloneResult{
 					URL:          url,
 					Path:         destination,
