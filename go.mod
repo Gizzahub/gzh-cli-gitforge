@@ -16,7 +16,7 @@ require (
 	golang.org/x/sync v0.19.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
+replace github.com/gizzahub/gzh-cli-core => ../gzh-cli-core
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
