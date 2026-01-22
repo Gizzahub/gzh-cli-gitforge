@@ -5,6 +5,8 @@ effort: M
 created: 2026-01-22
 decision: Option A - Reserve -f for --force
 decision-at: 2026-01-23T00:00:00Z
+started-at: 2026-01-23T02:00:00Z
+completed-at: 2026-01-23T02:30:00Z
 type: refactor
 area: cli
 tags: [consistency, api-design, ux]
@@ -82,3 +84,34 @@ cmd/gz-git/cmd/push.go:63         # --force (no shorthand)
 ______________________________________________________________________
 
 **Awaiting decision to proceed with implementation.**
+
+---
+
+## Implementation Summary
+
+**Completed:** 2026-01-23
+
+**Changes Made (Option A):**
+1. Removed `-f` shorthand from all `--format` flags
+2. Added `-f` shorthand to `push --force` flag
+3. Updated comment in push.go to reflect the change
+
+**Files Modified:**
+- cmd/gz-git/cmd/bulk_common.go (removed -f)
+- cmd/gz-git/cmd/history_stats.go (removed -f)
+- cmd/gz-git/cmd/switch.go (removed -f)
+- cmd/gz-git/cmd/history_file.go (removed -f)
+- cmd/gz-git/cmd/history_contributors.go (removed -f)
+- cmd/gz-git/cmd/watch.go (removed -f)
+- pkg/reposynccli/status_command.go (removed -f)
+- pkg/workspacecli/status_command.go (removed -f)
+- cmd/gz-git/cmd/push.go (added -f for --force)
+
+**Verification:**
+- ✅ Build successful (`make fmt && make build`)
+- ✅ `push -f` now works as `push --force`
+- ✅ `--format` no longer has shorthand (full flag only)
+
+**Impact:**
+- Git-standard UX: `gz-git push -f` works like `git push -f`
+- Breaking change: `-f` no longer works for `--format` (must use full `--format` flag)

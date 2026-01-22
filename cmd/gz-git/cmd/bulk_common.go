@@ -59,7 +59,7 @@ func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
 	cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
 	cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	cmd.Flags().StringVarP(&flags.Format, "format", "f", "default", "output format: default, compact, json, llm")
+	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
 	cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
 	cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
 }

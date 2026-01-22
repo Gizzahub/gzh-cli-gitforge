@@ -80,7 +80,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 
 	// Output options
 	cmd.Flags().BoolVarP(&opts.Verbose, "verbose", "v", false, "Verbose output (show detailed diagnostics)")
-	cmd.Flags().StringVarP(&opts.Format, "format", "f", "default", "Output format: default, json, compact")
+	cmd.Flags().StringVar(&opts.Format, "format", "default", "Output format: default, json, compact")
 	cmd.Flags().BoolVar(&opts.UseTUI, "tui", false, "Interactive TUI mode")
 
 	// History options

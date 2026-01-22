@@ -53,7 +53,7 @@ func init() {
 	// Flags
 	watchCmd.Flags().DurationVar(&watchInterval, "interval", 2*time.Second, "polling interval for checking changes")
 	watchCmd.Flags().BoolVar(&watchIncludeClean, "include-clean", false, "notify when repository becomes clean")
-	watchCmd.Flags().StringVarP(&watchOutputFormat, "format", "f", "default", "output format: default, compact, json, llm")
+	watchCmd.Flags().StringVar(&watchOutputFormat, "format", "default", "output format: default, compact, json, llm")
 	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (macOS/Linux)")
 }
 

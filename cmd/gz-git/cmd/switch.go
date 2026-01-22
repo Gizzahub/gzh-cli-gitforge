@@ -53,7 +53,7 @@ func init() {
 	switchCmd.Flags().BoolVarP(&switchFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	switchCmd.Flags().StringVar(&switchFlags.Include, "include", "", "regex pattern to include repositories")
 	switchCmd.Flags().StringVar(&switchFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	switchCmd.Flags().StringVarP(&switchFlags.Format, "format", "f", "default", "output format: default, compact, json, llm")
+	switchCmd.Flags().StringVar(&switchFlags.Format, "format", "default", "output format: default, compact, json, llm")
 
 	// Switch-specific flags (no -f shorthand for force to avoid conflict with --format)
 	switchCmd.Flags().BoolVarP(&switchCreate, "create", "c", false, "create branch if it doesn't exist")

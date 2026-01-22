@@ -60,8 +60,8 @@ func init() {
 	// Common bulk operation flags
 	addBulkFlags(pushCmd, &pushFlags)
 
-	// Push-specific flags (no -f shorthand for force, conflicts with --format)
-	pushCmd.Flags().BoolVar(&pushForce, "force", false, "force push (use with caution!)")
+	// Push-specific flags
+	pushCmd.Flags().BoolVarP(&pushForce, "force", "f", false, "force push (use with caution!)")
 	pushCmd.Flags().BoolVarP(&pushSetUpstream, "set-upstream", "u", false, "set upstream for new branches")
 	pushCmd.Flags().BoolVarP(&pushTags, "tags", "t", false, "push all tags to remote")
 	pushCmd.Flags().StringVar(&pushRefspec, "refspec", "", "custom refspec (e.g., 'develop:master' to push local develop to remote master)")

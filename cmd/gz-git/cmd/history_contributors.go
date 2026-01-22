@@ -54,7 +54,7 @@ func init() {
 	contributorsCmd.Flags().IntVar(&contribTop, "top", 0, "show only top N contributors")
 	contributorsCmd.Flags().IntVar(&contribMinCommits, "min-commits", 0, "minimum commits threshold")
 	contributorsCmd.Flags().StringVar(&contribSortBy, "sort", "commits", "sort by: commits, additions, deletions, recent")
-	contributorsCmd.Flags().StringVarP(&contribFormat, "format", "f", "table", "output format: table, json, csv, markdown, llm")
+	contributorsCmd.Flags().StringVar(&contribFormat, "format", "table", "output format: table, json, csv, markdown, llm")
 }
 
 func runHistoryContributors(cmd *cobra.Command, args []string) error {
