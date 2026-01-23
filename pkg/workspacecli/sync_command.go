@@ -29,6 +29,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 		resume     bool
 		dryRun     bool
 		stateFile  string
+		fullOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -118,7 +119,7 @@ Config File Structure (Reference):
 				// Discover workspaces (Hybrid mode)
 				if err := config.LoadWorkspaces(configDir, recursiveCfg, config.HybridMode); err == nil {
 					// Get forge actions
-					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, cmd.OutOrStdout(), strategy)
+					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, cmd.OutOrStdout(), strategy, fullOutput)
 					if err != nil {
 						return err
 					}
@@ -201,6 +202,7 @@ Config File Structure (Reference):
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous state")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without making changes")
 	cmd.Flags().StringVar(&stateFile, "state-file", "", "Path to persist run state for resume")
+	cmd.Flags().BoolVar(&fullOutput, "full", false, "Output all fields (name, path) even if redundant")
 
 	return cmd
 }
@@ -265,7 +267,7 @@ func createActionsFromLegacyPlan(req reposync.PlanRequest, configDir string) []r
 }
 
 // planForgeWorkspaces generates actions from recursive config workspaces.
-func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput bool) ([]reposync.Action, error) {
 	workspaces := config.GetForgeWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -367,7 +369,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		fmt.Fprintf(out, "  → Found %d repositories\n", len(plan.Actions))
 
 		// Write child config with repository list
-		if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort); err != nil {
+		if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
 			return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
 		}
 
@@ -448,7 +450,7 @@ func planGitWorkspaces(_ context.Context, cfg *config.Config, configDir string, 
 
 // writeChildForgeConfig writes a child config file with the list of repositories.
 // It respects the workspace's ChildConfigMode and protects user-maintained files.
-func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int) error {
+func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
 	if len(actions) == 0 {
 		return nil
 	}
@@ -496,14 +498,14 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 	// Generate config based on mode
 	switch mode {
 	case config.ChildConfigModeWorkspaces:
-		return writeWorkspacesFormatConfig(out, parentCfg, ws, actions, childConfigPath)
+		return writeWorkspacesFormatConfig(out, parentCfg, ws, actions, childConfigPath, fullOutput)
 	default: // ChildConfigModeRepositories
-		return writeRepositoriesFormatConfig(out, parentCfg, ws, actions, childConfigPath, cloneProto, sshPort)
+		return writeRepositoriesFormatConfig(out, parentCfg, ws, actions, childConfigPath, cloneProto, sshPort, fullOutput)
 	}
 }
 
 // writeRepositoriesFormatConfig writes a child config in repositories array format.
-func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, cloneProto string, sshPort int) error {
+func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, cloneProto string, sshPort int, fullOutput bool) error {
 	// Build repository list from actions
 	repos := make([]templates.ChildForgeRepoData, 0, len(actions))
 	for _, action := range actions {
@@ -514,10 +516,17 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 			relPath = filepath.Base(action.Repo.TargetPath)
 		}
 
+		// Omit path if it equals name (compact output)
+		// Path defaults to Name when loading config, so redundant paths can be omitted
+		pathOutput := relPath
+		if !fullOutput && relPath == action.Repo.Name {
+			pathOutput = ""
+		}
+
 		repos = append(repos, templates.ChildForgeRepoData{
 			Name:   action.Repo.Name,
 			URL:    action.Repo.CloneURL,
-			Path:   relPath,
+			Path:   pathOutput,
 			Branch: action.Repo.Branch,
 		})
 	}
@@ -563,7 +572,7 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 }
 
 // writeWorkspacesFormatConfig writes a child config in workspaces map format.
-func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string) error {
+func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, fullOutput bool) error {
 	// Build workspace entries from actions
 	workspaces := make([]templates.ChildWorkspaceEntry, 0, len(actions))
 	for _, action := range actions {

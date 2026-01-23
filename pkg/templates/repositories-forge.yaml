@@ -20,5 +20,5 @@ cloneProto: {{.CloneProto}}
 repositories:
 {{range .Repositories}}  - name: {{.Name}}
     url: {{.URL}}
-    path: {{.Path}}
-{{end}}
+{{if .Path}}    path: {{.Path}}
+{{end}}{{end}}

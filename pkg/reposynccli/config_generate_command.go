@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -38,6 +39,7 @@ type ConfigGenerateOptions struct {
 	IsUser           bool
 	IncludeSubgroups bool
 	SubgroupMode     string
+	FullOutput       bool
 }
 
 func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
@@ -111,6 +113,9 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.IncludeSubgroups, "include-subgroups", false, "Include subgroups (GitLab only)")
 	cmd.Flags().StringVar(&opts.SubgroupMode, "subgroup-mode", opts.SubgroupMode, "Subgroup mode: flat (dash-separated) or nested (directories)")
 
+	// Output format
+	cmd.Flags().BoolVar(&opts.FullOutput, "full", false, "Output all fields (name, path) even if redundant")
+
 	// Mark required
 	cmd.MarkFlagRequired("provider")
 	cmd.MarkFlagRequired("org")
@@ -148,10 +153,18 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 	// Build repository entries for template
 	repoEntries := make([]templates.ForgeRepoData, 0, len(repos))
 	for _, repo := range repos {
+		targetPath := buildTargetPath(repo, opts)
+		// Omit path if the directory name equals repo name (compact output)
+		// Path defaults to Name when loading config, so redundant paths can be omitted
+		pathOutput := targetPath
+		if !opts.FullOutput && filepath.Base(targetPath) == repo.Name {
+			pathOutput = ""
+		}
+
 		repoEntries = append(repoEntries, templates.ForgeRepoData{
 			Name: repo.Name,
 			URL:  repo.CloneURL,
-			Path: buildTargetPath(repo, opts),
+			Path: pathOutput,
 		})
 	}
 
