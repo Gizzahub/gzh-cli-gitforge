@@ -57,7 +57,7 @@ type repoEntry struct {
 	Provider             string            `yaml:"provider"`
 	URL                  string            `yaml:"url"`
 	AdditionalRemotes    map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
-	TargetPath           string            `yaml:"targetPath"`
+	Path                 string            `yaml:"path"`
 	Branch               string            `yaml:"branch"`               // optional: branch to checkout after clone/update
 	StrictBranchCheckout *bool             `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
 	Strategy             string            `yaml:"strategy"`
@@ -204,7 +204,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 	for _, repo := range cfg.Repositories {
 		// Default path to repo name if not specified
-		targetPath := repo.TargetPath
+		targetPath := repo.Path
 		if targetPath == "" {
 			targetPath = repo.Name
 		}
