@@ -1,7 +1,9 @@
 # gz-git sync 명령어 재구성 (Option A)
 
-**STATUS**: ✅ IMPLEMENTED - v3.0.0 (2026-01-XX)
-**NOTE**: Old commands (`sync forge`, `sync run`) have been removed in v3.0. Use `sync from-forge` and `sync from-config` instead.
+> **STATUS**: ✅ IMPLEMENTED & ARCHIVED
+> **VERSION**: v3.0.0 (Jan 2026)
+> **NOTE**: Historical design document. For current usage, see `CLAUDE.md` → Sync Commands section.
+> Old commands (`sync forge`, `sync run`) have been removed. Use `sync from-forge` and `workspace sync` instead.
 
 ## 목표
 

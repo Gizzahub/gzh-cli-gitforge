@@ -15,36 +15,37 @@
 | 5     | Repo Sync      | GitHub/GitLab sync, fork management   | ✅     |
 | 6     | Integration    | Testing, documentation, stabilization | ✅     |
 
-### Phase 7: Release & Adoption (CURRENT) 🔄
+### Phase 7: Release & Adoption (COMPLETE) ✅
 
 **Goal**: Public release and gzh-cli integration
 
-| Milestone | Deliverables                   | Target |
-| --------- | ------------------------------ | ------ |
-| M7.1      | v0.3.0 release candidate       | Q1     |
-| M7.2      | gzh-cli full integration       | Q1     |
-| M7.3      | Documentation completion       | Q1     |
-| M7.4      | Community feedback integration | Q2     |
-| M7.5      | v0.3.0 stable release          | Q2     |
+| Milestone | Deliverables                   | Target  | Status |
+| --------- | ------------------------------ | ------- | ------ |
+| M7.1      | v0.3.0 release candidate       | Q4 2025 | ✅     |
+| M7.2      | gzh-cli full integration       | Q4 2025 | ✅     |
+| M7.3      | Documentation completion       | Q4 2025 | ✅     |
+| M7.4      | Community feedback integration | Q4 2025 | ✅     |
+| M7.5      | v0.4.0 stable release          | Q1 2026 | ✅     |
 
-**Exit criteria**:
+**Exit criteria**: All met ✅
 
 - All quality gates passing
 - gzh-cli using 100% library operations
 - Documentation complete and reviewed
 - No critical bugs open
 
-### Phase 8: Advanced Features (PLANNED)
+### Phase 8: Advanced Features (PARTIAL) 🔄
 
 **Goal**: Enhanced user experience
 
-| Feature          | Description                             | Priority |
-| ---------------- | --------------------------------------- | -------- |
-| Advanced TUI     | Rich terminal UI for complex operations | P1       |
-| Interactive mode | Guided workflows for common tasks       | P2       |
-| Config profiles  | Per-project and global settings         | P2       |
+| Feature           | Description                             | Status   |
+| ----------------- | --------------------------------------- | -------- |
+| Config profiles   | Per-project and global settings         | ✅ Done  |
+| Workspace config  | Recursive hierarchical configuration    | ✅ Done  |
+| Advanced TUI      | Rich terminal UI for complex operations | 📋 Plan  |
+| Interactive mode  | Guided workflows for common tasks       | 📋 Plan  |
 
-**Entry criteria**: Phase 7 complete, user feedback collected
+**Entry criteria**: Phase 7 complete ✅
 
 ### Phase 9: Performance & Scale (PLANNED)
 
@@ -69,30 +70,29 @@
 
 ## Milestones
 
-### Near-term (Phase 7)
+### Completed (Phase 7)
 
 | Milestone           | Description          | Target  | Status |
 | ------------------- | -------------------- | ------- | ------ |
-| v0.3.0-rc1          | Release candidate    | Q1 2025 | 🔄     |
-| gzh-cli integration | Full library usage   | Q1 2025 | 🔄     |
-| 100 GitHub stars    | Community validation | Q2 2025 | 📋     |
-| v0.3.0 stable       | Production ready     | Q2 2025 | 📋     |
+| v0.3.0              | Release candidate    | Q4 2025 | ✅     |
+| gzh-cli integration | Full library usage   | Q4 2025 | ✅     |
+| v0.4.0 stable       | Production ready     | Q1 2026 | ✅     |
 
-### Medium-term (Phase 8-9)
+### Current (Phase 8)
 
-| Milestone        | Description         | Target  | Status |
-| ---------------- | ------------------- | ------- | ------ |
-| v0.4.0           | Advanced features   | Q3 2025 | 📋     |
-| v0.5.0           | Performance release | Q4 2025 | 📋     |
-| 500 GitHub stars | Growing adoption    | Q4 2025 | 📋     |
+| Milestone        | Description           | Target  | Status |
+| ---------------- | --------------------- | ------- | ------ |
+| Config profiles  | Profile management    | Q1 2026 | ✅     |
+| Workspace config | Hierarchical config   | Q1 2026 | ✅     |
+| v0.5.0           | TUI improvements      | Q2 2026 | 📋     |
 
-### Long-term (Phase 10+)
+### Long-term (Phase 9-10)
 
-| Milestone           | Description             | Target | Status |
-| ------------------- | ----------------------- | ------ | ------ |
-| v1.0.0              | Stable API guarantee    | 2026   | 📋     |
-| 1000 GitHub stars   | Established project     | 2026   | 📋     |
-| Enterprise adoption | Production use at scale | 2026+  | 📋     |
+| Milestone           | Description             | Target  | Status |
+| ------------------- | ----------------------- | ------- | ------ |
+| v0.6.0              | Performance release     | Q3 2026 | 📋     |
+| v1.0.0              | Stable API guarantee    | Q4 2026 | 📋     |
+| Enterprise adoption | Production use at scale | 2027+   | 📋     |
 
 ## Decision Points
 

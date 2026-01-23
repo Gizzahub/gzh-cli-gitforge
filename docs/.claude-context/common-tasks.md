@@ -356,3 +356,109 @@ func (f CommandFactory) runStatus(cmd *cobra.Command, opts *StatusOptions) error
 - **Timeout handling**: Default 30s per fetch, configurable with `--timeout`
 - **Skip fetch**: Use `--skip-fetch` for fast checks (may show stale data)
 - **Network classification**: Errors are parsed from git stderr for specific guidance
+
+______________________________________________________________________
+
+## Workspace Commands
+
+### Workspace Init (Merged with Scan)
+
+`workspace init` now combines initialization and scanning:
+
+```bash
+# Show usage (no arguments)
+gz-git workspace init
+
+# Scan directory and create config
+gz-git workspace init .                    # Current dir
+gz-git workspace init ~/mydevbox           # Specific dir
+gz-git workspace init . -d 3               # Depth 3
+gz-git workspace init . --exclude "vendor,tmp"
+
+# Options
+gz-git workspace init . --force            # Overwrite existing config
+gz-git workspace init . --template         # Empty template only (no scan)
+```
+
+### Workspace Sync Workflow
+
+```bash
+# 1. Initialize workspace config
+gz-git workspace init ~/mydevbox
+
+# 2. (Optional) Edit config
+vi ~/mydevbox/.gz-git.yaml
+
+# 3. Sync repositories
+gz-git workspace sync
+
+# 4. Check status
+gz-git workspace status
+```
+
+### Child Config Generation
+
+When syncing hierarchical configs, control child config format:
+
+```yaml
+# Parent config
+childConfigMode: repositories  # Simple format (default)
+# childConfigMode: workspaces  # Map format
+# childConfigMode: none        # No config generation
+```
+
+### Config Format Detection
+
+gz-git uses content-based detection:
+
+```go
+// pkg/workspacecli/config_loader.go
+func detectConfigKind(cfg *config.Config) ConfigKind {
+    if cfg.Kind != "" {
+        return cfg.Kind  // Explicit takes priority
+    }
+    if len(cfg.Workspaces) > 0 || len(cfg.Profiles) > 0 {
+        return ConfigKindWorkspace
+    }
+    return ConfigKindRepositories  // Default
+}
+```
+
+### Adding Workspace CLI Commands
+
+Location: `pkg/workspacecli/`
+
+```go
+// pkg/workspacecli/init_command.go
+func (f *CommandFactory) newInitCommand() *cobra.Command {
+    return &cobra.Command{
+        Use:   "init [path]",
+        Short: "Initialize workspace configuration",
+        RunE: func(cmd *cobra.Command, args []string) error {
+            // Handle no args → show usage
+            // Handle path arg → scan and generate
+        },
+    }
+}
+```
+
+### Testing Workspace Commands
+
+```go
+func TestWorkspaceInit(t *testing.T) {
+    tmpDir := t.TempDir()
+
+    // Create test git repos
+    testutil.TempGitRepoAt(t, filepath.Join(tmpDir, "repo1"))
+    testutil.TempGitRepoAt(t, filepath.Join(tmpDir, "repo2"))
+
+    // Run init
+    cmd := workspacecli.NewCommandFactory().NewInitCommand()
+    cmd.SetArgs([]string{tmpDir})
+    err := cmd.Execute()
+
+    // Verify config created
+    configPath := filepath.Join(tmpDir, ".gz-git.yaml")
+    assert.FileExists(t, configPath)
+}
+```
