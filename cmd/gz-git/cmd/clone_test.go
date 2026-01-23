@@ -341,8 +341,8 @@ func TestValidateCloneConfig_DuplicateNames(t *testing.T) {
 		t.Error("validateCloneConfig() expected error for duplicate names, got nil")
 	}
 
-	if !containsString(err.Error(), "duplicate name") {
-		t.Errorf("validateCloneConfig() error = %q, want error containing 'duplicate name'", err.Error())
+	if !containsString(err.Error(), "duplicate path") {
+		t.Errorf("validateCloneConfig() error = %q, want error containing 'duplicate path'", err.Error())
 	}
 }
 
@@ -366,8 +366,8 @@ func TestValidateCloneConfig_DuplicateExtractedNames(t *testing.T) {
 		t.Error("validateCloneConfig() expected error for duplicate extracted names, got nil")
 	}
 
-	if !containsString(err.Error(), "duplicate name") {
-		t.Errorf("validateCloneConfig() error = %q, want error containing 'duplicate name'", err.Error())
+	if !containsString(err.Error(), "duplicate path") {
+		t.Errorf("validateCloneConfig() error = %q, want error containing 'duplicate path'", err.Error())
 	}
 }
 
@@ -602,5 +602,174 @@ repositories:
 	resolved := resolveCloneStrategy("", false, cfg.Strategy, cfg.Update)
 	if resolved != repository.StrategyReset {
 		t.Errorf("expected resolved strategy reset, got %s", resolved)
+	}
+}
+
+// ============================================================================
+// Grouped Format Tests
+// ============================================================================
+
+func TestParseCloneConfig_GroupedFormat(t *testing.T) {
+	yaml := `
+parallel: 8
+strategy: pull
+
+root:
+  target: "."
+  repositories:
+    - url: https://github.com/discourse/discourse_docker.git
+    - url: https://github.com/discourse/discourse.git
+      name: discourse_app
+      branch: stable
+
+plugins:
+  target: all-the-plugins
+  branch: develop
+  repositories:
+    - url: https://github.com/discourse/docker_manager.git
+    - url: https://github.com/discourse/discourse-akismet.git
+`
+
+	tmpfile, err := os.CreateTemp("", "clone-grouped-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg, err := parseCloneConfig(tmpfile.Name(), false)
+	if err != nil {
+		t.Fatalf("parseCloneConfig() error = %v", err)
+	}
+
+	// Should detect as grouped format
+	if len(cfg.Repositories) > 0 {
+		t.Error("expected no flat repositories in grouped format")
+	}
+
+	if len(cfg.Groups) != 2 {
+		t.Errorf("expected 2 groups, got %d", len(cfg.Groups))
+	}
+
+	// Check global settings
+	if cfg.Parallel != 8 {
+		t.Errorf("expected parallel=8, got %d", cfg.Parallel)
+	}
+	if cfg.Strategy != "pull" {
+		t.Errorf("expected strategy=pull, got %s", cfg.Strategy)
+	}
+
+	// Check root group
+	root, ok := cfg.Groups["root"]
+	if !ok {
+		t.Fatal("missing 'root' group")
+	}
+	if root.Target != "." {
+		t.Errorf("root.Target = %q, want '.'", root.Target)
+	}
+	if len(root.Repositories) != 2 {
+		t.Errorf("root.Repositories count = %d, want 2", len(root.Repositories))
+	}
+	if root.Repositories[1].Name != "discourse_app" {
+		t.Errorf("expected second repo name 'discourse_app', got %q", root.Repositories[1].Name)
+	}
+	if root.Repositories[1].Branch != "stable" {
+		t.Errorf("expected second repo branch 'stable', got %q", root.Repositories[1].Branch)
+	}
+
+	// Check plugins group
+	plugins, ok := cfg.Groups["plugins"]
+	if !ok {
+		t.Fatal("missing 'plugins' group")
+	}
+	if plugins.Target != "all-the-plugins" {
+		t.Errorf("plugins.Target = %q, want 'all-the-plugins'", plugins.Target)
+	}
+	if plugins.Branch != "develop" {
+		t.Errorf("plugins.Branch = %q, want 'develop'", plugins.Branch)
+	}
+	if len(plugins.Repositories) != 2 {
+		t.Errorf("plugins.Repositories count = %d, want 2", len(plugins.Repositories))
+	}
+}
+
+func TestValidateCloneConfig_GroupedFormat_MissingTarget(t *testing.T) {
+	cfg := &CloneConfig{
+		Groups: map[string]*CloneGroup{
+			"test": {
+				// Missing Target
+				Repositories: []CloneRepoSpec{
+					{URL: "https://github.com/user/repo.git"},
+				},
+			},
+		},
+	}
+
+	err := validateCloneConfig(cfg)
+	if err == nil {
+		t.Error("expected error for missing target")
+	}
+	if !containsString(err.Error(), "missing target") {
+		t.Errorf("error = %q, want containing 'missing target'", err.Error())
+	}
+}
+
+func TestValidateCloneConfig_GroupedFormat_EmptyRepositories(t *testing.T) {
+	cfg := &CloneConfig{
+		Groups: map[string]*CloneGroup{
+			"test": {
+				Target:       "test-dir",
+				Repositories: []CloneRepoSpec{},
+			},
+		},
+	}
+
+	err := validateCloneConfig(cfg)
+	if err == nil {
+		t.Error("expected error for empty repositories")
+	}
+	if !containsString(err.Error(), "no repositories") {
+		t.Errorf("error = %q, want containing 'no repositories'", err.Error())
+	}
+}
+
+func TestParseCloneConfig_DetectsFlatFormat(t *testing.T) {
+	yaml := `
+target: /tmp/repos
+parallel: 4
+repositories:
+  - url: https://github.com/user/repo1.git
+  - url: https://github.com/user/repo2.git
+`
+
+	tmpfile, err := os.CreateTemp("", "clone-flat-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg, err := parseCloneConfig(tmpfile.Name(), false)
+	if err != nil {
+		t.Fatalf("parseCloneConfig() error = %v", err)
+	}
+
+	// Should detect as flat format
+	if len(cfg.Repositories) != 2 {
+		t.Errorf("expected 2 flat repositories, got %d", len(cfg.Repositories))
+	}
+	if len(cfg.Groups) != 0 {
+		t.Errorf("expected 0 groups in flat format, got %d", len(cfg.Groups))
+	}
+	if cfg.Target != "/tmp/repos" {
+		t.Errorf("expected target '/tmp/repos', got %q", cfg.Target)
 	}
 }

@@ -35,6 +35,7 @@ var (
 	cloneURLs         []string // --url flag (repeatable)
 	cloneConfig       string   // --config flag (YAML file path)
 	cloneConfigStdin  bool     // --config-stdin flag (read YAML from stdin)
+	cloneGroup        []string // --group flag (select specific groups)
 )
 
 // cloneCmd represents the clone command
@@ -78,6 +79,7 @@ func init() {
 	cloneCmd.Flags().BoolVar(&cloneSubmodules, "submodules", false, "initialize submodules in the clone")
 	cloneCmd.Flags().StringVarP(&cloneConfig, "config", "c", "", "YAML config file for clone specifications")
 	cloneCmd.Flags().BoolVar(&cloneConfigStdin, "config-stdin", false, "read YAML config from stdin")
+	cloneCmd.Flags().StringArrayVarP(&cloneGroup, "group", "g", nil, "clone only specified groups (can be repeated)")
 }
 
 func runClone(cmd *cobra.Command, args []string) error {
@@ -368,39 +370,50 @@ func displayCloneResultsJSON(result *repository.BulkCloneResult) {
 // ============================================================================
 // YAML Config Support
 // ============================================================================
+// Clone Config Types
+// ============================================================================
 
-// CloneConfig represents the YAML configuration for bulk clone with custom names.
+// CloneConfig represents the YAML configuration for bulk clone.
+// Supports two formats:
+//  1. Flat format: global settings + repositories array
+//  2. Grouped format: global settings + named groups with their own targets
 type CloneConfig struct {
-	// Target directory for all repositories (optional, can be overridden by CLI arg)
-	Target string `yaml:"target,omitempty"`
-
-	// Global settings (can be overridden by CLI flags)
+	// Global settings (can be overridden by CLI flags or group settings)
 	Parallel  int    `yaml:"parallel,omitempty"`
-	Structure string `yaml:"structure,omitempty"` // "flat" or "user"
+	Strategy  string `yaml:"strategy,omitempty"`  // skip, pull, reset, rebase, fetch
+	Structure string `yaml:"structure,omitempty"` // flat or user
 
-	// Strategy determines how to handle existing repositories.
-	// Values: "skip" (default), "pull", "reset", "rebase", "fetch"
-	// This field takes precedence over Update if both are set.
-	Strategy string `yaml:"strategy,omitempty"`
+	// Flat format: single target + repositories list
+	Target       string          `yaml:"target,omitempty"`
+	Repositories []CloneRepoSpec `yaml:"repositories,omitempty"`
 
-	// Update pulls existing repositories instead of skipping.
-	// Deprecated: Use Strategy instead. Will be removed in a future version.
-	// When Update=true and Strategy is empty, it maps to Strategy="pull".
+	// Grouped format: named groups (parsed separately due to dynamic keys)
+	Groups map[string]*CloneGroup `yaml:"-"`
+
+	// Deprecated: Use Strategy instead
 	Update bool `yaml:"update,omitempty"`
+}
 
-	// Repository list
-	Repositories []CloneRepoSpec `yaml:"repositories"`
+// CloneGroup represents a named group of repositories with its own target.
+type CloneGroup struct {
+	Target       string          `yaml:"target"`                // Required: target directory for this group
+	Branch       string          `yaml:"branch,omitempty"`      // Default branch for all repos in group
+	Depth        int             `yaml:"depth,omitempty"`       // Default depth for all repos in group
+	Strategy     string          `yaml:"strategy,omitempty"`    // Override global strategy
+	Repositories []CloneRepoSpec `yaml:"repositories"`          // Repository list
 }
 
 // CloneRepoSpec represents a single repository specification in YAML.
 type CloneRepoSpec struct {
 	URL    string `yaml:"url"`              // Required
-	Name   string `yaml:"name,omitempty"`   // Optional: custom directory name
+	Name   string `yaml:"name,omitempty"`   // Optional: custom directory name (extracted from URL if empty)
+	Path   string `yaml:"path,omitempty"`   // Optional: subdirectory within target
 	Branch string `yaml:"branch,omitempty"` // Optional: branch to checkout
 	Depth  int    `yaml:"depth,omitempty"`  // Optional: shallow clone depth
 }
 
 // parseCloneConfig reads and parses YAML config from file or stdin.
+// Detects format automatically: flat (has repositories) or grouped (has named groups).
 func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 	var data []byte
 	var err error
@@ -417,47 +430,203 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 		}
 	}
 
-	var config CloneConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	// First, unmarshal to detect format
+	var rawMap map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawMap); err != nil {
 		return nil, fmt.Errorf("parse YAML: %w", err)
 	}
 
+	// Detect format: if 'repositories' key exists at top level, it's flat format
+	_, hasRepositories := rawMap["repositories"]
+
+	config := &CloneConfig{}
+
+	if hasRepositories {
+		// Flat format: unmarshal directly
+		if err := yaml.Unmarshal(data, config); err != nil {
+			return nil, fmt.Errorf("parse flat config: %w", err)
+		}
+	} else {
+		// Grouped format: parse global settings and groups separately
+		if err := parseGroupedCloneConfig(data, rawMap, config); err != nil {
+			return nil, err
+		}
+	}
+
 	// Validate
-	if err := validateCloneConfig(&config); err != nil {
+	if err := validateCloneConfig(config); err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return config, nil
+}
+
+// parseGroupedCloneConfig parses grouped format where keys are group names.
+func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config *CloneConfig) error {
+	// Known global keys (not groups)
+	globalKeys := map[string]bool{
+		"parallel": true, "strategy": true, "structure": true,
+		"target": true, "update": true,
+	}
+
+	// Extract global settings
+	if v, ok := rawMap["parallel"].(int); ok {
+		config.Parallel = v
+	}
+	if v, ok := rawMap["strategy"].(string); ok {
+		config.Strategy = v
+	}
+	if v, ok := rawMap["structure"].(string); ok {
+		config.Structure = v
+	}
+
+	// Parse groups (any key that's not a global key and has 'target' + 'repositories')
+	config.Groups = make(map[string]*CloneGroup)
+
+	for key, value := range rawMap {
+		if globalKeys[key] {
+			continue
+		}
+
+		// Check if this looks like a group (map with target and repositories)
+		groupMap, ok := value.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Must have repositories to be considered a group
+		if _, hasRepos := groupMap["repositories"]; !hasRepos {
+			continue
+		}
+
+		// Parse group
+		group := &CloneGroup{}
+
+		if v, ok := groupMap["target"].(string); ok {
+			group.Target = v
+		}
+		if v, ok := groupMap["branch"].(string); ok {
+			group.Branch = v
+		}
+		if v, ok := groupMap["depth"].(int); ok {
+			group.Depth = v
+		}
+		if v, ok := groupMap["strategy"].(string); ok {
+			group.Strategy = v
+		}
+
+		// Parse repositories
+		if reposRaw, ok := groupMap["repositories"].([]interface{}); ok {
+			for _, repoRaw := range reposRaw {
+				repoMap, ok := repoRaw.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				spec := CloneRepoSpec{}
+				if v, ok := repoMap["url"].(string); ok {
+					spec.URL = v
+				}
+				if v, ok := repoMap["name"].(string); ok {
+					spec.Name = v
+				}
+				if v, ok := repoMap["path"].(string); ok {
+					spec.Path = v
+				}
+				if v, ok := repoMap["branch"].(string); ok {
+					spec.Branch = v
+				}
+				if v, ok := repoMap["depth"].(int); ok {
+					spec.Depth = v
+				}
+
+				if spec.URL != "" {
+					group.Repositories = append(group.Repositories, spec)
+				}
+			}
+		}
+
+		if len(group.Repositories) > 0 {
+			config.Groups[key] = group
+		}
+	}
+
+	return nil
 }
 
 // validateCloneConfig validates the parsed YAML config.
 func validateCloneConfig(config *CloneConfig) error {
-	if len(config.Repositories) == 0 {
-		return fmt.Errorf("no repositories defined in config")
+	isFlat := len(config.Repositories) > 0
+	isGrouped := len(config.Groups) > 0
+
+	if !isFlat && !isGrouped {
+		return fmt.Errorf("no repositories defined in config (need 'repositories' array or named groups)")
 	}
 
-	// Validate structure
+	// Validate global structure
 	if config.Structure != "" {
 		if config.Structure != "flat" && config.Structure != "user" {
 			return fmt.Errorf("invalid structure %q: must be 'flat' or 'user'", config.Structure)
 		}
 	}
 
-	// Validate strategy
-	if config.Strategy != "" {
-		validStrategies := map[string]bool{
-			"skip": true, "pull": true, "reset": true, "rebase": true, "fetch": true,
+	// Validate global strategy
+	if err := validateStrategy(config.Strategy); err != nil {
+		return err
+	}
+
+	if isFlat {
+		// Validate flat format
+		return validateFlatRepositories(config.Repositories, "")
+	}
+
+	// Validate grouped format
+	for groupName, group := range config.Groups {
+		if group.Target == "" {
+			return fmt.Errorf("group %q: missing target directory", groupName)
 		}
-		if !validStrategies[config.Strategy] {
-			return fmt.Errorf("invalid strategy %q: must be one of 'skip', 'pull', 'reset', 'rebase', 'fetch'", config.Strategy)
+
+		if err := validateStrategy(group.Strategy); err != nil {
+			return fmt.Errorf("group %q: %w", groupName, err)
+		}
+
+		if err := validateFlatRepositories(group.Repositories, groupName); err != nil {
+			return err
 		}
 	}
 
-	// Check for duplicate names
+	return nil
+}
+
+// validateStrategy validates a strategy value.
+func validateStrategy(strategy string) error {
+	if strategy == "" {
+		return nil
+	}
+	validStrategies := map[string]bool{
+		"skip": true, "pull": true, "reset": true, "rebase": true, "fetch": true,
+	}
+	if !validStrategies[strategy] {
+		return fmt.Errorf("invalid strategy %q: must be one of 'skip', 'pull', 'reset', 'rebase', 'fetch'", strategy)
+	}
+	return nil
+}
+
+// validateFlatRepositories validates a list of repository specs.
+func validateFlatRepositories(repos []CloneRepoSpec, groupName string) error {
+	prefix := ""
+	if groupName != "" {
+		prefix = fmt.Sprintf("group %q: ", groupName)
+	}
+
+	if len(repos) == 0 {
+		return fmt.Errorf("%sno repositories defined", prefix)
+	}
+
 	namesSeen := make(map[string]bool)
-	for i, repo := range config.Repositories {
+	for i, repo := range repos {
 		if repo.URL == "" {
-			return fmt.Errorf("repository[%d]: missing URL", i)
+			return fmt.Errorf("%srepository[%d]: missing URL", prefix, i)
 		}
 
 		// Extract name from URL if not specified
@@ -465,15 +634,21 @@ func validateCloneConfig(config *CloneConfig) error {
 		if name == "" {
 			extracted, err := repository.ExtractRepoNameFromURL(repo.URL)
 			if err != nil {
-				return fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, repo.URL, err)
+				return fmt.Errorf("%srepository[%d]: cannot extract name from URL %q: %w", prefix, i, repo.URL, err)
 			}
 			name = extracted
 		}
 
-		if namesSeen[name] {
-			return fmt.Errorf("repository[%d]: duplicate name %q", i, name)
+		// Include path in uniqueness check
+		fullPath := name
+		if repo.Path != "" {
+			fullPath = filepath.Join(repo.Path, name)
 		}
-		namesSeen[name] = true
+
+		if namesSeen[fullPath] {
+			return fmt.Errorf("%srepository[%d]: duplicate path %q", prefix, i, fullPath)
+		}
+		namesSeen[fullPath] = true
 	}
 
 	return nil
@@ -566,6 +741,7 @@ func resolveCloneStrategy(cliStrategy string, cliUpdate bool, yamlStrategy strin
 }
 
 // runCloneFromConfig executes clone operation based on YAML config.
+// Supports both flat format (repositories array) and grouped format (named groups).
 func runCloneFromConfig(ctx context.Context, directory string) error {
 	// Parse YAML config
 	config, err := parseCloneConfig(cloneConfig, cloneConfigStdin)
@@ -578,13 +754,21 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 		return err
 	}
 
-	// Create client
-	client := repository.NewClient()
+	// Determine if flat or grouped format
+	isGrouped := len(config.Groups) > 0
 
-	// Create logger for verbose mode
+	if isGrouped {
+		return runCloneFromGroupedConfig(ctx, config, directory)
+	}
+
+	return runCloneFromFlatConfig(ctx, config, directory)
+}
+
+// runCloneFromFlatConfig handles flat format (repositories array).
+func runCloneFromFlatConfig(ctx context.Context, config *CloneConfig, directory string) error {
+	client := repository.NewClient()
 	logger := createBulkLogger(verbose)
 
-	// Build base options from config
 	baseOpts := buildCloneOptionsFromConfig(
 		config,
 		directory,
@@ -597,7 +781,6 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 		logger,
 	)
 
-	// Clone each repository with custom settings
 	totalRepos := len(config.Repositories)
 
 	if shouldShowProgress(cloneFlags.Format, quiet) {
@@ -617,7 +800,153 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, strategyStr, suffix)
 	}
 
-	// Build custom clone operations with parallel execution
+	results := cloneRepositoriesParallel(ctx, client, config.Repositories, baseOpts, "")
+	displayCloneResults(results)
+
+	return nil
+}
+
+// runCloneFromGroupedConfig handles grouped format (named groups with targets).
+func runCloneFromGroupedConfig(ctx context.Context, config *CloneConfig, directory string) error {
+	client := repository.NewClient()
+	logger := createBulkLogger(verbose)
+
+	// Filter groups if --group flag is specified
+	groupsToClone := config.Groups
+	if len(cloneGroup) > 0 {
+		groupsToClone = make(map[string]*CloneGroup)
+		for _, name := range cloneGroup {
+			if group, ok := config.Groups[name]; ok {
+				groupsToClone[name] = group
+			} else {
+				return fmt.Errorf("group %q not found in config", name)
+			}
+		}
+	}
+
+	// Count total repositories
+	totalRepos := 0
+	for _, group := range groupsToClone {
+		totalRepos += len(group.Repositories)
+	}
+
+	if shouldShowProgress(cloneFlags.Format, quiet) {
+		suffix := ""
+		if cloneFlags.DryRun {
+			suffix = " [DRY-RUN]"
+		}
+		fmt.Printf("Cloning %d repositories from %d groups%s\n",
+			totalRepos, len(groupsToClone), suffix)
+	}
+
+	// Clone each group
+	allResults := &repository.BulkCloneResult{
+		TotalRequested: totalRepos,
+		Summary:        make(map[string]int),
+		Repositories:   make([]repository.RepositoryCloneResult, 0, totalRepos),
+	}
+
+	startTime := time.Now()
+
+	for groupName, group := range groupsToClone {
+		// Resolve target directory (relative to CLI directory argument)
+		targetDir := group.Target
+		if directory != "." && !filepath.IsAbs(targetDir) {
+			targetDir = filepath.Join(directory, targetDir)
+		}
+
+		// Build options for this group
+		groupOpts := buildGroupCloneOptions(config, group, targetDir, logger)
+
+		if shouldShowProgress(cloneFlags.Format, quiet) {
+			fmt.Printf("\n[%s] → %s (%d repos)\n", groupName, targetDir, len(group.Repositories))
+		}
+
+		// Clone repositories in this group
+		groupResults := cloneRepositoriesParallel(ctx, client, group.Repositories, groupOpts, groupName)
+
+		// Merge results
+		for _, r := range groupResults.Repositories {
+			allResults.Repositories = append(allResults.Repositories, r)
+			allResults.Summary[r.Status]++
+
+			switch r.Status {
+			case "cloned":
+				allResults.TotalCloned++
+			case "updated", "pulled", "rebased":
+				allResults.TotalUpdated++
+			case "skipped":
+				allResults.TotalSkipped++
+			case "error":
+				allResults.TotalFailed++
+			}
+		}
+	}
+
+	allResults.Duration = time.Since(startTime)
+	displayCloneResults(allResults)
+
+	return nil
+}
+
+// buildGroupCloneOptions builds clone options for a specific group.
+func buildGroupCloneOptions(config *CloneConfig, group *CloneGroup, targetDir string, logger repository.Logger) repository.BulkCloneOptions {
+	// Resolve parallel: CLI > global config > default
+	parallel := cloneFlags.Parallel
+	if parallel == 0 && config.Parallel > 0 {
+		parallel = config.Parallel
+	}
+	if parallel == 0 {
+		parallel = repository.DefaultBulkParallel
+	}
+
+	// Resolve strategy: CLI > group > global > default
+	strategy := resolveCloneStrategy(cloneStrategy, cloneUpdate, group.Strategy, false)
+	if strategy == repository.StrategySkip && config.Strategy != "" {
+		strategy = repository.UpdateStrategy(config.Strategy)
+	}
+
+	// Resolve structure
+	structureVal := cloneStructure
+	if structureVal == "flat" && config.Structure != "" {
+		structureVal = config.Structure
+	}
+
+	// Resolve branch: CLI > group > empty
+	branch := cloneBranch
+	if branch == "" && group.Branch != "" {
+		branch = group.Branch
+	}
+
+	// Resolve depth: CLI > group > 0
+	depth := cloneDepth
+	if depth == 0 && group.Depth > 0 {
+		depth = group.Depth
+	}
+
+	return repository.BulkCloneOptions{
+		Directory: targetDir,
+		Structure: repository.DirectoryStructure(structureVal),
+		Strategy:  strategy,
+		Branch:    branch,
+		Depth:     depth,
+		Parallel:  parallel,
+		DryRun:    cloneFlags.DryRun,
+		Verbose:   verbose,
+		Logger:    logger,
+	}
+}
+
+// cloneRepositoriesParallel clones repositories in parallel and returns results.
+func cloneRepositoriesParallel(
+	ctx context.Context,
+	client repository.Client,
+	repos []CloneRepoSpec,
+	opts repository.BulkCloneOptions,
+	groupName string,
+) *repository.BulkCloneResult {
+	totalRepos := len(repos)
+
 	results := &repository.BulkCloneResult{
 		TotalRequested: totalRepos,
 		Summary:        make(map[string]int),
@@ -626,7 +955,6 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 
 	startTime := time.Now()
 
-	// Create work channel and results channel
 	type workItem struct {
 		index    int
 		repoSpec CloneRepoSpec
@@ -638,25 +966,21 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 
 	// Start worker pool
 	var wg sync.WaitGroup
-	for w := 0; w < baseOpts.Parallel; w++ {
+	for w := 0; w < opts.Parallel; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for work := range workChan {
 				// Show progress
-				if baseOpts.ProgressCallback != nil {
-					baseOpts.ProgressCallback(work.index+1, totalRepos, work.repoSpec.URL)
+				if shouldShowProgress(cloneFlags.Format, quiet) {
+					prefix := ""
+					if groupName != "" {
+						prefix = fmt.Sprintf("[%s] ", groupName)
+					}
+					fmt.Printf("%s[%d/%d] Cloning %s...\n", prefix, work.index+1, totalRepos, work.repoName)
 				}
 
-				// Clone single repository
-				result := cloneSingleRepository(
-					ctx,
-					client,
-					work.repoSpec,
-					work.repoName,
-					baseOpts,
-				)
-
+				result := cloneSingleRepository(ctx, client, work.repoSpec, work.repoName, opts)
 				resultsChan <- result
 			}
 		}()
@@ -664,8 +988,7 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 
 	// Send work items
 	go func() {
-		for i, repoSpec := range config.Repositories {
-			// Determine repository name
+		for i, repoSpec := range repos {
 			repoName := repoSpec.Name
 			if repoName == "" {
 				extracted, _ := repository.ExtractRepoNameFromURL(repoSpec.URL)
@@ -691,7 +1014,6 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 	for result := range resultsChan {
 		results.Repositories = append(results.Repositories, result)
 
-		// Update counters
 		switch result.Status {
 		case "cloned":
 			results.TotalCloned++
@@ -703,7 +1025,6 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 			results.TotalFailed++
 		}
 
-		// Update summary
 		if results.Summary == nil {
 			results.Summary = make(map[string]int)
 		}
@@ -711,11 +1032,7 @@ func runCloneFromConfig(ctx context.Context, directory string) error {
 	}
 
 	results.Duration = time.Since(startTime)
-
-	// Display results
-	displayCloneResults(results)
-
-	return nil
+	return results
 }
 
 // cloneSingleRepository clones a single repository with custom settings.
@@ -729,7 +1046,17 @@ func cloneSingleRepository(
 	startTime := time.Now()
 
 	// Build destination path
-	destination := filepath.Join(baseOpts.Directory, repoName)
+	// If spec.Path is set, use it as subdirectory within target
+	// Otherwise use repoName directly under target
+	var destination string
+	var relativePath string
+	if spec.Path != "" {
+		destination = filepath.Join(baseOpts.Directory, spec.Path)
+		relativePath = spec.Path
+	} else {
+		destination = filepath.Join(baseOpts.Directory, repoName)
+		relativePath = repoName
+	}
 
 	// Determine branch
 	branch := spec.Branch
@@ -770,7 +1097,7 @@ func cloneSingleRepository(
 		return repository.RepositoryCloneResult{
 			URL:          spec.URL,
 			Path:         destination,
-			RelativePath: repoName,
+			RelativePath: relativePath,
 			Branch:       branch,
 			Status:       status,
 			Duration:     time.Since(startTime),
@@ -782,7 +1109,7 @@ func cloneSingleRepository(
 		return repository.RepositoryCloneResult{
 			URL:          spec.URL,
 			Path:         destination,
-			RelativePath: repoName,
+			RelativePath: relativePath,
 			Branch:       branch,
 			Status:       "skipped",
 			Duration:     time.Since(startTime),
@@ -832,7 +1159,7 @@ func cloneSingleRepository(
 	result := repository.RepositoryCloneResult{
 		URL:          spec.URL,
 		Path:         destination,
-		RelativePath: repoName,
+		RelativePath: relativePath,
 		Branch:       branch,
 		Status:       status,
 		Duration:     time.Since(startTime),
