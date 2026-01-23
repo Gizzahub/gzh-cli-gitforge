@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/scanner"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
 
 // ScanOptions holds options for workspace scan command.
@@ -121,43 +121,40 @@ func (f CommandFactory) generateConfig(cmd *cobra.Command, opts *ScanOptions, re
 		absPath = opts.Path
 	}
 
-	// Build config
-	repoEntries := make([]map[string]interface{}, 0, len(repos))
-
+	// Build repository entries for template
+	repoEntries := make([]templates.ScannedRepoData, 0, len(repos))
 	for _, repo := range repos {
-		entry := map[string]interface{}{
-			"name":       repo.Name,
-			"targetPath": repo.Path,
+		entry := templates.ScannedRepoData{
+			Name: repo.Name,
+			Path: repo.Path,
 		}
 
 		// Handle remote URLs
-		if len(repo.RemoteURLs) == 0 {
-			entry["url"] = ""
-		} else if len(repo.RemoteURLs) == 1 {
-			entry["url"] = repo.RemoteURLs[0]
-		} else {
-			entry["urls"] = repo.RemoteURLs
+		if len(repo.RemoteURLs) == 1 {
+			entry.URL = repo.RemoteURLs[0]
+		} else if len(repo.RemoteURLs) > 1 {
+			entry.URLs = repo.RemoteURLs
 		}
 
 		repoEntries = append(repoEntries, entry)
 	}
 
-	config := map[string]interface{}{
-		"# Generated":  time.Now().Format(time.RFC3339),
-		"# Path":       absPath,
-		"# Scanned":    len(repos),
-		"strategy":     "reset",
-		"parallel":     4,
-		"maxRetries":   3,
-		"cloneProto":   "ssh",
-		"sshPort":      0,
-		"repositories": repoEntries,
+	// Render template
+	data := templates.ScannedData{
+		ScannedAt:    time.Now().Format(time.RFC3339),
+		Path:         absPath,
+		Count:        len(repos),
+		Strategy:     "reset",
+		Parallel:     4,
+		MaxRetries:   3,
+		CloneProto:   "ssh",
+		SSHPort:      0,
+		Repositories: repoEntries,
 	}
 
-	// Write to file
-	data, err := yaml.Marshal(config)
+	content, err := templates.Render(templates.RepositoriesScanned, data)
 	if err != nil {
-		return fmt.Errorf("marshal YAML: %w", err)
+		return fmt.Errorf("render template: %w", err)
 	}
 
 	outputPath := opts.Output
@@ -165,7 +162,7 @@ func (f CommandFactory) generateConfig(cmd *cobra.Command, opts *ScanOptions, re
 		outputPath = filepath.Join(opts.Path, outputPath)
 	}
 
-	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 

@@ -10,31 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
-
-const sampleConfig = `# gz-git workspace configuration
-# Documentation: https://github.com/gizzahub/gzh-cli-gitforge
-
-strategy: reset
-parallel: 4
-maxRetries: 3
-cleanupOrphans: false
-
-# Clone protocol (ssh or https)
-cloneProto: ssh
-
-# Custom SSH port (0 = auto-detect)
-sshPort: 0
-
-repositories:
-  - name: example-repo
-    url: https://github.com/example/repo.git
-    path: ./repos/example-repo
-    # strategy: pull  # Optional: override default strategy
-    # cloneProto: ssh # Optional: override default clone protocol
-
-  # Add more repositories here
-`
 
 func (f CommandFactory) newInitCmd() *cobra.Command {
 	var outputPath string
@@ -57,8 +34,14 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 				return fmt.Errorf("file already exists: %s (use a different name)", outputPath)
 			}
 
+			// Get sample config from embedded template
+			sampleContent, err := templates.GetRaw(templates.RepositoriesSample)
+			if err != nil {
+				return fmt.Errorf("failed to load sample template: %w", err)
+			}
+
 			// Write sample config
-			if err := os.WriteFile(outputPath, []byte(sampleConfig), 0o644); err != nil {
+			if err := os.WriteFile(outputPath, sampleContent, 0o644); err != nil {
 				return fmt.Errorf("failed to write config: %w", err)
 			}
 

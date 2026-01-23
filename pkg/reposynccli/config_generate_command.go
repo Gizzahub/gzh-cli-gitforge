@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
 
 // ConfigGenerateOptions holds options for config generate command.
@@ -145,16 +145,35 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 		return fmt.Errorf("failed to fetch repositories: %w", err)
 	}
 
-	// Generate config
-	config := generateConfigYAML(repos, opts)
-
-	// Write to file
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal YAML: %w", err)
+	// Build repository entries for template
+	repoEntries := make([]templates.ForgeRepoData, 0, len(repos))
+	for _, repo := range repos {
+		repoEntries = append(repoEntries, templates.ForgeRepoData{
+			Name: repo.Name,
+			URL:  repo.CloneURL,
+			Path: buildTargetPath(repo, opts),
+		})
 	}
 
-	if err := os.WriteFile(opts.Output, data, 0o644); err != nil {
+	// Render template
+	data := templates.ForgeGeneratedData{
+		GeneratedAt:  time.Now().Format(time.RFC3339),
+		Provider:     opts.Provider,
+		Organization: opts.Organization,
+		Strategy:     opts.Strategy,
+		Parallel:     opts.Parallel,
+		MaxRetries:   opts.MaxRetries,
+		CloneProto:   opts.CloneProto,
+		SSHPort:      opts.SSHPort,
+		Repositories: repoEntries,
+	}
+
+	content, err := templates.Render(templates.RepositoriesForge, data)
+	if err != nil {
+		return fmt.Errorf("failed to render template: %w", err)
+	}
+
+	if err := os.WriteFile(opts.Output, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -237,34 +256,6 @@ func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Prov
 	}
 
 	return filtered, nil
-}
-
-func generateConfigYAML(repos []*provider.Repository, opts *ConfigGenerateOptions) map[string]interface{} {
-	repoEntries := make([]map[string]interface{}, 0, len(repos))
-
-	for _, repo := range repos {
-		targetPath := buildTargetPath(repo, opts)
-
-		entry := map[string]interface{}{
-			"name":       repo.Name,
-			"url":        repo.CloneURL,
-			"targetPath": targetPath,
-		}
-
-		repoEntries = append(repoEntries, entry)
-	}
-
-	config := map[string]interface{}{
-		"# Generated":  time.Now().Format(time.RFC3339),
-		"strategy":     opts.Strategy,
-		"parallel":     opts.Parallel,
-		"maxRetries":   opts.MaxRetries,
-		"cloneProto":   opts.CloneProto,
-		"sshPort":      opts.SSHPort,
-		"repositories": repoEntries,
-	}
-
-	return config
 }
 
 func buildTargetPath(repo *provider.Repository, opts *ConfigGenerateOptions) string {
