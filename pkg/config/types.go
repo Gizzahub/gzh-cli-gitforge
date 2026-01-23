@@ -21,6 +21,13 @@ import "strings"
 // ConfigKind represents the type of configuration file.
 type ConfigKind string
 
+// Hooks represents before/after hook commands for sync operations.
+// Hooks are executed without shell interpretation for security (no pipes, redirects, etc.).
+type Hooks struct {
+	Before []string `yaml:"before,omitempty"` // Commands to run before sync operation
+	After  []string `yaml:"after,omitempty"`  // Commands to run after sync operation
+}
+
 const (
 	// KindRepositories is for simple flat repository lists (repositories array)
 	KindRepositories ConfigKind = "repositories"
@@ -371,6 +378,12 @@ type Config struct {
 	Pull   *PullConfig   `yaml:"pull,omitempty"`
 	Push   *PushConfig   `yaml:"push,omitempty"`
 
+	// === Hooks ===
+
+	// Hooks defines global before/after commands for all workspace syncs
+	// These are applied in addition to workspace-level hooks
+	Hooks *Hooks `yaml:"hooks,omitempty"`
+
 	// === Workspaces (recursive!) ===
 
 	// Workspaces is a map of named workspace configurations
@@ -405,6 +418,12 @@ type Config struct {
 //
 //	devbox:
 //	  path: ./devbox
+//	  configLink: ./gz-git/mydevbox.yaml
+//	  hooks:
+//	    before:
+//	      - mkdir -p logs
+//	    after:
+//	      - make setup
 //	  source:
 //	    provider: gitlab
 //	    org: devbox
@@ -420,6 +439,15 @@ type Workspace struct {
 	// Path is the target directory for this workspace
 	// Supports: absolute (/foo/bar), relative (./foo), home-relative (~/foo)
 	Path string `yaml:"path"`
+
+	// ConfigLink specifies a config file to symlink into the workspace as .gz-git.yaml
+	// Supports: absolute paths, home-relative (~/), relative (./), relative to parent config dir
+	// The symlink is created at {workspace.Path}/.gz-git.yaml → {configLink}
+	ConfigLink string `yaml:"configLink,omitempty"`
+
+	// Hooks defines before/after commands for this workspace sync
+	// Before hooks run before clone/update, After hooks run after successful sync
+	Hooks *Hooks `yaml:"hooks,omitempty"`
 
 	// Type specifies what kind of workspace this is
 	// Values: "forge" (sync from forge), "git" (single repo), "config" (has nested config)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/hooks"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposynccli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
@@ -284,6 +285,9 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		strategyOverride = s
 	}
 
+	// Get config directory for resolving paths
+	configDir := filepath.Dir(cfg.ConfigPath)
+
 	var allActions []reposync.Action
 
 	for name, ws := range workspaces {
@@ -292,6 +296,25 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		}
 
 		fmt.Fprintf(out, "Planning nested workspace '%s' (%s/%s)...\n", name, ws.Source.Provider, ws.Source.Org)
+
+		// Resolve workspace path
+		wsPath := resolveWorkspacePath(ws.Path, configDir)
+
+		// Merge root and workspace hooks
+		mergedHooks := hooks.Merge(cfg.Hooks, ws.Hooks)
+
+		// Execute before hooks
+		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
+			// Ensure parent directory exists for before hooks
+			if err := os.MkdirAll(filepath.Dir(wsPath), 0o755); err != nil {
+				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
+			}
+
+			fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
+			if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
+				return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
+			}
+		}
 
 		prov, err := createProviderFromSource(ws.Source, ws, cfg)
 		if err != nil {
@@ -368,9 +391,29 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 
 		fmt.Fprintf(out, "  → Found %d repositories\n", len(plan.Actions))
 
-		// Write child config with repository list
-		if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
-			return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
+		// Handle config: either create symlink (configLink) or write child config
+		if ws.ConfigLink != "" {
+			// Create symlink instead of writing config
+			fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
+			if err := config.CreateConfigSymlink(ws.ConfigLink, wsPath, configDir); err != nil {
+				return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+			}
+		} else {
+			// Write child config with repository list
+			if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
+				return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
+			}
+		}
+
+		// Execute after hooks (run after config is set up but before actual sync)
+		// Note: Ideally these should run after the sync completes, but the current
+		// architecture separates planning from execution. For now, we run them
+		// after the workspace is prepared (directory created, config set up).
+		if mergedHooks != nil && len(mergedHooks.After) > 0 {
+			fmt.Fprintf(out, "  → Running after hooks for workspace '%s'...\n", name)
+			if err := hooks.Execute(ctx, mergedHooks, "after", wsPath, nil); err != nil {
+				return nil, fmt.Errorf("after hooks failed for workspace '%s': %w", name, err)
+			}
 		}
 
 		allActions = append(allActions, plan.Actions...)
@@ -380,7 +423,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 }
 
 // planGitWorkspaces generates actions from git workspaces (type=git with URL).
-func planGitWorkspaces(_ context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
 	workspaces := config.GetGitWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -403,15 +446,30 @@ func planGitWorkspaces(_ context.Context, cfg *config.Config, configDir string, 
 		fmt.Fprintf(out, "Planning git workspace '%s' (%s)...\n", name, ws.URL)
 
 		// Resolve workspace path
-		wsPath := ws.Path
-		if len(wsPath) > 1 && wsPath[0] == '~' && wsPath[1] == '/' {
-			home, err := os.UserHomeDir()
-			if err == nil {
-				wsPath = filepath.Join(home, wsPath[2:])
+		wsPath := resolveWorkspacePath(ws.Path, configDir)
+
+		// Merge root and workspace hooks
+		mergedHooks := hooks.Merge(cfg.Hooks, ws.Hooks)
+
+		// Execute before hooks
+		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
+			// Ensure parent directory exists for before hooks
+			if err := os.MkdirAll(filepath.Dir(wsPath), 0o755); err != nil {
+				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
+			}
+
+			fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
+			if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
+				return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
 			}
 		}
-		if !filepath.IsAbs(wsPath) {
-			wsPath = filepath.Join(configDir, wsPath)
+
+		// Create configLink symlink if specified
+		if ws.ConfigLink != "" {
+			fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
+			if err := config.CreateConfigSymlink(ws.ConfigLink, wsPath, configDir); err != nil {
+				return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+			}
 		}
 
 		// Determine strategy
@@ -443,6 +501,19 @@ func planGitWorkspaces(_ context.Context, cfg *config.Config, configDir string, 
 		}
 
 		allActions = append(allActions, action)
+
+		// Execute after hooks
+		if mergedHooks != nil && len(mergedHooks.After) > 0 {
+			// Ensure workspace directory exists for after hooks
+			if err := os.MkdirAll(wsPath, 0o755); err != nil {
+				return nil, fmt.Errorf("failed to create workspace directory '%s' for after hooks: %w", name, err)
+			}
+
+			fmt.Fprintf(out, "  → Running after hooks for workspace '%s'...\n", name)
+			if err := hooks.Execute(ctx, mergedHooks, "after", wsPath, nil); err != nil {
+				return nil, fmt.Errorf("after hooks failed for workspace '%s': %w", name, err)
+			}
+		}
 	}
 
 	return allActions, nil
@@ -723,4 +794,32 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		}
 	}
 	return nil
+}
+
+// resolveWorkspacePath resolves a workspace path that may be:
+// - Absolute: /path/to/workspace
+// - Home-relative: ~/path/to/workspace
+// - Relative: ./path/to/workspace or path/to/workspace
+//
+// Relative paths are resolved from baseDir.
+func resolveWorkspacePath(path, baseDir string) string {
+	if path == "" {
+		return baseDir
+	}
+
+	// Handle home-relative paths
+	if len(path) > 1 && path[0] == '~' && path[1] == '/' {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			return filepath.Join(home, path[2:])
+		}
+	}
+
+	// Handle absolute paths
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	// Handle relative paths
+	return filepath.Join(baseDir, path)
 }

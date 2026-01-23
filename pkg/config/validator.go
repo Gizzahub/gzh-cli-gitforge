@@ -383,6 +383,13 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		}
 	}
 
+	// Validate root-level hooks
+	if c.Hooks != nil {
+		if err := v.ValidateHooks(c.Hooks); err != nil {
+			return fmt.Errorf("root hooks validation failed: %w", err)
+		}
+	}
+
 	// Validate workspaces
 	for name, ws := range c.Workspaces {
 		if err := v.ValidateWorkspace(ws, name); err != nil {
@@ -456,6 +463,20 @@ func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 	// Validate child config mode if specified
 	if ws.ChildConfigMode != "" && !ws.ChildConfigMode.IsValid() {
 		return fmt.Errorf("invalid child config mode '%s': must be 'repositories', 'workspaces', or 'none'", ws.ChildConfigMode)
+	}
+
+	// Validate hooks if specified
+	if ws.Hooks != nil {
+		if err := v.ValidateHooks(ws.Hooks); err != nil {
+			return fmt.Errorf("hooks validation failed: %w", err)
+		}
+	}
+
+	// Validate configLink if specified
+	if ws.ConfigLink != "" {
+		if err := v.ValidateConfigLink(ws.ConfigLink); err != nil {
+			return fmt.Errorf("configLink validation failed: %w", err)
+		}
 	}
 
 	// Validate nested workspaces recursively
@@ -622,5 +643,74 @@ func (v *Validator) ValidateChildConfigMode(mode ChildConfigMode) error {
 	if !mode.IsValid() {
 		return fmt.Errorf("invalid child config mode '%s': must be 'repositories', 'workspaces', or 'none'", mode)
 	}
+	return nil
+}
+
+// ================================================================================
+// Hooks and ConfigLink Validation
+// ================================================================================
+
+// ValidateHooks validates hook commands for security.
+// Checks that commands don't contain shell special characters.
+func (v *Validator) ValidateHooks(hooks *Hooks) error {
+	if hooks == nil {
+		return nil
+	}
+
+	// Check before hooks
+	for i, cmd := range hooks.Before {
+		if err := validateHookCommand(cmd); err != nil {
+			return fmt.Errorf("before[%d]: %w", i, err)
+		}
+	}
+
+	// Check after hooks
+	for i, cmd := range hooks.After {
+		if err := validateHookCommand(cmd); err != nil {
+			return fmt.Errorf("after[%d]: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// validateHookCommand checks if a single hook command is safe.
+func validateHookCommand(cmd string) error {
+	if cmd == "" {
+		return fmt.Errorf("empty command")
+	}
+
+	// Check for shell special characters that could indicate shell injection
+	dangerousChars := []string{"|", ">", "<", ">>", "<<", "$(", "`", "&&", "||", ";"}
+	for _, char := range dangerousChars {
+		if strings.Contains(cmd, char) {
+			return fmt.Errorf("command %q contains shell special character %q - use a script file instead", cmd, char)
+		}
+	}
+
+	return nil
+}
+
+// ValidateConfigLink validates a configLink path.
+func (v *Validator) ValidateConfigLink(path string) error {
+	if path == "" {
+		return nil // Empty is valid (no link)
+	}
+
+	// Validate path characters (same as parent path validation)
+	for _, c := range path {
+		if !isValidPathChar(c) {
+			return fmt.Errorf("configLink contains invalid character: %c", c)
+		}
+	}
+
+	// Check for dangerous prefixes
+	dangerousPrefixes := []string{"/etc/", "/usr/", "/bin/", "/root/"}
+	for _, prefix := range dangerousPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return fmt.Errorf("configLink cannot reference system directories: %s", prefix)
+		}
+	}
+
 	return nil
 }

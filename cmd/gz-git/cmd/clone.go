@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/hooks"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -725,87 +726,33 @@ func mergeHooks(groupHooks, repoHooks *CloneHooks) *CloneHooks {
 // executeHooks runs hook commands in the specified directory.
 // Returns error if any hook fails (marks repo as failed per user decision).
 // Uses direct exec without shell for security (no pipes, redirects, variables).
-func executeHooks(ctx context.Context, hooks []string, workDir string, logger repository.Logger) error {
-	if len(hooks) == 0 {
-		return nil
+//
+// This function delegates to pkg/hooks.ExecuteCommands for the actual execution.
+func executeHooks(ctx context.Context, commands []string, workDir string, logger repository.Logger) error {
+	// Adapt repository.Logger to hooks.Logger interface
+	var hookLogger hooks.Logger
+	if logger != nil {
+		hookLogger = &loggerAdapter{logger}
 	}
+	return hooks.ExecuteCommands(ctx, commands, workDir, hookLogger)
+}
 
-	// Validate working directory exists
-	if _, err := os.Stat(workDir); err != nil {
-		return fmt.Errorf("hook working directory does not exist: %s", workDir)
-	}
+// loggerAdapter adapts repository.Logger to hooks.Logger interface.
+type loggerAdapter struct {
+	logger repository.Logger
+}
 
-	// Default timeout for hooks: 30 seconds
-	hookTimeout := 30 * time.Second
-
-	for _, hook := range hooks {
-		args := parseHookCommand(hook)
-		if len(args) == 0 {
-			continue
-		}
-
-		// Create context with timeout
-		hookCtx, cancel := context.WithTimeout(ctx, hookTimeout)
-
-		cmd := exec.CommandContext(hookCtx, args[0], args[1:]...)
-		cmd.Dir = workDir
-		cmd.Env = os.Environ()
-
-		output, err := cmd.CombinedOutput()
-		cancel()
-
-		if err != nil {
-			return fmt.Errorf("hook %q failed: %w (output: %s)", hook, err, strings.TrimSpace(string(output)))
-		}
-
-		if logger != nil && len(output) > 0 {
-			logger.Info("hook completed", "command", hook, "output", strings.TrimSpace(string(output)))
-		}
-	}
-
-	return nil
+func (a *loggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+	a.logger.Info(msg, keysAndValues...)
 }
 
 // parseHookCommand splits a hook command string into executable and arguments.
 // Supports simple quoting but NOT shell features (pipes, redirects, variables).
 // This is intentional for security - use scripts for complex commands.
+//
+// Deprecated: Use hooks.ParseCommand directly.
 func parseHookCommand(cmd string) []string {
-	cmd = strings.TrimSpace(cmd)
-	if cmd == "" {
-		return nil
-	}
-
-	var args []string
-	var current strings.Builder
-	inQuote := false
-	quoteChar := rune(0)
-
-	for _, r := range cmd {
-		switch {
-		case inQuote:
-			if r == quoteChar {
-				inQuote = false
-			} else {
-				current.WriteRune(r)
-			}
-		case r == '"' || r == '\'':
-			inQuote = true
-			quoteChar = r
-		case r == ' ' || r == '\t':
-			if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
-			}
-		default:
-			current.WriteRune(r)
-		}
-	}
-
-	if current.Len() > 0 {
-		args = append(args, current.String())
-	}
-
-	return args
+	return hooks.ParseCommand(cmd)
 }
 
 // buildCloneOptionsFromConfig builds BulkCloneOptions from YAML config.
