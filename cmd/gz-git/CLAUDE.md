@@ -1,4 +1,4 @@
-# AGENTS.md - gz-git CLI Module Guide
+# CLAUDE.md - gz-git CLI Module Guide
 
 Module-specific guidelines for the gz-git CLI module.
 
@@ -18,15 +18,19 @@ ______________________________________________________________________
 
 ```
 cmd/gz-git/
-├── AGENTS.md       # This file
+├── CLAUDE.md       # This file
 ├── main.go         # Entry point (calls Execute())
-├── root.go         # Root command and subcommand registration
-├── version.go      # Version information
-├── clone.go        # Clone command
-├── status.go       # Status command
-├── branch.go       # Branch commands
-├── commit.go       # Commit commands
-└── ...             # Other git commands
+└── cmd/            # All commands here
+    ├── root.go         # Root command and subcommand registration
+    ├── version.go      # Version information
+    ├── clone.go        # Clone command
+    ├── status.go       # Status command
+    ├── sync.go         # Sync commands
+    ├── workspace.go    # Workspace commands
+    ├── config.go       # Config commands
+    ├── branch.go       # Branch commands
+    ├── commit.go       # Commit commands
+    └── ...             # Other git commands
 ```
 
 ______________________________________________________________________
@@ -103,6 +107,9 @@ func runClone(url, path string) error {
 import (
     "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
     "github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
+    "github.com/gizzahub/gzh-cli-gitforge/pkg/scanner"
 )
 
 func runBranch(name string) error {
@@ -172,4 +179,4 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Last Updated**: 2024-12-05
+**Last Updated**: 2026-01-23

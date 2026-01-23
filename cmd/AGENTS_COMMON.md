@@ -110,6 +110,18 @@ dir := t.TempDir()
 exec.Command("git", "init", dir).Run()
 ```
 
+**Recommended: Use internal/testutil helpers**
+
+```go
+import "github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
+
+// Create temporary git repo
+repo := testutil.TempGitRepo(t)
+
+// Create repo with initial commit
+repoWithCommit := testutil.TempGitRepoWithCommit(t)
+```
+
 ______________________________________________________________________
 
 ## Logging
@@ -157,7 +169,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 - `pkg/branch`: Branch operations
 - `pkg/commit`: Commit operations
 - `pkg/merge`: Merge operations
-- etc.
+- `pkg/config`: Configuration management
+- `pkg/provider`: Forge provider operations
+- `pkg/reposync`: Repository synchronization
+- `pkg/workspacecli`: Workspace CLI commands
+- `pkg/scanner`: Local repo scanning
+- `pkg/cliutil`: CLI utilities
 
 ______________________________________________________________________
 
@@ -196,4 +213,4 @@ make quality  # REQUIRED
 
 ______________________________________________________________________
 
-**Last Updated**: 2024-12-05
+**Last Updated**: 2026-01-23
