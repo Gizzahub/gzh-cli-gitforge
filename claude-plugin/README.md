@@ -37,9 +37,17 @@ gz-git pull            # Pulls ALL repos
 gz-git status /path/to/repo
 ```
 
-## Skill
+## Skills
 
-**gz-git**: Complete CLI reference covering bulk operations, clone, commit, branch, tag, stash, and more.
+| Skill                    | Purpose                                      |
+| ------------------------ | -------------------------------------------- |
+| **gz-git**               | CLI reference (bulk ops, clone, branch, tag) |
+| **devbox-setup**         | Makefile prepare target migration guide      |
+| **workspace-management** | Local config-based multi-repo management     |
+| **config-profiles**      | Profile-based multi-environment settings     |
+| **forge-sync**           | GitHub/GitLab/Gitea organization sync        |
+| **branch-cleanup**       | Merged/stale/gone branch cleanup             |
+| **sync-troubleshooting** | Sync error diagnosis and resolution          |
 
 ## Local Test
 
