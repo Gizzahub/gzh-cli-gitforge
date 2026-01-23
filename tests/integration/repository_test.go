@@ -54,9 +54,10 @@ func TestInfoCommand(t *testing.T) {
 	t.Run("basic repository info", func(t *testing.T) {
 		output := repo.RunGzhGitSuccess("info")
 
-		AssertContains(t, output, "Repository:")
-		AssertContains(t, output, "Branch:")
-		AssertContains(t, output, "Status:")
+		// Info command now uses bulk-first format with emoji headers
+		AssertContains(t, output, "📦")           // Repository indicator
+		AssertContains(t, output, "Current Branch:") // Branch info
+		AssertContains(t, output, "Status:")      // Status field
 	})
 
 	t.Run("with multiple branches", func(t *testing.T) {
@@ -65,14 +66,17 @@ func TestInfoCommand(t *testing.T) {
 
 		output := repo.RunGzhGitSuccess("info")
 
-		AssertContains(t, output, "Repository:")
+		AssertContains(t, output, "📦")        // Repository indicator
+		AssertContains(t, output, "Branches (") // Shows branch count
 	})
 
 	t.Run("verbose output", func(t *testing.T) {
 		output := repo.RunGzhGitSuccess("info", "--verbose")
 
-		AssertContains(t, output, "Repository:")
-		// Verbose mode should show more details
+		AssertContains(t, output, "📦")           // Repository indicator
+		AssertContains(t, output, "Current Branch:") // Branch info
+		// Verbose mode should show more details like Author
+		AssertContains(t, output, "Author:")
 	})
 }
 
