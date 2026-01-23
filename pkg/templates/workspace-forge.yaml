@@ -1,0 +1,33 @@
+# gz-git workspace configuration
+# Kind: workspace with forge source
+#
+# Syncs repositories from Git forge (GitHub/GitLab/Gitea)
+#
+# Usage:
+#   gz-git workspace sync
+
+version: 1
+kind: workspace
+
+{{if .Parent}}parent: {{.Parent}}
+{{end}}{{if .Profile}}profile: {{.Profile}}
+{{end}}
+metadata:
+  name: {{.Name}}
+  team: {{.Team}}
+
+workspaces:
+{{range $name, $ws := .Workspaces}}  {{$name}}:
+    path: {{$ws.Path}}
+{{if $ws.Source}}    source:
+      provider: {{$ws.Source.Provider}}
+      org: {{$ws.Source.Org}}
+{{if $ws.Source.BaseURL}}      baseURL: {{$ws.Source.BaseURL}}
+{{end}}{{if $ws.Source.Token}}      token: {{$ws.Source.Token}}
+{{end}}{{if $ws.Source.IncludeSubgroups}}      includeSubgroups: {{$ws.Source.IncludeSubgroups}}
+{{end}}{{if $ws.Source.SubgroupMode}}      subgroupMode: {{$ws.Source.SubgroupMode}}
+{{end}}{{end}}{{if $ws.Sync}}    sync:
+{{if $ws.Sync.Strategy}}      strategy: {{$ws.Sync.Strategy}}
+{{end}}{{end}}{{if $ws.Parallel}}    parallel: {{$ws.Parallel}}
+{{end}}
+{{end}}

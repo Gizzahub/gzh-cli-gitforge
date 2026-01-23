@@ -1,0 +1,37 @@
+# gz-git workstation configuration
+# Kind: workspace (hierarchical)
+#
+# This is the top-level config for managing multiple workspaces.
+#
+# Usage:
+#   gz-git workspace sync     # Sync all workspaces
+#   gz-git workspace status   # Check all workspaces
+
+version: 1
+kind: workspace
+
+metadata:
+  name: {{.Name}}
+  owner: {{.Owner}}
+  type: workstation
+
+# Default settings for all workspaces
+parallel: {{.Parallel}}
+cloneProto: {{.CloneProto}}
+
+{{if .Profiles}}# Inline profiles (credentials use ${ENV_VAR} syntax)
+profiles:
+{{range $name, $profile := .Profiles}}  {{$name}}:
+    provider: {{$profile.Provider}}
+{{if $profile.BaseURL}}    baseURL: {{$profile.BaseURL}}
+{{end}}    token: {{$profile.Token}}
+{{if $profile.CloneProto}}    cloneProto: {{$profile.CloneProto}}
+{{end}}{{if $profile.SSHPort}}    sshPort: {{$profile.SSHPort}}
+{{end}}
+{{end}}{{end}}
+{{if .Workspaces}}workspaces:
+{{range $name, $ws := .Workspaces}}  {{$name}}:
+    path: {{$ws.Path}}
+{{if $ws.Type}}    type: {{$ws.Type}}
+{{end}}{{if $ws.Profile}}    profile: {{$ws.Profile}}
+{{end}}{{end}}{{end}}

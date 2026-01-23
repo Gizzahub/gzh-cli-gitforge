@@ -1,0 +1,30 @@
+# gz-git profile configuration
+# Location: ~/.config/gz-git/profiles/{{.Name}}.yaml
+#
+# Profiles eliminate repetitive command flags by storing defaults.
+#
+# Usage:
+#   gz-git config profile use {{.Name}}
+#   gz-git sync from-forge --org myorg  # Uses profile settings
+
+name: {{.Name}}
+
+# Forge provider settings
+provider: {{.Provider}}
+{{if .BaseURL}}baseURL: {{.BaseURL}}
+{{end}}token: {{.Token}}
+
+# Clone settings
+cloneProto: {{.CloneProto}}
+{{if .SSHPort}}sshPort: {{.SSHPort}}
+{{end}}
+# Bulk operation settings
+parallel: {{.Parallel}}
+{{if .IncludeSubgroups}}includeSubgroups: {{.IncludeSubgroups}}
+{{end}}{{if .SubgroupMode}}subgroupMode: {{.SubgroupMode}}
+{{end}}
+# Command-specific overrides
+{{if .Sync}}sync:
+{{if .Sync.Strategy}}  strategy: {{.Sync.Strategy}}
+{{end}}{{if .Sync.MaxRetries}}  maxRetries: {{.Sync.MaxRetries}}
+{{end}}{{end}}

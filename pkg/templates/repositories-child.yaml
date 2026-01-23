@@ -1,0 +1,17 @@
+# gz-git configuration (child config)
+# Inherits settings from parent config
+#
+# Usage:
+#   gz-git workspace sync
+
+version: 1
+kind: repositories
+
+parent: {{.Parent}}
+{{if .Profile}}profile: {{.Profile}}
+{{end}}
+{{if .Repositories}}repositories:
+{{range .Repositories}}  - name: {{.Name}}
+    url: {{.URL}}
+    path: {{.Path}}
+{{end}}{{end}}

@@ -1,0 +1,26 @@
+# gz-git configuration
+# Kind: repositories (flat list)
+#
+# Usage:
+#   gz-git workspace sync     # Clone/update all repos
+#   gz-git workspace status   # Check status
+
+version: 1
+kind: repositories
+
+metadata:
+  name: {{.Name}}
+  team: {{.Team}}
+  description: {{.Description}}
+
+# Sync settings
+strategy: {{.Strategy}}
+parallel: {{.Parallel}}
+
+repositories:
+{{range .Repositories}}  - name: {{.Name}}
+    url: {{.URL}}
+    path: {{.Path}}
+{{if .Branch}}    branch: {{.Branch}}
+{{end}}{{if .Description}}    description: {{.Description}}
+{{end}}{{end}}
