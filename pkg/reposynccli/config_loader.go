@@ -45,6 +45,10 @@ type fileConfig struct {
 	Kind     config.ConfigKind `yaml:"kind,omitempty"`     // "repositories" or "workspace"
 	Metadata *config.Metadata  `yaml:"metadata,omitempty"` // optional descriptive info
 
+	// Parent config reference (for inheritance)
+	Parent  string `yaml:"parent,omitempty"`  // path to parent config file
+	Profile string `yaml:"profile,omitempty"` // profile name to use
+
 	// Sync settings
 	Strategy             string      `yaml:"strategy"`
 	Parallel             int         `yaml:"parallel"`
@@ -166,6 +170,19 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 	var cfg fileConfig
 	if err := yaml.Unmarshal(raw, &cfg); err != nil {
 		return ConfigData{}, fmt.Errorf("parse config: %w", err)
+	}
+
+	// Load and merge parent config if specified
+	if cfg.Parent != "" {
+		parentPath := resolveParentPath(cfg.Parent, configPath)
+		parentCfg, err := l.loadParentConfig(parentPath)
+		if err != nil {
+			// Log warning but continue - parent might not exist yet
+			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config %s: %v\n", parentPath, err)
+		} else {
+			// Merge: child overrides parent
+			cfg = mergeFileConfigs(parentCfg, cfg)
+		}
 	}
 
 	if len(cfg.Repositories) == 0 {
@@ -959,4 +976,120 @@ func cleanRoots(roots []string) []string {
 // This is a wrapper around config.DetectConfigFile for backward compatibility.
 func detectConfigFile(dir string) (string, error) {
 	return config.DetectConfigFile(dir)
+}
+
+// resolveParentPath resolves a parent config path relative to the current config.
+// Supports: absolute paths, ~/relative paths, and relative paths.
+func resolveParentPath(parentRef, configPath string) string {
+	if parentRef == "" {
+		return ""
+	}
+
+	// Expand environment variables
+	parentRef = os.ExpandEnv(parentRef)
+
+	// Handle ~ (home directory)
+	if parentRef == "~" || strings.HasPrefix(parentRef, "~/") || strings.HasPrefix(parentRef, "~\\") {
+		if home, err := os.UserHomeDir(); err == nil {
+			rest := strings.TrimPrefix(parentRef[1:], "/")
+			rest = strings.TrimPrefix(rest, "\\")
+			parentRef = filepath.Join(home, rest)
+		}
+	}
+
+	// If absolute, use as-is
+	if filepath.IsAbs(parentRef) {
+		return filepath.Clean(parentRef)
+	}
+
+	// Relative path: resolve relative to config file's directory
+	configDir := filepath.Dir(configPath)
+	return filepath.Clean(filepath.Join(configDir, parentRef))
+}
+
+// loadParentConfig loads a parent config file and returns its parsed fileConfig.
+func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) {
+	raw, err := os.ReadFile(parentPath)
+	if err != nil {
+		return fileConfig{}, fmt.Errorf("read parent config %s: %w", parentPath, err)
+	}
+
+	var cfg fileConfig
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		return fileConfig{}, fmt.Errorf("parse parent config %s: %w", parentPath, err)
+	}
+
+	// Recursively load parent's parent if specified
+	if cfg.Parent != "" {
+		grandparentPath := resolveParentPath(cfg.Parent, parentPath)
+		grandparentCfg, err := l.loadParentConfig(grandparentPath)
+		if err != nil {
+			// Log warning but continue
+			fmt.Fprintf(os.Stderr, "Warning: failed to load grandparent config %s: %v\n", grandparentPath, err)
+		} else {
+			// Merge grandparent into parent (parent overrides grandparent)
+			cfg = mergeFileConfigs(grandparentCfg, cfg)
+		}
+	}
+
+	return cfg, nil
+}
+
+// mergeFileConfigs merges parent config into child config.
+// Child values override parent values (child takes precedence).
+func mergeFileConfigs(parent, child fileConfig) fileConfig {
+	result := parent // Start with parent as base
+
+	// Child meta fields override if set
+	if child.Version != 0 {
+		result.Version = child.Version
+	}
+	if child.Kind != "" {
+		result.Kind = child.Kind
+	}
+	if child.Metadata != nil {
+		result.Metadata = child.Metadata
+	}
+
+	// Parent reference is NOT inherited (child's parent is its own declaration)
+	result.Parent = child.Parent
+	if child.Profile != "" {
+		result.Profile = child.Profile
+	}
+
+	// Sync settings: child overrides if set
+	if child.Strategy != "" {
+		result.Strategy = child.Strategy
+	}
+	if child.Parallel != 0 {
+		result.Parallel = child.Parallel
+	}
+	if child.MaxRetries != nil {
+		result.MaxRetries = child.MaxRetries
+	}
+	if child.Resume {
+		result.Resume = child.Resume
+	}
+	if child.DryRun {
+		result.DryRun = child.DryRun
+	}
+	if child.CleanupOrphans {
+		result.CleanupOrphans = child.CleanupOrphans
+	}
+	if child.StrictBranchCheckout {
+		result.StrictBranchCheckout = child.StrictBranchCheckout
+	}
+
+	// Roots: child replaces if set (not merged)
+	if len(child.Roots) > 0 {
+		result.Roots = child.Roots
+	}
+
+	// Repositories: child replaces entirely (not merged)
+	// This is intentional: child config defines its own repo list
+	if len(child.Repositories) > 0 {
+		result.Repositories = child.Repositories
+	}
+
+	return result
 }
