@@ -444,18 +444,20 @@ gz-git fetch /path/to/single/repo
 
 ______________________________________________________________________
 
-## Config Systems: Two Complementary Approaches
+## Config Systems: Two Formats (Both Supported)
 
-**gz-git**은 두 가지 독립적인 config 시스템을 제공합니다:
+**gz-git workspace sync**는 두 가지 config 형식을 **모두 지원**합니다:
 
-### 1️⃣ **Workspace CLI** (`repositories`)
+### 1️⃣ **Simple Format** (`repositories` 배열)
 
 **용도**: 간단한 로컬 repo 목록 관리
 
 **Config 형식** (배열):
 
 ```yaml
-# .gz-git.yaml (workspace CLI용)
+# .gz-git.yaml - Simple format
+strategy: pull
+parallel: 4
 repositories:
   - name: proxynd-core
     url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-core.git
@@ -465,101 +467,117 @@ repositories:
     branch: develop
 ```
 
-**사용 명령어**:
-
-- `gz-git workspace init` - 빈 config 생성
-- `gz-git workspace scan` - 로컬 디렉토리 스캔 → config 생성
-- `gz-git workspace sync` - config 기반 clone/update
-- `gz-git workspace status` - health check
-
 **특징**:
 
 - ✅ 간단한 배열 구조
 - ✅ 빠른 설정
 - ✅ 로컬 파일 관리 중심
+- ✅ `gz-git workspace scan`으로 자동 생성 가능
 
 ______________________________________________________________________
 
-### 2️⃣ **Hierarchical Config** (`workspaces`)
+### 2️⃣ **Hierarchical Format** (`workspaces` map)
 
 **용도**: 복잡한 계층 구조, forge 동기화, profile 관리
 
 **Config 형식** (Map):
 
 ```yaml
-# .gz-git.yaml (hierarchical config용)
-profile: polypia
+# .gz-git.yaml - Hierarchical format (workstation level)
 parallel: 10
+cloneProto: ssh
+
+profiles:
+  polypia:
+    provider: gitlab
+    baseURL: https://gitlab.polypia.net
+    token: ${GITLAB_TOKEN}
+    sshPort: 2224
 
 workspaces:
-  devbox:
+  mydevbox:
     path: ~/mydevbox
-    type: config
+    profile: polypia
     source:
       provider: gitlab
       org: devbox
       includeSubgroups: true
+    sync:
+      strategy: pull
 
-  personal:
-    path: ~/personal
-    type: git
+  mynote:
+    path: ~/mynote
+    profile: polypia
+    source:
+      provider: gitlab
+      org: notes
 ```
-
-**사용 API**:
-
-- `config.LoadConfigRecursive()` - 계층적 로드
-- `config.LoadWorkspaces()` - Discovery mode 적용
-- `config.GetProfileFromChain()` - Profile 체인 탐색
 
 **특징**:
 
 - ✅ Map 기반 named workspaces
 - ✅ 무한 depth 계층 구조
 - ✅ Inline profiles 지원
-- ✅ Parent config 참조
-- ✅ Forge 동기화 통합
+- ✅ Forge API 동기화 (`source` 정의)
+- ✅ Child config 자동 생성 (bootstrapping)
 
 ______________________________________________________________________
 
-### 🤔 **어떤 시스템을 사용해야 하나?**
+### 🤔 **어떤 형식을 사용해야 하나?**
 
-| 상황                                   | 추천 시스템                            |
+| 상황                                   | 추천 형식                              |
 | -------------------------------------- | -------------------------------------- |
-| 단순 repo 목록 관리                    | **Workspace CLI** (`repositories`)     |
-| Forge에서 org 전체 sync                | **Hierarchical Config** (`workspaces`) |
-| 여러 환경 프로파일 관리                | **Hierarchical Config** (`workspaces`) |
-| Workstation → Workspace → Project 구조 | **Hierarchical Config** (`workspaces`) |
-| 빠른 설정, 간단한 구조                 | **Workspace CLI** (`repositories`)     |
+| 단순 repo 목록 관리                    | **Simple** (`repositories`)            |
+| Forge에서 org 전체 sync                | **Hierarchical** (`workspaces`)        |
+| 여러 환경 프로파일 관리                | **Hierarchical** (`workspaces`)        |
+| Workstation → Workspace → Project 구조 | **Hierarchical** (`workspaces`)        |
+| 빠른 설정, 간단한 구조                 | **Simple** (`repositories`)            |
+
+**Note**: 두 형식을 하나의 config에 혼합 가능. `workspace sync`는 둘 다 처리합니다.
 
 ______________________________________________________________________
 
-### Workspace 명령어 (Local Config Management)
+### Workspace 명령어
 
-**gz-git workspace**는 로컬 config 파일 기반 워크스페이스 관리를 제공합니다:
+**gz-git workspace**는 두 가지 config 형식을 모두 지원합니다:
 
 ```bash
 # 워크스페이스 초기화
-gz-git workspace init                    # .gz-git.yaml 생성
+gz-git workspace init                    # .gz-git.yaml 생성 (simple format)
 gz-git workspace init -c myworkspace.yaml
 
-# 디렉토리 스캔 → config 생성
+# 디렉토리 스캔 → config 생성 (simple format)
 gz-git workspace scan ~/mydevbox
 gz-git workspace scan ~/mydevbox --depth 3 --exclude "vendor,tmp"
 
-# Config 기반 clone/update
-gz-git workspace sync
-gz-git workspace sync -c myworkspace.yaml --dry-run
+# Config 기반 clone/update (BOTH formats supported!)
+gz-git workspace sync                              # Simple: repositories 배열
+gz-git workspace sync -c workstation.yaml          # Hierarchical: workspaces map + forge source
+gz-git workspace sync -c workstation.yaml --dry-run
 
 # 워크스페이스 health check
 gz-git workspace status
 gz-git workspace status --verbose
 
-# Repo 추가
+# Repo 추가 (simple format)
 gz-git workspace add https://github.com/user/repo.git
 gz-git workspace add --from-current
 
 # Config 검증
 gz-git workspace validate
+```
+
+**Hierarchical sync 동작**:
+
+```bash
+# workstation config로 여러 workspace 한번에 sync
+gz-git workspace sync -c ~/devenv/workstation/.gz-git.yaml
+
+# 출력 예시:
+# → Bootstrapping workspace 'mydevbox': creating ~/mydevbox/.gz-git.yaml
+# → Found 2 recursive workspaces
+# → Planning nested workspace 'mynote' (gitlab/notes)... → 5 repositories
+# → Planning nested workspace 'mydevbox' (gitlab/devbox)... → 27 repositories
 ```
 
 ______________________________________________________________________
