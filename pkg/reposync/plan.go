@@ -41,6 +41,7 @@ type Plan struct {
 // RepoSpec describes a repository to manage.
 type RepoSpec struct {
 	Name                 string
+	Description          string // optional: human-readable description of the repository
 	Provider             string
 	CloneURL             string
 	AdditionalRemotes    map[string]string // Additional git remotes (name: url), configured after clone

@@ -45,6 +45,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		Roots          []string `yaml:"roots"`
 		Repositories   []struct {
 			Name              string            `yaml:"name"`
+			Description       string            `yaml:"description"` // optional: human-readable description
 			URL               string            `yaml:"url"`
 			URLs              []string          `yaml:"urls"`              // Deprecated: use url + additionalRemotes
 			AdditionalRemotes map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
@@ -84,6 +85,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 
 		spec := reposync.RepoSpec{
 			Name:              r.Name,
+			Description:       r.Description,
 			CloneURL:          url,
 			AdditionalRemotes: r.AdditionalRemotes,
 			TargetPath:        path,

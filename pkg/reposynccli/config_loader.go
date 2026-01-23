@@ -53,6 +53,7 @@ type fileConfig struct {
 
 type repoEntry struct {
 	Name                 string            `yaml:"name"`
+	Description          string            `yaml:"description"` // optional: human-readable description
 	Provider             string            `yaml:"provider"`
 	URL                  string            `yaml:"url"`
 	AdditionalRemotes    map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
@@ -234,6 +235,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 		plan.Input.Repos = append(plan.Input.Repos, reposync.RepoSpec{
 			Name:                 repo.Name,
+			Description:          repo.Description,
 			Provider:             repo.Provider,
 			CloneURL:             repo.URL,
 			AdditionalRemotes:    repo.AdditionalRemotes,
