@@ -52,6 +52,8 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Path              string            `yaml:"path"`
 			Strategy          string            `yaml:"strategy"`
 			CloneProto        string            `yaml:"cloneProto"`
+			Enabled           *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
+			AssumePresent     bool              `yaml:"assumePresent"` // if true, skip clone check
 		} `yaml:"repositories"`
 	}
 
@@ -89,6 +91,8 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			CloneURL:          url,
 			AdditionalRemotes: r.AdditionalRemotes,
 			TargetPath:        path,
+			Enabled:           r.Enabled,
+			AssumePresent:     r.AssumePresent,
 		}
 
 		// Per-repo strategy override

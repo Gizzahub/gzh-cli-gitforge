@@ -49,11 +49,18 @@ type RepoSpec struct {
 	Branch               string // optional: branch to checkout after clone/update (empty = no checkout)
 	StrictBranchCheckout bool   // if true, branch checkout failure causes action failure (default: false)
 	Strategy             Strategy
-	AssumePresent        bool // if true, planner treats repo as already present
+	Enabled              *bool // if false, repo is excluded from sync (default: true, nil = true)
+	AssumePresent        bool  // if true, planner treats repo as already present (skip clone check)
 
 	// Auth contains authentication config for this repo's clone operation.
 	// If empty, system defaults are used (git credential helper, ssh-agent).
 	Auth AuthConfig
+}
+
+// IsEnabled returns true if the repo should be included in sync operations.
+// Default is true (nil or true).
+func (r RepoSpec) IsEnabled() bool {
+	return r.Enabled == nil || *r.Enabled
 }
 
 // Action describes a single operation in a plan.

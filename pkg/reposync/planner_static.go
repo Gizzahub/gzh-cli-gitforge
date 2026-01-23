@@ -30,6 +30,17 @@ func (StaticPlanner) Plan(_ context.Context, req PlanRequest) (Plan, error) {
 
 	actions := make([]Action, 0, len(req.Input.Repos))
 	for _, repo := range req.Input.Repos {
+		// Skip disabled repos
+		if !repo.IsEnabled() {
+			actions = append(actions, Action{
+				Repo:      repo,
+				Type:      ActionSkip,
+				Reason:    "disabled in config",
+				PlannedBy: "static",
+			})
+			continue
+		}
+
 		strategy := repo.Strategy
 		if strategy == "" {
 			strategy = defaultStrategy

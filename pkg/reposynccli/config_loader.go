@@ -61,7 +61,8 @@ type repoEntry struct {
 	Branch               string            `yaml:"branch"`               // optional: branch to checkout after clone/update
 	StrictBranchCheckout *bool             `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
 	Strategy             string            `yaml:"strategy"`
-	AssumePresent        bool              `yaml:"assumePresent"`
+	Enabled              *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
+	AssumePresent        bool              `yaml:"assumePresent"` // if true, skip clone check (assume already exists)
 }
 
 type gzhYamlConfig struct {
@@ -243,6 +244,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 			Branch:               repo.Branch,
 			StrictBranchCheckout: strictBranchCheckout,
 			Strategy:             repoStrategy,
+			Enabled:              repo.Enabled,
 			AssumePresent:        repo.AssumePresent,
 		})
 	}
