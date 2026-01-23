@@ -396,20 +396,29 @@ type CloneConfig struct {
 
 // CloneGroup represents a named group of repositories with its own target.
 type CloneGroup struct {
-	Target       string          `yaml:"target"`                // Required: target directory for this group
-	Branch       string          `yaml:"branch,omitempty"`      // Default branch for all repos in group
-	Depth        int             `yaml:"depth,omitempty"`       // Default depth for all repos in group
-	Strategy     string          `yaml:"strategy,omitempty"`    // Override global strategy
-	Repositories []CloneRepoSpec `yaml:"repositories"`          // Repository list
+	Target       string          `yaml:"target"`             // Required: target directory for this group
+	Branch       string          `yaml:"branch,omitempty"`   // Default branch for all repos in group
+	Depth        int             `yaml:"depth,omitempty"`    // Default depth for all repos in group
+	Strategy     string          `yaml:"strategy,omitempty"` // Override global strategy
+	Repositories []CloneRepoSpec `yaml:"repositories"`       // Repository list
+	Hooks        *CloneHooks     `yaml:"hooks,omitempty"`    // Group-level hooks (applied to all repos in group)
+}
+
+// CloneHooks represents before/after hook commands for clone operations.
+// Hooks are executed without shell interpretation for security (no pipes, redirects, etc.).
+type CloneHooks struct {
+	Before []string `yaml:"before,omitempty"` // Commands to run before clone/update
+	After  []string `yaml:"after,omitempty"`  // Commands to run after clone/update
 }
 
 // CloneRepoSpec represents a single repository specification in YAML.
 type CloneRepoSpec struct {
-	URL    string `yaml:"url"`              // Required
-	Name   string `yaml:"name,omitempty"`   // Optional: custom directory name (extracted from URL if empty)
-	Path   string `yaml:"path,omitempty"`   // Optional: subdirectory within target
-	Branch string `yaml:"branch,omitempty"` // Optional: branch to checkout
-	Depth  int    `yaml:"depth,omitempty"`  // Optional: shallow clone depth
+	URL    string      `yaml:"url"`              // Required
+	Name   string      `yaml:"name,omitempty"`   // Optional: custom directory name (extracted from URL if empty)
+	Path   string      `yaml:"path,omitempty"`   // Optional: subdirectory within target
+	Branch string      `yaml:"branch,omitempty"` // Optional: branch to checkout
+	Depth  int         `yaml:"depth,omitempty"`  // Optional: shallow clone depth
+	Hooks  *CloneHooks `yaml:"hooks,omitempty"`  // Optional: repo-level hooks
 }
 
 // parseCloneConfig reads and parses YAML config from file or stdin.
@@ -515,6 +524,11 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 			group.Strategy = v
 		}
 
+		// Parse group-level hooks
+		if hooksRaw, ok := groupMap["hooks"].(map[string]interface{}); ok {
+			group.Hooks = parseCloneHooks(hooksRaw)
+		}
+
 		// Parse repositories
 		if reposRaw, ok := groupMap["repositories"].([]interface{}); ok {
 			for _, repoRaw := range reposRaw {
@@ -538,6 +552,11 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 				}
 				if v, ok := repoMap["depth"].(int); ok {
 					spec.Depth = v
+				}
+
+				// Parse repo-level hooks
+				if hooksRaw, ok := repoMap["hooks"].(map[string]interface{}); ok {
+					spec.Hooks = parseCloneHooks(hooksRaw)
 				}
 
 				if spec.URL != "" {
@@ -652,6 +671,141 @@ func validateFlatRepositories(repos []CloneRepoSpec, groupName string) error {
 	}
 
 	return nil
+}
+
+// parseCloneHooks parses hooks from a raw map interface.
+func parseCloneHooks(raw map[string]interface{}) *CloneHooks {
+	hooks := &CloneHooks{}
+
+	if before, ok := raw["before"].([]interface{}); ok {
+		for _, b := range before {
+			if s, ok := b.(string); ok && s != "" {
+				hooks.Before = append(hooks.Before, s)
+			}
+		}
+	}
+
+	if after, ok := raw["after"].([]interface{}); ok {
+		for _, a := range after {
+			if s, ok := a.(string); ok && s != "" {
+				hooks.After = append(hooks.After, s)
+			}
+		}
+	}
+
+	if len(hooks.Before) == 0 && len(hooks.After) == 0 {
+		return nil
+	}
+
+	return hooks
+}
+
+// mergeHooks merges group-level and repo-level hooks.
+// Repo hooks are appended after group hooks.
+func mergeHooks(groupHooks, repoHooks *CloneHooks) *CloneHooks {
+	if groupHooks == nil && repoHooks == nil {
+		return nil
+	}
+
+	merged := &CloneHooks{}
+
+	if groupHooks != nil {
+		merged.Before = append(merged.Before, groupHooks.Before...)
+		merged.After = append(merged.After, groupHooks.After...)
+	}
+
+	if repoHooks != nil {
+		merged.Before = append(merged.Before, repoHooks.Before...)
+		merged.After = append(merged.After, repoHooks.After...)
+	}
+
+	return merged
+}
+
+// executeHooks runs hook commands in the specified directory.
+// Returns error if any hook fails (marks repo as failed per user decision).
+// Uses direct exec without shell for security (no pipes, redirects, variables).
+func executeHooks(ctx context.Context, hooks []string, workDir string, logger repository.Logger) error {
+	if len(hooks) == 0 {
+		return nil
+	}
+
+	// Validate working directory exists
+	if _, err := os.Stat(workDir); err != nil {
+		return fmt.Errorf("hook working directory does not exist: %s", workDir)
+	}
+
+	// Default timeout for hooks: 30 seconds
+	hookTimeout := 30 * time.Second
+
+	for _, hook := range hooks {
+		args := parseHookCommand(hook)
+		if len(args) == 0 {
+			continue
+		}
+
+		// Create context with timeout
+		hookCtx, cancel := context.WithTimeout(ctx, hookTimeout)
+
+		cmd := exec.CommandContext(hookCtx, args[0], args[1:]...)
+		cmd.Dir = workDir
+		cmd.Env = os.Environ()
+
+		output, err := cmd.CombinedOutput()
+		cancel()
+
+		if err != nil {
+			return fmt.Errorf("hook %q failed: %w (output: %s)", hook, err, strings.TrimSpace(string(output)))
+		}
+
+		if logger != nil && len(output) > 0 {
+			logger.Info("hook completed", "command", hook, "output", strings.TrimSpace(string(output)))
+		}
+	}
+
+	return nil
+}
+
+// parseHookCommand splits a hook command string into executable and arguments.
+// Supports simple quoting but NOT shell features (pipes, redirects, variables).
+// This is intentional for security - use scripts for complex commands.
+func parseHookCommand(cmd string) []string {
+	cmd = strings.TrimSpace(cmd)
+	if cmd == "" {
+		return nil
+	}
+
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := rune(0)
+
+	for _, r := range cmd {
+		switch {
+		case inQuote:
+			if r == quoteChar {
+				inQuote = false
+			} else {
+				current.WriteRune(r)
+			}
+		case r == '"' || r == '\'':
+			inQuote = true
+			quoteChar = r
+		case r == ' ' || r == '\t':
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
 }
 
 // buildCloneOptionsFromConfig builds BulkCloneOptions from YAML config.
@@ -800,7 +954,7 @@ func runCloneFromFlatConfig(ctx context.Context, config *CloneConfig, directory 
 			totalRepos, dirStr, baseOpts.Parallel, baseOpts.Structure, strategyStr, suffix)
 	}
 
-	results := cloneRepositoriesParallel(ctx, client, config.Repositories, baseOpts, "")
+	results := cloneRepositoriesParallel(ctx, client, config.Repositories, baseOpts, "", nil)
 	displayCloneResults(results)
 
 	return nil
@@ -863,7 +1017,7 @@ func runCloneFromGroupedConfig(ctx context.Context, config *CloneConfig, directo
 		}
 
 		// Clone repositories in this group
-		groupResults := cloneRepositoriesParallel(ctx, client, group.Repositories, groupOpts, groupName)
+		groupResults := cloneRepositoriesParallel(ctx, client, group.Repositories, groupOpts, groupName, group.Hooks)
 
 		// Merge results
 		for _, r := range groupResults.Repositories {
@@ -944,6 +1098,7 @@ func cloneRepositoriesParallel(
 	repos []CloneRepoSpec,
 	opts repository.BulkCloneOptions,
 	groupName string,
+	groupHooks *CloneHooks,
 ) *repository.BulkCloneResult {
 	totalRepos := len(repos)
 
@@ -980,7 +1135,7 @@ func cloneRepositoriesParallel(
 					fmt.Printf("%s[%d/%d] Cloning %s...\n", prefix, work.index+1, totalRepos, work.repoName)
 				}
 
-				result := cloneSingleRepository(ctx, client, work.repoSpec, work.repoName, opts)
+				result := cloneSingleRepository(ctx, client, work.repoSpec, work.repoName, opts, groupHooks)
 				resultsChan <- result
 			}
 		}()
@@ -1042,6 +1197,7 @@ func cloneSingleRepository(
 	spec CloneRepoSpec,
 	repoName string,
 	baseOpts repository.BulkCloneOptions,
+	groupHooks *CloneHooks,
 ) repository.RepositoryCloneResult {
 	startTime := time.Now()
 
@@ -1116,6 +1272,41 @@ func cloneSingleRepository(
 		}
 	}
 
+	// Merge group and repo hooks
+	mergedHooks := mergeHooks(groupHooks, spec.Hooks)
+
+	// Execute before hooks (in parent directory)
+	if mergedHooks != nil && len(mergedHooks.Before) > 0 {
+		parentDir := baseOpts.Directory
+		if parentDir == "" {
+			parentDir = "."
+		}
+		// Ensure parent directory exists
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
+			return repository.RepositoryCloneResult{
+				URL:          spec.URL,
+				Path:         destination,
+				RelativePath: relativePath,
+				Branch:       branch,
+				Status:       "error",
+				Error:        fmt.Errorf("create parent directory for before hooks: %w", err),
+				Duration:     time.Since(startTime),
+			}
+		}
+
+		if err := executeHooks(ctx, mergedHooks.Before, parentDir, baseOpts.Logger); err != nil {
+			return repository.RepositoryCloneResult{
+				URL:          spec.URL,
+				Path:         destination,
+				RelativePath: relativePath,
+				Branch:       branch,
+				Status:       "error",
+				Error:        fmt.Errorf("before hook: %w", err),
+				Duration:     time.Since(startTime),
+			}
+		}
+	}
+
 	// Build clone options
 	cloneOpts := repository.CloneOptions{
 		URL:          spec.URL,
@@ -1169,5 +1360,14 @@ func cloneSingleRepository(
 		result.Error = err
 	}
 
+	// Execute after hooks (in cloned repo directory) only if clone/update succeeded
+	if result.Status != "error" && mergedHooks != nil && len(mergedHooks.After) > 0 {
+		if hookErr := executeHooks(ctx, mergedHooks.After, destination, baseOpts.Logger); hookErr != nil {
+			result.Status = "error"
+			result.Error = fmt.Errorf("after hook: %w", hookErr)
+		}
+	}
+
+	result.Duration = time.Since(startTime)
 	return result
 }

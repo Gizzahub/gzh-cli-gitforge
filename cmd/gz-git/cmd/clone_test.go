@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -771,5 +772,400 @@ repositories:
 	}
 	if cfg.Target != "/tmp/repos" {
 		t.Errorf("expected target '/tmp/repos', got %q", cfg.Target)
+	}
+}
+
+// ============================================================================
+// Clone Hooks Tests
+// ============================================================================
+
+func TestParseHookCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  string
+		want []string
+	}{
+		{
+			name: "simple command",
+			cmd:  "echo hello",
+			want: []string{"echo", "hello"},
+		},
+		{
+			name: "command with path",
+			cmd:  "./reset-all-repos",
+			want: []string{"./reset-all-repos"},
+		},
+		{
+			name: "command with arguments",
+			cmd:  "make build test",
+			want: []string{"make", "build", "test"},
+		},
+		{
+			name: "command with double quotes",
+			cmd:  `echo "hello world"`,
+			want: []string{"echo", "hello world"},
+		},
+		{
+			name: "command with single quotes",
+			cmd:  `echo 'hello world'`,
+			want: []string{"echo", "hello world"},
+		},
+		{
+			name: "empty command",
+			cmd:  "",
+			want: nil,
+		},
+		{
+			name: "whitespace only",
+			cmd:  "   ",
+			want: nil,
+		},
+		{
+			name: "absolute path command",
+			cmd:  "/usr/bin/script arg1 arg2",
+			want: []string{"/usr/bin/script", "arg1", "arg2"},
+		},
+		{
+			name: "command with tabs",
+			cmd:  "ls\t-la\t/tmp",
+			want: []string{"ls", "-la", "/tmp"},
+		},
+		{
+			name: "mixed quotes",
+			cmd:  `echo "first arg" 'second arg'`,
+			want: []string{"echo", "first arg", "second arg"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseHookCommand(tt.cmd)
+			if len(got) != len(tt.want) {
+				t.Errorf("parseHookCommand(%q) = %v, want %v", tt.cmd, got, tt.want)
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("parseHookCommand(%q)[%d] = %q, want %q", tt.cmd, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestParseCloneHooks(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  map[string]interface{}
+		want *CloneHooks
+	}{
+		{
+			name: "before and after hooks",
+			raw: map[string]interface{}{
+				"before": []interface{}{"echo before"},
+				"after":  []interface{}{"echo after", "make setup"},
+			},
+			want: &CloneHooks{
+				Before: []string{"echo before"},
+				After:  []string{"echo after", "make setup"},
+			},
+		},
+		{
+			name: "only after hooks",
+			raw: map[string]interface{}{
+				"after": []interface{}{"./reset-all-repos"},
+			},
+			want: &CloneHooks{
+				After: []string{"./reset-all-repos"},
+			},
+		},
+		{
+			name: "only before hooks",
+			raw: map[string]interface{}{
+				"before": []interface{}{"mkdir -p backup"},
+			},
+			want: &CloneHooks{
+				Before: []string{"mkdir -p backup"},
+			},
+		},
+		{
+			name: "empty hooks",
+			raw:  map[string]interface{}{},
+			want: nil,
+		},
+		{
+			name: "empty arrays",
+			raw: map[string]interface{}{
+				"before": []interface{}{},
+				"after":  []interface{}{},
+			},
+			want: nil,
+		},
+		{
+			name: "nil raw map",
+			raw:  nil,
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.raw == nil {
+				// Handle nil case
+				return
+			}
+			got := parseCloneHooks(tt.raw)
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("parseCloneHooks() = %v, want nil", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Errorf("parseCloneHooks() = nil, want %v", tt.want)
+				return
+			}
+			if len(got.Before) != len(tt.want.Before) {
+				t.Errorf("Before hooks: got %d, want %d", len(got.Before), len(tt.want.Before))
+			}
+			if len(got.After) != len(tt.want.After) {
+				t.Errorf("After hooks: got %d, want %d", len(got.After), len(tt.want.After))
+			}
+		})
+	}
+}
+
+func TestMergeHooks(t *testing.T) {
+	tests := []struct {
+		name       string
+		groupHooks *CloneHooks
+		repoHooks  *CloneHooks
+		wantBefore int
+		wantAfter  int
+	}{
+		{
+			name:       "both nil",
+			groupHooks: nil,
+			repoHooks:  nil,
+			wantBefore: 0,
+			wantAfter:  0,
+		},
+		{
+			name: "only group hooks",
+			groupHooks: &CloneHooks{
+				Before: []string{"echo group-before"},
+				After:  []string{"echo group-after"},
+			},
+			repoHooks:  nil,
+			wantBefore: 1,
+			wantAfter:  1,
+		},
+		{
+			name:       "only repo hooks",
+			groupHooks: nil,
+			repoHooks: &CloneHooks{
+				Before: []string{"echo repo-before"},
+				After:  []string{"echo repo-after"},
+			},
+			wantBefore: 1,
+			wantAfter:  1,
+		},
+		{
+			name: "both group and repo hooks",
+			groupHooks: &CloneHooks{
+				Before: []string{"echo group-before"},
+				After:  []string{"echo group-after"},
+			},
+			repoHooks: &CloneHooks{
+				Before: []string{"echo repo-before"},
+				After:  []string{"echo repo-after"},
+			},
+			wantBefore: 2,
+			wantAfter:  2,
+		},
+		{
+			name: "multiple hooks merged",
+			groupHooks: &CloneHooks{
+				Before: []string{"cmd1", "cmd2"},
+				After:  []string{"cmd3"},
+			},
+			repoHooks: &CloneHooks{
+				After: []string{"cmd4", "cmd5"},
+			},
+			wantBefore: 2,
+			wantAfter:  3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mergeHooks(tt.groupHooks, tt.repoHooks)
+			if tt.wantBefore == 0 && tt.wantAfter == 0 {
+				if got != nil {
+					t.Errorf("mergeHooks() = %v, want nil", got)
+				}
+				return
+			}
+			if got == nil {
+				t.Fatalf("mergeHooks() = nil, want non-nil")
+			}
+			if len(got.Before) != tt.wantBefore {
+				t.Errorf("Before count = %d, want %d", len(got.Before), tt.wantBefore)
+			}
+			if len(got.After) != tt.wantAfter {
+				t.Errorf("After count = %d, want %d", len(got.After), tt.wantAfter)
+			}
+		})
+	}
+}
+
+func TestParseCloneConfig_WithHooks(t *testing.T) {
+	yaml := `
+core:
+  target: "."
+  hooks:
+    after:
+      - echo "Group clone complete"
+  repositories:
+    - url: https://github.com/discourse/all-the-plugins.git
+      hooks:
+        after:
+          - ./reset-all-repos
+
+plugins:
+  target: ./plugins
+  repositories:
+    - url: https://github.com/user/plugin1.git
+    - url: https://github.com/user/plugin2.git
+      hooks:
+        before:
+          - echo "Preparing plugin2"
+        after:
+          - make setup
+`
+
+	tmpfile, err := os.CreateTemp("", "clone-hooks-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
+		t.Fatal(err)
+	}
+	tmpfile.Close()
+
+	cfg, err := parseCloneConfig(tmpfile.Name(), false)
+	if err != nil {
+		t.Fatalf("parseCloneConfig() error = %v", err)
+	}
+
+	// Check core group hooks
+	core, ok := cfg.Groups["core"]
+	if !ok {
+		t.Fatal("missing 'core' group")
+	}
+	if core.Hooks == nil {
+		t.Fatal("core.Hooks is nil")
+	}
+	if len(core.Hooks.After) != 1 {
+		t.Errorf("core.Hooks.After count = %d, want 1", len(core.Hooks.After))
+	}
+	if core.Hooks.After[0] != `echo "Group clone complete"` {
+		t.Errorf("core.Hooks.After[0] = %q, want %q", core.Hooks.After[0], `echo "Group clone complete"`)
+	}
+
+	// Check repo-level hooks
+	if len(core.Repositories) < 1 {
+		t.Fatal("core.Repositories is empty")
+	}
+	if core.Repositories[0].Hooks == nil {
+		t.Fatal("core.Repositories[0].Hooks is nil")
+	}
+	if len(core.Repositories[0].Hooks.After) != 1 {
+		t.Errorf("core.Repositories[0].Hooks.After count = %d, want 1", len(core.Repositories[0].Hooks.After))
+	}
+	if core.Repositories[0].Hooks.After[0] != "./reset-all-repos" {
+		t.Errorf("repo hook = %q, want './reset-all-repos'", core.Repositories[0].Hooks.After[0])
+	}
+
+	// Check plugins group - repo with both before and after hooks
+	plugins, ok := cfg.Groups["plugins"]
+	if !ok {
+		t.Fatal("missing 'plugins' group")
+	}
+	if len(plugins.Repositories) < 2 {
+		t.Fatal("plugins.Repositories should have 2 repos")
+	}
+	// First plugin has no hooks
+	if plugins.Repositories[0].Hooks != nil {
+		t.Error("plugin1 should have no hooks")
+	}
+	// Second plugin has hooks
+	if plugins.Repositories[1].Hooks == nil {
+		t.Fatal("plugin2.Hooks is nil")
+	}
+	if len(plugins.Repositories[1].Hooks.Before) != 1 {
+		t.Errorf("plugin2.Hooks.Before count = %d, want 1", len(plugins.Repositories[1].Hooks.Before))
+	}
+	if len(plugins.Repositories[1].Hooks.After) != 1 {
+		t.Errorf("plugin2.Hooks.After count = %d, want 1", len(plugins.Repositories[1].Hooks.After))
+	}
+}
+
+func TestExecuteHooks_Success(t *testing.T) {
+	// Create temp directory
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	hooks := []string{
+		"echo hello",
+		"ls -la",
+	}
+
+	err := executeHooks(ctx, hooks, tmpDir, nil)
+	if err != nil {
+		t.Errorf("executeHooks() error = %v", err)
+	}
+}
+
+func TestExecuteHooks_Failure(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	hooks := []string{
+		"nonexistent-command-that-should-fail",
+	}
+
+	err := executeHooks(ctx, hooks, tmpDir, nil)
+	if err == nil {
+		t.Error("executeHooks() expected error for nonexistent command")
+	}
+}
+
+func TestExecuteHooks_InvalidWorkDir(t *testing.T) {
+	ctx := context.Background()
+	hooks := []string{"echo test"}
+
+	err := executeHooks(ctx, hooks, "/nonexistent/path/that/does/not/exist", nil)
+	if err == nil {
+		t.Error("executeHooks() expected error for invalid working directory")
+	}
+}
+
+func TestExecuteHooks_EmptyHooks(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	// Empty hooks should succeed
+	err := executeHooks(ctx, []string{}, tmpDir, nil)
+	if err != nil {
+		t.Errorf("executeHooks() with empty hooks error = %v", err)
+	}
+
+	// Nil hooks should also succeed
+	err = executeHooks(ctx, nil, tmpDir, nil)
+	if err != nil {
+		t.Errorf("executeHooks() with nil hooks error = %v", err)
 	}
 }
