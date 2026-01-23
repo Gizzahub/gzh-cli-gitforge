@@ -70,7 +70,10 @@ Config File Structure (Reference):
 			}
 
 			// Get config directory for path resolution
-			absConfigPath, _ := filepath.Abs(configPath)
+			absConfigPath, err := filepath.Abs(configPath)
+			if err != nil {
+				return fmt.Errorf("failed to resolve config path %s: %w", configPath, err)
+			}
 			configDir := filepath.Dir(absConfigPath)
 			configFile := filepath.Base(absConfigPath)
 
@@ -522,37 +525,10 @@ func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *co
 	return nil
 }
 
-// Helpers duplicated from from_config_command.go (since we deleted it)
-// We need to implement createProviderFromSource here or import it if public?
-// It was private. We recreate it.
-
+// createProviderFromSource delegates to reposynccli.CreateProviderFromSource.
+// This function is kept for backwards compatibility within this package.
 func createProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg *config.Config) (reposync.ForgeProvider, error) {
-	// Extract values from source
-	token := src.Token
-	baseURL := src.BaseURL
-	sshPort := ws.SSHPort
-	providerName := src.Provider
-
-	// Fallback to profile values if not set in source
-	if ws.Profile != "" && cfg != nil {
-		profile := config.GetProfileFromChain(cfg, ws.Profile)
-		if profile != nil {
-			if token == "" {
-				token = profile.Token
-			}
-			if baseURL == "" {
-				baseURL = profile.BaseURL
-			}
-			if sshPort == 0 {
-				sshPort = profile.SSHPort
-			}
-			if providerName == "" {
-				providerName = profile.Provider
-			}
-		}
-	}
-
-	return reposynccli.CreateForgeProviderRaw(providerName, token, baseURL, sshPort)
+	return reposynccli.CreateProviderFromSource(src, ws, cfg)
 }
 
 // Helper types

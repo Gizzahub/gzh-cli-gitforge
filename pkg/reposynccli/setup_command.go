@@ -201,7 +201,11 @@ func createProviderFromWizard(opts *wizard.SyncSetupOptions) (reposync.ForgeProv
 		return forgeProviderAdapter{p}, nil
 
 	case "gitea":
-		return forgeProviderAdapter{gitea.NewProvider(opts.Token, opts.BaseURL)}, nil
+		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		return forgeProviderAdapter{p}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", opts.Provider)

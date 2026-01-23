@@ -34,11 +34,9 @@ Config File:
   Custom:  Use -c/--config flag to specify different file
 
 Examples:
-  # Initialize new workspace
-  gz-git workspace init
-
-  # Scan existing repos and create config
-  gz-git workspace scan ~/mydevbox -o .gz-git.yaml
+  # Initialize workspace (scan and create config)
+  gz-git workspace init .
+  gz-git workspace init ~/mydevbox
 
   # Sync repositories
   gz-git workspace sync
@@ -71,10 +69,6 @@ Examples:
 	initCmd := f.newInitCmd()
 	initCmd.GroupID = mgmtGroup.ID
 	root.AddCommand(initCmd)
-
-	scanCmd := f.newScanCmd()
-	scanCmd.GroupID = mgmtGroup.ID
-	root.AddCommand(scanCmd)
 
 	addCmd := f.newAddCmd()
 	addCmd.GroupID = mgmtGroup.ID

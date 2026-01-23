@@ -207,7 +207,11 @@ func createConfigGenerateProvider(opts *ConfigGenerateOptions) (provider.Provide
 		if opts.BaseURL == "" {
 			return nil, fmt.Errorf("gitea requires --base-url")
 		}
-		return gitea.NewProvider(opts.Token, opts.BaseURL), nil
+		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s (must be github, gitlab, or gitea)", opts.Provider)

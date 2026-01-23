@@ -59,6 +59,8 @@ func GetRaw(name TemplateName) ([]byte, error) {
 }
 
 // Render renders a template with the given data.
+// Returns an error if the template cannot be found, parsed, or executed.
+// For cases where template errors indicate programmer error, use [MustRender] instead.
 func Render(name TemplateName, data any) (string, error) {
 	content, err := fs.ReadFile(string(name))
 	if err != nil {
@@ -79,7 +81,23 @@ func Render(name TemplateName, data any) (string, error) {
 }
 
 // MustRender renders a template and panics on error.
-// Use only when template errors are programming bugs.
+//
+// PANIC CONDITIONS:
+//   - Template name not found (embedded file missing)
+//   - Template syntax error (malformed template)
+//   - Template execution error (missing field in data, type mismatch)
+//
+// WHEN TO USE:
+//   - Initialization code where templates are known valid at compile time
+//   - Tests and examples where failure indicates programmer error
+//   - Embedded templates that ship with the binary (cannot be missing)
+//
+// WHEN NOT TO USE:
+//   - User-provided templates (use [Render] instead)
+//   - Templates loaded from external files
+//   - Anywhere template errors should be recoverable
+//
+// For recoverable error handling, use [Render] which returns an error.
 func MustRender(name TemplateName, data any) string {
 	result, err := Render(name, data)
 	if err != nil {
@@ -242,7 +260,7 @@ type WorkspaceForgeData struct {
 // ScannedData is the data for RepositoriesScanned template.
 type ScannedData struct {
 	ScannedAt    string // RFC3339 timestamp
-	Path         string // Absolute path of scanned directory
+	BasePath     string // Base path for relative paths (default: ".")
 	Count        int    // Number of repos found
 	Strategy     string
 	Parallel     int

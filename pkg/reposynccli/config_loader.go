@@ -764,7 +764,11 @@ func createForgeProvider(provider, token, baseURL string, sshPort int) (reposync
 		return forgeProviderAdapter{p}, nil
 
 	case "gitea":
-		return forgeProviderAdapter{gitea.NewProvider(token, baseURL)}, nil
+		p, err := gitea.NewProvider(token, baseURL)
+		if err != nil {
+			return nil, err
+		}
+		return forgeProviderAdapter{p}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s (supported: github, gitlab, gitea)", provider)

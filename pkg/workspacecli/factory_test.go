@@ -25,7 +25,6 @@ func TestCommandFactory_NewRootCmd(t *testing.T) {
 	// Check subcommands are registered
 	subCmds := map[string]bool{
 		"init":     false,
-		"scan":     false,
 		"sync":     false,
 		"status":   false,
 		"add":      false,

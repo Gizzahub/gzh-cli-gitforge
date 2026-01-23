@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
@@ -246,7 +247,11 @@ func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, er
 		return forgeProviderAdapter{p}, nil
 
 	case "gitea":
-		return forgeProviderAdapter{gitea.NewProvider(opts.Token, opts.BaseURL)}, nil
+		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
+		if err != nil {
+			return nil, err
+		}
+		return forgeProviderAdapter{p}, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s (supported: github, gitlab, gitea)", opts.Provider)
@@ -268,4 +273,36 @@ func CreateForgeProviderRaw(providerName, token, baseURL string, sshPort int) (r
 		SSHPort:  sshPort,
 	}
 	return createFromForgeProvider(opts)
+}
+
+// CreateProviderFromSource creates a forge provider from config types with profile fallback.
+// This handles the common pattern of extracting provider settings from ForgeSource,
+// falling back to Workspace settings, then to profile settings from the config chain.
+func CreateProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg *config.Config) (reposync.ForgeProvider, error) {
+	// Extract values from source
+	token := src.Token
+	baseURL := src.BaseURL
+	sshPort := ws.SSHPort
+	providerName := src.Provider
+
+	// Fallback to profile values if not set in source
+	if ws.Profile != "" && cfg != nil {
+		profile := config.GetProfileFromChain(cfg, ws.Profile)
+		if profile != nil {
+			if token == "" {
+				token = profile.Token
+			}
+			if baseURL == "" {
+				baseURL = profile.BaseURL
+			}
+			if sshPort == 0 {
+				sshPort = profile.SSHPort
+			}
+			if providerName == "" {
+				providerName = profile.Provider
+			}
+		}
+	}
+
+	return CreateForgeProviderRaw(providerName, token, baseURL, sshPort)
 }

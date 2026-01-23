@@ -138,7 +138,7 @@ func TestGetRaw_NotFound(t *testing.T) {
 func TestRender_Scanned(t *testing.T) {
 	data := ScannedData{
 		ScannedAt:  "2025-01-23T10:00:00Z",
-		Path:       "/home/user/mydevbox",
+		BasePath:   "/home/user/mydevbox",
 		Count:      2,
 		Strategy:   "reset",
 		Parallel:   4,
@@ -159,8 +159,9 @@ func TestRender_Scanned(t *testing.T) {
 	expected := []string{
 		"version: 1",
 		"kind: repositories",
-		"Scanned: 2025-01-23T10:00:00Z",
-		"Found: 2 repositories",
+		"basePath:",
+		"# Scanned at: 2025-01-23T10:00:00Z",
+		"# Found: 2 repositories",
 		"name: repo-a",
 		"url: git@github.com:org/repo-a.git",
 		"name: repo-b",

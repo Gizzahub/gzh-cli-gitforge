@@ -13,26 +13,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadConfigRecursive loads a config file and recursively loads all workspaces.
-// This function works at ANY level (workstation, workspace, project, etc.)
-//
-// Parameters:
-//   - path: The directory containing the config file
-//   - configFile: The config file name (e.g., ".gz-git.yaml", ".gz-git-config.yaml")
-//
-// Returns:
-//   - *Config: The loaded config with all workspaces recursively loaded
-//   - error: Any error encountered during loading
-//
-// Example:
-//
-//	// Load workstation config
-//	home, _ := os.UserHomeDir()
-//	config, err := LoadConfigRecursive(home, ".gz-git-config.yaml")
-//
-//	// Load workspace config
-//	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
-//
+const (
+	// MaxConfigDepth limits the recursion depth for config loading.
+	// This prevents stack overflow from deeply nested or malformed configs.
+	MaxConfigDepth = 10
+)
+
 // LoadConfigRecursive loads a config file and recursively loads all workspaces.
 // This function works at ANY level (workstation, workspace, project, etc.)
 //
@@ -53,11 +39,16 @@ import (
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
 func LoadConfigRecursive(path string, configFile string) (*Config, error) {
-	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), true)
+	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), true, 0)
 }
 
 // loadConfigRecursiveWithVisited loads config with circular reference detection.
-func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool, loadWorkspaces bool) (*Config, error) {
+func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
+	// Check depth limit
+	if depth > MaxConfigDepth {
+		return nil, fmt.Errorf("config recursion depth exceeded (max %d): possible circular or excessively nested config", MaxConfigDepth)
+	}
+
 	// 1. Load this level's config file
 	configPath := filepath.Join(path, configFile)
 	absConfigPath, err := filepath.Abs(configPath)
@@ -108,7 +99,7 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 		// Load parent config recursively (with same visited map for cycle detection)
 		// IMPORTANT: Pass loadWorkspaces=false to prevent infinite recursion
 		// We only want the parent's settings, not to traverse its workspaces again
-		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited, false)
+		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited, false, depth+1)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load parent config '%s': %w", config.Parent, err)
 		}
