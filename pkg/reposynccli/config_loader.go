@@ -40,6 +40,12 @@ type FileSpecLoader struct {
 }
 
 type fileConfig struct {
+	// Meta information (optional but recommended)
+	Version  int               `yaml:"version,omitempty"`  // schema version (currently 1)
+	Kind     config.ConfigKind `yaml:"kind,omitempty"`     // "repositories" or "workspace"
+	Metadata *config.Metadata  `yaml:"metadata,omitempty"` // optional descriptive info
+
+	// Sync settings
 	Strategy             string      `yaml:"strategy"`
 	Parallel             int         `yaml:"parallel"`
 	MaxRetries           *int        `yaml:"maxRetries"`
@@ -145,8 +151,11 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 		return ConfigData{}, fmt.Errorf("read config: %w", err)
 	}
 
-	// Check for workspaces format first (new hierarchical config)
-	if isWorkspacesConfig(raw) {
+	// Determine config kind: explicit kind field > filename > content detection
+	kind := detectConfigKind(raw, configPath)
+
+	// Route to appropriate loader based on kind
+	if kind == config.KindWorkspace {
 		return l.loadWorkspacesConfig(raw, configPath)
 	}
 
@@ -272,7 +281,35 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 	}, nil
 }
 
-func isWorkspacesConfig(raw []byte) bool {
+// detectConfigKind determines the config type using priority:
+// 1. Explicit "kind" field in YAML
+// 2. Filename (.gz-workspace.yaml → workspace, .gz-git.yaml → repositories)
+// 3. Content detection (workspaces/profiles keys → workspace)
+func detectConfigKind(raw []byte, configPath string) config.ConfigKind {
+	var meta struct {
+		Kind config.ConfigKind `yaml:"kind"`
+	}
+	if err := yaml.Unmarshal(raw, &meta); err == nil && meta.Kind.IsValid() {
+		return meta.Kind
+	}
+
+	// Infer from filename
+	filename := filepath.Base(configPath)
+	filenameKind := config.InferKindFromFilename(filename)
+	if filenameKind == config.KindWorkspace {
+		return config.KindWorkspace
+	}
+
+	// Content-based detection (legacy support)
+	if hasWorkspaceKeys(raw) {
+		return config.KindWorkspace
+	}
+
+	return config.KindRepositories
+}
+
+// hasWorkspaceKeys checks if the YAML content has workspace-specific keys.
+func hasWorkspaceKeys(raw []byte) bool {
 	var root map[string]any
 	if err := yaml.Unmarshal(raw, &root); err != nil {
 		return false

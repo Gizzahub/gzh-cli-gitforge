@@ -22,8 +22,11 @@ const (
 	// GlobalConfigFileName is the main config file name
 	GlobalConfigFileName = "config.yaml"
 
-	// ProjectConfigFileName is the project-specific config file name
+	// ProjectConfigFileName is the project-specific config file name (repositories format)
 	ProjectConfigFileName = ".gz-git.yaml"
+
+	// WorkspaceConfigFileName is the workspace config file name (hierarchical format)
+	WorkspaceConfigFileName = ".gz-workspace.yaml"
 
 	// ActiveProfileFileName stores the active profile name
 	ActiveProfileFileName = "active-profile.txt"
@@ -203,17 +206,71 @@ func (p *Paths) SetActiveProfile(name string) error {
 }
 
 // DetectConfigFile searches for config files in the given directory.
-// Priority: .gz-git.yaml > .gz-git.yml
+// Priority: .gz-workspace.yaml > .gz-git.yaml > .gz-git.yml
 // Returns the full path to the found config file, or an error if not found.
 func DetectConfigFile(dir string) (string, error) {
-	candidates := []string{ProjectConfigFileName, ".gz-git.yml"}
+	path, _ := DetectConfigFileWithKind(dir)
+	if path == "" {
+		return "", fmt.Errorf("config file not found in %s (tried: %s, %s, .gz-git.yml)",
+			dir, WorkspaceConfigFileName, ProjectConfigFileName)
+	}
+	return path, nil
+}
 
-	for _, name := range candidates {
-		path := filepath.Join(dir, name)
+// ConfigFileInfo holds detected config file information.
+type ConfigFileInfo struct {
+	Path string
+	Kind ConfigKind
+}
+
+// DetectConfigFileWithKind searches for config files and returns path with inferred kind.
+// Priority: .gz-workspace.yaml (workspace) > .gz-git.yaml (repositories) > .gz-git.yml (repositories)
+func DetectConfigFileWithKind(dir string) (string, ConfigKind) {
+	// Workspace config has highest priority
+	candidates := []struct {
+		name string
+		kind ConfigKind
+	}{
+		{WorkspaceConfigFileName, KindWorkspace},
+		{".gz-workspace.yml", KindWorkspace},
+		{ProjectConfigFileName, KindRepositories},
+		{".gz-git.yml", KindRepositories},
+	}
+
+	for _, c := range candidates {
+		path := filepath.Join(dir, c.name)
 		if _, err := os.Stat(path); err == nil {
-			return path, nil
+			return path, c.kind
 		}
 	}
 
-	return "", fmt.Errorf("config file not found (tried: %v)", candidates)
+	return "", ""
+}
+
+// DetectAllConfigFiles finds all config files in a directory.
+// Returns map of kind -> path for each found config file.
+func DetectAllConfigFiles(dir string) map[ConfigKind]string {
+	result := make(map[ConfigKind]string)
+
+	files := []struct {
+		name string
+		kind ConfigKind
+	}{
+		{WorkspaceConfigFileName, KindWorkspace},
+		{".gz-workspace.yml", KindWorkspace},
+		{ProjectConfigFileName, KindRepositories},
+		{".gz-git.yml", KindRepositories},
+	}
+
+	for _, f := range files {
+		path := filepath.Join(dir, f.name)
+		if _, err := os.Stat(path); err == nil {
+			// Only keep first found for each kind
+			if _, exists := result[f.kind]; !exists {
+				result[f.kind] = path
+			}
+		}
+	}
+
+	return result
 }

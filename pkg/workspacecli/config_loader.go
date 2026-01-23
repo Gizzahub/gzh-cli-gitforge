@@ -36,6 +36,12 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 	}
 
 	var raw struct {
+		// Meta information
+		Version  int              `yaml:"version,omitempty"`
+		Kind     string           `yaml:"kind,omitempty"`
+		Metadata *config.Metadata `yaml:"metadata,omitempty"`
+
+		// Sync settings
 		Strategy       string   `yaml:"strategy"`
 		Parallel       int      `yaml:"parallel"`
 		MaxRetries     int      `yaml:"maxRetries"`

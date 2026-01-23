@@ -12,6 +12,64 @@
 //  5. Built-in defaults
 package config
 
+// ================================================================================
+// Config File Meta Information
+// ================================================================================
+
+// ConfigKind represents the type of configuration file.
+type ConfigKind string
+
+const (
+	// KindRepositories is for simple flat repository lists (.gz-git.yaml)
+	KindRepositories ConfigKind = "repositories"
+
+	// KindWorkspace is for hierarchical workspace configurations (.gz-workspace.yaml)
+	KindWorkspace ConfigKind = "workspace"
+)
+
+// IsValid returns true if this is a valid config kind.
+func (k ConfigKind) IsValid() bool {
+	return k == KindRepositories || k == KindWorkspace
+}
+
+// ConfigMeta holds common metadata for all config file types.
+// This should be at the top of every config file.
+//
+// Example:
+//
+//	version: 1
+//	kind: repositories
+//	metadata:
+//	  name: "my-devbox"
+//	  team: "platform"
+type ConfigMeta struct {
+	// Version is the schema version (currently 1)
+	Version int `yaml:"version,omitempty"`
+
+	// Kind specifies the config type: "repositories" or "workspace"
+	// If omitted, inferred from filename:
+	//   .gz-git.yaml → repositories
+	//   .gz-workspace.yaml → workspace
+	Kind ConfigKind `yaml:"kind,omitempty"`
+
+	// Metadata holds optional descriptive information
+	Metadata *Metadata `yaml:"metadata,omitempty"`
+}
+
+// InferKindFromFilename returns the config kind based on filename.
+// .gz-workspace.yaml → workspace
+// .gz-git.yaml (or others) → repositories (default)
+func InferKindFromFilename(filename string) ConfigKind {
+	if filename == ".gz-workspace.yaml" || filename == ".gz-workspace.yml" {
+		return KindWorkspace
+	}
+	return KindRepositories
+}
+
+// ================================================================================
+// Profiles
+// ================================================================================
+
 // Profile represents a named configuration profile.
 // A profile contains default values for command flags, eliminating
 // the need to repeatedly specify the same options.
