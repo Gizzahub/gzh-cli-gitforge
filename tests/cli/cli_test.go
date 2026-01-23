@@ -92,10 +92,11 @@ func TestCLIInfo(t *testing.T) {
 	}
 
 	outputStr := string(output)
+	// Info command uses bulk-first format with emoji headers
 	expectedStrings := []string{
-		"Repository:",
-		"Branch:",
-		"Remote URL:",
+		"📦",             // Repository indicator
+		"Current Branch:", // Branch info
+		"Remotes:",       // Remote info section
 	}
 
 	for _, expected := range expectedStrings {
