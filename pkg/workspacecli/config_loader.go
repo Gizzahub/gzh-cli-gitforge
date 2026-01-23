@@ -12,6 +12,7 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // SpecLoader loads sync specifications from various sources.
@@ -79,20 +80,35 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 
 	// Build repo specs
 	repos := make([]reposync.RepoSpec, 0, len(raw.Repositories))
-	for _, r := range raw.Repositories {
+	for i, r := range raw.Repositories {
 		url := r.URL
 		if url == "" && len(r.URLs) > 0 {
 			url = r.URLs[0]
 		}
 
+		// URL is always required
+		if url == "" {
+			return nil, fmt.Errorf("repository[%d]: missing URL", i)
+		}
+
+		// Extract name from URL if not specified
+		repoName := r.Name
+		if repoName == "" {
+			extracted, err := repository.ExtractRepoNameFromURL(url)
+			if err != nil {
+				return nil, fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, url, err)
+			}
+			repoName = extracted
+		}
+
 		// Default path to repo name if not specified
 		path := r.Path
 		if path == "" {
-			path = r.Name
+			path = repoName
 		}
 
 		spec := reposync.RepoSpec{
-			Name:              r.Name,
+			Name:              repoName,
 			Description:       r.Description,
 			CloneURL:          url,
 			AdditionalRemotes: r.AdditionalRemotes,
@@ -105,7 +121,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		if r.Strategy != "" {
 			parsed, err := reposync.ParseStrategy(r.Strategy)
 			if err != nil {
-				return nil, fmt.Errorf("repo %s: %w", r.Name, err)
+				return nil, fmt.Errorf("repo %s: %w", repoName, err)
 			}
 			spec.Strategy = parsed
 		}

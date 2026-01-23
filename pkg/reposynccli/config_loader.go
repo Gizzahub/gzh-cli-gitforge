@@ -18,6 +18,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // ConfigData contains plan + run inputs loaded from a config file.
@@ -229,22 +230,33 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 	seenTargets := make(map[string]struct{}, len(cfg.Repositories))
 
-	for _, repo := range cfg.Repositories {
+	for i, repo := range cfg.Repositories {
+		// URL is always required
+		if repo.URL == "" {
+			return ConfigData{}, fmt.Errorf("repository[%d]: missing URL", i)
+		}
+
+		// Extract name from URL if not specified
+		repoName := repo.Name
+		if repoName == "" {
+			extracted, err := repository.ExtractRepoNameFromURL(repo.URL)
+			if err != nil {
+				return ConfigData{}, fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, repo.URL, err)
+			}
+			repoName = extracted
+		}
+
 		// Default path to repo name if not specified
 		targetPath := repo.Path
 		if targetPath == "" {
-			targetPath = repo.Name
-		}
-
-		if repo.Name == "" || repo.URL == "" {
-			return ConfigData{}, fmt.Errorf("repository entry is missing required fields (name/url)")
+			targetPath = repoName
 		}
 
 		repoStrategy := parsedStrategy
 		if repo.Strategy != "" {
 			repoStrategy, err = reposync.ParseStrategy(repo.Strategy)
 			if err != nil {
-				return ConfigData{}, fmt.Errorf("repository %s: %w", repo.Name, err)
+				return ConfigData{}, fmt.Errorf("repository %s: %w", repoName, err)
 			}
 		}
 
@@ -261,7 +273,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 		}
 
 		plan.Input.Repos = append(plan.Input.Repos, reposync.RepoSpec{
-			Name:                 repo.Name,
+			Name:                 repoName,
 			Description:          repo.Description,
 			Provider:             repo.Provider,
 			CloneURL:             repo.URL,
