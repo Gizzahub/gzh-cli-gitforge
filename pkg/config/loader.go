@@ -310,7 +310,7 @@ func (l *ConfigLoader) applyBranchConfig(dst *BranchConfig, src *BranchConfig, s
 		return
 	}
 
-	if src.DefaultBranch != "" {
+	if len(src.DefaultBranch) > 0 {
 		dst.DefaultBranch = src.DefaultBranch
 	}
 	if len(src.ProtectedBranches) > 0 {

@@ -282,7 +282,7 @@ func mergeSyncConfig(target *SyncConfig, override *SyncConfig) {
 
 // mergeBranchConfig merges override into target (override takes precedence).
 func mergeBranchConfig(target *BranchConfig, override *BranchConfig) {
-	if override.DefaultBranch != "" {
+	if len(override.DefaultBranch) > 0 {
 		target.DefaultBranch = override.DefaultBranch
 	}
 	if len(override.ProtectedBranches) > 0 {
@@ -408,7 +408,7 @@ func mergeParentSyncConfig(child *SyncConfig, parent *SyncConfig) {
 
 // mergeParentBranchConfig fills empty child fields from parent.
 func mergeParentBranchConfig(child *BranchConfig, parent *BranchConfig) {
-	if child.DefaultBranch == "" && parent.DefaultBranch != "" {
+	if len(child.DefaultBranch) == 0 && len(parent.DefaultBranch) > 0 {
 		child.DefaultBranch = parent.DefaultBranch
 	}
 	if len(child.ProtectedBranches) == 0 && len(parent.ProtectedBranches) > 0 {

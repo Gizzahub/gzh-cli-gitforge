@@ -12,6 +12,8 @@
 //  5. Built-in defaults
 package config
 
+import "strings"
+
 // ================================================================================
 // Config File Meta Information
 // ================================================================================
@@ -122,8 +124,70 @@ type SyncConfig struct {
 
 // BranchConfig holds branch command defaults.
 type BranchConfig struct {
-	DefaultBranch     string   `yaml:"defaultBranch,omitempty"`     // main, develop, master
-	ProtectedBranches []string `yaml:"protectedBranches,omitempty"` // Branches to protect
+	DefaultBranch     BranchList `yaml:"defaultBranch,omitempty"`     // main, develop, master (string or list)
+	ProtectedBranches []string   `yaml:"protectedBranches,omitempty"` // Branches to protect
+}
+
+// BranchList supports both string and list formats for branch specification.
+// Examples:
+//   - defaultBranch: develop           # single branch
+//   - defaultBranch: develop,master    # comma-separated string
+//   - defaultBranch: [develop, master] # YAML list
+type BranchList []string
+
+// UnmarshalYAML implements yaml.Unmarshaler to support both string and list formats.
+func (b *BranchList) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try string first
+	var str string
+	if err := unmarshal(&str); err == nil {
+		if str == "" {
+			*b = nil
+			return nil
+		}
+		// Split by comma and trim spaces
+		parts := strings.Split(str, ",")
+		result := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				result = append(result, p)
+			}
+		}
+		*b = result
+		return nil
+	}
+
+	// Try list
+	var list []string
+	if err := unmarshal(&list); err != nil {
+		return err
+	}
+	*b = list
+	return nil
+}
+
+// MarshalYAML implements yaml.Marshaler to output as comma-separated string.
+func (b BranchList) MarshalYAML() (interface{}, error) {
+	if len(b) == 0 {
+		return nil, nil
+	}
+	if len(b) == 1 {
+		return b[0], nil
+	}
+	return strings.Join(b, ","), nil
+}
+
+// String returns the branch list as comma-separated string.
+func (b BranchList) String() string {
+	return strings.Join(b, ",")
+}
+
+// First returns the first branch in the list, or empty string if empty.
+func (b BranchList) First() string {
+	if len(b) == 0 {
+		return ""
+	}
+	return b[0]
 }
 
 // FetchConfig holds fetch command defaults.
