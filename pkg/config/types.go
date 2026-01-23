@@ -395,6 +395,12 @@ type Workspace struct {
 	// === Metadata ===
 
 	Metadata *Metadata `yaml:"metadata,omitempty"`
+
+	// === Child config generation ===
+
+	// ChildConfigMode controls how child config files are generated during sync.
+	// Values: "repositories" (default), "workspaces", "none"
+	ChildConfigMode ChildConfigMode `yaml:"childConfigMode,omitempty"`
 }
 
 // WorkspaceType represents the type of workspace.
@@ -413,6 +419,36 @@ const (
 	// Loads .gz-git.yaml from the workspace path
 	WorkspaceTypeConfig WorkspaceType = "config"
 )
+
+// ChildConfigMode controls how child config files are generated during workspace sync.
+type ChildConfigMode string
+
+const (
+	// ChildConfigModeRepositories generates a flat array format (default).
+	// Example: repositories: [{name: repo1, url: ...}, ...]
+	ChildConfigModeRepositories ChildConfigMode = "repositories"
+
+	// ChildConfigModeWorkspaces generates a map structure format.
+	// Example: workspaces: {repo1: {path: repo1, type: git}, ...}
+	ChildConfigModeWorkspaces ChildConfigMode = "workspaces"
+
+	// ChildConfigModeNone creates directory only, no config file.
+	// Useful when child config is manually maintained or not needed.
+	ChildConfigModeNone ChildConfigMode = "none"
+)
+
+// IsValid returns true if this is a valid child config mode.
+func (m ChildConfigMode) IsValid() bool {
+	return m == "" || m == ChildConfigModeRepositories || m == ChildConfigModeWorkspaces || m == ChildConfigModeNone
+}
+
+// Default returns the default mode if empty.
+func (m ChildConfigMode) Default() ChildConfigMode {
+	if m == "" {
+		return ChildConfigModeRepositories
+	}
+	return m
+}
 
 // IsValid returns true if this is a valid workspace type.
 func (t WorkspaceType) IsValid() bool {

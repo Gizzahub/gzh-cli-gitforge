@@ -40,6 +40,9 @@ const (
 	// RepositoriesChildForge is for child configs with forge-synced repositories.
 	RepositoriesChildForge TemplateName = "repositories-child-forge.yaml"
 
+	// WorkspacesChildForge is for child configs with workspaces map format.
+	WorkspacesChildForge TemplateName = "workspaces-child-forge.yaml"
+
 	// WorkspaceWorkstation is a top-level workstation config with profiles.
 	WorkspaceWorkstation TemplateName = "workspace-workstation.yaml"
 
@@ -95,6 +98,7 @@ func List() []TemplateName {
 		RepositoriesScanned,
 		RepositoriesForge,
 		RepositoriesChildForge,
+		WorkspacesChildForge,
 		WorkspaceWorkstation,
 		WorkspaceForge,
 		Profile,
@@ -158,6 +162,23 @@ type ChildForgeRepoData struct {
 	URL    string
 	Path   string // relative path from workspace root
 	Branch string
+}
+
+// ChildWorkspacesData is the data for WorkspacesChildForge template.
+// Used when generating child configs with workspaces map format.
+type ChildWorkspacesData struct {
+	Parent       string
+	Profile      string
+	GeneratedAt  string // RFC3339 timestamp
+	Provider     string // github, gitlab, gitea
+	Organization string
+	Workspaces   []ChildWorkspaceEntry
+}
+
+// ChildWorkspaceEntry represents a workspace entry in workspaces map format.
+type ChildWorkspaceEntry struct {
+	Name string
+	Path string
 }
 
 // WorkstationData is the data for WorkspaceWorkstation template.

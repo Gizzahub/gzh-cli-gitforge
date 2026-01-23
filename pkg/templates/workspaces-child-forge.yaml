@@ -5,7 +5,7 @@
 # Source: {{.Provider}}/{{.Organization}}
 
 version: 1
-kind: repositories
+kind: workspace
 
 parent: {{.Parent}}
 {{if .Profile}}profile: {{.Profile}}
@@ -15,14 +15,8 @@ metadata:
   description: Synced from {{.Provider}}
   syncedAt: {{.GeneratedAt}}
 
-strategy: {{.Strategy}}
-parallel: {{.Parallel}}
-{{if .CloneProto}}cloneProto: {{.CloneProto}}
-{{end}}{{if .SSHPort}}sshPort: {{.SSHPort}}
+workspaces:
+{{range .Workspaces}}  {{.Name}}:
+    path: {{.Path}}
+    type: git
 {{end}}
-repositories:
-{{range .Repositories}}  - name: {{.Name}}
-    url: {{.URL}}
-{{if .Path}}    path: {{.Path}}
-{{end}}{{if .Branch}}    branch: {{.Branch}}
-{{end}}{{end}}

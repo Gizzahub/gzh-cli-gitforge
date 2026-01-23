@@ -368,6 +368,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 }
 
 // writeChildForgeConfig writes a child config file with the list of repositories.
+// It respects the workspace's ChildConfigMode and protects user-maintained files.
 func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int) error {
 	if len(actions) == 0 {
 		return nil
@@ -382,8 +383,48 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 		}
 	}
 
+	// Get child config mode (default: repositories)
+	mode := ws.ChildConfigMode.Default()
+
+	// If mode is "none": create directory only, no config file
+	if mode == config.ChildConfigModeNone {
+		if err := os.MkdirAll(wsPath, 0o755); err != nil {
+			return fmt.Errorf("create directory: %w", err)
+		}
+		fmt.Fprintf(out, "  → Created directory %s (no config, childConfigMode: none)\n", wsPath)
+		return nil
+	}
+
 	childConfigPath := filepath.Join(wsPath, ".gz-git.yaml")
 
+	// Detect existing config format to protect user-maintained files
+	format, err := config.DetectChildConfigFormat(childConfigPath)
+	if err != nil {
+		return fmt.Errorf("detect config format: %w", err)
+	}
+
+	// If user-maintained: warn and skip (don't overwrite)
+	if format == config.ChildConfigFormatUserMaintained {
+		fmt.Fprintf(out, "  ⚠ Skipping %s (user-maintained, use --force to overwrite)\n", childConfigPath)
+		return nil
+	}
+
+	// Ensure directory exists
+	if err := os.MkdirAll(wsPath, 0o755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	// Generate config based on mode
+	switch mode {
+	case config.ChildConfigModeWorkspaces:
+		return writeWorkspacesFormatConfig(out, parentCfg, ws, actions, childConfigPath)
+	default: // ChildConfigModeRepositories
+		return writeRepositoriesFormatConfig(out, parentCfg, ws, actions, childConfigPath, cloneProto, sshPort)
+	}
+}
+
+// writeRepositoriesFormatConfig writes a child config in repositories array format.
+func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, cloneProto string, sshPort int) error {
 	// Build repository list from actions
 	repos := make([]templates.ChildForgeRepoData, 0, len(actions))
 	for _, action := range actions {
@@ -434,16 +475,50 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	// Ensure directory exists
-	if err := os.MkdirAll(wsPath, 0o755); err != nil {
-		return fmt.Errorf("create directory: %w", err)
+	if err := os.WriteFile(childConfigPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	fmt.Fprintf(out, "  → Updated %s (%d repositories)\n", childConfigPath, len(repos))
+	return nil
+}
+
+// writeWorkspacesFormatConfig writes a child config in workspaces map format.
+func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string) error {
+	// Build workspace entries from actions
+	workspaces := make([]templates.ChildWorkspaceEntry, 0, len(actions))
+	for _, action := range actions {
+		// Calculate relative path from workspace root
+		relPath := action.Repo.Name
+		if action.Repo.TargetPath != "" {
+			relPath = filepath.Base(action.Repo.TargetPath)
+		}
+
+		workspaces = append(workspaces, templates.ChildWorkspaceEntry{
+			Name: action.Repo.Name,
+			Path: relPath,
+		})
+	}
+
+	data := templates.ChildWorkspacesData{
+		Parent:       parentCfg.ConfigPath,
+		Profile:      ws.Profile,
+		GeneratedAt:  time.Now().Format(time.RFC3339),
+		Provider:     ws.Source.Provider,
+		Organization: ws.Source.Org,
+		Workspaces:   workspaces,
+	}
+
+	content, err := templates.Render(templates.WorkspacesChildForge, data)
+	if err != nil {
+		return fmt.Errorf("render template: %w", err)
 	}
 
 	if err := os.WriteFile(childConfigPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
-	fmt.Fprintf(out, "  → Updated %s (%d repositories)\n", childConfigPath, len(repos))
+	fmt.Fprintf(out, "  → Updated %s (%d workspaces, map format)\n", childConfigPath, len(workspaces))
 	return nil
 }
 
