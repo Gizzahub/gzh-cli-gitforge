@@ -300,9 +300,9 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 // detectConfigKind determines the config type using priority:
 // 1. Explicit "kind" field in YAML
-// 2. Filename (.gz-workspace.yaml → workspace, .gz-git.yaml → repositories)
-// 3. Content detection (workspaces/profiles keys → workspace)
-func detectConfigKind(raw []byte, configPath string) config.ConfigKind {
+// 2. Content detection (workspaces/profiles keys → workspace)
+// 3. Default to repositories
+func detectConfigKind(raw []byte, _ string) config.ConfigKind {
 	var meta struct {
 		Kind config.ConfigKind `yaml:"kind"`
 	}
@@ -310,14 +310,7 @@ func detectConfigKind(raw []byte, configPath string) config.ConfigKind {
 		return meta.Kind
 	}
 
-	// Infer from filename
-	filename := filepath.Base(configPath)
-	filenameKind := config.InferKindFromFilename(filename)
-	if filenameKind == config.KindWorkspace {
-		return config.KindWorkspace
-	}
-
-	// Content-based detection (legacy support)
+	// Content-based detection
 	if hasWorkspaceKeys(raw) {
 		return config.KindWorkspace
 	}

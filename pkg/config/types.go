@@ -20,10 +20,10 @@ package config
 type ConfigKind string
 
 const (
-	// KindRepositories is for simple flat repository lists (.gz-git.yaml)
+	// KindRepositories is for simple flat repository lists (repositories array)
 	KindRepositories ConfigKind = "repositories"
 
-	// KindWorkspace is for hierarchical workspace configurations (.gz-workspace.yaml)
+	// KindWorkspace is for hierarchical workspace configurations (workspaces map)
 	KindWorkspace ConfigKind = "workspace"
 )
 
@@ -47,23 +47,22 @@ type ConfigMeta struct {
 	Version int `yaml:"version,omitempty"`
 
 	// Kind specifies the config type: "repositories" or "workspace"
-	// If omitted, inferred from filename:
-	//   .gz-git.yaml → repositories
-	//   .gz-workspace.yaml → workspace
+	// If omitted, inferred from content:
+	//   - Has "workspaces" or "profiles" key → workspace
+	//   - Otherwise → repositories (default)
 	Kind ConfigKind `yaml:"kind,omitempty"`
 
 	// Metadata holds optional descriptive information
 	Metadata *Metadata `yaml:"metadata,omitempty"`
 }
 
-// InferKindFromFilename returns the config kind based on filename.
-// .gz-workspace.yaml → workspace
-// .gz-git.yaml (or others) → repositories (default)
-func InferKindFromFilename(filename string) ConfigKind {
-	if filename == ".gz-workspace.yaml" || filename == ".gz-workspace.yml" {
-		return KindWorkspace
-	}
-	return KindRepositories
+// InferKindFromFilename is deprecated and always returns empty.
+// Config kind should be determined by reading the "kind" field inside the file
+// or by content detection (presence of "workspaces" or "profiles" keys).
+//
+// Deprecated: Use content-based detection instead.
+func InferKindFromFilename(_ string) ConfigKind {
+	return ""
 }
 
 // ================================================================================
