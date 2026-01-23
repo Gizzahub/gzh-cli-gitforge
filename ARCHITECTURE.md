@@ -1,9 +1,9 @@
 # Architecture Design Document
 
 **Project**: gzh-cli-gitforge
-**Version**: 1.0
-**Last Updated**: 2025-11-27
-**Status**: Draft
+**Version**: 2.0
+**Last Updated**: 2026-01-23
+**Status**: Active
 
 ______________________________________________________________________
 
@@ -258,9 +258,21 @@ gzh-cli-gitforge/
 │   │   ├── conflict.go           # Conflict detection
 │   │   ├── strategies.go         # Resolution strategies
 │   │   └── types.go              # ConflictReport, etc.
-│   └── config/                   # Configuration
-│       ├── config.go             # Config struct
-│       └── validation.go         # Config validation
+│   ├── config/                   # Configuration
+│   │   ├── config.go             # Config struct
+│   │   └── validation.go         # Config validation
+│   ├── provider/                 # Forge providers (github/gitlab/gitea)
+│   │   ├── github.go             # GitHub API client
+│   │   ├── gitlab.go             # GitLab API client
+│   │   └── gitea.go              # Gitea API client
+│   ├── reposync/                 # Repo sync planner/executor
+│   │   ├── planner.go            # Sync planning logic
+│   │   └── executor.go           # Sync execution
+│   ├── reposynccli/              # Sync CLI commands
+│   ├── workspacecli/             # Workspace CLI commands
+│   ├── scanner/                  # Local git repo scanner
+│   ├── cliutil/                  # CLI utilities
+│   └── templates/                # Configuration templates
 │
 ├── internal/                     # INTERNAL (not exposed)
 │   ├── gitcmd/                   # Git command execution
@@ -1206,6 +1218,7 @@ ______________________________________________________________________
 | Version | Date       | Author      | Changes                     |
 | ------- | ---------- | ----------- | --------------------------- |
 | 1.0     | 2025-11-27 | Claude (AI) | Initial architecture design |
+| 2.0     | 2026-01-23 | Claude (AI) | Add provider, reposync, workspace packages |
 
 ______________________________________________________________________
 

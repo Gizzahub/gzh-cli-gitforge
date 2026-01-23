@@ -3,8 +3,8 @@
 **Project**: gzh-cli-gitforge
 **Feature**: Commit Automation (F1)
 **Phase**: Phase 2
-**Version**: 2.0 (v0.4.0)
-**Last Updated**: 2025-01-02
+**Version**: 2.1 (v0.4.0)
+**Last Updated**: 2026-01-23
 **Status**: Implemented
 **Priority**: P0 (High)
 
@@ -797,6 +797,6 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Document Version**: 2.0 (v0.4.0)
+**Document Version**: 2.1 (v0.4.0)
 **Status**: Implemented
-**Last Updated**: 2025-01-02
+**Last Updated**: 2026-01-23
