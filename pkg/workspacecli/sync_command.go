@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -354,10 +355,96 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		}
 
 		fmt.Fprintf(out, "  → Found %d repositories\n", len(plan.Actions))
+
+		// Write child config with repository list
+		if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort); err != nil {
+			return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
+		}
+
 		allActions = append(allActions, plan.Actions...)
 	}
 
 	return allActions, nil
+}
+
+// writeChildForgeConfig writes a child config file with the list of repositories.
+func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int) error {
+	if len(actions) == 0 {
+		return nil
+	}
+
+	// Resolve workspace path
+	wsPath := ws.Path
+	if len(wsPath) > 1 && wsPath[0] == '~' && wsPath[1] == '/' {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			wsPath = filepath.Join(home, wsPath[2:])
+		}
+	}
+
+	childConfigPath := filepath.Join(wsPath, ".gz-git.yaml")
+
+	// Build repository list from actions
+	repos := make([]templates.ChildForgeRepoData, 0, len(actions))
+	for _, action := range actions {
+		// Calculate relative path from workspace root
+		relPath := action.Repo.Name
+		if action.Repo.TargetPath != "" {
+			// Extract just the repo directory name from full path
+			relPath = filepath.Base(action.Repo.TargetPath)
+		}
+
+		repos = append(repos, templates.ChildForgeRepoData{
+			Name:   action.Repo.Name,
+			URL:    action.Repo.CloneURL,
+			Path:   relPath,
+			Branch: action.Repo.Branch,
+		})
+	}
+
+	// Determine strategy string
+	strategyStr := "pull"
+	if ws.Sync != nil && ws.Sync.Strategy != "" {
+		strategyStr = ws.Sync.Strategy
+	}
+
+	// Determine parallel
+	parallel := 10
+	if ws.Parallel > 0 {
+		parallel = ws.Parallel
+	} else if parentCfg != nil && parentCfg.Parallel > 0 {
+		parallel = parentCfg.Parallel
+	}
+
+	data := templates.ChildForgeData{
+		Parent:       parentCfg.ConfigPath,
+		Profile:      ws.Profile,
+		GeneratedAt:  time.Now().Format(time.RFC3339),
+		Provider:     ws.Source.Provider,
+		Organization: ws.Source.Org,
+		Strategy:     strategyStr,
+		Parallel:     parallel,
+		CloneProto:   cloneProto,
+		SSHPort:      sshPort,
+		Repositories: repos,
+	}
+
+	content, err := templates.Render(templates.RepositoriesChildForge, data)
+	if err != nil {
+		return fmt.Errorf("render template: %w", err)
+	}
+
+	// Ensure directory exists
+	if err := os.MkdirAll(wsPath, 0o755); err != nil {
+		return fmt.Errorf("create directory: %w", err)
+	}
+
+	if err := os.WriteFile(childConfigPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	fmt.Fprintf(out, "  → Updated %s (%d repositories)\n", childConfigPath, len(repos))
+	return nil
 }
 
 // Helpers duplicated from from_config_command.go (since we deleted it)
@@ -437,6 +524,12 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 	}
 
 	for name, ws := range cfg.Workspaces {
+		// Skip workspaces with forge source - they are handled by planForgeWorkspaces
+		// which writes a complete config with repository list
+		if ws.Source != nil {
+			continue
+		}
+
 		// We only care about explicit workspaces defined in this config
 		// If it's type: config (explicitly set or inferred)
 		// Or if it's meant to be a workspace but directory/config is missing
