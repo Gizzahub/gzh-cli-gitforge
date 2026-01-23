@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -363,18 +364,54 @@ func (nopGitLogger) Warn(string, ...interface{})  {}
 func (nopGitLogger) Error(string, ...interface{}) {}
 
 // checkoutBranch attempts to checkout the specified branch in the given repository path.
+// Supports comma-separated branch list for fallback: "develop,master" tries develop first,
+// then master if develop doesn't exist. If all specified branches fail, returns an error.
 // Returns a success message and nil error on success, or an error on failure.
 func checkoutBranch(ctx context.Context, repoPath, branch string, logger repo.Logger) (string, error) {
-	// Use exec.CommandContext to respect context cancellation/timeout
-	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "checkout", branch)
+	// Support comma-separated branch list for fallback
+	branches := strings.Split(branch, ",")
+	var lastErr error
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git checkout %s failed: %w (output: %s)", branch, err, string(output))
+	for _, b := range branches {
+		b = strings.TrimSpace(b)
+		if b == "" {
+			continue
+		}
+
+		// Check if branch exists (local or remote)
+		if branchExists(ctx, repoPath, b) {
+			// Use exec.CommandContext to respect context cancellation/timeout
+			cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "checkout", b)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				lastErr = fmt.Errorf("git checkout %s failed: %w (output: %s)", b, err, string(output))
+				logger.Debug("branch checkout failed, trying next: %s -> %s: %v", repoPath, b, lastErr)
+				continue
+			}
+
+			logger.Debug("branch checkout: %s -> %s", repoPath, b)
+			return fmt.Sprintf("checked out %s", b), nil
+		}
+		logger.Debug("branch not found, trying next: %s -> %s", repoPath, b)
 	}
 
-	logger.Debug("branch checkout: %s -> %s", repoPath, branch)
-	return fmt.Sprintf("checked out %s", branch), nil
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", fmt.Errorf("none of the specified branches exist: %s", branch)
+}
+
+// branchExists checks if a branch exists locally or as a remote tracking branch.
+func branchExists(ctx context.Context, repoPath, branch string) bool {
+	// Check local branch
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "rev-parse", "--verify", "--quiet", branch)
+	if cmd.Run() == nil {
+		return true
+	}
+
+	// Check remote tracking branch (origin/branch)
+	cmd = exec.CommandContext(ctx, "git", "-C", repoPath, "rev-parse", "--verify", "--quiet", "origin/"+branch)
+	return cmd.Run() == nil
 }
 
 // addAdditionalRemotes configures additional git remotes in the given repository path.
