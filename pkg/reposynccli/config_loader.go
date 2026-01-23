@@ -17,8 +17,8 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // ConfigData contains plan + run inputs loaded from a config file.

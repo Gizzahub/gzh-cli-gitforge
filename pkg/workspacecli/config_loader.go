@@ -11,8 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // SpecLoader loads sync specifications from various sources.
