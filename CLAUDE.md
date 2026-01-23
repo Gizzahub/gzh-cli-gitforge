@@ -109,6 +109,30 @@ gz-git config hierarchy               # Show config hierarchy tree
 
 **Details**: See [config-guide.md](docs/.claude-context/config-guide.md)
 
+### Branch Configuration
+
+Configure default branch with fallback support:
+
+```yaml
+branch:
+  # Single branch
+  defaultBranch: develop
+
+  # Fallback list (tries in order: develop → master → repo default)
+  defaultBranch: develop,master
+
+  # YAML list format (equivalent to above)
+  defaultBranch:
+    - develop
+    - master
+
+  # Protected branches
+  protectedBranches: [main, master, release/*]
+```
+
+**Behavior**: When cloning/syncing, tries each branch in order until one exists.
+If none exist, falls back to the repository's default branch.
+
 ______________________________________________________________________
 
 ## Core Design: Bulk-First
@@ -130,7 +154,11 @@ DefaultBulkParallel = 10   // 10 parallel operations
 --include          Include pattern (regex)
 --exclude          Exclude pattern (regex)
 -f, --format       Output format (default, compact, json, llm)
+--full             Output all fields in generated configs (sync/workspace)
 ```
+
+**Compact Output**: Generated config files omit redundant `path` field when it
+equals the repository name. Use `--full` to include all fields.
 
 ### Single Repo Operation
 
@@ -174,6 +202,7 @@ gz-git workspace init . --template       # Empty template (no scan)
 # Sync (config → clone/update)
 gz-git workspace sync                    # Use .gz-git.yaml
 gz-git workspace sync -c workstation.yaml --dry-run
+gz-git workspace sync --full             # Output all fields in generated configs
 
 # Status & Management
 gz-git workspace status --verbose
@@ -196,11 +225,18 @@ gz-git sync from-forge \
   --include-subgroups \
   --subgroup-mode flat
 
-# Generate config from forge
+# Generate config from forge (compact output by default)
 gz-git sync config generate \
   --provider gitlab \
   --org devbox \
   -o .gz-git.yaml
+
+# Generate with all fields (name, path) even if redundant
+gz-git sync config generate \
+  --provider gitlab \
+  --org devbox \
+  -o .gz-git.yaml \
+  --full
 
 # Health diagnosis
 gz-git sync status -c sync.yaml --verbose
