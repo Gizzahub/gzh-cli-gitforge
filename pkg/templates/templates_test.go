@@ -147,7 +147,7 @@ func TestRender_Scanned(t *testing.T) {
 		SSHPort:    0,
 		Repositories: []ScannedRepoData{
 			{Name: "repo-a", Path: "./repo-a", URL: "git@github.com:org/repo-a.git"},
-			{Name: "repo-b", Path: "./repo-b", URLs: []string{"git@github.com:org/repo-b.git", "git@gitlab.com:org/repo-b.git"}},
+			{Name: "repo-b", Path: "./repo-b", URL: "git@github.com:org/repo-b.git", AdditionalRemotes: map[string]string{"backup": "git@gitlab.com:org/repo-b.git"}},
 		},
 	}
 
@@ -165,7 +165,7 @@ func TestRender_Scanned(t *testing.T) {
 		"name: repo-a",
 		"url: git@github.com:org/repo-a.git",
 		"name: repo-b",
-		"urls:",
+		"additionalRemotes:",
 	}
 
 	for _, exp := range expected {

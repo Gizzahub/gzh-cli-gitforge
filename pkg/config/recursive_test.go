@@ -655,6 +655,72 @@ func TestGetForgeWorkspaces(t *testing.T) {
 	}
 }
 
+func TestGetGitWorkspaces(t *testing.T) {
+	config := &Config{
+		Workspaces: map[string]*Workspace{
+			"devbox": {
+				Path: "~/devbox",
+				Type: WorkspaceTypeForge,
+				Source: &ForgeSource{
+					Provider: "gitlab",
+					Org:      "devbox",
+				},
+			},
+			"personal": {
+				Path: "~/personal",
+				Type: WorkspaceTypeGit,
+				URL:  "git@github.com:user/personal.git",
+				AdditionalRemotes: map[string]string{
+					"upstream": "https://github.com/original/personal.git",
+				},
+			},
+			"no-url-git": {
+				Path: "~/no-url",
+				Type: WorkspaceTypeGit,
+				// No URL - should NOT be included
+			},
+			"inferred-git": {
+				Path: "~/inferred-git",
+				URL:  "https://github.com/user/inferred.git",
+				// No Source, no explicit Type → inferred as git
+			},
+		},
+	}
+
+	gitWs := GetGitWorkspaces(config)
+	if len(gitWs) != 2 {
+		t.Errorf("Expected 2 git workspaces, got %d", len(gitWs))
+	}
+
+	if _, ok := gitWs["personal"]; !ok {
+		t.Error("Expected 'personal' to be in git workspaces")
+	}
+	if _, ok := gitWs["inferred-git"]; !ok {
+		t.Error("Expected 'inferred-git' to be in git workspaces")
+	}
+	if _, ok := gitWs["devbox"]; ok {
+		t.Error("Expected 'devbox' NOT to be in git workspaces")
+	}
+	if _, ok := gitWs["no-url-git"]; ok {
+		t.Error("Expected 'no-url-git' NOT to be in git workspaces (no URL)")
+	}
+
+	// Verify additionalRemotes
+	personalWs := gitWs["personal"]
+	if len(personalWs.AdditionalRemotes) != 1 {
+		t.Errorf("Expected 1 additional remote, got %d", len(personalWs.AdditionalRemotes))
+	}
+	if personalWs.AdditionalRemotes["upstream"] != "https://github.com/original/personal.git" {
+		t.Error("Additional remote 'upstream' has wrong URL")
+	}
+
+	// Test nil config
+	gitWs = GetGitWorkspaces(nil)
+	if len(gitWs) != 0 {
+		t.Error("Expected empty map for nil config")
+	}
+}
+
 // ================================================================================
 // Parent Config Reference Tests
 // ================================================================================

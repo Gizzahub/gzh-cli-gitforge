@@ -49,14 +49,15 @@ repositories:
 			wantErr:   false,
 		},
 		{
-			name: "valid config with urls array",
+			name: "valid config with additionalRemotes",
 			yaml: `
 strategy: fetch
 repositories:
   - name: multi-remote
-    urls:
-      - https://github.com/test/repo.git
-      - git@github.com:test/repo.git
+    url: https://github.com/test/repo.git
+    additionalRemotes:
+      upstream: git@github.com:original/repo.git
+      backup: git@gitlab.com:test/repo.git
     path: ./repos/multi
 `,
 			wantRepos: 1,

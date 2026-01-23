@@ -25,10 +25,10 @@ type GitRepoScanner struct {
 
 // ScannedRepo represents a discovered git repository.
 type ScannedRepo struct {
-	Name       string
-	Path       string
-	RemoteURLs []string // Can be empty, single, or multiple
-	Depth      int      // Depth from root
+	Name    string
+	Path    string
+	Remotes map[string]string // Remote name -> URL (e.g., "origin" -> "git@github.com:user/repo.git")
+	Depth   int               // Depth from root
 }
 
 // Scan discovers all git repositories under RootPath.
@@ -117,22 +117,22 @@ func (s *GitRepoScanner) scanDir(ctx context.Context, root, current string, dept
 func (s *GitRepoScanner) analyzeRepo(root, repoPath string, depth int) (*ScannedRepo, error) {
 	name := filepath.Base(repoPath)
 
-	// Get remote URLs
-	remoteURLs, err := s.getRemoteURLs(repoPath)
+	// Get remotes (name -> URL map)
+	remotes, err := s.getRemotes(repoPath)
 	if err != nil {
-		// Don't fail, just use empty URLs
-		remoteURLs = []string{}
+		// Don't fail, just use empty remotes
+		remotes = make(map[string]string)
 	}
 
 	return &ScannedRepo{
-		Name:       name,
-		Path:       repoPath,
-		RemoteURLs: remoteURLs,
-		Depth:      depth,
+		Name:    name,
+		Path:    repoPath,
+		Remotes: remotes,
+		Depth:   depth,
 	}, nil
 }
 
-func (s *GitRepoScanner) getRemoteURLs(repoPath string) ([]string, error) {
+func (s *GitRepoScanner) getRemotes(repoPath string) (map[string]string, error) {
 	gitConfig := filepath.Join(repoPath, ".git", "config")
 
 	file, err := os.Open(gitConfig)
@@ -141,29 +141,30 @@ func (s *GitRepoScanner) getRemoteURLs(repoPath string) ([]string, error) {
 	}
 	defer file.Close()
 
-	var urls []string
-	var inRemoteSection bool
+	remotes := make(map[string]string)
+	var currentRemote string
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// Check for remote section
-		if strings.HasPrefix(line, "[remote ") {
-			inRemoteSection = true
+		// Check for remote section: [remote "origin"]
+		if strings.HasPrefix(line, "[remote \"") && strings.HasSuffix(line, "\"]") {
+			// Extract remote name
+			currentRemote = strings.TrimSuffix(strings.TrimPrefix(line, "[remote \""), "\"]")
 			continue
 		}
 
 		// End of section
 		if strings.HasPrefix(line, "[") {
-			inRemoteSection = false
+			currentRemote = ""
 			continue
 		}
 
 		// Parse URL in remote section
-		if inRemoteSection && strings.HasPrefix(line, "url = ") {
+		if currentRemote != "" && strings.HasPrefix(line, "url = ") {
 			url := strings.TrimPrefix(line, "url = ")
-			urls = append(urls, url)
+			remotes[currentRemote] = url
 		}
 	}
 
@@ -171,7 +172,7 @@ func (s *GitRepoScanner) getRemoteURLs(repoPath string) ([]string, error) {
 		return nil, err
 	}
 
-	return urls, nil
+	return remotes, nil
 }
 
 func (s *GitRepoScanner) loadGitIgnorePatterns(root string) []string {
@@ -306,9 +307,15 @@ func ToRepositories(scanned []*ScannedRepo) []*provider.Repository {
 			CloneURL: "",
 		}
 
-		// Handle remote URLs
-		if len(s.RemoteURLs) > 0 {
-			repo.CloneURL = s.RemoteURLs[0] // Use first URL as primary
+		// Use origin remote as primary, fallback to first available remote
+		if url, ok := s.Remotes["origin"]; ok {
+			repo.CloneURL = url
+		} else if len(s.Remotes) > 0 {
+			// Use first available remote
+			for _, url := range s.Remotes {
+				repo.CloneURL = url
+				break
+			}
 		}
 
 		repos = append(repos, repo)

@@ -155,11 +155,21 @@ workspaces:
     path: backend
     type: config        # Load .gz-git.yaml from this dir
 
-  # 2. Simple Git Repo Workspace
+  # 2. Simple Git Repo Workspace (with URL for sync)
   frontend:
     path: frontend
     type: git           # Treat as single git repo
+    url: git@github.com:myorg/frontend.git
     profile: personal   # Override profile for this workspace
+
+  # 3. Git Repo with Additional Remotes (fork workflow)
+  my-fork:
+    path: my-fork
+    type: git
+    url: git@github.com:myuser/project.git
+    additionalRemotes:
+      upstream: https://github.com/original/project.git
+      backup: git@gitlab.com:myuser/project.git
 
 # -----------------------------------------------------------------------------
 # Metadata (Optional)

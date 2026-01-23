@@ -208,11 +208,35 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 			Path: repo.Path,
 		}
 
-		// Handle remote URLs
-		if len(repo.RemoteURLs) == 1 {
-			entry.URL = repo.RemoteURLs[0]
-		} else if len(repo.RemoteURLs) > 1 {
-			entry.URLs = repo.RemoteURLs
+		// Handle remotes: origin → URL, others → additionalRemotes
+		if len(repo.Remotes) > 0 {
+			// Use origin as primary URL
+			if originURL, ok := repo.Remotes["origin"]; ok {
+				entry.URL = originURL
+				// Add other remotes as additionalRemotes
+				if len(repo.Remotes) > 1 {
+					entry.AdditionalRemotes = make(map[string]string)
+					for name, url := range repo.Remotes {
+						if name != "origin" {
+							entry.AdditionalRemotes[name] = url
+						}
+					}
+				}
+			} else {
+				// No origin, use first remote as URL, rest as additional
+				first := true
+				for name, url := range repo.Remotes {
+					if first {
+						entry.URL = url
+						first = false
+					} else {
+						if entry.AdditionalRemotes == nil {
+							entry.AdditionalRemotes = make(map[string]string)
+						}
+						entry.AdditionalRemotes[name] = url
+					}
+				}
+			}
 		}
 
 		repoEntries = append(repoEntries, entry)

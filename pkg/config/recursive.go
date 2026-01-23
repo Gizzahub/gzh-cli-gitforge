@@ -610,6 +610,26 @@ func GetForgeWorkspaces(config *Config) map[string]*Workspace {
 	return result
 }
 
+// GetGitWorkspaces returns only workspaces that are single git repositories (type=git with URL).
+// These are workspaces with explicit URL that should be cloned/synced directly.
+func GetGitWorkspaces(config *Config) map[string]*Workspace {
+	result := make(map[string]*Workspace)
+
+	if config == nil || config.Workspaces == nil {
+		return result
+	}
+
+	for name, ws := range config.Workspaces {
+		// Must be type=git (explicit or inferred) with a URL
+		effectiveType := ws.Type.Resolve(ws.Source != nil)
+		if effectiveType == WorkspaceTypeGit && ws.URL != "" {
+			result[name] = ws
+		}
+	}
+
+	return result
+}
+
 // GetProfileByName returns a profile by name from the config.
 // Lookup order: inline (config.Profiles) → external (~/.config/gz-git/profiles/)
 // Returns nil if profile not found in either location.

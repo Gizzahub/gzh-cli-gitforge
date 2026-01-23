@@ -123,6 +123,13 @@ Config File Structure (Reference):
 						return err
 					}
 					allActions = append(allActions, forgeActions...)
+
+					// Get git workspace actions (type=git with URL)
+					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), strategy)
+					if err != nil {
+						return err
+					}
+					allActions = append(allActions, gitActions...)
 				}
 			}
 
@@ -365,6 +372,75 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		}
 
 		allActions = append(allActions, plan.Actions...)
+	}
+
+	return allActions, nil
+}
+
+// planGitWorkspaces generates actions from git workspaces (type=git with URL).
+func planGitWorkspaces(_ context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+	workspaces := config.GetGitWorkspaces(cfg)
+	if len(workspaces) == 0 {
+		return nil, nil
+	}
+
+	fmt.Fprintf(out, "Found %d git workspaces\n", len(workspaces))
+
+	var strategyOverride reposync.Strategy
+	if strategyOverrideStr != "" {
+		s, err := reposync.ParseStrategy(strategyOverrideStr)
+		if err != nil {
+			return nil, err
+		}
+		strategyOverride = s
+	}
+
+	var allActions []reposync.Action
+
+	for name, ws := range workspaces {
+		fmt.Fprintf(out, "Planning git workspace '%s' (%s)...\n", name, ws.URL)
+
+		// Resolve workspace path
+		wsPath := ws.Path
+		if len(wsPath) > 1 && wsPath[0] == '~' && wsPath[1] == '/' {
+			home, err := os.UserHomeDir()
+			if err == nil {
+				wsPath = filepath.Join(home, wsPath[2:])
+			}
+		}
+		if !filepath.IsAbs(wsPath) {
+			wsPath = filepath.Join(configDir, wsPath)
+		}
+
+		// Determine strategy
+		strategy := strategyOverride
+		if strategy == "" {
+			if ws.Sync != nil && ws.Sync.Strategy != "" {
+				s, err := reposync.ParseStrategy(ws.Sync.Strategy)
+				if err == nil {
+					strategy = s
+				}
+			}
+		}
+		if strategy == "" {
+			strategy = reposync.StrategyReset
+		}
+
+		// Create action for this git workspace
+		action := reposync.Action{
+			Repo: reposync.RepoSpec{
+				Name:              name,
+				CloneURL:          ws.URL,
+				AdditionalRemotes: ws.AdditionalRemotes,
+				TargetPath:        wsPath,
+			},
+			Type:      reposync.ActionUpdate,
+			Strategy:  strategy,
+			Reason:    "git workspace",
+			PlannedBy: "config",
+		}
+
+		allActions = append(allActions, action)
 	}
 
 	return allActions, nil

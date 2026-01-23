@@ -272,10 +272,10 @@ type ScannedData struct {
 
 // ScannedRepoData represents a scanned repository entry.
 type ScannedRepoData struct {
-	Name string
-	Path string
-	URL  string   // Single URL (preferred)
-	URLs []string // Multiple URLs (for repos with multiple remotes)
+	Name              string
+	Path              string
+	URL               string            // Primary URL (typically origin)
+	AdditionalRemotes map[string]string // Additional remotes (name -> URL)
 }
 
 // ForgeGeneratedData is the data for RepositoriesForge template.

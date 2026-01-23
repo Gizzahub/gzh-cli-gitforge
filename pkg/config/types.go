@@ -365,6 +365,16 @@ type Workspace struct {
 	// Profile overrides the parent profile for this workspace
 	Profile string `yaml:"profile,omitempty"`
 
+	// === Git Repository Settings (for type=git) ===
+
+	// URL is the git clone URL (required for type=git sync)
+	// Supports: HTTPS, SSH, git:// protocols
+	URL string `yaml:"url,omitempty"`
+
+	// AdditionalRemotes defines extra git remotes to configure after clone
+	// Map of remote name to URL (e.g., {"upstream": "https://github.com/original/repo.git"})
+	AdditionalRemotes map[string]string `yaml:"additionalRemotes,omitempty"`
+
 	// === Forge Source (for type=forge) ===
 
 	// Source defines the forge to sync from

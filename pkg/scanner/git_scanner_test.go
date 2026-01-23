@@ -181,16 +181,16 @@ func TestGitRepoScanner_MaxDepth(t *testing.T) {
 func TestToRepositories(t *testing.T) {
 	scanned := []*ScannedRepo{
 		{
-			Name:       "repo1",
-			Path:       "/path/to/repo1",
-			RemoteURLs: []string{"https://github.com/org/repo1.git"},
-			Depth:      1,
+			Name:    "repo1",
+			Path:    "/path/to/repo1",
+			Remotes: map[string]string{"origin": "https://github.com/org/repo1.git"},
+			Depth:   1,
 		},
 		{
-			Name:       "repo2",
-			Path:       "/path/to/repo2",
-			RemoteURLs: []string{},
-			Depth:      1,
+			Name:    "repo2",
+			Path:    "/path/to/repo2",
+			Remotes: map[string]string{},
+			Depth:   1,
 		},
 	}
 

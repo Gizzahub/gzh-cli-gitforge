@@ -54,7 +54,6 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Name              string            `yaml:"name"`
 			Description       string            `yaml:"description"` // optional: human-readable description
 			URL               string            `yaml:"url"`
-			URLs              []string          `yaml:"urls"`              // Deprecated: use url + additionalRemotes
 			AdditionalRemotes map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
 			Path              string            `yaml:"path"`
 			Strategy          string            `yaml:"strategy"`
@@ -81,22 +80,17 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 	// Build repo specs
 	repos := make([]reposync.RepoSpec, 0, len(raw.Repositories))
 	for i, r := range raw.Repositories {
-		url := r.URL
-		if url == "" && len(r.URLs) > 0 {
-			url = r.URLs[0]
-		}
-
 		// URL is always required
-		if url == "" {
+		if r.URL == "" {
 			return nil, fmt.Errorf("repository[%d]: missing URL", i)
 		}
 
 		// Extract name from URL if not specified
 		repoName := r.Name
 		if repoName == "" {
-			extracted, err := repository.ExtractRepoNameFromURL(url)
+			extracted, err := repository.ExtractRepoNameFromURL(r.URL)
 			if err != nil {
-				return nil, fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, url, err)
+				return nil, fmt.Errorf("repository[%d]: cannot extract name from URL %q: %w", i, r.URL, err)
 			}
 			repoName = extracted
 		}
@@ -110,7 +104,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		spec := reposync.RepoSpec{
 			Name:              repoName,
 			Description:       r.Description,
-			CloneURL:          url,
+			CloneURL:          r.URL,
 			AdditionalRemotes: r.AdditionalRemotes,
 			TargetPath:        path,
 			Enabled:           r.Enabled,
