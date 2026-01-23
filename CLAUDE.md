@@ -430,8 +430,7 @@ gz-git fetch /path/to/single/repo
 | `sync from-forge`      | **GitHub/GitLab/Gitea org 전체 동기화**                                   |
 | `sync config generate` | **Forge API → config 생성**                                               |
 | `sync status`          | **Repository health 진단 (fetch, divergence, conflicts)**                 |
-| `workspace init`       | **빈 config 파일 생성** (.gz-git.yaml)                                    |
-| `workspace scan`       | **로컬 디렉토리 스캔 → config 생성**                                      |
+| `workspace init`       | **디렉토리 스캔 → config 생성** (no arg: 안내, path arg: 스캔)            |
 | `workspace sync`       | **Config 기반 repo clone/update**                                         |
 | `workspace status`     | **Workspace health check**                                                |
 | `workspace add`        | **Config에 repo 추가**                                                    |
@@ -472,7 +471,7 @@ repositories:
 - ✅ 간단한 배열 구조
 - ✅ 빠른 설정
 - ✅ 로컬 파일 관리 중심
-- ✅ `gz-git workspace scan`으로 자동 생성 가능
+- ✅ `gz-git workspace init .`으로 자동 생성 가능
 
 ______________________________________________________________________
 
@@ -542,13 +541,14 @@ ______________________________________________________________________
 **gz-git workspace**는 두 가지 config 형식을 모두 지원합니다:
 
 ```bash
-# 워크스페이스 초기화
-gz-git workspace init                    # .gz-git.yaml 생성 (simple format)
-gz-git workspace init -c myworkspace.yaml
-
-# 디렉토리 스캔 → config 생성 (simple format)
-gz-git workspace scan ~/mydevbox
-gz-git workspace scan ~/mydevbox --depth 3 --exclude "vendor,tmp"
+# 워크스페이스 초기화 (디렉토리 스캔 → config 생성)
+gz-git workspace init                    # 사용법 안내
+gz-git workspace init .                  # 현재 디렉토리 스캔
+gz-git workspace init ~/mydevbox         # 특정 디렉토리 스캔
+gz-git workspace init . -d 3             # depth 3까지 스캔
+gz-git workspace init . --exclude "vendor,tmp"
+gz-git workspace init . --force          # 기존 파일 덮어쓰기
+gz-git workspace init . --template       # 빈 템플릿 생성 (스캔 없이)
 
 # Config 기반 clone/update (BOTH formats supported!)
 gz-git workspace sync                              # Simple: repositories 배열
