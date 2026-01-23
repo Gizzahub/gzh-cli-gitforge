@@ -458,13 +458,26 @@ ______________________________________________________________________
 strategy: pull
 parallel: 4
 repositories:
-  - name: proxynd-core
-    url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-core.git
+  # name 생략 가능 - URL에서 자동 추출 (proxynd-core)
+  - url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-core.git
     branch: develop
-  - name: proxynd-enterprise
+  # name 지정 - 커스텀 디렉토리명 사용
+  - name: enterprise
     url: ssh://git@gitlab.polypia.net:2224/scripton-open/proxynd/proxynd-enterprise.git
     branch: develop
+  # path로 하위 디렉토리에 clone
+  - url: https://github.com/discourse/discourse.git
+    path: subdir/discourse
 ```
+
+**필드 설명**:
+
+| 필드     | 필수 | 설명                                   |
+| -------- | ---- | -------------------------------------- |
+| `url`    | ✅   | Git clone URL (HTTPS, SSH, git@)       |
+| `name`   | ❌   | 디렉토리명 (생략시 URL에서 자동 추출)  |
+| `path`   | ❌   | 대상 경로 (생략시 name 사용)           |
+| `branch` | ❌   | checkout할 브랜치                      |
 
 **특징**:
 
@@ -519,6 +532,57 @@ workspaces:
 - ✅ Inline profiles 지원
 - ✅ Forge API 동기화 (`source` 정의)
 - ✅ Child config 자동 생성 (bootstrapping)
+
+______________________________________________________________________
+
+### Child Config Generation Mode (NEW!)
+
+When `workspace sync` creates child configs, control the output format:
+
+```yaml
+# In parent config
+childConfigMode: repositories  # Default - flat array format
+# childConfigMode: workspaces  # Map-based format for nested management
+# childConfigMode: none        # Directory only, no config file generation
+```
+
+**Modes**:
+
+- `repositories` (default): Simple repo list compatible with `workspace sync`
+- `workspaces`: Hierarchical format for nested workspace management
+- `none`: Create directory structure only, skip config generation
+
+**Example**:
+
+```yaml
+# workstation.yaml
+workspaces:
+  mydevbox:
+    path: ~/mydevbox
+    childConfigMode: repositories  # Generated .gz-git.yaml uses simple format
+    source:
+      provider: gitlab
+      org: devbox
+```
+
+______________________________________________________________________
+
+### Config Format Detection (Content-Based)
+
+gz-git uses **content-based detection** (not filename):
+
+1. **Explicit `kind:` field** (highest priority)
+   ```yaml
+   kind: workspace  # Forces workspace format interpretation
+   ```
+
+2. **Content inspection** - Presence of keys:
+   - `workspaces` or `profiles` → workspace format
+   - `repositories` → simple format
+
+3. **Default** - Falls back to `repositories` format
+
+**Note**: Filename (`.gz-git.yaml`, `sync.yaml`, etc.) does NOT affect format detection.
 
 ______________________________________________________________________
 
@@ -858,10 +922,14 @@ ______________________________________________________________________
 
 ## Future Development
 
-**Phase 8: Advanced Features** (PLANNED)
+**Phase 8: Advanced Features** (PARTIAL - 2/4 Complete)
 
+**Completed**:
+- ✅ Config Profiles - Per-project and global settings
+- ✅ Workspace Config - Recursive hierarchical configuration
+
+**Planned**:
 - [Phase 8 Overview](docs/design/PHASE8_OVERVIEW.md) - Complete feature roadmap
-- [Config Profiles](docs/design/CONFIG_PROFILES.md) - Per-project and global settings (P2)
 - [Advanced TUI](docs/design/ADVANCED_TUI.md) - Interactive terminal UI (P1)
 - [Interactive Mode](docs/design/INTERACTIVE_MODE.md) - Guided workflows and wizards (P2)
 
@@ -869,5 +937,5 @@ See [Roadmap](docs/00-product/06-roadmap.md) for full development plan.
 
 ______________________________________________________________________
 
-**Last Updated**: 2026-01-16
-**Previous**: 153 lines → **Current**: ~470 lines (added bulk ops, sync redesign, Phase 8)
+**Last Updated**: 2026-01-23
+**Current**: ~520 lines (added ChildConfigMode, content-based detection)
