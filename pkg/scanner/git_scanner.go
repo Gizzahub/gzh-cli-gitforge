@@ -29,6 +29,7 @@ type ScannedRepo struct {
 	Path    string
 	Remotes map[string]string // Remote name -> URL (e.g., "origin" -> "git@github.com:user/repo.git")
 	Depth   int               // Depth from root
+	Branch  string            // Current branch name (empty if detached or unknown)
 }
 
 // Scan discovers all git repositories under RootPath.
@@ -124,11 +125,14 @@ func (s *GitRepoScanner) analyzeRepo(root, repoPath string, depth int) (*Scanned
 		remotes = make(map[string]string)
 	}
 
+	branch := s.getCurrentBranch(repoPath)
+
 	return &ScannedRepo{
 		Name:    name,
 		Path:    repoPath,
 		Remotes: remotes,
 		Depth:   depth,
+		Branch:  branch,
 	}, nil
 }
 
@@ -173,6 +177,26 @@ func (s *GitRepoScanner) getRemotes(repoPath string) (map[string]string, error) 
 	}
 
 	return remotes, nil
+}
+
+func (s *GitRepoScanner) getCurrentBranch(repoPath string) string {
+	headPath := filepath.Join(repoPath, ".git", "HEAD")
+	data, err := os.ReadFile(headPath)
+	if err != nil {
+		return ""
+	}
+
+	line := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(line, "ref: ") {
+		return ""
+	}
+
+	ref := strings.TrimPrefix(line, "ref: ")
+	if strings.HasPrefix(ref, "refs/heads/") {
+		return strings.TrimPrefix(ref, "refs/heads/")
+	}
+
+	return ""
 }
 
 func (s *GitRepoScanner) loadGitIgnorePatterns(root string) []string {

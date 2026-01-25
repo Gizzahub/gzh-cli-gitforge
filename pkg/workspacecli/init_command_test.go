@@ -78,12 +78,13 @@ func TestInitCmd_Template_CreatesEmptyConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(string(content), "strategy:") {
-		t.Error("config should contain strategy field")
+	// Default kind is now 'workspace', so expect workspaces section
+	if !strings.Contains(string(content), "kind: workspace") {
+		t.Error("config should contain kind: workspace")
 	}
 
-	if !strings.Contains(string(content), "repositories:") {
-		t.Error("config should contain repositories section")
+	if !strings.Contains(string(content), "workspaces:") {
+		t.Error("config should contain workspaces section (default kind is workspace)")
 	}
 }
 
@@ -179,8 +180,9 @@ func TestInitCmd_Force_OverwritesExisting(t *testing.T) {
 		t.Error("file should have been overwritten")
 	}
 
-	if !strings.Contains(string(content), "repositories:") {
-		t.Error("new config should contain repositories section")
+	// Default kind is now 'workspace'
+	if !strings.Contains(string(content), "workspaces:") {
+		t.Error("new config should contain workspaces section (default kind is workspace)")
 	}
 }
 
@@ -237,5 +239,327 @@ func TestInitCmd_Flags(t *testing.T) {
 		if tt.shorthand != "" && flag.Shorthand != tt.shorthand {
 			t.Errorf("flag %q shorthand = %q, want %q", tt.name, flag.Shorthand, tt.shorthand)
 		}
+	}
+}
+
+// TestNormalizeKind tests all kind normalization cases.
+func TestNormalizeKind(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantKind    ConfigKind
+		wantWarning bool
+		wantError   bool
+	}{
+		// Valid canonical values
+		{
+			name:        "workspace (canonical)",
+			input:       "workspace",
+			wantKind:    KindWorkspace,
+			wantWarning: false,
+			wantError:   false,
+		},
+		{
+			name:        "repositories (canonical)",
+			input:       "repositories",
+			wantKind:    KindRepositories,
+			wantWarning: false,
+			wantError:   false,
+		},
+		// Deprecated aliases
+		{
+			name:        "workspaces (deprecated)",
+			input:       "workspaces",
+			wantKind:    KindWorkspace,
+			wantWarning: true,
+			wantError:   false,
+		},
+		{
+			name:        "repository (deprecated)",
+			input:       "repository",
+			wantKind:    KindRepositories,
+			wantWarning: true,
+			wantError:   false,
+		},
+		// Error cases
+		{
+			name:      "empty string",
+			input:     "",
+			wantKind:  "",
+			wantError: true,
+		},
+		{
+			name:      "invalid value",
+			input:     "invalid",
+			wantKind:  "",
+			wantError: true,
+		},
+		{
+			name:      "typo - repos",
+			input:     "repos",
+			wantKind:  "",
+			wantError: true,
+		},
+		{
+			name:      "typo - work",
+			input:     "work",
+			wantKind:  "",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kind, warning, err := NormalizeKind(tt.input)
+
+			// Check error expectation
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("NormalizeKind(%q) expected error, got nil", tt.input)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("NormalizeKind(%q) unexpected error: %v", tt.input, err)
+				return
+			}
+
+			// Check kind
+			if kind != tt.wantKind {
+				t.Errorf("NormalizeKind(%q) kind = %q, want %q", tt.input, kind, tt.wantKind)
+			}
+
+			// Check warning
+			hasWarning := warning != ""
+			if hasWarning != tt.wantWarning {
+				t.Errorf("NormalizeKind(%q) hasWarning = %v, want %v (warning: %q)",
+					tt.input, hasWarning, tt.wantWarning, warning)
+			}
+
+			// For deprecated values, check warning message content
+			if tt.wantWarning {
+				if !strings.Contains(warning, "deprecated") {
+					t.Errorf("NormalizeKind(%q) warning should mention 'deprecated': %q", tt.input, warning)
+				}
+			}
+		})
+	}
+}
+
+// TestIsValidStrategy tests strategy validation.
+func TestIsValidStrategy(t *testing.T) {
+	tests := []struct {
+		strategy string
+		want     bool
+	}{
+		{"reset", true},
+		{"pull", true},
+		{"fetch", true},
+		{"skip", true},
+		{"", false},
+		{"invalid", false},
+		{"rebase", false},
+		{"merge", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.strategy, func(t *testing.T) {
+			got := isValidStrategy(tt.strategy)
+			if got != tt.want {
+				t.Errorf("isValidStrategy(%q) = %v, want %v", tt.strategy, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestInitCmd_KindFlag tests --kind flag behavior.
+func TestInitCmd_KindFlag(t *testing.T) {
+	tests := []struct {
+		name         string
+		kind         string
+		expectInFile string
+	}{
+		{
+			name:         "workspace kind",
+			kind:         "workspace",
+			expectInFile: "workspaces:",
+		},
+		{
+			name:         "repositories kind",
+			kind:         "repositories",
+			expectInFile: "repositories:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			factory := CommandFactory{}
+			cmd := factory.newInitCmd()
+
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			cmd.SetArgs([]string{tmpDir, "--template", "--kind", tt.kind})
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			configPath := filepath.Join(tmpDir, DefaultConfigFile)
+			content, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !strings.Contains(string(content), tt.expectInFile) {
+				t.Errorf("config should contain %q, got:\n%s", tt.expectInFile, string(content))
+			}
+		})
+	}
+}
+
+// TestInitCmd_StrategyFlag tests --strategy flag behavior.
+// Note: Strategy is only included in repositories-sample template, not workspace-workstation.
+func TestInitCmd_StrategyFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	factory := CommandFactory{}
+	cmd := factory.newInitCmd()
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	// Use --kind repositories to get repositories-sample template which includes strategy
+	cmd.SetArgs([]string{tmpDir, "--template", "--kind", "repositories", "--strategy", "pull"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	configPath := filepath.Join(tmpDir, DefaultConfigFile)
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// repositories-sample.yaml has strategy field
+	if !strings.Contains(string(content), "strategy:") {
+		t.Errorf("config should contain 'strategy:', got:\n%s", string(content))
+	}
+}
+
+// TestInitCmd_InvalidStrategy tests invalid strategy handling.
+func TestInitCmd_InvalidStrategy(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	factory := CommandFactory{}
+	cmd := factory.newInitCmd()
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+
+	cmd.SetArgs([]string{tmpDir, "--template", "--strategy", "invalid"})
+	err := cmd.Execute()
+
+	if err == nil {
+		t.Error("expected error for invalid strategy")
+	}
+
+	if !strings.Contains(err.Error(), "invalid strategy") {
+		t.Errorf("error should mention invalid strategy: %v", err)
+	}
+}
+
+// TestInitCmd_ScanWithGitRepos tests init with actual git repos.
+func TestInitCmd_ScanWithGitRepos(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create mock git repos
+	for _, name := range []string{"repo1", "repo2"} {
+		repoPath := filepath.Join(tmpDir, name)
+		if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// Create minimal git config
+		gitConfig := filepath.Join(repoPath, ".git", "config")
+		configContent := `[core]
+	repositoryformatversion = 0
+[remote "origin"]
+	url = https://github.com/test/` + name + `.git
+`
+		if err := os.WriteFile(gitConfig, []byte(configContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name         string
+		kind         string
+		expectInFile string
+	}{
+		{
+			name:         "workspace kind scan",
+			kind:         "workspace",
+			expectInFile: "workspaces:",
+		},
+		{
+			name:         "repositories kind scan",
+			kind:         "repositories",
+			expectInFile: "repositories:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scanDir := t.TempDir()
+
+			// Create mock git repos in scan directory
+			for _, name := range []string{"repo1", "repo2"} {
+				repoPath := filepath.Join(scanDir, name)
+				if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				gitConfig := filepath.Join(repoPath, ".git", "config")
+				configContent := `[core]
+	repositoryformatversion = 0
+[remote "origin"]
+	url = https://github.com/test/` + name + `.git
+`
+				if err := os.WriteFile(gitConfig, []byte(configContent), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			factory := CommandFactory{}
+			cmd := factory.newInitCmd()
+
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			cmd.SetArgs([]string{scanDir, "--kind", tt.kind, "-d", "1"})
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			configPath := filepath.Join(scanDir, DefaultConfigFile)
+			content, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("failed to read config: %v", err)
+			}
+
+			if !strings.Contains(string(content), tt.expectInFile) {
+				t.Errorf("config should contain %q, got:\n%s", tt.expectInFile, string(content))
+			}
+
+			// Verify both repos are in config
+			if !strings.Contains(string(content), "repo1") {
+				t.Error("config should contain repo1")
+			}
+			if !strings.Contains(string(content), "repo2") {
+				t.Error("config should contain repo2")
+			}
+		})
 	}
 }

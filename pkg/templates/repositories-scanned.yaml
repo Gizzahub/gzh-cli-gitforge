@@ -17,8 +17,9 @@ sshPort: {{.SSHPort}}
 
 repositories:
 {{range .Repositories}}  - name: {{.Name}}
-    path: {{.Path}}
-{{if .URL}}    url: {{.URL}}
+{{if .Path}}    path: {{.Path}}
+{{end}}{{if .Branch}}    branch: {{.Branch}}
+{{end}}{{if .URL}}    url: {{.URL}}
 {{end}}{{if .AdditionalRemotes}}    additionalRemotes:
 {{range $name, $url := .AdditionalRemotes}}      {{$name}}: {{$url}}
 {{end}}{{end}}{{end}}

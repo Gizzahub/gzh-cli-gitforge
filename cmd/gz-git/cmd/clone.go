@@ -374,11 +374,27 @@ func displayCloneResultsJSON(result *repository.BulkCloneResult) {
 // Clone Config Types
 // ============================================================================
 
+// CloneConfigKind represents the type of clone configuration.
+type CloneConfigKind string
+
+const (
+	// CloneKindGroups is the named groups format (recommended).
+	CloneKindGroups CloneConfigKind = "groups"
+	// CloneKindFlat is the flat repositories list format.
+	CloneKindFlat CloneConfigKind = "flat"
+	// CloneKindGroup is deprecated alias for groups.
+	CloneKindGroup CloneConfigKind = "group"
+)
+
 // CloneConfig represents the YAML configuration for bulk clone.
 // Supports two formats:
-//  1. Flat format: global settings + repositories array
-//  2. Grouped format: global settings + named groups with their own targets
+//  1. Flat format: global settings + repositories array (kind: flat)
+//  2. Grouped format: global settings + named groups with their own targets (kind: groups)
 type CloneConfig struct {
+	// Config metadata
+	Version int             `yaml:"version,omitempty"` // Config version (1)
+	Kind    CloneConfigKind `yaml:"kind,omitempty"`    // Config kind: groups, flat
+
 	// Global settings (can be overridden by CLI flags or group settings)
 	Parallel  int    `yaml:"parallel,omitempty"`
 	Strategy  string `yaml:"strategy,omitempty"`  // skip, pull, reset, rebase, fetch
@@ -393,6 +409,36 @@ type CloneConfig struct {
 
 	// Deprecated: Use Strategy instead
 	Update bool `yaml:"update,omitempty"`
+}
+
+// NormalizeCloneKind normalizes kind value and returns canonical form with deprecation warning.
+func NormalizeCloneKind(kind string) (CloneConfigKind, string, error) {
+	switch CloneConfigKind(kind) {
+	case CloneKindGroups:
+		return CloneKindGroups, "", nil
+	case CloneKindGroup:
+		return CloneKindGroups, "kind 'group' is deprecated, use 'groups' instead", nil
+	case CloneKindFlat:
+		return CloneKindFlat, "", nil
+	case "":
+		// Empty is allowed for backward compatibility - will be auto-detected
+		return "", "", nil
+	default:
+		return "", "", fmt.Errorf("invalid kind '%s': must be 'groups' or 'flat'", kind)
+	}
+}
+
+// ValidCloneStrategies contains valid strategy values for clone config.
+var ValidCloneStrategies = []string{"skip", "pull", "reset", "rebase", "fetch"}
+
+// IsValidCloneStrategy checks if the strategy is valid.
+func IsValidCloneStrategy(strategy string) bool {
+	for _, s := range ValidCloneStrategies {
+		if s == strategy {
+			return true
+		}
+	}
+	return false
 }
 
 // CloneGroup represents a named group of repositories with its own target.

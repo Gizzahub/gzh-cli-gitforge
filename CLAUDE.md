@@ -166,11 +166,35 @@ Specify path directly: `gz-git status /path/to/single/repo`
 
 ______________________________________________________________________
 
+## Clone Config System (Code Structure)
+
+`gz-git clone -c config.yaml` supports two formats with auto-detection.
+
+| Format | Detection | Types Location |
+| ------ | --------- | -------------- |
+| **Flat** | `repositories` key at top level | `cmd/gz-git/cmd/clone.go` |
+| **Named Groups** | `{group}: { target, repositories }` | `cmd/gz-git/cmd/clone.go` |
+
+**Types** (`clone.go:392-425`):
+
+| Type | Purpose |
+| ---- | ------- |
+| `CloneConfig` | 전체 config (strategy, parallel, Groups) |
+| `CloneGroup` | Named group (target, branch, repositories, hooks) |
+| `CloneRepoSpec` | 개별 repo (url, name, path, branch, hooks) |
+| `CloneHooks` | Before/after hook commands |
+
+**Parsing**: `parseCloneConfig()` - YAML 파싱, flat/grouped 자동 감지
+
+**Usage docs**: [docs/usage/clone-command.md](docs/usage/clone-command.md)
+
+______________________________________________________________________
+
 ## Main Commands
 
 | Command                | Description                                   |
 | ---------------------- | --------------------------------------------- |
-| `clone`                | Parallel clone (--url, --file, --strategy)    |
+| `clone`                | Parallel clone (--url, --file, -c config)     |
 | `status`               | Health check (fetch + divergence + recommend) |
 | `fetch`                | Fetch all repos (--all-remotes default)       |
 | `pull`                 | Pull all repos (rebase/merge)                 |

@@ -17,6 +17,46 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
 
+// ConfigKind represents the type of configuration to generate.
+type ConfigKind string
+
+const (
+	// KindWorkspace is the canonical hierarchical workspace format (default).
+	KindWorkspace ConfigKind = "workspace"
+	// KindRepositories is the flat repositories list format.
+	KindRepositories ConfigKind = "repositories"
+)
+
+// Kind aliases (deprecated, will warn).
+const (
+	// KindWorkspaces is deprecated alias for KindWorkspace.
+	KindWorkspaces ConfigKind = "workspaces"
+	// KindRepository is deprecated alias for KindRepositories.
+	KindRepository ConfigKind = "repository"
+)
+
+// ValidStrategies for sync operations.
+var ValidStrategies = []string{"reset", "pull", "fetch", "skip"}
+
+// NormalizeKind normalizes kind value and returns canonical form with deprecation warning.
+// Returns (canonical kind, warning message, error).
+func NormalizeKind(kind string) (ConfigKind, string, error) {
+	switch ConfigKind(kind) {
+	case KindWorkspace:
+		return KindWorkspace, "", nil
+	case KindWorkspaces:
+		return KindWorkspace, "kind 'workspaces' is deprecated, use 'workspace' instead", nil
+	case KindRepositories:
+		return KindRepositories, "", nil
+	case KindRepository:
+		return KindRepositories, "kind 'repository' is deprecated, use 'repositories' instead", nil
+	case "":
+		return "", "", fmt.Errorf("kind is required. Run 'gz-git workspace validate' to check your config")
+	default:
+		return "", "", fmt.Errorf("invalid kind '%s': must be 'workspace' or 'repositories'", kind)
+	}
+}
+
 // InitOptions holds options for workspace init command.
 type InitOptions struct {
 	Path           string
@@ -27,12 +67,16 @@ type InitOptions struct {
 	NoGitIgnore    bool
 	Force          bool
 	Template       bool
+	Kind           string // repositories or workspaces
+	Strategy       string // reset, pull, fetch, skip
 }
 
 func (f CommandFactory) newInitCmd() *cobra.Command {
 	opts := &InitOptions{
-		Output: DefaultConfigFile,
-		Depth:  2,
+		Output:   DefaultConfigFile,
+		Depth:    2,
+		Kind:     string(KindWorkspace),
+		Strategy: "reset",
 	}
 
 	cmd := &cobra.Command{
@@ -57,7 +101,13 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
   gz-git workspace init . --force
 
   # Create empty template (no scanning)
-  gz-git workspace init . --template`),
+  gz-git workspace init . --template
+
+  # Choose config kind (workspace or repositories)
+  gz-git workspace init . --kind repositories
+
+  # Choose sync strategy (reset, pull, fetch, skip)
+  gz-git workspace init . --strategy pull`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// No arguments: show usage guide
 			if len(args) == 0 {
@@ -76,6 +126,8 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.NoGitIgnore, "no-gitignore", false, "Ignore .gitignore patterns")
 	cmd.Flags().BoolVarP(&opts.Force, "force", "f", false, "Overwrite existing config file")
 	cmd.Flags().BoolVar(&opts.Template, "template", false, "Create empty template without scanning")
+	cmd.Flags().StringVarP(&opts.Kind, "kind", "k", opts.Kind, "Config kind: workspace (hierarchical) or repositories (flat list)")
+	cmd.Flags().StringVarP(&opts.Strategy, "strategy", "s", opts.Strategy, "Sync strategy: reset, pull, fetch, skip")
 
 	return cmd
 }
@@ -97,6 +149,8 @@ func (f CommandFactory) showInitGuide(cmd *cobra.Command) error {
 	fmt.Fprintln(out, "Options:")
 	fmt.Fprintln(out, "  -d, --scan-depth int   Scan depth (default: 2)")
 	fmt.Fprintln(out, "  -o, --output string    Output file (default: .gz-git.yaml)")
+	fmt.Fprintln(out, "  -k, --kind string      Config kind: workspace (default) or repositories")
+	fmt.Fprintln(out, "  -s, --strategy string  Sync strategy: reset (default), pull, fetch, skip")
 	fmt.Fprintln(out, "  -f, --force            Overwrite existing config")
 	fmt.Fprintln(out, "      --template         Create empty template (no scanning)")
 	fmt.Fprintln(out, "      --exclude string   Exclude patterns (comma-separated)")
@@ -114,6 +168,23 @@ func (f CommandFactory) showInitGuide(cmd *cobra.Command) error {
 }
 
 func (f CommandFactory) runInit(cmd *cobra.Command, opts *InitOptions) error {
+	out := cmd.OutOrStdout()
+
+	// Validate and normalize kind
+	normalizedKind, kindWarning, err := NormalizeKind(opts.Kind)
+	if err != nil {
+		return err
+	}
+	if kindWarning != "" {
+		fmt.Fprintf(out, "⚠️  %s\n", kindWarning)
+	}
+	opts.Kind = string(normalizedKind)
+
+	// Validate strategy
+	if !isValidStrategy(opts.Strategy) {
+		return fmt.Errorf("invalid strategy '%s': must be one of %v", opts.Strategy, ValidStrategies)
+	}
+
 	// Resolve output path
 	outputPath := opts.Output
 	if !filepath.IsAbs(outputPath) {
@@ -123,24 +194,45 @@ func (f CommandFactory) runInit(cmd *cobra.Command, opts *InitOptions) error {
 	// Check if file exists
 	if _, err := os.Stat(outputPath); err == nil {
 		if !opts.Force {
-			fmt.Fprintf(cmd.OutOrStdout(), "⚠️  Config file already exists: %s\n\n", outputPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "View:      cat %s\n", outputPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "Overwrite: gz-git workspace init %s --force\n", opts.Path)
+			fmt.Fprintf(out, "⚠️  Config file already exists: %s\n\n", outputPath)
+			fmt.Fprintf(out, "View:      cat %s\n", outputPath)
+			fmt.Fprintf(out, "Overwrite: gz-git workspace init %s --force\n", opts.Path)
 			return nil
 		}
 	}
 
 	// Template mode: create empty template without scanning
 	if opts.Template {
-		return f.createTemplate(cmd, outputPath)
+		return f.createTemplate(cmd, opts, outputPath)
 	}
 
 	// Scan mode: scan directory and generate config
 	return f.scanAndGenerate(cmd, opts, outputPath)
 }
 
-func (f CommandFactory) createTemplate(cmd *cobra.Command, outputPath string) error {
-	sampleContent, err := templates.GetRaw(templates.RepositoriesSample)
+// isValidStrategy checks if strategy is valid.
+func isValidStrategy(strategy string) bool {
+	for _, s := range ValidStrategies {
+		if s == strategy {
+			return true
+		}
+	}
+	return false
+}
+
+func (f CommandFactory) createTemplate(cmd *cobra.Command, opts *InitOptions, outputPath string) error {
+	var templateName templates.TemplateName
+
+	switch ConfigKind(opts.Kind) {
+	case KindWorkspace:
+		templateName = templates.WorkspaceWorkstation
+	case KindRepositories:
+		templateName = templates.RepositoriesSample
+	default:
+		return fmt.Errorf("unknown kind: %s", opts.Kind)
+	}
+
+	sampleContent, err := templates.GetRaw(templateName)
 	if err != nil {
 		return fmt.Errorf("failed to load sample template: %w", err)
 	}
@@ -149,7 +241,7 @@ func (f CommandFactory) createTemplate(cmd *cobra.Command, outputPath string) er
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "✓ Created empty template: %s\n", outputPath)
+	fmt.Fprintf(cmd.OutOrStdout(), "✓ Created empty template (%s): %s\n", opts.Kind, outputPath)
 	fmt.Fprintln(cmd.OutOrStdout(), "\nEdit the file and add your repositories, then run:")
 	fmt.Fprintln(cmd.OutOrStdout(), "  gz-git workspace sync")
 
@@ -200,20 +292,90 @@ func (f CommandFactory) scanAndGenerate(cmd *cobra.Command, opts *InitOptions, o
 }
 
 func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOptions, repos []*scanner.ScannedRepo, outputPath string) error {
-	// Build repository entries for template
+	var content string
+	var err error
+
+	baseDir := filepath.Dir(outputPath)
+
+	switch ConfigKind(opts.Kind) {
+	case KindWorkspace:
+		content, err = f.renderWorkspaceScanned(opts, repos, baseDir)
+	case KindRepositories:
+		content, err = f.renderRepositoriesScanned(opts, repos, baseDir)
+	default:
+		return fmt.Errorf("unknown kind: %s", opts.Kind)
+	}
+
+	if err != nil {
+		return fmt.Errorf("render template: %w", err)
+	}
+
+	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "✓ Generated config (%s): %s (%d repositories)\n", opts.Kind, outputPath, len(repos))
+	fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+	fmt.Fprintln(cmd.OutOrStdout(), "  gz-git workspace sync        # Clone/update repositories")
+	fmt.Fprintln(cmd.OutOrStdout(), "  gz-git workspace status      # Check workspace health")
+
+	return nil
+}
+
+// renderWorkspaceScanned renders workspace (hierarchical) format.
+func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
+	workspaces := make([]templates.WorkspaceScannedEntry, 0, len(repos))
+	for _, repo := range repos {
+		relPath := relativeRepoPath(baseDir, repo.Path)
+		entry := templates.WorkspaceScannedEntry{
+			Name: repo.Name,
+			Path: relPath,
+			URL:  extractPrimaryURL(repo.Remotes),
+		}
+		workspaces = append(workspaces, entry)
+	}
+
+	// Get workspace name from path
+	workspaceName := filepath.Base(opts.Path)
+	if workspaceName == "." {
+		if cwd, err := os.Getwd(); err == nil {
+			workspaceName = filepath.Base(cwd)
+		}
+	}
+
+	data := templates.WorkspaceScannedData{
+		ScannedAt:  time.Now().Format(time.RFC3339),
+		Name:       workspaceName,
+		Count:      len(repos),
+		Strategy:   opts.Strategy,
+		Parallel:   10,
+		CloneProto: "ssh",
+		SSHPort:    0,
+		Workspaces: workspaces,
+	}
+
+	return templates.Render(templates.WorkspaceScanned, data)
+}
+
+// renderRepositoriesScanned renders repositories (flat list) format.
+func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
 	repoEntries := make([]templates.ScannedRepoData, 0, len(repos))
 	for _, repo := range repos {
+		relPath := relativeRepoPath(baseDir, repo.Path)
+		pathValue := relPath
+		if relPath == repo.Name {
+			pathValue = ""
+		}
 		entry := templates.ScannedRepoData{
-			Name: repo.Name,
-			Path: repo.Path,
+			Name:   repo.Name,
+			Path:   pathValue,
+			Branch: repo.Branch,
 		}
 
 		// Handle remotes: origin → URL, others → additionalRemotes
 		if len(repo.Remotes) > 0 {
-			// Use origin as primary URL
 			if originURL, ok := repo.Remotes["origin"]; ok {
 				entry.URL = originURL
-				// Add other remotes as additionalRemotes
 				if len(repo.Remotes) > 1 {
 					entry.AdditionalRemotes = make(map[string]string)
 					for name, url := range repo.Remotes {
@@ -223,7 +385,6 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 					}
 				}
 			} else {
-				// No origin, use first remote as URL, rest as additional
 				first := true
 				for name, url := range repo.Remotes {
 					if first {
@@ -242,33 +403,51 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 		repoEntries = append(repoEntries, entry)
 	}
 
-	// Render template
-	// BasePath "." means paths are relative to config file location
 	data := templates.ScannedData{
 		ScannedAt:    time.Now().Format(time.RFC3339),
 		BasePath:     ".",
 		Count:        len(repos),
-		Strategy:     "reset",
-		Parallel:     4,
+		Strategy:     opts.Strategy,
+		Parallel:     10,
 		MaxRetries:   3,
 		CloneProto:   "ssh",
 		SSHPort:      0,
 		Repositories: repoEntries,
 	}
 
-	content, err := templates.Render(templates.RepositoriesScanned, data)
+	return templates.Render(templates.RepositoriesScanned, data)
+}
+
+// extractPrimaryURL extracts the primary URL from remotes (prefers origin).
+func extractPrimaryURL(remotes map[string]string) string {
+	if len(remotes) == 0 {
+		return ""
+	}
+	if originURL, ok := remotes["origin"]; ok {
+		return originURL
+	}
+	// Return first available
+	for _, url := range remotes {
+		return url
+	}
+	return ""
+}
+
+func relativeRepoPath(baseDir, repoPath string) string {
+	if baseDir == "" || repoPath == "" {
+		return repoPath
+	}
+	absBase, err := filepath.Abs(baseDir)
 	if err != nil {
-		return fmt.Errorf("render template: %w", err)
+		absBase = baseDir
 	}
-
-	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write config file: %w", err)
+	absRepo, err := filepath.Abs(repoPath)
+	if err != nil {
+		return repoPath
 	}
-
-	fmt.Fprintf(cmd.OutOrStdout(), "✓ Generated config: %s (%d repositories)\n", outputPath, len(repos))
-	fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
-	fmt.Fprintln(cmd.OutOrStdout(), "  gz-git workspace sync        # Clone/update repositories")
-	fmt.Fprintln(cmd.OutOrStdout(), "  gz-git workspace status      # Check workspace health")
-
-	return nil
+	rel, err := filepath.Rel(absBase, absRepo)
+	if err != nil || rel == "" {
+		return repoPath
+	}
+	return rel
 }
