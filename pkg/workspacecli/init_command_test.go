@@ -597,6 +597,121 @@ func TestInitCmd_WorkspaceScan_OmitsRootDefaults(t *testing.T) {
 	}
 }
 
+// TestExtractSSHPortFromURL tests SSH port extraction from URLs.
+func TestExtractSSHPortFromURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want int
+	}{
+		// Non-standard SSH ports
+		{
+			name: "ssh URL with port 2224",
+			url:  "ssh://git@gitlab.polypia.net:2224/org/repo.git",
+			want: 2224,
+		},
+		{
+			name: "ssh URL with port 443",
+			url:  "ssh://git@example.com:443/org/repo.git",
+			want: 443,
+		},
+		// Standard SSH port (should return 0)
+		{
+			name: "ssh URL with standard port 22",
+			url:  "ssh://git@example.com:22/org/repo.git",
+			want: 0,
+		},
+		// No port specified
+		{
+			name: "ssh URL without port",
+			url:  "ssh://git@github.com/org/repo.git",
+			want: 0,
+		},
+		// Non-SSH URLs (should return 0)
+		{
+			name: "https URL",
+			url:  "https://github.com/org/repo.git",
+			want: 0,
+		},
+		{
+			name: "git@ URL (not ssh://)",
+			url:  "git@github.com:org/repo.git",
+			want: 0,
+		},
+		// Edge cases
+		{
+			name: "empty URL",
+			url:  "",
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractSSHPortFromURL(tt.url)
+			if got != tt.want {
+				t.Errorf("extractSSHPortFromURL(%q) = %d, want %d", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestExtractSSHPortFromURLs tests SSH port extraction from multiple URLs.
+func TestExtractSSHPortFromURLs(t *testing.T) {
+	tests := []struct {
+		name string
+		urls []string
+		want int
+	}{
+		{
+			name: "all same port",
+			urls: []string{
+				"ssh://git@gitlab.polypia.net:2224/org/repo1.git",
+				"ssh://git@gitlab.polypia.net:2224/org/repo2.git",
+			},
+			want: 2224,
+		},
+		{
+			name: "mixed with no-port URLs",
+			urls: []string{
+				"ssh://git@gitlab.polypia.net:2224/org/repo1.git",
+				"https://github.com/org/repo2.git",
+			},
+			want: 2224,
+		},
+		{
+			name: "inconsistent ports - returns 0",
+			urls: []string{
+				"ssh://git@gitlab.polypia.net:2224/org/repo1.git",
+				"ssh://git@other.com:443/org/repo2.git",
+			},
+			want: 0,
+		},
+		{
+			name: "no custom ports",
+			urls: []string{
+				"https://github.com/org/repo1.git",
+				"git@github.com:org/repo2.git",
+			},
+			want: 0,
+		},
+		{
+			name: "empty list",
+			urls: []string{},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractSSHPortFromURLs(tt.urls)
+			if got != tt.want {
+				t.Errorf("extractSSHPortFromURLs(%v) = %d, want %d", tt.urls, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestInitCmd_WorkspaceScan_ExplainDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -37,8 +37,8 @@ defaults:
   sync:
     strategy: {{.Strategy}}             # reset (force), pull (safe), fetch (read-only), skip
     parallel: {{.Parallel}}             # Parallel workers for bulk operations
+    maxRetries: 3                       # Retry count on failure
 {{- if .ExplainDefaults}}
-    # maxRetries: 3           # Retry count on failure
     # timeout: 60s            # Operation timeout (e.g., 30s, 1m, 5m)
 {{- end}}
 
@@ -63,28 +63,32 @@ defaults:
 {{- end}}
 
 # =============================================================================
+# Branch Configuration
+# IMPORTANT: Specify branch to avoid ambiguity. Fallback list tries in order.
+# =============================================================================
+branch:
+  defaultBranch: develop,master         # Fallback: develop → master → repo default
+{{- if .ExplainDefaults}}
+  # protectedBranches:                  # Branches protected from deletion
+  #   - main
+  #   - master
+  #   - "release/*"
+{{- end}}
+
+# =============================================================================
 # Self-Sync Configuration
 # Sync the config directory (this directory) along with workspaces.
 # =============================================================================
 selfSync:
   enabled: true
   strategy: pull                        # fetch (safe), pull (with dirty check)
+  branch: master                        # Branch to sync (this devbox repo)
 {{- if .ExplainDefaults}}
   # Note: "reset" is NOT allowed for selfSync to prevent data loss.
   # If working tree is dirty, falls back to "fetch" automatically.
 {{- end}}
 
 {{- if .ExplainDefaults}}
-# =============================================================================
-# Branch Configuration (Optional)
-# =============================================================================
-# branch:
-#   defaultBranch: develop,master       # Fallback list: tries in order
-#   protectedBranches:                  # Branches protected from deletion
-#     - main
-#     - master
-#     - "release/*"
-
 # =============================================================================
 # Hooks (Optional)
 # Run commands before/after sync operations.
@@ -117,8 +121,10 @@ selfSync:
 # Each workspace can be: git (single repo), forge (sync from GitLab/GitHub/Gitea)
 # =============================================================================
 workspaces:
-{{range .Workspaces}}  {{.Name}}:
-{{if .Path}}    path: {{.Path}}
+{{- range .Workspaces}}
+  {{.Name}}:
+{{- if .Path}}
+    path: {{.Path}}
 {{- else if $.ExplainDefaults}}
     # path: {{.Name}}         # Default: same as workspace name
 {{- end}}
@@ -130,12 +136,13 @@ workspaces:
 {{- if .URL}}
     url: {{.URL}}
 {{- end}}
+{{- if .Branch}}
+    branch: {{.Branch}}
+{{- end}}
 {{- if $.ExplainDefaults}}
     # --- Workspace-level overrides ---
     # sync:
     #   strategy: pull        # Override default strategy for this workspace
-    # branch:
-    #   defaultBranch: main
     # hooks:
     #   after:
     #     - make install
@@ -146,4 +153,4 @@ workspaces:
     #   includeSubgroups: true
     #   subgroupMode: flat    # flat, nested
 {{- end}}
-{{end}}
+{{- end}}

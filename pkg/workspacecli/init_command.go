@@ -229,9 +229,9 @@ func (f CommandFactory) createTemplate(cmd *cobra.Command, opts *InitOptions, ou
 	var templateName templates.TemplateName
 
 	switch ConfigKind(opts.Kind) {
-	case KindWorkspace:
+	case KindWorkspace, KindWorkspaces: // KindWorkspaces is deprecated alias
 		templateName = templates.WorkspaceWorkstation
-	case KindRepositories:
+	case KindRepositories, KindRepository: // KindRepository is deprecated alias
 		templateName = templates.RepositoriesSample
 	default:
 		return fmt.Errorf("unknown kind: %s", opts.Kind)
@@ -303,9 +303,9 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 	baseDir := filepath.Dir(outputPath)
 
 	switch ConfigKind(opts.Kind) {
-	case KindWorkspace:
+	case KindWorkspace, KindWorkspaces: // KindWorkspaces is deprecated alias
 		content, err = f.renderWorkspaceScanned(opts, repos, baseDir)
-	case KindRepositories:
+	case KindRepositories, KindRepository: // KindRepository is deprecated alias
 		content, err = f.renderRepositoriesScanned(opts, repos, baseDir)
 	default:
 		return fmt.Errorf("unknown kind: %s", opts.Kind)
@@ -327,31 +327,84 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 	return nil
 }
 
+// ================================================================================
+// Shared Helper Functions
+// ================================================================================
+
+// Default values for scanned configs.
+const (
+	defaultParallel   = 10
+	defaultMaxRetries = 3
+	defaultCloneProto = "ssh"
+)
+
+// processRepoPath processes a repository path for config generation.
+// Returns (relPath, pathValue, skip).
+// - relPath: the relative path from baseDir
+// - pathValue: the path to use in config (empty if equals name for compact mode)
+// - skip: true if this repo should be skipped (e.g., root directory ".")
+func processRepoPath(baseDir, repoPath, repoName string) (relPath, pathValue string, skip bool) {
+	relPath = relativeRepoPath(baseDir, repoPath)
+
+	// Skip the root directory itself - it's the orchestrator, not a target
+	// selfSync handles the root directory separately
+	if relPath == "." {
+		return "", "", true
+	}
+
+	// Omit path when it equals the name (compact mode)
+	pathValue = relPath
+	if relPath == repoName {
+		pathValue = ""
+	}
+
+	return relPath, pathValue, false
+}
+
+// buildCommonConfig creates the shared configuration from scan options and URLs.
+func buildCommonConfig(opts *InitOptions, count int, urls []string) templates.CommonScannedConfig {
+	return templates.CommonScannedConfig{
+		ScannedAt:       time.Now().Format(time.RFC3339),
+		Count:           count,
+		Strategy:        opts.Strategy,
+		Parallel:        defaultParallel,
+		MaxRetries:      defaultMaxRetries,
+		CloneProto:      defaultCloneProto,
+		SSHPort:         extractSSHPortFromURLs(urls),
+		ExplainDefaults: opts.ExplainDefaults,
+	}
+}
+
+// collectURLs extracts URLs from a slice using a getter function.
+func collectURLs[T any](items []T, getURL func(T) string) []string {
+	urls := make([]string, 0, len(items))
+	for _, item := range items {
+		if url := getURL(item); url != "" {
+			urls = append(urls, url)
+		}
+	}
+	return urls
+}
+
+// ================================================================================
+// Render Functions
+// ================================================================================
+
 // renderWorkspaceScanned renders workspace (hierarchical) format.
 func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
 	workspaces := make([]templates.WorkspaceScannedEntry, 0, len(repos))
 	for _, repo := range repos {
-		relPath := relativeRepoPath(baseDir, repo.Path)
-
-		// Skip the root directory itself - it's the orchestrator, not a target
-		// Including "." would cause workspace sync to reset the devbox directory
-		// selfSync handles the root directory separately
-		if relPath == "." {
+		_, pathValue, skip := processRepoPath(baseDir, repo.Path, repo.Name)
+		if skip {
 			continue
 		}
 
-		// Omit path when it equals the workspace name (compact mode)
-		pathValue := relPath
-		if relPath == repo.Name {
-			pathValue = ""
-		}
-
-		entry := templates.WorkspaceScannedEntry{
-			Name: repo.Name,
-			Path: pathValue,
-			URL:  extractPrimaryURL(repo.Remotes),
-		}
-		workspaces = append(workspaces, entry)
+		workspaces = append(workspaces, templates.WorkspaceScannedEntry{
+			Name:   repo.Name,
+			Path:   pathValue,
+			URL:    extractPrimaryURL(repo.Remotes),
+			Branch: repo.Branch,
+		})
 	}
 
 	// Get workspace name from path
@@ -362,16 +415,13 @@ func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scann
 		}
 	}
 
+	// Build common config with extracted URLs
+	urls := collectURLs(workspaces, func(ws templates.WorkspaceScannedEntry) string { return ws.URL })
+
 	data := templates.WorkspaceScannedData{
-		ScannedAt:       time.Now().Format(time.RFC3339),
-		Name:            workspaceName,
-		Count:           len(repos),
-		Strategy:        opts.Strategy,
-		Parallel:        10,
-		CloneProto:      "ssh",
-		SSHPort:         0,
-		ExplainDefaults: opts.ExplainDefaults,
-		Workspaces:      workspaces,
+		CommonScannedConfig: buildCommonConfig(opts, len(workspaces), urls),
+		Name:                workspaceName,
+		Workspaces:          workspaces,
 	}
 
 	return templates.Render(templates.WorkspaceScanned, data)
@@ -381,17 +431,11 @@ func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scann
 func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
 	repoEntries := make([]templates.ScannedRepoData, 0, len(repos))
 	for _, repo := range repos {
-		relPath := relativeRepoPath(baseDir, repo.Path)
-
-		// Skip the root directory itself - it's the orchestrator, not a target
-		if relPath == "." {
+		_, pathValue, skip := processRepoPath(baseDir, repo.Path, repo.Name)
+		if skip {
 			continue
 		}
 
-		pathValue := relPath
-		if relPath == repo.Name {
-			pathValue = ""
-		}
 		entry := templates.ScannedRepoData{
 			Name:   repo.Name,
 			Path:   pathValue,
@@ -429,17 +473,13 @@ func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*sc
 		repoEntries = append(repoEntries, entry)
 	}
 
+	// Build common config with extracted URLs
+	urls := collectURLs(repoEntries, func(e templates.ScannedRepoData) string { return e.URL })
+
 	data := templates.ScannedData{
-		ScannedAt:       time.Now().Format(time.RFC3339),
-		BasePath:        ".",
-		Count:           len(repos),
-		Strategy:        opts.Strategy,
-		Parallel:        10,
-		MaxRetries:      3,
-		CloneProto:      "ssh",
-		SSHPort:         0,
-		ExplainDefaults: opts.ExplainDefaults,
-		Repositories:    repoEntries,
+		CommonScannedConfig: buildCommonConfig(opts, len(repoEntries), urls),
+		BasePath:            ".",
+		Repositories:        repoEntries,
 	}
 
 	return templates.Render(templates.RepositoriesScanned, data)
@@ -458,6 +498,76 @@ func extractPrimaryURL(remotes map[string]string) string {
 		return url
 	}
 	return ""
+}
+
+// extractSSHPortFromURLs extracts the SSH port from URLs if they use a non-standard port.
+// Returns 0 if no custom port is detected or ports are inconsistent.
+func extractSSHPortFromURLs(urls []string) int {
+	var detectedPort int
+	for _, url := range urls {
+		port := extractSSHPortFromURL(url)
+		if port == 0 {
+			continue
+		}
+		if detectedPort == 0 {
+			detectedPort = port
+		} else if detectedPort != port {
+			// Inconsistent ports - return 0
+			return 0
+		}
+	}
+	return detectedPort
+}
+
+// extractSSHPortFromURL extracts the SSH port from a single URL.
+// Supports formats like:
+//   - ssh://git@host:2224/path
+//   - ssh://git@host:2224/path.git
+//
+// Returns 0 for standard port (22) or non-SSH URLs.
+func extractSSHPortFromURL(url string) int {
+	// Only handle ssh:// URLs with explicit port
+	if !strings.HasPrefix(url, "ssh://") {
+		return 0
+	}
+
+	// Remove ssh:// prefix
+	rest := strings.TrimPrefix(url, "ssh://")
+
+	// Find the host:port part (before the first /)
+	slashIdx := strings.Index(rest, "/")
+	if slashIdx == -1 {
+		return 0
+	}
+	hostPort := rest[:slashIdx]
+
+	// Find port after @user if present
+	atIdx := strings.LastIndex(hostPort, "@")
+	if atIdx != -1 {
+		hostPort = hostPort[atIdx+1:]
+	}
+
+	// Find port
+	colonIdx := strings.LastIndex(hostPort, ":")
+	if colonIdx == -1 {
+		return 0
+	}
+
+	portStr := hostPort[colonIdx+1:]
+	port := 0
+	for _, c := range portStr {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		port = port*10 + int(c-'0')
+	}
+
+	// Skip standard SSH port
+	if port == 22 {
+		return 0
+	}
+
+	return port
 }
 
 func relativeRepoPath(baseDir, repoPath string) string {

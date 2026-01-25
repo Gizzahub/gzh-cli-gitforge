@@ -137,14 +137,16 @@ func TestGetRaw_NotFound(t *testing.T) {
 
 func TestRender_Scanned(t *testing.T) {
 	data := ScannedData{
-		ScannedAt:  "2025-01-23T10:00:00Z",
-		BasePath:   "/home/user/mydevbox",
-		Count:      2,
-		Strategy:   "reset",
-		Parallel:   4,
-		MaxRetries: 3,
-		CloneProto: "ssh",
-		SSHPort:    0,
+		CommonScannedConfig: CommonScannedConfig{
+			ScannedAt:  "2025-01-23T10:00:00Z",
+			Count:      2,
+			Strategy:   "reset",
+			Parallel:   4,
+			MaxRetries: 3,
+			CloneProto: "ssh",
+			SSHPort:    0,
+		},
+		BasePath: "/home/user/mydevbox",
 		Repositories: []ScannedRepoData{
 			{Name: "repo-a", Path: "./repo-a", URL: "git@github.com:org/repo-a.git"},
 			{Name: "repo-b", Path: "./repo-b", URL: "git@github.com:org/repo-b.git", AdditionalRemotes: map[string]string{"backup": "git@gitlab.com:org/repo-b.git"}},

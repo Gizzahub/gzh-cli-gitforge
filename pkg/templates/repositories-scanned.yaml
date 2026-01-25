@@ -66,24 +66,29 @@ defaults:
 {{- end}}
 
 # =============================================================================
+# Branch Configuration
+# IMPORTANT: Specify branch to avoid ambiguity. Fallback list tries in order.
+# =============================================================================
+branch:
+  defaultBranch: develop,master         # Fallback: develop → master → repo default
+{{- if .ExplainDefaults}}
+  # protectedBranches:                  # Branches protected from deletion
+  #   - main
+  #   - master
+  #   - "release/*"
+{{- end}}
+
+# =============================================================================
 # Self-Sync Configuration
 # Sync the config directory (this directory) along with repositories.
 # =============================================================================
 selfSync:
   enabled: true
   strategy: pull                        # fetch (safe), pull (with dirty check)
+  branch: master                        # Branch to sync (this devbox repo)
 {{- if .ExplainDefaults}}
   # Note: "reset" is NOT allowed for selfSync to prevent data loss.
   # If working tree is dirty, falls back to "fetch" automatically.
-{{- end}}
-
-{{- if .ExplainDefaults}}
-# =============================================================================
-# Branch Configuration (Optional)
-# =============================================================================
-# branch:
-#   defaultBranch: develop,master       # Fallback list: tries in order
-#   protectedBranches: [main, master, "release/*"]
 
 # =============================================================================
 # Hooks (Optional)
@@ -101,7 +106,8 @@ selfSync:
 # Simple flat list of git repositories.
 # =============================================================================
 repositories:
-{{range .Repositories}}  - name: {{.Name}}
+{{- range .Repositories}}
+  - name: {{.Name}}
 {{- if .Path}}
     path: {{.Path}}
 {{- end}}
@@ -132,4 +138,4 @@ repositories:
     #   after:
     #     - make install
 {{- end}}
-{{end}}
+{{- end}}

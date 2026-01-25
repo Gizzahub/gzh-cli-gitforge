@@ -261,19 +261,25 @@ type WorkspaceForgeData struct {
 	Workspaces map[string]WorkspaceData
 }
 
-// ScannedData is the data for RepositoriesScanned template.
-type ScannedData struct {
+// CommonScannedConfig contains shared configuration fields for scanned configs.
+// Used by both ScannedData (repositories) and WorkspaceScannedData (workspace).
+type CommonScannedConfig struct {
 	ScannedAt  string // RFC3339 timestamp
-	BasePath   string // Base path for relative paths (default: ".")
-	Count      int    // Number of repos found
-	Strategy   string
-	Parallel   int
-	MaxRetries int
-	CloneProto string
-	SSHPort    int
+	Count      int    // Number of repos/workspaces found
+	Strategy   string // reset, pull, fetch, skip
+	Parallel   int    // Parallel workers
+	MaxRetries int    // Retry count on failure
+	CloneProto string // ssh, https
+	SSHPort    int    // Custom SSH port (0 = default)
 	// ExplainDefaults toggles commented default values for omitted fields.
 	ExplainDefaults bool
-	Repositories    []ScannedRepoData
+}
+
+// ScannedData is the data for RepositoriesScanned template.
+type ScannedData struct {
+	CommonScannedConfig
+	BasePath     string // Base path for relative paths (default: ".")
+	Repositories []ScannedRepoData
 }
 
 // ScannedRepoData represents a scanned repository entry.
@@ -287,24 +293,18 @@ type ScannedRepoData struct {
 
 // WorkspaceScannedData is the data for WorkspaceScanned template.
 type WorkspaceScannedData struct {
-	ScannedAt  string // RFC3339 timestamp
+	CommonScannedConfig
 	Name       string // Workspace name (usually directory name)
-	Count      int    // Number of repos found
-	Strategy   string
-	Parallel   int
-	CloneProto string
-	SSHPort    int
-	// ExplainDefaults toggles commented default values for omitted fields.
-	ExplainDefaults bool
-	Workspaces      []WorkspaceScannedEntry
+	Workspaces []WorkspaceScannedEntry
 }
 
 // WorkspaceScannedEntry represents a scanned workspace entry.
 type WorkspaceScannedEntry struct {
-	Name string
-	Path string
-	URL  string
-	Type string
+	Name   string
+	Path   string
+	URL    string
+	Type   string
+	Branch string // Current branch name
 }
 
 // ForgeGeneratedData is the data for RepositoriesForge template.
