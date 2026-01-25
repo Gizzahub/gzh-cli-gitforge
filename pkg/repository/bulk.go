@@ -2022,7 +2022,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	// because AheadBy is calculated against the current branch's upstream,
 	// not the refspec target branch
 	if info.AheadBy == 0 && !opts.Tags && opts.Refspec == "" {
-		result.Status = StatusNothingToPush
+		result.Status = StatusUpToDate
 		result.Message = "Nothing to push"
 		result.Duration = time.Since(startTime)
 		return result

@@ -36,14 +36,8 @@ type BulkCloneOptions struct {
 	Structure DirectoryStructure
 
 	// Strategy determines how to handle existing repositories.
-	// Values: "skip" (default), "pull", "reset", "rebase", "fetch"
-	// This field takes precedence over Update if both are set.
+	// Valid values: "skip" (default), "pull", "fetch", "force".
 	Strategy UpdateStrategy
-
-	// Update pulls existing repositories instead of skipping.
-	// Deprecated: Use Strategy instead. Will be removed in a future version.
-	// When Update=true and Strategy is empty, it maps to Strategy="pull".
-	Update bool
 
 	// Branch is the branch to checkout after cloning.
 	Branch string
@@ -67,19 +61,12 @@ type BulkCloneOptions struct {
 	ProgressCallback func(current, total int, repo string)
 }
 
-// resolveCloneStrategy resolves the effective strategy from Strategy and deprecated Update fields.
-// Strategy field takes precedence. If Strategy is empty and Update is true, returns StrategyPull.
-// Default is StrategySkip.
-func resolveCloneStrategy(strategy UpdateStrategy, update bool) UpdateStrategy {
-	// Strategy field takes precedence
+// resolveCloneStrategy returns the effective strategy.
+// If strategy is empty, returns StrategySkip as default.
+func resolveCloneStrategy(strategy UpdateStrategy) UpdateStrategy {
 	if strategy != "" {
 		return strategy
 	}
-	// Backward compatibility: Update=true maps to pull
-	if update {
-		return StrategyPull
-	}
-	// Default: skip existing repos
 	return StrategySkip
 }
 
@@ -259,8 +246,8 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 		relPath = filepath.Base(destination)
 	}
 
-	// Determine strategy: Strategy field takes precedence over deprecated Update field
-	strategy := resolveCloneStrategy(opts.Strategy, opts.Update)
+	// Determine strategy
+	strategy := resolveCloneStrategy(opts.Strategy)
 
 	// Dry run mode
 	if opts.DryRun {

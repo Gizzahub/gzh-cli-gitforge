@@ -263,15 +263,17 @@ type WorkspaceForgeData struct {
 
 // ScannedData is the data for RepositoriesScanned template.
 type ScannedData struct {
-	ScannedAt    string // RFC3339 timestamp
-	BasePath     string // Base path for relative paths (default: ".")
-	Count        int    // Number of repos found
-	Strategy     string
-	Parallel     int
-	MaxRetries   int
-	CloneProto   string
-	SSHPort      int
-	Repositories []ScannedRepoData
+	ScannedAt  string // RFC3339 timestamp
+	BasePath   string // Base path for relative paths (default: ".")
+	Count      int    // Number of repos found
+	Strategy   string
+	Parallel   int
+	MaxRetries int
+	CloneProto string
+	SSHPort    int
+	// ExplainDefaults toggles commented default values for omitted fields.
+	ExplainDefaults bool
+	Repositories    []ScannedRepoData
 }
 
 // ScannedRepoData represents a scanned repository entry.
@@ -292,7 +294,9 @@ type WorkspaceScannedData struct {
 	Parallel   int
 	CloneProto string
 	SSHPort    int
-	Workspaces []WorkspaceScannedEntry
+	// ExplainDefaults toggles commented default values for omitted fields.
+	ExplainDefaults bool
+	Workspaces      []WorkspaceScannedEntry
 }
 
 // WorkspaceScannedEntry represents a scanned workspace entry.
@@ -300,6 +304,7 @@ type WorkspaceScannedEntry struct {
 	Name string
 	Path string
 	URL  string
+	Type string
 }
 
 // ForgeGeneratedData is the data for RepositoriesForge template.

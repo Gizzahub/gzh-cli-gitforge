@@ -85,8 +85,6 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.Provider, "provider", "", "Git forge provider: github, gitlab, gitea [required]")
 	cmd.Flags().StringVar(&opts.Organization, "org", "", "Organization/group name to sync [required]")
 	cmd.Flags().StringVar(&opts.TargetPath, "path", "", "Directory for cloned repositories [required]")
-	cmd.Flags().StringVar(&opts.TargetPath, "target", "", "Deprecated: use --path")
-	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.IsUser, "user", false, "Treat --org as a user instead of organization")
 
 	// Authentication
@@ -101,8 +99,6 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 
 	// Sync options
 	cmd.Flags().StringVar(&opts.Strategy, "sync-strategy", opts.Strategy, "Sync strategy (reset, pull, fetch)")
-	cmd.Flags().StringVar(&opts.Strategy, "strategy", opts.Strategy, "Deprecated: use --sync-strategy")
-	_ = cmd.Flags().MarkDeprecated("strategy", "use --sync-strategy instead")
 	cmd.Flags().IntVar(&opts.Parallel, "parallel", opts.Parallel, "Number of parallel workers")
 	cmd.Flags().IntVar(&opts.MaxRetries, "max-retries", opts.MaxRetries, "Max retry attempts")
 	cmd.Flags().BoolVar(&opts.Resume, "resume", false, "Resume from previous state")

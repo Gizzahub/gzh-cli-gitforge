@@ -251,35 +251,29 @@ func TestNormalizeKind(t *testing.T) {
 		wantWarning bool
 		wantError   bool
 	}{
-		// Valid canonical values
+		// Valid kinds
 		{
-			name:        "workspace (canonical)",
-			input:       "workspace",
-			wantKind:    KindWorkspace,
-			wantWarning: false,
-			wantError:   false,
+			name:     "workspace",
+			input:    "workspace",
+			wantKind: KindWorkspace,
 		},
 		{
-			name:        "repositories (canonical)",
-			input:       "repositories",
-			wantKind:    KindRepositories,
-			wantWarning: false,
-			wantError:   false,
+			name:     "repositories",
+			input:    "repositories",
+			wantKind: KindRepositories,
 		},
-		// Deprecated aliases
+		// Deprecated aliases (should work with warning)
 		{
-			name:        "workspaces (deprecated)",
+			name:        "workspaces - deprecated alias",
 			input:       "workspaces",
 			wantKind:    KindWorkspace,
 			wantWarning: true,
-			wantError:   false,
 		},
 		{
-			name:        "repository (deprecated)",
+			name:        "repository - deprecated alias",
 			input:       "repository",
 			wantKind:    KindRepositories,
 			wantWarning: true,
-			wantError:   false,
 		},
 		// Error cases
 		{
@@ -331,16 +325,13 @@ func TestNormalizeKind(t *testing.T) {
 			}
 
 			// Check warning
-			hasWarning := warning != ""
-			if hasWarning != tt.wantWarning {
-				t.Errorf("NormalizeKind(%q) hasWarning = %v, want %v (warning: %q)",
-					tt.input, hasWarning, tt.wantWarning, warning)
-			}
-
-			// For deprecated values, check warning message content
 			if tt.wantWarning {
-				if !strings.Contains(warning, "deprecated") {
-					t.Errorf("NormalizeKind(%q) warning should mention 'deprecated': %q", tt.input, warning)
+				if warning == "" {
+					t.Errorf("NormalizeKind(%q) expected warning, got empty", tt.input)
+				}
+			} else {
+				if warning != "" {
+					t.Errorf("NormalizeKind(%q) unexpected warning: %q", tt.input, warning)
 				}
 			}
 		})
@@ -561,5 +552,93 @@ func TestInitCmd_ScanWithGitRepos(t *testing.T) {
 				t.Error("config should contain repo2")
 			}
 		})
+	}
+}
+
+func TestInitCmd_WorkspaceScan_OmitsRootDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a git repo at root
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitConfig := filepath.Join(tmpDir, ".git", "config")
+	configContent := `[core]
+	repositoryformatversion = 0
+[remote "origin"]
+	url = https://github.com/test/root.git
+`
+	if err := os.WriteFile(gitConfig, []byte(configContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	factory := CommandFactory{}
+	cmd := factory.newInitCmd()
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	cmd.SetArgs([]string{tmpDir, "--kind", "workspace", "-d", "0"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	configPath := filepath.Join(tmpDir, DefaultConfigFile)
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+
+	if strings.Contains(string(content), "path: .") {
+		t.Errorf("config should omit default path '.' for root repo\nGot:\n%s", string(content))
+	}
+	if strings.Contains(string(content), "type: git") {
+		t.Errorf("config should omit default type 'git'\nGot:\n%s", string(content))
+	}
+}
+
+func TestInitCmd_WorkspaceScan_ExplainDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a git repo in a subdirectory (not root, which is now skipped)
+	subRepo := filepath.Join(tmpDir, "subrepo")
+	if err := os.MkdirAll(filepath.Join(subRepo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitConfig := filepath.Join(subRepo, ".git", "config")
+	configContent := `[core]
+	repositoryformatversion = 0
+[remote "origin"]
+	url = https://github.com/test/subrepo.git
+`
+	if err := os.WriteFile(gitConfig, []byte(configContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	factory := CommandFactory{}
+	cmd := factory.newInitCmd()
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	cmd.SetArgs([]string{tmpDir, "--kind", "workspace", "-d", "1", "--explain-defaults"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	configPath := filepath.Join(tmpDir, DefaultConfigFile)
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+
+	// When path equals name, path is omitted (compact output)
+	// So we check for commented default type instead
+	if !strings.Contains(string(content), "# type: git") {
+		t.Errorf("config should include commented default type\nGot:\n%s", string(content))
+	}
+	// Verify workspace entry exists
+	if !strings.Contains(string(content), "subrepo:") {
+		t.Errorf("config should include subrepo workspace\nGot:\n%s", string(content))
 	}
 }

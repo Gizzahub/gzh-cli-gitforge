@@ -28,7 +28,6 @@ var (
 	cloneBranch       string
 	cloneDepth        int
 	cloneStrategy     string // --update-strategy flag (skip, pull, reset, rebase, fetch)
-	cloneUpdate       bool   // Deprecated: use --update-strategy instead
 	cloneStructure    string
 	cloneFile         string
 	cloneSingleBranch bool
@@ -71,9 +70,6 @@ func init() {
 	cloneCmd.Flags().StringVarP(&cloneBranch, "branch", "b", "", "checkout specific branch")
 	cloneCmd.Flags().IntVar(&cloneDepth, "depth", 0, "create a shallow clone with truncated history")
 	cloneCmd.Flags().StringVarP(&cloneStrategy, "update-strategy", "s", "", "existing repo handling: skip (default), pull, reset, rebase, fetch")
-	cloneCmd.Flags().StringVar(&cloneStrategy, "strategy", "", "Deprecated: use --update-strategy")
-	_ = cloneCmd.Flags().MarkDeprecated("strategy", "use --update-strategy instead")
-	cloneCmd.Flags().BoolVar(&cloneUpdate, "update", false, "[DEPRECATED] use --update-strategy=pull instead")
 	cloneCmd.Flags().StringVar(&cloneStructure, "structure", "flat", "directory structure: flat or user")
 	cloneCmd.Flags().StringVar(&cloneFile, "file", "", "file containing repository URLs (one per line)")
 	cloneCmd.Flags().BoolVar(&cloneSingleBranch, "single-branch", false, "clone only one branch")
@@ -146,7 +142,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Resolve strategy from CLI flags
-	strategy := resolveCloneStrategy(cloneStrategy, cloneUpdate, "", false)
+	strategy := resolveCloneStrategy(cloneStrategy, "")
 
 	// Build options
 	opts := repository.BulkCloneOptions{
@@ -382,8 +378,6 @@ const (
 	CloneKindGroups CloneConfigKind = "groups"
 	// CloneKindFlat is the flat repositories list format.
 	CloneKindFlat CloneConfigKind = "flat"
-	// CloneKindGroup is deprecated alias for groups.
-	CloneKindGroup CloneConfigKind = "group"
 )
 
 // CloneConfig represents the YAML configuration for bulk clone.
@@ -406,22 +400,17 @@ type CloneConfig struct {
 
 	// Grouped format: named groups (parsed separately due to dynamic keys)
 	Groups map[string]*CloneGroup `yaml:"-"`
-
-	// Deprecated: Use Strategy instead
-	Update bool `yaml:"update,omitempty"`
 }
 
-// NormalizeCloneKind normalizes kind value and returns canonical form with deprecation warning.
+// NormalizeCloneKind normalizes kind value and returns canonical form.
 func NormalizeCloneKind(kind string) (CloneConfigKind, string, error) {
 	switch CloneConfigKind(kind) {
 	case CloneKindGroups:
 		return CloneKindGroups, "", nil
-	case CloneKindGroup:
-		return CloneKindGroups, "kind 'group' is deprecated, use 'groups' instead", nil
 	case CloneKindFlat:
 		return CloneKindFlat, "", nil
 	case "":
-		// Empty is allowed for backward compatibility - will be auto-detected
+		// Empty: will be auto-detected based on content
 		return "", "", nil
 	default:
 		return "", "", fmt.Errorf("invalid kind '%s': must be 'groups' or 'flat'", kind)
@@ -792,15 +781,6 @@ func (a *loggerAdapter) Info(msg string, keysAndValues ...interface{}) {
 	a.logger.Info(msg, keysAndValues...)
 }
 
-// parseHookCommand splits a hook command string into executable and arguments.
-// Supports simple quoting but NOT shell features (pipes, redirects, variables).
-// This is intentional for security - use scripts for complex commands.
-//
-// Deprecated: Use hooks.ParseCommand directly.
-func parseHookCommand(cmd string) []string {
-	return hooks.ParseCommand(cmd)
-}
-
 // buildCloneOptionsFromConfig builds BulkCloneOptions from YAML config.
 // CLI flags take precedence over YAML config.
 func buildCloneOptionsFromConfig(
@@ -810,7 +790,6 @@ func buildCloneOptionsFromConfig(
 	branch string,
 	depth int,
 	strategy string,
-	update bool,
 	structure string,
 	logger repository.Logger,
 ) repository.BulkCloneOptions {
@@ -834,8 +813,8 @@ func buildCloneOptionsFromConfig(
 		structureVal = config.Structure
 	}
 
-	// Resolve strategy: CLI flag > YAML config > deprecated update field
-	strategyVal := resolveCloneStrategy(strategy, update, config.Strategy, config.Update)
+	// Resolve strategy: CLI flag > YAML config
+	strategyVal := resolveCloneStrategy(strategy, config.Strategy)
 
 	// Build BulkCloneOptions with custom per-repo settings
 	opts := repository.BulkCloneOptions{
@@ -863,25 +842,15 @@ func buildCloneOptionsFromConfig(
 }
 
 // resolveCloneStrategy resolves the effective strategy with precedence:
-// CLI --update-strategy > CLI --update > YAML strategy > YAML update > default (skip)
-func resolveCloneStrategy(cliStrategy string, cliUpdate bool, yamlStrategy string, yamlUpdate bool) repository.UpdateStrategy {
+// CLI --update-strategy > YAML strategy > default (skip)
+func resolveCloneStrategy(cliStrategy string, yamlStrategy string) repository.UpdateStrategy {
 	// CLI --update-strategy takes highest precedence
 	if cliStrategy != "" {
 		return repository.UpdateStrategy(cliStrategy)
 	}
-	// CLI --update (deprecated) maps to pull
-	if cliUpdate {
-		fmt.Fprintln(os.Stderr, "Warning: --update is deprecated, use --update-strategy=pull instead")
-		return repository.StrategyPull
-	}
 	// YAML strategy
 	if yamlStrategy != "" {
 		return repository.UpdateStrategy(yamlStrategy)
-	}
-	// YAML update (deprecated) maps to pull
-	if yamlUpdate {
-		fmt.Fprintln(os.Stderr, "Warning: 'update: true' in config is deprecated, use 'strategy: pull' instead")
-		return repository.StrategyPull
 	}
 	// Default: skip
 	return repository.StrategySkip
@@ -923,7 +892,6 @@ func runCloneFromFlatConfig(ctx context.Context, config *CloneConfig, directory 
 		cloneBranch,
 		cloneDepth,
 		cloneStrategy,
-		cloneUpdate,
 		cloneStructure,
 		logger,
 	)
@@ -1048,7 +1016,7 @@ func buildGroupCloneOptions(config *CloneConfig, group *CloneGroup, targetDir st
 	}
 
 	// Resolve strategy: CLI > group > global > default
-	strategy := resolveCloneStrategy(cloneStrategy, cloneUpdate, group.Strategy, false)
+	strategy := resolveCloneStrategy(cloneStrategy, group.Strategy)
 	if strategy == repository.StrategySkip && config.Strategy != "" {
 		strategy = repository.UpdateStrategy(config.Strategy)
 	}

@@ -319,7 +319,6 @@ func TestNormalizeProvider(t *testing.T) {
 	}
 }
 
-
 func TestValidateConfig_ChildConfigMode(t *testing.T) {
 	v := NewValidator()
 

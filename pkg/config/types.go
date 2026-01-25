@@ -65,15 +65,6 @@ type ConfigMeta struct {
 	Metadata *Metadata `yaml:"metadata,omitempty"`
 }
 
-// InferKindFromFilename is deprecated and always returns empty.
-// Config kind should be determined by reading the "kind" field inside the file
-// or by content detection (presence of "workspaces" or "profiles" keys).
-//
-// Deprecated: Use content-based detection instead.
-func InferKindFromFilename(_ string) ConfigKind {
-	return ""
-}
-
 // ================================================================================
 // Profiles
 // ================================================================================
@@ -127,6 +118,71 @@ type SyncConfig struct {
 	Strategy   string `yaml:"strategy,omitempty"`   // pull, reset, skip
 	MaxRetries int    `yaml:"maxRetries,omitempty"` // Retry count
 	Timeout    string `yaml:"timeout,omitempty"`    // Operation timeout
+}
+
+// SelfSyncConfig controls sync behavior for the config directory itself.
+// This allows the devbox/orchestrator directory to be synced along with workspaces.
+type SelfSyncConfig struct {
+	// Enabled controls whether the config directory itself should be synced.
+	// Default: false (config directory is not synced)
+	Enabled bool `yaml:"enabled,omitempty"`
+
+	// Strategy specifies how to sync the config directory.
+	// Values: "fetch" (default, safe), "pull" (with dirty check), "skip"
+	// Note: "reset" is not allowed for self-sync to prevent data loss.
+	Strategy string `yaml:"strategy,omitempty"`
+}
+
+// DefaultsConfig groups all default settings for clarity.
+// These settings apply globally unless overridden at workspace level.
+type DefaultsConfig struct {
+	// Clone settings
+	Clone *CloneDefaults `yaml:"clone,omitempty"`
+
+	// Sync settings
+	Sync *SyncDefaults `yaml:"sync,omitempty"`
+
+	// Scan settings
+	Scan *ScanDefaults `yaml:"scan,omitempty"`
+
+	// Output settings
+	Output *OutputDefaults `yaml:"output,omitempty"`
+
+	// Filter settings
+	Filter *FilterDefaults `yaml:"filter,omitempty"`
+}
+
+// CloneDefaults holds clone-related default settings.
+type CloneDefaults struct {
+	Proto         string `yaml:"proto,omitempty"`         // ssh, https
+	SSHPort       int    `yaml:"sshPort,omitempty"`       // Custom SSH port
+	SSHKeyPath    string `yaml:"sshKeyPath,omitempty"`    // SSH private key file path
+	SSHKeyContent string `yaml:"sshKeyContent,omitempty"` // SSH private key content (use ${ENV_VAR})
+}
+
+// SyncDefaults holds sync-related default settings.
+type SyncDefaults struct {
+	Strategy   string `yaml:"strategy,omitempty"`   // reset, pull, fetch, skip
+	Parallel   int    `yaml:"parallel,omitempty"`   // Parallel workers
+	MaxRetries int    `yaml:"maxRetries,omitempty"` // Retry count
+	Timeout    string `yaml:"timeout,omitempty"`    // Operation timeout
+}
+
+// ScanDefaults holds scan-related default settings.
+type ScanDefaults struct {
+	Depth int `yaml:"depth,omitempty"` // Default scan depth for bulk operations
+}
+
+// OutputDefaults holds output-related default settings.
+type OutputDefaults struct {
+	Compact bool   `yaml:"compact,omitempty"` // Omit redundant fields in generated configs
+	Format  string `yaml:"format,omitempty"`  // Output format (default, compact, json, llm)
+}
+
+// FilterDefaults holds filter pattern settings.
+type FilterDefaults struct {
+	Include []string `yaml:"include,omitempty"` // Include repos matching these patterns
+	Exclude []string `yaml:"exclude,omitempty"` // Exclude repos matching these patterns
 }
 
 // BranchConfig holds branch command defaults.
@@ -295,7 +351,13 @@ type ProjectMetadata struct {
 //
 //	# ~/.gz-git.yaml (workstation level)
 //	profile: polypia
-//	parallel: 10
+//
+//	defaults:
+//	  clone:
+//	    proto: ssh
+//	  sync:
+//	    strategy: reset
+//	    parallel: 10
 //
 //	# Inline profiles (no external file needed!)
 //	profiles:
@@ -303,7 +365,6 @@ type ProjectMetadata struct {
 //	    provider: gitlab
 //	    baseURL: https://gitlab.polypia.net
 //	    token: ${GITLAB_POLYPIA_TOKEN}
-//	    cloneProto: ssh
 //	  github-personal:
 //	    provider: github
 //	    token: ${GITHUB_TOKEN}
@@ -318,58 +379,42 @@ type ProjectMetadata struct {
 //	      subgroupMode: flat
 //	    sync:
 //	      strategy: pull
-//
-//	  personal:
-//	    path: ~/personal
-//	    profile: github-personal
-//	    source:
-//	      provider: github
-//	      org: myusername
-//
-// Parent config reference example:
-//
-//	# ~/mydevbox/.gz-git.yaml (workspace level)
-//	parent: ~/devenv/workstation/.gz-git.yaml  # Explicit parent reference
-//	profile: polypia  # Now found in parent's profiles
-//	parallel: 10
 type Config struct {
 	// === Parent config reference ===
 
 	// Parent specifies an explicit path to a parent config file.
 	// When set, the parent config is loaded and merged (child overrides parent).
-	// Profile lookup order: current config → parent config → global config.
-	// Supports: absolute paths, home-relative (~), relative paths (resolved from current config dir).
-	// If not set, falls back to global config (~/.config/gz-git/config.yaml).
+	// Supports: absolute paths, home-relative (~), relative paths.
 	Parent string `yaml:"parent,omitempty"`
 
 	// === This level's settings ===
 
 	// Profile specifies which profile to use at this level
-	// Profile lookup order: inline (Profiles map) → parent config → external (~/.config/gz-git/profiles/)
 	Profile string `yaml:"profile,omitempty"`
 
 	// === Inline Profiles ===
 
 	// Profiles defines named profiles inline (no external file needed)
-	// These take precedence over external profile files
 	Profiles map[string]*Profile `yaml:"profiles,omitempty"`
 
-	// Forge provider settings (default for workspaces)
-	Provider string `yaml:"provider,omitempty"`
-	BaseURL  string `yaml:"baseURL,omitempty"`
-	Token    string `yaml:"token,omitempty"`
+	// === Defaults (grouped settings) ===
 
-	// Clone settings
-	CloneProto    string `yaml:"cloneProto,omitempty"`
-	SSHPort       int    `yaml:"sshPort,omitempty"`
-	SSHKeyPath    string `yaml:"sshKeyPath,omitempty"`    // SSH private key file path (priority)
-	SSHKeyContent string `yaml:"sshKeyContent,omitempty"` // SSH private key content (use ${ENV_VAR})
+	// Defaults groups all default settings
+	Defaults *DefaultsConfig `yaml:"defaults,omitempty"`
 
-	// Bulk operation settings
-	Parallel         int    `yaml:"parallel,omitempty"`
-	IncludeSubgroups bool   `yaml:"includeSubgroups,omitempty"`
-	SubgroupMode     string `yaml:"subgroupMode,omitempty"`
-	Format           string `yaml:"format,omitempty"`
+	// === Forge provider settings ===
+
+	Provider         string `yaml:"provider,omitempty"`         // github, gitlab, gitea
+	BaseURL          string `yaml:"baseURL,omitempty"`          // API endpoint
+	Token            string `yaml:"token,omitempty"`            // API token (use ${ENV_VAR})
+	IncludeSubgroups bool   `yaml:"includeSubgroups,omitempty"` // GitLab subgroups
+	SubgroupMode     string `yaml:"subgroupMode,omitempty"`     // flat, nested
+
+	// Default workspace settings
+	DefaultWorkspaceType WorkspaceType `yaml:"defaultWorkspaceType,omitempty"` // forge/git/config
+
+	// Self-sync configuration (sync config directory itself)
+	SelfSync *SelfSyncConfig `yaml:"selfSync,omitempty"`
 
 	// Command-specific overrides
 	Sync   *SyncConfig   `yaml:"sync,omitempty"`
@@ -378,44 +423,26 @@ type Config struct {
 	Pull   *PullConfig   `yaml:"pull,omitempty"`
 	Push   *PushConfig   `yaml:"push,omitempty"`
 
-	// === Hooks ===
-
 	// Hooks defines global before/after commands for all workspace syncs
-	// These are applied in addition to workspace-level hooks
 	Hooks *Hooks `yaml:"hooks,omitempty"`
 
-	// === Workspaces (recursive!) ===
-
 	// Workspaces is a map of named workspace configurations
-	// Each workspace can have its own forge source, sync settings, and nested workspaces
 	Workspaces map[string]*Workspace `yaml:"workspaces,omitempty"`
-
-	// === Metadata ===
 
 	// Metadata is optional information about this level
 	Metadata *Metadata `yaml:"metadata,omitempty"`
 
-	// === Discovery settings ===
-
 	// Discovery controls how workspaces are discovered
 	Discovery *DiscoveryConfig `yaml:"discovery,omitempty"`
 
-	// === Child config generation ===
-
 	// ChildConfigMode sets the default child config mode for all workspaces.
-	// Individual workspace settings override this default.
 	// Values: "repositories" (default), "workspaces", "none"
 	ChildConfigMode ChildConfigMode `yaml:"childConfigMode,omitempty"`
 
 	// === Internal fields (not serialized) ===
 
-	// ParentConfig is the resolved parent config (nil if no parent or not loaded)
-	// This is populated by LoadConfigRecursive when Parent field is set
-	ParentConfig *Config `yaml:"-"`
-
-	// ConfigPath is the absolute path to this config file
-	// Used for circular reference detection and relative path resolution
-	ConfigPath string `yaml:"-"`
+	ParentConfig *Config `yaml:"-"` // Resolved parent config
+	ConfigPath   string  `yaml:"-"` // Absolute path to this config file
 }
 
 // Workspace represents a named workspace in the hierarchy.
@@ -494,6 +521,10 @@ type Workspace struct {
 	Fetch         *FetchConfig  `yaml:"fetch,omitempty"`
 	Pull          *PullConfig   `yaml:"pull,omitempty"`
 	Push          *PushConfig   `yaml:"push,omitempty"`
+
+	// Filter patterns (override parent patterns)
+	IncludePatterns []string `yaml:"includePatterns,omitempty"` // Include repos matching these patterns
+	ExcludePatterns []string `yaml:"excludePatterns,omitempty"` // Exclude repos matching these patterns
 
 	// === Nested workspaces (recursive!) ===
 
@@ -696,4 +727,121 @@ const (
 // String returns a human-readable source description.
 func (s ConfigSource) String() string {
 	return string(s)
+}
+
+// ================================================================================
+// Config Helper Methods
+// ================================================================================
+
+// GetCloneProto returns clone protocol from defaults.clone.proto.
+func (c *Config) GetCloneProto() string {
+	if c.Defaults != nil && c.Defaults.Clone != nil {
+		return c.Defaults.Clone.Proto
+	}
+	return ""
+}
+
+// GetSSHPort returns SSH port from defaults.clone.sshPort.
+func (c *Config) GetSSHPort() int {
+	if c.Defaults != nil && c.Defaults.Clone != nil {
+		return c.Defaults.Clone.SSHPort
+	}
+	return 0
+}
+
+// GetSSHKeyPath returns SSH key path from defaults.clone.sshKeyPath.
+func (c *Config) GetSSHKeyPath() string {
+	if c.Defaults != nil && c.Defaults.Clone != nil {
+		return c.Defaults.Clone.SSHKeyPath
+	}
+	return ""
+}
+
+// GetSSHKeyContent returns SSH key content from defaults.clone.sshKeyContent.
+func (c *Config) GetSSHKeyContent() string {
+	if c.Defaults != nil && c.Defaults.Clone != nil {
+		return c.Defaults.Clone.SSHKeyContent
+	}
+	return ""
+}
+
+// GetSyncStrategy returns sync strategy (sync.strategy overrides defaults.sync.strategy).
+func (c *Config) GetSyncStrategy() string {
+	if c.Sync != nil && c.Sync.Strategy != "" {
+		return c.Sync.Strategy
+	}
+	if c.Defaults != nil && c.Defaults.Sync != nil {
+		return c.Defaults.Sync.Strategy
+	}
+	return ""
+}
+
+// GetParallel returns parallel worker count from defaults.sync.parallel.
+func (c *Config) GetParallel() int {
+	if c.Defaults != nil && c.Defaults.Sync != nil {
+		return c.Defaults.Sync.Parallel
+	}
+	return 0
+}
+
+// GetScanDepth returns scan depth from defaults.scan.depth.
+func (c *Config) GetScanDepth() int {
+	if c.Defaults != nil && c.Defaults.Scan != nil {
+		return c.Defaults.Scan.Depth
+	}
+	return 0
+}
+
+// GetCompactOutput returns compact output setting from defaults.output.compact.
+func (c *Config) GetCompactOutput() bool {
+	if c.Defaults != nil && c.Defaults.Output != nil {
+		return c.Defaults.Output.Compact
+	}
+	return false
+}
+
+// GetFormat returns output format from defaults.output.format.
+func (c *Config) GetFormat() string {
+	if c.Defaults != nil && c.Defaults.Output != nil {
+		return c.Defaults.Output.Format
+	}
+	return ""
+}
+
+// GetIncludePatterns returns include patterns from defaults.filter.include.
+func (c *Config) GetIncludePatterns() []string {
+	if c.Defaults != nil && c.Defaults.Filter != nil {
+		return c.Defaults.Filter.Include
+	}
+	return nil
+}
+
+// GetExcludePatterns returns exclude patterns from defaults.filter.exclude.
+func (c *Config) GetExcludePatterns() []string {
+	if c.Defaults != nil && c.Defaults.Filter != nil {
+		return c.Defaults.Filter.Exclude
+	}
+	return nil
+}
+
+// GetMaxRetries returns max retries (sync.maxRetries overrides defaults.sync.maxRetries).
+func (c *Config) GetMaxRetries() int {
+	if c.Sync != nil && c.Sync.MaxRetries != 0 {
+		return c.Sync.MaxRetries
+	}
+	if c.Defaults != nil && c.Defaults.Sync != nil {
+		return c.Defaults.Sync.MaxRetries
+	}
+	return 0
+}
+
+// GetTimeout returns timeout (sync.timeout overrides defaults.sync.timeout).
+func (c *Config) GetTimeout() string {
+	if c.Sync != nil && c.Sync.Timeout != "" {
+		return c.Sync.Timeout
+	}
+	if c.Defaults != nil && c.Defaults.Sync != nil {
+		return c.Defaults.Sync.Timeout
+	}
+	return ""
 }

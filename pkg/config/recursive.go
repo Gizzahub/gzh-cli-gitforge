@@ -226,14 +226,28 @@ func mergeWorkspaceOverrides(config *Config, ws *Workspace) {
 	if ws.Profile != "" {
 		config.Profile = ws.Profile
 	}
-	if ws.Parallel > 0 {
-		config.Parallel = ws.Parallel
-	}
-	if ws.CloneProto != "" {
-		config.CloneProto = ws.CloneProto
-	}
-	if ws.SSHPort > 0 {
-		config.SSHPort = ws.SSHPort
+	// Merge clone/sync settings into defaults
+	if ws.Parallel > 0 || ws.CloneProto != "" || ws.SSHPort > 0 {
+		if config.Defaults == nil {
+			config.Defaults = &DefaultsConfig{}
+		}
+		if ws.CloneProto != "" || ws.SSHPort > 0 {
+			if config.Defaults.Clone == nil {
+				config.Defaults.Clone = &CloneDefaults{}
+			}
+			if ws.CloneProto != "" {
+				config.Defaults.Clone.Proto = ws.CloneProto
+			}
+			if ws.SSHPort > 0 {
+				config.Defaults.Clone.SSHPort = ws.SSHPort
+			}
+		}
+		if ws.Parallel > 0 {
+			if config.Defaults.Sync == nil {
+				config.Defaults.Sync = &SyncDefaults{}
+			}
+			config.Defaults.Sync.Parallel = ws.Parallel
+		}
 	}
 	if ws.Sync != nil {
 		if config.Sync == nil {
@@ -335,28 +349,15 @@ func mergeParentConfig(child *Config, parent *Config) {
 	if child.Token == "" && parent.Token != "" {
 		child.Token = parent.Token
 	}
-
-	// Merge clone settings
-	if child.CloneProto == "" && parent.CloneProto != "" {
-		child.CloneProto = parent.CloneProto
-	}
-	if child.SSHPort == 0 && parent.SSHPort != 0 {
-		child.SSHPort = parent.SSHPort
-	}
-
-	// Merge bulk operation settings
-	if child.Parallel == 0 && parent.Parallel != 0 {
-		child.Parallel = parent.Parallel
-	}
 	if !child.IncludeSubgroups && parent.IncludeSubgroups {
 		child.IncludeSubgroups = parent.IncludeSubgroups
 	}
 	if child.SubgroupMode == "" && parent.SubgroupMode != "" {
 		child.SubgroupMode = parent.SubgroupMode
 	}
-	if child.Format == "" && parent.Format != "" {
-		child.Format = parent.Format
-	}
+
+	// Merge defaults (parent provides defaults)
+	mergeParentDefaults(child, parent)
 
 	// Merge command-specific configs (child overrides, but parent provides defaults)
 	if child.Sync == nil && parent.Sync != nil {
@@ -413,6 +414,92 @@ func mergeParentBranchConfig(child *BranchConfig, parent *BranchConfig) {
 	}
 	if len(child.ProtectedBranches) == 0 && len(parent.ProtectedBranches) > 0 {
 		child.ProtectedBranches = parent.ProtectedBranches
+	}
+}
+
+// mergeParentDefaults merges parent defaults into child defaults.
+// Child values take precedence over parent values.
+func mergeParentDefaults(child *Config, parent *Config) {
+	if parent.Defaults == nil {
+		return
+	}
+
+	if child.Defaults == nil {
+		child.Defaults = &DefaultsConfig{}
+	}
+
+	// Merge Clone defaults
+	if parent.Defaults.Clone != nil {
+		if child.Defaults.Clone == nil {
+			child.Defaults.Clone = &CloneDefaults{}
+		}
+		if child.Defaults.Clone.Proto == "" {
+			child.Defaults.Clone.Proto = parent.Defaults.Clone.Proto
+		}
+		if child.Defaults.Clone.SSHPort == 0 {
+			child.Defaults.Clone.SSHPort = parent.Defaults.Clone.SSHPort
+		}
+		if child.Defaults.Clone.SSHKeyPath == "" {
+			child.Defaults.Clone.SSHKeyPath = parent.Defaults.Clone.SSHKeyPath
+		}
+		if child.Defaults.Clone.SSHKeyContent == "" {
+			child.Defaults.Clone.SSHKeyContent = parent.Defaults.Clone.SSHKeyContent
+		}
+	}
+
+	// Merge Sync defaults
+	if parent.Defaults.Sync != nil {
+		if child.Defaults.Sync == nil {
+			child.Defaults.Sync = &SyncDefaults{}
+		}
+		if child.Defaults.Sync.Strategy == "" {
+			child.Defaults.Sync.Strategy = parent.Defaults.Sync.Strategy
+		}
+		if child.Defaults.Sync.Parallel == 0 {
+			child.Defaults.Sync.Parallel = parent.Defaults.Sync.Parallel
+		}
+		if child.Defaults.Sync.MaxRetries == 0 {
+			child.Defaults.Sync.MaxRetries = parent.Defaults.Sync.MaxRetries
+		}
+		if child.Defaults.Sync.Timeout == "" {
+			child.Defaults.Sync.Timeout = parent.Defaults.Sync.Timeout
+		}
+	}
+
+	// Merge Scan defaults
+	if parent.Defaults.Scan != nil {
+		if child.Defaults.Scan == nil {
+			child.Defaults.Scan = &ScanDefaults{}
+		}
+		if child.Defaults.Scan.Depth == 0 {
+			child.Defaults.Scan.Depth = parent.Defaults.Scan.Depth
+		}
+	}
+
+	// Merge Output defaults
+	if parent.Defaults.Output != nil {
+		if child.Defaults.Output == nil {
+			child.Defaults.Output = &OutputDefaults{}
+		}
+		if !child.Defaults.Output.Compact {
+			child.Defaults.Output.Compact = parent.Defaults.Output.Compact
+		}
+		if child.Defaults.Output.Format == "" {
+			child.Defaults.Output.Format = parent.Defaults.Output.Format
+		}
+	}
+
+	// Merge Filter defaults
+	if parent.Defaults.Filter != nil {
+		if child.Defaults.Filter == nil {
+			child.Defaults.Filter = &FilterDefaults{}
+		}
+		if len(child.Defaults.Filter.Include) == 0 {
+			child.Defaults.Filter.Include = parent.Defaults.Filter.Include
+		}
+		if len(child.Defaults.Filter.Exclude) == 0 {
+			child.Defaults.Filter.Exclude = parent.Defaults.Filter.Exclude
+		}
 	}
 }
 

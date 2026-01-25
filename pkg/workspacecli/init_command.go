@@ -38,7 +38,7 @@ const (
 // ValidStrategies for sync operations.
 var ValidStrategies = []string{"reset", "pull", "fetch", "skip"}
 
-// NormalizeKind normalizes kind value and returns canonical form with deprecation warning.
+// NormalizeKind normalizes kind value and returns canonical form.
 // Returns (canonical kind, warning message, error).
 func NormalizeKind(kind string) (ConfigKind, string, error) {
 	switch ConfigKind(kind) {
@@ -59,24 +59,26 @@ func NormalizeKind(kind string) (ConfigKind, string, error) {
 
 // InitOptions holds options for workspace init command.
 type InitOptions struct {
-	Path           string
-	Output         string
-	Depth          int
-	ExcludePattern string
-	IncludePattern string
-	NoGitIgnore    bool
-	Force          bool
-	Template       bool
-	Kind           string // repositories or workspaces
-	Strategy       string // reset, pull, fetch, skip
+	Path            string
+	Output          string
+	Depth           int
+	ExcludePattern  string
+	IncludePattern  string
+	NoGitIgnore     bool
+	Force           bool
+	Template        bool
+	Kind            string // repositories or workspaces
+	Strategy        string // reset, pull, fetch, skip
+	ExplainDefaults bool   // include commented defaults for omitted fields
 }
 
 func (f CommandFactory) newInitCmd() *cobra.Command {
 	opts := &InitOptions{
-		Output:   DefaultConfigFile,
-		Depth:    2,
-		Kind:     string(KindWorkspace),
-		Strategy: "reset",
+		Output:      DefaultConfigFile,
+		Depth:       2,
+		Kind:        string(KindWorkspace),
+		Strategy:    "pull", // Default: safe pull (not reset which destroys local changes)
+		NoGitIgnore: true,   // Default: ignore .gitignore (devbox pattern has subprojects in .gitignore)
 	}
 
 	cmd := &cobra.Command{
@@ -106,8 +108,8 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
   # Choose config kind (workspace or repositories)
   gz-git workspace init . --kind repositories
 
-  # Choose sync strategy (reset, pull, fetch, skip)
-  gz-git workspace init . --strategy pull`),
+  # Choose sync strategy (pull, reset, fetch, skip)
+  gz-git workspace init . --strategy reset`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// No arguments: show usage guide
 			if len(args) == 0 {
@@ -123,9 +125,11 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&opts.Depth, "scan-depth", "d", opts.Depth, "Directory scan depth")
 	cmd.Flags().StringVar(&opts.ExcludePattern, "exclude", "", "Exclude patterns (comma-separated)")
 	cmd.Flags().StringVar(&opts.IncludePattern, "include", "", "Force include patterns (comma-separated)")
-	cmd.Flags().BoolVar(&opts.NoGitIgnore, "no-gitignore", false, "Ignore .gitignore patterns")
+	cmd.Flags().BoolVar(&opts.NoGitIgnore, "no-gitignore", true, "Ignore .gitignore patterns (default: true for devbox pattern)")
+	cmd.Flags().Lookup("no-gitignore").NoOptDefVal = "true" // --no-gitignore without value means true
 	cmd.Flags().BoolVarP(&opts.Force, "force", "f", false, "Overwrite existing config file")
 	cmd.Flags().BoolVar(&opts.Template, "template", false, "Create empty template without scanning")
+	cmd.Flags().BoolVar(&opts.ExplainDefaults, "explain-defaults", false, "Include commented defaults for omitted fields")
 	cmd.Flags().StringVarP(&opts.Kind, "kind", "k", opts.Kind, "Config kind: workspace (hierarchical) or repositories (flat list)")
 	cmd.Flags().StringVarP(&opts.Strategy, "strategy", "s", opts.Strategy, "Sync strategy: reset, pull, fetch, skip")
 
@@ -150,9 +154,10 @@ func (f CommandFactory) showInitGuide(cmd *cobra.Command) error {
 	fmt.Fprintln(out, "  -d, --scan-depth int   Scan depth (default: 2)")
 	fmt.Fprintln(out, "  -o, --output string    Output file (default: .gz-git.yaml)")
 	fmt.Fprintln(out, "  -k, --kind string      Config kind: workspace (default) or repositories")
-	fmt.Fprintln(out, "  -s, --strategy string  Sync strategy: reset (default), pull, fetch, skip")
+	fmt.Fprintln(out, "  -s, --strategy string  Sync strategy: pull (default), reset, fetch, skip")
 	fmt.Fprintln(out, "  -f, --force            Overwrite existing config")
 	fmt.Fprintln(out, "      --template         Create empty template (no scanning)")
+	fmt.Fprintln(out, "      --explain-defaults Include commented defaults for omitted fields")
 	fmt.Fprintln(out, "      --exclude string   Exclude patterns (comma-separated)")
 	fmt.Fprintln(out)
 
@@ -327,9 +332,23 @@ func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scann
 	workspaces := make([]templates.WorkspaceScannedEntry, 0, len(repos))
 	for _, repo := range repos {
 		relPath := relativeRepoPath(baseDir, repo.Path)
+
+		// Skip the root directory itself - it's the orchestrator, not a target
+		// Including "." would cause workspace sync to reset the devbox directory
+		// selfSync handles the root directory separately
+		if relPath == "." {
+			continue
+		}
+
+		// Omit path when it equals the workspace name (compact mode)
+		pathValue := relPath
+		if relPath == repo.Name {
+			pathValue = ""
+		}
+
 		entry := templates.WorkspaceScannedEntry{
 			Name: repo.Name,
-			Path: relPath,
+			Path: pathValue,
 			URL:  extractPrimaryURL(repo.Remotes),
 		}
 		workspaces = append(workspaces, entry)
@@ -344,14 +363,15 @@ func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scann
 	}
 
 	data := templates.WorkspaceScannedData{
-		ScannedAt:  time.Now().Format(time.RFC3339),
-		Name:       workspaceName,
-		Count:      len(repos),
-		Strategy:   opts.Strategy,
-		Parallel:   10,
-		CloneProto: "ssh",
-		SSHPort:    0,
-		Workspaces: workspaces,
+		ScannedAt:       time.Now().Format(time.RFC3339),
+		Name:            workspaceName,
+		Count:           len(repos),
+		Strategy:        opts.Strategy,
+		Parallel:        10,
+		CloneProto:      "ssh",
+		SSHPort:         0,
+		ExplainDefaults: opts.ExplainDefaults,
+		Workspaces:      workspaces,
 	}
 
 	return templates.Render(templates.WorkspaceScanned, data)
@@ -362,6 +382,12 @@ func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*sc
 	repoEntries := make([]templates.ScannedRepoData, 0, len(repos))
 	for _, repo := range repos {
 		relPath := relativeRepoPath(baseDir, repo.Path)
+
+		// Skip the root directory itself - it's the orchestrator, not a target
+		if relPath == "." {
+			continue
+		}
+
 		pathValue := relPath
 		if relPath == repo.Name {
 			pathValue = ""
@@ -404,15 +430,16 @@ func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*sc
 	}
 
 	data := templates.ScannedData{
-		ScannedAt:    time.Now().Format(time.RFC3339),
-		BasePath:     ".",
-		Count:        len(repos),
-		Strategy:     opts.Strategy,
-		Parallel:     10,
-		MaxRetries:   3,
-		CloneProto:   "ssh",
-		SSHPort:      0,
-		Repositories: repoEntries,
+		ScannedAt:       time.Now().Format(time.RFC3339),
+		BasePath:        ".",
+		Count:           len(repos),
+		Strategy:        opts.Strategy,
+		Parallel:        10,
+		MaxRetries:      3,
+		CloneProto:      "ssh",
+		SSHPort:         0,
+		ExplainDefaults: opts.ExplainDefaults,
+		Repositories:    repoEntries,
 	}
 
 	return templates.Render(templates.RepositoriesScanned, data)

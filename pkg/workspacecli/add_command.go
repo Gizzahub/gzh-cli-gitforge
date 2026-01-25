@@ -52,8 +52,6 @@ func (f CommandFactory) newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.Name, "name", "", "Repository name")
 	cmd.Flags().StringVar(&opts.URL, "url", "", "Repository URL")
 	cmd.Flags().StringVar(&opts.Path, "path", "", "Path for clone")
-	cmd.Flags().StringVar(&opts.Path, "target", "", "Deprecated: use --path")
-	_ = cmd.Flags().MarkDeprecated("target", "use --path instead")
 	cmd.Flags().BoolVar(&opts.FromCurrent, "from-current", false, "Add current directory's repo")
 
 	return cmd

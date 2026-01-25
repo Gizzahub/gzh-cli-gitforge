@@ -31,7 +31,7 @@ const (
 const (
 	CloneKindGroups = "groups"
 	CloneKindFlat   = "flat"
-	CloneKindGroup  = "group" // deprecated
+	CloneKindGroup  = "group" // deprecated alias for groups
 )
 
 // ValidCloneStrategies contains valid strategy values for clone config.
@@ -171,7 +171,7 @@ func detectConfigType(config map[string]interface{}) ConfigType {
 		}
 	}
 
-	// Heuristic detection for backward compatibility
+	// Heuristic detection
 	// Clone config: has named groups (keys with target/repositories structure)
 	// Workspace config: has kind, workspaces, or repositories at top level
 
@@ -233,6 +233,9 @@ func validateWorkspaceConfig(config map[string]interface{}, result *ValidationRe
 	// Validate structure based on kind
 	validateStructure(config, result)
 
+	// Validate branch configuration
+	validateBranchConfig(config, result)
+
 	// Validate repositories/workspaces entries
 	validateEntries(config, result)
 }
@@ -268,13 +271,11 @@ func validateCloneKind(config map[string]interface{}, result *ValidationResult) 
 	}
 
 	switch kindStr {
-	case CloneKindGroups:
-		// Canonical - OK
+	case CloneKindGroups, CloneKindFlat:
+		// Valid kinds - OK
 	case CloneKindGroup:
 		result.Warnings = append(result.Warnings,
-			"'kind: group' is deprecated, use 'kind: groups' (plural)")
-	case CloneKindFlat:
-		// Canonical - OK
+			"'kind: group' is deprecated, use 'kind: groups' instead")
 	default:
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("invalid kind '%s': must be 'groups' or 'flat'", kindStr))
@@ -465,16 +466,16 @@ func validateKind(config map[string]interface{}, result *ValidationResult) {
 	}
 
 	switch kindStr {
-	case "workspace":
-		// Canonical - OK
+	case "workspace", "repositories":
+		// Valid kinds - OK
 	case "workspaces":
+		// Deprecated alias - warn but accept
 		result.Warnings = append(result.Warnings,
-			"'kind: workspaces' is deprecated, use 'kind: workspace' (singular)")
-	case "repositories":
-		// Canonical - OK
+			"'kind: workspaces' is deprecated, use 'kind: workspace' instead")
 	case "repository":
+		// Deprecated alias - warn but accept
 		result.Warnings = append(result.Warnings,
-			"'kind: repository' is deprecated, use 'kind: repositories' (plural)")
+			"'kind: repository' is deprecated, use 'kind: repositories' instead")
 	default:
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("invalid kind '%s': must be 'workspace' or 'repositories'", kindStr))
@@ -503,6 +504,32 @@ func validateVersion(config map[string]interface{}, result *ValidationResult) {
 		}
 	default:
 		result.Warnings = append(result.Warnings, "'version' should be an integer")
+	}
+}
+
+// validateBranchConfig checks the branch configuration.
+// Branch should be explicitly specified to avoid ambiguity.
+func validateBranchConfig(config map[string]interface{}, result *ValidationResult) {
+	// Check for branch at config level (defaults.branch or branch)
+	hasBranch := false
+
+	// Check defaults.branch
+	if defaults, ok := config["defaults"].(map[string]interface{}); ok {
+		if _, hasBranchInDefaults := defaults["branch"]; hasBranchInDefaults {
+			hasBranch = true
+		}
+	}
+
+	// Check top-level branch
+	if _, hasTopBranch := config["branch"]; hasTopBranch {
+		hasBranch = true
+	}
+
+	if !hasBranch {
+		result.Warnings = append(result.Warnings,
+			"no 'branch' configuration found - recommend specifying 'branch.defaultBranch' to avoid ambiguity")
+		result.Suggestions = append(result.Suggestions,
+			"Add 'branch: { defaultBranch: develop,master }' in defaults or at top level")
 	}
 }
 

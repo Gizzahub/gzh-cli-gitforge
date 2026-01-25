@@ -64,10 +64,6 @@ const (
 	// StatusWouldPush indicates the operation would push (dry-run mode).
 	StatusWouldPush = "would-push"
 
-	// StatusNothingToPush is deprecated. Use StatusUpToDate instead.
-	// Kept for backward compatibility.
-	StatusNothingToPush = "nothing-to-push"
-
 	// StatusClean indicates the repository working tree is clean.
 	StatusClean = "clean"
 

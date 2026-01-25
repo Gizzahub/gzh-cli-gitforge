@@ -61,8 +61,6 @@ func init() {
 
 	// Pull-specific flags
 	pullCmd.Flags().StringVarP(&pullStrategy, "merge-strategy", "s", "merge", "merge strategy: merge, rebase, ff-only")
-	pullCmd.Flags().StringVar(&pullStrategy, "strategy", "merge", "Deprecated: use --merge-strategy")
-	_ = pullCmd.Flags().MarkDeprecated("strategy", "use --merge-strategy instead")
 	pullCmd.Flags().BoolVarP(&pullPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
 	pullCmd.Flags().BoolVarP(&pullTags, "tags", "t", false, "fetch all tags from remote")
 	pullCmd.Flags().BoolVar(&pullStash, "stash", false, "automatically stash local changes before pull")

@@ -9,15 +9,141 @@ kind: workspace
 metadata:
   name: {{.Name}}
   scannedAt: {{.ScannedAt}}
+{{- if .ExplainDefaults}}
+  # type: development        # development, production, personal
+  # owner: username          # Owner name
+  # team: team-name          # Team name
+{{- end}}
 
-strategy: {{.Strategy}}
-parallel: {{.Parallel}}
-cloneProto: {{.CloneProto}}
-{{if .SSHPort}}sshPort: {{.SSHPort}}
-{{end}}
+# =============================================================================
+# Default Settings
+# These apply globally unless overridden at workspace level.
+# =============================================================================
+defaults:
+  # --- Clone settings ---
+  clone:
+    proto: {{.CloneProto}}              # ssh, https
+{{- if .SSHPort}}
+    sshPort: {{.SSHPort}}
+{{- else if .ExplainDefaults}}
+    # sshPort: 22             # Custom SSH port (for non-standard setups)
+{{- end}}
+{{- if .ExplainDefaults}}
+    # sshKeyPath: ~/.ssh/id_rsa    # SSH private key file path
+    # sshKeyContent: ${SSH_KEY}    # SSH key from env var (use for CI/CD)
+{{- end}}
+
+  # --- Sync settings ---
+  sync:
+    strategy: {{.Strategy}}             # reset (force), pull (safe), fetch (read-only), skip
+    parallel: {{.Parallel}}             # Parallel workers for bulk operations
+{{- if .ExplainDefaults}}
+    # maxRetries: 3           # Retry count on failure
+    # timeout: 60s            # Operation timeout (e.g., 30s, 1m, 5m)
+{{- end}}
+
+{{- if .ExplainDefaults}}
+  # --- Scan settings ---
+  # scan:
+  #   depth: 2                # Default scan depth for bulk operations
+
+  # --- Output settings ---
+  # output:
+  #   compact: true           # Omit redundant fields (path when equals name)
+  #   format: default         # Output format: default, compact, json, llm
+
+  # --- Filter settings ---
+  # filter:
+  #   include:                # Include repos matching these patterns (regex)
+  #     - "^core-"
+  #     - "^lib-"
+  #   exclude:                # Exclude repos matching these patterns (regex)
+  #     - "archived-"
+  #     - "deprecated-"
+{{- end}}
+
+# =============================================================================
+# Self-Sync Configuration
+# Sync the config directory (this directory) along with workspaces.
+# =============================================================================
+selfSync:
+  enabled: true
+  strategy: pull                        # fetch (safe), pull (with dirty check)
+{{- if .ExplainDefaults}}
+  # Note: "reset" is NOT allowed for selfSync to prevent data loss.
+  # If working tree is dirty, falls back to "fetch" automatically.
+{{- end}}
+
+{{- if .ExplainDefaults}}
+# =============================================================================
+# Branch Configuration (Optional)
+# =============================================================================
+# branch:
+#   defaultBranch: develop,master       # Fallback list: tries in order
+#   protectedBranches:                  # Branches protected from deletion
+#     - main
+#     - master
+#     - "release/*"
+
+# =============================================================================
+# Hooks (Optional)
+# Run commands before/after sync operations.
+# =============================================================================
+# hooks:
+#   before:
+#     - echo "Starting sync..."
+#     - mkdir -p logs
+#   after:
+#     - echo "Sync complete!"
+#     - make setup
+
+# =============================================================================
+# Inline Profiles (Optional)
+# Define profiles here instead of external files.
+# =============================================================================
+# profiles:
+#   work:
+#     provider: gitlab
+#     baseURL: https://gitlab.company.com
+#     token: ${WORK_GITLAB_TOKEN}
+#     cloneProto: ssh
+#   personal:
+#     provider: github
+#     token: ${GITHUB_TOKEN}
+
+{{- end}}
+# =============================================================================
+# Workspaces
+# Each workspace can be: git (single repo), forge (sync from GitLab/GitHub/Gitea)
+# =============================================================================
 workspaces:
 {{range .Workspaces}}  {{.Name}}:
-    path: {{.Path}}
-    type: git
-{{if .URL}}    url: {{.URL}}
-{{end}}{{end}}
+{{if .Path}}    path: {{.Path}}
+{{- else if $.ExplainDefaults}}
+    # path: {{.Name}}         # Default: same as workspace name
+{{- end}}
+{{- if .Type}}
+    type: {{.Type}}
+{{- else if $.ExplainDefaults}}
+    # type: git               # git (single repo), forge (sync org), config (nested)
+{{- end}}
+{{- if .URL}}
+    url: {{.URL}}
+{{- end}}
+{{- if $.ExplainDefaults}}
+    # --- Workspace-level overrides ---
+    # sync:
+    #   strategy: pull        # Override default strategy for this workspace
+    # branch:
+    #   defaultBranch: main
+    # hooks:
+    #   after:
+    #     - make install
+    # --- For type: forge ---
+    # source:
+    #   provider: gitlab
+    #   org: my-group
+    #   includeSubgroups: true
+    #   subgroupMode: flat    # flat, nested
+{{- end}}
+{{end}}

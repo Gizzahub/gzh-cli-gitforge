@@ -175,7 +175,7 @@ repositories:
 target: ~/projects
 parallel: 5
 structure: flat
-update: true
+strategy: pull
 repositories:
   - url: https://github.com/user/repo1.git
     name: custom-name-1
@@ -195,8 +195,8 @@ repositories:
 				if cfg.Structure != "flat" {
 					t.Errorf("expected structure flat, got %s", cfg.Structure)
 				}
-				if !cfg.Update {
-					t.Error("expected update true")
+				if cfg.Strategy != "pull" {
+					t.Errorf("expected strategy pull, got %s", cfg.Strategy)
 				}
 				if len(cfg.Repositories) != 2 {
 					t.Fatalf("expected 2 repositories, got %d", len(cfg.Repositories))
@@ -433,72 +433,44 @@ func TestResolveCloneStrategy(t *testing.T) {
 	tests := []struct {
 		name         string
 		cliStrategy  string
-		cliUpdate    bool
 		yamlStrategy string
-		yamlUpdate   bool
 		want         repository.UpdateStrategy
 	}{
 		{
 			name:         "defaults to skip",
 			cliStrategy:  "",
-			cliUpdate:    false,
 			yamlStrategy: "",
-			yamlUpdate:   false,
 			want:         repository.StrategySkip,
 		},
 		{
 			name:         "CLI strategy takes precedence",
 			cliStrategy:  "reset",
-			cliUpdate:    true,
 			yamlStrategy: "pull",
-			yamlUpdate:   true,
 			want:         repository.StrategyReset,
 		},
 		{
-			name:         "CLI update maps to pull",
+			name:         "YAML strategy when no CLI",
 			cliStrategy:  "",
-			cliUpdate:    true,
-			yamlStrategy: "",
-			yamlUpdate:   false,
-			want:         repository.StrategyPull,
-		},
-		{
-			name:         "YAML strategy when no CLI flags",
-			cliStrategy:  "",
-			cliUpdate:    false,
 			yamlStrategy: "rebase",
-			yamlUpdate:   false,
 			want:         repository.StrategyRebase,
 		},
 		{
-			name:         "YAML update maps to pull",
-			cliStrategy:  "",
-			cliUpdate:    false,
-			yamlStrategy: "",
-			yamlUpdate:   true,
-			want:         repository.StrategyPull,
-		},
-		{
-			name:         "CLI strategy overrides YAML update",
+			name:         "CLI skip overrides YAML",
 			cliStrategy:  "skip",
-			cliUpdate:    false,
-			yamlStrategy: "",
-			yamlUpdate:   true,
+			yamlStrategy: "pull",
 			want:         repository.StrategySkip,
 		},
 		{
-			name:         "YAML strategy overrides YAML update",
+			name:         "YAML fetch",
 			cliStrategy:  "",
-			cliUpdate:    false,
 			yamlStrategy: "fetch",
-			yamlUpdate:   true,
 			want:         repository.StrategyFetch,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := resolveCloneStrategy(tt.cliStrategy, tt.cliUpdate, tt.yamlStrategy, tt.yamlUpdate)
+			got := resolveCloneStrategy(tt.cliStrategy, tt.yamlStrategy)
 			if got != tt.want {
 				t.Errorf("resolveCloneStrategy() = %v, want %v", got, tt.want)
 			}
@@ -563,46 +535,6 @@ repositories:
 
 	if cfg.Strategy != "reset" {
 		t.Errorf("expected strategy reset, got %s", cfg.Strategy)
-	}
-}
-
-func TestParseCloneConfig_StrategyWithDeprecatedUpdate(t *testing.T) {
-	// When both strategy and update are specified, strategy should be used
-	yaml := `
-strategy: reset
-update: true
-repositories:
-  - url: https://github.com/user/repo.git
-`
-	tmpfile, err := os.CreateTemp("", "clone-config-*.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name())
-
-	if _, err := tmpfile.Write([]byte(yaml)); err != nil {
-		t.Fatal(err)
-	}
-	tmpfile.Close()
-
-	cfg, err := parseCloneConfig(tmpfile.Name(), false)
-	if err != nil {
-		t.Errorf("parseCloneConfig() error = %v", err)
-		return
-	}
-
-	// Both should be parsed
-	if cfg.Strategy != "reset" {
-		t.Errorf("expected strategy reset, got %s", cfg.Strategy)
-	}
-	if !cfg.Update {
-		t.Error("expected update true")
-	}
-
-	// Resolution should prefer strategy
-	resolved := resolveCloneStrategy("", false, cfg.Strategy, cfg.Update)
-	if resolved != repository.StrategyReset {
-		t.Errorf("expected resolved strategy reset, got %s", resolved)
 	}
 }
 
@@ -778,80 +710,6 @@ repositories:
 // ============================================================================
 // Clone Hooks Tests
 // ============================================================================
-
-func TestParseHookCommand(t *testing.T) {
-	tests := []struct {
-		name string
-		cmd  string
-		want []string
-	}{
-		{
-			name: "simple command",
-			cmd:  "echo hello",
-			want: []string{"echo", "hello"},
-		},
-		{
-			name: "command with path",
-			cmd:  "./reset-all-repos",
-			want: []string{"./reset-all-repos"},
-		},
-		{
-			name: "command with arguments",
-			cmd:  "make build test",
-			want: []string{"make", "build", "test"},
-		},
-		{
-			name: "command with double quotes",
-			cmd:  `echo "hello world"`,
-			want: []string{"echo", "hello world"},
-		},
-		{
-			name: "command with single quotes",
-			cmd:  `echo 'hello world'`,
-			want: []string{"echo", "hello world"},
-		},
-		{
-			name: "empty command",
-			cmd:  "",
-			want: nil,
-		},
-		{
-			name: "whitespace only",
-			cmd:  "   ",
-			want: nil,
-		},
-		{
-			name: "absolute path command",
-			cmd:  "/usr/bin/script arg1 arg2",
-			want: []string{"/usr/bin/script", "arg1", "arg2"},
-		},
-		{
-			name: "command with tabs",
-			cmd:  "ls\t-la\t/tmp",
-			want: []string{"ls", "-la", "/tmp"},
-		},
-		{
-			name: "mixed quotes",
-			cmd:  `echo "first arg" 'second arg'`,
-			want: []string{"echo", "first arg", "second arg"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := parseHookCommand(tt.cmd)
-			if len(got) != len(tt.want) {
-				t.Errorf("parseHookCommand(%q) = %v, want %v", tt.cmd, got, tt.want)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("parseHookCommand(%q)[%d] = %q, want %q", tt.cmd, i, got[i], tt.want[i])
-				}
-			}
-		})
-	}
-}
 
 func TestParseCloneHooks(t *testing.T) {
 	tests := []struct {

@@ -224,60 +224,6 @@ repositories:
 	}
 }
 
-// TestValidateCmd_DeprecatedKind tests warning for deprecated kind values.
-func TestValidateCmd_DeprecatedKind(t *testing.T) {
-	tests := []struct {
-		name     string
-		kind     string
-		wantWarn string
-	}{
-		{
-			name:     "repository (deprecated)",
-			kind:     "repository",
-			wantWarn: "deprecated",
-		},
-		{
-			name:     "workspaces (deprecated)",
-			kind:     "workspaces",
-			wantWarn: "deprecated",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			configPath := filepath.Join(tmpDir, "deprecated.yaml")
-
-			config := `
-version: 1
-kind: ` + tt.kind + `
-repositories:
-  - name: test
-    url: https://github.com/test/repo.git
-`
-			if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
-				t.Fatal(err)
-			}
-
-			factory := CommandFactory{}
-			cmd := factory.newValidateCmd()
-
-			buf := new(bytes.Buffer)
-			cmd.SetOut(buf)
-
-			cmd.SetArgs([]string{"-c", configPath})
-			if err := cmd.Execute(); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			output := buf.String()
-			if !strings.Contains(output, tt.wantWarn) {
-				t.Errorf("output should contain %q warning: %s", tt.wantWarn, output)
-			}
-		})
-	}
-}
-
 // TestValidateCmd_InvalidKind tests error for invalid kind values.
 func TestValidateCmd_InvalidKind(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -426,7 +372,6 @@ workspaces:
 
 	cmd.SetArgs([]string{"-c", configPath})
 	err := cmd.Execute()
-
 	// Should show warning but not fail
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -490,24 +435,16 @@ plugins:
 // TestValidateCmd_CloneConfigWithKind tests clone config with explicit kind.
 func TestValidateCmd_CloneConfigWithKind(t *testing.T) {
 	tests := []struct {
-		name     string
-		kind     string
-		wantWarn bool
+		name string
+		kind string
 	}{
 		{
-			name:     "groups (canonical)",
-			kind:     "groups",
-			wantWarn: false,
+			name: "groups",
+			kind: "groups",
 		},
 		{
-			name:     "group (deprecated)",
-			kind:     "group",
-			wantWarn: true,
-		},
-		{
-			name:     "flat",
-			kind:     "flat",
-			wantWarn: false,
+			name: "flat",
+			kind: "flat",
 		},
 	}
 
@@ -542,9 +479,94 @@ core:
 			}
 
 			output := buf.String()
-			hasWarning := strings.Contains(output, "deprecated")
-			if hasWarning != tt.wantWarn {
-				t.Errorf("hasWarning = %v, want %v, output: %s", hasWarning, tt.wantWarn, output)
+			if !strings.Contains(output, "valid") {
+				t.Errorf("config should be valid, output: %s", output)
+			}
+		})
+	}
+}
+
+// TestValidateCmd_DeprecatedKinds tests deprecated kind aliases with warnings.
+func TestValidateCmd_DeprecatedKinds(t *testing.T) {
+	tests := []struct {
+		name        string
+		kind        string
+		configType  string // "workspace" or "clone"
+		wantWarning string
+	}{
+		// Workspace deprecated aliases
+		{
+			name:        "workspaces - deprecated workspace alias",
+			kind:        "workspaces",
+			configType:  "workspace",
+			wantWarning: "'kind: workspaces' is deprecated",
+		},
+		{
+			name:        "repository - deprecated repositories alias",
+			kind:        "repository",
+			configType:  "workspace",
+			wantWarning: "'kind: repository' is deprecated",
+		},
+		// Clone deprecated alias
+		{
+			name:        "group - deprecated groups alias",
+			kind:        "group",
+			configType:  "clone",
+			wantWarning: "'kind: group' is deprecated",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "deprecated.yaml")
+
+			var config string
+			if tt.configType == "workspace" {
+				config = `
+version: 1
+kind: ` + tt.kind + `
+strategy: reset
+repositories:
+  - url: https://github.com/test/repo.git
+`
+			} else {
+				config = `
+version: 1
+kind: ` + tt.kind + `
+strategy: pull
+
+core:
+  target: "."
+  repositories:
+    - https://github.com/test/repo.git
+`
+			}
+
+			if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			factory := CommandFactory{}
+			cmd := factory.newValidateCmd()
+
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			cmd.SetArgs([]string{"-c", configPath})
+			// Should NOT error - deprecated aliases are accepted
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("deprecated kind should not cause error: %v", err)
+			}
+
+			output := buf.String()
+			// Should show deprecation warning
+			if !strings.Contains(output, tt.wantWarning) {
+				t.Errorf("expected deprecation warning %q, output: %s", tt.wantWarning, output)
+			}
+			// Should still be valid
+			if !strings.Contains(output, "valid") {
+				t.Errorf("config should be valid despite deprecation warning, output: %s", output)
 			}
 		})
 	}

@@ -356,19 +356,21 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		return fmt.Errorf("invalid provider '%s': must be github, gitlab, or gitea", c.Provider)
 	}
 
-	// Validate clone protocol if specified
-	if c.CloneProto != "" && !IsValidCloneProto(c.CloneProto) {
-		return fmt.Errorf("invalid clone protocol '%s': must be ssh or https", c.CloneProto)
-	}
-
-	// Validate SSH port if specified
-	if c.SSHPort != 0 && (c.SSHPort < 1 || c.SSHPort > 65535) {
-		return fmt.Errorf("invalid SSH port %d: must be between 1 and 65535", c.SSHPort)
-	}
-
-	// Validate parallel count if specified
-	if c.Parallel < 0 {
-		return fmt.Errorf("invalid parallel count %d: must be non-negative", c.Parallel)
+	// Validate defaults if specified
+	if c.Defaults != nil {
+		if c.Defaults.Clone != nil {
+			if c.Defaults.Clone.Proto != "" && !IsValidCloneProto(c.Defaults.Clone.Proto) {
+				return fmt.Errorf("invalid clone protocol '%s': must be ssh or https", c.Defaults.Clone.Proto)
+			}
+			if c.Defaults.Clone.SSHPort != 0 && (c.Defaults.Clone.SSHPort < 1 || c.Defaults.Clone.SSHPort > 65535) {
+				return fmt.Errorf("invalid SSH port %d: must be between 1 and 65535", c.Defaults.Clone.SSHPort)
+			}
+		}
+		if c.Defaults.Sync != nil {
+			if c.Defaults.Sync.Parallel < 0 {
+				return fmt.Errorf("invalid parallel count %d: must be non-negative", c.Defaults.Sync.Parallel)
+			}
+		}
 	}
 
 	// Validate subgroup mode if specified

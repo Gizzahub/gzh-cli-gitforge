@@ -282,10 +282,10 @@ func TestIsConfigSymlink(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		path       string
-		want       bool
-		wantErr    bool
+		name    string
+		path    string
+		want    bool
+		wantErr bool
 	}{
 		{
 			name:    "regular file",

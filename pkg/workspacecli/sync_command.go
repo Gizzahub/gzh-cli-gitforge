@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -79,26 +81,19 @@ Config File Structure (Reference):
 			configDir := filepath.Dir(absConfigPath)
 			configFile := filepath.Base(absConfigPath)
 
-			// Load legacy config first to check for "repositories" list (flat config)
-			// This preserves backward compatibility for File 1, 2 style configs
+			// Load config to check for "repositories" list (flat config format)
 			loader := FileSpecLoader{}
 			cfgData, err := loader.Load(ctx, configPath)
 			if err != nil {
 				return err
 			}
 
-			// Plan from legacy repositories list
+			// Plan from repositories list (flat config format)
 			var allActions []reposync.Action
 			if len(cfgData.Plan.Input.Repos) > 0 {
-				// Reconstruct a static planner that creates actions from repo specs
-				// Note: NewStaticPlanner takes a Plan, not Input.
-				// But we want to use the logic that existed previously?
-				// The previous code passed cfgData.Plan (PlanRequest) to orchestrator.
-				// The helper function below `createActionsFromLegacyPlan` does this.
-				//
 				// CRITICAL: Filter out the devbox directory itself to prevent self-reset
-				legacyActions := createActionsFromLegacyPlan(cfgData.Plan, configDir)
-				allActions = append(allActions, legacyActions...)
+				flatActions := createActionsFromFlatConfig(cfgData.Plan, configDir)
+				allActions = append(allActions, flatActions...)
 			}
 
 			// Load Recursive Config (File 4 style)
@@ -135,6 +130,14 @@ Config File Structure (Reference):
 				}
 			}
 
+			// Execute self-sync first (sync config directory itself)
+			if recursiveCfg != nil {
+				if err := executeSelfSync(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), dryRun); err != nil {
+					fmt.Fprintf(cmd.OutOrStdout(), "⚠️  Self-sync warning: %v\n", err)
+					// Continue with workspace sync even if self-sync fails
+				}
+			}
+
 			if len(allActions) == 0 {
 				fmt.Println("No repositories found to sync.")
 				return nil
@@ -159,8 +162,8 @@ Config File Structure (Reference):
 			}
 
 			// If recursive config has parallel setting and flag not set
-			if recursiveCfg != nil && recursiveCfg.Parallel > 0 && !cmd.Flags().Changed("parallel") {
-				runOpts.Parallel = recursiveCfg.Parallel
+			if recursiveCfg != nil && recursiveCfg.GetParallel() > 0 && !cmd.Flags().Changed("parallel") {
+				runOpts.Parallel = recursiveCfg.GetParallel()
 			}
 
 			progress := &consoleProgress{out: cmd.OutOrStdout()}
@@ -208,9 +211,9 @@ Config File Structure (Reference):
 	return cmd
 }
 
-// createActionsFromLegacyPlan converts legacy PlanRequest to Actions.
+// createActionsFromFlatConfig converts flat config PlanRequest to Actions.
 // configDir is the directory containing the config file, used to filter out devbox itself.
-func createActionsFromLegacyPlan(req reposync.PlanRequest, configDir string) []reposync.Action {
+func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []reposync.Action {
 	defaultStrategy := req.Options.DefaultStrategy
 	if defaultStrategy == "" {
 		defaultStrategy = reposync.StrategyReset
@@ -234,31 +237,10 @@ func createActionsFromLegacyPlan(req reposync.PlanRequest, configDir string) []r
 			strategy = defaultStrategy
 		}
 
-		// Simple logic: Assume update if we don't know status (Orchestrator normally handles this via Planner)
-		// But here we are bypassing planner.
-		// NOTE: GitExecutor handles Clone vs Check/Update based on dir existence usually?
-		// Actually, Executor takes an Action which HAS a Type (Clone/Update).
-		// We should probably check file existence here to be accurate,
-		// OR use ActionUpdate which often implies Clone if missing?
-		// Let's check `planner_forge.go` logic: it checks os.Stat.
-
-		// For legacy simple list, we can probably safely duplicate that check or default to Update which fallsback?
-		// GitExecutor.Execute:
-		// case ActionClone: git clone
-		// case ActionUpdate: check if exists -> pull/reset; else -> clone?
-		// Let's check executor_git.go... No time to check deeply.
-		// Safer to check existence.
-
-		actionType := reposync.ActionUpdate // Default preference
-		// We'll skip existence check here for brevity and assume Update handles missing?
-		// Actually better to mimic StaticPlanner logic if possible.
-		// StaticPlanner: "ActionClone if AssumePresent false".
-		// Let's set to Clone as default for safety?
-		// Actually, for workspace sync, Update is usually what we want if it exists.
-
+		// Use ActionUpdate - executor handles clone if directory doesn't exist
 		actions = append(actions, reposync.Action{
 			Repo:      repo,
-			Type:      actionType,
+			Type:      reposync.ActionUpdate,
 			Strategy:  strategy,
 			Reason:    "workspace config",
 			PlannedBy: "config",
@@ -295,10 +277,16 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			continue
 		}
 
-		fmt.Fprintf(out, "Planning nested workspace '%s' (%s/%s)...\n", name, ws.Source.Provider, ws.Source.Org)
-
 		// Resolve workspace path
 		wsPath := resolveWorkspacePath(ws.Path, configDir)
+
+		// Skip workspaces that point to the config directory itself
+		if wsPath == configDir || ws.Path == "." || ws.Path == "" {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, ws.Path)
+			continue
+		}
+
+		fmt.Fprintf(out, "Planning nested workspace '%s' (%s/%s)...\n", name, ws.Source.Provider, ws.Source.Org)
 
 		// Merge root and workspace hooks
 		mergedHooks := hooks.Merge(cfg.Hooks, ws.Hooks)
@@ -344,10 +332,10 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 
 		// Fallback to root config values
 		if cloneProto == "" && cfg != nil {
-			cloneProto = cfg.CloneProto
+			cloneProto = cfg.GetCloneProto()
 		}
 		if sshPort == 0 && cfg != nil {
-			sshPort = cfg.SSHPort
+			sshPort = cfg.GetSSHPort()
 		}
 
 		plannerConfig := reposync.ForgePlannerConfig{
@@ -443,10 +431,17 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 	var allActions []reposync.Action
 
 	for name, ws := range workspaces {
-		fmt.Fprintf(out, "Planning git workspace '%s' (%s)...\n", name, ws.URL)
-
 		// Resolve workspace path
 		wsPath := resolveWorkspacePath(ws.Path, configDir)
+
+		// Skip workspaces that point to the config directory itself
+		// This prevents accidental reset of the devbox/orchestrator directory
+		if wsPath == configDir || ws.Path == "." || ws.Path == "" {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, ws.Path)
+			continue
+		}
+
+		fmt.Fprintf(out, "Planning git workspace '%s' (%s)...\n", name, ws.URL)
 
 		// Merge root and workspace hooks
 		mergedHooks := hooks.Merge(cfg.Hooks, ws.Hooks)
@@ -616,8 +611,8 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 	parallel := 10
 	if ws.Parallel > 0 {
 		parallel = ws.Parallel
-	} else if parentCfg != nil && parentCfg.Parallel > 0 {
-		parallel = parentCfg.Parallel
+	} else if parentCfg != nil && parentCfg.GetParallel() > 0 {
+		parallel = parentCfg.GetParallel()
 	}
 
 	data := templates.ChildForgeData{
@@ -836,4 +831,101 @@ func resolveWorkspacePath(path, baseDir string) string {
 
 	// Handle relative paths
 	return filepath.Join(baseDir, path)
+}
+
+// executeSelfSync syncs the config directory itself if selfSync is enabled.
+// This runs before workspace sync to ensure the devbox is up-to-date.
+func executeSelfSync(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, dryRun bool) error {
+	if cfg.SelfSync == nil || !cfg.SelfSync.Enabled {
+		return nil
+	}
+
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "=== Self-sync (config directory) ===")
+
+	// Check if configDir is a git repository
+	gitDir := filepath.Join(configDir, ".git")
+	if _, err := os.Stat(gitDir); os.IsNotExist(err) {
+		fmt.Fprintf(out, "⚠️  Skipping self-sync: %s is not a git repository\n", configDir)
+		return nil
+	}
+
+	// Determine strategy (default to fetch for safety)
+	strategy := cfg.SelfSync.Strategy
+	if strategy == "" {
+		strategy = "fetch"
+	}
+
+	// Disallow reset for self-sync
+	if strategy == "reset" {
+		fmt.Fprintf(out, "⚠️  Strategy 'reset' not allowed for self-sync, falling back to 'fetch'\n")
+		strategy = "fetch"
+	}
+
+	if dryRun {
+		fmt.Fprintf(out, "  [dry-run] Would %s %s\n", strategy, configDir)
+		return nil
+	}
+
+	// Check if working tree is dirty
+	isDirty, err := isWorkingTreeDirty(ctx, configDir)
+	if err != nil {
+		fmt.Fprintf(out, "⚠️  Failed to check working tree status: %v\n", err)
+		// Continue with fetch as safe fallback
+		strategy = "fetch"
+	}
+
+	if isDirty && strategy == "pull" {
+		fmt.Fprintf(out, "  Working tree is dirty, falling back to fetch\n")
+		strategy = "fetch"
+	}
+
+	// Execute the sync
+	switch strategy {
+	case "fetch":
+		fmt.Fprintf(out, "  Fetching %s...\n", configDir)
+		if err := gitFetch(ctx, configDir); err != nil {
+			return fmt.Errorf("self-sync fetch failed: %w", err)
+		}
+		fmt.Fprintf(out, "  ✓ Fetched successfully\n")
+	case "pull":
+		fmt.Fprintf(out, "  Pulling %s...\n", configDir)
+		if err := gitPull(ctx, configDir); err != nil {
+			return fmt.Errorf("self-sync pull failed: %w", err)
+		}
+		fmt.Fprintf(out, "  ✓ Pulled successfully\n")
+	case "skip":
+		fmt.Fprintf(out, "  Skipping (strategy=skip)\n")
+	default:
+		fmt.Fprintf(out, "⚠️  Unknown self-sync strategy '%s', skipping\n", strategy)
+	}
+
+	fmt.Fprintln(out, "")
+	return nil
+}
+
+// isWorkingTreeDirty checks if the git working tree has uncommitted changes.
+func isWorkingTreeDirty(ctx context.Context, repoPath string) (bool, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, err
+	}
+	return len(strings.TrimSpace(string(output))) > 0, nil
+}
+
+// gitFetch runs git fetch --all in the specified directory.
+func gitFetch(ctx context.Context, repoPath string) error {
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "fetch", "--all", "--prune")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run()
+}
+
+// gitPull runs git pull in the specified directory.
+func gitPull(ctx context.Context, repoPath string) error {
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "pull")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run()
 }

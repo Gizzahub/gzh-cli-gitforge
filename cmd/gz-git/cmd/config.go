@@ -500,8 +500,8 @@ func printConfigTree(cfg *config.Config, path string, configFile string, depth i
 		if cfg.Profile != "" {
 			fmt.Printf("%s  profile: %s\n", indent, cfg.Profile)
 		}
-		if cfg.Parallel > 0 {
-			fmt.Printf("%s  parallel: %d\n", indent, cfg.Parallel)
+		if cfg.GetParallel() > 0 {
+			fmt.Printf("%s  parallel: %d\n", indent, cfg.GetParallel())
 		}
 	}
 

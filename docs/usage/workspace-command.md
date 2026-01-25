@@ -36,6 +36,9 @@ gz-git workspace init . --exclude "vendor,tmp,node_modules"
 # 빈 템플릿만 생성 (스캔 없이)
 gz-git workspace init . --template
 
+# 생략된 기본값 주석 포함
+gz-git workspace init . --explain-defaults
+
 # 출력 파일 지정
 gz-git workspace init . -o myworkspace.yaml
 ```
@@ -76,12 +79,10 @@ parallel: 10
 workspaces:
   project1:
     path: project1
-    type: git
     url: git@github.com:user/project1.git
 
   project2:
     path: project2
-    type: git
     url: git@github.com:user/project2.git
 ```
 

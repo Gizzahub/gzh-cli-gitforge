@@ -121,7 +121,6 @@ func CreateConfigSymlinkForce(srcPath, targetDir, parentConfigDir string) error 
 	return nil
 }
 
-
 // IsConfigSymlink checks if the config file at the given path is a symlink.
 func IsConfigSymlink(configPath string) (bool, error) {
 	fi, err := os.Lstat(configPath)

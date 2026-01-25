@@ -16,8 +16,11 @@ func TestLoadConfigRecursive(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create workstation config
-	workstationConfig := `parallel: 10
-cloneProto: ssh
+	workstationConfig := `defaults:
+  clone:
+    proto: ssh
+  sync:
+    parallel: 10
 workspaces:
   workspace:
     path: workspace
@@ -107,11 +110,11 @@ metadata:
 	}
 
 	// Verify workstation config
-	if config.Parallel != 10 {
-		t.Errorf("Expected parallel=10, got %d", config.Parallel)
+	if config.GetParallel() != 10 {
+		t.Errorf("Expected parallel=10, got %d", config.GetParallel())
 	}
-	if config.CloneProto != "ssh" {
-		t.Errorf("Expected cloneProto=ssh, got %s", config.CloneProto)
+	if config.GetCloneProto() != "ssh" {
+		t.Errorf("Expected cloneProto=ssh, got %s", config.GetCloneProto())
 	}
 	if config.Metadata == nil || config.Metadata.Name != "workstation" {
 		t.Error("Expected metadata.name=workstation")
@@ -277,8 +280,12 @@ func TestResolvePath(t *testing.T) {
 
 func TestMergeWorkspaceOverrides(t *testing.T) {
 	config := &Config{
-		Profile:  "original",
-		Parallel: 10,
+		Profile: "original",
+		Defaults: &DefaultsConfig{
+			Sync: &SyncDefaults{
+				Parallel: 10,
+			},
+		},
 		Sync: &SyncConfig{
 			Strategy: "reset",
 		},
@@ -297,8 +304,8 @@ func TestMergeWorkspaceOverrides(t *testing.T) {
 	if config.Profile != "override" {
 		t.Errorf("Expected profile=override, got %s", config.Profile)
 	}
-	if config.Parallel != 20 {
-		t.Errorf("Expected parallel=20, got %d", config.Parallel)
+	if config.GetParallel() != 20 {
+		t.Errorf("Expected parallel=20, got %d", config.GetParallel())
 	}
 	if config.Sync.Strategy != "pull" {
 		t.Errorf("Expected sync.strategy=pull, got %s", config.Sync.Strategy)
@@ -740,8 +747,11 @@ func TestLoadConfigRecursive_WithParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	workstationConfig := `parallel: 10
-cloneProto: ssh
+	workstationConfig := `defaults:
+  clone:
+    proto: ssh
+  sync:
+    parallel: 10
 provider: gitlab
 baseURL: https://gitlab.example.com
 
@@ -767,7 +777,9 @@ profiles:
 
 	mydevboxConfig := `parent: ../workstation/.gz-git.yaml
 profile: polypia
-parallel: 5
+defaults:
+  sync:
+    parallel: 5
 sync:
   strategy: pull
 `
@@ -785,16 +797,16 @@ sync:
 	if config.Profile != "polypia" {
 		t.Errorf("Expected profile=polypia, got %s", config.Profile)
 	}
-	if config.Parallel != 5 {
-		t.Errorf("Expected parallel=5 (child override), got %d", config.Parallel)
+	if config.GetParallel() != 5 {
+		t.Errorf("Expected parallel=5 (child override), got %d", config.GetParallel())
 	}
 	if config.Sync == nil || config.Sync.Strategy != "pull" {
 		t.Error("Expected sync.strategy=pull")
 	}
 
 	// Verify inherited values from parent
-	if config.CloneProto != "ssh" {
-		t.Errorf("Expected cloneProto=ssh (from parent), got %s", config.CloneProto)
+	if config.GetCloneProto() != "ssh" {
+		t.Errorf("Expected cloneProto=ssh (from parent), got %s", config.GetCloneProto())
 	}
 	if config.Provider != "gitlab" {
 		t.Errorf("Expected provider=gitlab (from parent), got %s", config.Provider)
@@ -807,8 +819,8 @@ sync:
 	if config.ParentConfig == nil {
 		t.Fatal("Expected ParentConfig to be set")
 	}
-	if config.ParentConfig.Parallel != 10 {
-		t.Errorf("Expected parent parallel=10, got %d", config.ParentConfig.Parallel)
+	if config.ParentConfig.GetParallel() != 10 {
+		t.Errorf("Expected parent parallel=10, got %d", config.ParentConfig.GetParallel())
 	}
 
 	// Verify profile lookup through chain
@@ -925,7 +937,9 @@ func TestLoadConfigRecursive_DeepParentChain(t *testing.T) {
 	if err := os.MkdirAll(level1Dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	level1Config := `parallel: 100
+	level1Config := `defaults:
+  sync:
+    parallel: 100
 profiles:
   root-profile:
     name: root-profile
@@ -941,8 +955,11 @@ profiles:
 		t.Fatal(err)
 	}
 	level2Config := `parent: ../level1/.gz-git.yaml
-parallel: 50
-cloneProto: https
+defaults:
+  clone:
+    proto: https
+  sync:
+    parallel: 50
 profiles:
   middle-profile:
     name: middle-profile
@@ -959,7 +976,9 @@ profiles:
 	}
 	level3Config := `parent: ../level2/.gz-git.yaml
 profile: root-profile
-parallel: 10
+defaults:
+  sync:
+    parallel: 10
 `
 	if err := os.WriteFile(filepath.Join(level3Dir, ".gz-git.yaml"), []byte(level3Config), 0o644); err != nil {
 		t.Fatal(err)
@@ -972,13 +991,13 @@ parallel: 10
 	}
 
 	// Verify level3 values
-	if config.Parallel != 10 {
-		t.Errorf("Expected parallel=10 (level3), got %d", config.Parallel)
+	if config.GetParallel() != 10 {
+		t.Errorf("Expected parallel=10 (level3), got %d", config.GetParallel())
 	}
 
 	// Verify inherited from level2
-	if config.CloneProto != "https" {
-		t.Errorf("Expected cloneProto=https (from level2), got %s", config.CloneProto)
+	if config.GetCloneProto() != "https" {
+		t.Errorf("Expected cloneProto=https (from level2), got %s", config.GetCloneProto())
 	}
 
 	// Verify parent chain depth
@@ -1138,10 +1157,16 @@ func TestGetParentChain(t *testing.T) {
 
 func TestMergeParentConfig(t *testing.T) {
 	parent := &Config{
-		Provider:   "gitlab",
-		BaseURL:    "https://gitlab.example.com",
-		CloneProto: "ssh",
-		Parallel:   10,
+		Provider: "gitlab",
+		BaseURL:  "https://gitlab.example.com",
+		Defaults: &DefaultsConfig{
+			Clone: &CloneDefaults{
+				Proto: "ssh",
+			},
+			Sync: &SyncDefaults{
+				Parallel: 10,
+			},
+		},
 		Sync: &SyncConfig{
 			Strategy:   "reset",
 			MaxRetries: 3,
@@ -1149,7 +1174,11 @@ func TestMergeParentConfig(t *testing.T) {
 	}
 
 	child := &Config{
-		Parallel: 5, // Override parent
+		Defaults: &DefaultsConfig{
+			Sync: &SyncDefaults{
+				Parallel: 5, // Override parent
+			},
+		},
 		Sync: &SyncConfig{
 			Strategy: "pull", // Override parent
 		},
@@ -1158,8 +1187,8 @@ func TestMergeParentConfig(t *testing.T) {
 	mergeParentConfig(child, parent)
 
 	// Child overrides preserved
-	if child.Parallel != 5 {
-		t.Errorf("Expected parallel=5 (child override), got %d", child.Parallel)
+	if child.GetParallel() != 5 {
+		t.Errorf("Expected parallel=5 (child override), got %d", child.GetParallel())
 	}
 	if child.Sync.Strategy != "pull" {
 		t.Errorf("Expected sync.strategy=pull (child override), got %s", child.Sync.Strategy)
@@ -1172,8 +1201,8 @@ func TestMergeParentConfig(t *testing.T) {
 	if child.BaseURL != "https://gitlab.example.com" {
 		t.Errorf("Expected baseURL from parent, got %s", child.BaseURL)
 	}
-	if child.CloneProto != "ssh" {
-		t.Errorf("Expected cloneProto=ssh (from parent), got %s", child.CloneProto)
+	if child.GetCloneProto() != "ssh" {
+		t.Errorf("Expected cloneProto=ssh (from parent), got %s", child.GetCloneProto())
 	}
 
 	// Sync config partially merged
@@ -1190,7 +1219,9 @@ func TestLoadConfigRecursive_AbsoluteParentPath(t *testing.T) {
 	if err := os.MkdirAll(parentDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	parentConfig := `parallel: 20
+	parentConfig := `defaults:
+  sync:
+    parallel: 20
 profiles:
   test-profile:
     name: test-profile
@@ -1222,8 +1253,8 @@ profile: test-profile
 	if config.ParentConfig == nil {
 		t.Fatal("Expected ParentConfig to be set")
 	}
-	if config.Parallel != 20 {
-		t.Errorf("Expected parallel=20 (from parent), got %d", config.Parallel)
+	if config.GetParallel() != 20 {
+		t.Errorf("Expected parallel=20 (from parent), got %d", config.GetParallel())
 	}
 
 	// Verify profile lookup
