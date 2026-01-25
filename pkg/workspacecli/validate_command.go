@@ -538,7 +538,7 @@ func validateStrategy(config map[string]interface{}, result *ValidationResult) {
 	strategy, ok := config["strategy"]
 	if !ok {
 		result.Suggestions = append(result.Suggestions,
-			"Add 'strategy: reset' (or pull, fetch, skip) to specify sync behavior")
+			"Add 'strategy: pull' (or reset, fetch, skip) to specify sync behavior")
 		return
 	}
 
