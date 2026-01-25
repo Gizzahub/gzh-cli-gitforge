@@ -318,3 +318,64 @@ func TestNormalizeProvider(t *testing.T) {
 		})
 	}
 }
+
+
+func TestValidateConfig_ChildConfigMode(t *testing.T) {
+	v := NewValidator()
+
+	tests := []struct {
+		name    string
+		config  *Config
+		wantErr bool
+	}{
+		{
+			name:    "nil config is valid",
+			config:  nil,
+			wantErr: false,
+		},
+		{
+			name: "empty childConfigMode is valid",
+			config: &Config{
+				ChildConfigMode: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "repositories mode is valid",
+			config: &Config{
+				ChildConfigMode: ChildConfigModeRepositories,
+			},
+			wantErr: false,
+		},
+		{
+			name: "workspaces mode is valid",
+			config: &Config{
+				ChildConfigMode: ChildConfigModeWorkspaces,
+			},
+			wantErr: false,
+		},
+		{
+			name: "none mode is valid",
+			config: &Config{
+				ChildConfigMode: ChildConfigModeNone,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid mode returns error",
+			config: &Config{
+				ChildConfigMode: "invalid",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := v.ValidateConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

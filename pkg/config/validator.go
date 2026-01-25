@@ -404,6 +404,13 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		}
 	}
 
+	// Validate global child config mode
+	if c.ChildConfigMode != "" {
+		if err := v.ValidateChildConfigMode(c.ChildConfigMode); err != nil {
+			return fmt.Errorf("config-level childConfigMode validation failed: %w", err)
+		}
+	}
+
 	return nil
 }
 

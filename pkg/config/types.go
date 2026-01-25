@@ -400,6 +400,13 @@ type Config struct {
 	// Discovery controls how workspaces are discovered
 	Discovery *DiscoveryConfig `yaml:"discovery,omitempty"`
 
+	// === Child config generation ===
+
+	// ChildConfigMode sets the default child config mode for all workspaces.
+	// Individual workspace settings override this default.
+	// Values: "repositories" (default), "workspaces", "none"
+	ChildConfigMode ChildConfigMode `yaml:"childConfigMode,omitempty"`
+
 	// === Internal fields (not serialized) ===
 
 	// ParentConfig is the resolved parent config (nil if no parent or not loaded)

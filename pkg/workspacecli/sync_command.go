@@ -535,8 +535,12 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 		}
 	}
 
-	// Get child config mode (default: repositories)
-	mode := ws.ChildConfigMode.Default()
+	// Get child config mode (workspace > config > default)
+	mode := ws.ChildConfigMode
+	if mode == "" && parentCfg != nil && parentCfg.ChildConfigMode != "" {
+		mode = parentCfg.ChildConfigMode
+	}
+	mode = mode.Default()
 
 	// If mode is "none": create directory only, no config file
 	if mode == config.ChildConfigModeNone {
@@ -734,6 +738,16 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		// Skip workspaces with forge source - they are handled by planForgeWorkspaces
 		// which writes a complete config with repository list
 		if ws.Source != nil {
+			continue
+		}
+
+		// Get child config mode (workspace > config > default)
+		mode := ws.ChildConfigMode
+		if mode == "" && cfg.ChildConfigMode != "" {
+			mode = cfg.ChildConfigMode
+		}
+		// Skip if mode is "none"
+		if mode == config.ChildConfigModeNone {
 			continue
 		}
 
