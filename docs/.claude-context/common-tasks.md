@@ -4,13 +4,19 @@
 
 gz-git은 **기본적으로 bulk 모드**로 동작합니다. 모든 주요 명령어는 디렉토리를 스캔하여 여러 repository를 병렬 처리합니다.
 
-### 기본값 (pkg/repository/types.go)
+### 기본값 (pkg/repository/defaults.go)
 
 ```go
-const (
-    DefaultBulkMaxDepth = 1    // 현재 디렉토리 + 1레벨
-    DefaultBulkParallel = 10    // 10개 병렬 처리
-)
+// Local operations (status, fetch, pull, push, etc.)
+DefaultLocalScanDepth = 1   // 현재 디렉토리 + 1레벨
+DefaultLocalParallel  = 10  // 10개 병렬 처리
+
+// Forge API operations (sync from-forge, config generate)
+DefaultForgeParallel  = 4   // API rate limit 고려
+
+// Legacy aliases (하위 호환성)
+DefaultBulkMaxDepth = DefaultLocalScanDepth
+DefaultBulkParallel = DefaultLocalParallel
 ```
 
 ### 스캔 깊이 설명
