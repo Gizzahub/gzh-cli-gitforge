@@ -1,13 +1,13 @@
 # Merge & Conflict Detection Example
 
-This example demonstrates gz-git merge and conflict detection features using the CLI.
+This example demonstrates gz-git conflict detection and merge-related library features.
 
 ## Features Demonstrated
 
 1. **Pre-Merge Conflict Detection**: Identify conflicts before attempting merge
-1. **Merge Execution**: Execute merges with various strategies
-1. **Merge Abort**: Safely abort in-progress merges
-1. **Rebase Operations**: Rebase branches interactively or non-interactively
+1. **Merge Execution (Library)**: Execute merges with various strategies
+1. **Merge Abort (Library)**: Safely abort in-progress merges
+1. **Rebase Operations (Library)**: Rebase branches interactively or non-interactively
 
 ## Usage
 
@@ -15,45 +15,45 @@ This example demonstrates gz-git merge and conflict detection features using the
 
 ```bash
 # Check for conflicts between branches
-gz-git merge detect feature/mybranch main
+gz-git conflict detect feature/mybranch main
 
 # Detailed conflict analysis
-gz-git merge detect feature/mybranch main --detailed
+gz-git conflict detect feature/mybranch main --detailed
 ```
 
-### Execute Merge
+### Execute Merge (Git)
 
 ```bash
 # Basic merge
-gz-git merge do feature/mybranch
+git merge feature/mybranch
 
 # Merge with specific strategy
-gz-git merge do feature/mybranch --strategy recursive
+git merge feature/mybranch --strategy recursive
 
 # Merge without creating commit (for review)
-gz-git merge do feature/mybranch --no-commit
+git merge feature/mybranch --no-commit
 ```
 
-### Abort Merge
+### Abort Merge (Git)
 
 ```bash
 # If merge has conflicts, abort and return to pre-merge state
-gz-git merge abort
+git merge --abort
 ```
 
-### Rebase Operations
+### Rebase Operations (Git)
 
 ```bash
 # Rebase current branch onto main
-gz-git merge rebase main
+git rebase main
 
 # Interactive rebase
-gz-git merge rebase main --interactive
+git rebase -i main
 ```
 
 ## Merge Strategies
 
-gz-git supports multiple merge strategies:
+gz-git library supports multiple merge strategies:
 
 - **fast-forward**: Fast-forward only (no merge commit)
 - **recursive**: Default 3-way merge (Git's default)

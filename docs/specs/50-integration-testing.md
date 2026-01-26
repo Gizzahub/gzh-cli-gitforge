@@ -70,7 +70,7 @@ cmd/gz-git/
 │   ├── commit.go       # Commit automation commands
 │   ├── branch.go       # Branch management commands
 │   ├── history.go      # History analysis commands
-│   ├── merge.go        # Merge/rebase commands
+│   ├── conflict.go     # Conflict detection commands
 │   └── version.go      # Version command
 ├── internal/
 │   ├── output/         # Output formatters (table, JSON, etc.)
@@ -347,33 +347,20 @@ gz-git history blame <file> [flags]
 - `-L <start>,<end>` - Line range
 - `--follow` - Follow renames
 
-### 1.7 Merge Commands
+### 1.7 Conflict Commands
 
 **Main Command:**
 
 ```bash
-gz-git merge <subcommand> [flags]
+gz-git conflict <subcommand> [flags]
 ```
 
 **Subcommands:**
 
-**1. Merge**
+**1. Detect Conflicts**
 
 ```bash
-gz-git merge do <branch> [flags]
-```
-
-**Flags:**
-
-- `--strategy <strat>` - ff|recursive|ours|theirs
-- `--no-commit` - Don't auto-commit
-- `--squash` - Squash commits
-- `-m, --message <msg>` - Commit message
-
-**2. Detect Conflicts**
-
-```bash
-gz-git merge detect <source> <target> [flags]
+gz-git conflict detect <source> <target> [flags]
 ```
 
 **Output:**
@@ -394,24 +381,10 @@ Recommendations:
   3. Resolve config file naming
 ```
 
-**3. Abort Merge**
+**Notes:**
 
-```bash
-gz-git merge abort
-```
-
-**4. Rebase**
-
-```bash
-gz-git merge rebase <branch> [flags]
-```
-
-**Flags:**
-
-- `-i, --interactive` - Interactive rebase
-- `--continue` - Continue after resolving
-- `--skip` - Skip current commit
-- `--abort` - Abort rebase
+- For actual merge operations, use native Git (`git merge`, `git merge --abort`).
+- For rebase workflows, use native Git (`git rebase`).
 
 ### 1.8 Version Command
 
@@ -579,8 +552,8 @@ gz-git commit auto --scope auth --type feat
 gz-git branch worktree list
 
 # Merge feature
-gz-git merge detect feature/auth main
-gz-git merge do feature/auth
+gz-git conflict detect feature/auth main
+git merge feature/auth
 
 # Cleanup
 gz-git branch cleanup --strategy merged
@@ -606,10 +579,10 @@ gz-git history stats --format json > review-stats.json
 
 ```bash
 # Detect conflicts before merge
-gz-git merge detect feature/new-auth feature/old-auth
+gz-git conflict detect feature/new-auth feature/old-auth
 
 # Attempt merge
-gz-git merge do feature/old-auth
+git merge feature/old-auth
 
 # Handle conflicts
 # ... resolve conflicts manually ...
@@ -617,7 +590,7 @@ git add .
 git commit
 
 # Or abort
-gz-git merge abort
+git merge --abort
 ```
 
 ### 3.3 E2E Test Requirements

@@ -139,7 +139,7 @@ gzh-cli-gitforge (gz-git)
 │   └── history blame - Line-by-line authorship
 │
 ├── Merge Detection (F4) ✅
-│   ├── merge detect - Conflict detection ✅
+│   ├── conflict detect - Conflict detection ✅
 │   └── Strategy selection ✅
 │
 ├── Sync & Watch
@@ -249,7 +249,7 @@ gz-git branch cleanup --merged          # Keep repo clean
 ```bash
 # Michael's team management workflow
 gz-git stats contributors --since week   # Team review
-gz-git merge --detect-conflicts         # Pre-merge check
+gz-git conflict detect feature/x main   # Pre-merge check
 gz-git stats commits --format json      # Metrics
 ```
 
@@ -362,9 +362,9 @@ gz-git history file src/main.go --contributors
 # CI script for auto-merge
 
 # Detect conflicts before attempting
-if gz-git merge --detect-conflicts feature/x; then
+if gz-git conflict detect feature/x main; then
     echo "No conflicts detected, proceeding with merge"
-    gz-git merge --auto-resolve feature/x --strategy theirs --policy safe
+    git merge feature/x
 else
     echo "Conflicts detected, manual intervention required"
     exit 1

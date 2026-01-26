@@ -130,7 +130,7 @@ gzh-cli/
         ├── commit.go
         ├── branch.go
         ├── history.go
-        └── merge.go
+        └── conflict.go
 ```
 
 ### 1.3 Client Wrapper
@@ -210,8 +210,7 @@ gz-git branch list         → gzh git branch list
 gz-git branch create       → gzh git branch create
 gz-git history stats       → gzh git history stats
 gz-git history contributors → gzh git history contributors
-gz-git merge do            → gzh git merge do
-gz-git merge detect        → gzh git merge detect
+gz-git conflict detect     → gzh git conflict detect
 ```
 
 ### 2.2 Command Implementation
@@ -566,10 +565,9 @@ All Git operations in gzh-cli are powered by the [gzh-cli-gitforge](https://gith
 - `gzh git history contributors` - Show contributor statistics
 - `gzh git history file <path>` - Show file history
 
-### Merge Operations
-- `gzh git merge do <branch>` - Merge a branch
-- `gzh git merge detect <src> <target>` - Detect merge conflicts
-- `gzh git merge abort` - Abort in-progress merge
+### Conflict Operations
+- `gzh git conflict detect <src> <target>` - Detect merge conflicts
+- For merge/abort/rebase, use native Git (`git merge`, `git merge --abort`, `git rebase`)
 
 ## Examples
 

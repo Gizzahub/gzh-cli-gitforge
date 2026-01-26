@@ -24,7 +24,7 @@ ______________________________________________________________________
   - `sync from-config` (YAML config)
 - Maintenance: `cleanup branch` (dry-run by default)
 - Monitoring: `watch` (default/compact/json/llm)
-- Insights: `history` (stats/contributors/file/blame), `info`, `merge detect`
+- Insights: `history` (stats/contributors/file/blame), `info`, `conflict detect`
 - Tag/stash helpers: `tag`, `stash`
 
 ______________________________________________________________________

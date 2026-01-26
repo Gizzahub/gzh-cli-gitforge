@@ -147,8 +147,8 @@ func main() {
 		fmt.Println("      NoCommit: false,")
 		fmt.Println("  })")
 		fmt.Println()
-		fmt.Println("Using CLI:")
-		fmt.Printf("  gz-git merge do %s\n", targetBranch)
+		fmt.Println("Using Git:")
+		fmt.Printf("  git merge %s\n", targetBranch)
 		fmt.Println()
 		fmt.Println("⚠️  This example does NOT execute the merge")
 	}
@@ -163,13 +163,13 @@ func main() {
 	fmt.Println("      Interactive: false,")
 	fmt.Println("  })")
 	fmt.Println()
-	fmt.Println("Using CLI:")
-	fmt.Println("  gz-git merge rebase main")
+	fmt.Println("Using Git:")
+	fmt.Println("  git rebase main")
 	fmt.Println()
 
 	// Suppress unused warning
 	_ = mergeManager
 
 	fmt.Println("Tip: Always detect conflicts before merging:")
-	fmt.Println("  gz-git merge detect <source> <target>")
+	fmt.Println("  gz-git conflict detect <source> <target>")
 }

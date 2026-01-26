@@ -141,7 +141,7 @@ gz-git commit -m "frontend:feat: add login" -m "backend:fix: handle null" --yes 
 gz-git commit --file /tmp/messages.json --yes -d 2 ~/projects
 ```
 
-## Branch & Merge
+## Branch & Conflict
 
 ### branch list (Bulk)
 
@@ -165,13 +165,13 @@ gz-git switch main --dry-run -d 2 ~/projects
 gz-git switch main --force -d 2 ~/projects
 ```
 
-### merge detect (Single repo)
+### conflict detect (Single repo)
 
 Detect potential conflicts between branches without modifying the working tree.
 
 ```bash
-gz-git merge detect <source> <target> [flags]
-gz-git merge detect feature/new-feature main
+gz-git conflict detect <source> <target> [flags]
+gz-git conflict detect feature/new-feature main
 ```
 
 ## Cleanup

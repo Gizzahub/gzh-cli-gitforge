@@ -23,11 +23,11 @@ func TestConflictDetection(t *testing.T) {
 		repo.Git("checkout", "master")
 
 		// Detect merge - should show no conflicts for clean merge
-		output := repo.RunGzhGit("merge", "detect", "feature/clean", "master")
+		output := repo.RunGzhGit("conflict", "detect", "feature/clean", "master")
 
 		// Should indicate no conflicts or show merge analysis
 		if len(output) > 0 {
-			t.Log("Merge detect completed successfully")
+			t.Log("Conflict detect completed successfully")
 		}
 	})
 
@@ -49,8 +49,8 @@ func TestConflictDetection(t *testing.T) {
 		repo.Git("checkout", "master")
 
 		// Detect conflicts between divergent branches
-		// When conflicts exist, merge detect returns non-zero exit status
-		output := repo.RunGzhGitExpectError("merge", "detect", "feature/version-a", "feature/version-b")
+		// When conflicts exist, conflict detect returns non-zero exit status
+		output := repo.RunGzhGitExpectError("conflict", "detect", "feature/version-a", "feature/version-b")
 
 		// Should detect conflicts in config.txt
 		AssertContains(t, output, "conflicts")
@@ -58,7 +58,7 @@ func TestConflictDetection(t *testing.T) {
 
 	t.Run("detect non-existent branch error", func(t *testing.T) {
 		// Try to detect with invalid branch
-		output := repo.RunGzhGitExpectError("merge", "detect", "nonexistent", "master")
+		output := repo.RunGzhGitExpectError("conflict", "detect", "nonexistent", "master")
 
 		// Should error
 		AssertContains(t, output, "not found")
@@ -98,9 +98,9 @@ func TestFastForwardMerge(t *testing.T) {
 		repo.Git("checkout", "master")
 
 		// Detect merge - should show fast-forward possible
-		output := repo.RunGzhGit("merge", "detect", "feature/ff", "master")
+		output := repo.RunGzhGit("conflict", "detect", "feature/ff", "master")
 		if len(output) > 0 {
-			t.Log("Merge detect completed for fast-forward scenario")
+			t.Log("Conflict detect completed for fast-forward scenario")
 		}
 
 		// Perform fast-forward merge using git
@@ -145,10 +145,9 @@ func TestNoFastForwardMerge(t *testing.T) {
 	})
 }
 
-// TestMergeErrorHandling tests merge detect error scenarios.
-// Note: merge do and merge rebase subcommands have been removed.
-// Use native git for merge: git merge <branch>
-func TestMergeErrorHandling(t *testing.T) {
+// TestConflictErrorHandling tests conflict detect error scenarios.
+// Note: gz-git only provides conflict detection; use native git for merges.
+func TestConflictErrorHandling(t *testing.T) {
 	repo := NewE2ERepo(t)
 
 	// Setup
@@ -158,7 +157,7 @@ func TestMergeErrorHandling(t *testing.T) {
 
 	t.Run("detect with invalid branches", func(t *testing.T) {
 		// Try to detect with invalid branches
-		output := repo.RunGzhGitExpectError("merge", "detect", "invalid1", "invalid2")
+		output := repo.RunGzhGitExpectError("conflict", "detect", "invalid1", "invalid2")
 
 		// Should error
 		AssertContains(t, output, "not found")
@@ -176,11 +175,11 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 
 	t.Run("conflict workflow documentation", func(t *testing.T) {
 		// This test documents the complete conflict resolution workflow
-		// Note: gz-git provides merge detect only. Actual merge operations
+		// Note: gz-git provides conflict detect only. Actual merge operations
 		// use native git commands.
 
 		t.Log("Complete Conflict Resolution Workflow:")
-		t.Log("1. Use 'gz-git merge detect <source> <target>' to preview conflicts")
+		t.Log("1. Use 'gz-git conflict detect <source> <target>' to preview conflicts")
 		t.Log("2. Attempt merge with 'git merge <branch>'")
 		t.Log("3. If conflicts occur, resolve them manually")
 		t.Log("4. Check status with 'gz-git status'")
@@ -193,8 +192,8 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 			t.Error("Status command returned no output")
 		}
 
-		// Verify merge detect error handling
-		detectOutput := repo.RunGzhGitExpectError("merge", "detect", "nonexistent", "master")
+		// Verify conflict detect error handling
+		detectOutput := repo.RunGzhGitExpectError("conflict", "detect", "nonexistent", "master")
 		AssertContains(t, detectOutput, "not found")
 	})
 }

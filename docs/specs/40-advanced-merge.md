@@ -13,7 +13,7 @@
 > - ✅ Conflict Detection (`pkg/merge/detector.go`)
 > - ✅ Merge Strategies (`pkg/merge/strategy.go`)
 > - ✅ Rebase Operations (`pkg/merge/rebase.go`)
-> - ✅ CLI: `gz-git merge detect` command
+> - ✅ CLI: `gz-git conflict detect` command
 
 ______________________________________________________________________
 
@@ -646,8 +646,8 @@ ______________________________________________________________________
 
 ```bash
 # Detect conflicts (IMPLEMENTED)
-gz-git merge detect <source> <target>    # Detect potential merge conflicts
-gz-git merge detect feature/new main     # Example usage
+gz-git conflict detect <source> <target>    # Detect potential merge conflicts
+gz-git conflict detect feature/new main     # Example usage
 ```
 
 ### Deferred to Native Git
@@ -727,8 +727,8 @@ ______________________________________________________________________
 
 ### Phase 5.4: CLI Integration ✅
 
-- [x] Implement cmd/gz-git/cmd/merge.go (parent command)
-- [x] Implement cmd/gz-git/cmd/merge_detect.go (conflict detection)
+- [x] Implement cmd/gz-git/cmd/conflict.go (parent command)
+- [x] Implement cmd/gz-git/cmd/conflict_detect.go (conflict detection)
 - [x] Validation: CLI commands functional
 
 ______________________________________________________________________
@@ -767,8 +767,8 @@ ______________________________________________________________________
 **Implementation Version**: v0.3.0+
 **Key Files**:
 
-- `cmd/gz-git/cmd/merge.go` - Merge command group
-- `cmd/gz-git/cmd/merge_detect.go` - Conflict detection CLI
+- `cmd/gz-git/cmd/conflict.go` - Conflict command group
+- `cmd/gz-git/cmd/conflict_detect.go` - Conflict detection CLI
 - `pkg/merge/types.go` - Core types
 - `pkg/merge/errors.go` - Error definitions
 - `pkg/merge/detector.go` - Conflict detection ✅

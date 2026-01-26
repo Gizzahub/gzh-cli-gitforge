@@ -19,31 +19,31 @@ var (
 	detectBaseCommit    string
 )
 
-// detectCmd represents the merge detect command
+// detectCmd represents the conflict detect command.
 var detectCmd = &cobra.Command{
 	Use:   "detect <source> <target>",
 	Short: "Detect potential merge conflicts",
 	Long: cliutil.QuickStartHelp(`  # Detect conflicts between branches
-  gz-git merge detect feature/new-feature main
+  gz-git conflict detect feature/new-feature main
 
   # Include binary file conflicts
-  gz-git merge detect feature/new-feature main --include-binary
+  gz-git conflict detect feature/new-feature main --include-binary
 
   # Detect with specific base commit
-  gz-git merge detect feature/new-feature main --base abc123`),
+  gz-git conflict detect feature/new-feature main --base abc123`),
 	Example: ``,
 	Args:    cobra.ExactArgs(2),
-	RunE:    runMergeDetect,
+	RunE:    runConflictDetect,
 }
 
 func init() {
-	mergeCmd.AddCommand(detectCmd)
+	conflictCmd.AddCommand(detectCmd)
 
 	detectCmd.Flags().BoolVar(&detectIncludeBinary, "include-binary", false, "include binary file conflicts")
 	detectCmd.Flags().StringVar(&detectBaseCommit, "base", "", "base commit for three-way merge")
 }
 
-func runMergeDetect(cmd *cobra.Command, args []string) error {
+func runConflictDetect(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	source := args[0]
 	target := args[1]
@@ -85,7 +85,7 @@ func runMergeDetect(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("Analyzing merge: %s → %s\n", source, target)
+		fmt.Printf("Analyzing conflicts: %s → %s\n", source, target)
 	}
 
 	// Detect conflicts

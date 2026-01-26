@@ -85,9 +85,9 @@ func TestAuthenticate(t *testing.T) {
 		repo.Git("checkout", "master")
 
 		// Detect potential conflicts before merge
-		detectOutput := repo.RunGzhGit("merge", "detect", "feature/authentication", "master")
+		detectOutput := repo.RunGzhGit("conflict", "detect", "feature/authentication", "master")
 		if len(detectOutput) > 0 {
-			t.Log("Merge detect completed for feature branch")
+			t.Log("Conflict detect completed for feature branch")
 		}
 
 		// Perform merge using git directly

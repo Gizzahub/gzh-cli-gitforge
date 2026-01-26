@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+- Removed `gz-git merge` command group/alias. Use `gz-git conflict detect` for pre-merge checks and native Git for merges.
+
 ## [3.0.0] - 2026-01-21
 
 ### BREAKING CHANGES
