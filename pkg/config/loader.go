@@ -6,6 +6,8 @@ package config
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // ConfigLoader handles configuration loading with 5-layer precedence.
@@ -111,7 +113,7 @@ func (l *ConfigLoader) ResolveConfig(flags map[string]interface{}) (*EffectiveCo
 
 // applyDefaults applies built-in default values.
 func (l *ConfigLoader) applyDefaults(cfg *EffectiveConfig) {
-	cfg.Parallel = 10
+	cfg.Parallel = repository.DefaultLocalParallel
 	cfg.CloneProto = "ssh"
 	cfg.Sync.Strategy = "pull"
 	cfg.Fetch.AllRemotes = true

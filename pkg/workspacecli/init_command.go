@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/scanner"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
@@ -332,9 +333,12 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 // ================================================================================
 
 // Default values for scanned configs.
+var (
+	defaultParallel   = repository.DefaultLocalParallel
+	defaultMaxRetries = repository.DefaultCloneRetries
+)
+
 const (
-	defaultParallel   = 10
-	defaultMaxRetries = 3
 	defaultCloneProto = "ssh"
 )
 

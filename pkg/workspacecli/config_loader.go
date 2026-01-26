@@ -143,7 +143,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 
 	// Set defaults
 	if result.Run.Parallel == 0 {
-		result.Run.Parallel = 10 // Default: 10 parallel workers (industry standard)
+		result.Run.Parallel = repository.DefaultLocalParallel
 	}
 	if result.Run.MaxRetries == 0 {
 		result.Run.MaxRetries = 3

@@ -40,7 +40,7 @@ func (e GitExecutor) Execute(ctx context.Context, plan Plan, opts RunOptions, si
 
 	parallel := opts.Parallel
 	if parallel <= 0 {
-		parallel = 4
+		parallel = repo.DefaultForgeParallel
 	}
 
 	type jobResult struct {

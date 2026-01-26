@@ -140,9 +140,14 @@ ______________________________________________________________________
 **All commands operate in bulk mode by default.** Scan directory to process multiple repos.
 
 ```go
-// Defaults: pkg/repository/types.go
-DefaultBulkMaxDepth = 1    // current + 1 level
-DefaultBulkParallel = 10   // 10 parallel operations
+// Defaults: pkg/repository/defaults.go
+
+// Local operations (status, fetch, pull, push, etc.)
+DefaultLocalScanDepth = 1   // current + 1 level
+DefaultLocalParallel  = 10  // 10 parallel operations
+
+// Forge API operations (sync from-forge, config generate)
+DefaultForgeParallel  = 4   // lower for API rate limits
 ```
 
 ### Common Flags

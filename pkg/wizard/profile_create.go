@@ -6,10 +6,12 @@ package wizard
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/charmbracelet/huh"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // ProfileCreateWizard guides users through profile creation.
@@ -268,7 +270,7 @@ func (w *ProfileCreateWizard) runGitLabOptionsStep() error {
 
 func (w *ProfileCreateWizard) runParallelStep() error {
 	var parallel string
-	parallel = "10"
+	parallel = strconv.Itoa(repository.DefaultLocalParallel)
 
 	form := huh.NewForm(
 		huh.NewGroup(

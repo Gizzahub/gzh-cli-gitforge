@@ -5,18 +5,10 @@ package repository
 
 // This file contains additional type definitions that support the repository package.
 // Types in this file are supplementary to the main interfaces defined in interfaces.go
-
-// Default values for bulk operations.
-const (
-	// DefaultBulkParallel is the default number of parallel workers.
-	DefaultBulkParallel = 10
-
-	// DefaultBulkMaxDepth is the default maximum directory depth to scan
-	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)
-	// maxDepth=2 means scan root + 2 levels (depth 0 -> depth 1 -> depth 2)
-	// Default is 1 to scan current directory and immediate subdirectories.
-	DefaultBulkMaxDepth = 1
-)
+//
+// Note: Default value constants are now defined in defaults.go with group-specific naming.
+// Legacy constant names (DefaultBulkParallel, DefaultBulkMaxDepth) are preserved as aliases
+// in defaults.go for backward compatibility.
 
 // OperationType represents the type of Git operation being performed.
 type OperationType string

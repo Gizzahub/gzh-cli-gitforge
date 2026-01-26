@@ -39,7 +39,7 @@ func (e DiagnosticExecutor) CheckHealth(ctx context.Context, repos []RepoSpec, o
 
 	parallel := opts.Parallel
 	if parallel <= 0 {
-		parallel = 4
+		parallel = repo.DefaultForgeParallel
 	}
 
 	jobs := make(chan RepoSpec, len(repos))

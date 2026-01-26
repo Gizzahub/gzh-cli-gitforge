@@ -201,7 +201,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 	defaultParallel := l.DefaultParallel
 	if defaultParallel <= 0 {
-		defaultParallel = 10
+		defaultParallel = repository.DefaultLocalParallel
 	}
 
 	defaultRetries := l.DefaultRetries
@@ -396,7 +396,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 
 	defaultParallel := l.DefaultParallel
 	if defaultParallel <= 0 {
-		defaultParallel = 10
+		defaultParallel = repository.DefaultLocalParallel
 	}
 
 	defaultRetries := l.DefaultRetries
@@ -492,7 +492,7 @@ func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (Con
 
 	defaultParallel := l.DefaultParallel
 	if defaultParallel <= 0 {
-		defaultParallel = 10
+		defaultParallel = repository.DefaultLocalParallel
 	}
 	if cfg.Parallel > 0 {
 		defaultParallel = cfg.Parallel

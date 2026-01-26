@@ -18,6 +18,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/hooks"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposynccli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
@@ -608,7 +609,7 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 	}
 
 	// Determine parallel
-	parallel := 10
+	parallel := repository.DefaultLocalParallel
 	if ws.Parallel > 0 {
 		parallel = ws.Parallel
 	} else if parentCfg != nil && parentCfg.GetParallel() > 0 {

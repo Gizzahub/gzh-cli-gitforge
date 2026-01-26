@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // SyncSetupOptions holds the results of the sync setup wizard.
@@ -236,7 +238,7 @@ func (w *SyncSetupWizard) runTargetStep() error {
 
 	var targetPath, parallel string
 	targetPath = defaultTarget
-	parallel = "10"
+	parallel = strconv.Itoa(repository.DefaultLocalParallel)
 
 	form := huh.NewForm(
 		huh.NewGroup(
