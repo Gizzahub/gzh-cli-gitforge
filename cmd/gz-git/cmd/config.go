@@ -55,6 +55,7 @@ var configInitCmd = &cobra.Command{
   # Initialize global config
   gz-git config init --global`),
 	Example: ``,
+	RunE:    runConfigInit,
 }
 
 // configShowCmd shows effective configuration
@@ -70,6 +71,7 @@ var configShowCmd = &cobra.Command{
   # Show effective config with source attribution
   gz-git config show --effective`),
 	Example: ``,
+	RunE:    runConfigShow,
 }
 
 // Profile subcommands
