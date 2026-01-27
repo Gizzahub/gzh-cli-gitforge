@@ -4,11 +4,66 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// unmarshalFile reads a file and unmarshals it based on its extension.
+func unmarshalFile(path string, v interface{}) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".json":
+		if err := json.Unmarshal(data, v); err != nil {
+			return fmt.Errorf("failed to parse json file: %w", err)
+		}
+	case ".yaml", ".yml":
+		if err := yaml.Unmarshal(data, v); err != nil {
+			return fmt.Errorf("failed to parse yaml file: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported config file extension: %s", ext)
+	}
+
+	return nil
+}
+
+// marshalFile marshals data and writes it to a file based on its extension.
+func marshalFile(path string, v interface{}, perm os.FileMode) error {
+	var data []byte
+	var err error
+
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".json":
+		data, err = json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal to json: %w", err)
+		}
+	case ".yaml", ".yml":
+		data, err = yaml.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("failed to marshal to yaml: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported config file extension: %s", ext)
+	}
+
+	if err := os.WriteFile(path, data, perm); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
 
 // Manager handles CRUD operations for profiles and configurations.
 type Manager struct {
@@ -103,15 +158,9 @@ func (m *Manager) SaveProfile(profile *Profile) error {
 		return fmt.Errorf("failed to create profiles directory: %w", err)
 	}
 
-	// Marshal to YAML
-	data, err := yaml.Marshal(profile)
-	if err != nil {
-		return fmt.Errorf("failed to marshal profile: %w", err)
-	}
-
 	// Write to file with restricted permissions (user read/write only)
 	profilePath := m.paths.ProfilePath(profile.Name)
-	if err := os.WriteFile(profilePath, data, 0o600); err != nil {
+	if err := marshalFile(profilePath, profile, 0o600); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 
@@ -131,15 +180,9 @@ func (m *Manager) LoadProfile(name string) (*Profile, error) {
 		return nil, fmt.Errorf("profile '%s' not found", name)
 	}
 
-	// Read profile file
-	data, err := os.ReadFile(profilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read profile file: %w", err)
-	}
-
-	// Unmarshal YAML
+	// Unmarshal file based on extension
 	var profile Profile
-	if err := yaml.Unmarshal(data, &profile); err != nil {
+	if err := unmarshalFile(profilePath, &profile); err != nil {
 		return nil, fmt.Errorf("failed to parse profile file: %w", err)
 	}
 
@@ -246,14 +289,8 @@ func (m *Manager) SaveGlobalConfig(config *GlobalConfig) error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	// Marshal to YAML
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal global config: %w", err)
-	}
-
 	// Write to file
-	if err := os.WriteFile(m.paths.GlobalConfigFile, data, 0o600); err != nil {
+	if err := marshalFile(m.paths.GlobalConfigFile, config, 0o600); err != nil {
 		return fmt.Errorf("failed to write global config file: %w", err)
 	}
 
@@ -274,15 +311,9 @@ func (m *Manager) LoadGlobalConfig() (*GlobalConfig, error) {
 		}, nil
 	}
 
-	// Read config file
-	data, err := os.ReadFile(m.paths.GlobalConfigFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read global config file: %w", err)
-	}
-
-	// Unmarshal YAML
+	// Unmarshal YAML or JSON
 	var config GlobalConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := unmarshalFile(m.paths.GlobalConfigFile, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse global config file: %w", err)
 	}
 
@@ -312,15 +343,9 @@ func (m *Manager) LoadProjectConfig() (*ProjectConfig, error) {
 		return nil, nil
 	}
 
-	// Read config file
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read project config file: %w", err)
-	}
-
-	// Unmarshal YAML
+	// Unmarshal YAML or JSON
 	var config ProjectConfig
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := unmarshalFile(configPath, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse project config file: %w", err)
 	}
 
@@ -364,20 +389,9 @@ func (m *Manager) SaveConfig(path string, configFile string, config *Config) err
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Marshal to YAML
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	// Ensure directory exists
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-
 	// Write to file
 	configPath := fmt.Sprintf("%s/%s", path, configFile)
-	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+	if err := marshalFile(configPath, config, 0o644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -411,15 +425,9 @@ func (m *Manager) SaveProjectConfig(config *ProjectConfig) error {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Marshal to YAML
-	data, err := yaml.Marshal(config)
-	if err != nil {
-		return fmt.Errorf("failed to marshal project config: %w", err)
-	}
-
 	// Write to current directory
 	configPath := fmt.Sprintf("%s/%s", cwd, ProjectConfigFileName)
-	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+	if err := marshalFile(configPath, config, 0o644); err != nil {
 		return fmt.Errorf("failed to write project config file: %w", err)
 	}
 

@@ -302,6 +302,8 @@ func getCloneStatusIcon(status string) string {
 		return "⊘"
 	case "would-clone", "would-update":
 		return "→"
+	case "dirty":
+		return "⚠"
 	case "error":
 		return "✗"
 	default:
@@ -457,7 +459,7 @@ type CloneRepoSpec struct {
 	Hooks  *CloneHooks `yaml:"hooks,omitempty"`  // Optional: repo-level hooks
 }
 
-// parseCloneConfig reads and parses YAML config from file or stdin.
+// parseCloneConfig reads and parses YAML or JSON config from file or stdin.
 // Detects format automatically: flat (has repositories) or grouped (has named groups).
 func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 	var data []byte
@@ -475,10 +477,25 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 		}
 	}
 
+	// Helper to unmarshal based on extension
+	unmarshal := func(d []byte, v interface{}) error {
+		ext := ""
+		if !useStdin {
+			ext = strings.ToLower(filepath.Ext(configPath))
+		}
+
+		switch ext {
+		case ".json":
+			return json.Unmarshal(d, v)
+		default: // .yaml, .yml, or stdin defaults to yaml
+			return yaml.Unmarshal(d, v)
+		}
+	}
+
 	// First, unmarshal to detect format
 	var rawMap map[string]interface{}
-	if err := yaml.Unmarshal(data, &rawMap); err != nil {
-		return nil, fmt.Errorf("parse YAML: %w", err)
+	if err := unmarshal(data, &rawMap); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	// Detect format: if 'repositories' key exists at top level, it's flat format
@@ -488,11 +505,12 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 
 	if hasRepositories {
 		// Flat format: unmarshal directly
-		if err := yaml.Unmarshal(data, config); err != nil {
+		if err := unmarshal(data, config); err != nil {
 			return nil, fmt.Errorf("parse flat config: %w", err)
 		}
 	} else {
 		// Grouped format: parse global settings and groups separately
+		// Note: This part still relies on map[string]interface{} and is format-agnostic
 		if err := parseGroupedCloneConfig(data, rawMap, config); err != nil {
 			return nil, err
 		}

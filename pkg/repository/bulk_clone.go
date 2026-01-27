@@ -211,11 +211,11 @@ func (c *client) BulkClone(ctx context.Context, opts BulkCloneOptions) (*BulkClo
 		switch res.Status {
 		case "cloned", "would-clone":
 			result.TotalCloned++
-		case "updated", "would-update":
+		case "updated", "would-update", "pulled", "rebased", "fetched":
 			result.TotalUpdated++
 		case "skipped":
 			result.TotalSkipped++
-		case "error":
+		case "error", "dirty":
 			result.TotalFailed++
 		}
 	}

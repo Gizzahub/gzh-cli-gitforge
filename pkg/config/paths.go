@@ -19,18 +19,22 @@ const (
 	// StateDirName is the subdirectory for runtime state
 	StateDirName = "state"
 
-	// GlobalConfigFileName is the main config file name
-	GlobalConfigFileName = "config.yaml"
+	// GlobalConfigFileName is the base name for the main config file
+	GlobalConfigFileName = "config"
 
-	// ProjectConfigFileName is the project-specific config file name
-	// Config kind is determined by the "kind" field inside the file, not by filename
-	ProjectConfigFileName = ".gz-git.yaml"
+	// ProjectConfigFileName is the base name for the project-specific config file
+	ProjectConfigFileName = ".gz-git"
 
 	// ActiveProfileFileName stores the active profile name
 	ActiveProfileFileName = "active-profile.txt"
 
 	// DefaultProfileName is the default profile
 	DefaultProfileName = "default"
+)
+
+var (
+	// supportedExtensions is the list of config file extensions to check
+	supportedExtensions = []string{".yaml", ".yml", ".json"}
 )
 
 // Paths provides access to all config file locations.
@@ -51,6 +55,18 @@ type Paths struct {
 	ActiveProfileFile string
 }
 
+// findFile checks for a file with multiple extensions and returns the first one found.
+// It prioritizes the extensions in the order they are provided.
+func findFile(basePath string, extensions []string) string {
+	for _, ext := range extensions {
+		path := basePath + ext
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
 // NewPaths creates a Paths instance with standard locations.
 // It uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config.
 func NewPaths() (*Paths, error) {
@@ -65,14 +81,15 @@ func NewPaths() (*Paths, error) {
 		ConfigDir:         configDir,
 		ProfilesDir:       filepath.Join(configDir, ProfilesDirName),
 		StateDir:          filepath.Join(configDir, StateDirName),
-		GlobalConfigFile:  filepath.Join(configDir, GlobalConfigFileName),
+		GlobalConfigFile:  findFile(filepath.Join(configDir, GlobalConfigFileName), supportedExtensions),
 		ActiveProfileFile: filepath.Join(configDir, StateDirName, ActiveProfileFileName),
 	}, nil
 }
 
-// ProfilePath returns the path to a specific profile file.
+// ProfilePath returns the path to a specific profile file, checking for supported extensions.
 func (p *Paths) ProfilePath(name string) string {
-	return filepath.Join(p.ProfilesDir, name+".yaml")
+	basePath := filepath.Join(p.ProfilesDir, name)
+	return findFile(basePath, supportedExtensions)
 }
 
 // EnsureDirectories creates all necessary directories with correct permissions.
@@ -104,8 +121,7 @@ func (p *Paths) Exists() bool {
 
 // ProfileExists checks if a profile file exists.
 func (p *Paths) ProfileExists(name string) bool {
-	_, err := os.Stat(p.ProfilePath(name))
-	return err == nil
+	return p.ProfilePath(name) != ""
 }
 
 // ListProfiles returns all available profile names.
@@ -124,15 +140,19 @@ func (p *Paths) ListProfiles() ([]string, error) {
 			continue
 		}
 		name := entry.Name()
-		if filepath.Ext(name) == ".yaml" {
-			profiles = append(profiles, name[:len(name)-5]) // Remove .yaml extension
+		ext := filepath.Ext(name)
+		for _, supportedExt := range supportedExtensions {
+			if ext == supportedExt {
+				profiles = append(profiles, name[:len(name)-len(ext)])
+				break
+			}
 		}
 	}
 
 	return profiles, nil
 }
 
-// FindProjectConfig walks up the directory tree to find .gz-git.yaml.
+// FindProjectConfig walks up the directory tree to find .gz-git config file.
 // It starts from the current working directory and stops at the home directory.
 func FindProjectConfig() (string, error) {
 	cwd, err := os.Getwd()
@@ -148,8 +168,8 @@ func FindProjectConfig() (string, error) {
 	// Walk up directory tree
 	dir := cwd
 	for {
-		configPath := filepath.Join(dir, ProjectConfigFileName)
-		if _, err := os.Stat(configPath); err == nil {
+		basePath := filepath.Join(dir, ProjectConfigFileName)
+		if configPath := findFile(basePath, supportedExtensions); configPath != "" {
 			return configPath, nil
 		}
 
@@ -204,14 +224,13 @@ func (p *Paths) SetActiveProfile(name string) error {
 }
 
 // DetectConfigFile searches for config files in the given directory.
-// Priority: .gz-git.yaml > .gz-git.yml
+// It checks for supported extensions in their defined order.
 // Returns the full path to the found config file, or an error if not found.
-// Note: Config kind is determined by the "kind" field inside the file, not by filename.
 func DetectConfigFile(dir string) (string, error) {
 	path, _ := DetectConfigFileWithKind(dir)
 	if path == "" {
-		return "", fmt.Errorf("config file not found in %s (tried: %s, .gz-git.yml)",
-			dir, ProjectConfigFileName)
+		return "", fmt.Errorf("config file not found in %s (tried %s with extensions %v)",
+			dir, ProjectConfigFileName, supportedExtensions)
 	}
 	return path, nil
 }
@@ -223,43 +242,26 @@ type ConfigFileInfo struct {
 }
 
 // DetectConfigFileWithKind searches for config files and returns path.
-// Priority: .gz-git.yaml > .gz-git.yml
-// Note: The returned ConfigKind is empty; actual kind should be determined
-// by reading the "kind" field inside the file or by content detection.
+// It checks for supported extensions in their defined order.
 func DetectConfigFileWithKind(dir string) (string, ConfigKind) {
-	candidates := []string{
-		ProjectConfigFileName,
-		".gz-git.yml",
+	basePath := filepath.Join(dir, ProjectConfigFileName)
+	if path := findFile(basePath, supportedExtensions); path != "" {
+		// Kind is not determined by filename; caller should read file content
+		return path, ""
 	}
-
-	for _, name := range candidates {
-		path := filepath.Join(dir, name)
-		if _, err := os.Stat(path); err == nil {
-			// Kind is not determined by filename; caller should read file content
-			return path, ""
-		}
-	}
-
 	return "", ""
 }
 
 // DetectAllConfigFiles finds all config files in a directory.
 // Returns list of found config file paths.
-// Note: Config kind should be determined by reading the "kind" field inside each file.
 func DetectAllConfigFiles(dir string) []string {
 	var result []string
-
-	candidates := []string{
-		ProjectConfigFileName,
-		".gz-git.yml",
-	}
-
-	for _, name := range candidates {
-		path := filepath.Join(dir, name)
+	basePath := filepath.Join(dir, ProjectConfigFileName)
+	for _, ext := range supportedExtensions {
+		path := basePath + ext
 		if _, err := os.Stat(path); err == nil {
 			result = append(result, path)
 		}
-	}
-
+_	}
 	return result
 }

@@ -284,20 +284,44 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 
 // applyPullStrategy performs a standard git pull (merge).
 func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
+	// Check for dirty working tree before pull
+	repo, err := c.Open(ctx, opts.Destination)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		logger.Warn("failed to check working tree status", "error", err)
+		// Continue with pull attempt
+	} else if !status.IsClean {
+		// Working tree has uncommitted changes
+		uncommittedCount := len(status.ModifiedFiles) + len(status.StagedFiles) + len(status.DeletedFiles)
+		untrackedCount := len(status.UntrackedFiles)
+		logger.Info("working tree is dirty, cannot pull", "uncommitted", uncommittedCount, "untracked", untrackedCount)
+		return &CloneOrUpdateResult{
+			Repository:   repo,
+			Action:       StatusDirty,
+			StrategyUsed: StrategyPull,
+			Success:      false,
+			Message:      fmt.Sprintf("Working tree has uncommitted changes (%d files) - commit or stash before pull", uncommittedCount+untrackedCount),
+		}, nil
+	}
+
 	args := []string{"pull", "origin"}
 	if opts.Branch != "" {
 		args = append(args, opts.Branch)
 	}
 
-	result, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
-	if err != nil {
-		return nil, fmt.Errorf("pull failed: %w", err)
+	pullResult, pullErr := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
+	if pullErr != nil {
+		return nil, fmt.Errorf("pull failed: %w", pullErr)
 	}
-	if result.ExitCode != 0 {
-		return nil, fmt.Errorf("pull failed: %w", result.Error)
+	if pullResult.ExitCode != 0 {
+		return nil, fmt.Errorf("pull failed: %w", pullResult.Error)
 	}
 
-	repo, err := c.Open(ctx, opts.Destination)
+	repo, err = c.Open(ctx, opts.Destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open repository after pull: %w", err)
 	}
@@ -353,10 +377,34 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 
 // applyRebaseStrategy rebases local changes on top of remote changes.
 func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
-	// Fetch latest changes (requires auth for remote access)
-	fetchResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, "fetch", "origin")
+	// Check for dirty working tree before rebase
+	repo, err := c.Open(ctx, opts.Destination)
 	if err != nil {
-		return nil, fmt.Errorf("fetch before rebase failed: %w", err)
+		return nil, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	status, err := c.GetStatus(ctx, repo)
+	if err != nil {
+		logger.Warn("failed to check working tree status", "error", err)
+		// Continue with rebase attempt
+	} else if !status.IsClean {
+		// Working tree has uncommitted changes
+		uncommittedCount := len(status.ModifiedFiles) + len(status.StagedFiles) + len(status.DeletedFiles)
+		untrackedCount := len(status.UntrackedFiles)
+		logger.Info("working tree is dirty, cannot rebase", "uncommitted", uncommittedCount, "untracked", untrackedCount)
+		return &CloneOrUpdateResult{
+			Repository:   repo,
+			Action:       StatusDirty,
+			StrategyUsed: StrategyRebase,
+			Success:      false,
+			Message:      fmt.Sprintf("Working tree has uncommitted changes (%d files) - commit or stash before rebase", uncommittedCount+untrackedCount),
+		}, nil
+	}
+
+	// Fetch latest changes (requires auth for remote access)
+	fetchResult, fetchErr := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, "fetch", "origin")
+	if fetchErr != nil {
+		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchErr)
 	}
 	if fetchResult.ExitCode != 0 {
 		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchResult.Error)
@@ -368,15 +416,15 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		args = append(args, opts.Branch)
 	}
 
-	rebaseResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
-	if err != nil {
-		return nil, fmt.Errorf("rebase failed: %w", err)
+	rebaseResult, rebaseErr := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
+	if rebaseErr != nil {
+		return nil, fmt.Errorf("rebase failed: %w", rebaseErr)
 	}
 	if rebaseResult.ExitCode != 0 {
 		return nil, fmt.Errorf("rebase failed: %w", rebaseResult.Error)
 	}
 
-	repo, err := c.Open(ctx, opts.Destination)
+	repo, err = c.Open(ctx, opts.Destination)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open repository after rebase: %w", err)
 	}
