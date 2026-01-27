@@ -262,6 +262,6 @@ func DetectAllConfigFiles(dir string) []string {
 		if _, err := os.Stat(path); err == nil {
 			result = append(result, path)
 		}
-_	}
+	}
 	return result
 }

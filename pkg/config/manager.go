@@ -158,8 +158,14 @@ func (m *Manager) SaveProfile(profile *Profile) error {
 		return fmt.Errorf("failed to create profiles directory: %w", err)
 	}
 
-	// Write to file with restricted permissions (user read/write only)
+	// Get path for existing profile, or construct a new one.
 	profilePath := m.paths.ProfilePath(profile.Name)
+	if profilePath == "" {
+		// This is a new profile, create it with the default .yaml extension.
+		profilePath = filepath.Join(m.paths.ProfilesDir, profile.Name+".yaml")
+	}
+
+	// Write to file with restricted permissions (user read/write only)
 	if err := marshalFile(profilePath, profile, 0o600); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
@@ -289,8 +295,15 @@ func (m *Manager) SaveGlobalConfig(config *GlobalConfig) error {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
+	// Get path for existing global config, or construct a new one.
+	configPath := m.paths.GlobalConfigFile
+	if configPath == "" {
+		// This is a new global config, create it with the default .yaml extension.
+		configPath = filepath.Join(m.paths.ConfigDir, GlobalConfigFileName+".yaml")
+	}
+
 	// Write to file
-	if err := marshalFile(m.paths.GlobalConfigFile, config, 0o600); err != nil {
+	if err := marshalFile(configPath, config, 0o600); err != nil {
 		return fmt.Errorf("failed to write global config file: %w", err)
 	}
 
@@ -425,8 +438,9 @@ func (m *Manager) SaveProjectConfig(config *ProjectConfig) error {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Write to current directory
-	configPath := fmt.Sprintf("%s/%s", cwd, ProjectConfigFileName)
+	// Write to current directory, ensuring it has a .yaml extension.
+	// The constant from paths.go is extension-agnostic.
+	configPath := filepath.Join(cwd, ProjectConfigFileName+".yaml")
 	if err := marshalFile(configPath, config, 0o644); err != nil {
 		return fmt.Errorf("failed to write project config file: %w", err)
 	}
