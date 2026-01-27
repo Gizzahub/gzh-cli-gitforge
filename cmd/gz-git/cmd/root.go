@@ -232,11 +232,3 @@ Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
 
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
 `
-
-func initConfig() {
-	// Configuration file support deferred to Phase 2
-	// Will implement with Viper when needed for:
-	// - Commit message templates
-	// - Default Git options
-	// - User preferences
-}
