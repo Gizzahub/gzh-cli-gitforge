@@ -51,10 +51,10 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				Parallel:       10,
 			},
 			wantPart: []string{
-				"gz-git sync from-forge",
+				"gz-git forge from-forge",
 				"--provider github",
 				"--org myorg",
-				"--target /tmp/repos",
+				"--path /tmp/repos",
 			},
 			dontWant: []string{
 				"--clone-proto", // ssh is default

@@ -146,7 +146,7 @@ ______________________________________________________________________
 DefaultLocalScanDepth = 1   // current + 1 level
 DefaultLocalParallel  = 10  // 10 parallel operations
 
-// Forge API operations (sync from-forge, config generate)
+// Forge API operations (forge from-forge, config generate)
 DefaultForgeParallel  = 4   // lower for API rate limits
 ```
 
@@ -208,10 +208,10 @@ ______________________________________________________________________
 | `commit`               | Commit all dirty repos                        |
 | `update`               | Safe update (pull --rebase)                   |
 | `cleanup branch`       | Clean merged/stale/gone branches              |
-| `sync from-forge`      | Sync from GitHub/GitLab/Gitea org             |
-| `sync config generate` | Generate config from Forge API                |
-| `sync status`          | Repository health diagnosis                   |
-| `sync setup`           | Interactive sync setup wizard                 |
+| `forge from-forge`      | Sync from GitHub/GitLab/Gitea org            |
+| `forge config generate` | Generate config from Forge API               |
+| `forge status`          | Repository health diagnosis                  |
+| `forge setup`           | Interactive forge sync setup wizard          |
 | `workspace init`       | Scan directory → generate config              |
 | `workspace sync`       | Clone/update from config                      |
 | `workspace generate-config` | Generate config from Git forge             |
@@ -241,35 +241,35 @@ gz-git workspace validate
 
 ______________________________________________________________________
 
-## Sync Commands (Forge API)
+## Forge Commands (Forge API)
 
 ```bash
 # Direct forge sync
-gz-git sync from-forge \
+gz-git forge from-forge \
   --provider gitlab \
   --org mygroup \
-  --target ~/repos \
+  --path ~/repos \
   --base-url https://gitlab.com \
   --token $GITLAB_TOKEN \
   --include-subgroups \
   --subgroup-mode flat
 
 # Generate config from forge (compact output by default)
-gz-git sync config generate \
+gz-git forge config generate \
   --provider gitlab \
   --org devbox \
   -o .gz-git.yaml
 
 # Generate with all fields (name, path) even if redundant
-gz-git sync config generate \
+gz-git forge config generate \
   --provider gitlab \
   --org devbox \
   -o .gz-git.yaml \
   --full
 
 # Health diagnosis
-gz-git sync status -c sync.yaml --verbose
-gz-git sync status --target ~/repos --depth 2 --timeout 60s
+gz-git forge status -c sync.yaml --verbose
+gz-git forge status --path ~/repos --scan-depth 2 --timeout 60s
 ```
 
 ### Health Status

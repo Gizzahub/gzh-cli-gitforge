@@ -45,22 +45,22 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Check repository health and sync status",
 		Long: cliutil.QuickStartHelp(`  # Check all repositories from config
-  gz-git sync status -c sync.yaml
+  gz-git forge status -c sync.yaml
 
   # Check repositories in a directory
-  gz-git sync status --path ~/repos --scan-depth 2
+  gz-git forge status --path ~/repos --scan-depth 2
 
   # Quick check (skip remote fetch)
-  gz-git sync status -c sync.yaml --skip-fetch
+  gz-git forge status -c sync.yaml --skip-fetch
 
   # Check with custom timeout
-  gz-git sync status -c sync.yaml --timeout 60s
+  gz-git forge status -c sync.yaml --timeout 60s
 
   # Detailed output
-  gz-git sync status -c sync.yaml --verbose
+  gz-git forge status -c sync.yaml --verbose
 
   # Auto-detect config in current directory
-  gz-git sync status`),
+  gz-git forge status`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runStatus(cmd, opts)
 		},
@@ -444,9 +444,9 @@ func generateCommandHelp(action string, paths []string) string {
 	switch action {
 	case "sync":
 		description = "To sync these repositories, run:"
-		cmd = "gz-git sync from-config -c <config-file>"
-		// Note: sync from-config doesn't support path filtering yet
-		// User needs to create a filtered config or use pull
+		cmd = "gz-git workspace sync -c <config-file>"
+		// Note: workspace sync doesn't support path filtering yet.
+		// Create a filtered config or use pull.
 
 	case "pull":
 		description = "To pull these repositories, run:"

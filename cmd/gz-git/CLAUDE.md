@@ -25,7 +25,7 @@ cmd/gz-git/
     ├── version.go      # Version information
     ├── clone.go        # Clone command
     ├── status.go       # Status command
-    ├── sync.go         # Sync commands
+    ├── forge.go        # Git forge commands
     ├── workspace.go    # Workspace commands
     ├── config.go       # Config commands
     ├── branch.go       # Branch commands

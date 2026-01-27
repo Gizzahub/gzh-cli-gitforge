@@ -42,17 +42,17 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 		Short:         short,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Long: `Git repository synchronization from Git forges (GitHub, GitLab, Gitea).
+		Long: `Git forge operations (GitHub, GitLab, Gitea).
 Use this command to interact directly with Forge APIs. For local config-based operations, use 'gz-git workspace'.
 
 ` + cliutil.QuickStartHelp(`  # 1. Generate config from Forge
-  gz-git sync config generate --provider gitlab --org myteam -o .gz-git.yaml
+  gz-git forge config generate --provider gitlab --org myteam -o .gz-git.yaml
 
   # 2. Sync directly from Forge (One-off)
-  gz-git sync from-forge --provider gitlab --org myteam --target ~/repos
+  gz-git forge from-forge --provider gitlab --org myteam --path ~/repos
 
   # 3. Check repository health
-  gz-git sync status --target ~/repos
+  gz-git forge status --path ~/repos
 
 See 'gz-git workspace' for managing synced repositories via config file.`),
 	}

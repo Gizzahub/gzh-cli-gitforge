@@ -64,16 +64,17 @@ For curated workflows and examples: `docs/commands/README.md`.
 
 ## How do I sync all repos from GitHub/GitLab/Gitea?
 
-Use `sync from-forge`:
+Use `forge from-forge`:
 
 ```bash
-gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
 ```
 
-Or `sync from-config` for YAML-based, explicit repo lists:
+Or generate a workspace config and sync via `workspace`:
 
 ```bash
-gz-git sync from-config -c sync-config.yaml
+gz-git forge config generate --provider github --org myorg -o .gz-git.yaml
+gz-git workspace sync
 ```
 
 ## How do I use it as a Go library?

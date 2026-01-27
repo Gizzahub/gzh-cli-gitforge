@@ -1,6 +1,6 @@
-# gz-git sync
+# gz-git forge
 
-Git Forge (GitHub, GitLab, Gitea) API를 통한 repository 동기화.
+Git Forge (GitHub, GitLab, Gitea) API를 통한 repository 동기화/설정 생성.
 
 ## 서브커맨드
 
@@ -17,26 +17,26 @@ Forge API에서 organization의 모든 repo를 직접 동기화.
 
 ```bash
 # GitHub
-gz-git sync from-forge \
+gz-git forge from-forge \
   --provider github \
   --org myorg \
-  --target ~/repos \
+  --path ~/repos \
   --token $GITHUB_TOKEN
 
 # GitLab (self-hosted)
-gz-git sync from-forge \
+gz-git forge from-forge \
   --provider gitlab \
   --org mygroup \
-  --target ~/repos \
+  --path ~/repos \
   --base-url https://gitlab.company.com \
   --token $GITLAB_TOKEN \
   --include-subgroups
 
 # Gitea
-gz-git sync from-forge \
+gz-git forge from-forge \
   --provider gitea \
   --org myorg \
-  --target ~/repos \
+  --path ~/repos \
   --base-url https://gitea.company.com \
   --token $GITEA_TOKEN
 ```
@@ -47,7 +47,7 @@ gz-git sync from-forge \
 |------|------|--------|
 | `--provider` | github, gitlab, gitea | - |
 | `--org` | Organization/Group 이름 | - |
-| `--target` | Clone 대상 디렉토리 | . |
+| `--path` | Clone 대상 디렉토리 | - (required) |
 | `--base-url` | API endpoint (self-hosted) | provider default |
 | `--token` | 인증 토큰 | - |
 | `--clone-proto` | Clone 프로토콜: ssh, https | ssh |
@@ -63,10 +63,10 @@ GitLab 하위 그룹 처리 방식:
 
 ```bash
 # flat: 대시로 연결 (parent-child-repo)
-gz-git sync from-forge --include-subgroups --subgroup-mode flat
+gz-git forge from-forge --include-subgroups --subgroup-mode flat
 
 # nested: 디렉토리 구조 (parent/child/repo)
-gz-git sync from-forge --include-subgroups --subgroup-mode nested
+gz-git forge from-forge --include-subgroups --subgroup-mode nested
 ```
 
 ## config generate
@@ -75,20 +75,20 @@ Forge API에서 config 파일 생성 (이후 `workspace sync`로 사용).
 
 ```bash
 # 기본 (compact 출력)
-gz-git sync config generate \
+gz-git forge config generate \
   --provider gitlab \
   --org devbox \
   -o .gz-git.yaml
 
 # 모든 필드 포함
-gz-git sync config generate \
+gz-git forge config generate \
   --provider gitlab \
   --org devbox \
   -o .gz-git.yaml \
   --full
 
 # stdout으로 출력
-gz-git sync config generate --provider github --org myorg
+gz-git forge config generate --provider github --org myorg
 ```
 
 ### 생성되는 config 형식
@@ -121,19 +121,19 @@ Repository health 진단 (모든 remote fetch 포함).
 
 ```bash
 # Config 기반
-gz-git sync status -c .gz-git.yaml
+gz-git forge status -c .gz-git.yaml
 
 # 디렉토리 스캔
-gz-git sync status --target ~/repos --depth 2
+gz-git forge status --path ~/repos --scan-depth 2
 
 # 빠른 체크 (fetch 생략)
-gz-git sync status --skip-fetch
+gz-git forge status --skip-fetch
 
 # Custom timeout
-gz-git sync status --timeout 60s
+gz-git forge status --timeout 60s
 
 # 상세 출력
-gz-git sync status --verbose
+gz-git forge status --verbose
 ```
 
 ### 출력 예시
@@ -166,7 +166,7 @@ Summary: 1 healthy, 1 warning, 1 error, 1 unreachable
 Interactive 설정 마법사.
 
 ```bash
-gz-git sync setup
+gz-git forge setup
 ```
 
 단계별로 provider, org, 인증 등을 설정하고 config 파일 생성.
@@ -177,13 +177,13 @@ gz-git sync setup
 
 ```bash
 # 1. Config 생성
-gz-git sync config generate --provider gitlab --org myteam -o .gz-git.yaml
+gz-git forge config generate --provider gitlab --org myteam -o .gz-git.yaml
 
 # 2. Clone
 gz-git workspace sync
 
 # 3. 상태 확인
-gz-git sync status
+gz-git forge status
 ```
 
 ### 2. 정기 동기화
@@ -195,7 +195,7 @@ gz-git sync status
 cd ~/mydevbox
 
 # Health check 먼저
-gz-git sync status --timeout 30s
+gz-git forge status --timeout 30s
 
 # 문제 없으면 동기화
 if [ $? -eq 0 ]; then
@@ -215,5 +215,5 @@ gz-git config profile create work \
 gz-git config profile use work
 
 # 이제 --provider, --token 생략 가능
-gz-git sync from-forge --org myteam --target ~/work
+gz-git forge from-forge --org myteam --path ~/work
 ```

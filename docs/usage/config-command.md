@@ -231,13 +231,13 @@ gz-git config profile create personal \
 
 # 2. 환경 전환
 gz-git config profile use work
-gz-git sync from-forge --org backend    # work profile 사용
+gz-git forge from-forge --org backend    # work profile 사용
 
 gz-git config profile use personal
-gz-git sync from-forge --org my-projects  # personal profile 사용
+gz-git forge from-forge --org my-projects  # personal profile 사용
 
 # 3. 일회성 override
-gz-git sync from-forge --profile work --org backend
+gz-git forge from-forge --profile work --org backend
 ```
 
 ### 프로젝트별 설정

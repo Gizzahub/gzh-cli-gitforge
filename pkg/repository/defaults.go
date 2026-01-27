@@ -21,7 +21,7 @@ const (
 )
 
 // === Group 2: Remote/Forge API Operations ===
-// Used for GitHub/GitLab/Gitea API calls (sync from-forge, config generate, etc.)
+// Used for GitHub/GitLab/Gitea API calls (forge from-forge, config generate, etc.)
 // Lower parallelism to respect rate limits and avoid API throttling.
 const (
 	// DefaultForgeParallel is the default number of parallel workers for forge API operations.

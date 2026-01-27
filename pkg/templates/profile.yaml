@@ -5,7 +5,7 @@
 #
 # Usage:
 #   gz-git config profile use {{.Name}}
-#   gz-git sync from-forge --org myorg  # Uses profile settings
+#   gz-git forge from-forge --org myorg --path ./repos  # Uses profile settings
 
 name: {{.Name}}
 

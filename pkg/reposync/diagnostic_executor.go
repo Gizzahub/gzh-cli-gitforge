@@ -315,7 +315,7 @@ func generateRecommendation(health RepoHealth) string {
 		// Check divergence-related warnings first
 		switch health.DivergenceType {
 		case DivergenceFastForward:
-			return fmt.Sprintf("Pull %d commits from upstream (fast-forward): gz-git sync from-config --strategy pull", health.BehindBy)
+			return fmt.Sprintf("Pull %d commits from upstream (fast-forward): gz-git workspace sync --strategy pull", health.BehindBy)
 		case DivergenceDiverged:
 			return fmt.Sprintf("Diverged: %d ahead, %d behind. Use 'git pull --rebase' or 'git merge' to reconcile", health.AheadBy, health.BehindBy)
 		case DivergenceAhead:

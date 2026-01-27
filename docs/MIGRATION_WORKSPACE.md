@@ -1,10 +1,10 @@
-# Migration Guide: sync → workspace
+# Migration Guide: sync → workspace (and forge)
 
 This document describes the migration from `gz-git sync from-config` to `gz-git workspace`.
 
 ## Overview
 
-In the latest release, config-based repository management has been moved from the `sync` command to a new `workspace` command. The `sync` command now focuses exclusively on Git Forge API operations.
+In the latest release, config-based repository management has been moved from the historical `sync` command to a new `workspace` command. Forge API operations now live under `forge`.
 
 ## Command Mapping
 
@@ -17,19 +17,19 @@ In the latest release, config-based repository management has been moved from th
 | N/A                               | `gz-git workspace add URL`      | Add repo to config       |
 | N/A                               | `gz-git workspace status`       | Check workspace health   |
 
-## What Stays in `sync`
+## What Stays in `forge`
 
-The following commands remain in the `sync` family for Git Forge API operations:
+The following commands are available for Git Forge API operations:
 
 ```bash
 # Sync directly from GitLab/GitHub/Gitea organization
-gz-git sync from-forge --provider gitlab --org devbox
+gz-git forge from-forge --provider gitlab --org devbox --path ./repos
 
 # Generate config from forge (for later use with workspace)
-gz-git sync config generate --provider gitlab --org devbox -o .gz-git.yaml
+gz-git forge config generate --provider gitlab --org devbox -o .gz-git.yaml
 
 # Check repository health (remote-focused)
-gz-git sync status --target ~/repos
+gz-git forge status --path ~/repos
 ```
 
 ## Migration Examples
@@ -74,7 +74,7 @@ gz-git workspace status
 
 ## Config File Compatibility
 
-**Config files are fully compatible.** The same `.gz-git.yaml` file works with both `sync` and `workspace` commands.
+**Config files are fully compatible.** Use `.gz-git.yaml` with `workspace` commands; for forge operations, use `forge status -c .gz-git.yaml` for health checks.
 
 Example config:
 
@@ -112,7 +112,7 @@ gz-git workspace status
 
 ```bash
 # Generate config from GitLab organization
-gz-git sync config generate --provider gitlab --org myorg -o .gz-git.yaml
+gz-git forge config generate --provider gitlab --org myorg -o .gz-git.yaml
 
 # Edit config as needed, then sync
 gz-git workspace sync

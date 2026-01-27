@@ -12,8 +12,8 @@ func init() {
 	orchestrator := reposync.NewOrchestrator(planner, executor, state)
 
 	factory := reposynccli.CommandFactory{
-		Use:          "sync",
-		Short:        "Git repository synchronization",
+		Use:          "forge",
+		Short:        "Git forge operations (sync/config/status)",
 		Orchestrator: orchestrator,
 		SpecLoader:   reposynccli.FileSpecLoader{},
 	}

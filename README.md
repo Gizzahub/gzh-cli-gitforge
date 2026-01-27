@@ -19,9 +19,9 @@ ______________________________________________________________________
 
 - Bulk operations with `--scan-depth` and `--parallel`: `status`, `fetch`, `pull`, `push`, `update`, `diff`, `commit`, `switch`
 - Bulk clone: `clone --url ...` / `clone --file ...` (+ `--update`)
-- Repo sync:
-  - `sync from-forge` (GitHub/GitLab/Gitea org/group/user)
-  - `sync from-config` (YAML config)
+- Git forge operations:
+  - `forge from-forge` (GitHub/GitLab/Gitea org/group/user)
+  - `forge config generate` → then `workspace sync` (YAML config workflow)
 - Maintenance: `cleanup branch` (dry-run by default)
 - Monitoring: `watch` (default/compact/json/llm)
 - Insights: `history` (stats/contributors/file/blame), `info`, `conflict detect`
@@ -61,7 +61,7 @@ gz-git switch feature/foo --create -d 2 ~/projects
 gz-git clone ~/projects --url https://github.com/user/repo1.git --url https://github.com/user/repo2.git
 
 # Sync all repos from a GitHub org
-gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
+gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
 ```
 
 ______________________________________________________________________

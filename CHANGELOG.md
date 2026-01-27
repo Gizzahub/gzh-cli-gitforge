@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### BREAKING CHANGES
 
 - Removed `gz-git merge` command group/alias. Use `gz-git conflict detect` for pre-merge checks and native Git for merges.
+- Renamed Forge API command group: `gz-git sync ...` → `gz-git forge ...` (no compatibility alias).
 
 ## [3.0.0] - 2026-01-21
 

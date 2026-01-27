@@ -225,25 +225,24 @@ gz-git watch --interval 5s --format compact
 
 More details: [docs/commands/watch.md](watch.md).
 
-## Sync (Forge / Config)
+## Forge (Sync / Config)
 
-### sync from-forge
+### forge from-forge
 
 Sync repositories from a forge provider (GitHub, GitLab, Gitea).
 
 ```bash
-gz-git sync from-forge --provider github --org myorg --target ./repos --token $GITHUB_TOKEN
-gz-git sync from-forge --provider gitlab --org mygroup --target ./repos --base-url https://gitlab.company.com
+gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
+gz-git forge from-forge --provider gitlab --org mygroup --path ./repos --base-url https://gitlab.company.com
 ```
 
-### sync from-config
+### forge config generate
 
-Plan and execute sync from a YAML config file.
+Generate a workspace config from a forge provider (GitHub, GitLab, Gitea).
 
 ```bash
-gz-git sync from-config -c sync-config.yaml
-gz-git sync from-config -c sync-config.yaml --dry-run
-gz-git sync from-config -c sync-config.yaml --strategy pull
+gz-git forge config generate --provider gitlab --org mygroup -o .gz-git.yaml
+gz-git workspace sync
 ```
 
 ## Stash

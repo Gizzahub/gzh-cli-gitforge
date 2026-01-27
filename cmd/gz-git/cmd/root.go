@@ -170,7 +170,7 @@ func setCommandGroups(cmd *cobra.Command) {
 		switch c.Name() {
 		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update", "diff":
 			c.GroupID = coreGroup.ID
-		case "workspace", "config", "sync", "schema", "cleanup":
+		case "workspace", "config", "forge", "schema", "cleanup":
 			c.GroupID = mgmtGroup.ID
 		default:
 			c.GroupID = toolGroup.ID

@@ -26,10 +26,10 @@ func (f CommandFactory) newSetupCmd() *cobra.Command {
 		Use:   "setup",
 		Short: "Interactive setup wizard for repository synchronization",
 		Long: cliutil.QuickStartHelp(`  # Start the setup wizard
-  gz-git sync setup
+  gz-git forge setup
 
   # After setup, run the generated command:
-  gz-git sync from-forge --provider gitlab --org myorg --path ~/repos`),
+  gz-git forge from-forge --provider gitlab --org myorg --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runSetup(cmd)
 		},

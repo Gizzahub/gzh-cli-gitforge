@@ -58,23 +58,23 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 		Use:   "from-forge",
 		Short: "Sync repositories from a Git forge (GitHub, GitLab, Gitea)",
 		Long: cliutil.QuickStartHelp(`  # Sync from GitHub organization (default: SSH clone)
-  gz-git sync from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
+  gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
 
   # Sync from GitLab group with HTTPS clone
-  gz-git sync from-forge --provider gitlab --org mygroup --path ./repos \
+  gz-git forge from-forge --provider gitlab --org mygroup --path ./repos \
     --token $GITLAB_TOKEN --clone-proto https
 
   # Sync from self-hosted GitLab with custom SSH port
-  gz-git sync from-forge --provider gitlab --org mygroup --path ./repos \
+  gz-git forge from-forge --provider gitlab --org mygroup --path ./repos \
     --base-url https://gitlab.company.com --token $GITLAB_TOKEN \
     --clone-proto ssh --ssh-port 2224
 
   # Sync GitLab with subgroups (flat mode)
-  gz-git sync from-forge --provider gitlab --org parent-group --path ./repos \
+  gz-git forge from-forge --provider gitlab --org parent-group --path ./repos \
     --include-subgroups --subgroup-mode flat
 
   # Sync from Gitea
-  gz-git sync from-forge --provider gitea --org myorg --path ./repos \
+  gz-git forge from-forge --provider gitea --org myorg --path ./repos \
     --base-url https://gitea.company.com --token $GITEA_TOKEN`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runFromForge(cmd, opts)

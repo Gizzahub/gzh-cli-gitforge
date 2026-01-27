@@ -123,7 +123,7 @@ plugins:
 
 ```bash
 # 먼저 sync로 config 생성
-gz-git sync config generate --provider github --org myorg -o repos.yaml
+gz-git forge config generate --provider github --org myorg -o repos.yaml
 
 # 생성된 config로 clone
 gz-git clone -c repos.yaml .

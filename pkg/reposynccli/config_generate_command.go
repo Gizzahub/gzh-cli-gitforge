@@ -56,21 +56,21 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 		Use:   "generate",
 		Short: "Generate config from Git forge (GitHub, GitLab, Gitea)",
 		Long: cliutil.QuickStartHelp(`  # Generate config from GitLab
-  gz-git sync config generate --provider gitlab --org devbox -o sync.yaml \
+  gz-git forge config generate --provider gitlab --org devbox -o sync.yaml \
     --token $GITLAB_TOKEN --path ~/repos
 
   # Include subgroups with flat naming
-  gz-git sync config generate --provider gitlab --org parent-group \
+  gz-git forge config generate --provider gitlab --org parent-group \
     --include-subgroups --subgroup-mode flat -o sync.yaml \
     --token $GITLAB_TOKEN --path ~/repos
 
   # Generate from GitHub with HTTPS clone
-  gz-git sync config generate --provider github --org myorg \
+  gz-git forge config generate --provider github --org myorg \
     --clone-proto https -o sync.yaml \
     --token $GITHUB_TOKEN --path ~/repos
 
   # Self-hosted GitLab with custom SSH port
-  gz-git sync config generate --provider gitlab --org mygroup \
+  gz-git forge config generate --provider gitlab --org mygroup \
     --base-url https://gitlab.company.com --ssh-port 2224 -o sync.yaml \
     --token $GITLAB_TOKEN --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -187,7 +187,7 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "✓ Generated configuration: %s (%d repositories)\n", opts.Output, len(repos))
-	fmt.Fprintf(cmd.OutOrStdout(), "\nReview the file and run:\n  gz-git sync from-config -c %s\n", opts.Output)
+	fmt.Fprintf(cmd.OutOrStdout(), "\nReview the file and run:\n  gz-git workspace sync -c %s\n", opts.Output)
 
 	return nil
 }

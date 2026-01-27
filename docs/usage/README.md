@@ -8,7 +8,7 @@ gz-git은 bulk-first Git CLI로, 여러 repository를 병렬로 관리합니다.
 |--------|------|------|
 | `clone` | 여러 repo 병렬 clone | [clone-command.md](clone-command.md) |
 | `status` | 여러 repo 상태 확인 | [status-command.md](status-command.md) |
-| `sync` | Forge API 동기화 | [sync-command.md](sync-command.md) |
+| `forge` | Forge API 동기화 | [forge-command.md](forge-command.md) |
 | `workspace` | 로컬 config 기반 관리 | [workspace-command.md](workspace-command.md) |
 | `config` | Profile 및 설정 관리 | [config-command.md](config-command.md) |
 | `push` | 여러 repo 병렬 push | [push-command.md](push-command.md) |
@@ -49,7 +49,7 @@ gz-git workspace sync
 
 ```bash
 # GitLab org에서 config 생성
-gz-git sync config generate --provider gitlab --org myorg -o .gz-git.yaml
+gz-git forge config generate --provider gitlab --org myorg -o .gz-git.yaml
 
 # 동기화
 gz-git workspace sync
@@ -118,7 +118,7 @@ gz-git --help
 
 # 명령어별 도움말
 gz-git clone --help
-gz-git sync --help
+gz-git forge --help
 
 # Config 스키마 참조
 gz-git schema

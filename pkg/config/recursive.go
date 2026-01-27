@@ -160,7 +160,7 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 
 		case WorkspaceTypeForge:
 			// Forge workspace - target directory may not exist yet
-			// It will be created when sync from-forge is run
+			// It will be created when forge from-forge is run
 			// No validation needed here
 		}
 
