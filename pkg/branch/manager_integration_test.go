@@ -46,13 +46,6 @@ func initTestGitRepo(t *testing.T, dir string) string {
 	return realDir
 }
 
-// createInitialCommit creates an initial commit in the test repository.
-// Deprecated: initTestGitRepo now includes initial commit.
-func createInitialCommit(t *testing.T, dir string) {
-	t.Helper()
-	// No-op: initTestGitRepo now handles this
-}
-
 // TestIntegration_BranchManager_Create tests branch creation with a real git repository.
 func TestIntegration_BranchManager_Create(t *testing.T) {
 	if testing.Short() {

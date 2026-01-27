@@ -401,21 +401,3 @@ func gitCommit(t *testing.T, dir, message string) {
 		t.Fatalf("Failed to git commit: %v", err)
 	}
 }
-
-func gitBranch(t *testing.T, dir, branch string) {
-	t.Helper()
-	cmd := exec.Command("git", "checkout", "-b", branch)
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to create branch: %v", err)
-	}
-}
-
-func gitCheckout(t *testing.T, dir, branch string) {
-	t.Helper()
-	cmd := exec.Command("git", "checkout", branch)
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to checkout branch: %v", err)
-	}
-}

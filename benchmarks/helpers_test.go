@@ -47,22 +47,6 @@ func setupLargeRepo(b *testing.B, path string, commits int) {
 	}
 }
 
-// setupRepoWithManyFiles creates a repository with many files.
-func setupRepoWithManyFiles(b *testing.B, path string, fileCount int) {
-	b.Helper()
-
-	setupGitRepo(b, path)
-
-	// Create many files in one commit
-	for i := 0; i < fileCount; i++ {
-		filename := filepath.Join(path, fmt.Sprintf("file%d.txt", i))
-		writeFile(b, filename, fmt.Sprintf("Content %d\n", i))
-	}
-
-	runCmd(b, path, "git", "add", ".")
-	runCmd(b, path, "git", "commit", "-m", "Add many files")
-}
-
 // runCmd executes a command in the specified directory.
 func runCmd(b *testing.B, dir string, name string, args ...string) {
 	b.Helper()
