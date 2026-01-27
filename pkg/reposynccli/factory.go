@@ -49,7 +49,7 @@ Use this command to interact directly with Forge APIs. For local config-based op
   gz-git forge config generate --provider gitlab --org myteam -o .gz-git.yaml
 
   # 2. Sync directly from Forge (One-off)
-  gz-git forge from-forge --provider gitlab --org myteam --path ~/repos
+  gz-git forge from --provider gitlab --org myteam --path ~/repos
 
   # 3. Check repository health
   gz-git forge status --path ~/repos

@@ -6,25 +6,25 @@ Git Forge (GitHub, GitLab, Gitea) API를 통한 repository 동기화/설정 생�
 
 | 커맨드 | 설명 |
 |--------|------|
-| `from-forge` | Forge에서 직접 clone/update |
+| `from` | Forge에서 직접 clone/update |
 | `config generate` | Forge API → config 파일 생성 |
 | `status` | Repository health 진단 |
 | `setup` | Interactive 설정 마법사 |
 
-## from-forge
+## from
 
 Forge API에서 organization의 모든 repo를 직접 동기화.
 
 ```bash
 # GitHub
-gz-git forge from-forge \
+gz-git forge from \
   --provider github \
   --org myorg \
   --path ~/repos \
   --token $GITHUB_TOKEN
 
 # GitLab (self-hosted)
-gz-git forge from-forge \
+gz-git forge from \
   --provider gitlab \
   --org mygroup \
   --path ~/repos \
@@ -33,7 +33,7 @@ gz-git forge from-forge \
   --include-subgroups
 
 # Gitea
-gz-git forge from-forge \
+gz-git forge from \
   --provider gitea \
   --org myorg \
   --path ~/repos \
@@ -63,10 +63,10 @@ GitLab 하위 그룹 처리 방식:
 
 ```bash
 # flat: 대시로 연결 (parent-child-repo)
-gz-git forge from-forge --include-subgroups --subgroup-mode flat
+gz-git forge from --include-subgroups --subgroup-mode flat
 
 # nested: 디렉토리 구조 (parent/child/repo)
-gz-git forge from-forge --include-subgroups --subgroup-mode nested
+gz-git forge from --include-subgroups --subgroup-mode nested
 ```
 
 ## config generate
@@ -215,5 +215,5 @@ gz-git config profile create work \
 gz-git config profile use work
 
 # 이제 --provider, --token 생략 가능
-gz-git forge from-forge --org myteam --path ~/work
+gz-git forge from --org myteam --path ~/work
 ```

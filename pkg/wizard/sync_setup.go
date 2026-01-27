@@ -388,7 +388,7 @@ func (w *SyncSetupWizard) printSummary() {
 
 // BuildCommand returns the equivalent CLI command for the options.
 func (w *SyncSetupWizard) BuildCommand() string {
-	parts := []string{"gz-git", "forge", "from-forge"}
+	parts := []string{"gz-git", "forge", "from"}
 
 	parts = append(parts, "--provider", w.opts.Provider)
 	parts = append(parts, "--org", w.opts.Organization)

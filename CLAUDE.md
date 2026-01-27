@@ -146,7 +146,7 @@ ______________________________________________________________________
 DefaultLocalScanDepth = 1   // current + 1 level
 DefaultLocalParallel  = 10  // 10 parallel operations
 
-// Forge API operations (forge from-forge, config generate)
+// Forge API operations (forge from, config generate)
 DefaultForgeParallel  = 4   // lower for API rate limits
 ```
 
@@ -208,7 +208,7 @@ ______________________________________________________________________
 | `commit`               | Commit all dirty repos                        |
 | `update`               | Safe update (pull --rebase)                   |
 | `cleanup branch`       | Clean merged/stale/gone branches              |
-| `forge from-forge`      | Sync from GitHub/GitLab/Gitea org            |
+| `forge from`            | Sync from GitHub/GitLab/Gitea org            |
 | `forge config generate` | Generate config from Forge API               |
 | `forge status`          | Repository health diagnosis                  |
 | `forge setup`           | Interactive forge sync setup wizard          |
@@ -245,7 +245,7 @@ ______________________________________________________________________
 
 ```bash
 # Direct forge sync
-gz-git forge from-forge \
+gz-git forge from \
   --provider gitlab \
   --org mygroup \
   --path ~/repos \

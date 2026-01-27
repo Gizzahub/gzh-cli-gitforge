@@ -31,7 +31,7 @@ ______________________________________________________________________
 ### Sync & Workspace
 
 - **reposync/** - Repository sync planner/executor (forge API → local)
-- **reposynccli/** - Sync CLI commands (from-forge, config generate)
+- **reposynccli/** - Sync CLI commands (from, config generate)
 - **workspacecli/** - Workspace CLI commands (init, scan, sync, status, add, validate)
 - **sync/** - Legacy sync package (being phased out)
 

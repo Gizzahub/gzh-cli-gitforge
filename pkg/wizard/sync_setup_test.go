@@ -51,7 +51,7 @@ func TestSyncSetupWizard_BuildCommand(t *testing.T) {
 				Parallel:       10,
 			},
 			wantPart: []string{
-				"gz-git forge from-forge",
+				"gz-git forge from",
 				"--provider github",
 				"--org myorg",
 				"--path /tmp/repos",

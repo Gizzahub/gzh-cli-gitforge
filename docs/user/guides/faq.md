@@ -64,10 +64,10 @@ For curated workflows and examples: `docs/commands/README.md`.
 
 ## How do I sync all repos from GitHub/GitLab/Gitea?
 
-Use `forge from-forge`:
+Use `forge from`:
 
 ```bash
-gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
+gz-git forge from --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
 ```
 
 Or generate a workspace config and sync via `workspace`:

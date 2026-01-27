@@ -63,7 +63,7 @@ func TestCommandFactory_NewRootCmd_HasSubcommands(t *testing.T) {
 		cmdNames[sub.Name()] = true
 	}
 
-	expectedCmds := []string{"from-forge", "config", "status", "setup"}
+	expectedCmds := []string{"from", "config", "status", "setup"}
 	for _, name := range expectedCmds {
 		if !cmdNames[name] {
 			t.Errorf("Expected subcommand %q not found", name)

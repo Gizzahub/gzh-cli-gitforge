@@ -227,13 +227,13 @@ More details: [docs/commands/watch.md](watch.md).
 
 ## Forge (Sync / Config)
 
-### forge from-forge
+### forge from
 
 Sync repositories from a forge provider (GitHub, GitLab, Gitea).
 
 ```bash
-gz-git forge from-forge --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
-gz-git forge from-forge --provider gitlab --org mygroup --path ./repos --base-url https://gitlab.company.com
+gz-git forge from --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
+gz-git forge from --provider gitlab --org mygroup --path ./repos --base-url https://gitlab.company.com
 ```
 
 ### forge config generate

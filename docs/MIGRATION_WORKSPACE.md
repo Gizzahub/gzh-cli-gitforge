@@ -23,7 +23,7 @@ The following commands are available for Git Forge API operations:
 
 ```bash
 # Sync directly from GitLab/GitHub/Gitea organization
-gz-git forge from-forge --provider gitlab --org devbox --path ./repos
+gz-git forge from --provider gitlab --org devbox --path ./repos
 
 # Generate config from forge (for later use with workspace)
 gz-git forge config generate --provider gitlab --org devbox -o .gz-git.yaml
