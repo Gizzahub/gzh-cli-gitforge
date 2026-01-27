@@ -35,7 +35,6 @@ type StatusModel struct {
 	ready      bool                  // terminal size received
 	action     string                // pending action: "sync", "pull", "fetch"
 	showDetail bool                  // show detail view
-	err        error                 // last error
 }
 
 // NewStatusModel creates a new status TUI model.

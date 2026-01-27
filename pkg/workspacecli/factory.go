@@ -4,8 +4,6 @@
 package workspacecli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
@@ -93,11 +91,4 @@ Examples:
 	root.AddCommand(validateCmd)
 
 	return root
-}
-
-func (f CommandFactory) orchestrator() (reposync.Runner, error) {
-	if f.Orchestrator == nil {
-		return nil, fmt.Errorf("orchestrator not configured")
-	}
-	return f.Orchestrator, nil
 }

@@ -32,10 +32,8 @@ const (
 	DefaultProfileName = "default"
 )
 
-var (
-	// supportedExtensions is the list of config file extensions to check
-	supportedExtensions = []string{".yaml", ".yml", ".json"}
-)
+// supportedExtensions is the list of config file extensions to check
+var supportedExtensions = []string{".yaml", ".yml", ".json"}
 
 // Paths provides access to all config file locations.
 type Paths struct {

@@ -5,18 +5,8 @@ package repository
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
-
-// refspecPattern matches valid Git refspec formats
-// Supports: branch, local:remote, refs/heads/branch:refs/heads/branch
-var refspecPattern = regexp.MustCompile(`^(?:[+])?(?:([^:]+)(?::([^:]+))?)?$`)
-
-// branchNamePattern matches valid Git branch names
-// Git branch names cannot contain: .., ~, ^, :, ?, *, [, \, control characters
-// Cannot start or end with /, cannot have consecutive slashes
-var branchNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][-a-zA-Z0-9._/]*[a-zA-Z0-9]$`)
 
 // ParsedRefspec represents a parsed Git refspec.
 type ParsedRefspec struct {
