@@ -269,7 +269,7 @@ repositories:
   - url: https://github.com/user/repo.git
     invalid syntax here
 `,
-			wantErr: "parse YAML",
+			wantErr: "parse config",
 		},
 		{
 			name: "no repositories",
