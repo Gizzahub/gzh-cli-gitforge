@@ -2063,8 +2063,12 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
+	// Determine whether we should set upstream for this repo.
+	// Guardrail: only set upstream when it is missing; do not override existing tracking.
+	setUpstreamMissing := opts.SetUpstream && info.Upstream == ""
+
 	// Check if repository has upstream (unless we're setting it)
-	if info.Upstream == "" && !opts.SetUpstream {
+	if info.Upstream == "" && !setUpstreamMissing {
 		result.Status = StatusNoUpstream
 		result.Message = "No upstream branch configured (use --set-upstream to set)"
 		result.Duration = time.Since(startTime)
@@ -2075,7 +2079,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	// Skip this check when refspec is provided (e.g., develop:master)
 	// because AheadBy is calculated against the current branch's upstream,
 	// not the refspec target branch
-	if info.AheadBy == 0 && !opts.Tags && opts.Refspec == "" {
+	if info.AheadBy == 0 && !opts.Tags && opts.Refspec == "" && !setUpstreamMissing {
 		result.Status = StatusUpToDate
 		result.Message = "Nothing to push"
 		result.Duration = time.Since(startTime)
@@ -2084,12 +2088,16 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 
 	// Dry run - don't actually push
 	if opts.DryRun {
-		if info.AheadBy > 0 {
-			result.Status = StatusWouldPush
+		result.Status = StatusWouldPush
+		switch {
+		case info.AheadBy > 0:
 			result.Message = fmt.Sprintf("Would push %d commit(s) to remote", info.AheadBy)
-		} else {
-			result.Status = StatusWouldPush
+		case opts.Tags:
 			result.Message = "Would push tags to remote"
+		case setUpstreamMissing:
+			result.Message = fmt.Sprintf("Would set upstream for branch '%s'", info.Branch)
+		default:
+			result.Message = "Would push"
 		}
 		result.Duration = time.Since(startTime)
 		return result
@@ -2167,11 +2175,28 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 		actualCommitsToPush = info.AheadBy
 	}
 
+	// If we are setting upstream and multiple remotes are targeted, avoid upstream flapping.
+	// Choose a deterministic primary remote and set upstream only against it.
+	primaryRemote := ""
+	if setUpstreamMissing && len(remotes) > 0 {
+		primaryRemote = remotes[0]
+		for _, r := range remotes {
+			if r == "origin" {
+				primaryRemote = "origin"
+				break
+			}
+		}
+	}
+
 	// Push to each remote
 	var pushErrors []string
 	var hasAuthError bool
 	for _, remote := range remotes {
-		if err := c.pushToRemote(ctx, repoPath, remote, info.Branch, opts); err != nil {
+		remoteOpts := opts
+		// Only set upstream for the deterministic primary remote.
+		remoteOpts.SetUpstream = setUpstreamMissing && remote == primaryRemote
+
+		if err := c.pushToRemote(ctx, repoPath, remote, info.Branch, remoteOpts); err != nil {
 			pushErrors = append(pushErrors, fmt.Sprintf("%s: %v", remote, err))
 			if errors.Is(err, ErrAuthRequired) {
 				hasAuthError = true

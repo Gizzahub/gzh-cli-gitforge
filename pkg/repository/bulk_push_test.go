@@ -103,6 +103,150 @@ func TestBulkPush(t *testing.T) {
 	}
 }
 
+func TestBulkPushSetUpstreamWhenMissingAndAheadIsZero(t *testing.T) {
+	rootDir := t.TempDir()
+	repoPath := filepath.Join(rootDir, "repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo directory: %v", err)
+	}
+
+	remoteDir := t.TempDir()
+	remotePath := filepath.Join(remoteDir, "origin.git")
+	cmd := exec.Command("git", "init", "--bare", remotePath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init bare remote: %v\n%s", err, output)
+	}
+
+	if err := initGitRepoWithCommit(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init repo: %v", err)
+	}
+
+	cmd = exec.Command("git", "checkout", "-b", "develop")
+	cmd.Dir = repoPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to create branch develop: %v\n%s", err, output)
+	}
+
+	cmd = exec.Command("git", "remote", "add", "origin", remotePath)
+	cmd.Dir = repoPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to add origin remote: %v\n%s", err, output)
+	}
+
+	// Push without -u to ensure the remote branch exists but no upstream is configured.
+	cmd = exec.Command("git", "push", "origin", "develop:develop")
+	cmd.Dir = repoPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to push branch to origin: %v\n%s", err, output)
+	}
+
+	cmd = exec.Command("git", "branch", "--unset-upstream", "develop")
+	cmd.Dir = repoPath
+	_ = cmd.Run() // Ignore: may already have no upstream
+
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err == nil {
+		t.Fatalf("Expected upstream to be missing before BulkPush")
+	}
+
+	cmd = exec.Command("git", "--git-dir", remotePath, "show-ref", "--verify", "refs/heads/develop")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Expected remote branch to exist: %v\n%s", err, output)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+	result, err := client.BulkPush(ctx, BulkPushOptions{
+		Directory:   rootDir,
+		Parallel:    1,
+		MaxDepth:    2,
+		DryRun:      false,
+		SetUpstream: true,
+		Logger:      NewNoopLogger(),
+	})
+	if err != nil {
+		t.Fatalf("BulkPush failed: %v", err)
+	}
+	if result.TotalProcessed != 1 {
+		t.Fatalf("BulkPush TotalProcessed = %d, want 1", result.TotalProcessed)
+	}
+
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Expected upstream to be configured after BulkPush: %v\n%s", err, output)
+	}
+	if got := strings.TrimSpace(string(output)); got != "origin/develop" {
+		t.Fatalf("Upstream = %q, want %q", got, "origin/develop")
+	}
+}
+
+func TestBulkPushSetUpstreamDryRunDoesNotChangeUpstream(t *testing.T) {
+	rootDir := t.TempDir()
+	repoPath := filepath.Join(rootDir, "repo")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatalf("Failed to create repo directory: %v", err)
+	}
+
+	remoteDir := t.TempDir()
+	remotePath := filepath.Join(remoteDir, "origin.git")
+	cmd := exec.Command("git", "init", "--bare", remotePath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init bare remote: %v\n%s", err, output)
+	}
+
+	if err := initGitRepoWithCommit(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available or failed to init repo: %v", err)
+	}
+
+	cmd = exec.Command("git", "checkout", "-b", "develop")
+	cmd.Dir = repoPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to create branch develop: %v\n%s", err, output)
+	}
+
+	cmd = exec.Command("git", "remote", "add", "origin", remotePath)
+	cmd.Dir = repoPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to add origin remote: %v\n%s", err, output)
+	}
+
+	cmd = exec.Command("git", "branch", "--unset-upstream", "develop")
+	cmd.Dir = repoPath
+	_ = cmd.Run() // Ignore: may already have no upstream
+
+	ctx := context.Background()
+	client := NewClient()
+	result, err := client.BulkPush(ctx, BulkPushOptions{
+		Directory:   rootDir,
+		Parallel:    1,
+		MaxDepth:    2,
+		DryRun:      true,
+		SetUpstream: true,
+		Logger:      NewNoopLogger(),
+	})
+	if err != nil {
+		t.Fatalf("BulkPush failed: %v", err)
+	}
+	if result.TotalProcessed != 1 {
+		t.Fatalf("BulkPush TotalProcessed = %d, want 1", result.TotalProcessed)
+	}
+	if len(result.Repositories) != 1 {
+		t.Fatalf("BulkPush len(Repositories) = %d, want 1", len(result.Repositories))
+	}
+	if result.Repositories[0].Status != StatusWouldPush {
+		t.Fatalf("BulkPush Status = %q, want %q", result.Repositories[0].Status, StatusWouldPush)
+	}
+
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd.Dir = repoPath
+	if err := cmd.Run(); err == nil {
+		t.Fatalf("Expected upstream to remain missing after DryRun")
+	}
+}
+
 func TestBulkPushWithFilters(t *testing.T) {
 	tmpDir := t.TempDir()
 
