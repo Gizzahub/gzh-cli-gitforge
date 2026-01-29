@@ -5,6 +5,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,37 @@ import (
 
 	"golang.org/x/sync/errgroup"
 )
+
+// nonInteractiveEnv contains environment variables to disable git credential prompts.
+// This prevents bulk operations from blocking on authentication requests.
+// Repositories requiring credentials will fail with an error instead of waiting.
+var nonInteractiveEnv = []string{
+	"GIT_TERMINAL_PROMPT=0",
+}
+
+// authErrorPatterns contains common patterns that indicate authentication failures.
+var authErrorPatterns = []string{
+	"could not read Username",
+	"Authentication failed",
+	"terminal prompts disabled",
+	"could not read Password",
+	"Invalid username or password",
+	"remote: HTTP Basic: Access denied",
+}
+
+// isAuthenticationError checks if the error output indicates an authentication failure.
+// Returns true if the stderr contains any authentication error patterns.
+func isAuthenticationError(stderr string) bool {
+	for _, pattern := range authErrorPatterns {
+		if strings.Contains(stderr, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// ErrAuthRequired is returned when a git operation fails due to missing credentials.
+var ErrAuthRequired = fmt.Errorf("authentication required (credential helper not configured)")
 
 // BulkFetchOptions configures bulk repository fetch operations.
 type BulkFetchOptions struct {
@@ -1074,15 +1106,22 @@ func (c *client) processRepository(ctx context.Context, rootDir, repoPath string
 		return result
 	}
 
-	// Perform pull --rebase
-	pullResult, err := c.executor.Run(ctx, repoPath, "pull", "--rebase")
+	// Perform pull --rebase with non-interactive mode to prevent credential prompts
+	pullResult, err := c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, "pull", "--rebase")
 	if err != nil || pullResult.ExitCode != 0 {
-		result.Status = StatusError
-		result.Message = "Pull failed"
-		if err != nil {
-			result.Error = err
+		// Check for authentication errors
+		if pullResult != nil && isAuthenticationError(pullResult.Stderr) {
+			result.Status = StatusAuthRequired
+			result.Message = "Authentication required"
+			result.Error = ErrAuthRequired
 		} else {
-			result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
+			result.Status = StatusError
+			result.Message = "Pull failed"
+			if err != nil {
+				result.Error = err
+			} else {
+				result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
+			}
 		}
 		result.Duration = time.Since(startTime)
 		return result
@@ -1276,15 +1315,22 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 		fetchArgs = append(fetchArgs, "--quiet")
 	}
 
-	// Perform fetch
-	fetchResult, err := c.executor.Run(ctx, repoPath, fetchArgs...)
+	// Perform fetch with non-interactive mode to prevent credential prompts
+	fetchResult, err := c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, fetchArgs...)
 	if err != nil || fetchResult.ExitCode != 0 {
-		result.Status = StatusError
-		result.Message = "Fetch failed"
-		if err != nil {
-			result.Error = err
+		// Check for authentication errors
+		if fetchResult != nil && isAuthenticationError(fetchResult.Stderr) {
+			result.Status = StatusAuthRequired
+			result.Message = "Authentication required"
+			result.Error = ErrAuthRequired
 		} else {
-			result.Error = fmt.Errorf("fetch exited with code %d: %w", fetchResult.ExitCode, fetchResult.Error)
+			result.Status = StatusError
+			result.Message = "Fetch failed"
+			if err != nil {
+				result.Error = err
+			} else {
+				result.Error = fmt.Errorf("fetch exited with code %d: %w", fetchResult.ExitCode, fetchResult.Error)
+			}
 		}
 		result.Duration = time.Since(startTime)
 		return result
@@ -1623,9 +1669,17 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		pullArgs = append(pullArgs, "--quiet")
 	}
 
-	// Perform pull
-	pullResult, err := c.executor.Run(ctx, repoPath, pullArgs...)
+	// Perform pull with non-interactive mode to prevent credential prompts
+	pullResult, err := c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, pullArgs...)
 	if err != nil || pullResult.ExitCode != 0 {
+		// Check for authentication errors first
+		if pullResult != nil && isAuthenticationError(pullResult.Stderr) {
+			result.Status = StatusAuthRequired
+			result.Message = "Authentication required"
+			result.Error = ErrAuthRequired
+			result.Duration = time.Since(startTime)
+			return result
+		}
 		// Check if pull failed due to conflicts
 		postPullState, stateErr := c.checkRepositoryState(ctx, repoPath)
 		if stateErr == nil {
@@ -2115,15 +2169,25 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 
 	// Push to each remote
 	var pushErrors []string
+	var hasAuthError bool
 	for _, remote := range remotes {
 		if err := c.pushToRemote(ctx, repoPath, remote, info.Branch, opts); err != nil {
 			pushErrors = append(pushErrors, fmt.Sprintf("%s: %v", remote, err))
+			if errors.Is(err, ErrAuthRequired) {
+				hasAuthError = true
+			}
 		}
 	}
 
 	if len(pushErrors) > 0 {
-		result.Status = StatusError
-		result.Message = "Push failed for some remotes"
+		// Use auth-required status if any remote had auth errors
+		if hasAuthError {
+			result.Status = StatusAuthRequired
+			result.Message = "Authentication required"
+		} else {
+			result.Status = StatusError
+			result.Message = "Push failed for some remotes"
+		}
 		result.Error = fmt.Errorf("%s", strings.Join(pushErrors, "; "))
 		result.Duration = time.Since(startTime)
 		return result
@@ -2188,11 +2252,15 @@ func (c *client) pushToRemote(ctx context.Context, repoPath, remote, branch stri
 		pushArgs = append(pushArgs, branch)
 	}
 
-	// Perform push
-	pushResult, err := c.executor.Run(ctx, repoPath, pushArgs...)
+	// Perform push with non-interactive mode to prevent credential prompts
+	pushResult, err := c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, pushArgs...)
 	if err != nil || pushResult.ExitCode != 0 {
 		if err != nil {
 			return err
+		}
+		// Check for authentication errors
+		if isAuthenticationError(pushResult.Stderr) {
+			return ErrAuthRequired
 		}
 		return fmt.Errorf("push exited with code %d: %w", pushResult.ExitCode, pushResult.Error)
 	}

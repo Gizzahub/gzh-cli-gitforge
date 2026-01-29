@@ -474,8 +474,8 @@ func (c *client) getStaleBranches(ctx context.Context, repoPath string, threshol
 
 // getGoneBranches returns tracking branches whose remote branch was deleted.
 func (c *client) getGoneBranches(ctx context.Context, repoPath string) ([]string, error) {
-	// First prune remote tracking branches
-	_, _ = c.executor.Run(ctx, repoPath, "fetch", "--prune")
+	// First prune remote tracking branches (non-interactive to prevent credential prompts)
+	_, _ = c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, "fetch", "--prune")
 
 	// Find branches with gone upstream
 	result, err := c.executor.Run(ctx, repoPath, "for-each-ref", "--format=%(refname:short) %(upstream:track)", "refs/heads/")

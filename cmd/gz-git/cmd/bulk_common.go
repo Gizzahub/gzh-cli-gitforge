@@ -190,6 +190,10 @@ func getBulkStatusIcon(status string, changesCount int) string {
 	case "no-remote", "no-upstream":
 		return "⚠"
 
+	// Authentication required
+	case "auth-required":
+		return "🔐"
+
 	default:
 		return "•"
 	}

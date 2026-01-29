@@ -93,6 +93,10 @@ const (
 
 	// StatusBranchNotFound indicates the target branch was not found.
 	StatusBranchNotFound = "branch-not-found"
+
+	// StatusAuthRequired indicates the operation failed due to authentication requirements.
+	// This typically occurs when HTTPS credentials are not configured or have expired.
+	StatusAuthRequired = "auth-required"
 )
 
 // IsSuccessStatus returns true if the status indicates a successful operation.

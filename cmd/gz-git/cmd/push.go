@@ -258,6 +258,30 @@ func displayPushResults(result *repository.BulkPushResult) {
 		fmt.Println()
 		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
 	}
+
+	// Display authentication errors summary
+	authErrors := getAuthRequiredRepositories(result.Repositories)
+	if len(authErrors) > 0 {
+		fmt.Println()
+		fmt.Printf("🔐 Authentication required for %d repository(ies):\n", len(authErrors))
+		for _, path := range authErrors {
+			fmt.Printf("   • %s\n", path)
+		}
+		fmt.Println()
+		fmt.Println("💡 To fix: Configure credential helper or switch to SSH")
+		fmt.Println("   git config --global credential.helper cache")
+	}
+}
+
+// getAuthRequiredRepositories returns paths of repositories that failed due to authentication.
+func getAuthRequiredRepositories(repos []repository.RepositoryPushResult) []string {
+	var paths []string
+	for _, repo := range repos {
+		if repo.Status == repository.StatusAuthRequired {
+			paths = append(paths, repo.RelativePath)
+		}
+	}
+	return paths
 }
 
 // countDirtyRepositories counts repositories with uncommitted or untracked files.

@@ -237,6 +237,30 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 		fmt.Println()
 		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
 	}
+
+	// Display authentication errors summary
+	authErrors := getFetchAuthRequiredRepositories(result.Repositories)
+	if len(authErrors) > 0 {
+		fmt.Println()
+		fmt.Printf("🔐 Authentication required for %d repository(ies):\n", len(authErrors))
+		for _, path := range authErrors {
+			fmt.Printf("   • %s\n", path)
+		}
+		fmt.Println()
+		fmt.Println("💡 To fix: Configure credential helper or switch to SSH")
+		fmt.Println("   git config --global credential.helper cache")
+	}
+}
+
+// getFetchAuthRequiredRepositories returns paths of repositories that failed due to authentication.
+func getFetchAuthRequiredRepositories(repos []repository.RepositoryFetchResult) []string {
+	var paths []string
+	for _, repo := range repos {
+		if repo.Status == repository.StatusAuthRequired {
+			paths = append(paths, repo.RelativePath)
+		}
+	}
+	return paths
 }
 
 func displayFetchRepositoryResult(repo repository.RepositoryFetchResult) {
