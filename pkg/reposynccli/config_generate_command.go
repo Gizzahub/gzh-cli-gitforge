@@ -40,6 +40,12 @@ type ConfigGenerateOptions struct {
 	IncludeSubgroups bool
 	SubgroupMode     string
 	FullOutput       bool
+
+	// Metadata filters
+	FilterLanguage string // Comma-separated languages (e.g., "go,rust")
+	FilterMinStars int    // Minimum star count
+	FilterMaxStars int    // Maximum star count (0 = unlimited)
+	FilterLastPush string // Activity filter (e.g., "30d", "6M", "1y")
 }
 
 func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
@@ -112,6 +118,12 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	// Output format
 	cmd.Flags().BoolVar(&opts.FullOutput, "full", false, "Output all fields (name, path) even if redundant")
 
+	// Metadata filters
+	cmd.Flags().StringVar(&opts.FilterLanguage, "language", "", "Filter by language (comma-separated, e.g., go,rust)")
+	cmd.Flags().IntVar(&opts.FilterMinStars, "min-stars", 0, "Minimum star count")
+	cmd.Flags().IntVar(&opts.FilterMaxStars, "max-stars", 0, "Maximum star count (0 = unlimited)")
+	cmd.Flags().StringVar(&opts.FilterLastPush, "last-push-within", "", "Filter by recent activity (e.g., 7d, 30d, 6M, 1y)")
+
 	// Mark required
 	cmd.MarkFlagRequired("provider")
 	cmd.MarkFlagRequired("org")
@@ -134,6 +146,20 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 		return fmt.Errorf("invalid --subgroup-mode: %s (must be flat or nested)", opts.SubgroupMode)
 	}
 
+	// Build metadata filter
+	metadataFilter, err := BuildFilterFromOptions(
+		opts.FilterLanguage,
+		opts.FilterMinStars,
+		opts.FilterMaxStars,
+		opts.FilterLastPush,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Print warnings for provider-specific filter limitations
+	PrintWarningsForProvider(opts.Provider, metadataFilter, cmd.OutOrStdout())
+
 	// Create provider
 	forgeProvider, err := createConfigGenerateProvider(opts)
 	if err != nil {
@@ -141,7 +167,7 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 	}
 
 	// Fetch repositories from forge
-	repos, err := fetchRepositoriesFromForge(ctx, forgeProvider, opts)
+	repos, err := fetchRepositoriesFromForge(ctx, forgeProvider, opts, metadataFilter)
 	if err != nil {
 		return fmt.Errorf("failed to fetch repositories: %w", err)
 	}
@@ -227,7 +253,7 @@ func createConfigGenerateProvider(opts *ConfigGenerateOptions) (provider.Provide
 	}
 }
 
-func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Provider, opts *ConfigGenerateOptions) ([]*provider.Repository, error) {
+func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Provider, opts *ConfigGenerateOptions, filter *MetadataFilter) ([]*provider.Repository, error) {
 	var repos []*provider.Repository
 	var err error
 
@@ -263,6 +289,11 @@ func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Prov
 			if repo.FullName != fmt.Sprintf("%s/%s", opts.Organization, repo.Name) {
 				continue
 			}
+		}
+
+		// Apply metadata filter
+		if filter != nil && !filter.Match(repo) {
+			continue
 		}
 
 		filtered = append(filtered, repo)

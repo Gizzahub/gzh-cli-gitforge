@@ -250,6 +250,7 @@ func (p *Provider) convertGitLabProject(project *gitlab.Project) *provider.Repos
 		Disabled:      false,
 		Language:      "",
 		Size:          0,
+		Stars:         project.StarCount,
 		Topics:        project.Topics,
 		Visibility:    string(project.Visibility),
 		CreatedAt:     createdAt,

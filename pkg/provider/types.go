@@ -23,6 +23,7 @@ type Repository struct {
 	Disabled      bool
 	Language      string
 	Size          int
+	Stars         int
 	Topics        []string
 	Visibility    string
 	CreatedAt     time.Time

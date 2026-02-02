@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
 )
@@ -61,6 +62,12 @@ type ForgePlannerConfig struct {
 
 	// Auth contains authentication settings for clone operations
 	Auth AuthConfig
+
+	// Metadata filters
+	FilterLanguages     []string  // Filter by language (lowercase)
+	FilterMinStars      int       // Minimum star count
+	FilterMaxStars      int       // Maximum star count (0 = unlimited)
+	FilterLastPushAfter time.Time // Only include repos pushed after this time
 }
 
 // ForgePlanner produces a Plan by querying a gitforge Provider.
@@ -190,10 +197,43 @@ func (p *ForgePlanner) filterRepos(repos []*provider.Repository) []*provider.Rep
 			continue
 		}
 
+		// Language filter
+		if len(p.config.FilterLanguages) > 0 {
+			repoLang := strings.ToLower(repo.Language)
+			if repoLang == "" || !containsStringSlice(p.config.FilterLanguages, repoLang) {
+				continue
+			}
+		}
+
+		// Stars filter (minimum)
+		if p.config.FilterMinStars > 0 && repo.Stars < p.config.FilterMinStars {
+			continue
+		}
+
+		// Stars filter (maximum, 0 = unlimited)
+		if p.config.FilterMaxStars > 0 && repo.Stars > p.config.FilterMaxStars {
+			continue
+		}
+
+		// Activity filter (last push)
+		if !p.config.FilterLastPushAfter.IsZero() && repo.PushedAt.Before(p.config.FilterLastPushAfter) {
+			continue
+		}
+
 		filtered = append(filtered, repo)
 	}
 
 	return filtered
+}
+
+// containsStringSlice checks if slice contains the target string.
+func containsStringSlice(slice []string, target string) bool {
+	for _, s := range slice {
+		if s == target {
+			return true
+		}
+	}
+	return false
 }
 
 // toRepoSpec converts a provider.Repository to a RepoSpec.

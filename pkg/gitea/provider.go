@@ -233,6 +233,7 @@ func convertGiteaRepo(repo *gitea.Repository) *provider.Repository {
 		Disabled:      false,
 		Language:      "", // Gitea SDK doesn't expose language
 		Size:          repo.Size,
+		Stars:         repo.Stars,
 		Topics:        nil, // Gitea SDK doesn't expose topics in Repository
 		Visibility:    visibility,
 		CreatedAt:     repo.Created,

@@ -193,6 +193,7 @@ func convertGitHubRepo(repo *github.Repository) *provider.Repository {
 		Disabled:      repo.GetDisabled(),
 		Language:      repo.GetLanguage(),
 		Size:          repo.GetSize(),
+		Stars:         repo.GetStargazersCount(),
 		Topics:        repo.Topics,
 		Visibility:    repo.GetVisibility(),
 		CreatedAt:     repo.GetCreatedAt().Time,
