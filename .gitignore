@@ -92,3 +92,6 @@ tests/cli/example/
 # Manual test artifacts
 tmp-repos/
 task-root.yaml
+
+# ??
+.claude/
