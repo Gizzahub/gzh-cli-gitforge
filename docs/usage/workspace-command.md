@@ -113,19 +113,49 @@ repositories:
 
 Config 파일에 정의된 repo들을 clone/update.
 
+**기본 동작**: 실행 전 미리보기 요약을 표시하고 확인을 요청합니다.
+
 ```bash
-# 기본 (.gz-git.yaml 사용)
+# 기본 (미리보기 + 확인 프롬프트)
 gz-git workspace sync
 
 # 특정 config 파일
 gz-git workspace sync -c myworkspace.yaml
 
-# Dry-run
+# 확인 없이 바로 실행 (CI/스크립트용)
+gz-git workspace sync --yes
+gz-git workspace sync -y
+
+# 미리보기만 (실행 안 함)
 gz-git workspace sync --dry-run
 
 # Strategy 지정
 gz-git workspace sync --strategy reset
 ```
+
+### Preview 출력 예시
+
+```
+═══ Sync Preview ═══
+Total: 12 repositories
+
+  + 3 will be cloned (new)
+  ↓ 7 will be updated
+  ⊘ 2 will be skipped
+
+Proceed with sync? (y/N)
+```
+
+### Flag 동작 매트릭스
+
+| Flags | Preview | Prompt | Execute |
+|-------|---------|--------|---------|
+| (기본) | ✓ | ✓ | 'y' 입력시 |
+| `--yes` | ✓ | ✗ | ✓ |
+| `--dry-run` | ✓ | ✗ | ✗ |
+| `--dry-run --yes` | ✓ | ✗ | ✗ |
+
+**참고**: CI 환경 (non-TTY)에서는 자동으로 `--yes` 처럼 동작합니다.
 
 ### Strategy
 

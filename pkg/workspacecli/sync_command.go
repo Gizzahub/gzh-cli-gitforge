@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/huh"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
@@ -32,6 +34,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 		maxRetries int
 		resume     bool
 		dryRun     bool
+		yes        bool
 		stateFile  string
 		fullOutput bool
 	)
@@ -144,6 +147,32 @@ Config File Structure (Reference):
 				return nil
 			}
 
+			// Display preview summary
+			out := cmd.OutOrStdout()
+			summary := buildSyncSummary(allActions)
+			displaySyncSummary(out, summary)
+
+			// Determine if we need confirmation
+			// Skip prompt if: --dry-run, --yes, or non-TTY (CI mode)
+			needsConfirmation := !dryRun && !yes && isTerminal()
+
+			if needsConfirmation {
+				proceed, err := confirmSyncPrompt()
+				if err != nil {
+					return fmt.Errorf("confirmation prompt failed: %w", err)
+				}
+				if !proceed {
+					fmt.Fprintln(out, "Sync cancelled.")
+					return nil
+				}
+			}
+
+			// In dry-run mode, we already showed the summary, no need to execute
+			if dryRun {
+				fmt.Fprintln(out, "\n[dry-run] No changes made.")
+				return nil
+			}
+
 			// Merge options
 			runOpts := cfgData.Run
 			if cmd.Flags().Changed("parallel") {
@@ -206,6 +235,7 @@ Config File Structure (Reference):
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 0, "Retry attempts per repo (overrides config)")
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous state")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without making changes")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt (auto-approve)")
 	cmd.Flags().StringVar(&stateFile, "state-file", "", "Path to persist run state for resume")
 	cmd.Flags().BoolVar(&fullOutput, "full", false, "Output all fields (name, path) even if redundant")
 
@@ -929,4 +959,85 @@ func gitPull(ctx context.Context, repoPath string) error {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	return cmd.Run()
+}
+
+// syncSummary holds counts of different action types for preview.
+type syncSummary struct {
+	Clone   int
+	Update  int
+	Skip    int
+	Delete  int
+	Total   int
+	Actions []reposync.Action
+}
+
+// buildSyncSummary analyzes actions and counts by type.
+func buildSyncSummary(actions []reposync.Action) syncSummary {
+	summary := syncSummary{
+		Total:   len(actions),
+		Actions: actions,
+	}
+	for _, action := range actions {
+		switch action.Type {
+		case reposync.ActionClone:
+			summary.Clone++
+		case reposync.ActionUpdate:
+			summary.Update++
+		case reposync.ActionSkip:
+			summary.Skip++
+		case reposync.ActionDelete:
+			summary.Delete++
+		}
+	}
+	return summary
+}
+
+// displaySyncSummary prints a preview summary to the output.
+func displaySyncSummary(out io.Writer, s syncSummary) {
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "═══ Sync Preview ═══")
+	fmt.Fprintf(out, "Total: %d repositories\n", s.Total)
+	fmt.Fprintln(out, "")
+
+	if s.Clone > 0 {
+		fmt.Fprintf(out, "  + %d will be cloned (new)\n", s.Clone)
+	}
+	if s.Update > 0 {
+		fmt.Fprintf(out, "  ↓ %d will be updated\n", s.Update)
+	}
+	if s.Skip > 0 {
+		fmt.Fprintf(out, "  ⊘ %d will be skipped\n", s.Skip)
+	}
+	if s.Delete > 0 {
+		fmt.Fprintf(out, "  ✗ %d will be deleted\n", s.Delete)
+	}
+	fmt.Fprintln(out, "")
+}
+
+// confirmSyncPrompt displays an interactive confirmation prompt.
+// Returns true if user wants to proceed, false otherwise.
+func confirmSyncPrompt() (bool, error) {
+	var proceed bool
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Proceed with sync?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&proceed),
+		),
+	)
+
+	err := form.Run()
+	if err != nil {
+		return false, err
+	}
+	return proceed, nil
+}
+
+// isTerminal checks if stdout is a terminal (not redirected/piped).
+// Returns false in CI/non-interactive environments.
+func isTerminal() bool {
+	return isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 }
