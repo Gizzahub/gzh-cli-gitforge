@@ -80,9 +80,9 @@ func TestParseLanguages(t *testing.T) {
 
 func TestMetadataFilter_Match(t *testing.T) {
 	now := time.Now()
-	recentPush := now.Add(-7 * 24 * time.Hour)  // 7 days ago
-	oldPush := now.Add(-60 * 24 * time.Hour)    // 60 days ago
-	cutoff := now.Add(-30 * 24 * time.Hour)     // 30 days ago
+	recentPush := now.Add(-7 * 24 * time.Hour) // 7 days ago
+	oldPush := now.Add(-60 * 24 * time.Hour)   // 60 days ago
+	cutoff := now.Add(-30 * 24 * time.Hour)    // 30 days ago
 
 	tests := []struct {
 		name   string
@@ -282,8 +282,8 @@ func TestBuildFilterFromOptions(t *testing.T) {
 		checkFn        func(*testing.T, *MetadataFilter)
 	}{
 		{
-			name:     "empty options",
-			wantErr:  false,
+			name:    "empty options",
+			wantErr: false,
 			checkFn: func(t *testing.T, f *MetadataFilter) {
 				if !f.IsEmpty() {
 					t.Error("expected empty filter")

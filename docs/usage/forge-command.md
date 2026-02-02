@@ -57,6 +57,46 @@ gz-git forge from \
 | `-j, --parallel` | 병렬 처리 수 | 10 |
 | `-n, --dry-run` | 미리보기 | false |
 
+### Metadata Filtering
+
+Repository metadata 기반 필터링:
+
+| 옵션 | 설명 | 예시 |
+|------|------|------|
+| `--language` | 언어 필터 (쉼표 구분) | `go,rust,python` |
+| `--min-stars` | 최소 star 수 | `100` |
+| `--max-stars` | 최대 star 수 (0=무제한) | `10000` |
+| `--last-push-within` | 최근 활동 기간 | `7d`, `30d`, `6M`, `1y` |
+
+```bash
+# Go repos with 100+ stars, active in last 6 months
+gz-git forge from \
+  --provider github \
+  --org kubernetes \
+  --language go \
+  --min-stars 100 \
+  --last-push-within 6M \
+  --path ./repos
+
+# Multiple languages
+gz-git forge from \
+  --provider github \
+  --org facebook \
+  --language typescript,javascript \
+  --min-stars 50 \
+  --path ./repos
+```
+
+**Provider 제한사항:**
+
+| Provider | 언어 필터 | 비고 |
+|----------|----------|------|
+| GitHub | ✅ 지원 | - |
+| GitLab | ⚠ 제한적 | API에서 language 미제공 |
+| Gitea | ⚠ 제한적 | SDK에서 language 미노출 |
+
+GitLab/Gitea에서 `--language` 사용 시 경고 메시지가 표시됩니다.
+
 ### Subgroup Mode
 
 GitLab 하위 그룹 처리 방식:
@@ -89,6 +129,15 @@ gz-git forge config generate \
 
 # stdout으로 출력
 gz-git forge config generate --provider github --org myorg
+
+# Metadata filtering (same options as 'forge from')
+gz-git forge config generate \
+  --provider github \
+  --org kubernetes \
+  --language go \
+  --min-stars 100 \
+  --last-push-within 6M \
+  -o k8s-go-repos.yaml
 ```
 
 ### 생성되는 config 형식
