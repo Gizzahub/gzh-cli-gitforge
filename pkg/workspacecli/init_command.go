@@ -396,19 +396,46 @@ func collectURLs[T any](items []T, getURL func(T) string) []string {
 
 // renderWorkspaceScanned renders workspace (hierarchical) format.
 func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
-	workspaces := make([]templates.WorkspaceScannedEntry, 0, len(repos))
+	// First pass: collect entries with relative paths for dedup detection
+	type wsCandidate struct {
+		relPath string
+		entry   templates.WorkspaceScannedEntry
+	}
+	candidates := make([]wsCandidate, 0, len(repos))
 	for _, repo := range repos {
-		_, pathValue, skip := processRepoPath(baseDir, repo.Path, repo.Name)
+		relPath, pathValue, skip := processRepoPath(baseDir, repo.Path, repo.Name)
 		if skip {
 			continue
 		}
-
-		workspaces = append(workspaces, templates.WorkspaceScannedEntry{
-			Name:   repo.Name,
-			Path:   pathValue,
-			URL:    extractPrimaryURL(repo.Remotes),
-			Branch: repo.Branch,
+		candidates = append(candidates, wsCandidate{
+			relPath: relPath,
+			entry: templates.WorkspaceScannedEntry{
+				Name:   repo.Name,
+				Path:   pathValue,
+				URL:    extractPrimaryURL(repo.Remotes),
+				Branch: repo.Branch,
+			},
 		})
+	}
+
+	// Detect duplicate names (same repo name at different paths)
+	nameCount := make(map[string]int)
+	for _, c := range candidates {
+		nameCount[c.entry.Name]++
+	}
+
+	// Resolve duplicates: use relPath as workspace key to avoid YAML key collision
+	workspaces := make([]templates.WorkspaceScannedEntry, 0, len(candidates))
+	for _, c := range candidates {
+		ws := c.entry
+		if nameCount[ws.Name] > 1 {
+			ws.Name = c.relPath
+			// Omit path when it equals the new key name (compact mode)
+			if ws.Path == c.relPath {
+				ws.Path = ""
+			}
+		}
+		workspaces = append(workspaces, ws)
 	}
 
 	// Get workspace name from path

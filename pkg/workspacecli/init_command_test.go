@@ -757,3 +757,61 @@ func TestInitCmd_WorkspaceScan_ExplainDefaults(t *testing.T) {
 		t.Errorf("config should include subrepo workspace\nGot:\n%s", string(content))
 	}
 }
+
+// TestInitCmd_WorkspaceScan_DuplicateNames tests that duplicate repo names
+// at different paths use relPath as the YAML key to avoid key collision.
+func TestInitCmd_WorkspaceScan_DuplicateNames(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create two repos with the same name at different paths:
+	// tmpDir/myrepo/.git       → name "myrepo", relPath "myrepo"
+	// tmpDir/sub/myrepo/.git   → name "myrepo", relPath "sub/myrepo"
+	for _, relPath := range []string{"myrepo", "sub/myrepo"} {
+		repoPath := filepath.Join(tmpDir, relPath)
+		if err := os.MkdirAll(filepath.Join(repoPath, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		gitConfig := filepath.Join(repoPath, ".git", "config")
+		configContent := `[core]
+	repositoryformatversion = 0
+[remote "origin"]
+	url = https://github.com/test/` + filepath.Base(relPath) + `.git
+`
+		if err := os.WriteFile(gitConfig, []byte(configContent), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	factory := CommandFactory{}
+	cmd := factory.newInitCmd()
+
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+
+	cmd.SetArgs([]string{tmpDir, "--kind", "workspace", "-d", "2"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	configPath := filepath.Join(tmpDir, DefaultConfigFile)
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("failed to read config: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Both repos should appear with unique keys
+	if !strings.Contains(contentStr, "myrepo:") {
+		t.Errorf("config should contain 'myrepo:' key\nGot:\n%s", contentStr)
+	}
+	if !strings.Contains(contentStr, "sub/myrepo:") {
+		t.Errorf("config should contain 'sub/myrepo:' key for duplicate name\nGot:\n%s", contentStr)
+	}
+
+	// "myrepo:" should NOT appear twice as the same key
+	count := strings.Count(contentStr, "\n  myrepo:\n")
+	if count > 1 {
+		t.Errorf("'myrepo:' should appear at most once as a top-level key, got %d\nGot:\n%s", count, contentStr)
+	}
+}
