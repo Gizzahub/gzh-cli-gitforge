@@ -103,13 +103,15 @@ Config File Structure (Reference):
 			// Load Recursive Config (File 4 style)
 			// We check if there are nested workspaces or forge sources defined
 
-			var recursiveCfg *config.Config
-			if err == nil {
-				recursiveCfg, err = config.LoadConfigRecursive(configDir, configFile)
-				// If error (err is not nil), it falls through and behaves as if recursiveCfg is nil/failed
+			recursiveCfg, recursiveErr := config.LoadConfigRecursive(configDir, configFile)
+			if recursiveErr != nil {
+				if !os.IsNotExist(recursiveErr) {
+					fmt.Fprintf(cmd.OutOrStdout(), "⚠️  Config warning: %v\n", recursiveErr)
+				}
+				recursiveCfg = nil
 			}
 
-			if err == nil && recursiveCfg != nil {
+			if recursiveCfg != nil {
 				// Auto-create child configs if missing
 				// This handles bootstrapping where child directories don't exist yet
 				if err := ensureChildConfigs(cmd.OutOrStdout(), recursiveCfg); err != nil {
@@ -512,6 +514,12 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 			strategy = reposync.StrategyReset
 		}
 
+		// Extract branch from workspace config
+		branch := ""
+		if ws.Branch != nil && len(ws.Branch.DefaultBranch) > 0 {
+			branch = strings.Join(ws.Branch.DefaultBranch, ",")
+		}
+
 		// Create action for this git workspace
 		action := reposync.Action{
 			Repo: reposync.RepoSpec{
@@ -519,6 +527,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 				CloneURL:          ws.URL,
 				AdditionalRemotes: ws.AdditionalRemotes,
 				TargetPath:        wsPath,
+				Branch:            branch,
 			},
 			Type:      reposync.ActionUpdate,
 			Strategy:  strategy,

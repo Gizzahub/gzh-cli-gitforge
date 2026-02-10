@@ -12,7 +12,10 @@
 //  5. Built-in defaults
 package config
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // ================================================================================
 // Config File Meta Information
@@ -186,9 +189,63 @@ type FilterDefaults struct {
 }
 
 // BranchConfig holds branch command defaults.
+// Supports both string shorthand and struct format in YAML:
+//   - branch: develop              → BranchConfig{DefaultBranch: ["develop"]}
+//   - branch: develop,master       → BranchConfig{DefaultBranch: ["develop", "master"]}
+//   - branch:
+//     defaultBranch: develop     → standard struct format
 type BranchConfig struct {
 	DefaultBranch     BranchList `yaml:"defaultBranch,omitempty"`     // main, develop, master (string or list)
 	ProtectedBranches []string   `yaml:"protectedBranches,omitempty"` // Branches to protect
+}
+
+// UnmarshalYAML implements yaml.Unmarshaler to support string shorthand.
+// When YAML contains `branch: develop` (a plain string), it is converted to
+// BranchConfig{DefaultBranch: ["develop"]}. This follows the same pattern
+// as BranchList.UnmarshalYAML.
+func (b *BranchConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try string first (shorthand: branch: develop)
+	var str string
+	if err := unmarshal(&str); err == nil {
+		var bl BranchList
+		// Reuse BranchList parsing logic for comma-separated support
+		if err := bl.UnmarshalYAML(func(v interface{}) error {
+			sp, ok := v.(*string)
+			if ok {
+				*sp = str
+				return nil
+			}
+			return fmt.Errorf("expected *string")
+		}); err == nil && len(bl) > 0 {
+			b.DefaultBranch = bl
+			return nil
+		}
+		// If BranchList parsing failed but string was valid, handle directly
+		if str != "" {
+			parts := strings.Split(str, ",")
+			result := make([]string, 0, len(parts))
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					result = append(result, p)
+				}
+			}
+			if len(result) > 0 {
+				b.DefaultBranch = result
+				return nil
+			}
+		}
+		return nil
+	}
+
+	// Fallback to struct unmarshal (standard format)
+	type branchConfigAlias BranchConfig
+	var alias branchConfigAlias
+	if err := unmarshal(&alias); err != nil {
+		return err
+	}
+	*b = BranchConfig(alias)
+	return nil
 }
 
 // BranchList supports both string and list formats for branch specification.

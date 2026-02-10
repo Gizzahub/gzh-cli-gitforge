@@ -9,6 +9,119 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestBranchConfig_UnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name           string
+		yaml           string
+		expectedBranch BranchList
+		wantErr        bool
+	}{
+		{
+			name:           "string shorthand single branch",
+			yaml:           "branch: develop",
+			expectedBranch: BranchList{"develop"},
+		},
+		{
+			name:           "string shorthand comma-separated",
+			yaml:           "branch: develop,master",
+			expectedBranch: BranchList{"develop", "master"},
+		},
+		{
+			name:           "struct format with defaultBranch string",
+			yaml:           "branch:\n  defaultBranch: develop",
+			expectedBranch: BranchList{"develop"},
+		},
+		{
+			name:           "struct format with defaultBranch list",
+			yaml:           "branch:\n  defaultBranch:\n    - develop\n    - master",
+			expectedBranch: BranchList{"develop", "master"},
+		},
+		{
+			name:           "struct format with protectedBranches",
+			yaml:           "branch:\n  defaultBranch: main\n  protectedBranches:\n    - main\n    - release/*",
+			expectedBranch: BranchList{"main"},
+		},
+		{
+			name:           "nil branch",
+			yaml:           "other: value",
+			expectedBranch: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cfg struct {
+				Branch *BranchConfig `yaml:"branch"`
+			}
+
+			err := yaml.Unmarshal([]byte(tt.yaml), &cfg)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			if tt.expectedBranch == nil {
+				if cfg.Branch != nil {
+					t.Errorf("expected nil Branch, got %+v", cfg.Branch)
+				}
+				return
+			}
+
+			if cfg.Branch == nil {
+				t.Fatalf("expected Branch to be non-nil")
+			}
+
+			if len(cfg.Branch.DefaultBranch) != len(tt.expectedBranch) {
+				t.Errorf("DefaultBranch got %v, want %v", cfg.Branch.DefaultBranch, tt.expectedBranch)
+				return
+			}
+			for i, v := range cfg.Branch.DefaultBranch {
+				if v != tt.expectedBranch[i] {
+					t.Errorf("DefaultBranch[%d] got %q, want %q", i, v, tt.expectedBranch[i])
+				}
+			}
+		})
+	}
+}
+
+func TestBranchConfig_InWorkspaceContext(t *testing.T) {
+	// Test BranchConfig unmarshaling within a Workspace struct (the real bug scenario)
+	yamlContent := `
+workspaces:
+  myrepo:
+    path: ./myrepo
+    url: https://github.com/user/myrepo.git
+    branch: develop
+`
+	var cfg struct {
+		Workspaces map[string]*struct {
+			Path   string        `yaml:"path"`
+			URL    string        `yaml:"url"`
+			Branch *BranchConfig `yaml:"branch"`
+		} `yaml:"workspaces"`
+	}
+
+	if err := yaml.Unmarshal([]byte(yamlContent), &cfg); err != nil {
+		t.Fatalf("failed to unmarshal workspace config: %v", err)
+	}
+
+	ws, ok := cfg.Workspaces["myrepo"]
+	if !ok {
+		t.Fatal("workspace 'myrepo' not found")
+	}
+	if ws.Branch == nil {
+		t.Fatal("Branch should not be nil")
+	}
+	if len(ws.Branch.DefaultBranch) != 1 || ws.Branch.DefaultBranch[0] != "develop" {
+		t.Errorf("expected DefaultBranch=[develop], got %v", ws.Branch.DefaultBranch)
+	}
+}
+
 func TestBranchList_UnmarshalYAML(t *testing.T) {
 	tests := []struct {
 		name     string
