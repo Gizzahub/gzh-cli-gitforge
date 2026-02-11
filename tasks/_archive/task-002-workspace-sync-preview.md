@@ -18,6 +18,16 @@ decision: "Option A: Preview as default, --yes to skip"
 decision-by: "user"
 completed-at: 2026-02-02T17:00:00Z
 completion-summary: "Implemented preview summary, --yes flag, huh confirmation prompt, TTY detection, unit tests, docs updated"
+
+archived-at: 2026-02-11T00:00:00Z
+verified-at: 2026-02-11T00:00:00Z
+verification-summary: |
+  - Verified: buildSyncSummary(), displaySyncSummary(), confirmSyncPrompt(), isTerminal() in sync_command.go
+  - Verified: --yes/-y flag and --dry-run interaction (needsConfirmation logic at line 159)
+  - Verified: TTY detection using go-isatty for CI auto-approve
+  - Verified: Unit tests pass (TestBuildSyncSummary 3 cases, TestDisplaySyncSummary 2 cases)
+  - Verified: docs/usage/workspace-command.md updated with preview example and flag behavior matrix
+  - Evidence: go test ./pkg/workspacecli/... -run "TestBuildSyncSummary|TestDisplaySyncSummary" PASS
 ---
 
 ## Purpose

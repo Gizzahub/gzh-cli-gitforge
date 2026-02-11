@@ -16,6 +16,17 @@ phase-0-completed: 2026-02-02T00:00:00Z
 started-at: 2026-02-02T15:30:00Z
 completed-at: 2026-02-02T15:45:00Z
 completion-summary: "All phases complete - Stars field, MetadataFilter, CLI flags, and docs updated"
+
+archived-at: 2026-02-11T00:00:00Z
+verified-at: 2026-02-11T00:00:00Z
+verification-summary: |
+  - Verified: Stars field in provider/types.go, all 3 provider converters (github/gitlab/gitea)
+  - Verified: MetadataFilter struct, Match(), ParseLanguages(), BuildFilterFromOptions() in reposynccli/filter.go
+  - Verified: CLI flags (--language, --min-stars, --max-stars, --last-push-within) in forge from + config generate
+  - Verified: Provider warnings for GitLab/Gitea language limitation
+  - Verified: Unit tests pass (filter_test.go covers Match, IsEmpty, ProviderWarnings, BuildFilterFromOptions)
+  - Verified: docs/usage/forge-command.md updated
+  - Evidence: go test ./pkg/reposynccli/... PASS
 ---
 
 ## Purpose
