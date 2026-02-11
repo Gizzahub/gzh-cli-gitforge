@@ -21,7 +21,6 @@ coverage.html
 vendor/
 
 # Go workspace file
-go.work
 
 # Environment variables
 .env
