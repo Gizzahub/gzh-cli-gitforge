@@ -17,8 +17,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/gizzahub/gzh-cli-core => ../gzh-cli-core
-
 require (
 	code.gitea.io/sdk/gitea v0.22.1 // indirect
 	github.com/42wim/httpsig v1.2.3 // indirect
