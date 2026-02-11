@@ -1,6 +1,6 @@
 module github.com/gizzahub/gzh-cli-gitforge
 
-go 1.25.1
+go 1.25.7
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.10
