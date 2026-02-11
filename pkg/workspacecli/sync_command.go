@@ -310,12 +310,18 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			continue
 		}
 
+		// Default path to workspace name when omitted (compact config convention)
+		effectivePath := ws.Path
+		if effectivePath == "" {
+			effectivePath = name
+		}
+
 		// Resolve workspace path
-		wsPath := resolveWorkspacePath(ws.Path, configDir)
+		wsPath := resolveWorkspacePath(effectivePath, configDir)
 
 		// Skip workspaces that point to the config directory itself
-		if wsPath == configDir || ws.Path == "." || ws.Path == "" {
-			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, ws.Path)
+		if wsPath == configDir || effectivePath == "." {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
 			continue
 		}
 
@@ -464,13 +470,19 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 	var allActions []reposync.Action
 
 	for name, ws := range workspaces {
+		// Default path to workspace name when omitted (compact config convention)
+		effectivePath := ws.Path
+		if effectivePath == "" {
+			effectivePath = name
+		}
+
 		// Resolve workspace path
-		wsPath := resolveWorkspacePath(ws.Path, configDir)
+		wsPath := resolveWorkspacePath(effectivePath, configDir)
 
 		// Skip workspaces that point to the config directory itself
 		// This prevents accidental reset of the devbox/orchestrator directory
-		if wsPath == configDir || ws.Path == "." || ws.Path == "" {
-			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, ws.Path)
+		if wsPath == configDir || effectivePath == "." {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
 			continue
 		}
 
