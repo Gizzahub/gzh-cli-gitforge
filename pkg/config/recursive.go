@@ -120,10 +120,16 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 			continue
 		}
 
+		// Default path to workspace name when omitted (compact config convention)
+		effectivePath := ws.Path
+		if effectivePath == "" {
+			effectivePath = name
+		}
+
 		// Resolve workspace path (handle ~, relative paths)
-		wsPath, err := resolvePath(path, ws.Path)
+		wsPath, err := resolvePath(path, effectivePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve workspace '%s' path '%s' in %s: %w", name, ws.Path, configPath, err)
+			return nil, fmt.Errorf("failed to resolve workspace '%s' path '%s' in %s: %w", name, effectivePath, configPath, err)
 		}
 
 		// CRITICAL: Update the workspace path with the resolved absolute path
