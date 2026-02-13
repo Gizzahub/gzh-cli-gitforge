@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -149,10 +150,10 @@ Config File Structure (Reference):
 				return nil
 			}
 
-			// Display preview summary
+			// Display detailed preview with file-level changes and conflict detection
 			out := cmd.OutOrStdout()
-			summary := buildSyncSummary(allActions)
-			displaySyncSummary(out, summary)
+			detailedChanges, summary := buildDetailedSyncPreview(ctx, allActions)
+			displayDetailedSyncPreview(out, detailedChanges, summary)
 
 			// Determine if we need confirmation
 			// Skip prompt if: --dry-run, --yes, or non-TTY (CI mode)
@@ -992,6 +993,42 @@ type syncSummary struct {
 	Actions []reposync.Action
 }
 
+// RepoChanges holds detailed change information for a single repository.
+type RepoChanges struct {
+	RepoName  string
+	Action    reposync.ActionType
+	Path      string
+	URL       string
+	Files     FileChangeSummary
+	Conflicts []ConflictInfo
+	Warnings  []string
+	Diverged  bool // Tracks if local branch has diverged from remote
+}
+
+// FileChangeSummary holds file-level change statistics.
+type FileChangeSummary struct {
+	Added    []string
+	Modified []string
+	Deleted  []string
+	Total    int
+}
+
+// ConflictInfo describes a detected conflict.
+type ConflictInfo struct {
+	FilePath      string
+	ConflictType  string // "local-changes", "diverged-branches", "dirty-worktree"
+	LocalChanges  bool   // Has uncommitted local changes
+	RemoteChanges bool   // Has incoming remote changes
+	Description   string // Human-readable description
+}
+
+// ConflictType constants
+const (
+	ConflictTypeLocalChanges     = "local-changes"
+	ConflictTypeDivergedBranches = "diverged-branches"
+	ConflictTypeDirtyWorktree    = "dirty-worktree"
+)
+
 // buildSyncSummary analyzes actions and counts by type.
 func buildSyncSummary(actions []reposync.Action) syncSummary {
 	summary := syncSummary{
@@ -1011,6 +1048,159 @@ func buildSyncSummary(actions []reposync.Action) syncSummary {
 		}
 	}
 	return summary
+}
+
+// analyzeRepoChanges performs detailed analysis of changes for a repository.
+// Returns nil if repository doesn't exist yet (new clone) or analysis fails.
+func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChanges, error) {
+	changes := &RepoChanges{
+		RepoName: action.Repo.Name,
+		Action:   action.Type,
+		Path:     action.Repo.TargetPath,
+		URL:      action.Repo.CloneURL,
+		Warnings: []string{},
+	}
+
+	// Skip analysis for new clones (directory doesn't exist yet)
+	if action.Type == reposync.ActionClone {
+		return changes, nil
+	}
+
+	// Skip analysis if path doesn't exist
+	if _, err := os.Stat(action.Repo.TargetPath); os.IsNotExist(err) {
+		return changes, nil
+	}
+
+	// For updates, analyze file changes and conflicts
+	if action.Type == reposync.ActionUpdate {
+		// Check working tree status
+		isDirty, err := isWorkingTreeDirty(ctx, action.Repo.TargetPath)
+		if err != nil {
+			changes.Warnings = append(changes.Warnings, fmt.Sprintf("Failed to check working tree: %v", err))
+		} else if isDirty {
+			changes.Conflicts = append(changes.Conflicts, ConflictInfo{
+				ConflictType: ConflictTypeDirtyWorktree,
+				LocalChanges: true,
+				Description:  "Uncommitted local changes detected",
+			})
+			changes.Warnings = append(changes.Warnings, "Local uncommitted changes may be overwritten")
+		}
+
+		// Get file diff against remote
+		baseBranch := action.Repo.Branch
+		if baseBranch == "" {
+			baseBranch = "HEAD"
+		}
+
+		fileDiff, err := getFileDiff(action.Repo.TargetPath, baseBranch)
+		if err != nil {
+			changes.Warnings = append(changes.Warnings, fmt.Sprintf("Failed to get diff: %v", err))
+		} else {
+			changes.Files = fileDiff
+		}
+
+		// Check for diverged branches
+		diverged, err := checkDivergence(action.Repo.TargetPath, baseBranch)
+		if err != nil {
+			changes.Warnings = append(changes.Warnings, fmt.Sprintf("Failed to check divergence: %v", err))
+		} else if diverged {
+			changes.Diverged = true
+			changes.Conflicts = append(changes.Conflicts, ConflictInfo{
+				ConflictType:  ConflictTypeDivergedBranches,
+				LocalChanges:  true,
+				RemoteChanges: true,
+				Description:   "Local branch has diverged from remote",
+			})
+			changes.Warnings = append(changes.Warnings, "Branch has diverged from remote (manual merge may be needed)")
+		}
+	}
+
+	return changes, nil
+}
+
+// getFileDiff analyzes file changes between local HEAD and remote.
+// Returns empty summary if fetch hasn't been done yet.
+func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
+	summary := FileChangeSummary{
+		Added:    []string{},
+		Modified: []string{},
+		Deleted:  []string{},
+	}
+
+	// Construct remote tracking branch name
+	// Typically: origin/{branch}
+	remoteBranch := fmt.Sprintf("origin/%s", baseBranch)
+	if baseBranch == "HEAD" {
+		remoteBranch = "@{u}" // Upstream tracking branch
+	}
+
+	// Run git diff --name-status HEAD..origin/branch
+	cmd := exec.Command("git", "diff", "--name-status", fmt.Sprintf("HEAD..%s", remoteBranch))
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		// If remote branch doesn't exist or fetch not done, return empty summary
+		return summary, nil
+	}
+
+	// Parse output: each line is "STATUS\tFILENAME"
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		status := parts[0]
+		filename := parts[1]
+
+		switch status[0] {
+		case 'A':
+			summary.Added = append(summary.Added, filename)
+		case 'M':
+			summary.Modified = append(summary.Modified, filename)
+		case 'D':
+			summary.Deleted = append(summary.Deleted, filename)
+		}
+	}
+
+	summary.Total = len(summary.Added) + len(summary.Modified) + len(summary.Deleted)
+	return summary, nil
+}
+
+// checkDivergence checks if local branch has diverged from remote.
+// Returns true if local has commits not in remote AND remote has commits not in local.
+func checkDivergence(repoPath, baseBranch string) (bool, error) {
+	remoteBranch := fmt.Sprintf("origin/%s", baseBranch)
+	if baseBranch == "HEAD" {
+		remoteBranch = "@{u}"
+	}
+
+	// Check commits in local not in remote
+	cmd := exec.Command("git", "rev-list", "--count", fmt.Sprintf("%s..HEAD", remoteBranch))
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		return false, nil // Remote branch might not exist
+	}
+	localAhead := strings.TrimSpace(string(output))
+
+	// Check commits in remote not in local
+	cmd = exec.Command("git", "rev-list", "--count", fmt.Sprintf("HEAD..%s", remoteBranch))
+	cmd.Dir = repoPath
+	output, err = cmd.Output()
+	if err != nil {
+		return false, nil
+	}
+	remoteBehind := strings.TrimSpace(string(output))
+
+	// Diverged if both have commits
+	localCount, _ := strconv.Atoi(localAhead)
+	remoteCount, _ := strconv.Atoi(remoteBehind)
+
+	return localCount > 0 && remoteCount > 0, nil
 }
 
 // displaySyncSummary prints a preview summary to the output.
@@ -1033,6 +1223,174 @@ func displaySyncSummary(out io.Writer, s syncSummary) {
 		fmt.Fprintf(out, "  ✗ %d will be deleted\n", s.Delete)
 	}
 	fmt.Fprintln(out, "")
+}
+
+// buildDetailedSyncPreview analyzes all actions and collects detailed change information.
+func buildDetailedSyncPreview(ctx context.Context, actions []reposync.Action) ([]RepoChanges, syncSummary) {
+	var detailedChanges []RepoChanges
+	summary := buildSyncSummary(actions)
+
+	for _, action := range actions {
+		changes, err := analyzeRepoChanges(ctx, action)
+		if err != nil {
+			// Log error but continue with other repos
+			continue
+		}
+		if changes != nil {
+			detailedChanges = append(detailedChanges, *changes)
+		}
+	}
+
+	return detailedChanges, summary
+}
+
+// displayDetailedSyncPreview shows comprehensive preview including file-level changes and conflicts.
+func displayDetailedSyncPreview(out io.Writer, changes []RepoChanges, summary syncSummary) {
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "═══════════════════════════════════════════════")
+	fmt.Fprintln(out, "           Sync Preview (Detailed)            ")
+	fmt.Fprintln(out, "═══════════════════════════════════════════════")
+	fmt.Fprintf(out, "Total: %d repositories\n", summary.Total)
+	fmt.Fprintln(out, "")
+
+	// Show high-level summary
+	if summary.Clone > 0 {
+		fmt.Fprintf(out, "  + %d will be cloned (new)\n", summary.Clone)
+	}
+	if summary.Update > 0 {
+		fmt.Fprintf(out, "  ↓ %d will be updated\n", summary.Update)
+	}
+	if summary.Skip > 0 {
+		fmt.Fprintf(out, "  ⊘ %d will be skipped\n", summary.Skip)
+	}
+	if summary.Delete > 0 {
+		fmt.Fprintf(out, "  ✗ %d will be deleted\n", summary.Delete)
+	}
+	fmt.Fprintln(out, "")
+
+	// Collect warnings
+	var allWarnings []string
+	for _, change := range changes {
+		if len(change.Warnings) > 0 {
+			for _, warning := range change.Warnings {
+				allWarnings = append(allWarnings, fmt.Sprintf("%s: %s", change.RepoName, warning))
+			}
+		}
+	}
+
+	// Show warnings first if any
+	if len(allWarnings) > 0 {
+		fmt.Fprintln(out, "⚠️  Warnings:")
+		for _, warning := range allWarnings {
+			fmt.Fprintf(out, "  • %s\n", warning)
+		}
+		fmt.Fprintln(out, "")
+	}
+
+	// Show detailed repository changes
+	fmt.Fprintln(out, "Repository Details:")
+	fmt.Fprintln(out, "")
+
+	for _, change := range changes {
+		displayRepoChange(out, change)
+	}
+
+	fmt.Fprintln(out, "═══════════════════════════════════════════════")
+}
+
+// displayRepoChange shows detailed information for a single repository.
+func displayRepoChange(out io.Writer, change RepoChanges) {
+	// Action symbol
+	var actionSymbol string
+	var actionDesc string
+	switch change.Action {
+	case reposync.ActionClone:
+		actionSymbol = "+"
+		actionDesc = "clone"
+	case reposync.ActionUpdate:
+		actionSymbol = "↓"
+		actionDesc = "update"
+	case reposync.ActionSkip:
+		actionSymbol = "⊘"
+		actionDesc = "skip - up to date"
+	case reposync.ActionDelete:
+		actionSymbol = "✗"
+		actionDesc = "delete"
+	default:
+		actionSymbol = "?"
+		actionDesc = "unknown"
+	}
+
+	// Show repo header
+	fmt.Fprintf(out, "  %s %s (%s)\n", actionSymbol, change.RepoName, actionDesc)
+
+	// Show URL for clones
+	if change.Action == reposync.ActionClone && change.URL != "" {
+		fmt.Fprintf(out, "    → %s\n", change.URL)
+	}
+
+	// Show conflicts
+	if len(change.Conflicts) > 0 {
+		for _, conflict := range change.Conflicts {
+			fmt.Fprintf(out, "    ⚠️  %s\n", conflict.Description)
+		}
+	}
+
+	// Show file changes for updates
+	if change.Action == reposync.ActionUpdate && change.Files.Total > 0 {
+		fmt.Fprintf(out, "    Files: ")
+		var parts []string
+		if len(change.Files.Added) > 0 {
+			parts = append(parts, fmt.Sprintf("+%d added", len(change.Files.Added)))
+		}
+		if len(change.Files.Modified) > 0 {
+			parts = append(parts, fmt.Sprintf("~%d modified", len(change.Files.Modified)))
+		}
+		if len(change.Files.Deleted) > 0 {
+			parts = append(parts, fmt.Sprintf("-%d deleted", len(change.Files.Deleted)))
+		}
+		fmt.Fprintf(out, "%s\n", strings.Join(parts, ", "))
+
+		// Show file names (limit to first 5 of each type)
+		if len(change.Files.Modified) > 0 {
+			displayFileList(out, "modified", change.Files.Modified, 5)
+		}
+		if len(change.Files.Added) > 0 {
+			displayFileList(out, "added", change.Files.Added, 5)
+		}
+		if len(change.Files.Deleted) > 0 {
+			displayFileList(out, "deleted", change.Files.Deleted, 5)
+		}
+	}
+
+	// Show divergence warning
+	if change.Diverged {
+		fmt.Fprintln(out, "    ⚠️  Branch has diverged from remote")
+	}
+
+	fmt.Fprintln(out, "")
+}
+
+// displayFileList shows a list of files with optional truncation.
+func displayFileList(out io.Writer, label string, files []string, maxShow int) {
+	if len(files) == 0 {
+		return
+	}
+
+	shown := files
+	truncated := false
+	if len(files) > maxShow {
+		shown = files[:maxShow]
+		truncated = true
+	}
+
+	for _, file := range shown {
+		fmt.Fprintf(out, "      → %s\n", file)
+	}
+
+	if truncated {
+		fmt.Fprintf(out, "      ... and %d more %s\n", len(files)-maxShow, label)
+	}
 }
 
 // confirmSyncPrompt displays an interactive confirmation prompt.
