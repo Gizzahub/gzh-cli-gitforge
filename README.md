@@ -62,6 +62,14 @@ gz-git clone ~/projects --url https://github.com/user/repo1.git --url https://gi
 
 # Sync all repos from a GitHub org
 gz-git forge from --provider github --org myorg --path ./repos --token $GITHUB_TOKEN
+
+# Filter repos by language, stars, activity (NEW)
+gz-git forge from --provider github --org kubernetes --path ./k8s \
+  --language go --min-stars 100 --last-push-within 30d
+
+# Workspace sync with detailed preview (NEW: shows file changes, conflicts)
+gz-git workspace sync  # Interactive preview before executing
+gz-git workspace sync --dry-run  # Preview only
 ```
 
 ______________________________________________________________________

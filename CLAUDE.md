@@ -208,12 +208,12 @@ ______________________________________________________________________
 | `commit`               | Commit all dirty repos                        |
 | `update`               | Safe update (pull --rebase)                   |
 | `cleanup branch`       | Clean merged/stale/gone branches              |
-| `forge from`            | Sync from GitHub/GitLab/Gitea org            |
+| `forge from`            | Sync from GitHub/GitLab/Gitea org (supports filtering) |
 | `forge config generate` | Generate config from Forge API               |
 | `forge status`          | Repository health diagnosis                  |
 | `forge setup`           | Interactive forge sync setup wizard          |
 | `workspace init`       | Scan directory → generate config              |
-| `workspace sync`       | Clone/update from config                      |
+| `workspace sync`       | Clone/update from config (detailed preview)  |
 | `workspace generate-config` | Generate config from Git forge             |
 | `config profile`       | Profile management (create/use/list)          |
 | `config hierarchy`     | Show config hierarchy tree                    |
@@ -229,9 +229,16 @@ gz-git workspace init ~/mydevbox -d 3    # Depth 3
 gz-git workspace init . --template       # Empty template (no scan)
 
 # Sync (config → clone/update)
+# NEW: Shows detailed preview with file-level changes and conflict detection
 gz-git workspace sync                    # Use .gz-git.yaml
 gz-git workspace sync -c workstation.yaml --dry-run
 gz-git workspace sync --full             # Output all fields in generated configs
+
+# Preview shows:
+# - Repository-level summary (clone/update/skip counts)
+# - File-level changes (added/modified/deleted files)
+# - Conflict warnings (dirty worktree, diverged branches)
+# - Interactive confirmation before executing
 
 # Status & Management
 gz-git workspace status --verbose
@@ -253,6 +260,24 @@ gz-git forge from \
   --token $GITLAB_TOKEN \
   --include-subgroups \
   --subgroup-mode flat
+
+# Selective filtering (NEW: filter by language, stars, activity)
+gz-git forge from \
+  --provider github \
+  --org kubernetes \
+  --path ~/k8s-repos \
+  --language go \
+  --min-stars 100 \
+  --last-push-within 30d
+
+# Multiple languages with star range
+gz-git forge from \
+  --provider github \
+  --org rust-lang \
+  --path ~/rust-repos \
+  --language "rust,go" \
+  --min-stars 50 \
+  --max-stars 1000
 
 # Generate config from forge (compact output by default)
 gz-git forge config generate \
