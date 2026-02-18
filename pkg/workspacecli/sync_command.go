@@ -49,14 +49,40 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
   # Sync from specific config
   gz-git workspace sync -c myworkspace.yaml
 
-  # Preview without making changes
+  # Preview without making changes (no confirmation prompt)
   gz-git workspace sync --dry-run
+
+  # Skip confirmation prompt (useful for CI)
+  gz-git workspace sync --yes
 
   # Override strategy for all repos
   gz-git workspace sync --strategy pull
 
   # Resume interrupted sync
   gz-git workspace sync --resume --state-file state.json
+
+Preview Behavior:
+  Before executing, sync shows a detailed preview including:
+    - Repository-level summary (clone/update/skip counts)
+    - File-level changes per repo (added/modified/deleted)
+    - Conflict warnings: uncommitted local changes, diverged branches
+    - Interactive confirmation prompt (skipped with --yes or in CI)
+
+  Example preview output:
+    ═══ Sync Preview (Detailed) ═══
+    Total: 3 repositories
+      + 1 will be cloned (new)
+      ↓ 2 will be updated
+
+    ⚠️  Warnings:
+      • api-server: Local uncommitted changes may be overwritten
+
+    Repository Details:
+      + my-project (clone)
+        → https://github.com/owner/my-project.git
+      ↓ api-server (update)
+        ⚠️  Uncommitted local changes detected
+        Files: ~3 modified, -1 deleted
 
 Config File Structure (Reference):
   strategy: reset # reset|pull|fetch

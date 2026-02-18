@@ -82,7 +82,27 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 
   # Sync from Gitea
   gz-git forge from --provider gitea --org myorg --path ./repos \
-    --base-url https://gitea.company.com --token $GITEA_TOKEN`),
+    --base-url https://gitea.company.com --token $GITEA_TOKEN
+
+  # Selective filtering: only Go repos with 100+ stars, active in last 30 days
+  gz-git forge from --provider github --org kubernetes --path ./k8s \
+    --language go --min-stars 100 --last-push-within 30d
+
+  # Multiple languages with star count range
+  gz-git forge from --provider github --org rust-lang --path ./rust-repos \
+    --language "rust,go" --min-stars 50 --max-stars 1000
+
+  # Activity filter with custom duration (7d, 30d, 6M, 1y)
+  gz-git forge from --provider github --org myorg --path ./repos \
+    --last-push-within 6M
+
+Filter Flags:
+  --language          Comma-separated languages (e.g., go,rust,python)
+  --min-stars         Minimum star count (0 = no minimum)
+  --max-stars         Maximum star count (0 = unlimited)
+  --last-push-within  Activity cutoff: 7d, 30d, 6M, 1y (d=days, w=weeks, M=months, y=years)
+
+Note: GitLab and Gitea do not provide language info via API; --language may not work as expected.`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runFromForge(cmd, opts)
 		},
