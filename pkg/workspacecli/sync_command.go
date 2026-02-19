@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -29,31 +30,33 @@ import (
 
 func (f CommandFactory) newSyncCmd() *cobra.Command {
 	var (
-		configPath string
-		strategy   string
-		parallel   int
-		maxRetries int
-		resume     bool
-		dryRun     bool
-		yes        bool
-		stateFile  string
-		fullOutput bool
+		configPath  string
+		strategy    string
+		parallel    int
+		maxRetries  int
+		resume      bool
+		dryRun      bool
+		yes         bool
+		interactive bool
+		verbose     bool
+		stateFile   string
+		fullOutput  bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Clone/update repositories from config",
-		Long: cliutil.QuickStartHelp(`  # Sync from default config (.gz-git.yaml)
+		Long: cliutil.QuickStartHelp(`  # Sync from default config (.gz-git.yaml) - auto-proceeds without prompt
   gz-git workspace sync
 
   # Sync from specific config
   gz-git workspace sync -c myworkspace.yaml
 
-  # Preview without making changes (no confirmation prompt)
+  # Preview without making changes
   gz-git workspace sync --dry-run
 
-  # Skip confirmation prompt (useful for CI)
-  gz-git workspace sync --yes
+  # Ask for confirmation before executing
+  gz-git workspace sync --interactive
 
   # Override strategy for all repos
   gz-git workspace sync --strategy pull
@@ -61,12 +64,16 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
   # Resume interrupted sync
   gz-git workspace sync --resume --state-file state.json
 
+Confirmation Behavior:
+  By default, sync auto-proceeds after showing the preview.
+  Use --interactive (-i) to be asked for confirmation before executing.
+  Use --dry-run to show preview without executing.
+
 Preview Behavior:
   Before executing, sync shows a detailed preview including:
     - Repository-level summary (clone/update/skip counts)
     - File-level changes per repo (added/modified/deleted)
     - Conflict warnings: uncommitted local changes, diverged branches
-    - Interactive confirmation prompt (skipped with --yes or in CI)
 
   Example preview output:
     ═══ Sync Preview (Detailed) ═══
@@ -176,14 +183,22 @@ Config File Structure (Reference):
 				return nil
 			}
 
-			// Display detailed preview with file-level changes and conflict detection
 			out := cmd.OutOrStdout()
-			detailedChanges, summary := buildDetailedSyncPreview(ctx, allActions)
-			displayDetailedSyncPreview(out, detailedChanges, summary)
+			// --dry-run always shows full detail so user can review before deciding
+			showDetail := verbose || dryRun
+			if showDetail {
+				detailedChanges, summary := buildDetailedSyncPreview(ctx, allActions)
+				displayDetailedSyncPreview(out, detailedChanges, summary)
+			} else {
+				// Compact: only show count + conflict warnings
+				summary := buildSyncSummary(allActions)
+				displayCompactSyncPreview(out, summary, allActions)
+			}
 
 			// Determine if we need confirmation
-			// Skip prompt if: --dry-run, --yes, or non-TTY (CI mode)
-			needsConfirmation := !dryRun && !yes && isTerminal()
+			// Prompt only when: --interactive is set and not --dry-run and not --yes
+			// Default behavior (no flags): auto-proceed without prompt
+			needsConfirmation := interactive && !dryRun && !yes && isTerminal()
 
 			if needsConfirmation {
 				proceed, err := confirmSyncPrompt()
@@ -225,7 +240,12 @@ Config File Structure (Reference):
 				runOpts.Parallel = recursiveCfg.GetParallel()
 			}
 
-			progress := &consoleProgress{out: cmd.OutOrStdout()}
+			var progress reposync.ProgressSink
+			if isTerminal() {
+				progress = newInPlaceProgress(cmd.OutOrStdout(), allActions)
+			} else {
+				progress = &consoleProgress{out: cmd.OutOrStdout()}
+			}
 
 			// Use precomputed planner (same as from-config logic)
 			staticPlanner := &precomputedPlanner{actions: allActions}
@@ -264,7 +284,9 @@ Config File Structure (Reference):
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 0, "Retry attempts per repo (overrides config)")
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous state")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without making changes")
-	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt (auto-approve)")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt (auto-approve, deprecated: now default behavior)")
+	cmd.Flags().BoolVarP(&interactive, "interactive", "i", false, "Ask for confirmation before executing (default: auto-proceed)")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed repository preview (file changes, conflicts)")
 	cmd.Flags().StringVar(&stateFile, "state-file", "", "Path to persist run state for resume")
 	cmd.Flags().BoolVar(&fullOutput, "full", false, "Output all fields (name, path) even if redundant")
 
@@ -790,6 +812,11 @@ func (p *consoleProgress) OnStart(action reposync.Action) {
 
 // OnProgress implements reposync.ProgressSink.
 func (p *consoleProgress) OnProgress(action reposync.Action, message string, progress float64) {
+	// Suppress redundant retry messages for non-git-repo errors to reduce noise
+	// These get summarized in OnComplete as a final error
+	if strings.Contains(message, "retrying") {
+		return
+	}
 	fmt.Fprintf(p.out, "   [%s] %s: %s (%.0f%%)\n", action.Type, action.Repo.Name, message, progress*100)
 }
 
@@ -802,6 +829,173 @@ func (p *consoleProgress) OnComplete(result reposync.ActionResult) {
 	fmt.Fprintf(p.out, "✓ [%s] %s: %s\n", result.Action.Type, result.Action.Repo.Name, result.Message)
 }
 
+// ─── In-place progress display ────────────────────────────────────────────────
+
+// repoStatus tracks the current display state of a single repo row.
+type repoStatus struct {
+	name   string
+	action reposync.ActionType
+	state  string // waiting, running, done, error
+	msg    string // last status message
+}
+
+// inPlaceProgress implements reposync.ProgressSink with ANSI in-place updates.
+// All repositories are displayed as a fixed list upfront; each row is updated
+// in-place as the sync progresses. This avoids scrolling log output.
+//
+// Thread-safe: multiple goroutines (parallel sync workers) may call OnStart/
+// OnProgress/OnComplete concurrently, so all mutations go through mu.
+type inPlaceProgress struct {
+	mu         sync.Mutex
+	out        io.Writer
+	repos      []repoStatus   // ordered list matching initial allActions order
+	index      map[string]int // repo name → index in repos
+	total      int
+	done       int
+	errored    int
+	errDetails []string // full error messages buffered for post-run display
+	// linesRendered is how many rows we printed during the initial render.
+	// We use this offset to know how far up to jump when redrawing.
+	linesRendered int
+}
+
+// newInPlaceProgress creates the progress tracker and immediately prints the
+// initial "waiting" list so the user sees all repos from the start.
+func newInPlaceProgress(out io.Writer, actions []reposync.Action) *inPlaceProgress {
+	p := &inPlaceProgress{
+		out:   out,
+		repos: make([]repoStatus, 0, len(actions)),
+		index: make(map[string]int, len(actions)),
+		total: len(actions),
+	}
+	for _, a := range actions {
+		idx := len(p.repos)
+		p.repos = append(p.repos, repoStatus{
+			name:   a.Repo.Name,
+			action: a.Type,
+			state:  "waiting",
+		})
+		p.index[a.Repo.Name] = idx
+	}
+	// Print header + initial rows
+	fmt.Fprintf(out, "\nSyncing %d repositories:\n", len(actions))
+	for _, r := range p.repos {
+		fmt.Fprintf(out, "  ○ %-30s  waiting\n", r.name)
+	}
+	p.linesRendered = len(p.repos)
+	return p
+}
+
+// redraw moves the cursor up linesRendered rows and rewrites every line.
+// Must be called with p.mu held.
+func (p *inPlaceProgress) redraw() {
+	// Move cursor up N lines
+	fmt.Fprintf(p.out, "\033[%dA", p.linesRendered)
+	for _, r := range p.repos {
+		var icon, color, reset string
+		reset = "\033[0m"
+		switch r.state {
+		case "waiting":
+			icon = "○"
+			color = "\033[2m" // dim
+		case "running":
+			icon = "●"
+			color = "\033[33m" // yellow
+		case "done":
+			icon = "✓"
+			color = "\033[32m" // green
+		case "error":
+			icon = "✗"
+			color = "\033[31m" // red
+		}
+		// Truncate message to keep lines short
+		msg := r.msg
+		if len(msg) > 45 {
+			msg = msg[:42] + "..."
+		}
+		// Overwrite line: clear to end of line (\033[K) prevents leftover chars
+		fmt.Fprintf(p.out, "  %s%s %-30s  %s%s\033[K\n", color, icon, r.name, msg, reset)
+	}
+}
+
+// OnStart implements reposync.ProgressSink.
+func (p *inPlaceProgress) OnStart(action reposync.Action) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if idx, ok := p.index[action.Repo.Name]; ok {
+		p.repos[idx].state = "running"
+		p.repos[idx].msg = string(action.Type) + "..."
+	}
+	p.redraw()
+}
+
+// OnProgress implements reposync.ProgressSink.
+func (p *inPlaceProgress) OnProgress(action reposync.Action, message string, progress float64) {
+	// Skip retry noise
+	if strings.Contains(message, "retrying") {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if idx, ok := p.index[action.Repo.Name]; ok {
+		msg := message
+		if progress > 0 {
+			msg = fmt.Sprintf("%s (%.0f%%)", message, progress*100)
+		}
+		p.repos[idx].msg = msg
+	}
+	p.redraw()
+}
+
+// OnComplete implements reposync.ProgressSink.
+func (p *inPlaceProgress) OnComplete(result reposync.ActionResult) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.done++
+	if idx, ok := p.index[result.Action.Repo.Name]; ok {
+		if result.Error != nil {
+			p.errored++
+			p.repos[idx].state = "error"
+			// Short message (first line) for the row display
+			errMsg := result.Error.Error()
+			firstLine := errMsg
+			if nl := strings.Index(errMsg, "\n"); nl > 0 {
+				firstLine = errMsg[:nl]
+			}
+			p.repos[idx].msg = firstLine
+			// Save full error for post-run details section
+			p.errDetails = append(p.errDetails, fmt.Sprintf("%s: %s", result.Action.Repo.Name, errMsg))
+		} else {
+			p.repos[idx].state = "done"
+			p.repos[idx].msg = result.Message
+		}
+	}
+	p.redraw()
+
+	// After all done, print final summary + error details
+	if p.done == p.total {
+		succeeded := p.done - p.errored
+		if p.errored == 0 {
+			fmt.Fprintf(p.out, "\n\033[32m✓ All %d repositories synced successfully.\033[0m\n", p.total)
+		} else {
+			fmt.Fprintf(p.out, "\n\033[33m⚠  %d succeeded, %d failed out of %d repositories.\033[0m\n",
+				succeeded, p.errored, p.total)
+			// Print full error details for failed repos
+			fmt.Fprintf(p.out, "\n\033[31mErrors:\033[0m\n")
+			for _, detail := range p.errDetails {
+				// Indent each line of the error message
+				for i, line := range strings.Split(detail, "\n") {
+					if i == 0 {
+						fmt.Fprintf(p.out, "  ✗ %s\n", line)
+					} else if strings.TrimSpace(line) != "" {
+						fmt.Fprintf(p.out, "    %s\n", line)
+					}
+				}
+			}
+		}
+	}
+}
+
 // ensureChildConfigs checks explicit workspaces and creates .gz-git.yaml if missing.
 func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 	if cfg == nil || len(cfg.Workspaces) == 0 {
@@ -812,6 +1006,14 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		// Skip workspaces with forge source - they are handled by planForgeWorkspaces
 		// which writes a complete config with repository list
 		if ws.Source != nil {
+			continue
+		}
+
+		// Skip git-type workspaces (leaf repos with URL) - they don't need a child config.
+		// These are single git repositories that will be cloned/updated directly.
+		// Creating .gz-git.yaml inside them would be incorrect (they are leaf nodes).
+		effectiveType := ws.Type.Resolve(ws.Source != nil)
+		if effectiveType == config.WorkspaceTypeGit && ws.URL != "" {
 			continue
 		}
 
@@ -1249,6 +1451,37 @@ func displaySyncSummary(out io.Writer, s syncSummary) {
 		fmt.Fprintf(out, "  ✗ %d will be deleted\n", s.Delete)
 	}
 	fmt.Fprintln(out, "")
+}
+
+// displayCompactSyncPreview shows a lightweight one-line summary before sync.
+// Used by default (without --verbose). Only highlights repos with warnings.
+func displayCompactSyncPreview(out io.Writer, s syncSummary, actions []reposync.Action) {
+	// Brief counts line
+	var parts []string
+	if s.Clone > 0 {
+		parts = append(parts, fmt.Sprintf("+%d clone", s.Clone))
+	}
+	if s.Update > 0 {
+		parts = append(parts, fmt.Sprintf("↓%d update", s.Update))
+	}
+	if s.Skip > 0 {
+		parts = append(parts, fmt.Sprintf("⊘%d skip", s.Skip))
+	}
+	summary := strings.Join(parts, "  ")
+	fmt.Fprintf(out, "\nSyncing %d repositories  [%s]\n", s.Total, summary)
+
+	// Show only repos with local changes (dirty worktree) as warnings
+	for _, action := range actions {
+		path := action.Repo.TargetPath
+		if path == "" {
+			continue
+		}
+		// Quick dirty check via git status --porcelain
+		cmd := exec.Command("git", "-C", path, "status", "--porcelain")
+		if out2, err := cmd.Output(); err == nil && len(strings.TrimSpace(string(out2))) > 0 {
+			fmt.Fprintf(out, "  ⚠  %-28s  has local changes (may be overwritten)\n", action.Repo.Name)
+		}
+	}
 }
 
 // buildDetailedSyncPreview analyzes all actions and collects detailed change information.

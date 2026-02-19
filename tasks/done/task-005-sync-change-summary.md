@@ -116,6 +116,9 @@ make test
 
 ### Follow-up Tasks
 - [ ] Integration tests with real Git repos
-- [ ] Update CLI help text with new output format
+- [x] Update CLI help text with new output format (2026-02-19: help 텍스트 업데이트 완료)
 - [ ] Add examples to README/docs
-- [ ] Consider adding --simple flag to revert to old summary
+- [x] Add --verbose/default summary split (2026-02-19: --verbose로 상세, default는 compact 요약)
+- [x] In-place progress display (2026-02-19: TTY에서 ANSI in-place 업데이트)
+- [x] Error details post-run output (2026-02-19: 완료 후 에러 상세 섹션)
+- See also: PLAN-002 / TASK-007 for --format flag addition
