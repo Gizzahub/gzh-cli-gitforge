@@ -192,7 +192,7 @@ Config File Structure (Reference):
 			} else {
 				// Compact: only show count + conflict warnings
 				summary := buildSyncSummary(allActions)
-				displayCompactSyncPreview(out, summary, allActions)
+				displayCompactSyncPreview(ctx, out, summary, allActions)
 			}
 
 			// Determine if we need confirmation
@@ -1031,33 +1031,10 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		// If it's type: config (explicitly set or inferred)
 		// Or if it's meant to be a workspace but directory/config is missing
 
-		// Resolve path relative to config file's directory
+		// Resolve path relative to config file's directory.
+		// resolveWorkspacePath handles absolute, home-relative (~/) and relative paths.
 		configDir := filepath.Dir(cfg.ConfigPath)
-		wsPath := ws.Path
-		if !filepath.IsAbs(wsPath) {
-			if wsPath == "." {
-				wsPath = configDir
-			} else if filepath.IsAbs(wsPath) {
-				// already absolute
-			} else {
-				// resolve relative
-				// Note: We need robust path resolution here matching config package
-				// But simple Join usually works for ./foo
-				// Manually resolve ~ since we don't have access to config's internal resolvePath (it's private)
-				// Actually filepath.Join doesn't handle ~. We should assume it's already resolved if loaded from Config?
-				// Wait, config struct has raw strings. Config package resolves them internally when needed.
-				// We need to resolve it here.
-				// We need os.UserHomeDir if it starts with ~
-				if len(wsPath) > 1 && wsPath[0] == '~' && wsPath[1] == '/' {
-					home, err := os.UserHomeDir()
-					if err == nil {
-						wsPath = filepath.Join(home, wsPath[2:])
-					}
-				} else {
-					wsPath = filepath.Join(configDir, wsPath)
-				}
-			}
-		}
+		wsPath := resolveWorkspacePath(ws.Path, configDir)
 
 		// Check if .gz-git.yaml exists
 		childConfigFile := filepath.Join(wsPath, ".gz-git.yaml")
@@ -1355,11 +1332,14 @@ func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
 		Deleted:  []string{},
 	}
 
-	// Construct remote tracking branch name
-	// Typically: origin/{branch}
+	// Construct remote tracking branch name.
+	// When branch is explicitly set, use origin/{branch}.
+	// When branch is "HEAD" (default), use origin/HEAD which always exists
+	// as a symbolic ref to the remote default branch. Avoid @{u} because it
+	// requires an explicit tracking configuration and fails on detached HEADs.
 	remoteBranch := fmt.Sprintf("origin/%s", baseBranch)
 	if baseBranch == "HEAD" {
-		remoteBranch = "@{u}" // Upstream tracking branch
+		remoteBranch = "origin/HEAD"
 	}
 
 	// Run git diff --name-status HEAD..origin/branch
@@ -1403,7 +1383,7 @@ func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
 func checkDivergence(repoPath, baseBranch string) (bool, error) {
 	remoteBranch := fmt.Sprintf("origin/%s", baseBranch)
 	if baseBranch == "HEAD" {
-		remoteBranch = "@{u}"
+		remoteBranch = "origin/HEAD"
 	}
 
 	// Check commits in local not in remote
@@ -1455,7 +1435,7 @@ func displaySyncSummary(out io.Writer, s syncSummary) {
 
 // displayCompactSyncPreview shows a lightweight one-line summary before sync.
 // Used by default (without --verbose). Only highlights repos with warnings.
-func displayCompactSyncPreview(out io.Writer, s syncSummary, actions []reposync.Action) {
+func displayCompactSyncPreview(ctx context.Context, out io.Writer, s syncSummary, actions []reposync.Action) {
 	// Brief counts line
 	var parts []string
 	if s.Clone > 0 {
@@ -1467,18 +1447,24 @@ func displayCompactSyncPreview(out io.Writer, s syncSummary, actions []reposync.
 	if s.Skip > 0 {
 		parts = append(parts, fmt.Sprintf("⊘%d skip", s.Skip))
 	}
+	if s.Delete > 0 {
+		parts = append(parts, fmt.Sprintf("✗%d delete", s.Delete))
+	}
 	summary := strings.Join(parts, "  ")
 	fmt.Fprintf(out, "\nSyncing %d repositories  [%s]\n", s.Total, summary)
 
-	// Show only repos with local changes (dirty worktree) as warnings
+	// Show only Update repos with local changes (dirty worktree) as warnings.
+	// Clone/Skip/Delete repos either have no TargetPath yet or won't be modified.
 	for _, action := range actions {
+		if action.Type != reposync.ActionUpdate {
+			continue
+		}
 		path := action.Repo.TargetPath
 		if path == "" {
 			continue
 		}
-		// Quick dirty check via git status --porcelain
-		cmd := exec.Command("git", "-C", path, "status", "--porcelain")
-		if out2, err := cmd.Output(); err == nil && len(strings.TrimSpace(string(out2))) > 0 {
+		isDirty, err := isWorkingTreeDirty(ctx, path)
+		if err == nil && isDirty {
 			fmt.Fprintf(out, "  ⚠  %-28s  has local changes (may be overwritten)\n", action.Repo.Name)
 		}
 	}
@@ -1546,11 +1532,16 @@ func displayDetailedSyncPreview(out io.Writer, changes []RepoChanges, summary sy
 		fmt.Fprintln(out, "")
 	}
 
-	// Show detailed repository changes
+	// Show detailed repository changes.
+	// Skip repos are omitted from the detail section to keep output concise;
+	// they contribute to the summary count above.
 	fmt.Fprintln(out, "Repository Details:")
 	fmt.Fprintln(out, "")
 
 	for _, change := range changes {
+		if change.Action == reposync.ActionSkip {
+			continue
+		}
 		displayRepoChange(out, change)
 	}
 
