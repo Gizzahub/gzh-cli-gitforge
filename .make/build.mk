@@ -7,7 +7,7 @@
 
 # Go environment configuration
 # Use system Go installation
-export GOEXPERIMENT := rangefunc
+# NOTE: rangefunc was GOEXPERIMENT in Go 1.22, built-in since Go 1.23+
 
 # Detect OS-specific executable extension (e.g., .exe on Windows)
 BINEXT := $(shell go env GOEXE)

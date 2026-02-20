@@ -233,6 +233,13 @@ func (v *Validator) ExpandEnvVarsInConfig(c *Config) error {
 		return fmt.Errorf("failed to expand baseURL: %w", err)
 	}
 
+	// Expand profiles
+	for name, profile := range c.Profiles {
+		if err := v.ExpandEnvVarsInProfile(profile); err != nil {
+			return fmt.Errorf("failed to expand profile[%s]: %w", name, err)
+		}
+	}
+
 	// Expand workspaces
 	for name, ws := range c.Workspaces {
 		if err := v.ExpandEnvVarsInWorkspace(ws); err != nil {

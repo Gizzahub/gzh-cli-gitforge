@@ -118,10 +118,11 @@ type Profile struct {
 
 // SyncConfig holds sync command defaults.
 type SyncConfig struct {
-	Strategy   string `yaml:"strategy,omitempty"`   // pull, reset, skip
-	MaxRetries int    `yaml:"maxRetries,omitempty"` // Retry count
-	Timeout    string `yaml:"timeout,omitempty"`    // Operation timeout
-	Recursive  bool   `yaml:"recursive,omitempty"`  // Auto-sync child workspace repos
+	Strategy       string `yaml:"strategy,omitempty"`       // pull, reset, skip
+	MaxRetries     int    `yaml:"maxRetries,omitempty"`     // Retry count
+	Timeout        string `yaml:"timeout,omitempty"`        // Operation timeout
+	Recursive      bool   `yaml:"recursive,omitempty"`      // Auto-sync child workspace repos
+	CleanupOrphans bool   `yaml:"cleanupOrphans,omitempty"` // Delete local repos not in forge
 }
 
 // SelfSyncConfig controls sync behavior for the config directory itself.

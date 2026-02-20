@@ -333,7 +333,7 @@ func CreateProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg
 	sshPort := ws.SSHPort
 	providerName := src.Provider
 
-	// Fallback to profile values if not set in source
+	// Fallback to workspace's profile values if not set in source
 	if ws.Profile != "" && cfg != nil {
 		profile := config.GetProfileFromChain(cfg, ws.Profile)
 		if profile != nil {
@@ -349,6 +349,36 @@ func CreateProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg
 			if providerName == "" {
 				providerName = profile.Provider
 			}
+		}
+	}
+
+	// Fallback to root config's active profile and direct settings
+	if cfg != nil {
+		if cfg.Profile != "" {
+			profile := config.GetProfileFromChain(cfg, cfg.Profile)
+			if profile != nil {
+				if token == "" {
+					token = profile.Token
+				}
+				if baseURL == "" {
+					baseURL = profile.BaseURL
+				}
+				if sshPort == 0 {
+					sshPort = profile.SSHPort
+				}
+				if providerName == "" {
+					providerName = profile.Provider
+				}
+			}
+		}
+		if token == "" {
+			token = cfg.Token
+		}
+		if baseURL == "" {
+			baseURL = cfg.BaseURL
+		}
+		if providerName == "" {
+			providerName = cfg.Provider
 		}
 	}
 

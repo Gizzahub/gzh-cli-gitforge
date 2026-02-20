@@ -76,6 +76,67 @@ func TestScanForChildConfigs(t *testing.T) {
 	}
 }
 
+func TestSyncConfigCleanupOrphans(t *testing.T) {
+	// Verify SyncConfig correctly holds CleanupOrphans field
+	sync := &config.SyncConfig{
+		Strategy:       "pull",
+		CleanupOrphans: true,
+	}
+
+	if !sync.CleanupOrphans {
+		t.Error("expected CleanupOrphans to be true")
+	}
+
+	// Verify it works in workspace context
+	ws := &config.Workspace{
+		Path:   "~/mydevbox",
+		Source: &config.ForgeSource{Provider: "gitlab", Org: "devbox"},
+		Sync:   sync,
+	}
+
+	if ws.Sync == nil || !ws.Sync.CleanupOrphans {
+		t.Error("expected workspace sync.cleanupOrphans to be true")
+	}
+
+	// Verify nil sync doesn't panic
+	wsNoSync := &config.Workspace{
+		Path:   "~/other",
+		Source: &config.ForgeSource{Provider: "github", Org: "org"},
+	}
+	if wsNoSync.Sync != nil && wsNoSync.Sync.CleanupOrphans {
+		t.Error("expected nil sync to not have cleanupOrphans")
+	}
+}
+
+func TestCleanupOrphansPreview(t *testing.T) {
+	// Verify ActionDelete appears correctly in sync summary
+	actions := []reposync.Action{
+		{Type: reposync.ActionUpdate, Repo: reposync.RepoSpec{Name: "active-repo"}},
+		{Type: reposync.ActionDelete, Repo: reposync.RepoSpec{Name: "orphan-repo", TargetPath: "/tmp/orphan"}},
+	}
+
+	summary := buildSyncSummary(actions)
+
+	if summary.Update != 1 {
+		t.Errorf("expected 1 update, got %d", summary.Update)
+	}
+	if summary.Delete != 1 {
+		t.Errorf("expected 1 delete, got %d", summary.Delete)
+	}
+	if summary.Total != 2 {
+		t.Errorf("expected 2 total, got %d", summary.Total)
+	}
+
+	// Verify preview output shows delete
+	var buf bytes.Buffer
+	displaySyncSummary(&buf, summary)
+	output := buf.String()
+
+	if !bytes.Contains([]byte(output), []byte("will be deleted")) {
+		t.Errorf("expected 'will be deleted' in output, got:\n%s", output)
+	}
+}
+
 func TestGetConfigWorkspaces(t *testing.T) {
 	cfg := &config.Config{
 		Workspaces: map[string]*config.Workspace{
