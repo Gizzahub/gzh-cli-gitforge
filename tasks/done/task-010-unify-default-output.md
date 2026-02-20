@@ -11,7 +11,10 @@ depends-on: [TASK-009]
 blocks: []
 
 created-at: 2026-02-19T11:13:00Z
-status: todo
+started-at: 2026-02-19T12:00:00Z
+completed-at: 2026-02-20T09:00:00Z
+status: done
+completion-summary: "모든 bulk 명령의 default 출력이 summary-first 스타일로 통일됨 (commit 4e9bc25)"
 ---
 
 ## Purpose
@@ -76,30 +79,30 @@ Total scanned:   6 repositories
 
 ## Definition of Done
 
-- [ ] 모든 git 작업 명령의 default가 1-3줄 요약
-- [ ] --verbose로 기존 상세 출력 접근 가능
-- [ ] 에러/문제 항목은 항상 표시 (verbose 무관)
-- [ ] 기존 테스트 통과 (출력 테스트 업데이트 포함)
-- [ ] `make quality` 통과
+- [x] 모든 git 작업 명령의 default가 1-3줄 요약
+- [x] --verbose로 기존 상세 출력 접근 가능
+- [x] 에러/문제 항목은 항상 표시 (verbose 무관)
+- [x] 기존 테스트 통과 (출력 테스트 업데이트 포함)
+- [x] `make quality` 통과
 
 ## Checklist
 
 ### 각 명령 출력 리팩토링
-- [ ] `status.go`: displayDiagnosticResults() → 요약 우선
-- [ ] `fetch.go`: displayFetchResults() → 요약 우선
-- [ ] `pull.go`: displayPullResults() → 요약 우선
-- [ ] `push.go`: displayPushResults() → 요약 우선
-- [ ] `update.go`: displayUpdateResults() → 요약 우선
-- [ ] `switch.go`: displaySwitchResults() → 요약 우선
-- [ ] `diff.go`: displayDiffResults() → 요약 우선
+- [x] `status.go`: displayDiagnosticResults() → 요약 우선
+- [x] `fetch.go`: displayFetchResults() → 요약 우선
+- [x] `pull.go`: displayPullResults() → 요약 우선
+- [x] `push.go`: displayPushResults() → 요약 우선
+- [x] `update.go`: displayUpdateResults() → 요약 우선
+- [x] `switch.go`: displaySwitchResults() → 요약 우선
+- [x] `diff.go`: displayDiffResults() → 요약 우선
 
 ### 공통 헬퍼
-- [ ] `cliutil.WriteSummaryLine()` — "Fetched 6 repos [✓4 ↓2] 1.2s" 형식
-- [ ] 각 명령에 적용
+- [x] `WriteSummaryLine()` in `bulk_common.go` — "Fetched 6 repos [✓4 ↓2] 1.2s" 형식
+- [x] 각 명령에 적용
 
 ### 테스트 업데이트
-- [ ] 출력 변경에 따른 기존 테스트 수정
-- [ ] 새 요약 출력 테스트 추가
+- [x] 출력 변경에 따른 기존 테스트 수정
+- [x] 새 요약 출력 테스트 추가
 
 ## Technical Notes
 
@@ -112,3 +115,18 @@ Total scanned:   6 repositories
 
 ## Estimated Effort
 5-7시간
+
+## Work Summary (2026-02-20)
+
+- Worker: Claude AI
+- Verified implementation in commit `4e9bc25` ("feat(cmd): unify default output to summary-first across bulk commands")
+- Key files changed:
+  - `cmd/gz-git/cmd/bulk_common.go`: Added `WriteSummaryLine()` and `WriteHealthSummaryLine()` helpers
+  - `cmd/gz-git/cmd/fetch.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/pull.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/push.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/update.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/switch.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/diff.go`: Summary-first default, verbose for details
+  - `cmd/gz-git/cmd/status.go`: Health summary-first default
+- Verification: `make quality` passed (fmt + lint + test)
