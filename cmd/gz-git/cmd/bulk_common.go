@@ -2,14 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // WatchModeHelpText provides consistent documentation for watch mode across commands.
@@ -202,6 +205,111 @@ func getBulkStatusIcon(status string, changesCount int) string {
 // getBulkStatusIconSimple returns the icon without considering changes count.
 func getBulkStatusIconSimple(status string) string {
 	return getBulkStatusIcon(status, 0)
+}
+
+// summaryDisplayOrder defines the preferred display order for summary line items.
+var summaryDisplayOrder = []string{
+	"up-to-date", "nothing-to-push",
+	"success", "fetched", "pulled", "pushed", "updated",
+	"would-fetch", "would-pull", "would-push", "would-update",
+	"skipped",
+	"dirty",
+	"no-remote", "no-upstream",
+	"auth-required",
+	"conflict", "rebase-in-progress", "merge-in-progress",
+	"error",
+}
+
+// getSummaryIcon returns an icon for summary line display.
+// Uses directional arrows for operations (↓ for fetch/pull, ↑ for push).
+func getSummaryIcon(status string) string {
+	switch status {
+	case "up-to-date", "nothing-to-push":
+		return "="
+	case "fetched", "pulled", "updated":
+		return "↓"
+	case "pushed":
+		return "↑"
+	case "success":
+		return "✓"
+	case "would-fetch", "would-pull", "would-push", "would-update":
+		return "→"
+	case "skipped":
+		return "⊘"
+	case "dirty":
+		return "⚠"
+	case "error":
+		return "✗"
+	case "no-remote", "no-upstream":
+		return "⚠"
+	case "auth-required":
+		return "🔐"
+	case "conflict":
+		return "⚡"
+	case "rebase-in-progress":
+		return "↻"
+	case "merge-in-progress":
+		return "⇄"
+	default:
+		return "•"
+	}
+}
+
+// WriteSummaryLine prints a one-line summary for bulk operations.
+// Example: "Fetched 6 repos  [=4 up-to-date  ↓2 fetched]  1.2s"
+func WriteSummaryLine(w io.Writer, verb string, total int, summary map[string]int, duration time.Duration) {
+	var parts []string
+	seen := make(map[string]bool)
+	for _, status := range summaryDisplayOrder {
+		count, ok := summary[status]
+		if !ok || count == 0 {
+			continue
+		}
+		seen[status] = true
+		icon := getSummaryIcon(status)
+		parts = append(parts, fmt.Sprintf("%s%d %s", icon, count, status))
+	}
+	for status, count := range summary {
+		if count == 0 || seen[status] {
+			continue
+		}
+		icon := getSummaryIcon(status)
+		parts = append(parts, fmt.Sprintf("%s%d %s", icon, count, status))
+	}
+
+	bracket := ""
+	if len(parts) > 0 {
+		bracket = "  [" + strings.Join(parts, "  ") + "]"
+	}
+
+	durationStr := duration.Round(100 * time.Millisecond).String()
+	fmt.Fprintf(w, "%s %d repos%s  %s\n", verb, total, bracket, durationStr)
+}
+
+// WriteHealthSummaryLine prints a one-line health summary for diagnostic status.
+// Example: "Status 6 repos  [✓4 healthy  ⚠1 warning  ✗1 error]  1.2s"
+func WriteHealthSummaryLine(w io.Writer, total int, summary reposync.HealthSummary, duration time.Duration) {
+	var parts []string
+	if summary.Healthy > 0 {
+		parts = append(parts, fmt.Sprintf("✓%d healthy", summary.Healthy))
+	}
+	if summary.Warning > 0 {
+		parts = append(parts, fmt.Sprintf("⚠%d warning", summary.Warning))
+	}
+	if summary.Error > 0 {
+		parts = append(parts, fmt.Sprintf("✗%d error", summary.Error))
+	}
+	if summary.Unreachable > 0 {
+		parts = append(parts, fmt.Sprintf("⊘%d unreachable", summary.Unreachable))
+	}
+
+	bracket := ""
+	if len(parts) > 0 {
+		bracket = "  [" + strings.Join(parts, "  ") + "]"
+	}
+
+	durationStr := duration.Round(100 * time.Millisecond).String()
+	fmt.Fprintf(w, "Status %d repos%s  %s\n", total, bracket, durationStr)
 }
 
 // WatchConfig holds configuration for watch mode operations.

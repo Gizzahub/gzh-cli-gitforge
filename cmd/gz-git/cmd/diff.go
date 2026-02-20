@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -152,14 +153,36 @@ func displayDiffResults(result *repository.BulkDiffResult) {
 		return
 	}
 
-	// Compact mode - summary only
+	// Compact mode: unchanged
 	if diffFlags.Format == "compact" {
 		displayDiffResultsCompact(result)
 		return
 	}
 
-	// Default mode - full output
-	displayDiffResultsDefault(result)
+	if verbose {
+		// Verbose: full diff output (old default behavior)
+		displayDiffResultsDefault(result)
+	} else {
+		// Default: summary line + changed repos brief (no diff content)
+		fmt.Println()
+		durationStr := result.Duration.Round(100 * time.Millisecond).String()
+		fmt.Printf("Diff %d repos  [⚠%d changed  ✓%d clean]  %s\n",
+			result.TotalScanned, result.TotalWithChanges, result.TotalClean, durationStr)
+
+		for _, repo := range result.Repositories {
+			if repo.Status == "clean" {
+				continue
+			}
+			icon := getDiffStatusIcon(repo.Status)
+			changes := fmt.Sprintf("+%d/-%d", repo.Additions, repo.Deletions)
+			fmt.Printf("  %s %-40s (%s)  %d files  %-10s %s\n",
+				icon, repo.RelativePath, repo.Branch, repo.FilesChanged, changes, repo.DiffSummary)
+		}
+
+		if result.TotalWithChanges == 0 {
+			fmt.Println("✓ All repositories are clean")
+		}
+	}
 }
 
 func displayDiffResultsDefault(result *repository.BulkDiffResult) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -148,20 +149,13 @@ func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
 		return
 	}
 
-	// Default/compact output
-	fmt.Println()
-	fmt.Printf("Target branch: %s\n", result.TargetBranch)
-	fmt.Printf("Scanned: %d repositories\n", result.TotalScanned)
-	fmt.Printf("Processed: %d repositories\n", result.TotalProcessed)
-	fmt.Println()
-
-	// Display each repository result (skip in compact mode unless there are issues)
-	if format != "compact" {
-		for _, repo := range result.Repositories {
-			displaySwitchRepoResult(repo)
-		}
-	} else {
-		// In compact mode, only show non-success results
+	// Compact mode: unchanged
+	if format == "compact" {
+		fmt.Println()
+		fmt.Printf("Target branch: %s\n", result.TargetBranch)
+		fmt.Printf("Scanned: %d repositories\n", result.TotalScanned)
+		fmt.Printf("Processed: %d repositories\n", result.TotalProcessed)
+		fmt.Println()
 		for _, repo := range result.Repositories {
 			if repo.Status != repository.StatusSwitched &&
 				repo.Status != repository.StatusAlreadyOnBranch &&
@@ -169,12 +163,72 @@ func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
 				displaySwitchRepoResult(repo)
 			}
 		}
+		fmt.Println()
+		displaySwitchSummary(result)
+		fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
+		return
 	}
 
-	// Display summary
 	fmt.Println()
-	displaySwitchSummary(result)
-	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
+
+	if verbose {
+		// Verbose: full detailed output (old default behavior)
+		fmt.Printf("Target branch: %s\n", result.TargetBranch)
+		fmt.Printf("Scanned: %d repositories\n", result.TotalScanned)
+		fmt.Printf("Processed: %d repositories\n", result.TotalProcessed)
+		fmt.Println()
+		for _, repo := range result.Repositories {
+			displaySwitchRepoResult(repo)
+		}
+		fmt.Println()
+		displaySwitchSummary(result)
+		fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
+	} else {
+		// Default: one-line summary + failures only
+		type switchIcon struct {
+			icon  string
+			label string
+		}
+		switchIcons := map[string]switchIcon{
+			repository.StatusSwitched:        {"+", "switched"},
+			repository.StatusBranchCreated:   {"+", "created"},
+			repository.StatusAlreadyOnBranch: {"=", "already"},
+			repository.StatusWouldSwitch:     {"~", "would-switch"},
+			repository.StatusDirty:           {"!", "dirty"},
+			repository.StatusBranchNotFound:  {"?", "not-found"},
+			repository.StatusError:           {"✗", "error"},
+		}
+		switchOrder := []string{
+			repository.StatusSwitched, repository.StatusBranchCreated,
+			repository.StatusAlreadyOnBranch, repository.StatusWouldSwitch,
+			repository.StatusDirty, repository.StatusBranchNotFound, repository.StatusError,
+		}
+
+		var parts []string
+		for _, key := range switchOrder {
+			count, ok := result.Summary[key]
+			if !ok || count == 0 {
+				continue
+			}
+			info := switchIcons[key]
+			parts = append(parts, fmt.Sprintf("%s%d %s", info.icon, count, info.label))
+		}
+		bracket := ""
+		if len(parts) > 0 {
+			bracket = "  [" + strings.Join(parts, "  ") + "]"
+		}
+		durationStr := result.Duration.Round(time.Millisecond).String()
+		fmt.Printf("Switched → %s: %d repos%s  %s\n", result.TargetBranch, result.TotalProcessed, bracket, durationStr)
+
+		// Show failures only
+		for _, repo := range result.Repositories {
+			if repo.Status == repository.StatusError ||
+				repo.Status == repository.StatusDirty ||
+				repo.Status == repository.StatusBranchNotFound {
+				displaySwitchRepoResult(repo)
+			}
+		}
+	}
 }
 
 // displaySwitchRepoResult displays a single repository switch result

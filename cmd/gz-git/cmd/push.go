@@ -209,33 +209,22 @@ func displayPushResults(result *repository.BulkPushResult) {
 		return
 	}
 
-	fmt.Println()
-	fmt.Println("=== Push Results ===")
-	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-	fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-	fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000)) // Round to 0.1s
-	fmt.Println()
-
-	// Display summary
-	if len(result.Summary) > 0 {
-		fmt.Println("Summary by status:")
-		for status, count := range result.Summary {
-			icon := getBulkStatusIconSimple(status)
-			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-		}
-		fmt.Println()
-	}
-
-	// Display individual results if not compact
-	if pushFlags.Format != "compact" && len(result.Repositories) > 0 {
-		fmt.Println("Repository details:")
-		for _, repo := range result.Repositories {
-			displayPushRepositoryResult(repo)
-		}
-	}
-
-	// Display only errors/warnings in compact mode
+	// Compact mode: unchanged
 	if pushFlags.Format == "compact" {
+		fmt.Println()
+		fmt.Println("=== Push Results ===")
+		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
+		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
+		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
+		fmt.Println()
+		if len(result.Summary) > 0 {
+			fmt.Println("Summary by status:")
+			for status, count := range result.Summary {
+				icon := getBulkStatusIconSimple(status)
+				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
+			}
+			fmt.Println()
+		}
 		hasIssues := false
 		for _, repo := range result.Repositories {
 			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
@@ -250,16 +239,47 @@ func displayPushResults(result *repository.BulkPushResult) {
 		if !hasIssues {
 			fmt.Println("✓ All repositories pushed successfully")
 		}
+	} else if verbose {
+		// Verbose: full detailed output (old default behavior)
+		fmt.Println()
+		fmt.Println("=== Push Results ===")
+		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
+		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
+		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
+		fmt.Println()
+		if len(result.Summary) > 0 {
+			fmt.Println("Summary by status:")
+			for status, count := range result.Summary {
+				icon := getBulkStatusIconSimple(status)
+				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
+			}
+			fmt.Println()
+		}
+		if len(result.Repositories) > 0 {
+			fmt.Println("Repository details:")
+			for _, repo := range result.Repositories {
+				displayPushRepositoryResult(repo)
+			}
+		}
+	} else {
+		// Default: summary line + issues only
+		WriteSummaryLine(os.Stdout, "Pushed", result.TotalProcessed, result.Summary, result.Duration)
+		for _, repo := range result.Repositories {
+			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
+				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" ||
+				repo.Status == "auth-required" {
+				displayPushRepositoryResult(repo)
+			}
+		}
 	}
 
-	// Display dirty repositories warning
+	// Always show dirty warning and auth errors
 	dirtyCount := countDirtyRepositories(result.Repositories)
 	if dirtyCount > 0 {
 		fmt.Println()
 		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
 	}
 
-	// Display authentication errors summary
 	authErrors := getAuthRequiredRepositories(result.Repositories)
 	if len(authErrors) > 0 {
 		fmt.Println()

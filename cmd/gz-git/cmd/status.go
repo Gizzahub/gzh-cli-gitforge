@@ -444,63 +444,63 @@ func displayDiagnosticResults(report *reposync.HealthReport) {
 		return
 	}
 
-	// Compact output mode
+	// Compact output mode: unchanged
 	if statusFlags.Format == "compact" {
 		displayDiagnosticResultsCompact(report)
 		return
 	}
 
-	// Default detailed output
-	fmt.Println()
-	fmt.Println("=== Repository Health Status ===")
-	fmt.Printf("Total repositories: %d\n", len(report.Results))
-	fmt.Printf("Duration:           %s\n", report.TotalDuration.Round(100_000_000)) // Round to 0.1s
 	fmt.Println()
 
-	// Display summary by health status
-	if report.Summary.Total > 0 {
-		fmt.Println("Summary by health:")
-		if report.Summary.Healthy > 0 {
-			icon := getHealthIcon(reposync.HealthHealthy)
-			fmt.Printf("  %s %-15s %d\n", icon, "healthy:", report.Summary.Healthy)
-		}
-		if report.Summary.Warning > 0 {
-			icon := getHealthIcon(reposync.HealthWarning)
-			fmt.Printf("  %s %-15s %d\n", icon, "warning:", report.Summary.Warning)
-		}
-		if report.Summary.Error > 0 {
-			icon := getHealthIcon(reposync.HealthError)
-			fmt.Printf("  %s %-15s %d\n", icon, "error:", report.Summary.Error)
-		}
-		if report.Summary.Unreachable > 0 {
-			icon := getHealthIcon(reposync.HealthUnreachable)
-			fmt.Printf("  %s %-15s %d\n", icon, "unreachable:", report.Summary.Unreachable)
-		}
+	if verbose {
+		// Verbose: full detailed output (old default behavior)
+		fmt.Println("=== Repository Health Status ===")
+		fmt.Printf("Total repositories: %d\n", len(report.Results))
+		fmt.Printf("Duration:           %s\n", report.TotalDuration.Round(100_000_000))
 		fmt.Println()
-	}
 
-	// Display individual repository details
-	if len(report.Results) > 0 {
-		if verbose {
+		if report.Summary.Total > 0 {
+			fmt.Println("Summary by health:")
+			if report.Summary.Healthy > 0 {
+				icon := getHealthIcon(reposync.HealthHealthy)
+				fmt.Printf("  %s %-15s %d\n", icon, "healthy:", report.Summary.Healthy)
+			}
+			if report.Summary.Warning > 0 {
+				icon := getHealthIcon(reposync.HealthWarning)
+				fmt.Printf("  %s %-15s %d\n", icon, "warning:", report.Summary.Warning)
+			}
+			if report.Summary.Error > 0 {
+				icon := getHealthIcon(reposync.HealthError)
+				fmt.Printf("  %s %-15s %d\n", icon, "error:", report.Summary.Error)
+			}
+			if report.Summary.Unreachable > 0 {
+				icon := getHealthIcon(reposync.HealthUnreachable)
+				fmt.Printf("  %s %-15s %d\n", icon, "unreachable:", report.Summary.Unreachable)
+			}
+			fmt.Println()
+		}
+
+		if len(report.Results) > 0 {
 			fmt.Println("Repository details:")
 			for _, repo := range report.Results {
 				displayHealthRepositoryResult(repo)
 			}
-		} else {
-			// Show only repos with issues
-			hasIssues := false
-			for _, repo := range report.Results {
-				if repo.HealthStatus != reposync.HealthHealthy {
-					if !hasIssues {
-						fmt.Println("Repositories with issues:")
-						hasIssues = true
-					}
-					displayHealthRepositoryResult(repo)
+		}
+	} else {
+		// Default: summary line + issues only
+		WriteHealthSummaryLine(os.Stdout, len(report.Results), report.Summary, report.TotalDuration)
+
+		hasIssues := false
+		for _, repo := range report.Results {
+			if repo.HealthStatus != reposync.HealthHealthy {
+				if !hasIssues {
+					hasIssues = true
 				}
+				displayHealthRepositoryResult(repo)
 			}
-			if !hasIssues {
-				fmt.Println("✓ All repositories are healthy")
-			}
+		}
+		if !hasIssues {
+			fmt.Println("✓ All repositories are healthy")
 		}
 	}
 }

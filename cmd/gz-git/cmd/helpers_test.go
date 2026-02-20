@@ -1,6 +1,13 @@
 package cmd
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
+)
 
 func TestFormatUpstreamFixHint(t *testing.T) {
 	tests := []struct {
@@ -132,6 +139,159 @@ func TestGetBulkStatusIconSimple(t *testing.T) {
 			got := getBulkStatusIconSimple(tt.status)
 			if got != tt.want {
 				t.Errorf("getBulkStatusIconSimple(%q) = %q, want %q", tt.status, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetSummaryIcon(t *testing.T) {
+	tests := []struct {
+		status string
+		want   string
+	}{
+		// Directional icons for operations
+		{"up-to-date", "="},
+		{"nothing-to-push", "="},
+		{"fetched", "↓"},
+		{"pulled", "↓"},
+		{"updated", "↓"},
+		{"pushed", "↑"},
+		{"success", "✓"},
+
+		// Dry-run
+		{"would-fetch", "→"},
+		{"would-pull", "→"},
+		{"would-push", "→"},
+		{"would-update", "→"},
+
+		// Warning/error states
+		{"skipped", "⊘"},
+		{"dirty", "⚠"},
+		{"error", "✗"},
+		{"no-remote", "⚠"},
+		{"no-upstream", "⚠"},
+		{"auth-required", "🔐"},
+		{"conflict", "⚡"},
+		{"rebase-in-progress", "↻"},
+		{"merge-in-progress", "⇄"},
+
+		// Unknown
+		{"some-unknown", "•"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.status, func(t *testing.T) {
+			got := getSummaryIcon(tt.status)
+			if got != tt.want {
+				t.Errorf("getSummaryIcon(%q) = %q, want %q", tt.status, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWriteSummaryLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		verb     string
+		total    int
+		summary  map[string]int
+		duration time.Duration
+		contains []string
+	}{
+		{
+			name:     "fetch with mixed statuses",
+			verb:     "Fetched",
+			total:    6,
+			summary:  map[string]int{"up-to-date": 4, "fetched": 2},
+			duration: 1200 * time.Millisecond,
+			contains: []string{"Fetched 6 repos", "=4 up-to-date", "↓2 fetched", "1.2s"},
+		},
+		{
+			name:     "push all up-to-date",
+			verb:     "Pushed",
+			total:    3,
+			summary:  map[string]int{"nothing-to-push": 3},
+			duration: 500 * time.Millisecond,
+			contains: []string{"Pushed 3 repos", "=3 nothing-to-push", "500ms"},
+		},
+		{
+			name:     "with errors",
+			verb:     "Pulled",
+			total:    5,
+			summary:  map[string]int{"pulled": 3, "error": 2},
+			duration: 2 * time.Second,
+			contains: []string{"Pulled 5 repos", "↓3 pulled", "✗2 error", "2s"},
+		},
+		{
+			name:     "empty summary",
+			verb:     "Updated",
+			total:    0,
+			summary:  map[string]int{},
+			duration: 100 * time.Millisecond,
+			contains: []string{"Updated 0 repos", "100ms"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			WriteSummaryLine(&buf, tt.verb, tt.total, tt.summary, tt.duration)
+			got := buf.String()
+			for _, want := range tt.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("WriteSummaryLine() = %q, want to contain %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestWriteHealthSummaryLine(t *testing.T) {
+	tests := []struct {
+		name     string
+		total    int
+		summary  reposync.HealthSummary
+		duration time.Duration
+		contains []string
+	}{
+		{
+			name:  "all healthy",
+			total: 6,
+			summary: reposync.HealthSummary{
+				Healthy: 6, Total: 6,
+			},
+			duration: 1500 * time.Millisecond,
+			contains: []string{"Status 6 repos", "✓6 healthy", "1.5s"},
+		},
+		{
+			name:  "mixed health",
+			total: 8,
+			summary: reposync.HealthSummary{
+				Healthy: 5, Warning: 2, Error: 1, Total: 8,
+			},
+			duration: 3 * time.Second,
+			contains: []string{"Status 8 repos", "✓5 healthy", "⚠2 warning", "✗1 error", "3s"},
+		},
+		{
+			name:  "with unreachable",
+			total: 4,
+			summary: reposync.HealthSummary{
+				Healthy: 2, Unreachable: 2, Total: 4,
+			},
+			duration: 30 * time.Second,
+			contains: []string{"Status 4 repos", "✓2 healthy", "⊘2 unreachable"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			WriteHealthSummaryLine(&buf, tt.total, tt.summary, tt.duration)
+			got := buf.String()
+			for _, want := range tt.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("WriteHealthSummaryLine() = %q, want to contain %q", got, want)
+				}
 			}
 		})
 	}
