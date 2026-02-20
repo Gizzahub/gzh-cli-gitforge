@@ -69,7 +69,7 @@ type repoEntry struct {
 	URL                  string            `yaml:"url"`
 	AdditionalRemotes    map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
 	Path                 string            `yaml:"path"`
-	Branch               string            `yaml:"branch"`               // optional: branch to checkout after clone/update
+	Branch               config.FlexBranch `yaml:"branch"`               // optional: branch to checkout after clone/update
 	StrictBranchCheckout *bool             `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
 	Strategy             string            `yaml:"strategy"`
 	Enabled              *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
@@ -279,7 +279,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 			CloneURL:             repo.URL,
 			AdditionalRemotes:    repo.AdditionalRemotes,
 			TargetPath:           targetPath,
-			Branch:               repo.Branch,
+			Branch:               string(repo.Branch),
 			StrictBranchCheckout: strictBranchCheckout,
 			Strategy:             repoStrategy,
 			Enabled:              repo.Enabled,

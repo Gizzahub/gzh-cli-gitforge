@@ -353,6 +353,136 @@ func TestBranchList_First(t *testing.T) {
 	}
 }
 
+func TestFlexBranch_UnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		yaml     string
+		expected FlexBranch
+		wantErr  bool
+	}{
+		{
+			name:     "plain string",
+			yaml:     "branch: develop",
+			expected: "develop",
+		},
+		{
+			name:     "comma-separated string",
+			yaml:     "branch: develop,master",
+			expected: "develop,master",
+		},
+		{
+			name:     "map with defaultBranch string",
+			yaml:     "branch:\n  defaultBranch: develop",
+			expected: "develop",
+		},
+		{
+			name:     "map with defaultBranch comma-separated",
+			yaml:     "branch:\n  defaultBranch: develop,master",
+			expected: "develop,master",
+		},
+		{
+			name:     "map with defaultBranch list",
+			yaml:     "branch:\n  defaultBranch:\n    - dev\n    - main",
+			expected: "dev,main",
+		},
+		{
+			name:     "map with defaultBranch inline list",
+			yaml:     "branch:\n  defaultBranch: [develop, master]",
+			expected: "develop,master",
+		},
+		{
+			name:     "empty string",
+			yaml:     "branch: \"\"",
+			expected: "",
+		},
+		{
+			name:     "absent field",
+			yaml:     "other: value",
+			expected: "",
+		},
+		{
+			name:     "map without defaultBranch",
+			yaml:     "branch:\n  protectedBranches: [main]",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cfg struct {
+				Branch FlexBranch `yaml:"branch"`
+			}
+
+			err := yaml.Unmarshal([]byte(tt.yaml), &cfg)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && cfg.Branch != tt.expected {
+				t.Errorf("UnmarshalYAML() got %q, want %q", cfg.Branch, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFlexBranch_MarshalYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    FlexBranch
+		expected string
+	}{
+		{
+			name:     "empty",
+			input:    "",
+			expected: "branch: null\n",
+		},
+		{
+			name:     "single branch",
+			input:    "develop",
+			expected: "branch: develop\n",
+		},
+		{
+			name:     "comma-separated",
+			input:    "develop,master",
+			expected: "branch: develop,master\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := struct {
+				Branch FlexBranch `yaml:"branch"`
+			}{
+				Branch: tt.input,
+			}
+
+			data, err := yaml.Marshal(&cfg)
+			if err != nil {
+				t.Errorf("MarshalYAML() error = %v", err)
+				return
+			}
+
+			if string(data) != tt.expected {
+				t.Errorf("MarshalYAML() got %q, want %q", string(data), tt.expected)
+			}
+		})
+	}
+}
+
+func TestFlexBranch_String(t *testing.T) {
+	f := FlexBranch("develop,master")
+	if f.String() != "develop,master" {
+		t.Errorf("String() = %q, want %q", f.String(), "develop,master")
+	}
+
+	empty := FlexBranch("")
+	if empty.String() != "" {
+		t.Errorf("String() = %q, want empty", empty.String())
+	}
+}
+
 func TestBranchList_RoundTrip(t *testing.T) {
 	// Test that marshaling and unmarshaling preserves the data
 	tests := []struct {

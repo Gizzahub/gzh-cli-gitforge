@@ -250,6 +250,70 @@ func (b *BranchConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// FlexBranch is a string type that accepts both string and map YAML formats.
+// Use this for per-repo or per-group branch fields where only the branch name(s) matter.
+//
+// Accepted formats:
+//
+//	branch: develop              → "develop"
+//	branch: develop,master       → "develop,master"
+//	branch:
+//	  defaultBranch: develop     → "develop"
+//	branch:
+//	  defaultBranch: [dev, main] → "dev,main"
+type FlexBranch string
+
+// UnmarshalYAML implements yaml.Unmarshaler to support both string and map formats.
+func (f *FlexBranch) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try string first
+	var str string
+	if err := unmarshal(&str); err == nil {
+		*f = FlexBranch(str)
+		return nil
+	}
+
+	// Try map with defaultBranch key
+	var m map[string]interface{}
+	if err := unmarshal(&m); err != nil {
+		return fmt.Errorf("branch: expected string or map with defaultBranch key")
+	}
+
+	val, ok := m["defaultBranch"]
+	if !ok {
+		*f = ""
+		return nil
+	}
+
+	switch v := val.(type) {
+	case string:
+		*f = FlexBranch(v)
+	case []interface{}:
+		parts := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok && s != "" {
+				parts = append(parts, s)
+			}
+		}
+		*f = FlexBranch(strings.Join(parts, ","))
+	default:
+		return fmt.Errorf("branch.defaultBranch: expected string or list, got %T", val)
+	}
+	return nil
+}
+
+// String returns the FlexBranch value as a plain string.
+func (f FlexBranch) String() string {
+	return string(f)
+}
+
+// MarshalYAML implements yaml.Marshaler to output as a plain string.
+func (f FlexBranch) MarshalYAML() (interface{}, error) {
+	if f == "" {
+		return nil, nil
+	}
+	return string(f), nil
+}
+
 // BranchList supports both string and list formats for branch specification.
 // Examples:
 //   - defaultBranch: develop           # single branch

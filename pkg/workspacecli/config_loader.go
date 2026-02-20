@@ -43,14 +43,14 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		Metadata *config.Metadata `yaml:"metadata,omitempty"`
 
 		// Sync settings
-		Strategy       string   `yaml:"strategy"`
-		Parallel       int      `yaml:"parallel"`
-		MaxRetries     int      `yaml:"maxRetries"`
-		CleanupOrphans bool     `yaml:"cleanupOrphans"`
-		CloneProto     string   `yaml:"cloneProto"`
-		SSHPort        int      `yaml:"sshPort"`
-		Branch         string   `yaml:"branch"`
-		Roots          []string `yaml:"roots"`
+		Strategy       string            `yaml:"strategy"`
+		Parallel       int               `yaml:"parallel"`
+		MaxRetries     int               `yaml:"maxRetries"`
+		CleanupOrphans bool              `yaml:"cleanupOrphans"`
+		CloneProto     string            `yaml:"cloneProto"`
+		SSHPort        int               `yaml:"sshPort"`
+		Branch         config.FlexBranch `yaml:"branch"`
+		Roots          []string          `yaml:"roots"`
 		Repositories   []struct {
 			Name              string            `yaml:"name"`
 			Description       string            `yaml:"description"` // optional: human-readable description
@@ -59,7 +59,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Path              string            `yaml:"path"`
 			Strategy          string            `yaml:"strategy"`
 			CloneProto        string            `yaml:"cloneProto"`
-			Branch            string            `yaml:"branch"`
+			Branch            config.FlexBranch `yaml:"branch"`
 			Enabled           *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
 			AssumePresent     bool              `yaml:"assumePresent"` // if true, skip clone check
 		} `yaml:"repositories"`
@@ -104,9 +104,9 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		}
 
 		// Per-repo branch override, fallback to top-level
-		branch := r.Branch
+		branch := string(r.Branch)
 		if branch == "" {
-			branch = raw.Branch
+			branch = string(raw.Branch)
 		}
 
 		spec := reposync.RepoSpec{

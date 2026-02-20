@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/hooks"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -434,12 +435,12 @@ func IsValidCloneStrategy(strategy string) bool {
 
 // CloneGroup represents a named group of repositories with its own target.
 type CloneGroup struct {
-	Target       string          `yaml:"target"`             // Required: target directory for this group
-	Branch       string          `yaml:"branch,omitempty"`   // Default branch for all repos in group
-	Depth        int             `yaml:"depth,omitempty"`    // Default depth for all repos in group
-	Strategy     string          `yaml:"strategy,omitempty"` // Override global strategy
-	Repositories []CloneRepoSpec `yaml:"repositories"`       // Repository list
-	Hooks        *CloneHooks     `yaml:"hooks,omitempty"`    // Group-level hooks (applied to all repos in group)
+	Target       string            `yaml:"target"`             // Required: target directory for this group
+	Branch       config.FlexBranch `yaml:"branch,omitempty"`   // Default branch for all repos in group
+	Depth        int               `yaml:"depth,omitempty"`    // Default depth for all repos in group
+	Strategy     string            `yaml:"strategy,omitempty"` // Override global strategy
+	Repositories []CloneRepoSpec   `yaml:"repositories"`       // Repository list
+	Hooks        *CloneHooks       `yaml:"hooks,omitempty"`    // Group-level hooks (applied to all repos in group)
 }
 
 // CloneHooks represents before/after hook commands for clone operations.
@@ -451,12 +452,12 @@ type CloneHooks struct {
 
 // CloneRepoSpec represents a single repository specification in YAML.
 type CloneRepoSpec struct {
-	URL    string      `yaml:"url"`              // Required
-	Name   string      `yaml:"name,omitempty"`   // Optional: custom directory name (extracted from URL if empty)
-	Path   string      `yaml:"path,omitempty"`   // Optional: subdirectory within target
-	Branch string      `yaml:"branch,omitempty"` // Optional: branch to checkout
-	Depth  int         `yaml:"depth,omitempty"`  // Optional: shallow clone depth
-	Hooks  *CloneHooks `yaml:"hooks,omitempty"`  // Optional: repo-level hooks
+	URL    string            `yaml:"url"`              // Required
+	Name   string            `yaml:"name,omitempty"`   // Optional: custom directory name (extracted from URL if empty)
+	Path   string            `yaml:"path,omitempty"`   // Optional: subdirectory within target
+	Branch config.FlexBranch `yaml:"branch,omitempty"` // Optional: branch to checkout
+	Depth  int               `yaml:"depth,omitempty"`  // Optional: shallow clone depth
+	Hooks  *CloneHooks       `yaml:"hooks,omitempty"`  // Optional: repo-level hooks
 }
 
 // parseCloneConfig reads and parses YAML or JSON config from file or stdin.
@@ -568,9 +569,7 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 		if v, ok := groupMap["target"].(string); ok {
 			group.Target = v
 		}
-		if v, ok := groupMap["branch"].(string); ok {
-			group.Branch = v
-		}
+		group.Branch = extractFlexBranch(groupMap["branch"])
 		if v, ok := groupMap["depth"].(int); ok {
 			group.Depth = v
 		}
@@ -601,9 +600,7 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 				if v, ok := repoMap["path"].(string); ok {
 					spec.Path = v
 				}
-				if v, ok := repoMap["branch"].(string); ok {
-					spec.Branch = v
-				}
+				spec.Branch = extractFlexBranch(repoMap["branch"])
 				if v, ok := repoMap["depth"].(int); ok {
 					spec.Depth = v
 				}
@@ -725,6 +722,36 @@ func validateFlatRepositories(repos []CloneRepoSpec, groupName string) error {
 	}
 
 	return nil
+}
+
+// extractFlexBranch extracts a FlexBranch from a raw interface{} value.
+// Handles string values directly and map values by extracting the defaultBranch key.
+func extractFlexBranch(v interface{}) config.FlexBranch {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case string:
+		return config.FlexBranch(val)
+	case map[string]interface{}:
+		db, ok := val["defaultBranch"]
+		if !ok {
+			return ""
+		}
+		switch dbVal := db.(type) {
+		case string:
+			return config.FlexBranch(dbVal)
+		case []interface{}:
+			parts := make([]string, 0, len(dbVal))
+			for _, item := range dbVal {
+				if s, ok := item.(string); ok && s != "" {
+					parts = append(parts, s)
+				}
+			}
+			return config.FlexBranch(strings.Join(parts, ","))
+		}
+	}
+	return ""
 }
 
 // parseCloneHooks parses hooks from a raw map interface.
@@ -1048,7 +1075,7 @@ func buildGroupCloneOptions(config *CloneConfig, group *CloneGroup, targetDir st
 	// Resolve branch: CLI > group > empty
 	branch := cloneBranch
 	if branch == "" && group.Branch != "" {
-		branch = group.Branch
+		branch = string(group.Branch)
 	}
 
 	// Resolve depth: CLI > group > 0
@@ -1194,7 +1221,7 @@ func cloneSingleRepository(
 	}
 
 	// Determine branch
-	branch := spec.Branch
+	branch := string(spec.Branch)
 	if branch == "" && baseOpts.Branch != "" {
 		branch = baseOpts.Branch
 	}
