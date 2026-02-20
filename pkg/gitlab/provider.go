@@ -123,6 +123,10 @@ func (p *Provider) ListOrganizationRepos(ctx context.Context, group string) ([]*
 		}
 
 		for _, project := range projects {
+			// Skip projects scheduled for deletion
+			if project.MarkedForDeletionAt != nil {
+				continue
+			}
 			allRepos = append(allRepos, p.convertGitLabProject(project))
 		}
 
@@ -192,6 +196,10 @@ func (p *Provider) ListUserRepos(ctx context.Context, user string) ([]*provider.
 		}
 
 		for _, project := range projects {
+			// Skip projects scheduled for deletion
+			if project.MarkedForDeletionAt != nil {
+				continue
+			}
 			allRepos = append(allRepos, p.convertGitLabProject(project))
 		}
 
