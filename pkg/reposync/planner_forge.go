@@ -60,6 +60,9 @@ type ForgePlannerConfig struct {
 	// Invalid characters: / \ : * ? " < > |
 	FlatSeparator string
 
+	// Branch is the branch to checkout after clone/update (comma-separated fallback list)
+	Branch string
+
 	// Auth contains authentication settings for clone operations
 	Auth AuthConfig
 
@@ -257,6 +260,7 @@ func (p *ForgePlanner) toRepoSpec(repo *provider.Repository) RepoSpec {
 		Provider:   p.provider.Name(),
 		CloneURL:   cloneURL,
 		TargetPath: targetPath,
+		Branch:     p.config.Branch,
 		Auth:       auth,
 	}
 }

@@ -49,6 +49,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		CleanupOrphans bool     `yaml:"cleanupOrphans"`
 		CloneProto     string   `yaml:"cloneProto"`
 		SSHPort        int      `yaml:"sshPort"`
+		Branch         string   `yaml:"branch"`
 		Roots          []string `yaml:"roots"`
 		Repositories   []struct {
 			Name              string            `yaml:"name"`
@@ -58,6 +59,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Path              string            `yaml:"path"`
 			Strategy          string            `yaml:"strategy"`
 			CloneProto        string            `yaml:"cloneProto"`
+			Branch            string            `yaml:"branch"`
 			Enabled           *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
 			AssumePresent     bool              `yaml:"assumePresent"` // if true, skip clone check
 		} `yaml:"repositories"`
@@ -101,12 +103,19 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			path = repoName
 		}
 
+		// Per-repo branch override, fallback to top-level
+		branch := r.Branch
+		if branch == "" {
+			branch = raw.Branch
+		}
+
 		spec := reposync.RepoSpec{
 			Name:              repoName,
 			Description:       r.Description,
 			CloneURL:          r.URL,
 			AdditionalRemotes: r.AdditionalRemotes,
 			TargetPath:        path,
+			Branch:            branch,
 			Enabled:           r.Enabled,
 			AssumePresent:     r.AssumePresent,
 		}

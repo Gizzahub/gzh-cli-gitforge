@@ -483,12 +483,21 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			token = cfg.Token
 		}
 
+		// Extract branch from workspace config, falling back to root config
+		branch := ""
+		if ws.Branch != nil && len(ws.Branch.DefaultBranch) > 0 {
+			branch = strings.Join(ws.Branch.DefaultBranch, ",")
+		} else if cfg.Branch != nil && len(cfg.Branch.DefaultBranch) > 0 {
+			branch = strings.Join(cfg.Branch.DefaultBranch, ",")
+		}
+
 		plannerConfig := reposync.ForgePlannerConfig{
 			TargetPath:       ws.Path,
 			Organization:     ws.Source.Org,
 			IncludeSubgroups: ws.Source.IncludeSubgroups,
 			SubgroupMode:     ws.Source.SubgroupMode,
 			IncludePrivate:   true, // workspace sync should include private/internal repos
+			Branch:           branch,
 			Auth: reposync.AuthConfig{
 				Token:    token,
 				Provider: ws.Source.Provider,

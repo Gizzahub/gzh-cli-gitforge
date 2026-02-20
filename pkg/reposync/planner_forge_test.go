@@ -359,6 +359,35 @@ func TestForgePlanner_toRepoSpec(t *testing.T) {
 			t.Errorf("expected provider gitea, got %s", spec.Provider)
 		}
 	})
+
+	t.Run("sets branch from config", func(t *testing.T) {
+		p := &mockForgeProvider{name: "github"}
+		planner := NewForgePlanner(p, ForgePlannerConfig{
+			TargetPath: "/tmp/repos",
+			Branch:     "develop,master",
+		})
+		repo := &provider.Repository{Name: "myrepo"}
+
+		spec := planner.toRepoSpec(repo)
+
+		if spec.Branch != "develop,master" {
+			t.Errorf("expected branch 'develop,master', got '%s'", spec.Branch)
+		}
+	})
+
+	t.Run("branch empty when not configured", func(t *testing.T) {
+		p := &mockForgeProvider{name: "github"}
+		planner := NewForgePlanner(p, ForgePlannerConfig{
+			TargetPath: "/tmp/repos",
+		})
+		repo := &provider.Repository{Name: "myrepo"}
+
+		spec := planner.toRepoSpec(repo)
+
+		if spec.Branch != "" {
+			t.Errorf("expected empty branch, got '%s'", spec.Branch)
+		}
+	})
 }
 
 func TestForgePlanner_planOrphanCleanup(t *testing.T) {
