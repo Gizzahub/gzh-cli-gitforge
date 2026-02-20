@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -72,6 +73,94 @@ func TestScanForChildConfigs(t *testing.T) {
 	// repo-b should NOT appear (exists but no config)
 	if bytes.Contains([]byte(output), []byte("repo-b")) {
 		t.Errorf("repo-b should not appear in output (no child config), got:\n%s", output)
+	}
+}
+
+func TestGetConfigWorkspaces(t *testing.T) {
+	cfg := &config.Config{
+		Workspaces: map[string]*config.Workspace{
+			"mywork": {
+				Path: "~/mywork",
+				Sync: &config.SyncConfig{Recursive: true},
+			},
+			"mydevbox": {
+				Path:   "~/mydevbox",
+				Source: &config.ForgeSource{Provider: "gitlab", Org: "devbox"},
+			},
+			"mynote": {
+				Path: "~/mynote",
+				Sync: &config.SyncConfig{Strategy: "pull"},
+				// Recursive NOT set
+			},
+		},
+	}
+
+	result := config.GetConfigWorkspaces(cfg)
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 config workspace, got %d", len(result))
+	}
+	if _, ok := result["mywork"]; !ok {
+		t.Error("expected 'mywork' in config workspaces")
+	}
+	if _, ok := result["mydevbox"]; ok {
+		t.Error("forge workspace 'mydevbox' should not be in config workspaces")
+	}
+	if _, ok := result["mynote"]; ok {
+		t.Error("non-recursive 'mynote' should not be in config workspaces")
+	}
+}
+
+func TestPlanConfigWorkspaces(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create child workspace directory with config
+	wsDir := filepath.Join(tmpDir, "mywork")
+	if err := os.MkdirAll(wsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Write child config with a repository
+	childConfig := `strategy: pull
+parallel: 4
+repositories:
+  - name: my-repo
+    url: https://github.com/user/my-repo.git
+`
+	if err := os.WriteFile(filepath.Join(wsDir, DefaultConfigFile), []byte(childConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		ConfigPath: filepath.Join(tmpDir, ".gz-git.yaml"),
+		Workspaces: map[string]*config.Workspace{
+			"mywork": {
+				Path: wsDir,
+				Sync: &config.SyncConfig{Recursive: true},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	actions, err := planConfigWorkspaces(context.Background(), cfg, tmpDir, &buf, "")
+	if err != nil {
+		t.Fatalf("planConfigWorkspaces failed: %v", err)
+	}
+
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	if actions[0].Repo.Name != "my-repo" {
+		t.Errorf("expected repo name 'my-repo', got %q", actions[0].Repo.Name)
+	}
+
+	output := buf.String()
+	if !bytes.Contains([]byte(output), []byte("Planning config workspace")) {
+		t.Errorf("expected planning message in output, got:\n%s", output)
+	}
+	if !bytes.Contains([]byte(output), []byte("1 repositories")) {
+		t.Errorf("expected '1 repositories' in output, got:\n%s", output)
 	}
 }
 
@@ -189,6 +278,74 @@ func TestScanForChildConfigs_AtMaxDepth(t *testing.T) {
 	// Should produce no output since depth+1 >= MaxDepth
 	if output != "" {
 		t.Errorf("expected empty output at max depth, got:\n%s", output)
+	}
+}
+
+func TestEnsureChildConfigs_ConfigLink(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create source config file (simulates workstation/gz-git/mywork-gz-git.yaml)
+	configDir := filepath.Join(tmpDir, "workstation")
+	gzGitDir := filepath.Join(configDir, "gz-git")
+	if err := os.MkdirAll(gzGitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	srcConfig := filepath.Join(gzGitDir, "mywork-gz-git.yaml")
+	if err := os.WriteFile(srcConfig, []byte("repositories: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Target workspace directory (simulates ~/mywork)
+	wsDir := filepath.Join(tmpDir, "mywork")
+
+	// Parent config path (for resolving relative configLink)
+	parentConfigPath := filepath.Join(configDir, ".gz-git.yaml")
+
+	cfg := &config.Config{
+		ConfigPath: parentConfigPath,
+		Workspaces: map[string]*config.Workspace{
+			"mywork": {
+				Path:       wsDir,
+				ConfigLink: "./gz-git/mywork-gz-git.yaml",
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err := ensureChildConfigs(&buf, cfg)
+	if err != nil {
+		t.Fatalf("ensureChildConfigs failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Should mention linking
+	if !bytes.Contains([]byte(output), []byte("Linking workspace")) {
+		t.Errorf("expected 'Linking workspace' in output, got:\n%s", output)
+	}
+
+	// Verify symlink was created
+	linkPath := filepath.Join(wsDir, DefaultConfigFile)
+	fi, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatalf("symlink not created: %v", err)
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("expected symlink, got regular file")
+	}
+
+	// Verify symlink target resolves correctly
+	target, err := os.Readlink(linkPath)
+	if err != nil {
+		t.Fatalf("failed to read symlink: %v", err)
+	}
+
+	// Resolve to absolute for comparison
+	absTarget, _ := filepath.Abs(target)
+	absSrc, _ := filepath.Abs(srcConfig)
+	if absTarget != absSrc {
+		t.Errorf("symlink target = %s, want %s", absTarget, absSrc)
 	}
 }
 

@@ -121,6 +121,7 @@ type SyncConfig struct {
 	Strategy   string `yaml:"strategy,omitempty"`   // pull, reset, skip
 	MaxRetries int    `yaml:"maxRetries,omitempty"` // Retry count
 	Timeout    string `yaml:"timeout,omitempty"`    // Operation timeout
+	Recursive  bool   `yaml:"recursive,omitempty"`  // Auto-sync child workspace repos
 }
 
 // SelfSyncConfig controls sync behavior for the config directory itself.

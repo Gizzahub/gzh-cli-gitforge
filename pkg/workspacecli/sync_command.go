@@ -169,6 +169,13 @@ Config File Structure (Reference):
 						return err
 					}
 					allActions = append(allActions, gitActions...)
+
+					// Get config workspace actions (type=config with sync.recursive=true)
+					cfgWsActions, err := planConfigWorkspaces(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), strategy)
+					if err != nil {
+						return err
+					}
+					allActions = append(allActions, cfgWsActions...)
 				}
 			}
 
@@ -646,6 +653,93 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 	return allActions, nil
 }
 
+// planConfigWorkspaces loads child configs from type=config workspaces with sync.recursive=true
+// and returns their repository actions for inclusion in the parent's execution plan.
+func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+	workspaces := config.GetConfigWorkspaces(cfg)
+	if len(workspaces) == 0 {
+		return nil, nil
+	}
+
+	fmt.Fprintf(out, "Found %d recursive config workspaces\n", len(workspaces))
+
+	var allActions []reposync.Action
+
+	for name, ws := range workspaces {
+		// Default path to workspace name when omitted
+		effectivePath := ws.Path
+		if effectivePath == "" {
+			effectivePath = name
+		}
+
+		// Resolve workspace path
+		wsPath := resolveWorkspacePath(effectivePath, configDir)
+
+		// Skip workspaces that point to the config directory itself
+		if wsPath == configDir || effectivePath == "." {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory\n", name, effectivePath)
+			continue
+		}
+
+		childConfigPath := filepath.Join(wsPath, DefaultConfigFile)
+
+		// Check if child config exists (should have been created by ensureChildConfigs/configLink)
+		if _, err := os.Stat(childConfigPath); os.IsNotExist(err) {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': no config at %s\n", name, childConfigPath)
+			continue
+		}
+
+		fmt.Fprintf(out, "Planning config workspace '%s' (%s)...\n", name, childConfigPath)
+
+		// Load flat config from child
+		loader := FileSpecLoader{}
+		cfgData, err := loader.Load(ctx, childConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load config for workspace '%s': %w", name, err)
+		}
+
+		// Build actions from child's repositories list
+		if len(cfgData.Plan.Input.Repos) > 0 {
+			// Apply strategy override if specified
+			if strategyOverrideStr != "" {
+				s, sErr := reposync.ParseStrategy(strategyOverrideStr)
+				if sErr == nil {
+					cfgData.Plan.Options.DefaultStrategy = s
+				}
+			}
+
+			childActions := createActionsFromFlatConfig(cfgData.Plan, wsPath)
+			fmt.Fprintf(out, "  → Found %d repositories\n", len(childActions))
+			allActions = append(allActions, childActions...)
+		}
+
+		// Also load recursive/hierarchical config from child
+		childConfigFile := filepath.Base(childConfigPath)
+		childRecursiveCfg, recursiveErr := config.LoadConfigRecursive(wsPath, childConfigFile)
+		if recursiveErr != nil && !os.IsNotExist(recursiveErr) {
+			fmt.Fprintf(out, "  ⚠️  Config warning: %v\n", recursiveErr)
+		}
+
+		if childRecursiveCfg != nil {
+			if err := config.LoadWorkspaces(wsPath, childRecursiveCfg, config.HybridMode); err == nil {
+				forgeActions, fErr := planForgeWorkspaces(ctx, childRecursiveCfg, out, strategyOverrideStr, false)
+				if fErr != nil {
+					return nil, fmt.Errorf("failed to plan forge workspaces in '%s': %w", name, fErr)
+				}
+				allActions = append(allActions, forgeActions...)
+
+				gitActions, gErr := planGitWorkspaces(ctx, childRecursiveCfg, wsPath, out, strategyOverrideStr)
+				if gErr != nil {
+					return nil, fmt.Errorf("failed to plan git workspaces in '%s': %w", name, gErr)
+				}
+				allActions = append(allActions, gitActions...)
+			}
+		}
+	}
+
+	return allActions, nil
+}
+
 // writeChildForgeConfig writes a child config file with the list of repositories.
 // It respects the workspace's ChildConfigMode and protects user-maintained files.
 func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
@@ -1066,6 +1160,15 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		// resolveWorkspacePath handles absolute, home-relative (~/) and relative paths.
 		configDir := filepath.Dir(cfg.ConfigPath)
 		wsPath := resolveWorkspacePath(ws.Path, configDir)
+
+		// If configLink is set, create symlink instead of bootstrap config
+		if ws.ConfigLink != "" {
+			fmt.Fprintf(out, "→ Linking workspace '%s': %s → %s\n", name, filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
+			if err := config.CreateConfigSymlink(ws.ConfigLink, wsPath, configDir); err != nil {
+				return fmt.Errorf("failed to create config symlink for workspace '%s': %w", name, err)
+			}
+			continue
+		}
 
 		// Check if .gz-git.yaml exists
 		childConfigFile := filepath.Join(wsPath, ".gz-git.yaml")

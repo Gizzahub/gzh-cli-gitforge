@@ -723,6 +723,34 @@ func GetGitWorkspaces(config *Config) map[string]*Workspace {
 	return result
 }
 
+// GetConfigWorkspaces returns workspaces with type=config that have sync.recursive enabled.
+// These are workspaces whose child config should be loaded and synced by the parent.
+func GetConfigWorkspaces(config *Config) map[string]*Workspace {
+	result := make(map[string]*Workspace)
+
+	if config == nil || config.Workspaces == nil {
+		return result
+	}
+
+	for name, ws := range config.Workspaces {
+		// Skip forge and git workspaces (handled by their own planners)
+		if ws.Source != nil || ws.Type == WorkspaceTypeForge {
+			continue
+		}
+		effectiveType := ws.Type.Resolve(ws.Source != nil)
+		if effectiveType == WorkspaceTypeGit && ws.URL != "" {
+			continue
+		}
+
+		// Only include if sync.recursive is true
+		if ws.Sync != nil && ws.Sync.Recursive {
+			result[name] = ws
+		}
+	}
+
+	return result
+}
+
 // GetProfileByName returns a profile by name from the config.
 // Lookup order: inline (config.Profiles) → external (~/.config/gz-git/profiles/)
 // Returns nil if profile not found in either location.
