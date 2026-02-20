@@ -85,10 +85,10 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [path]",
 		Short: "Initialize workspace config by scanning for git repos",
-		Long: cliutil.QuickStartHelp(`  # Show usage guide
+		Long: cliutil.QuickStartHelp(`  # Scan current directory (default)
   gz-git workspace init
 
-  # Scan current directory and create config
+  # Scan current directory explicitly
   gz-git workspace init .
 
   # Scan specific directory
@@ -112,12 +112,11 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
   # Choose sync strategy (pull, reset, fetch, skip)
   gz-git workspace init . --strategy reset`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// No arguments: show usage guide
-			if len(args) == 0 {
-				return f.showInitGuide(cmd)
+			if len(args) > 0 {
+				opts.Path = args[0]
+			} else {
+				opts.Path = "."
 			}
-
-			opts.Path = args[0]
 			return f.runInit(cmd, opts)
 		},
 	}
@@ -135,42 +134,6 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.Strategy, "strategy", "s", opts.Strategy, "Sync strategy: reset, pull, fetch, skip")
 
 	return cmd
-}
-
-func (f CommandFactory) showInitGuide(cmd *cobra.Command) error {
-	out := cmd.OutOrStdout()
-
-	fmt.Fprintln(out, "📁 Workspace Init - Create config from existing git repositories")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Usage:")
-	fmt.Fprintln(out, "  gz-git workspace init <path>    Scan directory and generate config")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Examples:")
-	fmt.Fprintln(out, "  gz-git workspace init .              # Scan current directory")
-	fmt.Fprintln(out, "  gz-git workspace init ~/mydevbox     # Scan specific directory")
-	fmt.Fprintln(out, "  gz-git workspace init . -d 3         # Scan 3 levels deep")
-	fmt.Fprintln(out, "  gz-git workspace init . --exclude vendor,tmp")
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Options:")
-	fmt.Fprintln(out, "  -d, --scan-depth int   Scan depth (default: 2)")
-	fmt.Fprintln(out, "  -o, --output string    Output file (default: .gz-git.yaml)")
-	fmt.Fprintln(out, "  -k, --kind string      Config kind: workspace (default) or repositories")
-	fmt.Fprintln(out, "  -s, --strategy string  Sync strategy: pull (default), reset, fetch, skip")
-	fmt.Fprintln(out, "  -f, --force            Overwrite existing config")
-	fmt.Fprintln(out, "      --template         Create empty template (no scanning)")
-	fmt.Fprintln(out, "      --explain-defaults Include commented defaults for omitted fields")
-	fmt.Fprintln(out, "      --exclude string   Exclude patterns (comma-separated)")
-	fmt.Fprintln(out)
-
-	// Check if config already exists in current directory
-	if _, err := os.Stat(DefaultConfigFile); err == nil {
-		fmt.Fprintf(out, "⚠️  Config file already exists: %s\n", DefaultConfigFile)
-		fmt.Fprintln(out, "   Use --force to overwrite:")
-		fmt.Fprintln(out, "   gz-git workspace init . --force")
-		fmt.Fprintln(out)
-	}
-
-	return nil
 }
 
 func (f CommandFactory) runInit(cmd *cobra.Command, opts *InitOptions) error {

@@ -24,7 +24,18 @@ func TestNewInitCmd(t *testing.T) {
 	}
 }
 
-func TestInitCmd_NoArgs_ShowsGuide(t *testing.T) {
+func TestInitCmd_NoArgs_DefaultsToDot(t *testing.T) {
+	// Create a temp dir to use as working directory so scan finds no repos
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chdir(origDir) })
+
 	factory := CommandFactory{}
 	cmd := factory.newInitCmd()
 
@@ -38,17 +49,9 @@ func TestInitCmd_NoArgs_ShowsGuide(t *testing.T) {
 
 	output := buf.String()
 
-	// Should show usage guide
-	if !strings.Contains(output, "Workspace Init") {
-		t.Error("should show workspace init header")
-	}
-
-	if !strings.Contains(output, "gz-git workspace init .") {
-		t.Error("should show example usage")
-	}
-
-	if !strings.Contains(output, "--scan-depth") {
-		t.Error("should show options")
+	// Should scan current directory (empty dir → no repos found)
+	if !strings.Contains(output, "Scanning") {
+		t.Error("should start scanning when no args provided")
 	}
 }
 

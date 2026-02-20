@@ -177,6 +177,9 @@ Config File Structure (Reference):
 					}
 					allActions = append(allActions, cfgWsActions...)
 				}
+
+				// Deduplicate actions by target path (forge + config planners may overlap)
+				allActions = deduplicateActions(allActions)
 			}
 
 			// Execute self-sync first (sync config directory itself)
@@ -1297,6 +1300,25 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		}
 	}
 	return nil
+}
+
+// deduplicateActions removes duplicate actions targeting the same path.
+// When multiple planners produce actions for the same repo, the first one wins.
+func deduplicateActions(actions []reposync.Action) []reposync.Action {
+	seen := make(map[string]bool, len(actions))
+	result := make([]reposync.Action, 0, len(actions))
+	for _, a := range actions {
+		key := a.Repo.TargetPath
+		if key == "" {
+			key = a.Repo.Name
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, a)
+	}
+	return result
 }
 
 // resolveWorkspacePath resolves a workspace path that may be:
