@@ -44,8 +44,6 @@ Examples:
 
   # Use custom config file
   gz-git workspace sync -c myworkspace.yaml`,
-		SilenceUsage:  true,
-		SilenceErrors: true,
 	}
 
 	// Define Groups

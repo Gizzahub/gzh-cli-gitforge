@@ -38,10 +38,8 @@ func (f CommandFactory) NewRootCmd() *cobra.Command {
 	}
 
 	root := &cobra.Command{
-		Use:           use,
-		Short:         short,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:   use,
+		Short: short,
 		Long: `Git forge operations (GitHub, GitLab, Gitea).
 Use this command to interact directly with Forge APIs. For local config-based operations, use 'gz-git workspace'.
 

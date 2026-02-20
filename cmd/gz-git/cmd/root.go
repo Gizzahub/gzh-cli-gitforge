@@ -180,6 +180,10 @@ func setCommandGroups(cmd *cobra.Command) {
 
 func applyUsageTemplateRecursive(cmd *cobra.Command) {
 	cmd.SetUsageTemplate(usageTemplate)
+	// Cobra does not propagate SilenceUsage/SilenceErrors to child commands.
+	// Set on every command so runtime errors never print usage text.
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
 	for _, c := range cmd.Commands() {
 		applyUsageTemplateRecursive(c)
 	}

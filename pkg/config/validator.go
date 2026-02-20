@@ -8,7 +8,20 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 )
+
+// warnedEnvVars tracks env var names that have already been warned about.
+// Package-level to deduplicate across all Validator instances in the process.
+var warnedEnvVars sync.Map
+
+// ResetEnvVarWarnings clears the warned env var set. Intended for testing.
+func ResetEnvVarWarnings() {
+	warnedEnvVars.Range(func(key, _ any) bool {
+		warnedEnvVars.Delete(key)
+		return true
+	})
+}
 
 var (
 	// envVarPattern matches ${VAR_NAME} syntax
@@ -296,8 +309,10 @@ func (v *Validator) expandString(s string) (string, error) {
 		// Get value from environment
 		value := os.Getenv(varName)
 		if value == "" {
-			// Warn about missing env var (but don't fail)
-			fmt.Fprintf(os.Stderr, "Warning: environment variable %s is not set\n", varName)
+			// Warn about missing env var (but don't fail), only once per var name
+			if _, alreadyWarned := warnedEnvVars.LoadOrStore(varName, true); !alreadyWarned {
+				fmt.Fprintf(os.Stderr, "Warning: environment variable %s is not set\n", varName)
+			}
 		}
 
 		return value

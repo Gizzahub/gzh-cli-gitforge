@@ -638,10 +638,12 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 			strategy = reposync.StrategyReset
 		}
 
-		// Extract branch from workspace config
+		// Extract branch from workspace config, falling back to root config
 		branch := ""
 		if ws.Branch != nil && len(ws.Branch.DefaultBranch) > 0 {
 			branch = strings.Join(ws.Branch.DefaultBranch, ",")
+		} else if cfg.Branch != nil && len(cfg.Branch.DefaultBranch) > 0 {
+			branch = strings.Join(cfg.Branch.DefaultBranch, ",")
 		}
 
 		// Create action for this git workspace
@@ -1007,16 +1009,21 @@ type inPlaceProgress struct {
 	// linesRendered is how many rows we printed during the initial render.
 	// We use this offset to know how far up to jump when redrawing.
 	linesRendered int
+	// Throttling fields
+	lastRedraw time.Time
+	dirty      bool
+	stopFlush  chan struct{}
 }
 
 // newInPlaceProgress creates the progress tracker and immediately prints the
 // initial "waiting" list so the user sees all repos from the start.
 func newInPlaceProgress(out io.Writer, actions []reposync.Action) *inPlaceProgress {
 	p := &inPlaceProgress{
-		out:   out,
-		repos: make([]repoStatus, 0, len(actions)),
-		index: make(map[string]int, len(actions)),
-		total: len(actions),
+		out:       out,
+		repos:     make([]repoStatus, 0, len(actions)),
+		index:     make(map[string]int, len(actions)),
+		total:     len(actions),
+		stopFlush: make(chan struct{}),
 	}
 	for _, a := range actions {
 		idx := len(p.repos)
@@ -1033,12 +1040,55 @@ func newInPlaceProgress(out io.Writer, actions []reposync.Action) *inPlaceProgre
 		fmt.Fprintf(out, "  ○ %-30s  waiting\n", r.name)
 	}
 	p.linesRendered = len(p.repos)
+
+	// Background goroutine flushes dirty state every 100ms
+	go p.flushLoop()
+
 	return p
 }
 
-// redraw moves the cursor up linesRendered rows and rewrites every line.
+// flushLoop periodically redraws if state is dirty.
+func (p *inPlaceProgress) flushLoop() {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			p.mu.Lock()
+			if p.dirty {
+				p.dirty = false
+				p.doRedraw()
+			}
+			p.mu.Unlock()
+		case <-p.stopFlush:
+			return
+		}
+	}
+}
+
+// redraw requests a screen update. If <100ms since last redraw, marks dirty
+// for the background flush goroutine. Forces immediate redraw on final completion.
 // Must be called with p.mu held.
 func (p *inPlaceProgress) redraw() {
+	// Force immediate redraw on final completion
+	if p.done == p.total {
+		p.dirty = false
+		p.doRedraw()
+		return
+	}
+	// Throttle: skip if <100ms since last redraw
+	if time.Since(p.lastRedraw) < 100*time.Millisecond {
+		p.dirty = true
+		return
+	}
+	p.dirty = false
+	p.doRedraw()
+}
+
+// doRedraw moves the cursor up linesRendered rows and rewrites every line.
+// Must be called with p.mu held.
+func (p *inPlaceProgress) doRedraw() {
+	p.lastRedraw = time.Now()
 	// Move cursor up N lines
 	fmt.Fprintf(p.out, "\033[%dA", p.linesRendered)
 	for _, r := range p.repos {
@@ -1122,8 +1172,9 @@ func (p *inPlaceProgress) OnComplete(result reposync.ActionResult) {
 	}
 	p.redraw()
 
-	// After all done, print final summary + error details
+	// After all done, stop flush goroutine and print final summary + error details
 	if p.done == p.total {
+		close(p.stopFlush)
 		succeeded := p.done - p.errored
 		if p.errored == 0 {
 			fmt.Fprintf(p.out, "\n\033[32m✓ All %d repositories synced successfully.\033[0m\n", p.total)
