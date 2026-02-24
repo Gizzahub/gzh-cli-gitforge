@@ -265,7 +265,7 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
 	if result.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch failed: %w", result.Error)
+		return nil, fmt.Errorf("fetch failed (exit %d): %s", result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -284,6 +284,8 @@ func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptio
 
 // applyPullStrategy performs a standard git pull (merge).
 func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
+	removeStaleIndexLock(opts.Destination, logger)
+
 	// Check for dirty working tree before pull
 	repo, err := c.Open(ctx, opts.Destination)
 	if err != nil {
@@ -318,7 +320,7 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 		return nil, fmt.Errorf("pull failed: %w", pullErr)
 	}
 	if pullResult.ExitCode != 0 {
-		return nil, fmt.Errorf("pull failed: %w", pullResult.Error)
+		return nil, fmt.Errorf("pull failed (exit %d): %s", pullResult.ExitCode, strings.TrimSpace(pullResult.Stderr))
 	}
 
 	repo, err = c.Open(ctx, opts.Destination)
@@ -337,13 +339,15 @@ func (c *client) applyPullStrategy(ctx context.Context, opts CloneOrUpdateOption
 
 // applyResetStrategy performs a hard reset to match remote state.
 func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
+	removeStaleIndexLock(opts.Destination, logger)
+
 	// First fetch to get latest remote state (requires auth for remote access)
 	fetchResult, err := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, "fetch", "origin")
 	if err != nil {
 		return nil, fmt.Errorf("fetch before reset failed: %w", err)
 	}
 	if fetchResult.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch before reset failed: %w", fetchResult.Error)
+		return nil, fmt.Errorf("fetch before reset failed (exit %d): %s", fetchResult.ExitCode, strings.TrimSpace(fetchResult.Stderr))
 	}
 
 	// Determine reset target
@@ -358,7 +362,7 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 		return nil, fmt.Errorf("reset failed: %w", err)
 	}
 	if resetResult.ExitCode != 0 {
-		return nil, fmt.Errorf("reset failed: %w", resetResult.Error)
+		return nil, fmt.Errorf("reset failed (exit %d): %s", resetResult.ExitCode, strings.TrimSpace(resetResult.Stderr))
 	}
 
 	repo, err := c.Open(ctx, opts.Destination)
@@ -377,6 +381,8 @@ func (c *client) applyResetStrategy(ctx context.Context, opts CloneOrUpdateOptio
 
 // applyRebaseStrategy rebases local changes on top of remote changes.
 func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
+	removeStaleIndexLock(opts.Destination, logger)
+
 	// Check for dirty working tree before rebase
 	repo, err := c.Open(ctx, opts.Destination)
 	if err != nil {
@@ -407,7 +413,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchErr)
 	}
 	if fetchResult.ExitCode != 0 {
-		return nil, fmt.Errorf("fetch before rebase failed: %w", fetchResult.Error)
+		return nil, fmt.Errorf("fetch before rebase failed (exit %d): %s", fetchResult.ExitCode, strings.TrimSpace(fetchResult.Stderr))
 	}
 
 	// Pull with rebase (requires auth for remote access)
@@ -421,7 +427,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("rebase failed: %w", rebaseErr)
 	}
 	if rebaseResult.ExitCode != 0 {
-		return nil, fmt.Errorf("rebase failed: %w", rebaseResult.Error)
+		return nil, fmt.Errorf("rebase failed (exit %d): %s", rebaseResult.ExitCode, strings.TrimSpace(rebaseResult.Stderr))
 	}
 
 	repo, err = c.Open(ctx, opts.Destination)
@@ -554,4 +560,15 @@ func ExtractRepoNameFromURL(repoURL string) (string, error) {
 	}
 
 	return repoPath, nil
+}
+
+// removeStaleIndexLock checks if a .git/index.lock file exists and removes it to prevent locked operations.
+func removeStaleIndexLock(repoPath string, logger Logger) {
+	lockFile := filepath.Join(repoPath, ".git", "index.lock")
+	if _, err := os.Stat(lockFile); err == nil {
+		if logger != nil {
+			logger.Warn("stale .git/index.lock found, removing", "destination", repoPath)
+		}
+		os.Remove(lockFile)
+	}
 }

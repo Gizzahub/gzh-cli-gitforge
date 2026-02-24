@@ -11,7 +11,15 @@ depends-on: []
 blocks: []
 
 created-at: 2026-02-23T00:00:00Z
-status: todo
+status: done
+started-at: 2026-02-24T14:58:00+09:00
+completed-at: 2026-02-24T15:05:00+09:00
+completion-summary: "Appended stderr to error messages for fetch, pull, reset, and rebase strategies. Added lock file removal check before git operations."
+verification-status: verified
+verification-evidence:
+  - kind: automated
+    command-or-step: "go test ./pkg/repository/..."
+    result: "pass: ok github.com/gizzahub/gzh-cli-gitforge/pkg/repository 0.854s"
 ---
 
 ## Problem
