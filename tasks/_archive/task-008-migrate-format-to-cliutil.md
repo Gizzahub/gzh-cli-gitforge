@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: bulk/history format constants and validators in `cmd/gz-git/cmd/bulk_common.go` are migrated to `pkg/cliutil` wrappers.
+  - Evidence: `CoreFormats`, `ValidBulkFormats`, `ValidHistoryFormats`, `validate*Format`, and `shouldShowProgress` call `cliutil`; `mise x -- go test ./cmd/gz-git/cmd` passed.
 reopened-at: 2026-02-23T16:32:15+09:00
 reopen-reason: |
   - Issue: Feature is not implemented, depends on incomplete TASK-006.

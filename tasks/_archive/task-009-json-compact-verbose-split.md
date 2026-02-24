@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: command JSON output paths are centralized to `cliutil.WriteJSON` and respect `verbose=false compact` / `verbose=true pretty`.
+  - Evidence: no remaining `json.NewEncoder`/`SetIndent` in target command paths, `WriteJSON` usage across status/fetch/pull/push/update/switch/diff, plus new sync JSON tests; `mise x -- go test ./cmd/gz-git/cmd ./pkg/workspacecli` passed.
 reopened-at: 2026-02-23T16:32:15+09:00
 reopen-reason: |
   - Issue: Feature is not implemented, depends on incomplete TASK-008.

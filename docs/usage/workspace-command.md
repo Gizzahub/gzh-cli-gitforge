@@ -113,24 +113,28 @@ repositories:
 
 Config 파일에 정의된 repo들을 clone/update.
 
-**기본 동작**: 실행 전 미리보기 요약을 표시하고 확인을 요청합니다.
+**기본 동작**: 실행 전 미리보기를 표시한 뒤 자동으로 진행합니다.
 
 ```bash
-# 기본 (미리보기 + 확인 프롬프트)
+# 기본 (미리보기 후 자동 진행)
 gz-git workspace sync
 
 # 특정 config 파일
 gz-git workspace sync -c myworkspace.yaml
 
-# 확인 없이 바로 실행 (CI/스크립트용)
-gz-git workspace sync --yes
-gz-git workspace sync -y
+# 확인 프롬프트 표시
+gz-git workspace sync --interactive
+gz-git workspace sync -i
 
 # 미리보기만 (실행 안 함)
 gz-git workspace sync --dry-run
 
 # Strategy 지정
 gz-git workspace sync --strategy reset
+
+# 출력 포맷 지정
+gz-git workspace sync --format json
+gz-git workspace sync --format llm
 ```
 
 ### Preview 출력 예시
@@ -150,12 +154,21 @@ Proceed with sync? (y/N)
 
 | Flags | Preview | Prompt | Execute |
 |-------|---------|--------|---------|
-| (기본) | ✓ | ✓ | 'y' 입력시 |
-| `--yes` | ✓ | ✗ | ✓ |
+| (기본) | ✓ | ✗ | ✓ |
+| `--interactive` | ✓ | ✓ | 'y' 입력시 |
 | `--dry-run` | ✓ | ✗ | ✗ |
-| `--dry-run --yes` | ✓ | ✗ | ✗ |
+| `--dry-run --interactive` | ✓ | ✗ | ✗ |
 
-**참고**: CI 환경 (non-TTY)에서는 자동으로 `--yes` 처럼 동작합니다.
+**참고**: CI 환경 (non-TTY)에서는 interactive prompt가 비활성화됩니다.
+
+### Output Format
+
+`workspace sync`는 다음 포맷을 지원합니다.
+
+- `default`: 사람 친화형 미리보기/요약 출력
+- `compact`: 더 간결한 요약 출력
+- `json`: 기계 파싱용 JSON 출력 (`--verbose`와 함께 pretty JSON)
+- `llm`: LLM 친화형 구조화 텍스트 출력
 
 ### Strategy
 

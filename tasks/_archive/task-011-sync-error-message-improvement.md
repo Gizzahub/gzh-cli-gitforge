@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: sync update strategy errors include git stderr/exit code and stale `.git/index.lock` cleanup runs before pull/reset/rebase.
+  - Evidence: `pkg/repository/update.go` uses `...failed (exit %d): %s` patterns and `removeStaleIndexLock`; `mise x -- go test ./pkg/repository` passed.
 id: TASK-011
 title: "sync 실패 시 git stderr를 에러 메시지에 포함"
 type: bug

@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: `workspace sync` has `--format` support (`default|compact|json|llm`) with machine-output handling and JSON/LLM renderers.
+  - Evidence: `pkg/workspacecli/sync_command.go` format validation/output path, new tests in `pkg/workspacecli/sync_output_test.go`, and `mise x -- go test ./pkg/workspacecli` passed.
 reopened-at: 2026-02-23T16:32:15+09:00
 reopen-reason: |
   - Issue: Feature is not implemented. `format` flag does not exist in `pkg/workspacecli/sync_command.go` and it is blocked by TASK-006.

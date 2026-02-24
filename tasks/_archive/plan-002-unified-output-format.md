@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: All child tasks (`TASK-006`~`TASK-010`) are completed and archived with evidence-backed reviews.
+  - Evidence: Child task files in `tasks/_archive/` and review log entries for 2026-02-23 and 2026-02-24.
 reopened-at: 2026-02-23T16:32:15+09:00
 reopen-reason: |
   - Issue: Plan children (TASK-006 to TASK-009) were incorrectly marked as done without implementation.
@@ -10,10 +15,11 @@ priority: P1
 effort: L
 
 created-at: 2026-02-19T11:13:00Z
-status: in_progress
+status: done
 total-tasks: 5
-completed-tasks: 4
-progress: 80.0
+completed-tasks: 5
+progress: 100.0
+completed-at: 2026-02-24T16:10:35+09:00
 
 children:
   - TASK-006
@@ -131,13 +137,13 @@ pkg/cliutil/
 
 ## Success Criteria
 
-- [ ] 모든 명령이 `--format default|compact|json|llm` 지원
-- [ ] `--verbose`가 모든 명령에서 정보량만 제어 (포맷과 독립)
-- [ ] JSON 기본이 compact, `--verbose`로 pretty
-- [ ] `workspace sync --format llm` 동작
-- [ ] `pkg/cliutil/format.go`에 포맷 상수/검증 통합
-- [ ] 기존 명령 하위 호환성 유지
-- [ ] `make quality` 통과
+- [x] 모든 명령이 `--format default|compact|json|llm` 지원
+- [x] `--verbose`가 모든 명령에서 정보량만 제어 (포맷과 독립)
+- [x] JSON 기본이 compact, `--verbose`로 pretty
+- [x] `workspace sync --format llm` 동작
+- [x] `pkg/cliutil/format.go`에 포맷 상수/검증 통합
+- [x] 기존 명령 하위 호환성 유지
+- [x] `make quality` 통과
 
 ## References
 
@@ -150,4 +156,4 @@ pkg/cliutil/
 - [x] TASK-007: workspace sync --format 기능 추가 (pkg/workspacecli/)
 - [x] TASK-008: 공통 포맷 로직 통합 및 마이그레이션 (cmd/bulk_common.go -> pkg/cliutil/)
 - [x] TASK-009: JSON Compact 분리 및 --verbose 동작 변경
-- [ ] TASK-010: 기존 명령 default 포맷 규칙 통일
+- [x] TASK-010: 기존 명령 default 포맷 규칙 통일

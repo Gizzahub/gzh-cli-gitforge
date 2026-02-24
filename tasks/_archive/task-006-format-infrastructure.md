@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-24T16:10:35+09:00
+verified-at: 2026-02-24T16:10:35+09:00
+verification-summary: |
+  - Verified: `pkg/cliutil/format.go` and `pkg/cliutil/output.go` implement required formats/validation/output helpers.
+  - Evidence: Unit tests in `pkg/cliutil/format_test.go` and `pkg/cliutil/output_test.go`; `mise x -- go test ./pkg/cliutil` passed.
 reopened-at: 2026-02-23T16:32:15+09:00
 reopen-reason: |
   - Issue: The files `pkg/cliutil/format.go` and `pkg/cliutil/output.go` were not created.

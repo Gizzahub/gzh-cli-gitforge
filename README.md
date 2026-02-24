@@ -68,8 +68,10 @@ gz-git forge from --provider github --org kubernetes --path ./k8s \
   --language go --min-stars 100 --last-push-within 30d
 
 # Workspace sync with detailed preview (NEW: shows file changes, conflicts)
-gz-git workspace sync  # Interactive preview before executing
+gz-git workspace sync  # Preview then auto-proceed
 gz-git workspace sync --dry-run  # Preview only
+gz-git workspace sync --interactive  # Ask before executing
+gz-git workspace sync --format json  # Machine-readable output
 ```
 
 ______________________________________________________________________
