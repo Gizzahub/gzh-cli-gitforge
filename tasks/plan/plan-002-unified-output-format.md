@@ -1,4 +1,8 @@
 ---
+reopened-at: 2026-02-23T16:32:15+09:00
+reopen-reason: |
+  - Issue: Plan children (TASK-006 to TASK-009) were incorrectly marked as done without implementation.
+  - Required fix: Complete the child tasks.
 id: PLAN-002
 title: "Unified CLI Output Format System"
 type: plan

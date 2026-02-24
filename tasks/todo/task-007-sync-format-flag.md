@@ -1,4 +1,8 @@
 ---
+reopened-at: 2026-02-23T16:32:15+09:00
+reopen-reason: |
+  - Issue: Feature is not implemented. `format` flag does not exist in `pkg/workspacecli/sync_command.go` and it is blocked by TASK-006.
+  - Required fix: Implement sync change format flag as described.
 id: TASK-007
 title: "workspace sync에 --format 플래그 추가"
 type: feature

@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-23T16:32:15+09:00
+verified-at: 2026-02-23T16:32:15+09:00
+verification-summary: |
+  - Verified: implementation of selective clone filtering, CLI help docs, and README examples.
+  - Evidence: Code in `pkg/reposynccli/from_forge_command.go` and `pkg/reposynccli/filter.go`, plus examples in `README.md`.
 id: TASK-004
 title: "Implement Selective Clone Filtering (FR-A02.3)"
 type: feature
@@ -40,7 +45,7 @@ From REQUIREMENTS.md FR-A02.3 (in-progress item). This feature improves the CLI 
 - [x] CLI accepts filter flags (--language, --min-stars, --max-stars, --last-push-within)
 - [x] Filtering logic implemented and tested (MetadataFilter)
 - [x] Smart recommendations via provider warnings
-- [ ] Help documentation includes filter examples (TODO: enhance docs)
+- [x] Help documentation includes filter examples (TODO: enhance docs)
 - [x] Tests cover all filter combinations (filter_test.go)
 - [x] Error handling for invalid filters (ParseDuration validation)
 
@@ -52,8 +57,8 @@ From REQUIREMENTS.md FR-A02.3 (in-progress item). This feature improves the CLI 
 - [x] Build recommendation engine based on filters (provider warnings)
 - [x] Add filter validation (ParseDuration, error handling)
 - [x] Write unit tests for filter logic (filter_test.go - all passing)
-- [ ] Update CLI help documentation (TODO: add examples)
-- [ ] Add examples to README (TODO: usage guide)
+- [x] Update CLI help documentation (TODO: add examples)
+- [x] Add examples to README (TODO: usage guide)
 
 ## Verification
 ```bash

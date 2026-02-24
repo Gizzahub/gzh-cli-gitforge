@@ -1,4 +1,8 @@
 ---
+reopened-at: 2026-02-23T16:32:15+09:00
+reopen-reason: |
+  - Issue: The files `pkg/cliutil/format.go` and `pkg/cliutil/output.go` were not created.
+  - Required fix: Implement the common format infrastructure as defined in the task description.
 id: TASK-006
 title: "공통 포맷 인프라 구축 (pkg/cliutil/format.go)"
 type: feature

@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-23T16:32:15+09:00
+verified-at: 2026-02-23T16:32:15+09:00
+verification-summary: |
+  - Verified: Default output is unified to summary-first across bulk commands
+  - Evidence: Verified `WriteSummaryLine` exists in `cmd/gz-git/cmd/bulk_common.go`
 id: TASK-010
 title: "기존 명령 default 출력 통일 (요약 우선)"
 type: refactor

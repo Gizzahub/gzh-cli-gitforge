@@ -1,4 +1,8 @@
 ---
+reopened-at: 2026-02-23T16:32:15+09:00
+reopen-reason: |
+  - Issue: Feature is not implemented, depends on incomplete TASK-006.
+  - Required fix: Implement format infrastructure migration.
 id: TASK-008
 title: "cmd/bulk_common.go 포맷 로직을 pkg/cliutil로 마이그레이션"
 type: refactor

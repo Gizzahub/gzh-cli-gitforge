@@ -1,4 +1,8 @@
 ---
+reopened-at: 2026-02-23T16:32:15+09:00
+reopen-reason: |
+  - Issue: Feature is not implemented, depends on incomplete TASK-008.
+  - Required fix: Implement JSON formatting updates.
 id: TASK-009
 title: "JSON compact화 + --verbose와 --format 직교성 분리"
 type: refactor

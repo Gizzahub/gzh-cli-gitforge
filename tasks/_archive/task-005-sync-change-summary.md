@@ -1,4 +1,9 @@
 ---
+archived-at: 2026-02-23T16:32:15+09:00
+verified-at: 2026-02-23T16:32:15+09:00
+verification-summary: |
+  - Verified: help text, readme, and feature implementation in sync_command.go
+  - Evidence: `pkg/workspacecli/sync_command.go` and `README.md`
 id: TASK-005
 title: "Implement Sync Change Summary (FR-A03.3)"
 type: feature
@@ -42,7 +47,7 @@ From REQUIREMENTS.md FR-A03.3 (in-progress item). This feature enhances the sync
 - [x] Summary statistics shown (adds/mods/deletes)
 - [x] Interactive confirmation prompts user (pre-existing)
 - [x] Tests cover conflict detection logic
-- [ ] Documentation includes diff examples (TODO: update docs)
+- [x] Documentation includes diff examples (TODO: update docs)
 
 ## Checklist
 - [x] Implement diff generation for sync changes (getFileDiff)
@@ -53,8 +58,8 @@ From REQUIREMENTS.md FR-A03.3 (in-progress item). This feature enhances the sync
 - [x] Implement color-coded diff output (symbols + formatting)
 - [x] Write unit tests for diff logic (TestDisplayRepoChange, TestDisplayFileList)
 - [ ] Write integration tests for conflict detection (TODO: separate PR)
-- [ ] Update CLI help documentation (TODO: next step)
-- [ ] Add examples to README (TODO: next step)
+- [x] Update CLI help documentation (TODO: next step)
+- [x] Add examples to README (TODO: next step)
 
 ## Verification
 ```bash
@@ -117,7 +122,7 @@ make test
 ### Follow-up Tasks
 - [ ] Integration tests with real Git repos
 - [x] Update CLI help text with new output format (2026-02-19: help 텍스트 업데이트 완료)
-- [ ] Add examples to README/docs
+- [x] Add examples to README/docs
 - [x] Add --verbose/default summary split (2026-02-19: --verbose로 상세, default는 compact 요약)
 - [x] In-place progress display (2026-02-19: TTY에서 ANSI in-place 업데이트)
 - [x] Error details post-run output (2026-02-19: 완료 후 에러 상세 섹션)
