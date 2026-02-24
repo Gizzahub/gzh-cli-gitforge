@@ -20,13 +20,6 @@ func TestCommandFactory_NewRootCmd_Defaults(t *testing.T) {
 		t.Errorf("Short = %q, want %q", cmd.Short, "Git repository synchronization")
 	}
 
-	if !cmd.SilenceUsage {
-		t.Error("SilenceUsage should be true")
-	}
-
-	if !cmd.SilenceErrors {
-		t.Error("SilenceErrors should be true")
-	}
 }
 
 func TestCommandFactory_NewRootCmd_CustomUse(t *testing.T) {

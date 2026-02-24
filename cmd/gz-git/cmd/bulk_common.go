@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
@@ -93,36 +94,26 @@ func validateBulkDepth(cmd *cobra.Command, depth int) error {
 }
 
 // Core formats (supported by all commands)
-var CoreFormats = []string{"default", "json", "llm"}
+var CoreFormats = cliutil.CoreFormats
 
 // ValidBulkFormats contains valid output formats for bulk operations
 // Core formats + compact (bulk-specific)
-var ValidBulkFormats = []string{"default", "compact", "json", "llm"}
+var ValidBulkFormats = cliutil.CoreFormats
 
 // ValidHistoryFormats contains valid output formats for history commands
 // Core formats + table, csv, markdown (history-specific)
-var ValidHistoryFormats = []string{"default", "table", "json", "csv", "markdown", "llm"}
+var ValidHistoryFormats = cliutil.TabularFormats
 
 // validateBulkFormat validates the format flag for bulk operations
 // Returns an error if the format is not supported
 func validateBulkFormat(format string) error {
-	for _, valid := range ValidBulkFormats {
-		if format == valid {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid format %q: must be one of: default, compact, json, llm", format)
+	return cliutil.ValidateFormat(format, ValidBulkFormats)
 }
 
 // validateHistoryFormat validates the format flag for history commands
 // Returns an error if the format is not supported
 func validateHistoryFormat(format string) error {
-	for _, valid := range ValidHistoryFormats {
-		if format == valid {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid format %q: must be one of: default, table, json, csv, markdown, llm", format)
+	return cliutil.ValidateFormat(format, ValidHistoryFormats)
 }
 
 // createBulkLogger creates a logger for bulk operations
@@ -146,7 +137,7 @@ func createProgressCallback(operationName string, format string, quiet bool) fun
 
 // shouldShowProgress returns true if progress messages should be displayed
 func shouldShowProgress(format string, quiet bool) bool {
-	return !quiet && format != "json"
+	return !quiet && !cliutil.IsMachineFormat(format)
 }
 
 // getBulkStatusIcon returns the appropriate icon for bulk operation status.

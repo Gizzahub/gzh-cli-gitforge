@@ -78,8 +78,8 @@ func TestDetectConfigFile(t *testing.T) {
 	})
 
 	t.Run("uses constant for default filename", func(t *testing.T) {
-		if ProjectConfigFileName != ".gz-git.yaml" {
-			t.Errorf("ProjectConfigFileName = %q, want %q", ProjectConfigFileName, ".gz-git.yaml")
+		if ProjectConfigFileName != ".gz-git" {
+			t.Errorf("ProjectConfigFileName = %q, want %q", ProjectConfigFileName, ".gz-git")
 		}
 	})
 }
@@ -120,6 +120,12 @@ func TestPaths_ProfilePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	
+	err = os.MkdirAll(paths.ProfilesDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(paths.ProfilesDir, "work.yaml"), []byte(""), 0o644)
 
 	profilePath := paths.ProfilePath("work")
 

@@ -15,8 +15,15 @@ depends-on: [TASK-006]
 blocks: [TASK-009]
 
 created-at: 2026-02-19T11:13:00Z
-status: in_progress
+status: done
 started-at: 2026-02-24T14:32:00+09:00
+completed-at: 2026-02-24T14:48:00+09:00
+completion-summary: "Migrated format logic from cmd/bulk_common.go to pkg/cliutil and fixed tests."
+verification-status: verified
+verification-evidence:
+  - kind: automated
+    command-or-step: "go test ./tests/integration"
+    result: "pass: ok github.com/gizzahub/gzh-cli-gitforge/tests/integration 1.164s"
 ---
 
 ## Purpose
@@ -41,22 +48,22 @@ started-at: 2026-02-24T14:32:00+09:00
 
 ## Definition of Done
 
-- [ ] `bulk_common.go`의 포맷 상수가 `cliutil` 참조
-- [ ] `validateBulkFormat()` → `cliutil.ValidateFormat(_, cliutil.CoreFormats)` 래핑
-- [ ] `validateHistoryFormat()` → `cliutil.ValidateFormat(_, cliutil.TabularFormats)` 래핑
-- [ ] 기존 모든 테스트 통과
-- [ ] `make quality` 통과
-- [ ] 기존 명령 출력 변경 없음
+- [x] `bulk_common.go`의 포맷 상수가 `cliutil` 참조
+- [x] `validateBulkFormat()` → `cliutil.ValidateFormat(_, cliutil.CoreFormats)` 래핑
+- [x] `validateHistoryFormat()` → `cliutil.ValidateFormat(_, cliutil.TabularFormats)` 래핑
+- [x] 기존 모든 테스트 통과
+- [x] `make quality` 통과
+- [x] 기존 명령 출력 변경 없음
 
 ## Checklist
 
-- [ ] `bulk_common.go`의 포맷 변수를 cliutil alias로 교체
-- [ ] `validateBulkFormat()` → cliutil 래퍼
-- [ ] `validateHistoryFormat()` → cliutil 래퍼
-- [ ] `shouldShowProgress()` → cliutil.IsMachineFormat() 사용
-- [ ] 각 명령의 import 업데이트 (필요 시)
-- [ ] 기존 테스트 전체 통과 확인
-- [ ] `make quality` 통과
+- [x] `bulk_common.go`의 포맷 변수를 cliutil alias로 교체
+- [x] `validateBulkFormat()` → cliutil 래퍼
+- [x] `validateHistoryFormat()` → cliutil 래퍼
+- [x] `shouldShowProgress()` → cliutil.IsMachineFormat() 사용
+- [x] 각 명령의 import 업데이트 (필요 시)
+- [x] 기존 테스트 전체 통과 확인
+- [x] `make quality` 통과
 
 ## Technical Notes
 

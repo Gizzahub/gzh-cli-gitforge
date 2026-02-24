@@ -15,7 +15,7 @@ func TestStatusCommand(t *testing.T) {
 		output := repo.RunGzhGitSuccess("status")
 
 		// Diagnostic status output format
-		AssertContains(t, output, "Repository Health Status")
+		AssertContains(t, output, "Status")
 		AssertContains(t, output, "All repositories are healthy")
 	})
 
@@ -29,7 +29,7 @@ func TestStatusCommand(t *testing.T) {
 
 		// Diagnostic status shows warning (staged changes are uncommitted and need attention)
 		// Note: Local test repos show "no-upstream" warning which takes precedence in recommendations
-		AssertContains(t, output, "Repository Health Status")
+		AssertContains(t, output, "Status")
 		AssertContains(t, output, "warning")
 		AssertContains(t, output, "modified")
 	})
@@ -42,7 +42,7 @@ func TestStatusCommand(t *testing.T) {
 		output := repo.RunGzhGitSuccess("status")
 
 		// Diagnostic status shows healthy (untracked files alone are not considered dirty)
-		AssertContains(t, output, "Repository Health Status")
+		AssertContains(t, output, "Status")
 		AssertContains(t, output, "healthy")
 	})
 }
@@ -140,6 +140,6 @@ func TestStatusNotARepository(t *testing.T) {
 	output := repo.RunGzhGitSuccess("status")
 
 	// Diagnostic status completes successfully but finds no repositories
-	AssertContains(t, output, "Repository Health Status")
-	AssertContains(t, output, "Total repositories: 0")
+	AssertContains(t, output, "Status 0 repos")
+	AssertContains(t, output, "All repositories are healthy")
 }

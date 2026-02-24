@@ -33,8 +33,8 @@ func TestConflictWorkflow(t *testing.T) {
 		// 2. Verify repository is still operational (diagnostic status completes)
 		// Note: Local test repos show "no-upstream" since they have no remote configured
 		statusOutput := repo.RunGzhGitSuccess("status")
-		AssertContains(t, statusOutput, "Repository Health Status")
-		AssertContains(t, statusOutput, "Total repositories: 1")
+		AssertContains(t, statusOutput, "Status 1 repos")
+		AssertContains(t, statusOutput, "healthy")
 	})
 
 	// Note: For actual merge operations, use native git commands:
