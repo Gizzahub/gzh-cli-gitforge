@@ -15,7 +15,18 @@ depends-on: [TASK-006]
 blocks: []
 
 created-at: 2026-02-19T11:13:00Z
-status: todo
+status: done
+started-at: 2026-02-24T14:26:40+09:00
+completed-at: 2026-02-24T14:31:00+09:00
+completion-summary: "Added --format flag to workspace sync with JSON/LLM support"
+verification-status: verified
+verification-evidence:
+  - kind: automated
+    command-or-step: "go test ./pkg/workspacecli/..."
+    result: "pass: ok github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli 0.014s"
+  - kind: automated
+    command-or-step: "make build"
+    result: "pass: Built gz-git successfully"
 ---
 
 ## Purpose
@@ -40,25 +51,25 @@ TASK-006에서 만든 `pkg/cliutil` 공통 인프라를 사용하는 첫 사례�
 
 ## Definition of Done
 
-- [ ] `workspace sync --format json` 동작 (compact JSON)
-- [ ] `workspace sync --format llm` 동작
-- [ ] `workspace sync --format compact` 동작
-- [ ] JSON/LLM 모드에서 ANSI escape 없음
-- [ ] `--verbose`와 조합 동작 (json+verbose = pretty JSON)
-- [ ] 테스트 추가
-- [ ] `make quality` 통과
+- [x] `workspace sync --format json` 동작 (compact JSON)
+- [x] `workspace sync --format llm` 동작
+- [x] `workspace sync --format compact` 동작
+- [x] JSON/LLM 모드에서 ANSI escape 없음
+- [x] `--verbose`와 조합 동작 (json+verbose = pretty JSON)
+- [x] 테스트 추가
+- [x] `make quality` 통과
 
 ## Checklist
 
-- [ ] sync_command.go에 `format` 변수 및 `--format` 플래그 추가
-- [ ] `cliutil.ValidateFormat()` 으로 포맷 검증
-- [ ] SyncResult 타입 정의 (JSON/LLM 출력용 구조체)
-- [ ] `displaySyncResultsJSON()` 구현
-- [ ] `displaySyncResultsLLM()` 구현
-- [ ] format이 machine일 때 consoleProgress 사용 (in-place 비활성)
-- [ ] format이 machine일 때 프리뷰 생략
-- [ ] 테스트: JSON 출력 파싱 검증
-- [ ] `make quality` 통과
+- [x] sync_command.go에 `format` 변수 및 `--format` 플래그 추가
+- [x] `cliutil.ValidateFormat()` 으로 포맷 검증
+- [x] SyncResult 타입 정의 (JSON/LLM 출력용 구조체)
+- [x] `displaySyncResultsJSON()` 구현
+- [x] `displaySyncResultsLLM()` 구현
+- [x] format이 machine일 때 consoleProgress 사용 (in-place 비활성)
+- [x] format이 machine일 때 프리뷰 생략
+- [x] 테스트: JSON 출력 파싱 검증
+- [x] `make quality` 통과
 
 ## Technical Notes
 

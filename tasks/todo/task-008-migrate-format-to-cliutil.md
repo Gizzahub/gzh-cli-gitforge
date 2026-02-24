@@ -15,7 +15,8 @@ depends-on: [TASK-006]
 blocks: [TASK-009]
 
 created-at: 2026-02-19T11:13:00Z
-status: todo
+status: in_progress
+started-at: 2026-02-24T14:32:00+09:00
 ---
 
 ## Purpose

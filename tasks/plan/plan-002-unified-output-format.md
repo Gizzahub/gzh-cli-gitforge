@@ -12,8 +12,8 @@ effort: L
 created-at: 2026-02-19T11:13:00Z
 status: in_progress
 total-tasks: 5
-completed-tasks: 1
-progress: 20.0
+completed-tasks: 2
+progress: 40.0
 
 children:
   - TASK-006
@@ -147,7 +147,7 @@ pkg/cliutil/
 
 ## Children
 - [x] TASK-006: 공통 포맷 인프라 구축 (pkg/cliutil/format.go)
-- [ ] TASK-007: workspace sync --format 기능 추가 (pkg/workspacecli/)
+- [x] TASK-007: workspace sync --format 기능 추가 (pkg/workspacecli/)
 - [ ] TASK-008: 공통 포맷 로직 통합 및 마이그레이션 (cmd/bulk_common.go -> pkg/cliutil/)
 - [ ] TASK-009: JSON Compact 분리 및 --verbose 동작 변경
 - [ ] TASK-010: 기존 명령 default 포맷 규칙 통일

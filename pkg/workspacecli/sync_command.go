@@ -43,6 +43,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 		fullOutput     bool
 		recursive      bool
 		recursiveDepth int
+		format         string
 	)
 
 	cmd := &cobra.Command{
@@ -195,50 +196,59 @@ Config File Structure (Reference):
 				return nil
 			}
 
-			out := cmd.OutOrStdout()
-			// --dry-run always shows full detail so user can review before deciding
-			showDetail := verbose || dryRun
-			if showDetail {
-				detailedChanges, summary := buildDetailedSyncPreview(ctx, allActions)
-				displayDetailedSyncPreview(out, detailedChanges, summary)
-			} else {
-				// Compact: only show count + conflict warnings
-				summary := buildSyncSummary(allActions)
-				displayCompactSyncPreview(ctx, out, summary, allActions)
+			if err := cliutil.ValidateFormat(format, cliutil.CoreFormats); err != nil {
+				return err
 			}
+			isMachine := cliutil.IsMachineFormat(format)
 
-			// Determine if we need confirmation
-			// Prompt only when: --interactive is set and not --dry-run and not --yes
-			// Default behavior (no flags): auto-proceed without prompt
-			needsConfirmation := interactive && !dryRun && !yes && isTerminal()
+			out := cmd.OutOrStdout()
 
-			if needsConfirmation {
-				proceed, err := confirmSyncPrompt()
-				if err != nil {
-					return fmt.Errorf("confirmation prompt failed: %w", err)
+			if !isMachine {
+				// --dry-run always shows full detail so user can review before deciding
+				showDetail := verbose || dryRun
+				if showDetail {
+					detailedChanges, summary := buildDetailedSyncPreview(ctx, allActions)
+					displayDetailedSyncPreview(out, detailedChanges, summary)
+				} else {
+					// Compact: only show count + conflict warnings
+					summary := buildSyncSummary(allActions)
+					displayCompactSyncPreview(ctx, out, summary, allActions)
 				}
-				if !proceed {
-					fmt.Fprintln(out, "Sync cancelled.")
+
+				// Determine if we need confirmation
+				// Prompt only when: --interactive is set and not --dry-run and not --yes
+				// Default behavior (no flags): auto-proceed without prompt
+				needsConfirmation := interactive && !dryRun && !yes && isTerminal()
+
+				if needsConfirmation {
+					proceed, err := confirmSyncPrompt()
+					if err != nil {
+						return fmt.Errorf("confirmation prompt failed: %w", err)
+					}
+					if !proceed {
+						fmt.Fprintln(out, "Sync cancelled.")
+						return nil
+					}
+				}
+
+				// In dry-run mode, we already showed the summary, no need to execute
+				// unless we're outputting JSON/LLM
+				if dryRun {
+					if recursive {
+						absConfigDirDry, _ := filepath.Abs(configDir)
+						rOpts := recursiveSyncOpts{
+							MaxDepth: recursiveDepth,
+							Visited:  map[string]bool{absConfigDirDry: true},
+							Out:      out,
+							Depth:    0,
+							Strategy: strategy,
+							DryRun:   true,
+						}
+						scanForChildConfigs(out, allActions, rOpts)
+					}
+					fmt.Fprintln(out, "\n[dry-run] No changes made.")
 					return nil
 				}
-			}
-
-			// In dry-run mode, we already showed the summary, no need to execute
-			if dryRun {
-				if recursive {
-					absConfigDirDry, _ := filepath.Abs(configDir)
-					rOpts := recursiveSyncOpts{
-						MaxDepth: recursiveDepth,
-						Visited:  map[string]bool{absConfigDirDry: true},
-						Out:      out,
-						Depth:    0,
-						Strategy: strategy,
-						DryRun:   true,
-					}
-					scanForChildConfigs(out, allActions, rOpts)
-				}
-				fmt.Fprintln(out, "\n[dry-run] No changes made.")
-				return nil
 			}
 
 			// Merge options
@@ -265,7 +275,10 @@ Config File Structure (Reference):
 			}
 
 			var progress reposync.ProgressSink
-			if isTerminal() {
+			if isMachine {
+				// No progress bar in machine output mode
+				progress = &reposync.NoopProgressSink{}
+			} else if isTerminal() {
 				progress = newInPlaceProgress(cmd.OutOrStdout(), allActions)
 			} else {
 				progress = &consoleProgress{out: cmd.OutOrStdout()}
@@ -289,13 +302,24 @@ Config File Structure (Reference):
 
 			orch := reposync.NewOrchestrator(staticPlanner, exec, state)
 
+			startTime := time.Now()
 			execResult, err := orch.Run(ctx, reposync.RunRequest{
 				RunOptions: runOpts,
 				Progress:   progress,
 				State:      state,
 			})
+			durationMs := time.Since(startTime).Milliseconds()
 			if err != nil {
 				return fmt.Errorf("workspace sync failed: %w", err)
+			}
+
+			// Display machine output if requested
+			if format == "json" {
+				displaySyncResultsJSON(out, execResult, durationMs, verbose)
+				return nil // Skip recursive child diff printing for machine format for now
+			} else if format == "llm" {
+				displaySyncResultsLLM(out, execResult, durationMs)
+				return nil // Skip recursive child diff printing for machine format for now
 			}
 
 			// Recursive child workspace sync
@@ -330,6 +354,7 @@ Config File Structure (Reference):
 	cmd.Flags().BoolVar(&fullOutput, "full", false, "Output all fields (name, path) even if redundant")
 	cmd.Flags().BoolVarP(&recursive, "recursive", "R", false, "Recursively sync child workspaces containing "+DefaultConfigFile)
 	cmd.Flags().IntVar(&recursiveDepth, "recursive-depth", 3, "Maximum recursion depth for --recursive")
+	cmd.Flags().StringVar(&format, "format", "default", "Output format (default, compact, json, llm)")
 
 	return cmd
 }
@@ -2127,4 +2152,72 @@ func scanForChildConfigs(out io.Writer, actions []reposync.Action, opts recursiv
 	for _, dir := range pending {
 		fmt.Fprintf(out, "  ? %s (will check after clone)\n", dir)
 	}
+}
+
+// sync 결과 JSON 구조
+type SyncResultJSON struct {
+	Total     int            `json:"total"`
+	Succeeded int            `json:"succeeded"`
+	Failed    int            `json:"failed"`
+	Duration  int64          `json:"duration_ms"`
+	Repos     []SyncRepoJSON `json:"repositories"`
+}
+
+type SyncRepoJSON struct {
+	Name    string `json:"name"`
+	Action  string `json:"action"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func prepareSyncResultJSON(execResult reposync.ExecutionResult, durationMs int64) SyncResultJSON {
+	result := SyncResultJSON{
+		Total:     len(execResult.Succeeded) + len(execResult.Failed) + len(execResult.Skipped),
+		Succeeded: len(execResult.Succeeded),
+		Failed:    len(execResult.Failed),
+		Duration:  durationMs,
+		Repos:     make([]SyncRepoJSON, 0),
+	}
+
+	for _, res := range execResult.Succeeded {
+		result.Repos = append(result.Repos, SyncRepoJSON{
+			Name:    res.Action.Repo.Name,
+			Action:  string(res.Action.Type),
+			Status:  "success",
+			Message: res.Message,
+		})
+	}
+	for _, res := range execResult.Failed {
+		repoJSON := SyncRepoJSON{
+			Name:    res.Action.Repo.Name,
+			Action:  string(res.Action.Type),
+			Status:  "failed",
+			Message: res.Message,
+		}
+		if res.Error != nil {
+			repoJSON.Error = res.Error.Error()
+		}
+		result.Repos = append(result.Repos, repoJSON)
+	}
+	for _, res := range execResult.Skipped {
+		result.Repos = append(result.Repos, SyncRepoJSON{
+			Name:    res.Action.Repo.Name,
+			Action:  string(res.Action.Type),
+			Status:  "skipped",
+			Message: res.Message,
+		})
+	}
+
+	return result
+}
+
+func displaySyncResultsJSON(out io.Writer, execResult reposync.ExecutionResult, durationMs int64, verbose bool) error {
+	result := prepareSyncResultJSON(execResult, durationMs)
+	return cliutil.WriteJSON(out, result, verbose)
+}
+
+func displaySyncResultsLLM(out io.Writer, execResult reposync.ExecutionResult, durationMs int64) error {
+	result := prepareSyncResultJSON(execResult, durationMs)
+	return cliutil.WriteLLM(out, result)
 }
