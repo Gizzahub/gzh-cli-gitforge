@@ -4,7 +4,6 @@
 package reposynccli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -190,7 +189,7 @@ func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error
 
 	switch opts.Format {
 	case "json":
-		return printHealthReportJSON(cmd, report)
+		return printHealthReportJSON(cmd, report, opts.Verbose)
 	case "compact":
 		printHealthReportCompact(cmd, report)
 	default:
@@ -283,7 +282,7 @@ func formatRepoName(repo reposync.RepoSpec) string {
 }
 
 // printHealthReportJSON outputs the health report in JSON format.
-func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport) error {
+func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport, verbose bool) error {
 	out := cmd.OutOrStdout()
 
 	// Create JSON-friendly structure
@@ -349,9 +348,7 @@ func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport) er
 		CheckedAt: report.CheckedAt.Format(time.RFC3339),
 	}
 
-	encoder := json.NewEncoder(out)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(jsonReport)
+	return cliutil.WriteJSON(out, jsonReport, verbose)
 }
 
 // printHealthReportCompact outputs a compact one-line-per-repo summary.

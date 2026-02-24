@@ -15,7 +15,15 @@ depends-on: [TASK-008]
 blocks: [TASK-010]
 
 created-at: 2026-02-19T11:13:00Z
-status: todo
+status: done
+started-at: 2026-02-24T14:49:00+09:00
+completed-at: 2026-02-24T14:57:00+09:00
+completion-summary: "All JSON encoder logic has been migrated to cliutil.WriteJSON and correctly separated the semantic of --verbose and --format."
+verification-status: verified
+verification-evidence:
+  - kind: automated
+    command-or-step: "go test ./..."
+    result: "pass: ok github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git/cmd, tests/integration, pkg/reposynccli"
 ---
 
 ## Purpose
@@ -41,29 +49,29 @@ status: todo
 
 ## Definition of Done
 
-- [ ] 모든 JSON 출력이 기본 compact (SetIndent 제거)
-- [ ] `--verbose` + json = pretty JSON
-- [ ] `--verbose`가 정보량만 제어하는지 각 명령 확인
-- [ ] 기존 테스트 통과
-- [ ] `make quality` 통과
+- [x] 모든 JSON 출력이 기본 compact (SetIndent 제거)
+- [x] `--verbose` + json = pretty JSON
+- [x] `--verbose`가 정보량만 제어하는지 각 명령 확인
+- [x] 기존 테스트 통과
+- [x] `make quality` 통과
 
 ## Checklist
 
 ### JSON Compact화 (각 명령)
-- [ ] `status.go`: `displayStatusResultsJSON()` — compact 기본
-- [ ] `fetch.go`: `displayFetchResultsJSON()` — compact 기본
-- [ ] `pull.go`: `displayPullResultsJSON()` — compact 기본
-- [ ] `push.go`: `displayPushResultsJSON()` — compact 기본
-- [ ] `update.go`: `displayUpdateResultsJSON()` — compact 기본
-- [ ] `switch.go`: `displaySwitchResultsJSON()` — compact 기본
-- [ ] `diff.go`: `displayDiffResultsJSON()` — compact 기본
+- [x] `status.go`: `displayStatusResultsJSON()` — compact 기본
+- [x] `fetch.go`: `displayFetchResultsJSON()` — compact 기본
+- [x] `pull.go`: `displayPullResultsJSON()` — compact 기본
+- [x] `push.go`: `displayPushResultsJSON()` — compact 기본
+- [x] `update.go`: `displayUpdateResultsJSON()` — compact 기본
+- [x] `switch.go`: `displaySwitchResultsJSON()` — compact 기본
+- [x] `diff.go`: `displayDiffResultsJSON()` — compact 기본
 
 ### --verbose 직교성 (각 명령)
-- [ ] 각 명령에서 verbose의 역할 감사 및 문서화
-- [ ] JSON verbose = pretty print 적용
-- [ ] LLM verbose = 상세 필드 포함 적용
-- [ ] default verbose = 상세 출력 (현재 대부분 유지)
-- [ ] `cliutil.WriteJSON(w, v, verbose)` 사용으로 통일
+- [x] 각 명령에서 verbose의 역할 감사 및 문서화
+- [x] JSON verbose = pretty print 적용
+- [x] LLM verbose = 상세 필드 포함 적용
+- [x] default verbose = 상세 출력 (현재 대부분 유지)
+- [x] `cliutil.WriteJSON(w, v, verbose)` 사용으로 통일
 
 ## Technical Notes
 

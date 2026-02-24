@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -298,9 +297,7 @@ func displayStatusResultsJSON(result *repository.BulkStatusResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(output); err != nil {
+	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
 }
@@ -572,9 +569,7 @@ func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
 		output.Repositories = append(output.Repositories, repoJSON)
 	}
 
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(output); err != nil {
+	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
 }
