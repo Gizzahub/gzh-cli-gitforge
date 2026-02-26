@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
@@ -33,6 +31,9 @@ var statusCmd = &cobra.Command{
 
   # Compact output format
   gz-git status --format compact ~/projects
+
+  # Quick check (skip network fetch)
+  gz-git status --skip-fetch
 
   # Continuously check at intervals (watch mode)
   gz-git status --scan-depth 2 --watch --interval 30s ~/projects`),
@@ -99,6 +100,16 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("status check failed: %w", err)
 	}
 
+	// Handle no repositories found
+	if len(result.Results) == 0 {
+		if statusFlags.Format == "json" {
+			displayDiagnosticResultsJSON(result)
+		} else if !quiet {
+			fmt.Printf("No repositories found in %s (depth: %d)\n", directory, statusFlags.Depth)
+		}
+		return nil
+	}
+
 	// Display results (always output for JSON format, otherwise respect quiet flag)
 	if statusFlags.Format == "json" || !quiet {
 		displayDiagnosticResults(result)
@@ -108,47 +119,37 @@ func runStatus(cmd *cobra.Command, args []string) error {
 }
 
 func runDiagnosticStatus(ctx context.Context, client repository.Client, directory string, logger repository.Logger) (*reposync.HealthReport, error) {
-	// Use BulkStatus to scan for repositories, then convert to diagnostic format
-	bulkOpts := repository.BulkStatusOptions{
+	// Scan for repositories (lightweight, no GetInfo/GetStatus)
+	scanResult, err := client.ScanRepositories(ctx, repository.ScanOptions{
 		Directory:         directory,
-		Parallel:          statusFlags.Parallel,
 		MaxDepth:          statusFlags.Depth,
-		Verbose:           verbose,
 		IncludeSubmodules: statusFlags.IncludeSubmodules,
 		IncludePattern:    statusFlags.Include,
 		ExcludePattern:    statusFlags.Exclude,
 		Logger:            logger,
-	}
-
-	// Get basic status first to find all repositories
-	bulkResult, err := client.BulkStatus(ctx, bulkOpts)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
 
-	// Convert repository results to RepoSpec instances for diagnostic
+	// Convert scanned paths to RepoSpec for diagnostic
 	var repoSpecs []reposync.RepoSpec
-	for _, repoResult := range bulkResult.Repositories {
-		// Reconstruct full path (RelativePath is relative to directory)
-		fullPath := filepath.Join(directory, repoResult.RelativePath)
-
+	for _, repoPath := range scanResult.Paths {
 		repoSpecs = append(repoSpecs, reposync.RepoSpec{
-			CloneURL:   "", // Not needed for local status check
-			TargetPath: fullPath,
+			TargetPath: repoPath,
 		})
 	}
 
 	// Handle empty result
 	if len(repoSpecs) == 0 {
 		return &reposync.HealthReport{
-			Results:       []reposync.RepoHealth{},
-			Summary:       reposync.HealthSummary{},
-			TotalDuration: bulkResult.Duration,
-			CheckedAt:     time.Now(),
+			Results:   []reposync.RepoHealth{},
+			Summary:   reposync.HealthSummary{},
+			CheckedAt: time.Now(),
 		}, nil
 	}
 
-	// Run diagnostic health check
+	// Run diagnostic health check (single pass: fetch + info + status)
 	executor := reposync.DiagnosticExecutor{
 		Client: client,
 		Logger: logger,
@@ -156,7 +157,7 @@ func runDiagnosticStatus(ctx context.Context, client repository.Client, director
 
 	opts := reposync.DefaultDiagnosticOptions()
 	opts.Parallel = statusFlags.Parallel
-	opts.SkipFetch = false // Always fetch for comprehensive status
+	opts.SkipFetch = statusFlags.SkipFetch
 
 	return executor.CheckHealth(ctx, repoSpecs, opts)
 }
@@ -191,239 +192,6 @@ func executeStatusDiagnostic(ctx context.Context, client repository.Client, dire
 	return nil
 }
 
-func displayStatusResults(result *repository.BulkStatusResult) {
-	// JSON output mode
-	if statusFlags.Format == "json" {
-		displayStatusResultsJSON(result)
-		return
-	}
-
-	// LLM output mode
-	if statusFlags.Format == "llm" {
-		displayStatusResultsLLM(result)
-		return
-	}
-
-	fmt.Println()
-	fmt.Println("=== Bulk Status Results ===")
-	fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-	fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-	fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000)) // Round to 0.1s
-	fmt.Println()
-
-	// Display summary
-	if len(result.Summary) > 0 {
-		fmt.Println("Summary by status:")
-		for status, count := range result.Summary {
-			icon := getBulkStatusIconSimple(status)
-			fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-		}
-		fmt.Println()
-	}
-
-	// Display individual results if not compact
-	if statusFlags.Format != "compact" && len(result.Repositories) > 0 {
-		fmt.Println("Repository details:")
-		for _, repo := range result.Repositories {
-			displayStatusRepositoryResult(repo)
-		}
-	}
-
-	// Display only dirty/issues in compact mode or when not verbose
-	if statusFlags.Format == "compact" || !verbose {
-		hasIssues := false
-		for _, repo := range result.Repositories {
-			if repo.Status != "clean" {
-				if !hasIssues {
-					fmt.Println("Repositories with changes:")
-					hasIssues = true
-				}
-				displayStatusRepositoryResult(repo)
-			}
-		}
-		if !hasIssues {
-			fmt.Println("✓ All repositories are clean")
-		}
-	}
-}
-
-// StatusJSONOutput represents the JSON output structure for status command
-type StatusJSONOutput struct {
-	TotalScanned   int                          `json:"total_scanned"`
-	TotalProcessed int                          `json:"total_processed"`
-	DurationMs     int64                        `json:"duration_ms"`
-	Summary        map[string]int               `json:"summary"`
-	Repositories   []StatusRepositoryJSONOutput `json:"repositories"`
-}
-
-// StatusRepositoryJSONOutput represents a single repository in JSON output
-type StatusRepositoryJSONOutput struct {
-	Path             string   `json:"path"`
-	Branch           string   `json:"branch,omitempty"`
-	Status           string   `json:"status"`
-	UncommittedFiles int      `json:"uncommitted_files,omitempty"`
-	UntrackedFiles   int      `json:"untracked_files,omitempty"`
-	CommitsAhead     int      `json:"commits_ahead,omitempty"`
-	CommitsBehind    int      `json:"commits_behind,omitempty"`
-	ConflictFiles    []string `json:"conflict_files,omitempty"`
-	DurationMs       int64    `json:"duration_ms,omitempty"`
-	Error            string   `json:"error,omitempty"`
-}
-
-func displayStatusResultsJSON(result *repository.BulkStatusResult) {
-	output := StatusJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]StatusRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := StatusRepositoryJSONOutput{
-			Path:             repo.RelativePath,
-			Branch:           repo.Branch,
-			Status:           repo.Status,
-			UncommittedFiles: repo.UncommittedFiles,
-			UntrackedFiles:   repo.UntrackedFiles,
-			CommitsAhead:     repo.CommitsAhead,
-			CommitsBehind:    repo.CommitsBehind,
-			ConflictFiles:    repo.ConflictFiles,
-			DurationMs:       repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayStatusResultsLLM(result *repository.BulkStatusResult) {
-	output := StatusJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]StatusRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := StatusRepositoryJSONOutput{
-			Path:             repo.RelativePath,
-			Branch:           repo.Branch,
-			Status:           repo.Status,
-			UncommittedFiles: repo.UncommittedFiles,
-			UntrackedFiles:   repo.UntrackedFiles,
-			CommitsAhead:     repo.CommitsAhead,
-			CommitsBehind:    repo.CommitsBehind,
-			ConflictFiles:    repo.ConflictFiles,
-			DurationMs:       repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
-}
-
-func displayStatusRepositoryResult(repo repository.RepositoryStatusResult) {
-	icon := getBulkStatusIconSimple(repo.Status)
-
-	// Build compact one-line format: icon path (branch) status duration
-	parts := []string{icon}
-
-	// Path with branch
-	pathPart := repo.RelativePath
-	if repo.Branch != "" {
-		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
-	}
-	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
-
-	// Show status compactly
-	statusStr := ""
-	switch repo.Status {
-	case "clean":
-		if repo.CommitsAhead > 0 && repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("clean %d↓ %d↑", repo.CommitsBehind, repo.CommitsAhead)
-		} else if repo.CommitsAhead > 0 {
-			statusStr = fmt.Sprintf("clean %d↑", repo.CommitsAhead)
-		} else if repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("clean %d↓", repo.CommitsBehind)
-		} else {
-			statusStr = "clean"
-		}
-	case "dirty":
-		details := []string{}
-		if repo.UncommittedFiles > 0 {
-			details = append(details, fmt.Sprintf("%d uncommitted", repo.UncommittedFiles))
-		}
-		if repo.UntrackedFiles > 0 {
-			details = append(details, fmt.Sprintf("%d untracked", repo.UntrackedFiles))
-		}
-		if len(details) > 0 {
-			statusStr = "dirty: " + details[0]
-			if len(details) > 1 {
-				statusStr += ", " + details[1]
-			}
-		} else {
-			statusStr = "dirty"
-		}
-	case "conflict":
-		statusStr = fmt.Sprintf("CONFLICT: %d files", len(repo.ConflictFiles))
-	case "rebase-in-progress":
-		statusStr = "REBASE"
-	case "merge-in-progress":
-		statusStr = "MERGE"
-	case "no-remote":
-		statusStr = "no remote"
-	case "no-upstream":
-		statusStr = "no upstream"
-	case "error":
-		statusStr = "error"
-	default:
-		statusStr = repo.Status
-	}
-
-	parts = append(parts, fmt.Sprintf("%-30s", statusStr))
-
-	// Duration
-	if repo.Duration > 0 {
-		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
-	}
-
-	// Build output line safely
-	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
-	if len(parts) > 3 {
-		line += " " + parts[3]
-	}
-	fmt.Println(line)
-
-	// Show fix hint for no-upstream status
-	if repo.Status == "no-upstream" {
-		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
-	}
-
-	// Show error details if present
-	if repo.Error != nil && verbose {
-		fmt.Printf("    Error: %v\n", repo.Error)
-	}
-}
-
-// FormatUpstreamFixHint returns a formatted fix hint for no-upstream status.
-// Returns empty string if branch is empty.
-// If remote is empty, defaults to "origin".
 func FormatUpstreamFixHint(branch, remote string) string {
 	if branch == "" {
 		return ""
@@ -438,6 +206,12 @@ func displayDiagnosticResults(report *reposync.HealthReport) {
 	// JSON output mode
 	if statusFlags.Format == "json" {
 		displayDiagnosticResultsJSON(report)
+		return
+	}
+
+	// LLM output mode
+	if statusFlags.Format == "llm" {
+		displayDiagnosticResultsLLM(report)
 		return
 	}
 
@@ -497,28 +271,77 @@ func displayDiagnosticResults(report *reposync.HealthReport) {
 			}
 		}
 		if !hasIssues {
-			fmt.Println("✓ All repositories are healthy")
+			fmt.Printf("✓ All %d repositories are healthy\n", len(report.Results))
 		}
 	}
 }
 
+func displayDiagnosticResultsLLM(report *reposync.HealthReport) {
+	// Summary first (most useful for LLM context)
+	fmt.Printf("STATUS: %d repos | healthy:%d warning:%d error:%d unreachable:%d | %s\n",
+		report.Summary.Total,
+		report.Summary.Healthy,
+		report.Summary.Warning,
+		report.Summary.Error,
+		report.Summary.Unreachable,
+		report.TotalDuration.Round(100*time.Millisecond),
+	)
+
+	// Only show repos that need attention (issues-only for token efficiency)
+	hasIssues := false
+	for _, repo := range report.Results {
+		if repo.HealthStatus == reposync.HealthHealthy {
+			continue
+		}
+		hasIssues = true
+		repoName := filepath.Base(repo.Repo.TargetPath)
+		fmt.Printf("  %s %s (%s) [%s]",
+			getHealthIcon(repo.HealthStatus),
+			repoName,
+			repo.CurrentBranch,
+			repo.HealthStatus,
+		)
+		if repo.BehindBy > 0 {
+			fmt.Printf(" behind:%d", repo.BehindBy)
+		}
+		if repo.AheadBy > 0 {
+			fmt.Printf(" ahead:%d", repo.AheadBy)
+		}
+		if repo.ModifiedFiles > 0 {
+			fmt.Printf(" modified:%d", repo.ModifiedFiles)
+		}
+		if repo.UntrackedFiles > 0 {
+			fmt.Printf(" untracked:%d", repo.UntrackedFiles)
+		}
+		if repo.Recommendation != "" {
+			fmt.Printf(" -> %s", repo.Recommendation)
+		}
+		fmt.Println()
+	}
+
+	if !hasIssues {
+		fmt.Println("  All repositories healthy")
+	}
+}
+
 func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
+	// Field names unified with BulkStatus JSON (bulk_common.go)
 	type RepoHealthJSON struct {
-		Path            string `json:"path"`
-		HealthStatus    string `json:"health_status"`
-		NetworkStatus   string `json:"network_status,omitempty"`
-		DivergenceType  string `json:"divergence_type,omitempty"`
-		Branch          string `json:"branch,omitempty"`
-		Upstream        string `json:"upstream,omitempty"`
-		AheadBy         int    `json:"ahead_by,omitempty"`
-		BehindBy        int    `json:"behind_by,omitempty"`
-		ModifiedFiles   int    `json:"modified_files,omitempty"`
-		UntrackedFiles  int    `json:"untracked_files,omitempty"`
-		ConflictFiles   int    `json:"conflict_files,omitempty"`
-		Recommendation  string `json:"recommendation,omitempty"`
-		Error           string `json:"error,omitempty"`
-		DurationMs      int64  `json:"duration_ms"`
-		FetchDurationMs int64  `json:"fetch_duration_ms,omitempty"`
+		Path             string `json:"path"`
+		HealthStatus     string `json:"health_status"`
+		NetworkStatus    string `json:"network_status,omitempty"`
+		DivergenceType   string `json:"divergence_type,omitempty"`
+		Branch           string `json:"branch,omitempty"`
+		Upstream         string `json:"upstream,omitempty"`
+		CommitsAhead     int    `json:"commits_ahead,omitempty"`
+		CommitsBehind    int    `json:"commits_behind,omitempty"`
+		UncommittedFiles int    `json:"uncommitted_files,omitempty"`
+		UntrackedFiles   int    `json:"untracked_files,omitempty"`
+		ConflictFiles    int    `json:"conflict_files,omitempty"`
+		Recommendation   string `json:"recommendation,omitempty"`
+		Error            string `json:"error,omitempty"`
+		DurationMs       int64  `json:"duration_ms"`
+		FetchDurationMs  int64  `json:"fetch_duration_ms,omitempty"`
 	}
 
 	output := struct {
@@ -548,20 +371,20 @@ func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
 	// Convert repositories
 	for _, repo := range report.Results {
 		repoJSON := RepoHealthJSON{
-			Path:            repo.Repo.TargetPath,
-			HealthStatus:    string(repo.HealthStatus),
-			NetworkStatus:   string(repo.NetworkStatus),
-			DivergenceType:  string(repo.DivergenceType),
-			Branch:          repo.CurrentBranch,
-			Upstream:        repo.UpstreamBranch,
-			AheadBy:         repo.AheadBy,
-			BehindBy:        repo.BehindBy,
-			ModifiedFiles:   repo.ModifiedFiles,
-			UntrackedFiles:  repo.UntrackedFiles,
-			ConflictFiles:   repo.ConflictFiles,
-			Recommendation:  repo.Recommendation,
-			DurationMs:      repo.Duration.Milliseconds(),
-			FetchDurationMs: repo.FetchDuration.Milliseconds(),
+			Path:             repo.Repo.TargetPath,
+			HealthStatus:     string(repo.HealthStatus),
+			NetworkStatus:    string(repo.NetworkStatus),
+			DivergenceType:   string(repo.DivergenceType),
+			Branch:           repo.CurrentBranch,
+			Upstream:         repo.UpstreamBranch,
+			CommitsAhead:     repo.AheadBy,
+			CommitsBehind:    repo.BehindBy,
+			UncommittedFiles: repo.ModifiedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			ConflictFiles:    repo.ConflictFiles,
+			Recommendation:   repo.Recommendation,
+			DurationMs:       repo.Duration.Milliseconds(),
+			FetchDurationMs:  repo.FetchDuration.Milliseconds(),
 		}
 		if repo.Error != nil {
 			repoJSON.Error = repo.Error.Error()
@@ -575,16 +398,27 @@ func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
 }
 
 func displayDiagnosticResultsCompact(report *reposync.HealthReport) {
+	// Summary line
+	WriteHealthSummaryLine(os.Stdout, len(report.Results), report.Summary, report.TotalDuration)
+
+	// Show only repos with issues
+	hasIssues := false
 	for _, repo := range report.Results {
 		if repo.HealthStatus != reposync.HealthHealthy {
+			hasIssues = true
 			icon := getHealthIcon(repo.HealthStatus)
+			repoName := filepath.Base(repo.Repo.TargetPath)
 			fmt.Printf("%s %s (%s) - %s\n",
 				icon,
-				filepath.Base(repo.Repo.TargetPath),
+				repoName,
 				repo.CurrentBranch,
 				repo.Recommendation,
 			)
 		}
+	}
+
+	if !hasIssues {
+		fmt.Println("✓ All repositories are healthy")
 	}
 }
 

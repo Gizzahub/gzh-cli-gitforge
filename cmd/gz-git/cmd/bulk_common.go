@@ -53,6 +53,7 @@ type BulkCommandFlags struct {
 	Format            string
 	Watch             bool
 	Interval          time.Duration
+	SkipFetch         bool
 }
 
 // addBulkFlags registers common bulk operation flags to a command
@@ -66,6 +67,7 @@ func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
 	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
 	cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
 	cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
+	cmd.Flags().BoolVar(&flags.SkipFetch, "skip-fetch", false, "skip fetching from remote (use local state only)")
 }
 
 // validateBulkDirectory parses and validates the directory argument
@@ -327,6 +329,63 @@ func printScanningMessage(directory string, depth, parallel int, dryRun bool) {
 // WatchExecutor is a function that executes the bulk operation once.
 // Returns an error if the operation fails.
 type WatchExecutor func() error
+
+// StatusJSONOutput represents the JSON output structure for status command
+type StatusJSONOutput struct {
+	TotalScanned   int                          `json:"total_scanned"`
+	TotalProcessed int                          `json:"total_processed"`
+	DurationMs     int64                        `json:"duration_ms"`
+	Summary        map[string]int               `json:"summary"`
+	Repositories   []StatusRepositoryJSONOutput `json:"repositories"`
+}
+
+// StatusRepositoryJSONOutput represents a single repository in JSON output
+type StatusRepositoryJSONOutput struct {
+	Path             string   `json:"path"`
+	Branch           string   `json:"branch,omitempty"`
+	Status           string   `json:"status"`
+	UncommittedFiles int      `json:"uncommitted_files,omitempty"`
+	UntrackedFiles   int      `json:"untracked_files,omitempty"`
+	CommitsAhead     int      `json:"commits_ahead,omitempty"`
+	CommitsBehind    int      `json:"commits_behind,omitempty"`
+	ConflictFiles    []string `json:"conflict_files,omitempty"`
+	DurationMs       int64    `json:"duration_ms,omitempty"`
+	Error            string   `json:"error,omitempty"`
+}
+
+// displayStatusResultsJSON displays BulkStatusResult as JSON.
+// Shared by status and info commands.
+func displayStatusResultsJSON(result *repository.BulkStatusResult) {
+	output := StatusJSONOutput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		DurationMs:     result.Duration.Milliseconds(),
+		Summary:        result.Summary,
+		Repositories:   make([]StatusRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		repoOutput := StatusRepositoryJSONOutput{
+			Path:             repo.RelativePath,
+			Branch:           repo.Branch,
+			Status:           repo.Status,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			CommitsAhead:     repo.CommitsAhead,
+			CommitsBehind:    repo.CommitsBehind,
+			ConflictFiles:    repo.ConflictFiles,
+			DurationMs:       repo.Duration.Milliseconds(),
+		}
+		if repo.Error != nil {
+			repoOutput.Error = repo.Error.Error()
+		}
+		output.Repositories = append(output.Repositories, repoOutput)
+	}
+
+	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
 
 // RunBulkWatch runs a bulk operation in watch mode with proper signal handling.
 // This centralizes the watch loop logic used by fetch, pull, push, and status commands.
