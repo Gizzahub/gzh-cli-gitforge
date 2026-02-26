@@ -16,7 +16,7 @@ func TestStatusCommand(t *testing.T) {
 
 		// Diagnostic status output format
 		AssertContains(t, output, "Status")
-		AssertContains(t, output, "All repositories are healthy")
+		AssertContains(t, output, "All 1 repositories are healthy")
 	})
 
 	t.Run("with uncommitted changes", func(t *testing.T) {
@@ -140,6 +140,5 @@ func TestStatusNotARepository(t *testing.T) {
 	output := repo.RunGzhGitSuccess("status")
 
 	// Diagnostic status completes successfully but finds no repositories
-	AssertContains(t, output, "Status 0 repos")
-	AssertContains(t, output, "All repositories are healthy")
+	AssertContains(t, output, "No repositories found")
 }
