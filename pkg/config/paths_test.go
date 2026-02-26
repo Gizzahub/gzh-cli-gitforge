@@ -120,7 +120,7 @@ func TestPaths_ProfilePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	err = os.MkdirAll(paths.ProfilesDir, 0o755)
 	if err != nil {
 		t.Fatal(err)

@@ -98,6 +98,14 @@ func TestClassifyHealth(t *testing.T) {
 			expected: HealthUnreachable,
 		},
 		{
+			name: "auth failed (warning, not unreachable)",
+			health: RepoHealth{
+				NetworkStatus:  NetworkAuthFailed,
+				WorkTreeStatus: WorkTreeClean,
+			},
+			expected: HealthWarning,
+		},
+		{
 			name: "conflict in working tree",
 			health: RepoHealth{
 				NetworkStatus:  NetworkOK,
@@ -202,6 +210,14 @@ func TestGenerateRecommendation(t *testing.T) {
 				ModifiedFiles:  3,
 			},
 			contains: "stash",
+		},
+		{
+			name: "auth failed",
+			health: RepoHealth{
+				HealthStatus:  HealthWarning,
+				NetworkStatus: NetworkAuthFailed,
+			},
+			contains: "credentials",
 		},
 		{
 			name: "fast-forward",

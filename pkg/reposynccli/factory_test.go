@@ -19,7 +19,6 @@ func TestCommandFactory_NewRootCmd_Defaults(t *testing.T) {
 	if cmd.Short != "Git repository synchronization" {
 		t.Errorf("Short = %q, want %q", cmd.Short, "Git repository synchronization")
 	}
-
 }
 
 func TestCommandFactory_NewRootCmd_CustomUse(t *testing.T) {

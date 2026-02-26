@@ -2598,6 +2598,67 @@ func initializeBulkOperation(
 	}, nil
 }
 
+// ScanOptions configures repository scanning without processing.
+type ScanOptions struct {
+	// Directory is the root directory to scan for repositories
+	Directory string
+
+	// MaxDepth is the maximum directory depth to scan (default: 1)
+	MaxDepth int
+
+	// IncludeSubmodules includes git submodules in the scan (default: false)
+	IncludeSubmodules bool
+
+	// IncludePattern is a regex pattern for repositories to include
+	IncludePattern string
+
+	// ExcludePattern is a regex pattern for repositories to exclude
+	ExcludePattern string
+
+	// Logger for operation feedback
+	Logger Logger
+}
+
+// ScanResult contains the results of a repository scan.
+type ScanResult struct {
+	// Paths contains the absolute paths of discovered repositories.
+	Paths []string
+
+	// TotalScanned is the number of repositories found before filtering.
+	TotalScanned int
+
+	// Directory is the resolved absolute root directory.
+	Directory string
+}
+
+// ScanRepositories scans a directory for Git repositories and returns their paths.
+// This is a lightweight scan-only operation (no GetInfo/GetStatus).
+func (c *client) ScanRepositories(ctx context.Context, opts ScanOptions) (*ScanResult, error) {
+	common, err := initializeBulkOperation(
+		opts.Directory,
+		1, // parallel not used for scan
+		opts.MaxDepth,
+		opts.IncludeSubmodules,
+		opts.IncludePattern,
+		opts.ExcludePattern,
+		opts.Logger,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredRepos, totalScanned, err := c.scanAndFilterRepositories(ctx, common)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ScanResult{
+		Paths:        filteredRepos,
+		TotalScanned: totalScanned,
+		Directory:    common.Directory,
+	}, nil
+}
+
 // scanAndFilterRepositories scans for repositories and applies filters.
 func (c *client) scanAndFilterRepositories(
 	ctx context.Context,

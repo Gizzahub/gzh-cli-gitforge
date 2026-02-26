@@ -81,6 +81,11 @@ type Client interface {
 	// This is useful for listing branches across multiple repositories at once.
 	BulkBranchList(ctx context.Context, opts BulkBranchListOptions) (*BulkBranchListResult, error)
 
+	// ScanRepositories scans a directory for Git repositories and returns their paths.
+	// This is a lightweight scan-only operation (no GetInfo/GetStatus) used when
+	// only repository discovery is needed (e.g., before DiagnosticExecutor).
+	ScanRepositories(ctx context.Context, opts ScanOptions) (*ScanResult, error)
+
 	// IsRepository checks if the path points to a valid Git repository.
 	// Returns true if the path contains a .git directory or is a bare repository.
 	IsRepository(ctx context.Context, path string) bool

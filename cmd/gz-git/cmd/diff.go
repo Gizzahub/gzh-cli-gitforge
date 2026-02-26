@@ -52,15 +52,22 @@ var diffCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(diffCmd)
 
-	// Common bulk operation flags
-	addBulkFlags(diffCmd, &diffFlags)
+	// Common bulk operation flags (excluding --dry-run: diff is read-only)
+	diffCmd.Flags().IntVarP(&diffFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
+	diffCmd.Flags().IntVarP(&diffFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
+	diffCmd.Flags().BoolVarP(&diffFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
+	diffCmd.Flags().StringVar(&diffFlags.Include, "include", "", "regex pattern to include repositories")
+	diffCmd.Flags().StringVar(&diffFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	diffCmd.Flags().StringVar(&diffFlags.Format, "format", "default", "output format: default, compact, json, llm")
+	diffCmd.Flags().BoolVar(&diffFlags.Watch, "watch", false, "continuously run at intervals")
+	diffCmd.Flags().DurationVar(&diffFlags.Interval, "interval", 5*time.Minute, "interval when watching")
 
 	// Diff-specific flags
 	diffCmd.Flags().BoolVar(&diffStaged, "staged", false, "show only staged changes (--cached)")
 	diffCmd.Flags().BoolVar(&diffIncludeUntrack, "include-untracked", false, "include untracked files in output")
 	diffCmd.Flags().IntVarP(&diffContextLines, "context", "U", 3, "number of context lines around changes")
 	diffCmd.Flags().IntVar(&diffMaxSize, "max-size", 100, "max diff size per repository in KB")
-	diffCmd.Flags().BoolVar(&diffNoDiffContent, "no-content", false, "show summary only, no diff content")
+	diffCmd.Flags().BoolVar(&diffNoDiffContent, "no-content", false, "suppress diff content in verbose/json/llm output modes")
 }
 
 func runDiff(cmd *cobra.Command, args []string) error {
@@ -120,9 +127,34 @@ func runDiff(cmd *cobra.Command, args []string) error {
 		ProgressCallback:  createProgressCallback("Scanning", diffFlags.Format, quiet),
 	}
 
+	// Watch mode
+	if diffFlags.Watch {
+		return runDiffWatch(ctx, client, opts)
+	}
+
+	return executeDiff(ctx, client, opts)
+}
+
+func runDiffWatch(_ context.Context, client repository.Client, opts repository.BulkDiffOptions) error {
+	cfg := WatchConfig{
+		Interval:      diffFlags.Interval,
+		Format:        diffFlags.Format,
+		Quiet:         quiet,
+		OperationName: "diff",
+		Directory:     opts.Directory,
+		MaxDepth:      opts.MaxDepth,
+		Parallel:      opts.Parallel,
+	}
+
+	return RunBulkWatch(cfg, func() error {
+		return executeDiff(context.Background(), client, opts)
+	})
+}
+
+func executeDiff(ctx context.Context, client repository.Client, opts repository.BulkDiffOptions) error {
 	// Scanning phase
 	if shouldShowProgress(diffFlags.Format, quiet) {
-		printScanningMessage(directory, diffFlags.Depth, diffFlags.Parallel, false)
+		printScanningMessage(opts.Directory, opts.MaxDepth, opts.Parallel, false)
 	}
 
 	// Execute bulk diff

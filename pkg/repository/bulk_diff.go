@@ -6,6 +6,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -338,40 +339,25 @@ func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string
 		result.DiffSummary = extractDiffSummaryLine(statsResult.Stdout)
 	}
 
-	// Also get unstaged diff if not in staged-only mode
-	if !opts.Staged && !result.Truncated {
-		unstagedResult, err := c.executor.Run(ctx, repoPath, "diff")
-		if err == nil && unstagedResult.Stdout != "" {
-			if result.DiffContent != "" {
-				result.DiffContent += "\n"
-			}
-			unstagedDiff := unstagedResult.Stdout
-			remainingSize := opts.MaxDiffSize - len(result.DiffContent)
-			if remainingSize <= 0 {
-				result.Truncated = true
-			} else if len(unstagedDiff) > remainingSize {
-				unstagedDiff = unstagedDiff[:remainingSize]
-				result.Truncated = true
-				result.DiffContent += unstagedDiff
-			} else {
-				result.DiffContent += unstagedDiff
-			}
-		}
-	}
-
 	// Include untracked file contents if requested
 	if opts.IncludeUntracked && len(result.UntrackedFiles) > 0 {
 		for _, file := range result.UntrackedFiles {
 			if result.Truncated {
 				break
 			}
-			// Show untracked file as new file diff
-			catResult, err := c.executor.Run(ctx, repoPath, "show", ":"+file)
+			// Read untracked file directly from filesystem
+			content, err := os.ReadFile(filepath.Join(repoPath, file))
 			if err != nil {
-				// File not in index, use cat-like approach
 				continue
 			}
-			untrackedDiff := fmt.Sprintf("\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1 @@\n+%s\n", file, catResult.Stdout)
+			contentStr := string(content)
+			lines := strings.Split(contentStr, "\n")
+			var diffLines strings.Builder
+			for _, l := range lines {
+				diffLines.WriteString("+" + l + "\n")
+			}
+			lineCount := len(lines)
+			untrackedDiff := fmt.Sprintf("\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n%s", file, lineCount, diffLines.String())
 			if len(result.DiffContent)+len(untrackedDiff) > opts.MaxDiffSize {
 				result.Truncated = true
 				break

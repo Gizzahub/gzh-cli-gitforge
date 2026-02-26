@@ -263,9 +263,14 @@ func classifyDivergence(health RepoHealth) DivergenceType {
 }
 
 func classifyHealth(health RepoHealth) HealthStatus {
-	// Unreachable if network failed
+	// Unreachable if network failed (timeout, DNS, connection refused)
 	if health.NetworkStatus == NetworkTimeout || health.NetworkStatus == NetworkUnreachable {
 		return HealthUnreachable
+	}
+
+	// Auth failure is a warning (repo may still have usable local data)
+	if health.NetworkStatus == NetworkAuthFailed {
+		return HealthWarning
 	}
 
 	// Error if conflicts exist
@@ -312,6 +317,10 @@ func generateRecommendation(health RepoHealth) string {
 		return "Manual intervention required"
 
 	case HealthWarning:
+		// Auth failure takes priority
+		if health.NetworkStatus == NetworkAuthFailed {
+			return "Authentication failed: check credentials or token for remote URL"
+		}
 		// Check divergence-related warnings first
 		switch health.DivergenceType {
 		case DivergenceFastForward:
