@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/huh"
@@ -274,43 +273,55 @@ Config File Structure (Reference):
 				runOpts.Parallel = recursiveCfg.GetParallel()
 			}
 
-			var progress reposync.ProgressSink
-			if isMachine {
-				// No progress bar in machine output mode
-				progress = &reposync.NoopProgressSink{}
-			} else if isTerminal() {
-				progress = newInPlaceProgress(cmd.OutOrStdout(), allActions)
-			} else {
-				progress = &consoleProgress{out: cmd.OutOrStdout()}
-			}
-
 			// Use precomputed planner (same as from-config logic)
 			staticPlanner := &precomputedPlanner{actions: allActions}
-
-			// We need an orchestrator, but we can't reuse f.orchestrator() simply because
-			// f.orchestrator() might be configured with a different planner (FSPlanner).
-			// We need to create a new one or cast.
-			// Let's create a new one to be safe and explicit.
 			exec := reposync.GitExecutor{}
 			var state reposync.StateStore
 			if stateFile != "" {
 				state = reposync.NewFileStateStore(stateFile)
 			} else {
-				// We need a state store anyway? NewInMemoryStateStore is good default if nil not allowed
 				state = reposync.NewInMemoryStateStore()
 			}
 
-			orch := reposync.NewOrchestrator(staticPlanner, exec, state)
+			var execResult reposync.ExecutionResult
+			var durationMs int64
 
-			startTime := time.Now()
-			execResult, err := orch.Run(ctx, reposync.RunRequest{
-				RunOptions: runOpts,
-				Progress:   progress,
-				State:      state,
-			})
-			durationMs := time.Since(startTime).Milliseconds()
-			if err != nil {
-				return fmt.Errorf("workspace sync failed: %w", err)
+			if isMachine {
+				// No progress display in machine output mode
+				orch := reposync.NewOrchestrator(staticPlanner, exec, state)
+				startTime := time.Now()
+				var orchErr error
+				execResult, orchErr = orch.Run(ctx, reposync.RunRequest{
+					RunOptions: runOpts,
+					Progress:   &reposync.NoopProgressSink{},
+					State:      state,
+				})
+				durationMs = time.Since(startTime).Milliseconds()
+				if orchErr != nil {
+					return fmt.Errorf("workspace sync failed: %w", orchErr)
+				}
+			} else if isTerminal() {
+				// Bubble Tea TUI with alternate screen
+				tuiResult, tuiErr := runSyncTUI(ctx, out, allActions, runOpts, state, staticPlanner, exec)
+				if tuiErr != nil {
+					return tuiErr
+				}
+				execResult = tuiResult.ExecResult
+				durationMs = tuiResult.Duration.Milliseconds()
+			} else {
+				// Non-TTY: simple line-by-line progress
+				orch := reposync.NewOrchestrator(staticPlanner, exec, state)
+				startTime := time.Now()
+				var orchErr error
+				execResult, orchErr = orch.Run(ctx, reposync.RunRequest{
+					RunOptions: runOpts,
+					Progress:   &consoleProgress{out: cmd.OutOrStdout()},
+					State:      state,
+				})
+				durationMs = time.Since(startTime).Milliseconds()
+				if orchErr != nil {
+					return fmt.Errorf("workspace sync failed: %w", orchErr)
+				}
 			}
 
 			// Display machine output if requested
@@ -1024,222 +1035,6 @@ func (p *consoleProgress) OnComplete(result reposync.ActionResult) {
 		return
 	}
 	fmt.Fprintf(p.out, "✓ [%s] %s: %s\n", result.Action.Type, result.Action.Repo.Name, result.Message)
-}
-
-// ─── In-place progress display ────────────────────────────────────────────────
-
-// repoStatus tracks the current display state of a single repo row.
-type repoStatus struct {
-	name   string
-	action reposync.ActionType
-	state  string // waiting, running, done, error
-	msg    string // last status message
-}
-
-// inPlaceProgress implements reposync.ProgressSink with ANSI in-place updates.
-// All repositories are displayed as a fixed list upfront; each row is updated
-// in-place as the sync progresses. This avoids scrolling log output.
-//
-// Thread-safe: multiple goroutines (parallel sync workers) may call OnStart/
-// OnProgress/OnComplete concurrently, so all mutations go through mu.
-type inPlaceProgress struct {
-	mu         sync.Mutex
-	out        io.Writer
-	repos      []repoStatus   // ordered list matching initial allActions order
-	index      map[string]int // repo name → index in repos
-	total      int
-	done       int
-	errored    int
-	errDetails []string // full error messages buffered for post-run display
-	// linesRendered is how many rows we printed during the initial render.
-	// We use this offset to know how far up to jump when redrawing.
-	linesRendered int
-	// Throttling fields
-	lastRedraw time.Time
-	dirty      bool
-	stopFlush  chan struct{}
-}
-
-// newInPlaceProgress creates the progress tracker and immediately prints the
-// initial "waiting" list so the user sees all repos from the start.
-func newInPlaceProgress(out io.Writer, actions []reposync.Action) *inPlaceProgress {
-	p := &inPlaceProgress{
-		out:       out,
-		repos:     make([]repoStatus, 0, len(actions)),
-		index:     make(map[string]int, len(actions)),
-		total:     len(actions),
-		stopFlush: make(chan struct{}),
-	}
-	for _, a := range actions {
-		idx := len(p.repos)
-		p.repos = append(p.repos, repoStatus{
-			name:   a.Repo.Name,
-			action: a.Type,
-			state:  "waiting",
-		})
-		p.index[a.Repo.Name] = idx
-	}
-	// Print header + initial rows
-	fmt.Fprintf(out, "\nSyncing %d repositories:\n", len(actions))
-	for _, r := range p.repos {
-		fmt.Fprintf(out, "  ○ %-30s  waiting\n", r.name)
-	}
-	p.linesRendered = len(p.repos)
-
-	// Background goroutine flushes dirty state every 100ms
-	go p.flushLoop()
-
-	return p
-}
-
-// flushLoop periodically redraws if state is dirty.
-func (p *inPlaceProgress) flushLoop() {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			p.mu.Lock()
-			if p.dirty {
-				p.dirty = false
-				p.doRedraw()
-			}
-			p.mu.Unlock()
-		case <-p.stopFlush:
-			return
-		}
-	}
-}
-
-// redraw requests a screen update. If <100ms since last redraw, marks dirty
-// for the background flush goroutine. Forces immediate redraw on final completion.
-// Must be called with p.mu held.
-func (p *inPlaceProgress) redraw() {
-	// Force immediate redraw on final completion
-	if p.done == p.total {
-		p.dirty = false
-		p.doRedraw()
-		return
-	}
-	// Throttle: skip if <100ms since last redraw
-	if time.Since(p.lastRedraw) < 100*time.Millisecond {
-		p.dirty = true
-		return
-	}
-	p.dirty = false
-	p.doRedraw()
-}
-
-// doRedraw moves the cursor up linesRendered rows and rewrites every line.
-// Must be called with p.mu held.
-func (p *inPlaceProgress) doRedraw() {
-	p.lastRedraw = time.Now()
-	// Move cursor up N lines
-	fmt.Fprintf(p.out, "\033[%dA", p.linesRendered)
-	for _, r := range p.repos {
-		var icon, color, reset string
-		reset = "\033[0m"
-		switch r.state {
-		case "waiting":
-			icon = "○"
-			color = "\033[2m" // dim
-		case "running":
-			icon = "●"
-			color = "\033[33m" // yellow
-		case "done":
-			icon = "✓"
-			color = "\033[32m" // green
-		case "error":
-			icon = "✗"
-			color = "\033[31m" // red
-		}
-		// Truncate message to keep lines short
-		msg := r.msg
-		if len(msg) > 45 {
-			msg = msg[:42] + "..."
-		}
-		// Overwrite line: clear to end of line (\033[K) prevents leftover chars
-		fmt.Fprintf(p.out, "  %s%s %-30s  %s%s\033[K\n", color, icon, r.name, msg, reset)
-	}
-}
-
-// OnStart implements reposync.ProgressSink.
-func (p *inPlaceProgress) OnStart(action reposync.Action) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if idx, ok := p.index[action.Repo.Name]; ok {
-		p.repos[idx].state = "running"
-		p.repos[idx].msg = string(action.Type) + "..."
-	}
-	p.redraw()
-}
-
-// OnProgress implements reposync.ProgressSink.
-func (p *inPlaceProgress) OnProgress(action reposync.Action, message string, progress float64) {
-	// Skip retry noise
-	if strings.Contains(message, "retrying") {
-		return
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if idx, ok := p.index[action.Repo.Name]; ok {
-		msg := message
-		if progress > 0 {
-			msg = fmt.Sprintf("%s (%.0f%%)", message, progress*100)
-		}
-		p.repos[idx].msg = msg
-	}
-	p.redraw()
-}
-
-// OnComplete implements reposync.ProgressSink.
-func (p *inPlaceProgress) OnComplete(result reposync.ActionResult) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.done++
-	if idx, ok := p.index[result.Action.Repo.Name]; ok {
-		if result.Error != nil {
-			p.errored++
-			p.repos[idx].state = "error"
-			// Short message (first line) for the row display
-			errMsg := result.Error.Error()
-			firstLine := errMsg
-			if nl := strings.Index(errMsg, "\n"); nl > 0 {
-				firstLine = errMsg[:nl]
-			}
-			p.repos[idx].msg = firstLine
-			// Save full error for post-run details section
-			p.errDetails = append(p.errDetails, fmt.Sprintf("%s: %s", result.Action.Repo.Name, errMsg))
-		} else {
-			p.repos[idx].state = "done"
-			p.repos[idx].msg = result.Message
-		}
-	}
-	p.redraw()
-
-	// After all done, stop flush goroutine and print final summary + error details
-	if p.done == p.total {
-		close(p.stopFlush)
-		succeeded := p.done - p.errored
-		if p.errored == 0 {
-			fmt.Fprintf(p.out, "\n\033[32m✓ All %d repositories synced successfully.\033[0m\n", p.total)
-		} else {
-			fmt.Fprintf(p.out, "\n\033[33m⚠  %d succeeded, %d failed out of %d repositories.\033[0m\n",
-				succeeded, p.errored, p.total)
-			// Print full error details for failed repos
-			fmt.Fprintf(p.out, "\n\033[31mErrors:\033[0m\n")
-			for _, detail := range p.errDetails {
-				// Indent each line of the error message
-				for i, line := range strings.Split(detail, "\n") {
-					if i == 0 {
-						fmt.Fprintf(p.out, "  ✗ %s\n", line)
-					} else if strings.TrimSpace(line) != "" {
-						fmt.Fprintf(p.out, "    %s\n", line)
-					}
-				}
-			}
-		}
-	}
 }
 
 // ensureChildConfigs checks explicit workspaces and creates .gz-git.yaml if missing.
