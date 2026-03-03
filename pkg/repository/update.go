@@ -416,18 +416,25 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 		return nil, fmt.Errorf("fetch before rebase failed (exit %d): %s", fetchResult.ExitCode, strings.TrimSpace(fetchResult.Stderr))
 	}
 
-	// Pull with rebase (requires auth for remote access)
-	args := []string{"pull", "--rebase", "origin"}
+	// Rebase onto remote branch (local operation, no auth needed — fetch already done)
+	rebaseTarget := "origin/HEAD"
 	if opts.Branch != "" {
-		args = append(args, opts.Branch)
+		rebaseTarget = fmt.Sprintf("origin/%s", opts.Branch)
 	}
 
-	rebaseResult, rebaseErr := c.executor.RunWithEnv(ctx, opts.Destination, opts.Env, args...)
-	if rebaseErr != nil {
-		return nil, fmt.Errorf("rebase failed: %w", rebaseErr)
-	}
-	if rebaseResult.ExitCode != 0 {
-		return nil, fmt.Errorf("rebase failed (exit %d): %s", rebaseResult.ExitCode, strings.TrimSpace(rebaseResult.Stderr))
+	rebaseResult, rebaseErr := c.executor.Run(ctx, opts.Destination, "rebase", rebaseTarget)
+	if rebaseErr != nil || rebaseResult.ExitCode != 0 {
+		// Conflict detected → abort to restore clean working tree
+		abortResult, abortErr := c.executor.Run(ctx, opts.Destination, "rebase", "--abort")
+		if abortErr != nil || (abortResult != nil && abortResult.ExitCode != 0) {
+			logger.Warn("rebase --abort failed, repository may be in inconsistent state", "path", opts.Destination)
+		}
+		return &CloneOrUpdateResult{
+			Action:       StatusConflict,
+			StrategyUsed: StrategyRebase,
+			Success:      false,
+			Message:      fmt.Sprintf("Rebase conflict detected in %s, aborted to preserve clean state", opts.Destination),
+		}, nil
 	}
 
 	repo, err = c.Open(ctx, opts.Destination)

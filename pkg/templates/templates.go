@@ -136,7 +136,7 @@ type RepositoriesBasicData struct {
 	Name         string
 	Team         string
 	Description  string
-	Strategy     string // reset|pull|fetch
+	Strategy     string // reset|pull|rebase|fetch
 	Parallel     int
 	Repositories []RepoData
 }
@@ -266,7 +266,7 @@ type WorkspaceForgeData struct {
 type CommonScannedConfig struct {
 	ScannedAt  string // RFC3339 timestamp
 	Count      int    // Number of repos/workspaces found
-	Strategy   string // reset, pull, fetch, skip
+	Strategy   string // reset, pull, rebase, fetch, skip
 	Parallel   int    // Parallel workers
 	MaxRetries int    // Retry count on failure
 	CloneProto string // ssh, https

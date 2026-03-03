@@ -125,7 +125,7 @@ Note: GitLab and Gitea do not provide language info via API; --language may not 
 	cmd.Flags().StringVar(&opts.SSHKeyContent, "ssh-key-content", "", "SSH private key content (use env var for security)")
 
 	// Sync options
-	cmd.Flags().StringVar(&opts.Strategy, "sync-strategy", opts.Strategy, "Sync strategy (reset, pull, fetch)")
+	cmd.Flags().StringVar(&opts.Strategy, "sync-strategy", opts.Strategy, "Sync strategy (reset, pull, rebase, fetch)")
 	cmd.Flags().IntVar(&opts.Parallel, "parallel", opts.Parallel, "Number of parallel workers")
 	cmd.Flags().IntVar(&opts.MaxRetries, "max-retries", opts.MaxRetries, "Max retry attempts")
 	cmd.Flags().BoolVar(&opts.Resume, "resume", false, "Resume from previous state")

@@ -348,19 +348,22 @@ func (p *ForgePlanner) planOrphanCleanup(repos []*provider.Repository, roots []s
 			if _, expected := expectedNames[entry.Name()]; !expected {
 				dirPath := filepath.Join(root, entry.Name())
 
-				// Verify it's a git repository before marking for deletion
+				reason := "orphan: not in organization repository list"
 				gitDir := filepath.Join(dirPath, ".git")
-				if _, err := os.Stat(gitDir); err == nil {
-					deleteActions = append(deleteActions, Action{
-						Repo: RepoSpec{
-							Name:       entry.Name(),
-							TargetPath: dirPath,
-						},
-						Type:      ActionDelete,
-						Reason:    "orphan: not in organization repository list",
-						PlannedBy: "forge:" + p.provider.Name(),
-					})
+				if _, err := os.Stat(gitDir); err != nil {
+					// No .git — likely a leftover from a partial deletion
+					reason = "orphan: leftover directory (no .git)"
 				}
+
+				deleteActions = append(deleteActions, Action{
+					Repo: RepoSpec{
+						Name:       entry.Name(),
+						TargetPath: dirPath,
+					},
+					Type:      ActionDelete,
+					Reason:    reason,
+					PlannedBy: "forge:" + p.provider.Name(),
+				})
 			}
 		}
 	}

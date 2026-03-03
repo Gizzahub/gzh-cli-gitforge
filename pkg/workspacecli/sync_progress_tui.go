@@ -32,9 +32,10 @@ type syncProgressMsg struct {
 }
 
 type syncCompleteMsg struct {
-	RepoName string
-	Message  string
-	Error    error
+	RepoName   string
+	Message    string
+	Error      error
+	PostStatus *reposync.PostSyncStatus
 }
 
 type syncAllDoneMsg struct{}
@@ -58,9 +59,18 @@ type syncRepoState struct {
 	status     syncRepoStatus
 	message    string
 	progress   float64
+	postStatus *reposync.PostSyncStatus
+	workspace  string
 }
 
 // ─── SyncProgressModel ──────────────────────────────────────────────────────
+
+// workspaceGroup represents a contiguous group of repos belonging to the same workspace.
+type workspaceGroup struct {
+	Name       string
+	StartIndex int
+	EndIndex   int // exclusive
+}
 
 // SyncProgressModel is a Bubble Tea model for displaying sync progress
 // in an alternate screen buffer. It supports viewport scrolling when
@@ -68,6 +78,7 @@ type syncRepoState struct {
 type SyncProgressModel struct {
 	repos     []syncRepoState
 	index     map[string]int // repo name → index in repos
+	groups    []workspaceGroup
 	total     int
 	done      int
 	errored   int
@@ -103,6 +114,7 @@ func newSyncProgressModel(actions []reposync.Action) SyncProgressModel {
 			name:       a.Repo.Name,
 			actionType: a.Type,
 			status:     statusWaiting,
+			workspace:  a.Workspace,
 		})
 		idx[a.Repo.Name] = i
 
@@ -118,9 +130,13 @@ func newSyncProgressModel(actions []reposync.Action) SyncProgressModel {
 		}
 	}
 
+	// Build workspace groups from consecutive same-workspace repos
+	groups := buildWorkspaceGroups(repos)
+
 	return SyncProgressModel{
 		repos:       repos,
 		index:       idx,
+		groups:      groups,
 		total:       len(actions),
 		cloneCount:  clones,
 		updateCount: updates,
@@ -128,6 +144,40 @@ func newSyncProgressModel(actions []reposync.Action) SyncProgressModel {
 		skipCount:   skips,
 		startTime:   time.Now(),
 	}
+}
+
+// buildWorkspaceGroups groups consecutive repos with the same workspace name.
+func buildWorkspaceGroups(repos []syncRepoState) []workspaceGroup {
+	if len(repos) == 0 {
+		return nil
+	}
+
+	var groups []workspaceGroup
+	current := repos[0].workspace
+	start := 0
+
+	for i := 1; i < len(repos); i++ {
+		if repos[i].workspace != current {
+			groups = append(groups, workspaceGroup{
+				Name:       current,
+				StartIndex: start,
+				EndIndex:   i,
+			})
+			current = repos[i].workspace
+			start = i
+		}
+	}
+	groups = append(groups, workspaceGroup{
+		Name:       current,
+		StartIndex: start,
+		EndIndex:   len(repos),
+	})
+
+	// Only return groups if there's more than one or the single group has a name
+	if len(groups) == 1 && groups[0].Name == "" {
+		return nil
+	}
+	return groups
 }
 
 // Init starts the spinner tick.
@@ -195,7 +245,12 @@ func (m SyncProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.succeeded++
 				m.repos[idx].status = statusDone
-				m.repos[idx].message = msg.Message
+				m.repos[idx].postStatus = msg.PostStatus
+				if compact := reposync.FormatCompactStatus(msg.PostStatus); compact != "" {
+					m.repos[idx].message = compact
+				} else {
+					m.repos[idx].message = msg.Message
+				}
 			}
 		}
 		return m, nil
@@ -260,17 +315,50 @@ func (m SyncProgressModel) renderHeader() string {
 }
 
 func (m SyncProgressModel) renderRepoList() string {
-	// Calculate visible area: total height minus header(2) + footer(3) + progress(1) + padding(2)
+	// Build display lines (repos + group headers)
+	type displayLine struct {
+		isHeader  bool
+		header    string
+		repoIndex int
+	}
+
+	var lines []displayLine
+	if len(m.groups) > 0 {
+		for _, g := range m.groups {
+			name := g.Name
+			if name == "" {
+				name = "(repositories)"
+			}
+			count := g.EndIndex - g.StartIndex
+			header := fmt.Sprintf("── %s (%d repos) ", name, count)
+			// Pad with ─ to fill width
+			padLen := 40 - len(header)
+			if padLen < 2 {
+				padLen = 2
+			}
+			header += strings.Repeat("─", padLen)
+			lines = append(lines, displayLine{isHeader: true, header: header})
+			for i := g.StartIndex; i < g.EndIndex; i++ {
+				lines = append(lines, displayLine{repoIndex: i})
+			}
+		}
+	} else {
+		for i := range m.repos {
+			lines = append(lines, displayLine{repoIndex: i})
+		}
+	}
+
+	// Calculate visible area
 	visibleHeight := m.height - 8
 	if visibleHeight < 5 {
 		visibleHeight = 5
 	}
-	if visibleHeight > len(m.repos) {
-		visibleHeight = len(m.repos)
+	if visibleHeight > len(lines) {
+		visibleHeight = len(lines)
 	}
 
 	// Clamp scrollTop
-	maxScroll := len(m.repos) - visibleHeight
+	maxScroll := len(lines) - visibleHeight
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -280,19 +368,23 @@ func (m SyncProgressModel) renderRepoList() string {
 
 	var b strings.Builder
 	end := m.scrollTop + visibleHeight
-	if end > len(m.repos) {
-		end = len(m.repos)
+	if end > len(lines) {
+		end = len(lines)
 	}
 
 	for i := m.scrollTop; i < end; i++ {
-		r := m.repos[i]
-		b.WriteString(m.renderRepoLine(r))
+		dl := lines[i]
+		if dl.isHeader {
+			b.WriteString(tui.SubtleStyle.Render(dl.header))
+		} else {
+			b.WriteString(m.renderRepoLine(m.repos[dl.repoIndex]))
+		}
 		b.WriteString("\n")
 	}
 
 	// Scroll indicator
-	if len(m.repos) > visibleHeight {
-		scrollInfo := fmt.Sprintf("  (%d-%d of %d)  j/k: scroll", m.scrollTop+1, end, len(m.repos))
+	if len(lines) > visibleHeight {
+		scrollInfo := fmt.Sprintf("  (%d-%d of %d)  j/k: scroll", m.scrollTop+1, end, len(lines))
 		b.WriteString(tui.SubtleStyle.Render(scrollInfo))
 	}
 
@@ -315,24 +407,47 @@ func (m SyncProgressModel) renderRepoLine(r syncRepoState) string {
 		msg = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Render(fmtMsg)
 	case statusDone:
 		icon = "✓"
-		msg = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(r.message)
+		if r.postStatus != nil {
+			msg = renderColoredCompactStatus(r.postStatus)
+		} else {
+			msg = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(r.message)
+		}
 	case statusError:
 		icon = "✗"
 		msg = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(r.message)
 	}
 
-	// Truncate message to keep lines within terminal width
 	name := r.name
 	if len(name) > 30 {
 		name = name[:27] + "..."
 	}
-	truncMsg := msg
-	// Rough truncation based on raw length (lipgloss escapes make exact difficult)
-	if len(r.message) > 45 {
-		truncMsg = msg[:len(msg)-len(r.message)+42] + "..."
+
+	return fmt.Sprintf("  %s %-30s  %s", icon, name, msg)
+}
+
+// renderColoredCompactStatus renders PostSyncStatus with per-segment colors.
+func renderColoredCompactStatus(ps *reposync.PostSyncStatus) string {
+	if ps == nil {
+		return ""
 	}
 
-	return fmt.Sprintf("  %s %-30s  %s", icon, name, truncMsg)
+	var parts []string
+	if ps.Branch != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(ps.Branch))
+	}
+	if ps.BehindBy > 0 {
+		parts = append(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(fmt.Sprintf("↓%d", ps.BehindBy)))
+	}
+	if ps.AheadBy > 0 {
+		parts = append(parts, tui.DirtyStyle.Render(fmt.Sprintf("↑%d", ps.AheadBy)))
+	}
+	if ps.HasConflicts {
+		parts = append(parts, tui.UnhealthyStyle.Render("conflict"))
+	} else if ps.IsDirty {
+		parts = append(parts, tui.DirtyStyle.Render("dirty"))
+	}
+
+	return strings.Join(parts, lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("|"))
 }
 
 func (m SyncProgressModel) renderProgressBar() string {
@@ -365,12 +480,20 @@ func (m SyncProgressModel) renderFooter() string {
 
 // ─── Scroll helpers ──────────────────────────────────────────────────────────
 
+// totalDisplayLines returns the number of lines including group headers.
+func (m *SyncProgressModel) totalDisplayLines() int {
+	if len(m.groups) > 0 {
+		return len(m.repos) + len(m.groups)
+	}
+	return len(m.repos)
+}
+
 func (m *SyncProgressModel) scrollDown() {
 	visibleHeight := m.height - 8
 	if visibleHeight < 5 {
 		visibleHeight = 5
 	}
-	maxScroll := len(m.repos) - visibleHeight
+	maxScroll := m.totalDisplayLines() - visibleHeight
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -390,7 +513,7 @@ func (m *SyncProgressModel) scrollToEnd() {
 	if visibleHeight < 5 {
 		visibleHeight = 5
 	}
-	maxScroll := len(m.repos) - visibleHeight
+	maxScroll := m.totalDisplayLines() - visibleHeight
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -441,9 +564,10 @@ func (b *tuiProgressBridge) OnComplete(result reposync.ActionResult) {
 		errVal = result.Error
 	}
 	b.program.Send(syncCompleteMsg{
-		RepoName: result.Action.Repo.Name,
-		Message:  result.Message,
-		Error:    errVal,
+		RepoName:   result.Action.Repo.Name,
+		Message:    result.Message,
+		Error:      errVal,
+		PostStatus: result.PostStatus,
 	})
 
 	if b.done.Add(1) == b.total {

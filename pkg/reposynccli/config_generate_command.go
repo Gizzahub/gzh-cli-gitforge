@@ -99,7 +99,7 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	cmd.Flags().IntVar(&opts.SSHPort, "ssh-port", opts.SSHPort, "Custom SSH port (0 = default 22)")
 
 	// Strategy and execution
-	cmd.Flags().StringVar(&opts.Strategy, "sync-strategy", opts.Strategy, "Sync strategy (reset, pull, fetch)")
+	cmd.Flags().StringVar(&opts.Strategy, "sync-strategy", opts.Strategy, "Sync strategy (reset, pull, rebase, fetch)")
 	cmd.Flags().IntVar(&opts.Parallel, "parallel", opts.Parallel, "Number of parallel workers")
 	cmd.Flags().IntVar(&opts.MaxRetries, "max-retries", opts.MaxRetries, "Max retry attempts")
 

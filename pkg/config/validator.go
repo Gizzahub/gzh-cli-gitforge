@@ -8,20 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 )
-
-// warnedEnvVars tracks env var names that have already been warned about.
-// Package-level to deduplicate across all Validator instances in the process.
-var warnedEnvVars sync.Map
-
-// ResetEnvVarWarnings clears the warned env var set. Intended for testing.
-func ResetEnvVarWarnings() {
-	warnedEnvVars.Range(func(key, _ any) bool {
-		warnedEnvVars.Delete(key)
-		return true
-	})
-}
 
 var (
 	// envVarPattern matches ${VAR_NAME} syntax
@@ -51,9 +38,10 @@ var (
 
 	// validSyncStrategies lists supported sync strategies
 	validSyncStrategies = map[string]bool{
-		"pull":  true,
-		"reset": true,
-		"skip":  true,
+		"pull":   true,
+		"reset":  true,
+		"skip":   true,
+		"rebase": true,
 	}
 )
 
@@ -127,7 +115,7 @@ func (v *Validator) ValidateSyncConfig(s *SyncConfig) error {
 
 	// Validate strategy if set
 	if s.Strategy != "" && !validSyncStrategies[s.Strategy] {
-		return fmt.Errorf("invalid sync strategy '%s': must be pull, reset, or skip", s.Strategy)
+		return fmt.Errorf("invalid sync strategy '%s': must be pull, reset, rebase, or skip", s.Strategy)
 	}
 
 	// Validate max retries if set
@@ -307,13 +295,9 @@ func (v *Validator) expandString(s string) (string, error) {
 		varName := match[2 : len(match)-1]
 
 		// Get value from environment
+		// Empty env vars are silently accepted — forge commands validate token
+		// availability separately when the token is actually needed.
 		value := os.Getenv(varName)
-		if value == "" {
-			// Warn about missing env var (but don't fail), only once per var name
-			if _, alreadyWarned := warnedEnvVars.LoadOrStore(varName, true); !alreadyWarned {
-				fmt.Fprintf(os.Stderr, "Warning: environment variable %s is not set\n", varName)
-			}
-		}
 
 		return value
 	})

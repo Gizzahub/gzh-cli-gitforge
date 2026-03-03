@@ -6,8 +6,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -193,7 +193,6 @@ func (c *client) BulkTag(ctx context.Context, opts BulkTagOptions) (*BulkTagResu
 // processTagRepositories processes repositories in parallel for tag operations.
 func (c *client) processTagRepositories(ctx context.Context, rootDir string, repos []string, opts BulkTagOptions, logger Logger) ([]RepositoryTagResult, error) {
 	results := make([]RepositoryTagResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -208,11 +207,7 @@ func (c *client) processTagRepositories(ctx context.Context, rootDir string, rep
 				opts.ProgressCallback(i+1, len(repos), repoPath)
 			}
 
-			result := c.processTagRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
-			results[i] = result
-			mu.Unlock()
+			results[i] = c.processTagRepository(gctx, rootDir, repoPath, opts, logger)
 
 			return nil // Don't fail entire operation on single repo error
 		})
@@ -229,9 +224,14 @@ func (c *client) processTagRepositories(ctx context.Context, rootDir string, rep
 func (c *client) processTagRepository(ctx context.Context, rootDir, repoPath string, opts BulkTagOptions, logger Logger) RepositoryTagResult {
 	startTime := time.Now()
 
+	relPath := getRelativePath(rootDir, repoPath)
+	if relPath == "." {
+		relPath = filepath.Base(repoPath)
+	}
+
 	result := RepositoryTagResult{
 		Path:         repoPath,
-		RelativePath: getRelativePath(rootDir, repoPath),
+		RelativePath: relPath,
 		Duration:     0,
 	}
 
@@ -251,19 +251,15 @@ func (c *client) processTagRepository(ctx context.Context, rootDir, repoPath str
 		result.Branch = info.Branch
 	}
 
-	// Get tag count
-	tagResult, _ := c.executor.Run(ctx, repoPath, "tag", "-l")
+	// Get tag count and latest tag in a single sorted call
+	tagResult, _ := c.executor.Run(ctx, repoPath, "tag", "-l", "--sort=-v:refname")
 	if tagResult.ExitCode == 0 {
-		lines := strings.Split(strings.TrimSpace(tagResult.Stdout), "\n")
-		if lines[0] != "" {
+		tagOutput := strings.TrimSpace(tagResult.Stdout)
+		if tagOutput != "" {
+			lines := strings.Split(tagOutput, "\n")
 			result.TagCount = len(lines)
+			result.LatestTag = lines[0]
 		}
-	}
-
-	// Get latest tag
-	latestResult, _ := c.executor.Run(ctx, repoPath, "describe", "--tags", "--abbrev=0")
-	if latestResult.ExitCode == 0 {
-		result.LatestTag = strings.TrimSpace(latestResult.Stdout)
 	}
 
 	switch opts.Operation {

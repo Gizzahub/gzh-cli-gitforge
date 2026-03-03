@@ -423,12 +423,16 @@ func TestForgePlanner_planOrphanCleanup(t *testing.T) {
 		}
 	})
 
-	t.Run("skips non-git directories", func(t *testing.T) {
+	t.Run("detects leftover directory without .git", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
-		// Create regular directory (not a git repo)
-		regularDir := filepath.Join(tmpDir, "not-a-repo")
-		if err := os.MkdirAll(regularDir, 0o755); err != nil {
+		// Create directory without .git (leftover from partial deletion)
+		leftoverDir := filepath.Join(tmpDir, "leftover-repo")
+		if err := os.MkdirAll(leftoverDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// Add a file so it's not empty
+		if err := os.WriteFile(filepath.Join(leftoverDir, "Dockerfile"), []byte("FROM alpine"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -437,8 +441,36 @@ func TestForgePlanner_planOrphanCleanup(t *testing.T) {
 
 		actions := planner.planOrphanCleanup([]*provider.Repository{}, []string{tmpDir})
 
-		if len(actions) != 0 {
-			t.Errorf("expected 0 actions for non-git dir, got %d", len(actions))
+		if len(actions) != 1 {
+			t.Fatalf("expected 1 action for leftover dir, got %d", len(actions))
+		}
+		if actions[0].Type != ActionDelete {
+			t.Errorf("expected delete action, got %s", actions[0].Type)
+		}
+		if actions[0].Reason != "orphan: leftover directory (no .git)" {
+			t.Errorf("expected leftover reason, got %q", actions[0].Reason)
+		}
+	})
+
+	t.Run("orphan with .git uses correct reason", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Create orphan with .git
+		orphanDir := filepath.Join(tmpDir, "orphan-with-git", ".git")
+		if err := os.MkdirAll(orphanDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		p := &mockForgeProvider{name: "github"}
+		planner := NewForgePlanner(p, ForgePlannerConfig{TargetPath: tmpDir})
+
+		actions := planner.planOrphanCleanup([]*provider.Repository{}, []string{tmpDir})
+
+		if len(actions) != 1 {
+			t.Fatalf("expected 1 action, got %d", len(actions))
+		}
+		if actions[0].Reason != "orphan: not in organization repository list" {
+			t.Errorf("expected standard orphan reason, got %q", actions[0].Reason)
 		}
 	})
 

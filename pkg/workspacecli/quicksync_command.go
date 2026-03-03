@@ -48,7 +48,8 @@ func (f CommandFactory) NewQuickSyncCmd() *cobra.Command {
 		noReview  bool // skip review prompt after auto-init
 
 		// ── Extra features ───────────────────────────────────────────────────
-		check bool // run `workspace status` after sync completes
+		check         bool // run `workspace status` after sync completes
+		pushAfterSync bool // push after successful sync
 	)
 
 	cmd := &cobra.Command{
@@ -216,6 +217,7 @@ Auto-Init Behavior:
 			addIfChanged("recursive", "recursive")
 			addIfChanged("recursive-depth", "recursive-depth")
 			addIfChanged("format", "format")
+			addIfChanged("push", "push")
 
 			// ── 4. Delegate to workspace sync ─────────────────────────────────
 			syncCmd := f.newSyncCmd()
@@ -255,7 +257,7 @@ Auto-Init Behavior:
 	// ── Sync flags (exact mirror of workspace sync) ───────────────────────────
 	cmd.Flags().StringVarP(&configPath, "config", "c", "",
 		"Path to config file (auto-detects "+DefaultConfigFile+"; skips auto-init when provided)")
-	cmd.Flags().StringVar(&strategy, "strategy", "", "Strategy override (reset|pull|fetch)")
+	cmd.Flags().StringVar(&strategy, "strategy", "", "Strategy override (reset|pull|rebase|fetch)")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Parallel workers (overrides config)")
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 0, "Retry attempts per repo (overrides config)")
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous state")
@@ -282,6 +284,8 @@ Auto-Init Behavior:
 	// ── Extra features ────────────────────────────────────────────────────────
 	cmd.Flags().BoolVar(&check, "check", false,
 		"Run 'workspace status' after sync to verify repository health")
+	cmd.Flags().BoolVar(&pushAfterSync, "push", false,
+		"Push after successful sync (only repos with local commits ahead)")
 
 	return cmd
 }

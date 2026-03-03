@@ -403,3 +403,168 @@ func TestPrintSyncSummaryWithErrors(t *testing.T) {
 		t.Errorf("expected error details, got: %s", output)
 	}
 }
+
+// ─── Workspace groups ────────────────────────────────────────────────────────
+
+func TestBuildWorkspaceGroups_NoWorkspaces(t *testing.T) {
+	repos := []syncRepoState{
+		{name: "repo-a"},
+		{name: "repo-b"},
+	}
+	groups := buildWorkspaceGroups(repos)
+	if groups != nil {
+		t.Errorf("expected nil groups for repos without workspace names, got %d groups", len(groups))
+	}
+}
+
+func TestBuildWorkspaceGroups_MultipleWorkspaces(t *testing.T) {
+	repos := []syncRepoState{
+		{name: "repo-a", workspace: "devbox"},
+		{name: "repo-b", workspace: "devbox"},
+		{name: "repo-c", workspace: "notes"},
+		{name: "repo-d", workspace: "notes"},
+		{name: "repo-e", workspace: "notes"},
+	}
+	groups := buildWorkspaceGroups(repos)
+
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(groups))
+	}
+
+	if groups[0].Name != "devbox" || groups[0].StartIndex != 0 || groups[0].EndIndex != 2 {
+		t.Errorf("group 0: got %+v, want devbox[0:2]", groups[0])
+	}
+	if groups[1].Name != "notes" || groups[1].StartIndex != 2 || groups[1].EndIndex != 5 {
+		t.Errorf("group 1: got %+v, want notes[2:5]", groups[1])
+	}
+}
+
+func TestBuildWorkspaceGroups_MixedWithFlat(t *testing.T) {
+	repos := []syncRepoState{
+		{name: "repo-a", workspace: "devbox"},
+		{name: "repo-b", workspace: ""},
+		{name: "repo-c", workspace: "notes"},
+	}
+	groups := buildWorkspaceGroups(repos)
+
+	if len(groups) != 3 {
+		t.Fatalf("expected 3 groups, got %d", len(groups))
+	}
+	if groups[0].Name != "devbox" {
+		t.Errorf("group 0 name: got %q, want %q", groups[0].Name, "devbox")
+	}
+	if groups[1].Name != "" {
+		t.Errorf("group 1 name: got %q, want empty", groups[1].Name)
+	}
+	if groups[2].Name != "notes" {
+		t.Errorf("group 2 name: got %q, want %q", groups[2].Name, "notes")
+	}
+}
+
+func TestNewSyncProgressModel_WorkspaceGroups(t *testing.T) {
+	actions := []reposync.Action{
+		{Repo: reposync.RepoSpec{Name: "r1"}, Type: reposync.ActionUpdate, Workspace: "ws1"},
+		{Repo: reposync.RepoSpec{Name: "r2"}, Type: reposync.ActionUpdate, Workspace: "ws1"},
+		{Repo: reposync.RepoSpec{Name: "r3"}, Type: reposync.ActionClone, Workspace: "ws2"},
+	}
+
+	m := newSyncProgressModel(actions)
+
+	if len(m.groups) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(m.groups))
+	}
+	if m.repos[0].workspace != "ws1" {
+		t.Errorf("repos[0].workspace = %q, want %q", m.repos[0].workspace, "ws1")
+	}
+	if m.repos[2].workspace != "ws2" {
+		t.Errorf("repos[2].workspace = %q, want %q", m.repos[2].workspace, "ws2")
+	}
+}
+
+func TestTotalDisplayLines(t *testing.T) {
+	// With groups: repos + group headers
+	actions := []reposync.Action{
+		{Repo: reposync.RepoSpec{Name: "r1"}, Type: reposync.ActionUpdate, Workspace: "ws1"},
+		{Repo: reposync.RepoSpec{Name: "r2"}, Type: reposync.ActionUpdate, Workspace: "ws1"},
+		{Repo: reposync.RepoSpec{Name: "r3"}, Type: reposync.ActionClone, Workspace: "ws2"},
+	}
+	m := newSyncProgressModel(actions)
+	// 3 repos + 2 group headers = 5
+	if got := m.totalDisplayLines(); got != 5 {
+		t.Errorf("totalDisplayLines() = %d, want 5", got)
+	}
+
+	// Without groups
+	actions2 := []reposync.Action{
+		{Repo: reposync.RepoSpec{Name: "r1"}, Type: reposync.ActionUpdate},
+		{Repo: reposync.RepoSpec{Name: "r2"}, Type: reposync.ActionUpdate},
+	}
+	m2 := newSyncProgressModel(actions2)
+	if got := m2.totalDisplayLines(); got != 2 {
+		t.Errorf("totalDisplayLines() = %d, want 2", got)
+	}
+}
+
+// ─── Compact status in TUI ──────────────────────────────────────────────────
+
+func TestSyncCompleteMsgWithPostStatus(t *testing.T) {
+	actions := makeActions("repo-a")
+	m := newSyncProgressModel(actions)
+
+	updated, _ := m.Update(syncCompleteMsg{
+		RepoName: "repo-a",
+		Message:  "already up-to-date",
+		PostStatus: &reposync.PostSyncStatus{
+			Branch:   "develop",
+			BehindBy: 3,
+		},
+	})
+	m = updated.(SyncProgressModel)
+
+	if m.repos[0].message != "develop|↓3" {
+		t.Errorf("message: got %q, want %q", m.repos[0].message, "develop|↓3")
+	}
+	if m.repos[0].postStatus == nil {
+		t.Error("postStatus should not be nil")
+	}
+}
+
+func TestSyncCompleteMsgWithoutPostStatus(t *testing.T) {
+	actions := makeActions("repo-a")
+	m := newSyncProgressModel(actions)
+
+	updated, _ := m.Update(syncCompleteMsg{
+		RepoName: "repo-a",
+		Message:  "already up-to-date",
+	})
+	m = updated.(SyncProgressModel)
+
+	if m.repos[0].message != "already up-to-date" {
+		t.Errorf("message: got %q, want %q", m.repos[0].message, "already up-to-date")
+	}
+}
+
+// ─── Workspace grouped View rendering ───────────────────────────────────────
+
+func TestViewRenderingWithWorkspaceGroups(t *testing.T) {
+	actions := []reposync.Action{
+		{Repo: reposync.RepoSpec{Name: "r1"}, Type: reposync.ActionUpdate, Workspace: "devbox"},
+		{Repo: reposync.RepoSpec{Name: "r2"}, Type: reposync.ActionClone, Workspace: "devbox"},
+		{Repo: reposync.RepoSpec{Name: "r3"}, Type: reposync.ActionUpdate, Workspace: "notes"},
+	}
+	m := newSyncProgressModel(actions)
+	m.width = 80
+	m.height = 30
+
+	view := m.View()
+
+	if !strings.Contains(view, "devbox") {
+		t.Error("view should contain workspace name 'devbox'")
+	}
+	if !strings.Contains(view, "notes") {
+		t.Error("view should contain workspace name 'notes'")
+	}
+	if !strings.Contains(view, "2 repos") {
+		t.Error("view should contain '2 repos' for devbox group")
+	}
+}

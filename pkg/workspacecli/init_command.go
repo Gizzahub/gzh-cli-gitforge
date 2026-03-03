@@ -37,7 +37,7 @@ const (
 )
 
 // ValidStrategies for sync operations.
-var ValidStrategies = []string{"reset", "pull", "fetch", "skip"}
+var ValidStrategies = []string{"reset", "pull", "rebase", "fetch", "skip"}
 
 // NormalizeKind normalizes kind value and returns canonical form.
 // Returns (canonical kind, warning message, error).
@@ -69,7 +69,7 @@ type InitOptions struct {
 	Force           bool
 	Template        bool
 	Kind            string // repositories or workspaces
-	Strategy        string // reset, pull, fetch, skip
+	Strategy        string // reset, pull, rebase, fetch, skip
 	ExplainDefaults bool   // include commented defaults for omitted fields
 }
 
@@ -109,7 +109,7 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
   # Choose config kind (workspace or repositories)
   gz-git workspace init . --kind repositories
 
-  # Choose sync strategy (pull, reset, fetch, skip)
+  # Choose sync strategy (pull, reset, rebase, fetch, skip)
   gz-git workspace init . --strategy reset`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
@@ -131,7 +131,7 @@ func (f CommandFactory) newInitCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.Template, "template", false, "Create empty template without scanning")
 	cmd.Flags().BoolVar(&opts.ExplainDefaults, "explain-defaults", false, "Include commented defaults for omitted fields")
 	cmd.Flags().StringVarP(&opts.Kind, "kind", "k", opts.Kind, "Config kind: workspace (hierarchical) or repositories (flat list)")
-	cmd.Flags().StringVarP(&opts.Strategy, "strategy", "s", opts.Strategy, "Sync strategy: reset, pull, fetch, skip")
+	cmd.Flags().StringVarP(&opts.Strategy, "strategy", "s", opts.Strategy, "Sync strategy: reset, pull, rebase, fetch, skip")
 
 	return cmd
 }

@@ -12,8 +12,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -43,6 +45,7 @@ func (f CommandFactory) newSyncCmd() *cobra.Command {
 		recursive      bool
 		recursiveDepth int
 		format         string
+		pushAfterSync  bool
 	)
 
 	cmd := &cobra.Command{
@@ -94,7 +97,7 @@ Preview Behavior:
         Files: ~3 modified, -1 deleted
 
 Config File Structure (Reference):
-  strategy: reset # reset|pull|fetch
+  strategy: reset # reset|pull|rebase|fetch
   parallel: 4
   repositories:
     - name: my-project
@@ -136,13 +139,34 @@ Config File Structure (Reference):
 				allActions = append(allActions, flatActions...)
 			}
 
+			// Validate format early so we can suppress planning output for machine formats
+			if err := cliutil.ValidateFormat(format, cliutil.CoreFormats); err != nil {
+				return err
+			}
+			isMachine := cliutil.IsMachineFormat(format)
+
+			// Use io.Discard for planning output when machine format is requested
+			planOut := cmd.OutOrStdout()
+			if isMachine {
+				planOut = io.Discard
+			}
+
+			// Start planning spinner for TTY mode
+			var planSpinnerProgram *tea.Program
+			if isTerminal() && !isMachine {
+				spinnerModel := newPlanningSpinnerModel()
+				planSpinnerProgram = tea.NewProgram(spinnerModel)
+				planOut = newPlanningProgressWriter(planSpinnerProgram, planOut)
+				go planSpinnerProgram.Run() //nolint:errcheck
+			}
+
 			// Load Recursive Config (File 4 style)
 			// We check if there are nested workspaces or forge sources defined
 
 			recursiveCfg, recursiveErr := config.LoadConfigRecursive(configDir, configFile)
 			if recursiveErr != nil {
 				if !os.IsNotExist(recursiveErr) {
-					fmt.Fprintf(cmd.OutOrStdout(), "⚠️  Config warning: %v\n", recursiveErr)
+					fmt.Fprintf(planOut, "⚠️  Config warning: %v\n", recursiveErr)
 				}
 				recursiveCfg = nil
 			}
@@ -150,29 +174,45 @@ Config File Structure (Reference):
 			if recursiveCfg != nil {
 				// Auto-create child configs if missing
 				// This handles bootstrapping where child directories don't exist yet
-				if err := ensureChildConfigs(cmd.OutOrStdout(), recursiveCfg); err != nil {
+				if err := ensureChildConfigs(planOut, recursiveCfg); err != nil {
+					if planSpinnerProgram != nil {
+						planSpinnerProgram.Send(planDoneMsg{})
+						planSpinnerProgram.Wait()
+					}
 					return fmt.Errorf("failed to ensure child configs: %w", err)
 				}
 
 				// Discover workspaces (Hybrid mode)
 				if err := config.LoadWorkspaces(configDir, recursiveCfg, config.HybridMode); err == nil {
 					// Get forge actions
-					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, cmd.OutOrStdout(), strategy, fullOutput)
+					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, planOut, strategy, fullOutput)
 					if err != nil {
+						if planSpinnerProgram != nil {
+							planSpinnerProgram.Send(planDoneMsg{})
+							planSpinnerProgram.Wait()
+						}
 						return err
 					}
 					allActions = append(allActions, forgeActions...)
 
 					// Get git workspace actions (type=git with URL)
-					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), strategy)
+					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy)
 					if err != nil {
+						if planSpinnerProgram != nil {
+							planSpinnerProgram.Send(planDoneMsg{})
+							planSpinnerProgram.Wait()
+						}
 						return err
 					}
 					allActions = append(allActions, gitActions...)
 
 					// Get config workspace actions (type=config with sync.recursive=true)
-					cfgWsActions, err := planConfigWorkspaces(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), strategy)
+					cfgWsActions, err := planConfigWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy)
 					if err != nil {
+						if planSpinnerProgram != nil {
+							planSpinnerProgram.Send(planDoneMsg{})
+							planSpinnerProgram.Wait()
+						}
 						return err
 					}
 					allActions = append(allActions, cfgWsActions...)
@@ -182,10 +222,16 @@ Config File Structure (Reference):
 				allActions = deduplicateActions(allActions)
 			}
 
+			// Stop planning spinner
+			if planSpinnerProgram != nil {
+				planSpinnerProgram.Send(planDoneMsg{})
+				planSpinnerProgram.Wait()
+			}
+
 			// Execute self-sync first (sync config directory itself)
 			if recursiveCfg != nil {
-				if err := executeSelfSync(ctx, recursiveCfg, configDir, cmd.OutOrStdout(), dryRun); err != nil {
-					fmt.Fprintf(cmd.OutOrStdout(), "⚠️  Self-sync warning: %v\n", err)
+				if err := executeSelfSync(ctx, recursiveCfg, configDir, planOut, dryRun); err != nil {
+					fmt.Fprintf(planOut, "⚠️  Self-sync warning: %v\n", err)
 					// Continue with workspace sync even if self-sync fails
 				}
 			}
@@ -194,11 +240,6 @@ Config File Structure (Reference):
 				fmt.Println("No repositories found to sync.")
 				return nil
 			}
-
-			if err := cliutil.ValidateFormat(format, cliutil.CoreFormats); err != nil {
-				return err
-			}
-			isMachine := cliutil.IsMachineFormat(format)
 
 			out := cmd.OutOrStdout()
 
@@ -348,12 +389,30 @@ Config File Structure (Reference):
 				syncChildWorkspaces(ctx, execResult, rOpts)
 			}
 
+			// Build and display workspace hierarchy tree
+			tree := buildResultTree(execResult, filepath.Base(configDir))
+			if tree != nil && len(tree.Children) > 0 {
+				fmt.Fprintln(out, "\n── Workspace Hierarchy ──")
+				renderTree(out, tree)
+			}
+
+			// Post-sync push: push repos that synced successfully
+			if pushAfterSync && !dryRun {
+				pushTargets := collectPushTargets(execResult)
+				if len(pushTargets) > 0 {
+					fmt.Fprintln(out, "")
+					fmt.Fprintln(out, "─── Post-sync push ────────────────────────────────────────────")
+					pushResults := executePushForSyncedRepos(ctx, pushTargets, runOpts.Parallel)
+					displayPushResults(out, pushResults, isMachine)
+				}
+			}
+
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file (auto-detects "+DefaultConfigFile+")")
-	cmd.Flags().StringVar(&strategy, "strategy", "", "Strategy override (reset|pull|fetch)")
+	cmd.Flags().StringVar(&strategy, "strategy", "", "Strategy override (reset|pull|rebase|fetch)")
 	cmd.Flags().IntVar(&parallel, "parallel", 0, "Parallel workers (overrides config)")
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 0, "Retry attempts per repo (overrides config)")
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous state")
@@ -366,6 +425,7 @@ Config File Structure (Reference):
 	cmd.Flags().BoolVarP(&recursive, "recursive", "R", false, "Recursively sync child workspaces containing "+DefaultConfigFile)
 	cmd.Flags().IntVar(&recursiveDepth, "recursive-depth", 3, "Maximum recursion depth for --recursive")
 	cmd.Flags().StringVar(&format, "format", "default", "Output format (default, compact, json, llm)")
+	cmd.Flags().BoolVar(&pushAfterSync, "push", false, "Push after successful sync (only repos with local commits ahead)")
 
 	return cmd
 }
@@ -603,6 +663,9 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			}
 		}
 
+		for i := range plan.Actions {
+			plan.Actions[i].Workspace = name
+		}
 		allActions = append(allActions, plan.Actions...)
 	}
 
@@ -715,6 +778,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 			Strategy:  strategy,
 			Reason:    "git workspace",
 			PlannedBy: "config",
+			Workspace: name,
 		}
 
 		allActions = append(allActions, action)
@@ -792,6 +856,9 @@ func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir str
 			}
 
 			childActions := createActionsFromFlatConfig(cfgData.Plan, wsPath)
+			for i := range childActions {
+				childActions[i].Workspace = name
+			}
 			fmt.Fprintf(out, "  → Found %d repositories\n", len(childActions))
 			allActions = append(allActions, childActions...)
 		}
@@ -1034,7 +1101,11 @@ func (p *consoleProgress) OnComplete(result reposync.ActionResult) {
 		fmt.Fprintf(p.out, "✗ [%s] %s: %v\n", result.Action.Type, result.Action.Repo.Name, result.Error)
 		return
 	}
-	fmt.Fprintf(p.out, "✓ [%s] %s: %s\n", result.Action.Type, result.Action.Repo.Name, result.Message)
+	msg := result.Message
+	if compact := reposync.FormatCompactStatus(result.PostStatus); compact != "" {
+		msg = compact
+	}
+	fmt.Fprintf(p.out, "✓ [%s] %s: %s\n", result.Action.Type, result.Action.Repo.Name, msg)
 }
 
 // ensureChildConfigs checks explicit workspaces and creates .gz-git.yaml if missing.
@@ -1534,19 +1605,43 @@ func displayCompactSyncPreview(ctx context.Context, out io.Writer, s syncSummary
 	summary := strings.Join(parts, "  ")
 	fmt.Fprintf(out, "\nSyncing %d repositories  [%s]\n", s.Total, summary)
 
-	// Show only Update repos with local changes (dirty worktree) as warnings.
-	// Clone/Skip/Delete repos either have no TargetPath yet or won't be modified.
+	// Group actions by workspace for display
+	type wsGroup struct {
+		name    string
+		actions []reposync.Action
+	}
+	var groups []wsGroup
 	for _, action := range actions {
-		if action.Type != reposync.ActionUpdate {
-			continue
+		ws := action.Workspace
+		if len(groups) == 0 || groups[len(groups)-1].name != ws {
+			groups = append(groups, wsGroup{name: ws})
 		}
-		path := action.Repo.TargetPath
-		if path == "" {
-			continue
+		groups[len(groups)-1].actions = append(groups[len(groups)-1].actions, action)
+	}
+
+	// Show workspace-grouped warnings
+	hasMultipleGroups := len(groups) > 1 || (len(groups) == 1 && groups[0].name != "")
+	for _, g := range groups {
+		if hasMultipleGroups {
+			name := g.name
+			if name == "" {
+				name = "(repositories)"
+			}
+			fmt.Fprintf(out, "\n  ── %s (%d repos) ──\n", name, len(g.actions))
 		}
-		isDirty, err := isWorkingTreeDirty(ctx, path)
-		if err == nil && isDirty {
-			fmt.Fprintf(out, "  ⚠  %-28s  has local changes (may be overwritten)\n", action.Repo.Name)
+
+		for _, action := range g.actions {
+			if action.Type != reposync.ActionUpdate {
+				continue
+			}
+			path := action.Repo.TargetPath
+			if path == "" {
+				continue
+			}
+			isDirty, err := isWorkingTreeDirty(ctx, path)
+			if err == nil && isDirty {
+				fmt.Fprintf(out, "  ⚠  %-28s  has local changes (may be overwritten)\n", action.Repo.Name)
+			}
 		}
 	}
 }
@@ -1900,6 +1995,80 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 	syncChildWorkspaces(ctx, execResult, childOpts)
 }
 
+// buildResultTree constructs a TreeNode hierarchy from execution results.
+// It groups succeeded repos by workspace and adds compact status as the message.
+func buildResultTree(result reposync.ExecutionResult, rootName string) *TreeNode {
+	root := &TreeNode{Name: rootName}
+
+	// Group by workspace
+	type wsGroup struct {
+		name  string
+		repos []reposync.ActionResult
+	}
+	var groups []wsGroup
+	groupIdx := map[string]int{}
+
+	allResults := append(result.Succeeded, result.Failed...)
+	for _, r := range allResults {
+		ws := r.Action.Workspace
+		if idx, ok := groupIdx[ws]; ok {
+			groups[idx].repos = append(groups[idx].repos, r)
+		} else {
+			groupIdx[ws] = len(groups)
+			groups = append(groups, wsGroup{name: ws, repos: []reposync.ActionResult{r}})
+		}
+	}
+
+	for _, g := range groups {
+		if g.name == "" {
+			// Flat repos (no workspace) → add directly as children
+			for _, r := range g.repos {
+				status := "synced"
+				if r.Error != nil {
+					status = "failed"
+				}
+				msg := reposync.FormatCompactStatus(r.PostStatus)
+				root.Children = append(root.Children, &TreeNode{
+					Name:    r.Action.Repo.Name,
+					Status:  status,
+					Message: msg,
+				})
+			}
+		} else {
+			// Workspace group → create parent node with children
+			wsNode := &TreeNode{
+				Name:    g.name,
+				Message: fmt.Sprintf("(%d synced)", countSucceeded(g.repos)),
+			}
+			for _, r := range g.repos {
+				status := "synced"
+				if r.Error != nil {
+					status = "failed"
+				}
+				msg := reposync.FormatCompactStatus(r.PostStatus)
+				wsNode.Children = append(wsNode.Children, &TreeNode{
+					Name:    r.Action.Repo.Name,
+					Status:  status,
+					Message: msg,
+				})
+			}
+			root.Children = append(root.Children, wsNode)
+		}
+	}
+
+	return root
+}
+
+func countSucceeded(results []reposync.ActionResult) int {
+	n := 0
+	for _, r := range results {
+		if r.Error == nil {
+			n++
+		}
+	}
+	return n
+}
+
 // scanForChildConfigs shows a dry-run preview of child workspaces that would be
 // recursively synced. For existing repos it checks for .gz-git.yaml; for repos
 // that will be cloned, it notes them as pending.
@@ -2018,4 +2187,109 @@ func displaySyncResultsJSON(out io.Writer, execResult reposync.ExecutionResult, 
 func displaySyncResultsLLM(out io.Writer, execResult reposync.ExecutionResult, durationMs int64) error {
 	result := prepareSyncResultJSON(execResult, durationMs)
 	return cliutil.WriteLLM(out, result)
+}
+
+// ================================================================================
+// Post-sync push support
+// ================================================================================
+
+type pushResult struct {
+	Path    string
+	Pushed  bool
+	Commits int
+	Message string
+	Error   error
+}
+
+// collectPushTargets returns target paths from successfully synced repos.
+func collectPushTargets(result reposync.ExecutionResult) []string {
+	var targets []string
+	for _, r := range result.Succeeded {
+		targets = append(targets, r.Action.Repo.TargetPath)
+	}
+	return targets
+}
+
+// executePushForSyncedRepos pushes repos that have local commits ahead of remote.
+func executePushForSyncedRepos(ctx context.Context, targets []string, parallel int) []pushResult {
+	if parallel <= 0 {
+		parallel = repository.DefaultForgeParallel
+	}
+
+	results := make([]pushResult, len(targets))
+
+	sem := make(chan struct{}, parallel)
+	var wg sync.WaitGroup
+
+	for i, target := range targets {
+		wg.Add(1)
+		go func(idx int, repoPath string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			results[idx] = pushOneRepo(ctx, repoPath)
+		}(i, target)
+	}
+
+	wg.Wait()
+	return results
+}
+
+func pushOneRepo(ctx context.Context, repoPath string) pushResult {
+	// Get current branch
+	branchCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD")
+	branchOut, err := branchCmd.Output()
+	if err != nil {
+		return pushResult{Path: repoPath, Error: fmt.Errorf("failed to get current branch: %w", err)}
+	}
+	branch := strings.TrimSpace(string(branchOut))
+
+	// Count commits ahead of remote
+	countCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "rev-list", "--count", fmt.Sprintf("origin/%s..HEAD", branch))
+	countOut, err := countCmd.Output()
+	if err != nil {
+		// Remote tracking branch may not exist (e.g. freshly cloned)
+		return pushResult{Path: repoPath, Pushed: false, Message: "no remote tracking branch"}
+	}
+	count, _ := strconv.Atoi(strings.TrimSpace(string(countOut)))
+	if count == 0 {
+		return pushResult{Path: repoPath, Pushed: false, Message: "nothing to push"}
+	}
+
+	// Push
+	pushCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "push", "origin", branch)
+	pushOutput, err := pushCmd.CombinedOutput()
+	if err != nil {
+		return pushResult{
+			Path:    repoPath,
+			Commits: count,
+			Error:   fmt.Errorf("push failed: %s", strings.TrimSpace(string(pushOutput))),
+		}
+	}
+
+	return pushResult{
+		Path:    repoPath,
+		Pushed:  true,
+		Commits: count,
+		Message: fmt.Sprintf("%d commit(s) pushed", count),
+	}
+}
+
+func displayPushResults(out io.Writer, results []pushResult, isMachine bool) {
+	if isMachine {
+		return
+	}
+
+	for _, r := range results {
+		name := filepath.Base(r.Path)
+		switch {
+		case r.Error != nil:
+			fmt.Fprintf(out, "  ✗ %s (%v)\n", name, r.Error)
+		case r.Pushed:
+			fmt.Fprintf(out, "  ✓ %s (%s)\n", name, r.Message)
+		default:
+			fmt.Fprintf(out, "  - %s (%s)\n", name, r.Message)
+		}
+	}
 }

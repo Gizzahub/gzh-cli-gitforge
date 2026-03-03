@@ -538,7 +538,7 @@ func validateStrategy(config map[string]interface{}, result *ValidationResult) {
 	strategy, ok := config["strategy"]
 	if !ok {
 		result.Suggestions = append(result.Suggestions,
-			"Add 'strategy: pull' (or reset, fetch, skip) to specify sync behavior")
+			"Add 'strategy: pull' (or reset, rebase, fetch, skip) to specify sync behavior")
 		return
 	}
 
@@ -695,19 +695,19 @@ func printValidationResult(out io.Writer, result *ValidationResult, verbose bool
 	}
 
 	// Summary
-	if !result.HasIssues() {
+	var parts []string
+	if len(result.Errors) > 0 {
+		parts = append(parts, fmt.Sprintf("%d error(s)", len(result.Errors)))
+	}
+	if len(result.Warnings) > 0 {
+		parts = append(parts, fmt.Sprintf("%d warning(s)", len(result.Warnings)))
+	}
+	if verbose && len(result.Suggestions) > 0 {
+		parts = append(parts, fmt.Sprintf("%d suggestion(s)", len(result.Suggestions)))
+	}
+	if len(parts) == 0 {
 		fmt.Fprintln(out, "No issues found.")
 	} else {
-		var parts []string
-		if len(result.Errors) > 0 {
-			parts = append(parts, fmt.Sprintf("%d error(s)", len(result.Errors)))
-		}
-		if len(result.Warnings) > 0 {
-			parts = append(parts, fmt.Sprintf("%d warning(s)", len(result.Warnings)))
-		}
-		if verbose && len(result.Suggestions) > 0 {
-			parts = append(parts, fmt.Sprintf("%d suggestion(s)", len(result.Suggestions)))
-		}
 		fmt.Fprintf(out, "Found: %s\n", strings.Join(parts, ", "))
 	}
 }

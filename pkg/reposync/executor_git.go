@@ -168,7 +168,8 @@ func (e GitExecutor) executeOne(ctx context.Context, client repo.Client, logger 
 			return res, err
 		}
 		if err := os.RemoveAll(action.Repo.TargetPath); err != nil {
-			res := ActionResult{Action: action, Message: "failed to delete", Error: err}
+			msg := describeDeleteError(action.Repo.TargetPath, err)
+			res := ActionResult{Action: action, Message: msg, Error: err}
 			sink.OnComplete(res)
 			return res, err
 		}
@@ -195,6 +196,30 @@ func ensureParentDir(targetPath string) error {
 		return nil
 	}
 	return os.MkdirAll(dir, 0o755)
+}
+
+// describeDeleteError produces a human-readable message when os.RemoveAll fails.
+// It walks the directory to detect permission-denied causes and summarizes leftovers.
+func describeDeleteError(targetPath string, removeErr error) string {
+	if errors.Is(removeErr, os.ErrPermission) {
+		return fmt.Sprintf("failed to delete %s: contains files owned by other users, manual removal required (e.g., sudo rm -rf)", targetPath)
+	}
+
+	// Walk to find the first permission-denied file for better diagnostics
+	var permDeniedPath string
+	_ = filepath.WalkDir(targetPath, func(path string, _ os.DirEntry, err error) error {
+		if err != nil && errors.Is(err, os.ErrPermission) {
+			permDeniedPath = path
+			return filepath.SkipAll
+		}
+		return nil
+	})
+
+	if permDeniedPath != "" {
+		return fmt.Sprintf("failed to delete %s: contains files owned by other users, manual removal required (e.g., sudo rm -rf); permission denied at: %s", targetPath, permDeniedPath)
+	}
+
+	return fmt.Sprintf("failed to delete %s: %v", targetPath, removeErr)
 }
 
 func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, logger repo.Logger, action Action, runOpts RunOptions, sink ProgressSink) (ActionResult, error) {
@@ -307,12 +332,79 @@ func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, l
 		}
 	}
 
+	// Collect post-sync status (lightweight: 3 git commands, <100ms total)
+	postStatus := collectPostSyncStatus(ctx, action.Repo.TargetPath)
+
 	res := ActionResult{
-		Action:  action,
-		Message: msg,
+		Action:     action,
+		Message:    msg,
+		PostStatus: postStatus,
 	}
 	sink.OnComplete(res)
 	return res, nil
+}
+
+// collectPostSyncStatus runs lightweight git commands to gather branch/ahead/behind/dirty info.
+func collectPostSyncStatus(ctx context.Context, repoPath string) *PostSyncStatus {
+	ps := &PostSyncStatus{}
+
+	// Branch name
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "branch", "--show-current")
+	if out, err := cmd.Output(); err == nil {
+		ps.Branch = strings.TrimSpace(string(out))
+	}
+
+	// Ahead/behind upstream
+	cmd = exec.CommandContext(ctx, "git", "-C", repoPath, "rev-list", "--left-right", "--count", "HEAD...@{upstream}")
+	if out, err := cmd.Output(); err == nil {
+		parts := strings.Fields(strings.TrimSpace(string(out)))
+		if len(parts) == 2 {
+			fmt.Sscanf(parts[0], "%d", &ps.AheadBy)
+			fmt.Sscanf(parts[1], "%d", &ps.BehindBy)
+		}
+	}
+
+	// Porcelain status (dirty + conflicts)
+	cmd = exec.CommandContext(ctx, "git", "-C", repoPath, "status", "--porcelain")
+	if out, err := cmd.Output(); err == nil {
+		output := strings.TrimSpace(string(out))
+		if output != "" {
+			ps.IsDirty = true
+			for _, line := range strings.Split(output, "\n") {
+				if len(line) >= 2 && line[0] == 'U' || (len(line) >= 2 && line[1] == 'U') {
+					ps.HasConflicts = true
+					break
+				}
+			}
+		}
+	}
+
+	return ps
+}
+
+// FormatCompactStatus renders PostSyncStatus as "master|↓5|↑3|dirty".
+func FormatCompactStatus(ps *PostSyncStatus) string {
+	if ps == nil {
+		return ""
+	}
+
+	parts := []string{}
+	if ps.Branch != "" {
+		parts = append(parts, ps.Branch)
+	}
+	if ps.BehindBy > 0 {
+		parts = append(parts, fmt.Sprintf("↓%d", ps.BehindBy))
+	}
+	if ps.AheadBy > 0 {
+		parts = append(parts, fmt.Sprintf("↑%d", ps.AheadBy))
+	}
+	if ps.HasConflicts {
+		parts = append(parts, "conflict")
+	} else if ps.IsDirty {
+		parts = append(parts, "dirty")
+	}
+
+	return strings.Join(parts, "|")
 }
 
 func toUpdateStrategy(action Action) repo.UpdateStrategy {
@@ -326,6 +418,8 @@ func toUpdateStrategy(action Action) repo.UpdateStrategy {
 		return repo.StrategyPull
 	case StrategyFetch:
 		return repo.StrategyFetch
+	case StrategyRebase:
+		return repo.StrategyRebase
 	case StrategyReset, "":
 		return repo.StrategyReset
 	default:

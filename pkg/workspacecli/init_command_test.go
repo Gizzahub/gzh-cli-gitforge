@@ -353,7 +353,7 @@ func TestIsValidStrategy(t *testing.T) {
 		{"skip", true},
 		{"", false},
 		{"invalid", false},
-		{"rebase", false},
+		{"rebase", true},
 		{"merge", false},
 	}
 

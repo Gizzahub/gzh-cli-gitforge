@@ -70,6 +70,7 @@ type Action struct {
 	Strategy  Strategy
 	Reason    string
 	PlannedBy string
+	Workspace string // workspace name for grouping display (empty = flat repositories)
 }
 
 // ActionType enumerates planned operations.

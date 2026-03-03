@@ -9,7 +9,7 @@ version: 1
 kind: repositories
 
 # Sync settings
-strategy: reset       # reset|pull|fetch
+strategy: reset       # reset|pull|rebase|fetch
 parallel: 4
 maxRetries: 3
 cleanupOrphans: false
