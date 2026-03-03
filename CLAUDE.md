@@ -199,6 +199,7 @@ ______________________________________________________________________
 
 | Command                | Description                                   |
 | ---------------------- | --------------------------------------------- |
+| **`sync` / `s`**       | **Smart sync (무적): auto-init + sync, one shot** |
 | `clone`                | Parallel clone (--url, --file, -c config)     |
 | `status`               | Health check (fetch + divergence + recommend) |
 | `fetch`                | Fetch all repos (--all-remotes default)       |
@@ -223,6 +224,20 @@ ______________________________________________________________________
 ## Workspace Commands
 
 ```bash
+# ── gz-git sync: 무적 명령 (가장 자주 사용) ─────────────────────────────
+gz-git sync                     # .gz-git.yaml 없으면 init 자동, 있으면 sync
+gz-git s                        # 동일 (alias)
+gz-git sync ~/mydevbox          # 특정 디렉토리 sync
+gz-git sync --dry-run           # 변경 없이 preview (auto-init도 스킵)
+gz-git sync --check             # sync 완료 후 status 자동 실행
+gz-git sync --no-review         # auto-init 후 확인 없이 바로 sync
+gz-git sync -c config.yaml      # 명시적 config 사용 (auto-init 스킵)
+
+# Auto-init 튜닝 (config 없을 때만 사용됨)
+gz-git sync --init-depth 3     # 더 깊은 스캔
+gz-git sync --init-kind repositories  # flat list 형식으로 init
+
+# ── workspace 세부 명령 (고급 제어) ──────────────────────────────────────
 # Initialize (scan → config)
 gz-git workspace init .                  # Scan current directory
 gz-git workspace init ~/mydevbox -d 3    # Depth 3
@@ -416,5 +431,5 @@ See [Roadmap](docs/00-product/06-roadmap.md) for full plan.
 
 ______________________________________________________________________
 
-**Last Updated**: 2026-01-23
-**Lines**: ~350 (optimized from ~940)
+**Last Updated**: 2026-03-03
+**Lines**: ~430 (optimized)

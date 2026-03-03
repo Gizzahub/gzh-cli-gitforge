@@ -28,8 +28,13 @@ var rootCmd = &cobra.Command{
 	Use:   "gz-git",
 	Short: "Advanced Git operations CLI",
 	Long: `gz-git is a bulk-first Git CLI that runs safe operations across many repositories in parallel.
-` + cliutil.QuickStartHelp(`  # Initialize workspace and check status
-  gz-git config init
+` + cliutil.QuickStartHelp(`  # Smart sync — auto-inits .gz-git.yaml if absent, then syncs
+  gz-git sync
+
+  # Initialize workspace config (scan existing repos)
+  gz-git workspace init
+
+  # Check status of all repositories
   gz-git status
 
   See 'gz-git schema' for configuration reference.`),
@@ -168,7 +173,7 @@ func setCommandGroups(cmd *cobra.Command) {
 		}
 
 		switch c.Name() {
-		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update", "diff":
+		case "clone", "status", "fetch", "pull", "push", "switch", "commit", "update", "diff", "sync":
 			c.GroupID = coreGroup.ID
 		case "workspace", "config", "forge", "schema", "cleanup":
 			c.GroupID = mgmtGroup.ID
