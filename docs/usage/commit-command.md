@@ -48,13 +48,15 @@ gz-git commit -m "repo1:fix: bug" -m "repo2:feat: feature" --yes
 
 ## 메시지 형식
 
-3가지 메시지 제공 방법:
+5가지 메시지 제공 방법:
 
 | 방법 | 플래그 | 형식 | 사용 시점 |
 |------|--------|------|-----------|
 | **Per-repo** | `-m "repo:message"` | 각 repo마다 다른 메시지 | **가장 일반적** |
 | **공통** | `--all "message"` | 모든 repo에 동일 메시지 | 단순 업데이트 |
-| **파일** | `--file messages.json` | JSON 파일에서 읽기 | 자동화/스크립트 |
+| **인라인 JSON** | `--json '{...}'` | CLI에서 직접 JSON 입력 | **LLM/자동화 최적** |
+| **파일** | `--file messages.json` | JSON 파일에서 읽기 | CI/CD |
+| **stdin** | `--file -` | 파이프로 JSON 입력 | 스크립트 체이닝 |
 
 ### 1. Per-repo 메시지 (권장)
 
@@ -102,7 +104,38 @@ gz-git commit --file messages.json --yes
 }
 ```
 
-**장점**: 스크립트/CI/CD에서 사용
+**장점**: 스크립트/CI/CD에서 사용, 감사 추적 가능
+
+**stdin 지원** (`--file -`):
+```bash
+echo '{"gzh-cli":"feat: add"}' | gz-git commit --file - --yes
+```
+
+### 4. 인라인 JSON (LLM/자동화 최적)
+
+파일 생성 없이 CLI에서 직접 JSON 입력:
+
+```bash
+gz-git commit --json '{"gzh-cli":"feat: add feature","gzh-cli-gitforge":"fix: bug"}' --yes
+```
+
+**장점**:
+- 파일 생성/삭제 불필요 (1단계로 완결)
+- LLM이 JSON 출력을 바로 주입 가능
+- Agent Mesh 파이프라인에서 최적
+
+**Agent Mesh 예시**:
+```yaml
+steps:
+  - id: generate
+    type: llm
+    instruction: "Generate commit messages as JSON"
+  - id: commit
+    type: shell
+    action: "gz-git commit --json '{{generate.output}}' --yes"
+```
+
+**우선순위**: `--json` > `--file` > `-m`
 
 ## Interactive 모드
 
@@ -137,9 +170,10 @@ gzh-cli-quality:docs: update documentation
 | `-j, --parallel` | 병렬 처리 수 | 10 |
 | `-m, --message` | Per-repo 메시지 (`repo:msg`) | - |
 | `--all` | 공통 메시지 (모든 repo) | - |
+| `--json` | 인라인 JSON 메시지 | - |
 | `-y, --yes` | 확인 없이 실행 | false |
 | `-e, --edit` | 에디터에서 메시지 편집 | false |
-| `--file` | JSON 파일에서 메시지 읽기 | - |
+| `--file` | JSON 파일에서 메시지 읽기 (`-`=stdin) | - |
 | `--include` | 포함 패턴 (regex) | - |
 | `--exclude` | 제외 패턴 (regex) | - |
 | `-f, --format` | 출력 형식 | default |

@@ -74,12 +74,14 @@ gz-git diff --include-untracked --context 5 ~/projects
 ### Commit (Bulk)
 
 Default is preview; use `--yes` to commit.
+**CRITICAL FOR LLMs**: When generating commit messages automatically, ALWAYS use the `--json` flag. It is the most robust and efficient method for AI pipelines.
 
 ```bash
 gz-git commit --dry-run -d 2 ~/projects
 gz-git commit --yes -d 2 ~/projects
 gz-git commit --all "chore: sync all repos" --yes -d 2 ~/projects
 gz-git commit -m "frontend:feat: add login" -m "backend:fix: null check" --yes -d 2 ~/projects
+gz-git commit --json '{"repo1":"feat: one", "repo2":"fix: two"}' --yes -d 2 ~/projects  # BEST for LLMs
 gz-git commit --file /tmp/messages.json --yes -d 2 ~/projects
 ```
 

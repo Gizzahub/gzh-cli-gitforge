@@ -206,7 +206,7 @@ ______________________________________________________________________
 | `pull`                 | Pull all repos (rebase/merge)                 |
 | `push`                 | Push all repos (refspec: `develop:master`)    |
 | `switch`               | Branch switch all repos                       |
-| `commit`               | Commit all dirty repos                        |
+| `commit`               | Commit all dirty repos (**LLMs: ALWAYS use `--json`**) |
 | `update`               | Safe update (pull --rebase)                   |
 | `cleanup branch`       | Clean merged/stale/gone branches              |
 | `forge from`            | Sync from GitHub/GitLab/Gitea org (supports filtering) |
