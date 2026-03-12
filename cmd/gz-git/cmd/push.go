@@ -273,13 +273,13 @@ func displayPushResults(result *repository.BulkPushResult) {
 	}
 
 	// Always show dirty warning and auth errors
-	dirtyCount := countDirtyRepositories(result.Repositories)
+	dirtyCount := countPushDirtyRepositories(result.Repositories)
 	if dirtyCount > 0 {
 		fmt.Println()
 		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
 	}
 
-	authErrors := getAuthRequiredRepositories(result.Repositories)
+	authErrors := getPushAuthRequiredRepositories(result.Repositories)
 	if len(authErrors) > 0 {
 		fmt.Println()
 		fmt.Printf("🔐 Authentication required for %d repository(ies):\n", len(authErrors))
@@ -292,8 +292,8 @@ func displayPushResults(result *repository.BulkPushResult) {
 	}
 }
 
-// getAuthRequiredRepositories returns paths of repositories that failed due to authentication.
-func getAuthRequiredRepositories(repos []repository.RepositoryPushResult) []string {
+// getPushAuthRequiredRepositories returns paths of repositories that failed due to authentication.
+func getPushAuthRequiredRepositories(repos []repository.RepositoryPushResult) []string {
 	var paths []string
 	for _, repo := range repos {
 		if repo.Status == repository.StatusAuthRequired {
@@ -303,8 +303,8 @@ func getAuthRequiredRepositories(repos []repository.RepositoryPushResult) []stri
 	return paths
 }
 
-// countDirtyRepositories counts repositories with uncommitted or untracked files.
-func countDirtyRepositories(repos []repository.RepositoryPushResult) int {
+// countPushDirtyRepositories counts repositories with uncommitted or untracked files.
+func countPushDirtyRepositories(repos []repository.RepositoryPushResult) int {
 	count := 0
 	for _, repo := range repos {
 		if repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0 {

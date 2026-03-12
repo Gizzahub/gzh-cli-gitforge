@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,17 +11,22 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/tag"
 )
 
 var (
-	tagMessage   string
-	tagForce     bool
-	tagPushAll   bool
-	tagBump      string
-	tagBulkFlags BulkCommandFlags
+	tagMessage         string
+	tagForce           bool
+	tagPushAll         bool
+	tagBump            string
+	tagCreateBulkFlags BulkCommandFlags
+	tagAutoBulkFlags   BulkCommandFlags
+	tagListBulkFlags   BulkCommandFlags
+	tagPushBulkFlags   BulkCommandFlags
+	tagStatusBulkFlags BulkCommandFlags
 )
 
 // tagCmd represents the tag command group
@@ -134,20 +140,12 @@ func init() {
 	// Push flags
 	tagPushCmd.Flags().BoolVar(&tagPushAll, "all", true, "push all tags")
 
-	// Bulk flags for subcommands
-	addTagBulkFlags(tagCreateCmd)
-	addTagBulkFlags(tagAutoCmd)
-	addTagBulkFlags(tagListCmd)
-	addTagBulkFlags(tagPushCmd)
-	addTagBulkFlags(tagStatusCmd)
-}
-
-func addTagBulkFlags(cmd *cobra.Command) {
-	cmd.Flags().IntVarP(&tagBulkFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
-	cmd.Flags().IntVarP(&tagBulkFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cmd.Flags().BoolVarP(&tagBulkFlags.DryRun, "dry-run", "n", false, "show what would be done")
-	cmd.Flags().StringVar(&tagBulkFlags.Include, "include", "", "regex pattern to include repositories")
-	cmd.Flags().StringVar(&tagBulkFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	// Bulk flags for subcommands (using shared addBulkFlags)
+	addBulkFlags(tagCreateCmd, &tagCreateBulkFlags)
+	addBulkFlags(tagAutoCmd, &tagAutoBulkFlags)
+	addBulkFlags(tagListCmd, &tagListBulkFlags)
+	addBulkFlags(tagPushCmd, &tagPushBulkFlags)
+	addBulkFlags(tagStatusCmd, &tagStatusBulkFlags)
 }
 
 func runTagCreate(cmd *cobra.Command, args []string) error {
@@ -207,24 +205,20 @@ func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
-		Parallel:       tagBulkFlags.Parallel,
-		MaxDepth:       tagBulkFlags.Depth,
-		DryRun:         tagBulkFlags.DryRun,
+		Parallel:       tagCreateBulkFlags.Parallel,
+		MaxDepth:       tagCreateBulkFlags.Depth,
+		DryRun:         tagCreateBulkFlags.DryRun,
 		Operation:      "create",
 		TagName:        tagName,
 		Message:        tagMessage,
 		Force:          tagForce,
-		IncludePattern: tagBulkFlags.Include,
-		ExcludePattern: tagBulkFlags.Exclude,
+		IncludePattern: tagCreateBulkFlags.Include,
+		ExcludePattern: tagCreateBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		modeStr := ""
-		if tagBulkFlags.DryRun {
-			modeStr = "[DRY-RUN] "
-		}
-		fmt.Printf("%sScanning for repositories in %s...\n", modeStr, directory)
+	if shouldShowProgress(tagCreateBulkFlags.Format, quiet) {
+		printScanningMessage(directory, tagCreateBulkFlags.Depth, tagCreateBulkFlags.Parallel, tagCreateBulkFlags.DryRun)
 	}
 
 	result, err := client.BulkTag(ctx, opts)
@@ -232,7 +226,7 @@ func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 		return fmt.Errorf("bulk tag create failed: %w", err)
 	}
 
-	printBulkTagResult(result, "create", tagBulkFlags.DryRun)
+	printBulkTagResult(result, "create", tagCreateBulkFlags.DryRun, tagCreateBulkFlags.Format)
 	return nil
 }
 
@@ -268,7 +262,7 @@ func runTagAuto(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to determine next version: %w", err)
 	}
 
-	if tagBulkFlags.DryRun {
+	if tagAutoBulkFlags.DryRun {
 		fmt.Printf("Would create tag: %s\n", nextVersion)
 		return nil
 	}
@@ -361,16 +355,16 @@ func runBulkTagList(ctx context.Context, directory string) error {
 
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
-		Parallel:       tagBulkFlags.Parallel,
-		MaxDepth:       tagBulkFlags.Depth,
+		Parallel:       tagListBulkFlags.Parallel,
+		MaxDepth:       tagListBulkFlags.Depth,
 		Operation:      "list",
-		IncludePattern: tagBulkFlags.Include,
-		ExcludePattern: tagBulkFlags.Exclude,
+		IncludePattern: tagListBulkFlags.Include,
+		ExcludePattern: tagListBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		fmt.Printf("Scanning for repositories in %s...\n", directory)
+	if shouldShowProgress(tagListBulkFlags.Format, quiet) {
+		printScanningMessage(directory, tagListBulkFlags.Depth, tagListBulkFlags.Parallel, false)
 	}
 
 	result, err := client.BulkTag(ctx, opts)
@@ -378,7 +372,7 @@ func runBulkTagList(ctx context.Context, directory string) error {
 		return fmt.Errorf("bulk tag list failed: %w", err)
 	}
 
-	printBulkTagResult(result, "list", false)
+	printBulkTagResult(result, "list", false, tagListBulkFlags.Format)
 	return nil
 }
 
@@ -436,22 +430,18 @@ func runBulkTagPush(ctx context.Context, directory string) error {
 
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
-		Parallel:       tagBulkFlags.Parallel,
-		MaxDepth:       tagBulkFlags.Depth,
-		DryRun:         tagBulkFlags.DryRun,
+		Parallel:       tagPushBulkFlags.Parallel,
+		MaxDepth:       tagPushBulkFlags.Depth,
+		DryRun:         tagPushBulkFlags.DryRun,
 		Operation:      "push",
 		PushAll:        tagPushAll,
-		IncludePattern: tagBulkFlags.Include,
-		ExcludePattern: tagBulkFlags.Exclude,
+		IncludePattern: tagPushBulkFlags.Include,
+		ExcludePattern: tagPushBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		modeStr := ""
-		if tagBulkFlags.DryRun {
-			modeStr = "[DRY-RUN] "
-		}
-		fmt.Printf("%sScanning for repositories in %s...\n", modeStr, directory)
+	if shouldShowProgress(tagPushBulkFlags.Format, quiet) {
+		printScanningMessage(directory, tagPushBulkFlags.Depth, tagPushBulkFlags.Parallel, tagPushBulkFlags.DryRun)
 	}
 
 	result, err := client.BulkTag(ctx, opts)
@@ -459,7 +449,7 @@ func runBulkTagPush(ctx context.Context, directory string) error {
 		return fmt.Errorf("bulk tag push failed: %w", err)
 	}
 
-	printBulkTagResult(result, "push", tagBulkFlags.DryRun)
+	printBulkTagResult(result, "push", tagPushBulkFlags.DryRun, tagPushBulkFlags.Format)
 	return nil
 }
 
@@ -475,16 +465,16 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
-		Parallel:       tagBulkFlags.Parallel,
-		MaxDepth:       tagBulkFlags.Depth,
+		Parallel:       tagStatusBulkFlags.Parallel,
+		MaxDepth:       tagStatusBulkFlags.Depth,
 		Operation:      "status",
-		IncludePattern: tagBulkFlags.Include,
-		ExcludePattern: tagBulkFlags.Exclude,
+		IncludePattern: tagStatusBulkFlags.Include,
+		ExcludePattern: tagStatusBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		fmt.Printf("Scanning for repositories in %s...\n", directory)
+	if shouldShowProgress(tagStatusBulkFlags.Format, quiet) {
+		printScanningMessage(directory, tagStatusBulkFlags.Depth, tagStatusBulkFlags.Parallel, false)
 	}
 
 	result, err := client.BulkTag(ctx, opts)
@@ -492,11 +482,23 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("tag status failed: %w", err)
 	}
 
-	printBulkTagResult(result, "status", false)
+	printBulkTagResult(result, "status", false, tagStatusBulkFlags.Format)
 	return nil
 }
 
-func printBulkTagResult(result *repository.BulkTagResult, operation string, dryRun bool) {
+func printBulkTagResult(result *repository.BulkTagResult, operation string, dryRun bool, format string) {
+	// JSON output mode
+	if format == "json" {
+		displayTagResultsJSON(result, operation)
+		return
+	}
+
+	// LLM output mode
+	if format == "llm" {
+		displayTagResultsLLM(result, operation)
+		return
+	}
+
 	modeStr := ""
 	if dryRun {
 		modeStr = "[DRY-RUN] "
@@ -542,4 +544,71 @@ func printBulkTagResult(result *repository.BulkTagResult, operation string, dryR
 	fmt.Printf("Repositories: %d scanned, %d processed\n", result.TotalScanned, result.TotalProcessed)
 	fmt.Printf("Total tags: %d\n", result.TotalTagCount)
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
+}
+
+// TagJSONOutput represents the JSON output structure for tag command
+type TagJSONOutput struct {
+	Operation      string                    `json:"operation"`
+	TotalScanned   int                       `json:"total_scanned"`
+	TotalProcessed int                       `json:"total_processed"`
+	TotalTags      int                       `json:"total_tags"`
+	DurationMs     int64                     `json:"duration_ms"`
+	Repositories   []TagRepositoryJSONOutput `json:"repositories"`
+}
+
+// TagRepositoryJSONOutput represents a single repository in JSON output
+type TagRepositoryJSONOutput struct {
+	Path    string `json:"path"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+func displayTagResultsJSON(result *repository.BulkTagResult, operation string) {
+	output := TagJSONOutput{
+		Operation:      operation,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		TotalTags:      result.TotalTagCount,
+		DurationMs:     result.Duration.Milliseconds(),
+		Repositories:   make([]TagRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		output.Repositories = append(output.Repositories, TagRepositoryJSONOutput{
+			Path:    repo.RelativePath,
+			Status:  repo.Status,
+			Message: repo.Message,
+		})
+	}
+
+	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displayTagResultsLLM(result *repository.BulkTagResult, operation string) {
+	output := TagJSONOutput{
+		Operation:      operation,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		TotalTags:      result.TotalTagCount,
+		DurationMs:     result.Duration.Milliseconds(),
+		Repositories:   make([]TagRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		output.Repositories = append(output.Repositories, TagRepositoryJSONOutput{
+			Path:    repo.RelativePath,
+			Status:  repo.Status,
+			Message: repo.Message,
+		})
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }

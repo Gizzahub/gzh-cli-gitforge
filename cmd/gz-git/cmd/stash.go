@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/stash"
@@ -18,7 +20,9 @@ import (
 var (
 	stashMessage        string
 	stashIncludeUntrack bool
-	stashBulkFlags      BulkCommandFlags
+	stashSaveBulkFlags  BulkCommandFlags
+	stashListBulkFlags  BulkCommandFlags
+	stashPopBulkFlags   BulkCommandFlags
 )
 
 // stashCmd represents the stash command group
@@ -95,18 +99,10 @@ func init() {
 	stashSaveCmd.Flags().StringVarP(&stashMessage, "message", "m", "", "stash message")
 	stashSaveCmd.Flags().BoolVarP(&stashIncludeUntrack, "include-untracked", "u", false, "include untracked files")
 
-	// Bulk flags for each subcommand
-	addStashBulkFlags(stashSaveCmd)
-	addStashBulkFlags(stashListCmd)
-	addStashBulkFlags(stashPopCmd)
-}
-
-func addStashBulkFlags(cmd *cobra.Command) {
-	cmd.Flags().IntVarP(&stashBulkFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
-	cmd.Flags().IntVarP(&stashBulkFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cmd.Flags().BoolVarP(&stashBulkFlags.DryRun, "dry-run", "n", false, "show what would be done")
-	cmd.Flags().StringVar(&stashBulkFlags.Include, "include", "", "regex pattern to include repositories")
-	cmd.Flags().StringVar(&stashBulkFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	// Bulk flags for each subcommand (using shared addBulkFlags)
+	addBulkFlags(stashSaveCmd, &stashSaveBulkFlags)
+	addBulkFlags(stashListCmd, &stashListBulkFlags)
+	addBulkFlags(stashPopCmd, &stashPopBulkFlags)
 }
 
 func runStashSave(cmd *cobra.Command, args []string) error {
@@ -168,23 +164,19 @@ func runBulkStashSave(ctx context.Context, directory string) error {
 
 	opts := repository.BulkStashOptions{
 		Directory:        directory,
-		Parallel:         stashBulkFlags.Parallel,
-		MaxDepth:         stashBulkFlags.Depth,
-		DryRun:           stashBulkFlags.DryRun,
+		Parallel:         stashSaveBulkFlags.Parallel,
+		MaxDepth:         stashSaveBulkFlags.Depth,
+		DryRun:           stashSaveBulkFlags.DryRun,
 		Operation:        "save",
 		Message:          stashMessage,
 		IncludeUntracked: stashIncludeUntrack,
-		IncludePattern:   stashBulkFlags.Include,
-		ExcludePattern:   stashBulkFlags.Exclude,
+		IncludePattern:   stashSaveBulkFlags.Include,
+		ExcludePattern:   stashSaveBulkFlags.Exclude,
 		Logger:           repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		modeStr := ""
-		if stashBulkFlags.DryRun {
-			modeStr = "[DRY-RUN] "
-		}
-		fmt.Printf("%sScanning for repositories in %s...\n", modeStr, directory)
+	if shouldShowProgress(stashSaveBulkFlags.Format, quiet) {
+		printScanningMessage(directory, stashSaveBulkFlags.Depth, stashSaveBulkFlags.Parallel, stashSaveBulkFlags.DryRun)
 	}
 
 	result, err := client.BulkStash(ctx, opts)
@@ -192,7 +184,7 @@ func runBulkStashSave(ctx context.Context, directory string) error {
 		return fmt.Errorf("bulk stash save failed: %w", err)
 	}
 
-	printBulkStashResult(result, "save", stashBulkFlags.DryRun)
+	printBulkStashResult(result, "save", stashSaveBulkFlags.DryRun, stashSaveBulkFlags.Format)
 	return nil
 }
 
@@ -264,16 +256,16 @@ func runBulkStashList(ctx context.Context, directory string) error {
 
 	opts := repository.BulkStashOptions{
 		Directory:      directory,
-		Parallel:       stashBulkFlags.Parallel,
-		MaxDepth:       stashBulkFlags.Depth,
+		Parallel:       stashListBulkFlags.Parallel,
+		MaxDepth:       stashListBulkFlags.Depth,
 		Operation:      "list",
-		IncludePattern: stashBulkFlags.Include,
-		ExcludePattern: stashBulkFlags.Exclude,
+		IncludePattern: stashListBulkFlags.Include,
+		ExcludePattern: stashListBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		fmt.Printf("Scanning for repositories in %s...\n", directory)
+	if shouldShowProgress(stashListBulkFlags.Format, quiet) {
+		printScanningMessage(directory, stashListBulkFlags.Depth, stashListBulkFlags.Parallel, false)
 	}
 
 	result, err := client.BulkStash(ctx, opts)
@@ -281,7 +273,7 @@ func runBulkStashList(ctx context.Context, directory string) error {
 		return fmt.Errorf("bulk stash list failed: %w", err)
 	}
 
-	printBulkStashResult(result, "list", false)
+	printBulkStashResult(result, "list", false, stashListBulkFlags.Format)
 	return nil
 }
 
@@ -335,21 +327,17 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 
 	opts := repository.BulkStashOptions{
 		Directory:      directory,
-		Parallel:       stashBulkFlags.Parallel,
-		MaxDepth:       stashBulkFlags.Depth,
-		DryRun:         stashBulkFlags.DryRun,
+		Parallel:       stashPopBulkFlags.Parallel,
+		MaxDepth:       stashPopBulkFlags.Depth,
+		DryRun:         stashPopBulkFlags.DryRun,
 		Operation:      "pop",
-		IncludePattern: stashBulkFlags.Include,
-		ExcludePattern: stashBulkFlags.Exclude,
+		IncludePattern: stashPopBulkFlags.Include,
+		ExcludePattern: stashPopBulkFlags.Exclude,
 		Logger:         repository.NewNoopLogger(),
 	}
 
-	if !quiet {
-		modeStr := ""
-		if stashBulkFlags.DryRun {
-			modeStr = "[DRY-RUN] "
-		}
-		fmt.Printf("%sScanning for repositories in %s...\n", modeStr, directory)
+	if shouldShowProgress(stashPopBulkFlags.Format, quiet) {
+		printScanningMessage(directory, stashPopBulkFlags.Depth, stashPopBulkFlags.Parallel, stashPopBulkFlags.DryRun)
 	}
 
 	result, err := client.BulkStash(ctx, opts)
@@ -357,11 +345,23 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 		return fmt.Errorf("bulk stash pop failed: %w", err)
 	}
 
-	printBulkStashResult(result, "pop", stashBulkFlags.DryRun)
+	printBulkStashResult(result, "pop", stashPopBulkFlags.DryRun, stashPopBulkFlags.Format)
 	return nil
 }
 
-func printBulkStashResult(result *repository.BulkStashResult, operation string, dryRun bool) {
+func printBulkStashResult(result *repository.BulkStashResult, operation string, dryRun bool, format string) {
+	// JSON output mode
+	if format == "json" {
+		displayStashResultsJSON(result, operation)
+		return
+	}
+
+	// LLM output mode
+	if format == "llm" {
+		displayStashResultsLLM(result, operation)
+		return
+	}
+
 	modeStr := ""
 	if dryRun {
 		modeStr = "[DRY-RUN] "
@@ -399,4 +399,71 @@ func printBulkStashResult(result *repository.BulkStashResult, operation string, 
 	fmt.Printf("Repositories: %d scanned, %d processed\n", result.TotalScanned, result.TotalProcessed)
 	fmt.Printf("Total stashes: %d\n", result.TotalStashCount)
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
+}
+
+// StashJSONOutput represents the JSON output structure for stash command
+type StashJSONOutput struct {
+	Operation      string                      `json:"operation"`
+	TotalScanned   int                         `json:"total_scanned"`
+	TotalProcessed int                         `json:"total_processed"`
+	TotalStashes   int                         `json:"total_stashes"`
+	DurationMs     int64                       `json:"duration_ms"`
+	Repositories   []StashRepositoryJSONOutput `json:"repositories"`
+}
+
+// StashRepositoryJSONOutput represents a single repository in JSON output
+type StashRepositoryJSONOutput struct {
+	Path    string `json:"path"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+func displayStashResultsJSON(result *repository.BulkStashResult, operation string) {
+	output := StashJSONOutput{
+		Operation:      operation,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		TotalStashes:   result.TotalStashCount,
+		DurationMs:     result.Duration.Milliseconds(),
+		Repositories:   make([]StashRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		output.Repositories = append(output.Repositories, StashRepositoryJSONOutput{
+			Path:    repo.RelativePath,
+			Status:  repo.Status,
+			Message: repo.Message,
+		})
+	}
+
+	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
+	}
+}
+
+func displayStashResultsLLM(result *repository.BulkStashResult, operation string) {
+	output := StashJSONOutput{
+		Operation:      operation,
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		TotalStashes:   result.TotalStashCount,
+		DurationMs:     result.Duration.Milliseconds(),
+		Repositories:   make([]StashRepositoryJSONOutput, 0, len(result.Repositories)),
+	}
+
+	for _, repo := range result.Repositories {
+		output.Repositories = append(output.Repositories, StashRepositoryJSONOutput{
+			Path:    repo.RelativePath,
+			Status:  repo.Status,
+			Message: repo.Message,
+		})
+	}
+
+	var buf bytes.Buffer
+	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
+	if err := out.Print(output); err != nil {
+		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
+		return
+	}
+	fmt.Print(buf.String())
 }

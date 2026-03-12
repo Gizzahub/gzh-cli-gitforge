@@ -57,24 +57,11 @@ func init() {
 	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (macOS/Linux)")
 }
 
-// ValidWatchFormats contains the list of valid output formats for watch command
-var ValidWatchFormats = []string{"default", "compact", "json", "llm"}
-
-// validateWatchFormat validates the format flag for watch command
-func validateWatchFormat(format string) error {
-	for _, valid := range ValidWatchFormats {
-		if format == valid {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid format %q: must be one of: default, compact, json, llm", format)
-}
-
 func runWatch(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Validate format
-	if err := validateWatchFormat(watchOutputFormat); err != nil {
+	// Validate format (reuse centralized validator from bulk_common.go)
+	if err := validateBulkFormat(watchOutputFormat); err != nil {
 		return err
 	}
 
