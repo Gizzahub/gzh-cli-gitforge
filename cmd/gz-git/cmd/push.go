@@ -401,14 +401,12 @@ func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
 	}
 
-	// Show error details - always show for refspec errors, otherwise only in verbose mode
+	// Show error details - always for failed repos and refspec errors, verbose-only for others
 	if repo.Error != nil {
 		errMsg := repo.Error.Error()
 		isRefspecError := strings.Contains(errMsg, "not found in repository") || strings.Contains(errMsg, "does not exist")
 
-		// Always show refspec source branch errors (critical for user understanding)
-		// Show other errors only in verbose mode
-		if isRefspecError || verbose {
+		if repo.Status == "error" || isRefspecError || verbose {
 			fmt.Printf("    ⚠  %v\n", repo.Error)
 		}
 	}

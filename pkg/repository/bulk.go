@@ -1645,6 +1645,9 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 	}
 
 	// Build pull command based on strategy
+	// IMPORTANT: Always pass explicit strategy flag to override user's git config (pull.rebase=true, etc.)
+	// Without this, user's global pull.rebase=true causes merge strategy to silently use rebase,
+	// which fails on dirty repos with exit code 128 ("cannot pull with rebase: You have unstaged changes")
 	pullArgs := []string{"pull"}
 
 	switch opts.Strategy {
@@ -1652,7 +1655,9 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		pullArgs = append(pullArgs, "--rebase")
 	case "ff-only":
 		pullArgs = append(pullArgs, "--ff-only")
-		// "merge" is default, no extra flag needed
+	default:
+		// Explicit --no-rebase ensures merge strategy regardless of user's git config
+		pullArgs = append(pullArgs, "--no-rebase")
 	}
 
 	if opts.Prune {
@@ -1699,24 +1704,16 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 					strings.Join(postPullState.ConflictedFiles, ", "))
 				result.Error = fmt.Errorf("pull created conflicts, repository restored to previous state")
 			} else {
-				// Non-conflict error
+				// Non-conflict error - include stderr for diagnostics
 				result.Status = StatusError
 				result.Message = "Pull failed"
-				if err != nil {
-					result.Error = err
-				} else {
-					result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
-				}
+				result.Error = buildPullError(err, pullResult.ExitCode, pullResult.Stderr, pullResult.Error)
 			}
 		} else {
 			// Couldn't check state, report general error
 			result.Status = StatusError
 			result.Message = "Pull failed"
-			if err != nil {
-				result.Error = err
-			} else {
-				result.Error = fmt.Errorf("pull exited with code %d: %w", pullResult.ExitCode, pullResult.Error)
-			}
+			result.Error = buildPullError(err, pullResult.ExitCode, pullResult.Stderr, pullResult.Error)
 		}
 		result.Duration = time.Since(startTime)
 
@@ -1789,6 +1786,23 @@ func (c *client) populatePullDirtyStatus(ctx context.Context, repo *Repository, 
 	}
 	result.UncommittedFiles = len(status.StagedFiles) + len(status.ModifiedFiles)
 	result.UntrackedFiles = len(status.UntrackedFiles)
+}
+
+// buildPullError constructs an informative error from a failed pull command.
+// Includes stderr content when available to help diagnose issues like
+// "cannot pull with rebase: You have unstaged changes" (exit code 128).
+func buildPullError(execErr error, exitCode int, stderr string, cmdErr error) error {
+	if execErr != nil {
+		return execErr
+	}
+	stderrTrimmed := strings.TrimSpace(stderr)
+	if stderrTrimmed != "" {
+		return fmt.Errorf("pull exited with code %d: %s", exitCode, stderrTrimmed)
+	}
+	if cmdErr != nil {
+		return fmt.Errorf("pull exited with code %d: %w", exitCode, cmdErr)
+	}
+	return fmt.Errorf("pull exited with code %d", exitCode)
 }
 
 // calculatePullSummary creates a summary of pull results by status.

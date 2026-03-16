@@ -393,8 +393,8 @@ func displayPullRepositoryResult(repo repository.RepositoryPullResult) {
 		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
 	}
 
-	// Show error details if present
-	if repo.Error != nil && verbose {
+	// Show error details: always for failed repos, verbose-only for others
+	if repo.Error != nil && (repo.Status == "error" || verbose) {
 		fmt.Printf("    Error: %v\n", repo.Error)
 	}
 }
