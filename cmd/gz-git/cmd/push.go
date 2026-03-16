@@ -407,7 +407,7 @@ func displayPushRepositoryResult(repo repository.RepositoryPushResult) {
 		isRefspecError := strings.Contains(errMsg, "not found in repository") || strings.Contains(errMsg, "does not exist")
 
 		if repo.Status == "error" || isRefspecError || verbose {
-			fmt.Printf("    ⚠  %v\n", repo.Error)
+			fmt.Printf("    Error: %v\n", repo.Error)
 		}
 	}
 }
