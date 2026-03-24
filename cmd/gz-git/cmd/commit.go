@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
@@ -24,8 +25,8 @@ var (
 	commitMessages     []string // -m, --message: per-repo messages
 	commitYes          bool
 	commitEdit         bool
-	commitMessagesFile string
 	commitJSON         string // --json: inline JSON messages
+	commitYAML         string // --yaml: inline YAML messages
 )
 
 // commitCmd represents the commit command
@@ -40,6 +41,9 @@ var commitCmd = &cobra.Command{
 
   # Commit using inline JSON (Best for LLM pipelines and scripts)
   gz-git commit --json '{"repo1":"feat: add feature", "repo2":"fix: bug fix"}'
+
+  # Commit using piped JSON or YAML (Best for workflow integration)
+  cat messages.yaml | gz-git commit --yes
 
   # Interactive mode: edit messages in editor before committing
   gz-git commit -e
@@ -64,8 +68,8 @@ func init() {
 	commitCmd.Flags().StringVar(&commitAll, "all", "", "common commit message for all repositories")
 	commitCmd.Flags().BoolVarP(&commitYes, "yes", "y", false, "auto-approve without confirmation")
 	commitCmd.Flags().BoolVarP(&commitEdit, "edit", "e", false, "edit messages in $EDITOR before committing")
-	commitCmd.Flags().StringVar(&commitMessagesFile, "file", "", "JSON file with custom messages per repository (use '-' for stdin)")
 	commitCmd.Flags().StringVar(&commitJSON, "json", "", `inline JSON with per-repo messages (e.g., '{"repo":"message"}')`)
+	commitCmd.Flags().StringVar(&commitYAML, "yaml", "", `inline YAML with per-repo messages`)
 }
 
 func runCommit(cmd *cobra.Command, args []string) error {
@@ -124,19 +128,34 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		ProgressCallback:  createProgressCallback("Analyzing", commitFlags.Format, quiet),
 	}
 
-	// Load messages: priority --json > --file > -m
+	// Load messages from piped stdin first (highest priority if data is piped)
+	var pipedData []byte
+	stat, err := os.Stdin.Stat()
+	if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
+		// Data is being piped to stdin
+		pipedData, _ = io.ReadAll(os.Stdin)
+	}
+
+	// Load messages: priority piped stdin > --json > --yaml > -m
 	var customMessages map[string]string
-	if commitJSON != "" {
+
+	if len(pipedData) > 0 {
+		var err error
+		customMessages, err = parseJSONOrYAMLMessages(string(pipedData))
+		if err != nil {
+			return fmt.Errorf("failed to parse piped data: %w", err)
+		}
+	} else if commitJSON != "" {
 		var err error
 		customMessages, err = parseJSONMessages(commitJSON)
 		if err != nil {
 			return fmt.Errorf("failed to parse --json: %w", err)
 		}
-	} else if commitMessagesFile != "" {
+	} else if commitYAML != "" {
 		var err error
-		customMessages, err = loadMessagesFile(commitMessagesFile)
+		customMessages, err = parseYAMLMessages(commitYAML)
 		if err != nil {
-			return fmt.Errorf("failed to load messages file: %w", err)
+			return fmt.Errorf("failed to parse --yaml: %w", err)
 		}
 	}
 
@@ -278,26 +297,28 @@ func parseJSONMessages(jsonStr string) (map[string]string, error) {
 	return messages, nil
 }
 
-// loadMessagesFile loads commit messages from a JSON file or stdin ("-")
-func loadMessagesFile(path string) (map[string]string, error) {
-	var data []byte
-	var err error
-	if path == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(path)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("cannot read file: %w", err)
-	}
-
+// parseYAMLMessages parses inline YAML string to message map
+func parseYAMLMessages(yamlStr string) (map[string]string, error) {
 	var messages map[string]string
-	if err := json.Unmarshal(data, &messages); err != nil {
-		return nil, fmt.Errorf("invalid JSON format: %w", err)
+	if err := yaml.Unmarshal([]byte(yamlStr), &messages); err != nil {
+		return nil, fmt.Errorf("invalid YAML: %w", err)
 	}
-
 	return messages, nil
 }
+
+// parseJSONOrYAMLMessages tries parsing JSON first, then YAML
+func parseJSONOrYAMLMessages(data string) (map[string]string, error) {
+	var messages map[string]string
+	if err := json.Unmarshal([]byte(data), &messages); err == nil {
+		return messages, nil
+	}
+	if err := yaml.Unmarshal([]byte(data), &messages); err == nil {
+		return messages, nil
+	}
+	return nil, fmt.Errorf("data is not valid payload (expected JSON or YAML)")
+}
+
+
 
 // applyCustomMessages applies custom messages to repository results
 func applyCustomMessages(result *repository.BulkCommitResult, messages map[string]string) {
@@ -383,7 +404,7 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 	if err := cmd.Run(); err != nil {
 		// Check for specific error types
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("editor exited with code %d: consider using --file instead", exitErr.ExitCode())
+			return nil, fmt.Errorf("editor exited with code %d: consider using --json instead", exitErr.ExitCode())
 		}
 		return nil, fmt.Errorf("failed to run editor '%s': %w", editor, err)
 	}

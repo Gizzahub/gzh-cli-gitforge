@@ -55,8 +55,8 @@ gz-git commit -m "repo1:fix: bug" -m "repo2:feat: feature" --yes
 | **Per-repo** | `-m "repo:message"` | 각 repo마다 다른 메시지 | **가장 일반적** |
 | **공통** | `--all "message"` | 모든 repo에 동일 메시지 | 단순 업데이트 |
 | **인라인 JSON** | `--json '{...}'` | CLI에서 직접 JSON 입력 | **LLM/자동화 최적** |
-| **파일** | `--file messages.json` | JSON 파일에서 읽기 | CI/CD |
-| **stdin** | `--file -` | 파이프로 JSON 입력 | 스크립트 체이닝 |
+| **인라인 YAML** | `--yaml '...'` | CLI에서 직접 YAML 입력 | **LLM/자동화 최적** |
+| **직접 파이프** | `cat file \| gz-git commit` | stdin으로 JSON/YAML 파이프 | CI/CD |
 
 ### 1. Per-repo 메시지 (권장)
 
@@ -87,12 +87,14 @@ gz-git commit --all "chore: update dependencies" --yes
 - 설정 파일 동기화
 - 문서 일괄 수정
 
-### 3. JSON 파일
+### 3. JSON / YAML 파이프 (Direct Pipe) 연동
 
-자동화에 적합:
+자동화 파이프라인(Unix pipe)에서 별도의 플래그 없이 stdin을 통해 바로 주입할 수 있습니다:
 
 ```bash
-gz-git commit --file messages.json --yes
+cat messages.json | gz-git commit --yes
+# 또는 YAML
+cat messages.yaml | gz-git commit --yes
 ```
 
 **messages.json 형식**:
@@ -104,11 +106,20 @@ gz-git commit --file messages.json --yes
 }
 ```
 
-**장점**: 스크립트/CI/CD에서 사용, 감사 추적 가능
+**messages.yaml 형식**:
+```yaml
+gzh-cli: "feat: add wizard command"
+gzh-cli-gitforge: "fix: fix authentication error"
+gzh-cli-quality: "test: add integration tests"
+```
 
-**stdin 지원** (`--file -`):
+**장점**: 스크립트/CI/CD에서 사용, 감사 추적 가능, 복잡한 명령어 치환(`$()`)이나 플래그 없이 직관적으로 연결 가능
+
+**stdin 직접 주입 예시**:
 ```bash
-echo '{"gzh-cli":"feat: add"}' | gz-git commit --file - --yes
+echo '{"gzh-cli":"feat: add"}' | gz-git commit --yes
+# 또는
+echo 'gzh-cli: "feat: add"' | gz-git commit --yes
 ```
 
 ### 4. 인라인 JSON (LLM/자동화 최적)
@@ -132,10 +143,10 @@ steps:
     instruction: "Generate commit messages as JSON"
   - id: commit
     type: shell
-    action: "gz-git commit --json '{{generate.output}}' --yes"
+    action: "echo '{{generate.output}}' | gz-git commit --yes"
 ```
 
-**우선순위**: `--json` > `--file` > `-m`
+**우선순위**: 파이프라인(`stdin`) > `--json` > `--yaml` > `-m`
 
 ## Interactive 모드
 
@@ -173,7 +184,6 @@ gzh-cli-quality:docs: update documentation
 | `--json` | 인라인 JSON 메시지 | - |
 | `-y, --yes` | 확인 없이 실행 | false |
 | `-e, --edit` | 에디터에서 메시지 편집 | false |
-| `--file` | JSON 파일에서 메시지 읽기 (`-`=stdin) | - |
 | `--include` | 포함 패턴 (regex) | - |
 | `--exclude` | 제외 패턴 (regex) | - |
 | `-f, --format` | 출력 형식 | default |
@@ -301,9 +311,9 @@ export EDITOR="code --wait"  # VS Code
 }
 ```
 
-**실행**:
+**실행 (다이렉트 파이프)**:
 ```bash
-gz-git commit --file messages.json --yes
+cat messages.json | gz-git commit --yes
 ```
 
 **스크립트 예**:
@@ -311,17 +321,15 @@ gz-git commit --file messages.json --yes
 #!/bin/bash
 # 자동 커밋 스크립트
 
-# 메시지 파일 생성
-cat > /tmp/commit-messages.json <<EOF
-{
+# 파이프라인 처리를 위한 JSON 변수 생성 및 사용
+JSON_MSG='{
   "backend": "feat: add API endpoint",
   "frontend": "feat: add UI component",
   "docs": "docs: update API documentation"
-}
-EOF
+}'
 
-# 커밋 실행
-gz-git commit --file /tmp/commit-messages.json --yes
+# 파이프를 이용한 직관적인 커밋 실행
+echo "$JSON_MSG" | gz-git commit --yes
 ```
 
 ### CI/CD에서 사용

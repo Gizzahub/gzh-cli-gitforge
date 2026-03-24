@@ -123,44 +123,106 @@ func TestParseRepoMessage(t *testing.T) {
 	}
 }
 
-func TestLoadMessagesFile(t *testing.T) {
-	t.Run("valid JSON file", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		filePath := filepath.Join(tmpDir, "messages.json")
-		content := `{"gzh-cli":"feat: add feature","gzh-cli-gitforge":"fix: bug"}`
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-			t.Fatal(err)
-		}
+func TestParseYAMLMessages(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name:  "valid single repo",
+			input: "gzh-cli: 'feat: add feature'\n",
+			want:  map[string]string{"gzh-cli": "feat: add feature"},
+		},
+		{
+			name: "valid multiple repos",
+			input: `
+gzh-cli: "feat: add feature"
+gzh-cli-gitforge: "fix: bug fix"
+gzh-cli-quality: "docs: update README"
+`,
+			want: map[string]string{
+				"gzh-cli":          "feat: add feature",
+				"gzh-cli-gitforge": "fix: bug fix",
+				"gzh-cli-quality":  "docs: update README",
+			},
+		},
+		{
+			name:    "invalid YAML",
+			input:   "not valid yaml : : :",
+			wantErr: true,
+		},
+	}
 
-		got, err := loadMessagesFile(filePath)
-		if err != nil {
-			t.Fatalf("loadMessagesFile() error = %v", err)
-		}
-		if got["gzh-cli"] != "feat: add feature" {
-			t.Errorf("got[gzh-cli] = %q, want %q", got["gzh-cli"], "feat: add feature")
-		}
-		if got["gzh-cli-gitforge"] != "fix: bug" {
-			t.Errorf("got[gzh-cli-gitforge] = %q, want %q", got["gzh-cli-gitforge"], "fix: bug")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseYAMLMessages(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseYAMLMessages(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("parseYAMLMessages(%q) got %d entries, want %d", tt.input, len(got), len(tt.want))
+				return
+			}
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("parseYAMLMessages(%q)[%q] = %q, want %q", tt.input, k, got[k], v)
+				}
+			}
+		})
+	}
+}
 
-	t.Run("invalid JSON file", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		filePath := filepath.Join(tmpDir, "bad.json")
-		if err := os.WriteFile(filePath, []byte("{bad json}"), 0644); err != nil {
-			t.Fatal(err)
-		}
+func TestParseJSONOrYAMLMessages(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name:  "valid JSON",
+			input: `{"gzh-cli":"feat: add feature"}`,
+			want:  map[string]string{"gzh-cli": "feat: add feature"},
+		},
+		{
+			name: "valid YAML",
+			input: `
+gzh-cli: "feat: add feature from yaml"
+`,
+			want:  map[string]string{"gzh-cli": "feat: add feature from yaml"},
+		},
+		{
+			name:    "invalid both",
+			input:   "just some gibberish text without any mapping",
+			wantErr: true,
+		},
+	}
 
-		_, err := loadMessagesFile(filePath)
-		if err == nil {
-			t.Error("loadMessagesFile() expected error for invalid JSON")
-		}
-	})
-
-	t.Run("nonexistent file", func(t *testing.T) {
-		_, err := loadMessagesFile("/nonexistent/path/to/messages.json")
-		if err == nil {
-			t.Error("loadMessagesFile() expected error for nonexistent file")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseJSONOrYAMLMessages(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseJSONOrYAMLMessages(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("parseJSONOrYAMLMessages(%q) got %d entries, want %d", tt.input, len(got), len(tt.want))
+				return
+			}
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("parseJSONOrYAMLMessages(%q)[%q] = %q, want %q", tt.input, k, got[k], v)
+				}
+			}
+		})
+	}
 }

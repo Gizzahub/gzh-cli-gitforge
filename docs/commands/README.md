@@ -137,8 +137,8 @@ gz-git commit --all "chore: sync all repos" --yes -d 2 ~/projects
 # Per-repo messages (format: repo:message)
 gz-git commit -m "frontend:feat: add login" -m "backend:fix: handle null" --yes -d 2 ~/projects
 
-# Load per-repo messages from JSON
-gz-git commit --file /tmp/messages.json --yes -d 2 ~/projects
+# Load per-repo messages via pipe (JSON or YAML)
+cat /tmp/messages.json | gz-git commit --yes -d 2 ~/projects
 ```
 
 ## Branch & Conflict
