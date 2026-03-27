@@ -42,4 +42,5 @@ const (
 	StrategyPull   Strategy = "pull"
 	StrategyFetch  Strategy = "fetch"
 	StrategyRebase Strategy = "rebase"
+	StrategyClone  Strategy = "clone"
 )

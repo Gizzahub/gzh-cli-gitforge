@@ -420,6 +420,8 @@ func toUpdateStrategy(action Action) repo.UpdateStrategy {
 		return repo.StrategyFetch
 	case StrategyRebase:
 		return repo.StrategyRebase
+	case StrategyClone:
+		return repo.StrategyClone
 	case StrategyReset, "":
 		return repo.StrategyReset
 	default:

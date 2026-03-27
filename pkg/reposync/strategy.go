@@ -23,6 +23,8 @@ func ParseStrategy(value string) (Strategy, error) {
 		return StrategyFetch, nil
 	case "rebase":
 		return StrategyRebase, nil
+	case "clone":
+		return StrategyClone, nil
 	default:
 		return "", fmt.Errorf("unknown strategy %q", value)
 	}

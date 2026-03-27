@@ -42,6 +42,8 @@ var (
 		"reset":  true,
 		"skip":   true,
 		"rebase": true,
+		"clone":  true,
+		"fetch":  true,
 	}
 )
 
@@ -115,7 +117,7 @@ func (v *Validator) ValidateSyncConfig(s *SyncConfig) error {
 
 	// Validate strategy if set
 	if s.Strategy != "" && !validSyncStrategies[s.Strategy] {
-		return fmt.Errorf("invalid sync strategy '%s': must be pull, reset, rebase, or skip", s.Strategy)
+		return fmt.Errorf("invalid sync strategy '%s': must be pull, reset, rebase, skip, clone, or fetch", s.Strategy)
 	}
 
 	// Validate max retries if set

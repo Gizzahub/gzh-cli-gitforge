@@ -82,11 +82,13 @@ subgroupMode: flat
 # Sync Command Settings
 sync:
   # Strategy for updating existing repos
-  # Type: string ("pull" | "reset" | "rebase" | "skip")
+  # Type: string ("pull" | "reset" | "rebase" | "skip" | "clone" | "fetch")
   # - pull:   git pull (fast-forward merge)
   # - reset:  git fetch --all && git reset --hard @{u} (destructive!)
   # - rebase: git fetch && git rebase origin/branch (preserves local commits)
   # - skip:   skip updating existing repos
+  # - clone:  remove existing directory and perform fresh clone (destructive!)
+  # - fetch:  only fetch remote changes (no workspace update)
   strategy: pull
 
   # Max retry attempts for network operations

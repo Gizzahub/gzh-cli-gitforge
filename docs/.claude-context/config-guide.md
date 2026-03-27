@@ -161,7 +161,7 @@ workspaces:
 profile: opensource
 
 sync:
-  strategy: reset
+  strategy: reset  # reset, pull, rebase, fetch, skip, clone
   parallel: 10
 
 workspaces:
