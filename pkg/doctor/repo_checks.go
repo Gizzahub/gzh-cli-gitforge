@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
@@ -62,7 +63,7 @@ func checkRepositories(ctx context.Context, opts Options) []CheckResult {
 		}}
 	}
 
-	executor := gitcmd.NewExecutor()
+	executor := gitcmd.NewExecutor(gitcmd.WithTimeout(10 * time.Second))
 	var results []CheckResult
 
 	for _, repoPath := range repos {
@@ -129,10 +130,14 @@ func checkSingleRepo(ctx context.Context, executor *gitcmd.Executor, repoPath, n
 	results = append(results, checkIncompleteOps(repoPath, name)...)
 
 	// 4. Merge conflicts
-	results = append(results, checkConflicts(ctx, executor, repoPath, name)...)
+	conflictResults := checkConflicts(ctx, executor, repoPath, name)
+	results = append(results, conflictResults...)
 
 	// 5. Dirty worktree with behind upstream (sync blocker)
-	results = append(results, checkDirtyBehind(ctx, executor, repoPath, name)...)
+	// Skip if conflicts already reported (conflict files are also dirty)
+	if len(conflictResults) == 0 {
+		results = append(results, checkDirtyBehind(ctx, executor, repoPath, name)...)
+	}
 
 	// 6. Origin divergence (ahead/behind)
 	results = append(results, checkUpstreamDivergence(ctx, executor, repoPath, name)...)
@@ -316,15 +321,16 @@ func checkUpstreamDivergence(ctx context.Context, executor *gitcmd.Executor, rep
 }
 
 func checkDevelopMainDistance(ctx context.Context, executor *gitcmd.Executor, repoPath, name string) []CheckResult {
-	// Get current branch
-	branch, err := executor.RunOutput(ctx, repoPath, "branch", "--show-current")
-	if err != nil {
-		return nil
+	// Find develop branch (local or remote tracking)
+	developBranch := ""
+	for _, candidate := range []string{"develop", "dev"} {
+		ok, err := executor.RunQuiet(ctx, repoPath, "rev-parse", "--verify", candidate)
+		if err == nil && ok {
+			developBranch = candidate
+			break
+		}
 	}
-	branch = strings.TrimSpace(branch)
-
-	// Only check if on develop
-	if branch != "develop" && branch != "dev" && branch != "development" {
+	if developBranch == "" {
 		return nil
 	}
 
@@ -334,7 +340,7 @@ func checkDevelopMainDistance(ctx context.Context, executor *gitcmd.Executor, re
 		return nil
 	}
 
-	distance := branchDistance(ctx, executor, repoPath, branch, mainBranch)
+	distance := branchDistance(ctx, executor, repoPath, developBranch, mainBranch)
 	if distance < 0 {
 		return nil
 	}
@@ -344,8 +350,8 @@ func checkDevelopMainDistance(ctx context.Context, executor *gitcmd.Executor, re
 			Name:     fmt.Sprintf("repo:%s:develop-main", name),
 			Category: CategoryRepo,
 			Status:   StatusError,
-			Message:  fmt.Sprintf("%s: develop is %d commits from %s", name, distance, mainBranch),
-			Detail:   fmt.Sprintf("consider merging develop into %s (threshold: %d)", mainBranch, BranchDistanceError),
+			Message:  fmt.Sprintf("%s: %s is %d commits from %s", name, developBranch, distance, mainBranch),
+			Detail:   fmt.Sprintf("consider merging %s into %s (threshold: %d)", developBranch, mainBranch, BranchDistanceError),
 		}}
 	}
 
@@ -354,7 +360,7 @@ func checkDevelopMainDistance(ctx context.Context, executor *gitcmd.Executor, re
 			Name:     fmt.Sprintf("repo:%s:develop-main", name),
 			Category: CategoryRepo,
 			Status:   StatusWarning,
-			Message:  fmt.Sprintf("%s: develop is %d commits from %s", name, distance, mainBranch),
+			Message:  fmt.Sprintf("%s: %s is %d commits from %s", name, developBranch, distance, mainBranch),
 			Detail:   fmt.Sprintf("branches are drifting apart (warn: %d, error: %d)", BranchDistanceWarn, BranchDistanceError),
 		}}
 	}

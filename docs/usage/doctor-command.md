@@ -104,9 +104,9 @@ Checks: 16 total, 10 ok, 3 warning, 3 error (1.5s)
 | repo:{name}:rebase | rebase 진행 중 (미완료) | - |
 | repo:{name}:conflict | 머지 충돌 파일 존재 | - |
 | repo:{name}:dirty-behind | dirty worktree + upstream behind | - |
-| repo:{name}:diverged | local/upstream 분기 | behind > 10: error |
-| repo:{name}:behind | upstream 대비 뒤처짐 | > 10 commits |
-| repo:{name}:ahead | 미push 커밋 | > 20 commits |
+| repo:{name}:diverged | local/upstream 분기 (ahead+behind 동시) | behind > 10: error, 그 외 warning |
+| repo:{name}:behind | upstream 대비 뒤처짐 (behind만) | > 10 commits: warning |
+| repo:{name}:ahead | 미push 커밋 (ahead만) | > 20 commits: warning |
 | repo:{name}:develop-main | develop ↔ main/master 거리 | warn: 50, error: 150 |
 | repo:{name}:branch:{branch} | feature 브랜치 분기 거리 (`-v` 시) | warn: 30, error: 100 |
 
