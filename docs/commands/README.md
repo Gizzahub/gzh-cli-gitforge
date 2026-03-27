@@ -282,6 +282,19 @@ gz-git history file README.md --follow
 gz-git history blame README.md
 ```
 
+## Diagnostics
+
+### doctor
+
+Check system dependencies, config integrity, authentication, and forge connectivity.
+
+```bash
+gz-git doctor                # Run all checks
+gz-git doctor -v             # Verbose (per-profile details)
+gz-git doctor --skip-forge   # Skip forge API connectivity checks
+gz-git doctor --format json  # Machine-readable output
+```
+
 ## Misc
 
 ```bash

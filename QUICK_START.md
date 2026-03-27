@@ -95,6 +95,7 @@ gz-git commit --yes                        # 자동 확인으로 커밋
 gz-git branch list --all                   # 브랜치 목록
 gz-git history stats --since "1 month ago" # 커밋 통계
 gz-git conflict detect feature/new main    # 머지 충돌 감지
+gz-git doctor                              # 시스템/설정 진단
 ```
 
 ______________________________________________________________________

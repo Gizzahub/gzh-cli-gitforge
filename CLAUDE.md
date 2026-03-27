@@ -218,6 +218,7 @@ ______________________________________________________________________
 | `workspace generate-config` | Generate config from Git forge             |
 | `config profile`       | Profile management (create/use/list)          |
 | `config hierarchy`     | Show config hierarchy tree                    |
+| `doctor`               | Diagnose system, config, auth, forge health   |
 
 ______________________________________________________________________
 

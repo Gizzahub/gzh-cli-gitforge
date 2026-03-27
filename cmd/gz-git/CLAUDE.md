@@ -30,6 +30,7 @@ cmd/gz-git/
     ├── config.go       # Config commands
     ├── branch.go       # Branch commands
     ├── commit.go       # Commit commands
+    ├── doctor.go       # Health diagnostics
     └── ...             # Other git commands
 ```
 

@@ -25,6 +25,7 @@ ______________________________________________________________________
 - Maintenance: `cleanup branch` (dry-run by default)
 - Monitoring: `watch` (default/compact/json/llm)
 - Insights: `history` (stats/contributors/file/blame), `info`, `conflict detect`
+- Diagnostics: `doctor` (system, config, auth, forge health checks)
 - Tag/stash helpers: `tag`, `stash`
 
 ______________________________________________________________________
