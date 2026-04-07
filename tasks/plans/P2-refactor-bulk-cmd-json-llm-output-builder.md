@@ -65,12 +65,12 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 
 ## Acceptance Criteria
 
-- [ ] `writeBulkOutput(format, output)` 헬퍼가 `bulk_common.go`에 추가됨
-- [ ] 10개 명령에서 JSON/LLM 중복 루프 제거
-- [ ] 출력 결과 동일 (기존 테스트 통과)
-- [ ] `make build && make test` 통과
+- [x] `writeBulkOutput(format, output)` 헬퍼가 `bulk_common.go`에 추가됨
+- [x] 10개 명령에서 JSON/LLM 중복 루프 제거
+- [x] 출력 결과 동일 (기존 테스트 통과)
+- [x] `make build && make test` 통과
 
 ## Children
 
-- `tasks/todos/todo-refactor-bulk-output-create.md`
-- `tasks/todos/todo-refactor-bulk-output-remove.md`
+- `tasks/done/todo-refactor-bulk-output-create.md`
+- `tasks/done/todo-refactor-bulk-output-remove.md`
