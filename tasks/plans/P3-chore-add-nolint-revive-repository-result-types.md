@@ -55,3 +55,7 @@ linters-settings:
 - [ ] `golangci-lint run --new-from-rev=HEAD ./...` 에서 revive stutter 경고 없음
 - [ ] 기존 타입명 변경 없음 (API 호환)
 - [ ] `make lint` 통과
+
+## Children
+
+- `tasks/todos/todo-chore-disable-revive-stutter-check.md`

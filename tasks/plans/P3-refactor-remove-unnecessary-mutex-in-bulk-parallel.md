@@ -58,3 +58,7 @@ Go spec 보장: slice 원소들은 별개의 메모리 주소이며 독립적으
 - [ ] `import "sync"` 미사용 시 제거
 - [ ] `go test -race ./pkg/repository/...` 통과 (race detector)
 - [ ] 기능 동일성 확인
+
+## Children
+
+- `tasks/todos/todo-refactor-remove-bulk-mutex.md`

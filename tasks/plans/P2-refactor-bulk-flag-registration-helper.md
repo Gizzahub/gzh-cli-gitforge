@@ -72,3 +72,8 @@ func addBulkFlagsWithOpts(cmd *cobra.Command, flags *BulkCommandFlags, opts Bulk
 - [ ] `--watch --interval` 기본값 모든 명령에서 `5m` 일치
 - [ ] 기존 플래그 동작 변경 없음
 - [ ] `make build && make test` 통과
+
+## Children
+
+- `tasks/todos/todo-unify-bulk-flag-registration-create.md`
+- `tasks/todos/todo-unify-bulk-flag-registration-remove.md`
