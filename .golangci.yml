@@ -168,6 +168,8 @@ linters:
       rules:
         - name: exported
           disabled: false
+          arguments:
+            - disableStutteringCheck: true
         - name: package-comments
           disabled: true
         - name: var-naming
