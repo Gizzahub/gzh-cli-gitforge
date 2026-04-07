@@ -51,14 +51,7 @@ func init() {
 	rootCmd.AddCommand(diffCmd)
 
 	// Common bulk operation flags (excluding --dry-run: diff is read-only)
-	diffCmd.Flags().IntVarP(&diffFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
-	diffCmd.Flags().IntVarP(&diffFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	diffCmd.Flags().BoolVarP(&diffFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
-	diffCmd.Flags().StringVar(&diffFlags.Include, "include", "", "regex pattern to include repositories")
-	diffCmd.Flags().StringVar(&diffFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	diffCmd.Flags().StringVar(&diffFlags.Format, "format", "default", "output format: default, compact, json, llm")
-	diffCmd.Flags().BoolVar(&diffFlags.Watch, "watch", false, "continuously run at intervals")
-	diffCmd.Flags().DurationVar(&diffFlags.Interval, "interval", 5*time.Minute, "interval when watching")
+	addBulkFlagsWithOpts(diffCmd, &diffFlags, BulkFlagOptions{SkipDryRun: true, SkipFetch: true})
 
 	// Diff-specific flags
 	diffCmd.Flags().BoolVar(&diffStaged, "staged", false, "show only staged changes (--cached)")

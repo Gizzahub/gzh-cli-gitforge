@@ -66,12 +66,9 @@ func init() {
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchProtect, "protect", "", "additional branches to protect (comma-separated)")
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBaseBranch, "base", "", "base branch for merge detection (default: auto-detect)")
 
-	// Bulk operation flags (manually added to avoid dry-run conflict)
-	cleanupBranchCmd.Flags().IntVarP(&cleanupBranchBulkFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
-	cleanupBranchCmd.Flags().IntVarP(&cleanupBranchBulkFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
+	// Bulk operation flags (skip dry-run to avoid conflict with custom dry-run; skip recursive shorthand to avoid -r clash with --remote)
+	addBulkFlagsWithOpts(cleanupBranchCmd, &cleanupBranchBulkFlags, BulkFlagOptions{SkipDryRun: true, SkipFormat: true, SkipWatch: true, SkipFetch: true, SkipRecursive: true})
 	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchBulkFlags.IncludeSubmodules, "recursive", false, "recursively include nested repositories and submodules")
-	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBulkFlags.Include, "include", "", "regex pattern to include repositories")
-	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBulkFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
 }
 
 func runCleanupBranch(cmd *cobra.Command, args []string) error {

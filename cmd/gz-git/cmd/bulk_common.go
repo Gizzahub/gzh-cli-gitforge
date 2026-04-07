@@ -56,18 +56,43 @@ type BulkCommandFlags struct {
 	SkipFetch         bool
 }
 
-// addBulkFlags registers common bulk operation flags to a command
-func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
+// BulkFlagOptions allows customizing which bulk flags are registered.
+type BulkFlagOptions struct {
+	SkipDryRun   bool
+	SkipFetch    bool
+	SkipFormat   bool
+	SkipWatch    bool
+	SkipRecursive bool
+}
+
+// addBulkFlagsWithOpts registers common bulk operation flags to a command, skipping those specified in opts.
+func addBulkFlagsWithOpts(cmd *cobra.Command, flags *BulkCommandFlags, opts BulkFlagOptions) {
 	cmd.Flags().IntVarP(&flags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
 	cmd.Flags().IntVarP(&flags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cmd.Flags().BoolVarP(&flags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
-	cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
+	if !opts.SkipRecursive {
+		cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
+	}
 	cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
 	cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
-	cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
-	cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
-	cmd.Flags().BoolVar(&flags.SkipFetch, "skip-fetch", false, "skip fetching from remote (use local state only)")
+
+	if !opts.SkipFormat {
+		cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")
+	}
+	if !opts.SkipDryRun {
+		cmd.Flags().BoolVarP(&flags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
+	}
+	if !opts.SkipWatch {
+		cmd.Flags().BoolVar(&flags.Watch, "watch", false, "continuously run at intervals")
+		cmd.Flags().DurationVar(&flags.Interval, "interval", 5*time.Minute, "interval when watching")
+	}
+	if !opts.SkipFetch {
+		cmd.Flags().BoolVar(&flags.SkipFetch, "skip-fetch", false, "skip fetching from remote (use local state only)")
+	}
+}
+
+// addBulkFlags registers common bulk operation flags to a command.
+func addBulkFlags(cmd *cobra.Command, flags *BulkCommandFlags) {
+	addBulkFlagsWithOpts(cmd, flags, BulkFlagOptions{})
 }
 
 // validateBulkDirectory parses and validates the directory argument

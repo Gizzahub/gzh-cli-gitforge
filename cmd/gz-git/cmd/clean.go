@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -56,14 +55,7 @@ func init() {
 	rootCmd.AddCommand(cleanCmd)
 
 	// Common bulk operation flags (without dry-run since we use --force instead)
-	cleanCmd.Flags().IntVarP(&cleanFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
-	cleanCmd.Flags().IntVarP(&cleanFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cleanCmd.Flags().BoolVarP(&cleanFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
-	cleanCmd.Flags().StringVar(&cleanFlags.Include, "include", "", "regex pattern to include repositories")
-	cleanCmd.Flags().StringVar(&cleanFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	cleanCmd.Flags().StringVar(&cleanFlags.Format, "format", "default", "output format: default, compact, json, llm")
-	cleanCmd.Flags().BoolVar(&cleanFlags.Watch, "watch", false, "continuously run at intervals")
-	cleanCmd.Flags().DurationVar(&cleanFlags.Interval, "interval", 5*time.Minute, "interval when watching")
+	addBulkFlagsWithOpts(cleanCmd, &cleanFlags, BulkFlagOptions{SkipDryRun: true, SkipFetch: true})
 
 	// Clean-specific flags
 	cleanCmd.Flags().BoolVar(&cleanForce, "force", false, "actually delete files (without this flag, operates in dry-run mode)")

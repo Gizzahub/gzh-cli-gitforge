@@ -45,10 +45,7 @@ func init() {
 }
 
 func addBranchListBulkFlags(cmd *cobra.Command) {
-	cmd.Flags().IntVarP(&branchListFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan")
-	cmd.Flags().IntVarP(&branchListFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	cmd.Flags().StringVar(&branchListFlags.Include, "include", "", "regex pattern to include repositories")
-	cmd.Flags().StringVar(&branchListFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	addBulkFlagsWithOpts(cmd, &branchListFlags, BulkFlagOptions{SkipDryRun: true, SkipFormat: true, SkipWatch: true, SkipFetch: true})
 }
 
 func runBranchList(cmd *cobra.Command, args []string) error {

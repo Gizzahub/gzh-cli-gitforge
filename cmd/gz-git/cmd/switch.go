@@ -45,13 +45,7 @@ func init() {
 	rootCmd.AddCommand(switchCmd)
 
 	// Common bulk operation flags (except watch/interval which don't apply to switch)
-	switchCmd.Flags().IntVarP(&switchFlags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
-	switchCmd.Flags().IntVarP(&switchFlags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
-	switchCmd.Flags().BoolVarP(&switchFlags.DryRun, "dry-run", "n", false, "show what would be done without doing it")
-	switchCmd.Flags().BoolVarP(&switchFlags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
-	switchCmd.Flags().StringVar(&switchFlags.Include, "include", "", "regex pattern to include repositories")
-	switchCmd.Flags().StringVar(&switchFlags.Exclude, "exclude", "", "regex pattern to exclude repositories")
-	switchCmd.Flags().StringVar(&switchFlags.Format, "format", "default", "output format: default, compact, json, llm")
+	addBulkFlagsWithOpts(switchCmd, &switchFlags, BulkFlagOptions{SkipWatch: true, SkipFetch: true})
 
 	// Switch-specific flags (no -f shorthand for force to avoid conflict with --format)
 	switchCmd.Flags().BoolVarP(&switchCreate, "create", "c", false, "create branch if it doesn't exist")
