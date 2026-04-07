@@ -97,6 +97,15 @@ const (
 	// StatusAuthRequired indicates the operation failed due to authentication requirements.
 	// This typically occurs when HTTPS credentials are not configured or have expired.
 	StatusAuthRequired = "auth-required"
+
+	// StatusCleaned indicates untracked/ignored files were removed.
+	StatusCleaned = "cleaned"
+
+	// StatusWouldClean indicates files would be removed (dry-run mode).
+	StatusWouldClean = "would-clean"
+
+	// StatusNothingToClean indicates no untracked/ignored files to remove.
+	StatusNothingToClean = "nothing-to-clean"
 )
 
 // IsSuccessStatus returns true if the status indicates a successful operation.
@@ -105,7 +114,8 @@ func IsSuccessStatus(status string) bool {
 	case StatusUpdated, StatusSuccess, StatusUpToDate,
 		StatusFetched, StatusPulled, StatusPushed,
 		StatusCloned, StatusRebased, StatusReset,
-		StatusSwitched, StatusAlreadyOnBranch, StatusBranchCreated:
+		StatusSwitched, StatusAlreadyOnBranch, StatusBranchCreated,
+		StatusCleaned, StatusNothingToClean:
 		return true
 	default:
 		return false
@@ -115,7 +125,7 @@ func IsSuccessStatus(status string) bool {
 // IsDryRunStatus returns true if the status indicates a dry-run simulation.
 func IsDryRunStatus(status string) bool {
 	switch status {
-	case StatusWouldUpdate, StatusWouldFetch, StatusWouldPull, StatusWouldPush, StatusWouldSwitch:
+	case StatusWouldUpdate, StatusWouldFetch, StatusWouldPull, StatusWouldPush, StatusWouldSwitch, StatusWouldClean:
 		return true
 	default:
 		return false

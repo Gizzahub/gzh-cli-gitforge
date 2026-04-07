@@ -176,10 +176,16 @@ func getBulkStatusIcon(status string, changesCount int) string {
 	case "dirty":
 		return "⚠"
 
+	// Clean states
+	case "cleaned":
+		return "✓"
+	case "nothing-to-clean":
+		return "="
+
 	// Skipped/dry-run states
 	case "skipped":
 		return "⊘"
-	case "would-fetch", "would-pull", "would-push":
+	case "would-fetch", "would-pull", "would-push", "would-clean":
 		return "→"
 
 	// Warning states
@@ -202,9 +208,9 @@ func getBulkStatusIconSimple(status string) string {
 
 // summaryDisplayOrder defines the preferred display order for summary line items.
 var summaryDisplayOrder = []string{
-	"up-to-date", "nothing-to-push",
-	"success", "fetched", "pulled", "pushed", "updated",
-	"would-fetch", "would-pull", "would-push", "would-update",
+	"up-to-date", "nothing-to-push", "nothing-to-clean",
+	"success", "fetched", "pulled", "pushed", "updated", "cleaned",
+	"would-fetch", "would-pull", "would-push", "would-update", "would-clean",
 	"skipped",
 	"dirty",
 	"no-remote", "no-upstream",
@@ -217,15 +223,15 @@ var summaryDisplayOrder = []string{
 // Uses directional arrows for operations (↓ for fetch/pull, ↑ for push).
 func getSummaryIcon(status string) string {
 	switch status {
-	case "up-to-date", "nothing-to-push":
+	case "up-to-date", "nothing-to-push", "nothing-to-clean":
 		return "="
 	case "fetched", "pulled", "updated":
 		return "↓"
 	case "pushed":
 		return "↑"
-	case "success":
+	case "success", "cleaned":
 		return "✓"
-	case "would-fetch", "would-pull", "would-push", "would-update":
+	case "would-fetch", "would-pull", "would-push", "would-update", "would-clean":
 		return "→"
 	case "skipped":
 		return "⊘"

@@ -61,6 +61,10 @@ type Client interface {
 	// This is useful for reviewing changes across multiple repositories or for LLM-based commit message generation.
 	BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffResult, error)
 
+	// BulkClean scans for repositories and removes untracked/ignored files in parallel.
+	// Dry-run by default; set DryRun=false (via --force) to actually delete files.
+	BulkClean(ctx context.Context, opts BulkCleanOptions) (*BulkCleanResult, error)
+
 	// BulkCleanup scans for repositories and performs branch cleanup in parallel.
 	// This is useful for cleaning up merged, stale, or gone branches across multiple repositories.
 	BulkCleanup(ctx context.Context, opts BulkCleanupOptions) (*BulkCleanupResult, error)

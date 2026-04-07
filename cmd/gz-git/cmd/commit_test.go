@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -195,7 +193,7 @@ func TestParseJSONOrYAMLMessages(t *testing.T) {
 			input: `
 gzh-cli: "feat: add feature from yaml"
 `,
-			want:  map[string]string{"gzh-cli": "feat: add feature from yaml"},
+			want: map[string]string{"gzh-cli": "feat: add feature from yaml"},
 		},
 		{
 			name:    "invalid both",

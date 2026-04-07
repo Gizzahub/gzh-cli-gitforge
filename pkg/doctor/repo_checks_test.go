@@ -18,10 +18,10 @@ import (
 
 func TestParseAheadBehind(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		wantAhead     int
-		wantBehind    int
+		name       string
+		input      string
+		wantAhead  int
+		wantBehind int
 	}{
 		{"normal", "5\t3", 5, 3},
 		{"zeros", "0\t0", 0, 0},

@@ -79,15 +79,15 @@ var safeGitFlags = map[string]bool{
 	"--set-upstream": true,
 
 	// Merge/Rebase flags
-	"--ff":       true,
-	"--no-ff":    true,
-	"--ff-only":  true,
-	"--squash":   true,
+	"--ff":        true,
+	"--no-ff":     true,
+	"--ff-only":   true,
+	"--squash":    true,
 	"--rebase":    true,
 	"--no-rebase": true,
-	"--abort":    true,
-	"--continue": true,
-	"--skip":     true,
+	"--abort":     true,
+	"--continue":  true,
+	"--skip":      true,
 
 	// Diff flags
 	"--cached":      true,

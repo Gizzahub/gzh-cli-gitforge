@@ -20,13 +20,13 @@ import (
 )
 
 var (
-	commitFlags        BulkCommandFlags
-	commitAll          string   // --all: common message for all repos
-	commitMessages     []string // -m, --message: per-repo messages
-	commitYes          bool
-	commitEdit         bool
-	commitJSON         string // --json: inline JSON messages
-	commitYAML         string // --yaml: inline YAML messages
+	commitFlags    BulkCommandFlags
+	commitAll      string   // --all: common message for all repos
+	commitMessages []string // -m, --message: per-repo messages
+	commitYes      bool
+	commitEdit     bool
+	commitJSON     string // --json: inline JSON messages
+	commitYAML     string // --yaml: inline YAML messages
 )
 
 // commitCmd represents the commit command
@@ -317,8 +317,6 @@ func parseJSONOrYAMLMessages(data string) (map[string]string, error) {
 	}
 	return nil, fmt.Errorf("data is not valid payload (expected JSON or YAML)")
 }
-
-
 
 // applyCustomMessages applies custom messages to repository results
 func applyCustomMessages(result *repository.BulkCommitResult, messages map[string]string) {
