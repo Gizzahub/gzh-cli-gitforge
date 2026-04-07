@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/tag"
@@ -487,15 +485,9 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 }
 
 func printBulkTagResult(result *repository.BulkTagResult, operation string, dryRun bool, format string) {
-	// JSON output mode
-	if format == "json" {
-		displayTagResultsJSON(result, operation)
-		return
-	}
-
-	// LLM output mode
-	if format == "llm" {
-		displayTagResultsLLM(result, operation)
+	// JSON or LLM output mode
+	if format == "json" || format == "llm" {
+		displayTagResultsStructured(result, operation, format)
 		return
 	}
 
@@ -563,7 +555,7 @@ type TagRepositoryJSONOutput struct {
 	Message string `json:"message,omitempty"`
 }
 
-func displayTagResultsJSON(result *repository.BulkTagResult, operation string) {
+func displayTagResultsStructured(result *repository.BulkTagResult, operation string, format string) {
 	output := TagJSONOutput{
 		Operation:      operation,
 		TotalScanned:   result.TotalScanned,
@@ -581,34 +573,5 @@ func displayTagResultsJSON(result *repository.BulkTagResult, operation string) {
 		})
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayTagResultsLLM(result *repository.BulkTagResult, operation string) {
-	output := TagJSONOutput{
-		Operation:      operation,
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		TotalTags:      result.TotalTagCount,
-		DurationMs:     result.Duration.Milliseconds(),
-		Repositories:   make([]TagRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		output.Repositories = append(output.Repositories, TagRepositoryJSONOutput{
-			Path:    repo.RelativePath,
-			Status:  repo.Status,
-			Message: repo.Message,
-		})
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

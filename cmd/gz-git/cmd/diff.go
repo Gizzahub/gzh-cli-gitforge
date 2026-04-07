@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -172,15 +170,9 @@ func executeDiff(ctx context.Context, client repository.Client, opts repository.
 }
 
 func displayDiffResults(result *repository.BulkDiffResult) {
-	// JSON output mode
-	if diffFlags.Format == "json" {
-		displayDiffResultsJSON(result)
-		return
-	}
-
-	// LLM output mode
-	if diffFlags.Format == "llm" {
-		displayDiffResultsLLM(result)
+	// JSON or LLM output mode
+	if diffFlags.Format == "json" || diffFlags.Format == "llm" {
+		displayDiffResultsStructured(result, diffFlags.Format)
 		return
 	}
 
@@ -404,7 +396,7 @@ type ChangedFileJSONOutput struct {
 	OldPath string `json:"old_path,omitempty"`
 }
 
-func displayDiffResultsJSON(result *repository.BulkDiffResult) {
+func displayDiffResultsStructured(result *repository.BulkDiffResult, format string) {
 	output := DiffJSONOutput{
 		TotalScanned:     result.TotalScanned,
 		TotalWithChanges: result.TotalWithChanges,
@@ -449,61 +441,5 @@ func displayDiffResultsJSON(result *repository.BulkDiffResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayDiffResultsLLM(result *repository.BulkDiffResult) {
-	output := DiffJSONOutput{
-		TotalScanned:     result.TotalScanned,
-		TotalWithChanges: result.TotalWithChanges,
-		TotalClean:       result.TotalClean,
-		DurationMs:       result.Duration.Milliseconds(),
-		Summary:          result.Summary,
-		Repositories:     make([]DiffRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := DiffRepositoryJSONOutput{
-			Path:           repo.RelativePath,
-			Branch:         repo.Branch,
-			Status:         repo.Status,
-			FilesChanged:   repo.FilesChanged,
-			Additions:      repo.Additions,
-			Deletions:      repo.Deletions,
-			DiffSummary:    repo.DiffSummary,
-			UntrackedFiles: repo.UntrackedFiles,
-			Truncated:      repo.Truncated,
-			DurationMs:     repo.Duration.Milliseconds(),
-		}
-
-		// Include diff content unless --no-content
-		if !diffNoDiffContent {
-			repoOutput.DiffContent = repo.DiffContent
-		}
-
-		// Convert changed files
-		for _, file := range repo.ChangedFiles {
-			repoOutput.ChangedFiles = append(repoOutput.ChangedFiles, ChangedFileJSONOutput{
-				Path:    file.Path,
-				Status:  file.Status,
-				OldPath: file.OldPath,
-			})
-		}
-
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

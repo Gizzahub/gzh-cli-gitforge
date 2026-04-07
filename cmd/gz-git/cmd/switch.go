@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -136,15 +134,9 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 
 // displaySwitchResults displays the results of a bulk switch operation
 func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
-	// JSON output mode
-	if format == "json" {
-		displaySwitchResultsJSON(result)
-		return
-	}
-
-	// LLM output mode
-	if format == "llm" {
-		displaySwitchResultsLLM(result)
+	// JSON or LLM output mode
+	if format == "json" || format == "llm" {
+		displaySwitchResultsStructured(result, format)
 		return
 	}
 
@@ -316,7 +308,7 @@ type SwitchRepositoryJSONOutput struct {
 	DurationMs     int64  `json:"duration_ms,omitempty"`
 }
 
-func displaySwitchResultsJSON(result *repository.BulkSwitchResult) {
+func displaySwitchResultsStructured(result *repository.BulkSwitchResult, format string) {
 	// Convert summary keys to strings
 	summary := make(map[string]int)
 	for k, v := range result.Summary {
@@ -344,44 +336,5 @@ func displaySwitchResultsJSON(result *repository.BulkSwitchResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displaySwitchResultsLLM(result *repository.BulkSwitchResult) {
-	// Convert summary keys to strings
-	summary := make(map[string]int)
-	for k, v := range result.Summary {
-		summary[string(k)] = v
-	}
-
-	output := SwitchJSONOutput{
-		TargetBranch:   result.TargetBranch,
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        summary,
-		Repositories:   make([]SwitchRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := SwitchRepositoryJSONOutput{
-			Path:           repo.RelativePath,
-			Status:         string(repo.Status),
-			PreviousBranch: repo.PreviousBranch,
-			CurrentBranch:  repo.CurrentBranch,
-			Message:        repo.Message,
-			DurationMs:     repo.Duration.Milliseconds(),
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

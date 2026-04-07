@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -187,11 +185,8 @@ func runCleanWatch(ctx context.Context, client repository.Client, opts repositor
 
 func displayCleanResults(result *repository.BulkCleanResult, dryRun bool) {
 	switch cleanFlags.Format {
-	case "json":
-		displayCleanResultsJSON(result)
-		return
-	case "llm":
-		displayCleanResultsLLM(result)
+	case "json", "llm":
+		displayCleanResultsStructured(result, cleanFlags.Format)
 		return
 	}
 
@@ -317,7 +312,7 @@ type CleanRepositoryJSONOutput struct {
 	Error        string   `json:"error,omitempty"`
 }
 
-func displayCleanResultsJSON(result *repository.BulkCleanResult) {
+func displayCleanResultsStructured(result *repository.BulkCleanResult, format string) {
 	output := CleanJSONOutput{
 		TotalScanned:   result.TotalScanned,
 		TotalProcessed: result.TotalProcessed,
@@ -342,41 +337,5 @@ func displayCleanResultsJSON(result *repository.BulkCleanResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayCleanResultsLLM(result *repository.BulkCleanResult) {
-	output := CleanJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		TotalFiles:     result.TotalFiles,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]CleanRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := CleanRepositoryJSONOutput{
-			Path:         repo.RelativePath,
-			Branch:       repo.Branch,
-			Status:       repo.Status,
-			FilesCount:   repo.FilesCount,
-			FilesRemoved: repo.FilesRemoved,
-			DurationMs:   repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

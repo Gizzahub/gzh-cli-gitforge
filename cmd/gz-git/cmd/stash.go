@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/stash"
@@ -350,15 +348,9 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 }
 
 func printBulkStashResult(result *repository.BulkStashResult, operation string, dryRun bool, format string) {
-	// JSON output mode
-	if format == "json" {
-		displayStashResultsJSON(result, operation)
-		return
-	}
-
-	// LLM output mode
-	if format == "llm" {
-		displayStashResultsLLM(result, operation)
+	// JSON or LLM output mode
+	if format == "json" || format == "llm" {
+		displayStashResultsStructured(result, operation, format)
 		return
 	}
 
@@ -418,7 +410,7 @@ type StashRepositoryJSONOutput struct {
 	Message string `json:"message,omitempty"`
 }
 
-func displayStashResultsJSON(result *repository.BulkStashResult, operation string) {
+func displayStashResultsStructured(result *repository.BulkStashResult, operation string, format string) {
 	output := StashJSONOutput{
 		Operation:      operation,
 		TotalScanned:   result.TotalScanned,
@@ -436,34 +428,5 @@ func displayStashResultsJSON(result *repository.BulkStashResult, operation strin
 		})
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayStashResultsLLM(result *repository.BulkStashResult, operation string) {
-	output := StashJSONOutput{
-		Operation:      operation,
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		TotalStashes:   result.TotalStashCount,
-		DurationMs:     result.Duration.Milliseconds(),
-		Repositories:   make([]StashRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		output.Repositories = append(output.Repositories, StashRepositoryJSONOutput{
-			Path:    repo.RelativePath,
-			Status:  repo.Status,
-			Message: repo.Message,
-		})
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

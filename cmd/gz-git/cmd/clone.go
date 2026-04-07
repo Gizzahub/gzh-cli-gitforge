@@ -230,9 +230,9 @@ func collectCloneURLs(urlFlags []string, filePath string) ([]string, error) {
 }
 
 func displayCloneResults(result *repository.BulkCloneResult) {
-	// JSON output mode
-	if cloneFlags.Format == "json" {
-		displayCloneResultsJSON(result)
+	// JSON or LLM output mode
+	if cloneFlags.Format == "json" || cloneFlags.Format == "llm" {
+		displayCloneResultsStructured(result, cloneFlags.Format)
 		return
 	}
 
@@ -328,7 +328,7 @@ type CloneRepositoryJSONItem struct {
 	Error      string `json:"error,omitempty"`
 }
 
-func displayCloneResultsJSON(result *repository.BulkCloneResult) {
+func displayCloneResultsStructured(result *repository.BulkCloneResult, format string) {
 	output := CloneJSONOutput{
 		TotalRequested: result.TotalRequested,
 		TotalCloned:    result.TotalCloned,
@@ -354,9 +354,7 @@ func displayCloneResultsJSON(result *repository.BulkCloneResult) {
 		output.Repositories = append(output.Repositories, item)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
+	writeBulkOutput(format, output)
 }
 
 // ============================================================================

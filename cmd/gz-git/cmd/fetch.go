@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/gizzahub/gzh-cli-core/cli"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
@@ -176,15 +174,9 @@ func executeFetch(ctx context.Context, client repository.Client, opts repository
 }
 
 func displayFetchResults(result *repository.BulkFetchResult) {
-	// JSON output mode
-	if fetchFlags.Format == "json" {
-		displayFetchResultsJSON(result)
-		return
-	}
-
-	// LLM output mode
-	if fetchFlags.Format == "llm" {
-		displayFetchResultsLLM(result)
+	// JSON or LLM output mode
+	if fetchFlags.Format == "json" || fetchFlags.Format == "llm" {
+		displayFetchResultsStructured(result, fetchFlags.Format)
 		return
 	}
 
@@ -407,7 +399,7 @@ type FetchRepositoryJSONOutput struct {
 	Error            string `json:"error,omitempty"`
 }
 
-func displayFetchResultsJSON(result *repository.BulkFetchResult) {
+func displayFetchResultsStructured(result *repository.BulkFetchResult, format string) {
 	output := FetchJSONOutput{
 		TotalScanned:   result.TotalScanned,
 		TotalProcessed: result.TotalProcessed,
@@ -433,42 +425,5 @@ func displayFetchResultsJSON(result *repository.BulkFetchResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
-}
-
-func displayFetchResultsLLM(result *repository.BulkFetchResult) {
-	output := FetchJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]FetchRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := FetchRepositoryJSONOutput{
-			Path:             repo.RelativePath,
-			Branch:           repo.Branch,
-			Status:           repo.Status,
-			CommitsAhead:     repo.CommitsAhead,
-			CommitsBehind:    repo.CommitsBehind,
-			UncommittedFiles: repo.UncommittedFiles,
-			UntrackedFiles:   repo.UntrackedFiles,
-			DurationMs:       repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	var buf bytes.Buffer
-	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
-	if err := out.Print(output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding LLM format: %v\n", err)
-		return
-	}
-	fmt.Print(buf.String())
+	writeBulkOutput(format, output)
 }

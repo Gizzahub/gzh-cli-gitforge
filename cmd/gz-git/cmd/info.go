@@ -108,8 +108,8 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display results
-	if infoFlags.Format == "json" {
-		displayInfoResultsJSON(result)
+	if infoFlags.Format == "json" || infoFlags.Format == "llm" {
+		displayInfoResultsStructured(result, infoFlags.Format)
 		return nil
 	}
 
@@ -218,7 +218,7 @@ func displayInfoResultsDetailed(result *repository.BulkStatusResult) {
 	fmt.Println()
 }
 
-func displayInfoResultsJSON(result *repository.BulkStatusResult) {
+func displayInfoResultsStructured(result *repository.BulkStatusResult, format string) {
 	// Re-use status JSON output format as it contains all info
-	displayStatusResultsJSON(result)
+	displayStatusResultsStructured(result, format)
 }

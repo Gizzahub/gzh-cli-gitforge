@@ -448,9 +448,9 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 }
 
 func displayCommitResults(result *repository.BulkCommitResult) {
-	// JSON output mode
-	if commitFlags.Format == "json" {
-		displayCommitResultsJSON(result)
+	// JSON or LLM output mode
+	if commitFlags.Format == "json" || commitFlags.Format == "llm" {
+		displayCommitResultsStructured(result, commitFlags.Format)
 		return
 	}
 
@@ -601,7 +601,7 @@ type CommitRepositoryJSONOutput struct {
 	Error            string   `json:"error,omitempty"`
 }
 
-func displayCommitResultsJSON(result *repository.BulkCommitResult) {
+func displayCommitResultsStructured(result *repository.BulkCommitResult, format string) {
 	output := CommitJSONOutput{
 		TotalScanned:   result.TotalScanned,
 		TotalDirty:     result.TotalDirty,
@@ -633,7 +633,5 @@ func displayCommitResultsJSON(result *repository.BulkCommitResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
+	writeBulkOutput(format, output)
 }

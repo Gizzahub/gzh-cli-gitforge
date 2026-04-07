@@ -102,8 +102,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	// Handle no repositories found
 	if len(result.Results) == 0 {
-		if statusFlags.Format == "json" {
-			displayDiagnosticResultsJSON(result)
+		if statusFlags.Format == "json" || statusFlags.Format == "llm" {
+			displayDiagnosticResultsStructured(result, statusFlags.Format)
 		} else if !quiet {
 			fmt.Printf("No repositories found in %s (depth: %d)\n", directory, statusFlags.Depth)
 		}
@@ -203,15 +203,9 @@ func FormatUpstreamFixHint(branch, remote string) string {
 }
 
 func displayDiagnosticResults(report *reposync.HealthReport) {
-	// JSON output mode
-	if statusFlags.Format == "json" {
-		displayDiagnosticResultsJSON(report)
-		return
-	}
-
-	// LLM output mode
-	if statusFlags.Format == "llm" {
-		displayDiagnosticResultsLLM(report)
+	// JSON or LLM output mode
+	if statusFlags.Format == "json" || statusFlags.Format == "llm" {
+		displayDiagnosticResultsStructured(report, statusFlags.Format)
 		return
 	}
 
@@ -276,55 +270,7 @@ func displayDiagnosticResults(report *reposync.HealthReport) {
 	}
 }
 
-func displayDiagnosticResultsLLM(report *reposync.HealthReport) {
-	// Summary first (most useful for LLM context)
-	fmt.Printf("STATUS: %d repos | healthy:%d warning:%d error:%d unreachable:%d | %s\n",
-		report.Summary.Total,
-		report.Summary.Healthy,
-		report.Summary.Warning,
-		report.Summary.Error,
-		report.Summary.Unreachable,
-		report.TotalDuration.Round(100*time.Millisecond),
-	)
-
-	// Only show repos that need attention (issues-only for token efficiency)
-	hasIssues := false
-	for _, repo := range report.Results {
-		if repo.HealthStatus == reposync.HealthHealthy {
-			continue
-		}
-		hasIssues = true
-		repoName := filepath.Base(repo.Repo.TargetPath)
-		fmt.Printf("  %s %s (%s) [%s]",
-			getHealthIcon(repo.HealthStatus),
-			repoName,
-			repo.CurrentBranch,
-			repo.HealthStatus,
-		)
-		if repo.BehindBy > 0 {
-			fmt.Printf(" behind:%d", repo.BehindBy)
-		}
-		if repo.AheadBy > 0 {
-			fmt.Printf(" ahead:%d", repo.AheadBy)
-		}
-		if repo.ModifiedFiles > 0 {
-			fmt.Printf(" modified:%d", repo.ModifiedFiles)
-		}
-		if repo.UntrackedFiles > 0 {
-			fmt.Printf(" untracked:%d", repo.UntrackedFiles)
-		}
-		if repo.Recommendation != "" {
-			fmt.Printf(" -> %s", repo.Recommendation)
-		}
-		fmt.Println()
-	}
-
-	if !hasIssues {
-		fmt.Println("  All repositories healthy")
-	}
-}
-
-func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
+func displayDiagnosticResultsStructured(report *reposync.HealthReport, format string) {
 	// Field names unified with BulkStatus JSON (bulk_common.go)
 	type RepoHealthJSON struct {
 		Path             string `json:"path"`
@@ -392,9 +338,7 @@ func displayDiagnosticResultsJSON(report *reposync.HealthReport) {
 		output.Repositories = append(output.Repositories, repoJSON)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
+	writeBulkOutput(format, output)
 }
 
 func displayDiagnosticResultsCompact(report *reposync.HealthReport) {
