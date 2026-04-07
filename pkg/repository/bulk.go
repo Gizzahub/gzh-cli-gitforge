@@ -996,7 +996,6 @@ func filterRepositories(repos []string, includePattern, excludePattern string, l
 // processRepositories processes repositories in parallel.
 func (c *client) processRepositories(ctx context.Context, rootDir string, repos []string, opts BulkUpdateOptions, logger Logger) ([]RepositoryUpdateResult, error) {
 	results := make([]RepositoryUpdateResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -1012,10 +1011,7 @@ func (c *client) processRepositories(ctx context.Context, rootDir string, repos 
 			}
 
 			result := c.processRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})
@@ -1212,7 +1208,6 @@ func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFet
 // processFetchRepositories processes repositories in parallel for fetch.
 func (c *client) processFetchRepositories(ctx context.Context, rootDir string, repos []string, opts BulkFetchOptions, logger Logger) ([]RepositoryFetchResult, error) {
 	results := make([]RepositoryFetchResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -1228,10 +1223,7 @@ func (c *client) processFetchRepositories(ctx context.Context, rootDir string, r
 			}
 
 			result := c.processFetchRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})
@@ -1466,7 +1458,6 @@ func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullR
 // processPullRepositories processes repositories in parallel for pull.
 func (c *client) processPullRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPullOptions, logger Logger) ([]RepositoryPullResult, error) {
 	results := make([]RepositoryPullResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -1482,10 +1473,7 @@ func (c *client) processPullRepositories(ctx context.Context, rootDir string, re
 			}
 
 			result := c.processPullRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})
@@ -1931,7 +1919,6 @@ func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushR
 // processPushRepositories processes repositories in parallel for push.
 func (c *client) processPushRepositories(ctx context.Context, rootDir string, repos []string, opts BulkPushOptions, logger Logger) ([]RepositoryPushResult, error) {
 	results := make([]RepositoryPushResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -1947,10 +1934,7 @@ func (c *client) processPushRepositories(ctx context.Context, rootDir string, re
 			}
 
 			result := c.processPushRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})
@@ -2388,7 +2372,6 @@ func (c *client) BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkS
 // processStatusRepositories processes repositories in parallel for status check.
 func (c *client) processStatusRepositories(ctx context.Context, rootDir string, repos []string, opts BulkStatusOptions, logger Logger) ([]RepositoryStatusResult, error) {
 	results := make([]RepositoryStatusResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -2404,10 +2387,7 @@ func (c *client) processStatusRepositories(ctx context.Context, rootDir string, 
 			}
 
 			result := c.processStatusRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})

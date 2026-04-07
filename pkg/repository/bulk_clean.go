@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -176,7 +175,6 @@ func (c *client) BulkClean(ctx context.Context, opts BulkCleanOptions) (*BulkCle
 // processCleanRepositories processes repositories in parallel for cleaning.
 func (c *client) processCleanRepositories(ctx context.Context, rootDir string, repos []string, opts BulkCleanOptions, logger Logger) ([]RepositoryCleanResult, error) {
 	results := make([]RepositoryCleanResult, len(repos))
-	var mu sync.Mutex
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.Parallel)
@@ -190,10 +188,7 @@ func (c *client) processCleanRepositories(ctx context.Context, rootDir string, r
 			}
 
 			result := c.processCleanRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil
 		})

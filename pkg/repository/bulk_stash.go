@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -191,7 +190,6 @@ func (c *client) BulkStash(ctx context.Context, opts BulkStashOptions) (*BulkSta
 // processStashRepositories processes repositories in parallel for stash operations.
 func (c *client) processStashRepositories(ctx context.Context, rootDir string, repos []string, opts BulkStashOptions, logger Logger) ([]RepositoryStashResult, error) {
 	results := make([]RepositoryStashResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -207,10 +205,7 @@ func (c *client) processStashRepositories(ctx context.Context, rootDir string, r
 			}
 
 			result := c.processStashRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})

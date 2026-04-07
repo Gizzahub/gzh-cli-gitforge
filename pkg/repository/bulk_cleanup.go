@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -226,7 +225,6 @@ func (c *client) BulkCleanup(ctx context.Context, opts BulkCleanupOptions) (*Bul
 // processCleanupRepositories processes repositories in parallel for cleanup.
 func (c *client) processCleanupRepositories(ctx context.Context, rootDir string, repos []string, opts BulkCleanupOptions, logger Logger) ([]RepositoryCleanupResult, error) {
 	results := make([]RepositoryCleanupResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -242,10 +240,7 @@ func (c *client) processCleanupRepositories(ctx context.Context, rootDir string,
 			}
 
 			result := c.processCleanupRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})

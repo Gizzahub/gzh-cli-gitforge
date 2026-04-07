@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -82,7 +81,6 @@ func (c *client) BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkS
 // processSwitchRepositories processes repositories in parallel for branch switching.
 func (c *client) processSwitchRepositories(ctx context.Context, rootDir string, repos []string, opts BulkSwitchOptions, logger Logger) ([]RepositorySwitchResult, error) {
 	results := make([]RepositorySwitchResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -98,10 +96,7 @@ func (c *client) processSwitchRepositories(ctx context.Context, rootDir string, 
 			}
 
 			result := c.processSwitchRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})

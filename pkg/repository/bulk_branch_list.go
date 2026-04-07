@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -195,7 +194,6 @@ func (c *client) BulkBranchList(ctx context.Context, opts BulkBranchListOptions)
 // processBranchListRepositories processes repositories in parallel for branch list operations.
 func (c *client) processBranchListRepositories(ctx context.Context, rootDir string, repos []string, opts BulkBranchListOptions, logger Logger) ([]RepositoryBranchListResult, error) {
 	results := make([]RepositoryBranchListResult, len(repos))
-	var mu sync.Mutex
 
 	// Create error group with concurrency limit
 	g, gctx := errgroup.WithContext(ctx)
@@ -211,10 +209,7 @@ func (c *client) processBranchListRepositories(ctx context.Context, rootDir stri
 			}
 
 			result := c.processBranchListRepository(gctx, rootDir, repoPath, opts, logger)
-
-			mu.Lock()
 			results[i] = result
-			mu.Unlock()
 
 			return nil // Don't fail entire operation on single repo error
 		})
