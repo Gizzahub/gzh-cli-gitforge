@@ -437,3 +437,18 @@ func RunBulkWatch(cfg WatchConfig, executor WatchExecutor) error {
 		}
 	}
 }
+
+// writeBulkOutput serializes the output for bulk operations based on the format.
+// It handles "json" and "llm" formats centrally.
+func writeBulkOutput(format string, output any) {
+	switch format {
+	case "json":
+		if err := cliutil.WriteJSON(os.Stdout, output, true); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing JSON: %v\n", err)
+		}
+	case "llm":
+		if err := cliutil.WriteLLM(os.Stdout, output); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing LLM: %v\n", err)
+		}
+	}
+}
