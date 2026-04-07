@@ -359,9 +359,9 @@ type StatusRepositoryJSONOutput struct {
 	Error            string   `json:"error,omitempty"`
 }
 
-// displayStatusResultsJSON displays BulkStatusResult as JSON.
+// displayStatusResultsStructured displays BulkStatusResult in structured format (JSON/LLM).
 // Shared by status and info commands.
-func displayStatusResultsJSON(result *repository.BulkStatusResult) {
+func displayStatusResultsStructured(result *repository.BulkStatusResult, format string) {
 	output := StatusJSONOutput{
 		TotalScanned:   result.TotalScanned,
 		TotalProcessed: result.TotalProcessed,
@@ -388,9 +388,7 @@ func displayStatusResultsJSON(result *repository.BulkStatusResult) {
 		output.Repositories = append(output.Repositories, repoOutput)
 	}
 
-	if err := cliutil.WriteJSON(os.Stdout, output, verbose); err != nil {
-		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
-	}
+	writeBulkOutput(format, output)
 }
 
 // RunBulkWatch runs a bulk operation in watch mode with proper signal handling.
