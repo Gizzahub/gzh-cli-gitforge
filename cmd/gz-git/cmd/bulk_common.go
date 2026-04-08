@@ -58,10 +58,10 @@ type BulkCommandFlags struct {
 
 // BulkFlagOptions allows customizing which bulk flags are registered.
 type BulkFlagOptions struct {
-	SkipDryRun   bool
-	SkipFetch    bool
-	SkipFormat   bool
-	SkipWatch    bool
+	SkipDryRun    bool
+	SkipFetch     bool
+	SkipFormat    bool
+	SkipWatch     bool
 	SkipRecursive bool
 }
 
