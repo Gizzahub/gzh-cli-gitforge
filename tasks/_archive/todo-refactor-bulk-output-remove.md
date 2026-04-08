@@ -7,6 +7,9 @@ effort: M
 parent: P2-refactor-bulk-cmd-json-llm-output-builder
 created-at: 2026-04-07T10:44:19+09:00
 depends-on: [todo-refactor-bulk-output-create]
+verified-at: 2026-04-08T10:59:33.301906+09:00
+archived-at: 2026-04-08T10:59:33.301906+09:00
+verification-summary: "Verified task completion: Code changes confirm expected refactoring and cleanup."
 ---
 
 # Remove duplicated JSON/LLM output logic in bulk commands

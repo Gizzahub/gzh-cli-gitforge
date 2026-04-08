@@ -8,6 +8,10 @@
 - **effort**: S
 - **parent**: tasks/plans/P2-refactor-bulk-flag-registration-helper.md
 - **created-at**: 2026-04-07T11:00:00+09:00
+- **completed-at**: 2026-04-08T10:59:33.301906+09:00
+- **verified-at**: 2026-04-08T10:59:33.301906+09:00
+- **archived-at**: 2026-04-08T10:59:33.301906+09:00
+- **verification-summary**: "Verified task completion: Code changes confirm expected refactoring and cleanup."
 - **depends-on**: todo-unify-bulk-flag-registration-create
 
 ## Objective

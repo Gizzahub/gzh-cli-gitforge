@@ -11,6 +11,9 @@ completed-at: 2026-04-07T11:05:00+09:00
 completion-summary: "Implemented writeBulkOutput function in cmd/gz-git/cmd/bulk_common.go to handle JSON and LLM formatting"
 verification-status: verified
 verification-evidence: "make build completed successfully, verifying the new helper is correctly initialized and resolves compile errors"
+verified-at: 2026-04-08T10:59:33.301906+09:00
+archived-at: 2026-04-08T10:59:33.301906+09:00
+verification-summary: "Verified task completion: Code changes confirm expected refactoring and cleanup."
 ---
 
 # Build shared writeBulkOutput helper for JSON/LLM formats
