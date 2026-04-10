@@ -6,6 +6,12 @@
 - **Effort**: S (1h)
 - **Source**: session-review / bug-prevention
 - **Tags**: bulk-cmd, flags, watch, interval, regression-prevention
+- **State**: done
+- **Progress**: 100%
+- **Total Tasks**: 2
+- **Completed Tasks**: 2
+- **Completed At**: 2026-04-08T14:27:00+09:00
+- **Completion Summary**: Extracted unified flag registration helper with options and refactored bulk commands to use it.
 
 ## Problem
 
@@ -75,5 +81,5 @@ func addBulkFlagsWithOpts(cmd *cobra.Command, flags *BulkCommandFlags, opts Bulk
 
 ## Children
 
-- `tasks/todos/todo-unify-bulk-flag-registration-create.md`
-- `tasks/todos/todo-unify-bulk-flag-registration-remove.md`
+- `tasks/_archive/todo-unify-bulk-flag-registration-create.md`
+- `tasks/_archive/todo-unify-bulk-flag-registration-remove.md`

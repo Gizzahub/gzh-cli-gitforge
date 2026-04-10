@@ -6,6 +6,12 @@
 - **Effort**: S (30m)
 - **Source**: session-review / code-analysis
 - **Tags**: performance, concurrency, mutex, bulk-cmd
+- **State**: done
+- **Progress**: 100%
+- **Total Tasks**: 1
+- **Completed Tasks**: 1
+- **Completed At**: 2026-04-08T14:27:00+09:00
+- **Completion Summary**: Removed unnecessary `sync.Mutex` locks in 14 bulk processing functions since they write to independent indices.
 
 ## Problem
 
@@ -61,4 +67,4 @@ Go spec 보장: slice 원소들은 별개의 메모리 주소이며 독립적으
 
 ## Children
 
-- `tasks/todos/todo-refactor-remove-bulk-mutex.md`
+- `tasks/_archive/todo-refactor-remove-bulk-mutex.md`

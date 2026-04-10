@@ -6,6 +6,12 @@
 - **Effort**: M (2-3h)
 - **Source**: session-review / code-analysis
 - **Tags**: bulk-cmd, duplication, output, json, llm
+- **State**: done
+- **Progress**: 100%
+- **Total Tasks**: 2
+- **Completed Tasks**: 2
+- **Completed At**: 2026-04-08T14:27:00+09:00
+- **Completion Summary**: Extracted shared JSON/LLM output builder and refactored all 10 bulk commands to use it. Legacy logic was removed.
 
 ## Problem
 
@@ -72,5 +78,5 @@ func displayFetchResults(result *repository.BulkFetchResult) {
 
 ## Children
 
-- `tasks/done/todo-refactor-bulk-output-create.md`
-- `tasks/done/todo-refactor-bulk-output-remove.md`
+- `tasks/_archive/todo-refactor-bulk-output-create.md`
+- `tasks/_archive/todo-refactor-bulk-output-remove.md`

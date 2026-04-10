@@ -6,6 +6,12 @@
 - **Effort**: XS (15m)
 - **Source**: session-review / lint
 - **Tags**: lint, revive, naming-convention, nolint
+- **State**: done
+- **Progress**: 100%
+- **Total Tasks**: 1
+- **Completed Tasks**: 1
+- **Completed At**: 2026-04-08T14:27:00+09:00
+- **Completion Summary**: Added `.golangci.yml` revive exception for stutter check on exported types.
 
 ## Problem
 
@@ -58,4 +64,4 @@ linters-settings:
 
 ## Children
 
-- `tasks/todos/todo-chore-disable-revive-stutter-check.md`
+- `tasks/_archive/todo-chore-disable-revive-stutter-check.md`
