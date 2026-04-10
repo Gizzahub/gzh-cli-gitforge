@@ -6,12 +6,15 @@
 - **Effort**: M (2-3h)
 - **Source**: session-review / code-analysis
 - **Tags**: bulk-cmd, duplication, output, json, llm
-- **State**: done
+- **State**: archived
 - **Progress**: 100%
 - **Total Tasks**: 2
 - **Completed Tasks**: 2
 - **Completed At**: 2026-04-08T14:27:00+09:00
 - **Completion Summary**: Extracted shared JSON/LLM output builder and refactored all 10 bulk commands to use it. Legacy logic was removed.
+- **archived-at**: 2026-04-10T13:09:00+09:00
+- **verified-at**: 2026-04-10T13:09:00+09:00
+- **verification-summary**: Verified via commit 8a00c29 and `bulk_common.go` code changes. All 10 bulk commands successfully consume the shared output logic.
 
 ## Problem
 

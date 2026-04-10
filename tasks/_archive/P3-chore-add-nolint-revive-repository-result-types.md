@@ -6,12 +6,15 @@
 - **Effort**: XS (15m)
 - **Source**: session-review / lint
 - **Tags**: lint, revive, naming-convention, nolint
-- **State**: done
+- **State**: archived
 - **Progress**: 100%
 - **Total Tasks**: 1
 - **Completed Tasks**: 1
 - **Completed At**: 2026-04-08T14:27:00+09:00
 - **Completion Summary**: Added `.golangci.yml` revive exception for stutter check on exported types.
+- **archived-at**: 2026-04-10T13:09:00+09:00
+- **verified-at**: 2026-04-10T13:09:00+09:00
+- **verification-summary**: Verified via commit e92d615 and `.golangci.yml` update. Type names remain compatible yet passing CI lints.
 
 ## Problem
 

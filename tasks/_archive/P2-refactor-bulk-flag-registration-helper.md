@@ -6,12 +6,15 @@
 - **Effort**: S (1h)
 - **Source**: session-review / bug-prevention
 - **Tags**: bulk-cmd, flags, watch, interval, regression-prevention
-- **State**: done
+- **State**: archived
 - **Progress**: 100%
 - **Total Tasks**: 2
 - **Completed Tasks**: 2
 - **Completed At**: 2026-04-08T14:27:00+09:00
 - **Completion Summary**: Extracted unified flag registration helper with options and refactored bulk commands to use it.
+- **archived-at**: 2026-04-10T13:09:00+09:00
+- **verified-at**: 2026-04-10T13:09:00+09:00
+- **verification-summary**: Verified via commits 5806e1f and 1766efb (`addBulkFlagsWithOpts`). 5 manual registrations replaced, preventing default-value bugs.
 
 ## Problem
 

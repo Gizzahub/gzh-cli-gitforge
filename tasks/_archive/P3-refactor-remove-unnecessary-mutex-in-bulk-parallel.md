@@ -6,12 +6,15 @@
 - **Effort**: S (30m)
 - **Source**: session-review / code-analysis
 - **Tags**: performance, concurrency, mutex, bulk-cmd
-- **State**: done
+- **State**: archived
 - **Progress**: 100%
 - **Total Tasks**: 1
 - **Completed Tasks**: 1
 - **Completed At**: 2026-04-08T14:27:00+09:00
 - **Completion Summary**: Removed unnecessary `sync.Mutex` locks in 14 bulk processing functions since they write to independent indices.
+- **archived-at**: 2026-04-10T13:09:00+09:00
+- **verified-at**: 2026-04-10T13:09:00+09:00
+- **verification-summary**: Verified via commit 1d340a4 and removal of mutexes in `pkg/repository/ bulk parallel loops`. Improved concurrency safely.
 
 ## Problem
 
