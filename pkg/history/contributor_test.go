@@ -87,8 +87,8 @@ func TestContributorAnalyzer_Analyze(t *testing.T) {
 					// Handle log command for specific author
 					if len(args) > 0 && args[0] == "log" {
 						for i, arg := range args {
-							if strings.HasPrefix(arg, "--author=") {
-								email := strings.TrimPrefix(arg, "--author=")
+							if after, ok := strings.CutPrefix(arg, "--author="); ok {
+								email := after
 								if output, ok := tt.logOutputs[email]; ok {
 									return &gitcmd.Result{
 										Stdout:   output,
@@ -178,8 +178,8 @@ func TestContributorAnalyzer_GetTopContributors(t *testing.T) {
 
 					if len(args) > 0 && args[0] == "log" {
 						for i, arg := range args {
-							if strings.HasPrefix(arg, "--author=") {
-								email := strings.TrimPrefix(arg, "--author=")
+							if after, ok := strings.CutPrefix(arg, "--author="); ok {
+								email := after
 								if output, ok := logOutputs[email]; ok {
 									return &gitcmd.Result{Stdout: output, Stderr: "", ExitCode: 0}, nil
 								}
@@ -443,9 +443,10 @@ func TestContributorAnalyzer_ParseContributorStats_CommitsPerWeek(t *testing.T) 
 
 	// 14 commits over 14 days = 1 per day = 7 per week
 	lines := make([]string, 0, 42)
-	for i := 0; i < 14; i++ {
+	for i := range 14 {
 		timestamp := baseTime + int64(i*86400) // One per day
-		lines = append(lines,
+		lines = append(
+			lines,
 			fmt.Sprintf("%d", timestamp),
 			"1\t0\tfile.go",
 			"", // Empty line

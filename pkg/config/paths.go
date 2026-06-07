@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 )
 
 const (
@@ -139,11 +140,8 @@ func (p *Paths) ListProfiles() ([]string, error) {
 		}
 		name := entry.Name()
 		ext := filepath.Ext(name)
-		for _, supportedExt := range supportedExtensions {
-			if ext == supportedExt {
-				profiles = append(profiles, name[:len(name)-len(ext)])
-				break
-			}
+		if slices.Contains(supportedExtensions, ext) {
+			profiles = append(profiles, name[:len(name)-len(ext)])
 		}
 	}
 

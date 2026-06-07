@@ -180,8 +180,8 @@ func validateFlag(flag string) error {
 
 	// Extract flag name (before '=' if present)
 	flagName := flag
-	if idx := strings.Index(flag, "="); idx != -1 {
-		flagName = flag[:idx]
+	if before, _, ok := strings.Cut(flag, "="); ok {
+		flagName = before
 	}
 
 	// Check if flag is in whitelist

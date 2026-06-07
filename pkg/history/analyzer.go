@@ -239,9 +239,9 @@ func (h *historyAnalyzer) parseCommitStats(output string) (*CommitStats, error) 
 
 func (h *historyAnalyzer) parseShortstat(line string) (additions, deletions int) {
 	// Example: " 2 files changed, 10 insertions(+), 5 deletions(-)"
-	parts := strings.Split(line, ",")
+	parts := strings.SplitSeq(line, ",")
 
-	for _, part := range parts {
+	for part := range parts {
 		part = strings.TrimSpace(part)
 
 		if strings.Contains(part, "insertion") {

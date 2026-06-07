@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
@@ -70,13 +71,14 @@ func FormatStatusText(health reposync.RepoHealth) string {
 		parts = append(parts, "merge-in-progress")
 	}
 
-	result := parts[0]
+	var result strings.Builder
+	result.WriteString(parts[0])
 	if len(parts) > 1 {
-		result += "    " + parts[1]
+		result.WriteString("    " + parts[1])
 		for i := 2; i < len(parts); i++ {
-			result += " + " + parts[i]
+			result.WriteString(" + " + parts[i])
 		}
 	}
 
-	return result
+	return result.String()
 }

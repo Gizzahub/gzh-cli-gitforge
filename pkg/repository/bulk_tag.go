@@ -199,8 +199,6 @@ func (c *client) processTagRepositories(ctx context.Context, rootDir string, rep
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {

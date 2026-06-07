@@ -254,8 +254,8 @@ func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string
 	}
 
 	// Parse status output
-	lines := strings.Split(statusResult.Stdout, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(statusResult.Stdout, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

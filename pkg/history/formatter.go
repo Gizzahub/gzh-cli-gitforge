@@ -339,7 +339,7 @@ func truncate(s string, maxLen int) string {
 }
 
 // formatLLM formats data using gzh-cli-core's LLM formatter.
-func (f *formatter) formatLLM(data interface{}) ([]byte, error) {
+func (f *formatter) formatLLM(data any) ([]byte, error) {
 	var buf bytes.Buffer
 	out := cli.NewOutput().SetWriter(&buf).SetFormat("llm")
 	if err := out.Print(data); err != nil {

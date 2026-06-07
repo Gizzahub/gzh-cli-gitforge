@@ -146,12 +146,10 @@ func CalculateBackoff(attempt int) time.Duration {
 
 	// Base backoff: 2^attempt seconds
 	// #nosec G115 -- attempt is bounded to [0, 6], safe for uint conversion
-	backoff := time.Duration(1<<uint(attempt)) * time.Second
-
-	// Cap at 60 seconds
-	if backoff > 60*time.Second {
-		backoff = 60 * time.Second
-	}
+	backoff := min(
+		// Cap at 60 seconds
+		time.Duration(1<<uint(attempt))*time.Second, 60*time.Second,
+	)
 
 	// Add jitter (10% of backoff)
 	// #nosec G404 -- math/rand is appropriate for non-cryptographic jitter

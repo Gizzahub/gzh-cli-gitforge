@@ -39,7 +39,7 @@ func setupLargeRepo(b *testing.B, path string, commits int) {
 
 	setupGitRepo(b, path)
 
-	for i := 0; i < commits; i++ {
+	for i := range commits {
 		filename := filepath.Join(path, fmt.Sprintf("file%d.txt", i))
 		writeFile(b, filename, fmt.Sprintf("Content %d\n", i))
 		runCmd(b, path, "git", "add", filepath.Base(filename))

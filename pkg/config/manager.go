@@ -14,7 +14,7 @@ import (
 )
 
 // unmarshalFile reads a file and unmarshals it based on its extension.
-func unmarshalFile(path string, v interface{}) error {
+func unmarshalFile(path string, v any) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -38,7 +38,7 @@ func unmarshalFile(path string, v interface{}) error {
 }
 
 // marshalFile marshals data and writes it to a file based on its extension.
-func marshalFile(path string, v interface{}, perm os.FileMode) error {
+func marshalFile(path string, v any, perm os.FileMode) error {
 	var data []byte
 	var err error
 
@@ -108,7 +108,7 @@ func (m *Manager) Initialize() error {
 	if _, err := os.Stat(m.paths.GlobalConfigFile); os.IsNotExist(err) {
 		globalConfig := &GlobalConfig{
 			ActiveProfile: DefaultProfileName,
-			Defaults: map[string]interface{}{
+			Defaults: map[string]any{
 				"parallel":   10,
 				"cloneProto": "ssh",
 			},
@@ -321,7 +321,7 @@ func (m *Manager) LoadGlobalConfig() (*GlobalConfig, error) {
 		// Return default config if file doesn't exist
 		return &GlobalConfig{
 			ActiveProfile: DefaultProfileName,
-			Defaults: map[string]interface{}{
+			Defaults: map[string]any{
 				"parallel":   10,
 				"cloneProto": "ssh",
 			},

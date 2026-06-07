@@ -113,7 +113,7 @@ func (p *Provider) ListOrganizationRepos(ctx context.Context, group string) ([]*
 
 	opts := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
-		IncludeSubGroups: gitlab.Ptr(true),
+		IncludeSubGroups: new(true),
 	}
 
 	for {

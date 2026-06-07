@@ -20,7 +20,7 @@ import (
 //	    "provider": provider,  // From command flags
 //	    "org": org,
 //	})
-func LoadEffectiveConfig(cmd *cobra.Command, flags map[string]interface{}) (*config.EffectiveConfig, error) {
+func LoadEffectiveConfig(cmd *cobra.Command, flags map[string]any) (*config.EffectiveConfig, error) {
 	// Create loader
 	loader, err := config.NewLoader()
 	if err != nil {

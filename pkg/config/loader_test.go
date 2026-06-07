@@ -31,7 +31,7 @@ func TestConfigPrecedence(t *testing.T) {
 	// Create global config
 	globalConfig := &GlobalConfig{
 		ActiveProfile: "default",
-		Defaults: map[string]interface{}{
+		Defaults: map[string]any{
 			"parallel":   10, // Global default
 			"cloneProto": "https",
 		},
@@ -76,7 +76,7 @@ func TestConfigPrecedence(t *testing.T) {
 	}
 
 	// Test 2: Flags override profile
-	flags := map[string]interface{}{
+	flags := map[string]any{
 		"parallel": 20,
 		"provider": "gitlab",
 	}
@@ -300,7 +300,7 @@ func TestApplyFlags(t *testing.T) {
 		Sources:    make(map[string]string),
 	}
 
-	flags := map[string]interface{}{
+	flags := map[string]any{
 		"provider":    "gitlab", // Override
 		"base-url":    "https://gitlab.company.com",
 		"token":       "flag-token",

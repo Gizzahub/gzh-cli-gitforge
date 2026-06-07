@@ -6,6 +6,7 @@ package reposync
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
@@ -83,10 +84,8 @@ func repositoryPatternCandidates(repo *provider.Repository) []string {
 
 func matchesAnyRepositoryPattern(patterns []*regexp.Regexp, candidates []string) bool {
 	for _, pattern := range patterns {
-		for _, candidate := range candidates {
-			if pattern.MatchString(candidate) {
-				return true
-			}
+		if slices.ContainsFunc(candidates, pattern.MatchString) {
+			return true
 		}
 	}
 	return false

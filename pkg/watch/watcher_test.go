@@ -277,7 +277,7 @@ func BenchmarkWatcherWithMultipleRepos(b *testing.B) {
 			}
 
 			// Setup: Create mock repository states
-			for i := 0; i < repoCount; i++ {
+			for i := range repoCount {
 				path := fmt.Sprintf("/test/repo%d", i)
 				w.watching[path] = &repoState{
 					path: path,

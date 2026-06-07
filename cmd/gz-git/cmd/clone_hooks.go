@@ -8,10 +8,10 @@ import (
 )
 
 // parseCloneHooks parses hooks from a raw map interface.
-func parseCloneHooks(raw map[string]interface{}) *CloneHooks {
+func parseCloneHooks(raw map[string]any) *CloneHooks {
 	hooks := &CloneHooks{}
 
-	if before, ok := raw["before"].([]interface{}); ok {
+	if before, ok := raw["before"].([]any); ok {
 		for _, b := range before {
 			if s, ok := b.(string); ok && s != "" {
 				hooks.Before = append(hooks.Before, s)
@@ -19,7 +19,7 @@ func parseCloneHooks(raw map[string]interface{}) *CloneHooks {
 		}
 	}
 
-	if after, ok := raw["after"].([]interface{}); ok {
+	if after, ok := raw["after"].([]any); ok {
 		for _, a := range after {
 			if s, ok := a.(string); ok && s != "" {
 				hooks.After = append(hooks.After, s)
@@ -75,6 +75,6 @@ type loggerAdapter struct {
 	logger repository.Logger
 }
 
-func (a *loggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+func (a *loggerAdapter) Info(msg string, keysAndValues ...any) {
 	a.logger.Info(msg, keysAndValues...)
 }

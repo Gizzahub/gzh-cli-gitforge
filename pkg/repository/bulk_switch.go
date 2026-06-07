@@ -87,8 +87,6 @@ func (c *client) processSwitchRepositories(ctx context.Context, rootDir string, 
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {

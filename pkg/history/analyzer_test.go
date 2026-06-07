@@ -446,11 +446,12 @@ func TestHistoryAnalyzer_ParseCommitStats_Averages(t *testing.T) {
 	lines := make([]string, 0, 42)
 
 	// 14 commits over 7 days = 2 per day average
-	for i := 0; i < 14; i++ {
+	for i := range 14 {
 		timestamp := baseTime + int64(i*43200) // Every 12 hours
-		lines = append(lines,
+		lines = append(
+			lines,
 			fmt.Sprintf("hash%d|Author|author@example.com|%d", i, timestamp),
-			"",                              // Empty line between commits
+			"", // Empty line between commits
 			" 1 file changed, 1 insertion(+)",
 		)
 	}

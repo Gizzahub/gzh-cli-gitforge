@@ -332,10 +332,7 @@ func (m SyncProgressModel) renderRepoList() string {
 			count := g.EndIndex - g.StartIndex
 			header := fmt.Sprintf("── %s (%d repos) ", name, count)
 			// Pad with ─ to fill width
-			padLen := 40 - len(header)
-			if padLen < 2 {
-				padLen = 2
-			}
+			padLen := max(40-len(header), 2)
 			header += strings.Repeat("─", padLen)
 			lines = append(lines, displayLine{isHeader: true, header: header})
 			for i := g.StartIndex; i < g.EndIndex; i++ {
@@ -349,28 +346,16 @@ func (m SyncProgressModel) renderRepoList() string {
 	}
 
 	// Calculate visible area
-	visibleHeight := m.height - 8
-	if visibleHeight < 5 {
-		visibleHeight = 5
-	}
-	if visibleHeight > len(lines) {
-		visibleHeight = len(lines)
-	}
+	visibleHeight := min(max(m.height-8, 5), len(lines))
 
 	// Clamp scrollTop
-	maxScroll := len(lines) - visibleHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
+	maxScroll := max(len(lines)-visibleHeight, 0)
 	if m.scrollTop > maxScroll {
 		m.scrollTop = maxScroll
 	}
 
 	var b strings.Builder
-	end := m.scrollTop + visibleHeight
-	if end > len(lines) {
-		end = len(lines)
-	}
+	end := min(m.scrollTop+visibleHeight, len(lines))
 
 	for i := m.scrollTop; i < end; i++ {
 		dl := lines[i]
@@ -489,14 +474,8 @@ func (m *SyncProgressModel) totalDisplayLines() int {
 }
 
 func (m *SyncProgressModel) scrollDown() {
-	visibleHeight := m.height - 8
-	if visibleHeight < 5 {
-		visibleHeight = 5
-	}
-	maxScroll := m.totalDisplayLines() - visibleHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
+	visibleHeight := max(m.height-8, 5)
+	maxScroll := max(m.totalDisplayLines()-visibleHeight, 0)
 	if m.scrollTop < maxScroll {
 		m.scrollTop++
 	}
@@ -509,14 +488,8 @@ func (m *SyncProgressModel) scrollUp() {
 }
 
 func (m *SyncProgressModel) scrollToEnd() {
-	visibleHeight := m.height - 8
-	if visibleHeight < 5 {
-		visibleHeight = 5
-	}
-	maxScroll := m.totalDisplayLines() - visibleHeight
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
+	visibleHeight := max(m.height-8, 5)
+	maxScroll := max(m.totalDisplayLines()-visibleHeight, 0)
 	m.scrollTop = maxScroll
 }
 

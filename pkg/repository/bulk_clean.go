@@ -180,8 +180,6 @@ func (c *client) processCleanRepositories(ctx context.Context, rootDir string, r
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath
-
 		g.Go(func() error {
 			if opts.ProgressCallback != nil {
 				opts.ProgressCallback(i+1, len(repos), repoPath)
@@ -302,8 +300,8 @@ func (c *client) processCleanRepository(ctx context.Context, rootDir, repoPath s
 // Lines are formatted as "Would remove X" (dry-run) or "Removing X" (force).
 func parseCleanOutput(output string) []string {
 	var files []string
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

@@ -6,6 +6,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -231,8 +232,6 @@ func (c *client) processCleanupRepositories(ctx context.Context, rootDir string,
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -432,8 +431,8 @@ func (c *client) getMergedBranches(ctx context.Context, repoPath, baseBranch str
 	}
 
 	var branches []string
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		line = strings.TrimPrefix(line, "* ")
 		if line != "" && line != baseBranch {
@@ -452,8 +451,8 @@ func (c *client) getStaleBranches(ctx context.Context, repoPath string, threshol
 	}
 
 	var stale []string
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
+	for line := range lines {
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			branchName := parts[0]
@@ -481,8 +480,8 @@ func (c *client) getGoneBranches(ctx context.Context, repoPath string) ([]string
 	}
 
 	var gone []string
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
+	for line := range lines {
 		if strings.Contains(line, "[gone]") {
 			parts := strings.Fields(line)
 			if len(parts) >= 1 {
@@ -501,10 +500,8 @@ func (c *client) isProtectedBranch(branchName, currentBranch string, additionalP
 	}
 
 	// Check default protected branches
-	for _, protected := range defaultProtectedBranches {
-		if branchName == protected {
-			return true
-		}
+	if slices.Contains(defaultProtectedBranches, branchName) {
+		return true
 	}
 
 	// Check patterns with wildcards

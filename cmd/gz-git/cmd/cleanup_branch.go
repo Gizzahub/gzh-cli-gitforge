@@ -87,7 +87,7 @@ func runCleanupBranch(cmd *cobra.Command, args []string) error {
 	// Build exclude list
 	excludePatterns := []string{}
 	if cleanupBranchProtect != "" {
-		for _, p := range strings.Split(cleanupBranchProtect, ",") {
+		for p := range strings.SplitSeq(cleanupBranchProtect, ",") {
 			p = strings.TrimSpace(p)
 			if p != "" {
 				excludePatterns = append(excludePatterns, p)

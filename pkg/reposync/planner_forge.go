@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -248,12 +249,7 @@ func (p *ForgePlanner) filterRepos(repos []*provider.Repository) ([]*provider.Re
 
 // containsStringSlice checks if slice contains the target string.
 func containsStringSlice(slice []string, target string) bool {
-	for _, s := range slice {
-		if s == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, target)
 }
 
 // toRepoSpec converts a provider.Repository to a RepoSpec.

@@ -734,7 +734,7 @@ func BenchmarkBulkPushMultipleRepos(b *testing.B) {
 	tmpDir := b.TempDir()
 
 	// Create 10 test repositories
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i)))
 		if err := os.MkdirAll(repoPath, 0o755); err != nil {
 			b.Fatalf("Failed to create repo%d: %v", i, err)
@@ -777,7 +777,7 @@ func BenchmarkBulkPushNestedRepos(b *testing.B) {
 	}
 
 	// Create 5 nested repositories
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		nestedPath := filepath.Join(parentPath, filepath.Base(tmpDir)+"-nested-"+string(rune('0'+i)))
 		if err := os.MkdirAll(nestedPath, 0o755); err != nil {
 			b.Fatalf("Failed to create nested%d: %v", i, err)
@@ -812,7 +812,7 @@ func BenchmarkPushParallelProcessing(b *testing.B) {
 	tmpDir := b.TempDir()
 
 	// Create 20 repositories
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		repoPath := filepath.Join(tmpDir, filepath.Base(tmpDir)+"-repo-"+string(rune('0'+i/10))+string(rune('0'+i%10)))
 		if err := os.MkdirAll(repoPath, 0o755); err != nil {
 			b.Fatalf("Failed to create repo: %v", err)

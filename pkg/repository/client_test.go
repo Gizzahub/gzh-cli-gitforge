@@ -16,7 +16,7 @@ func TestNewClient(t *testing.T) {
 
 	// Find project root by looking for .git directory
 	projectRoot := "."
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
 			break
 		}
@@ -41,7 +41,7 @@ func TestNewClientWithOptions(t *testing.T) {
 
 	// Find project root by looking for .git directory
 	projectRoot := "."
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
 			break
 		}
@@ -69,7 +69,7 @@ func TestIsRepository(t *testing.T) {
 
 	// Find project root by looking for .git directory
 	projectRoot := "."
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err == nil {
 			break
 		}
@@ -523,19 +523,19 @@ type testLogger struct {
 	messages []string
 }
 
-func (l *testLogger) Debug(msg string, args ...interface{}) {
+func (l *testLogger) Debug(msg string, args ...any) {
 	l.messages = append(l.messages, msg)
 }
 
-func (l *testLogger) Info(msg string, args ...interface{}) {
+func (l *testLogger) Info(msg string, args ...any) {
 	l.messages = append(l.messages, msg)
 }
 
-func (l *testLogger) Warn(msg string, args ...interface{}) {
+func (l *testLogger) Warn(msg string, args ...any) {
 	l.messages = append(l.messages, msg)
 }
 
-func (l *testLogger) Error(msg string, args ...interface{}) {
+func (l *testLogger) Error(msg string, args ...any) {
 	l.messages = append(l.messages, msg)
 }
 

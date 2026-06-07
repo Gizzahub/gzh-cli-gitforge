@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -181,12 +182,7 @@ func (f CommandFactory) runInit(cmd *cobra.Command, opts *InitOptions) error {
 
 // isValidStrategy checks if strategy is valid.
 func isValidStrategy(strategy string) bool {
-	for _, s := range ValidStrategies {
-		if s == strategy {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ValidStrategies, strategy)
 }
 
 func (f CommandFactory) createTemplate(cmd *cobra.Command, opts *InitOptions, outputPath string) error {
@@ -529,11 +525,11 @@ func extractSSHPortFromURL(url string) int {
 	rest := strings.TrimPrefix(url, "ssh://")
 
 	// Find the host:port part (before the first /)
-	slashIdx := strings.Index(rest, "/")
-	if slashIdx == -1 {
+	before, _, ok := strings.Cut(rest, "/")
+	if !ok {
 		return 0
 	}
-	hostPort := rest[:slashIdx]
+	hostPort := before
 
 	// Find port after @user if present
 	atIdx := strings.LastIndex(hostPort, "@")

@@ -54,7 +54,7 @@ func TestLoadOrCreateConfig_NewFile(t *testing.T) {
 		t.Errorf("parallel = %v, want 4", config["parallel"])
 	}
 
-	repos, ok := config["repositories"].([]interface{})
+	repos, ok := config["repositories"].([]any)
 	if !ok {
 		t.Error("repositories should be a slice")
 	}
@@ -112,11 +112,11 @@ func TestWriteConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "output.yaml")
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"strategy": "reset",
 		"parallel": 4,
-		"repositories": []interface{}{
-			map[string]interface{}{
+		"repositories": []any{
+			map[string]any{
 				"name":       "test-repo",
 				"url":        "https://github.com/test/repo.git",
 				"targetPath": "./repos/test",
@@ -134,7 +134,7 @@ func TestWriteConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var loaded map[string]interface{}
+	var loaded map[string]any
 	if err := yaml.Unmarshal(data, &loaded); err != nil {
 		t.Fatal(err)
 	}
@@ -149,11 +149,11 @@ func TestAddOptions_DuplicateDetection(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "config.yaml")
 
 	// Create config with existing repo
-	config := map[string]interface{}{
+	config := map[string]any{
 		"strategy": "reset",
 		"parallel": 4,
-		"repositories": []interface{}{
-			map[string]interface{}{
+		"repositories": []any{
+			map[string]any{
 				"name":       "existing",
 				"url":        "https://github.com/test/existing.git",
 				"targetPath": "./repos/existing",
@@ -171,7 +171,7 @@ func TestAddOptions_DuplicateDetection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repos, ok := loaded["repositories"].([]interface{})
+	repos, ok := loaded["repositories"].([]any)
 	if !ok {
 		t.Fatal("repositories field is not []interface{}")
 	}
@@ -179,7 +179,7 @@ func TestAddOptions_DuplicateDetection(t *testing.T) {
 
 	// Check duplicate detection logic
 	for _, r := range repos {
-		if rm, ok := r.(map[string]interface{}); ok {
+		if rm, ok := r.(map[string]any); ok {
 			if rm["targetPath"] == newTargetPath {
 				// This is the expected behavior
 				return

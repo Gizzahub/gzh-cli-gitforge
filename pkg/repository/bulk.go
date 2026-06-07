@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -942,13 +943,7 @@ func shouldIgnoreDirectory(name string) bool {
 		".tmp",
 	}
 
-	for _, pattern := range ignorePatterns {
-		if name == pattern {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(ignorePatterns, name)
 }
 
 // filterRepositories filters repositories based on include/exclude patterns.
@@ -1003,8 +998,6 @@ func (c *client) processRepositories(ctx context.Context, rootDir string, repos 
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -1215,8 +1208,6 @@ func (c *client) processFetchRepositories(ctx context.Context, rootDir string, r
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -1466,8 +1457,6 @@ func (c *client) processPullRepositories(ctx context.Context, rootDir string, re
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -1927,8 +1916,6 @@ func (c *client) processPushRepositories(ctx context.Context, rootDir string, re
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -2116,7 +2103,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 				result.Duration = time.Since(startTime)
 				return result
 			}
-			for _, line := range strings.Split(strings.TrimSpace(remotesResult.Stdout), "\n") {
+			for line := range strings.SplitSeq(strings.TrimSpace(remotesResult.Stdout), "\n") {
 				if remote := strings.TrimSpace(line); remote != "" {
 					remotes = append(remotes, remote)
 				}
@@ -2180,11 +2167,8 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	primaryRemote := ""
 	if setUpstreamMissing && len(remotes) > 0 {
 		primaryRemote = remotes[0]
-		for _, r := range remotes {
-			if r == "origin" {
-				primaryRemote = "origin"
-				break
-			}
+		if slices.Contains(remotes, "origin") {
+			primaryRemote = "origin"
 		}
 	}
 
@@ -2380,8 +2364,6 @@ func (c *client) processStatusRepositories(ctx context.Context, rootDir string, 
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {

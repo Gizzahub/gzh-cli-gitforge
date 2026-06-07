@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -55,13 +56,7 @@ func TestWatchIntegration_UntrackedFile(t *testing.T) {
 		if len(event.Files) == 0 {
 			t.Error("Expected files in event, got none")
 		}
-		found := false
-		for _, f := range event.Files {
-			if f == "test.txt" {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(event.Files, "test.txt")
 		if !found {
 			t.Errorf("Expected test.txt in files, got %v", event.Files)
 		}
@@ -239,7 +234,7 @@ func TestWatchIntegration_MultipleRepositories(t *testing.T) {
 	events := make([]Event, 0, 2)
 	timeout := time.After(5 * time.Second)
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		select {
 		case event := <-watcher.Events():
 			events = append(events, event)
@@ -380,7 +375,7 @@ func initGitRepo(t *testing.T, dir string) {
 	}
 
 	// Configure git user for commits; ignore errors as these are best-effort test setup steps.
-	_ = exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()   //nolint:noctx // test helper; no context available at this call site
+	_ = exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()         //nolint:noctx // test helper; no context available at this call site
 	_ = exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run() //nolint:noctx // test helper; no context available at this call site
 }
 

@@ -170,8 +170,8 @@ func (r *ParsedRefspec) String() string {
 // GetSourceBranch returns the source branch name.
 // If the source is a full ref path (refs/heads/branch), it extracts the branch name.
 func (r *ParsedRefspec) GetSourceBranch() string {
-	if strings.HasPrefix(r.Source, "refs/heads/") {
-		return strings.TrimPrefix(r.Source, "refs/heads/")
+	if after, ok := strings.CutPrefix(r.Source, "refs/heads/"); ok {
+		return after
 	}
 	return r.Source
 }
@@ -185,8 +185,8 @@ func (r *ParsedRefspec) GetDestinationBranch() string {
 		dest = r.Source
 	}
 
-	if strings.HasPrefix(dest, "refs/heads/") {
-		return strings.TrimPrefix(dest, "refs/heads/")
+	if after, ok := strings.CutPrefix(dest, "refs/heads/"); ok {
+		return after
 	}
 	return dest
 }

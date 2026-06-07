@@ -695,66 +695,66 @@ repositories:
 func TestDetectConfigType(t *testing.T) {
 	tests := []struct {
 		name     string
-		config   map[string]interface{}
+		config   map[string]any
 		wantType ConfigType
 	}{
 		{
 			name: "workspace kind",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"kind":       "workspace",
-				"workspaces": map[string]interface{}{},
+				"workspaces": map[string]any{},
 			},
 			wantType: ConfigTypeWorkspace,
 		},
 		{
 			name: "repositories kind",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"kind":         "repositories",
-				"repositories": []interface{}{},
+				"repositories": []any{},
 			},
 			wantType: ConfigTypeWorkspace,
 		},
 		{
 			name: "groups kind",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"kind": "groups",
 			},
 			wantType: ConfigTypeClone,
 		},
 		{
 			name: "flat kind",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"kind": "flat",
 			},
 			wantType: ConfigTypeClone,
 		},
 		{
 			name: "heuristic - named groups",
-			config: map[string]interface{}{
-				"core": map[string]interface{}{
+			config: map[string]any{
+				"core": map[string]any{
 					"target":       ".",
-					"repositories": []interface{}{},
+					"repositories": []any{},
 				},
 			},
 			wantType: ConfigTypeClone,
 		},
 		{
 			name: "heuristic - workspaces map",
-			config: map[string]interface{}{
-				"workspaces": map[string]interface{}{},
+			config: map[string]any{
+				"workspaces": map[string]any{},
 			},
 			wantType: ConfigTypeWorkspace,
 		},
 		{
 			name: "heuristic - repositories array",
-			config: map[string]interface{}{
-				"repositories": []interface{}{},
+			config: map[string]any{
+				"repositories": []any{},
 			},
 			wantType: ConfigTypeWorkspace,
 		},
 		{
 			name:     "unknown - empty",
-			config:   map[string]interface{}{},
+			config:   map[string]any{},
 			wantType: ConfigTypeUnknown,
 		},
 	}

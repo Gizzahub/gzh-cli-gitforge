@@ -100,20 +100,20 @@ func (f CommandFactory) runAdd(cmd *cobra.Command, opts *AddOptions) error {
 	}
 
 	// Add repository
-	newRepo := map[string]interface{}{
+	newRepo := map[string]any{
 		"name":       name,
 		"url":        opts.URL,
 		"targetPath": targetPath,
 	}
 
-	repos, ok := config["repositories"].([]interface{})
+	repos, ok := config["repositories"].([]any)
 	if !ok {
-		repos = []interface{}{}
+		repos = []any{}
 	}
 
 	// Check for duplicates
 	for _, r := range repos {
-		if rm, ok := r.(map[string]interface{}); ok {
+		if rm, ok := r.(map[string]any); ok {
 			if rm["targetPath"] == targetPath {
 				return fmt.Errorf("repository with targetPath %q already exists", targetPath)
 			}
@@ -152,15 +152,15 @@ func (f CommandFactory) addFromCurrent(cmd *cobra.Command, configPath string) er
 		return err
 	}
 
-	newRepo := map[string]interface{}{
+	newRepo := map[string]any{
 		"name":       name,
 		"url":        "", // Will be filled by user
 		"targetPath": absPath,
 	}
 
-	repos, ok := config["repositories"].([]interface{})
+	repos, ok := config["repositories"].([]any)
 	if !ok {
-		repos = []interface{}{}
+		repos = []any{}
 	}
 	repos = append(repos, newRepo)
 	config["repositories"] = repos
@@ -174,24 +174,24 @@ func (f CommandFactory) addFromCurrent(cmd *cobra.Command, configPath string) er
 	return nil
 }
 
-func loadOrCreateConfig(path string) (map[string]interface{}, error) {
+func loadOrCreateConfig(path string) (map[string]any, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		// Create default config structure
-		return map[string]interface{}{
+		return map[string]any{
 			"strategy":     "reset",
 			"parallel":     4,
 			"maxRetries":   3,
 			"cloneProto":   "ssh",
 			"sshPort":      0,
-			"repositories": []interface{}{},
+			"repositories": []any{},
 		}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
@@ -199,7 +199,7 @@ func loadOrCreateConfig(path string) (map[string]interface{}, error) {
 	return config, nil
 }
 
-func writeConfig(path string, config map[string]interface{}) error {
+func writeConfig(path string, config map[string]any) error {
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)

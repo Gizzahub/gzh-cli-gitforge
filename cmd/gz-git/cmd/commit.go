@@ -276,12 +276,12 @@ func runCommit(cmd *cobra.Command, args []string) error {
 
 // parseRepoMessage parses "repo:message" format
 func parseRepoMessage(input string) (repo, message string, err error) {
-	idx := strings.Index(input, ":")
-	if idx == -1 {
+	before, after, ok := strings.Cut(input, ":")
+	if !ok {
 		return "", "", fmt.Errorf("expected format 'repo:message', got %q", input)
 	}
-	repo = strings.TrimSpace(input[:idx])
-	message = strings.TrimSpace(input[idx+1:])
+	repo = strings.TrimSpace(before)
+	message = strings.TrimSpace(after)
 	if repo == "" || message == "" {
 		return "", "", fmt.Errorf("repo and message cannot be empty in %q", input)
 	}
@@ -426,13 +426,13 @@ func editMessagesInEditor(result *repository.BulkCommitResult) (map[string]strin
 		}
 
 		// Parse "repo: message" format
-		idx := strings.Index(line, ":")
-		if idx == -1 {
+		before, after, ok := strings.Cut(line, ":")
+		if !ok {
 			continue
 		}
 
-		repo := strings.TrimSpace(line[:idx])
-		msg := strings.TrimSpace(line[idx+1:])
+		repo := strings.TrimSpace(before)
+		msg := strings.TrimSpace(after)
 
 		if repo != "" && msg != "" {
 			messages[repo] = msg

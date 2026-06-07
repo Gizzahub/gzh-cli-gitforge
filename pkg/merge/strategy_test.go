@@ -3,6 +3,7 @@ package merge
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -436,13 +437,7 @@ func TestMergeManager_BuildMergeArgs(t *testing.T) {
 			args := manager.buildMergeArgs(tt.opts, tt.canFastForward)
 
 			for _, want := range tt.wantContains {
-				found := false
-				for _, arg := range args {
-					if arg == want {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(args, want)
 				if !found {
 					t.Errorf("buildMergeArgs() missing %q in %v", want, args)
 				}

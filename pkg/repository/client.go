@@ -304,8 +304,8 @@ func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 	if err != nil {
 		c.logger.Debug("Failed to get configured remotes: %v", err)
 	} else {
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(output, "\n")
+		for line := range lines {
 			// Format: name\turl (purpose)
 			// Example: origin  https://github.com/user/repo.git (fetch)
 			parts := strings.Fields(line)
@@ -382,8 +382,8 @@ func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 	// Get Local Branches
 	output, err = c.executor.RunOutput(ctx, repo.Path, "branch", "--list", "--format=%(refname:short)")
 	if err == nil {
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(strings.TrimSpace(output), "\n")
+		for line := range lines {
 			if name := strings.TrimSpace(line); name != "" {
 				info.LocalBranches = append(info.LocalBranches, name)
 			}

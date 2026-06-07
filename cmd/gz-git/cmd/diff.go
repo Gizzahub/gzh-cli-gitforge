@@ -311,8 +311,8 @@ func displayDiffRepositoryResult(repo repository.RepositoryDiffResult) {
 		fmt.Println()
 		fmt.Println("  --- Diff ---")
 		// Indent diff content
-		lines := strings.Split(repo.DiffContent, "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(repo.DiffContent, "\n")
+		for line := range lines {
 			if line == "" {
 				fmt.Println()
 			} else {

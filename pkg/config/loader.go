@@ -82,7 +82,7 @@ func (l *ConfigLoader) Load() error {
 
 // ResolveConfig builds the effective configuration with precedence.
 // Flags parameter contains command-line flag values (highest priority).
-func (l *ConfigLoader) ResolveConfig(flags map[string]interface{}) (*EffectiveConfig, error) {
+func (l *ConfigLoader) ResolveConfig(flags map[string]any) (*EffectiveConfig, error) {
 	effective := &EffectiveConfig{
 		Sources: make(map[string]string),
 	}
@@ -242,7 +242,7 @@ func (l *ConfigLoader) applyProjectConfig(cfg *EffectiveConfig) {
 }
 
 // applyFlags applies command-line flags (highest priority).
-func (l *ConfigLoader) applyFlags(cfg *EffectiveConfig, flags map[string]interface{}) {
+func (l *ConfigLoader) applyFlags(cfg *EffectiveConfig, flags map[string]any) {
 	if flags == nil {
 		return
 	}

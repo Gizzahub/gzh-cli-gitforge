@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -113,16 +114,16 @@ type Client interface {
 // CLI code can provide a concrete logger implementation.
 type Logger interface {
 	// Debug logs a debug-level message with optional key-value pairs.
-	Debug(msg string, args ...interface{})
+	Debug(msg string, args ...any)
 
 	// Info logs an info-level message with optional key-value pairs.
-	Info(msg string, args ...interface{})
+	Info(msg string, args ...any)
 
 	// Warn logs a warning-level message with optional key-value pairs.
-	Warn(msg string, args ...interface{})
+	Warn(msg string, args ...any)
 
 	// Error logs an error-level message with optional key-value pairs.
-	Error(msg string, args ...interface{})
+	Error(msg string, args ...any)
 }
 
 // ProgressReporter provides progress feedback for long-running operations.
@@ -376,10 +377,10 @@ type Result struct {
 // This is used when no logger is provided by the consumer.
 type noopLogger struct{}
 
-func (n *noopLogger) Debug(msg string, args ...interface{}) {}
-func (n *noopLogger) Info(msg string, args ...interface{})  {}
-func (n *noopLogger) Warn(msg string, args ...interface{})  {}
-func (n *noopLogger) Error(msg string, args ...interface{}) {}
+func (n *noopLogger) Debug(msg string, args ...any) {}
+func (n *noopLogger) Info(msg string, args ...any)  {}
+func (n *noopLogger) Warn(msg string, args ...any)  {}
+func (n *noopLogger) Error(msg string, args ...any) {}
 
 // noopProgress is a default progress reporter that does nothing.
 // This is used when no progress reporter is provided by the consumer.
@@ -414,44 +415,45 @@ func NewWriterLogger(w io.Writer) Logger {
 }
 
 // Debug writes a DEBUG-level log message to the writer.
-func (l *WriterLogger) Debug(msg string, args ...interface{}) {
+func (l *WriterLogger) Debug(msg string, args ...any) {
 	l.log("DEBUG", msg, args...)
 }
 
 // Info writes an INFO-level log message to the writer.
-func (l *WriterLogger) Info(msg string, args ...interface{}) {
+func (l *WriterLogger) Info(msg string, args ...any) {
 	l.log("INFO", msg, args...)
 }
 
 // Warn writes a WARN-level log message to the writer.
-func (l *WriterLogger) Warn(msg string, args ...interface{}) {
+func (l *WriterLogger) Warn(msg string, args ...any) {
 	l.log("WARN", msg, args...)
 }
 
-func (l *WriterLogger) Error(msg string, args ...interface{}) {
+func (l *WriterLogger) Error(msg string, args ...any) {
 	l.log("ERROR", msg, args...)
 }
 
-func (l *WriterLogger) log(level, msg string, args ...interface{}) {
+func (l *WriterLogger) log(level, msg string, args ...any) {
 	// Simple format: [LEVEL] message key=value key=value
 	if l.w == nil {
 		return
 	}
 
-	output := "[" + level + "] " + msg
+	var output strings.Builder
+	output.WriteString("[" + level + "] " + msg)
 	for i := 0; i < len(args); i += 2 {
 		if i+1 < len(args) {
 			if key, ok := args[i].(string); ok {
-				output += " " + key + "=" + formatValue(args[i+1])
+				output.WriteString(" " + key + "=" + formatValue(args[i+1]))
 			}
 		}
 	}
-	output += "\n"
+	output.WriteString("\n")
 
-	_, _ = l.w.Write([]byte(output)) // Ignore write errors in logger
+	_, _ = l.w.Write([]byte(output.String())) // Ignore write errors in logger
 }
 
-func formatValue(v interface{}) string {
+func formatValue(v any) string {
 	switch val := v.(type) {
 	case string:
 		return val

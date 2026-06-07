@@ -260,12 +260,9 @@ func (e GitExecutor) runCloneOrUpdate(ctx context.Context, client repo.Client, l
 
 	var result *repo.CloneOrUpdateResult
 
-	attempts := runOpts.MaxRetries + 1
-	if attempts < 1 {
-		attempts = 1
-	}
+	attempts := max(runOpts.MaxRetries+1, 1)
 
-	for i := 0; i < attempts; i++ {
+	for i := range attempts {
 		if ctx.Err() != nil {
 			err = ctx.Err()
 			break
@@ -370,7 +367,7 @@ func collectPostSyncStatus(ctx context.Context, repoPath string) *PostSyncStatus
 		output := strings.TrimSpace(string(out))
 		if output != "" {
 			ps.IsDirty = true
-			for _, line := range strings.Split(output, "\n") {
+			for line := range strings.SplitSeq(output, "\n") {
 				if len(line) >= 2 && line[0] == 'U' || (len(line) >= 2 && line[1] == 'U') {
 					ps.HasConflicts = true
 					break
@@ -454,10 +451,10 @@ func (p *progressAdapter) Done() {
 
 type nopGitLogger struct{}
 
-func (nopGitLogger) Debug(string, ...interface{}) {}
-func (nopGitLogger) Info(string, ...interface{})  {}
-func (nopGitLogger) Warn(string, ...interface{})  {}
-func (nopGitLogger) Error(string, ...interface{}) {}
+func (nopGitLogger) Debug(string, ...any) {}
+func (nopGitLogger) Info(string, ...any)  {}
+func (nopGitLogger) Warn(string, ...any)  {}
+func (nopGitLogger) Error(string, ...any) {}
 
 // checkoutBranch attempts to checkout the specified branch in the given repository path.
 // Supports comma-separated branch list for fallback: "develop,master" tries develop first,

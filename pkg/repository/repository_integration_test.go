@@ -605,7 +605,7 @@ func (b *testBuffer) String() string {
 func TestFormatValue(t *testing.T) {
 	tests := []struct {
 		name  string
-		value interface{}
+		value any
 	}{
 		{"string", "test"},
 		{"int", 42},

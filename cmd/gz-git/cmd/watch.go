@@ -308,23 +308,23 @@ func newWatchLogger(verbose bool) *watchLogger {
 	return &watchLogger{verbose: verbose}
 }
 
-func (l *watchLogger) Debug(format string, args ...interface{}) {
+func (l *watchLogger) Debug(format string, args ...any) {
 	if l.verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
 	}
 }
 
-func (l *watchLogger) Info(format string, args ...interface{}) {
+func (l *watchLogger) Info(format string, args ...any) {
 	if l.verbose {
 		fmt.Fprintf(os.Stderr, "[INFO] "+format+"\n", args...)
 	}
 }
 
-func (l *watchLogger) Warn(format string, args ...interface{}) {
+func (l *watchLogger) Warn(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "[WARN] "+format+"\n", args...)
 }
 
-func (l *watchLogger) Error(format string, args ...interface{}) {
+func (l *watchLogger) Error(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "[ERROR] "+format+"\n", args...)
 }
 

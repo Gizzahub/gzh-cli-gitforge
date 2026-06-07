@@ -307,8 +307,8 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 	}
 
 	// Parse status
-	lines := strings.Split(statusResult.Stdout, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(statusResult.Stdout, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -473,11 +473,11 @@ func inferScopeFromFiles(files []string) string {
 
 // parseDiffStats parses git diff --stat output.
 func parseDiffStats(output string) (additions, deletions int) {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "changed") {
-			parts := strings.Split(line, ",")
-			for _, part := range parts {
+			parts := strings.SplitSeq(line, ",")
+			for part := range parts {
 				part = strings.TrimSpace(part)
 				if strings.Contains(part, "insertion") {
 					_, _ = fmt.Sscanf(part, "%d", &additions) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable

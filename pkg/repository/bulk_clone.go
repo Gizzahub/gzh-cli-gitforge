@@ -169,9 +169,7 @@ func (c *client) BulkClone(ctx context.Context, opts BulkCloneOptions) (*BulkClo
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < opts.Parallel; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for work := range workChan {
 				select {
 				case <-ctx.Done():
@@ -186,7 +184,7 @@ func (c *client) BulkClone(ctx context.Context, opts BulkCloneOptions) (*BulkClo
 					resultsChan <- res
 				}
 			}
-		}()
+		})
 	}
 
 	// Send work

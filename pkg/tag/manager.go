@@ -120,9 +120,9 @@ func (m *manager) List(ctx context.Context, repo *repository.Repository, opts Li
 	}
 
 	var tags []*Tag
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		if line == "" {
 			continue
 		}

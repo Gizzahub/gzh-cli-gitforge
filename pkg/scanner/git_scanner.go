@@ -192,8 +192,8 @@ func (s *GitRepoScanner) getCurrentBranch(repoPath string) string {
 	}
 
 	ref := strings.TrimPrefix(line, "ref: ")
-	if strings.HasPrefix(ref, "refs/heads/") {
-		return strings.TrimPrefix(ref, "refs/heads/")
+	if after, ok := strings.CutPrefix(ref, "refs/heads/"); ok {
+		return after
 	}
 
 	return ""
@@ -292,16 +292,16 @@ func matchesPattern(path, pattern string) bool {
 	}
 
 	// Directory prefix match (pattern/)
-	if strings.HasSuffix(pattern, "/") {
-		dirPattern := strings.TrimSuffix(pattern, "/")
+	if before, ok := strings.CutSuffix(pattern, "/"); ok {
+		dirPattern := before
 		if strings.HasPrefix(path, dirPattern+"/") || path == dirPattern {
 			return true
 		}
 	}
 
 	// Wildcard match (pattern/*)
-	if strings.HasSuffix(pattern, "/*") {
-		dirPattern := strings.TrimSuffix(pattern, "/*")
+	if before, ok := strings.CutSuffix(pattern, "/*"); ok {
+		dirPattern := before
 		if strings.HasPrefix(path, dirPattern+"/") {
 			return true
 		}

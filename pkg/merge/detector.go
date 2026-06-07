@@ -188,9 +188,9 @@ func (d *conflictDetector) getChangedFiles(ctx context.Context, repo *repository
 	}
 
 	var changes []*FileChange
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		if line == "" {
 			continue
 		}

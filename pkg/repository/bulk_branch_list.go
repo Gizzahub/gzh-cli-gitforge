@@ -200,8 +200,6 @@ func (c *client) processBranchListRepositories(ctx context.Context, rootDir stri
 	g.SetLimit(opts.Parallel)
 
 	for i, repoPath := range repos {
-		i, repoPath := i, repoPath // capture loop variables
-
 		g.Go(func() error {
 			// Call progress callback
 			if opts.ProgressCallback != nil {
@@ -362,9 +360,9 @@ func parseBranchLine(line string) (BranchInfo, bool) {
 		bracketContent = strings.Trim(bracketContent, "[]")
 
 		// Parse upstream and ahead/behind info
-		if colonIdx := strings.Index(bracketContent, ":"); colonIdx != -1 {
-			branch.Upstream = strings.TrimSpace(bracketContent[:colonIdx])
-			statusPart := bracketContent[colonIdx+1:]
+		if before, after, ok := strings.Cut(bracketContent, ":"); ok {
+			branch.Upstream = strings.TrimSpace(before)
+			statusPart := after
 			branch.AheadBy, branch.BehindBy = parseBranchAheadBehind(statusPart)
 		} else {
 			branch.Upstream = bracketContent
@@ -393,12 +391,12 @@ func parseBranchAheadBehind(status string) (ahead, behind int) {
 
 // extractNumberAfter extracts the number following a keyword.
 func extractNumberAfter(s, keyword string) string {
-	idx := strings.Index(s, keyword)
-	if idx == -1 {
+	_, after, ok := strings.Cut(s, keyword)
+	if !ok {
 		return "0"
 	}
 
-	rest := strings.TrimSpace(s[idx+len(keyword):])
+	rest := strings.TrimSpace(after)
 
 	var num strings.Builder
 	for _, c := range rest {

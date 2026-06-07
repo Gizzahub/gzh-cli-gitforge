@@ -76,7 +76,7 @@ func (f CommandFactory) runSetup(cmd *cobra.Command) error {
 
 func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 	// Create a SyncConfig from wizard options
-	config := map[string]interface{}{
+	config := map[string]any{
 		"provider":     opts.Provider,
 		"organization": opts.Organization,
 		"target":       opts.TargetPath,

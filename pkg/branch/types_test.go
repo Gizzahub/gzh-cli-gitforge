@@ -335,15 +335,15 @@ func TestSortBy_AllConstants(t *testing.T) {
 
 func TestBranch_AllFields(t *testing.T) {
 	branch := &Branch{
-		Name:       "feature/all-fields",
-		Ref:        "refs/heads/feature/all-fields",
-		SHA:        "abc123def456789",
-		IsHead:     true,
-		IsMerged:   true,
-		IsRemote:   true,
-		Upstream:   "origin/feature/all-fields",
-		AheadBy:    5,
-		BehindBy:   3,
+		Name:     "feature/all-fields",
+		Ref:      "refs/heads/feature/all-fields",
+		SHA:      "abc123def456789",
+		IsHead:   true,
+		IsMerged: true,
+		IsRemote: true,
+		Upstream: "origin/feature/all-fields",
+		AheadBy:  5,
+		BehindBy: 3,
 	}
 
 	if branch.Name != "feature/all-fields" {

@@ -408,7 +408,7 @@ func equalStringSlices(a, b []string) bool {
 // noopLogger is a logger that does nothing.
 type noopLogger struct{}
 
-func (l *noopLogger) Debug(format string, args ...interface{}) {}
-func (l *noopLogger) Info(format string, args ...interface{})  {}
-func (l *noopLogger) Warn(format string, args ...interface{})  {}
-func (l *noopLogger) Error(format string, args ...interface{}) {}
+func (l *noopLogger) Debug(format string, args ...any) {}
+func (l *noopLogger) Info(format string, args ...any)  {}
+func (l *noopLogger) Warn(format string, args ...any)  {}
+func (l *noopLogger) Error(format string, args ...any) {}

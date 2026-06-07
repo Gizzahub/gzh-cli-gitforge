@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -126,7 +127,7 @@ func validateConfigFile(path string) (*ValidationResult, error) {
 		return nil, err
 	}
 
-	var rawConfig map[string]interface{}
+	var rawConfig map[string]any
 	if err := yaml.Unmarshal(content, &rawConfig); err != nil {
 		return &ValidationResult{
 			Errors: []string{fmt.Sprintf("YAML parse error: %s", err)},
@@ -158,7 +159,7 @@ func validateConfigFile(path string) (*ValidationResult, error) {
 }
 
 // detectConfigType determines whether the config is workspace or clone type.
-func detectConfigType(config map[string]interface{}) ConfigType {
+func detectConfigType(config map[string]any) ConfigType {
 	kind, hasKind := config["kind"].(string)
 
 	// Check explicit kind
@@ -186,7 +187,7 @@ func detectConfigType(config map[string]interface{}) ConfigType {
 			continue
 		}
 		// Check if value looks like a group (has target and/or repositories)
-		if group, ok := value.(map[string]interface{}); ok {
+		if group, ok := value.(map[string]any); ok {
 			if _, hasTarget := group["target"]; hasTarget {
 				return ConfigTypeClone
 			}
@@ -211,16 +212,11 @@ func isGlobalConfigKey(key string) bool {
 		"cloneProto", "sshPort", "structure", "target", "repositories",
 		"workspaces", "profiles", "update", "sync",
 	}
-	for _, k := range globalKeys {
-		if k == key {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(globalKeys, key)
 }
 
 // validateWorkspaceConfig validates workspace/repositories config.
-func validateWorkspaceConfig(config map[string]interface{}, result *ValidationResult) {
+func validateWorkspaceConfig(config map[string]any, result *ValidationResult) {
 	// Validate kind
 	validateKind(config, result)
 
@@ -241,7 +237,7 @@ func validateWorkspaceConfig(config map[string]interface{}, result *ValidationRe
 }
 
 // validateCloneConfig validates clone config with named groups.
-func validateCloneConfig(config map[string]interface{}, result *ValidationResult) {
+func validateCloneConfig(config map[string]any, result *ValidationResult) {
 	// Validate kind
 	validateCloneKind(config, result)
 
@@ -256,7 +252,7 @@ func validateCloneConfig(config map[string]interface{}, result *ValidationResult
 }
 
 // validateCloneKind checks the kind field for clone config.
-func validateCloneKind(config map[string]interface{}, result *ValidationResult) {
+func validateCloneKind(config map[string]any, result *ValidationResult) {
 	kind, hasKind := config["kind"]
 	if !hasKind {
 		result.Suggestions = append(result.Suggestions,
@@ -283,7 +279,7 @@ func validateCloneKind(config map[string]interface{}, result *ValidationResult) 
 }
 
 // validateCloneStrategy checks the strategy field for clone config.
-func validateCloneStrategy(config map[string]interface{}, result *ValidationResult) {
+func validateCloneStrategy(config map[string]any, result *ValidationResult) {
 	strategy, ok := config["strategy"]
 	if !ok {
 		result.Suggestions = append(result.Suggestions,
@@ -297,13 +293,7 @@ func validateCloneStrategy(config map[string]interface{}, result *ValidationResu
 		return
 	}
 
-	valid := false
-	for _, s := range ValidCloneStrategies {
-		if s == strategyStr {
-			valid = true
-			break
-		}
-	}
+	valid := slices.Contains(ValidCloneStrategies, strategyStr)
 	if !valid {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("invalid strategy '%s': must be one of %v", strategyStr, ValidCloneStrategies))
@@ -311,7 +301,7 @@ func validateCloneStrategy(config map[string]interface{}, result *ValidationResu
 }
 
 // validateCloneGroups validates named groups in clone config.
-func validateCloneGroups(config map[string]interface{}, result *ValidationResult) {
+func validateCloneGroups(config map[string]any, result *ValidationResult) {
 	groupCount := 0
 
 	for key, value := range config {
@@ -320,7 +310,7 @@ func validateCloneGroups(config map[string]interface{}, result *ValidationResult
 			continue
 		}
 
-		group, ok := value.(map[string]interface{})
+		group, ok := value.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -335,7 +325,7 @@ func validateCloneGroups(config map[string]interface{}, result *ValidationResult
 		// Check if it's flat format
 		if _, hasRepos := config["repositories"]; hasRepos {
 			// Flat format - validate repositories
-			if repos, ok := config["repositories"].([]interface{}); ok {
+			if repos, ok := config["repositories"].([]any); ok {
 				for i, repo := range repos {
 					validateCloneRepoEntry(i, repo, result)
 				}
@@ -348,7 +338,7 @@ func validateCloneGroups(config map[string]interface{}, result *ValidationResult
 }
 
 // validateCloneGroup validates a single named group.
-func validateCloneGroup(name string, group map[string]interface{}, result *ValidationResult) {
+func validateCloneGroup(name string, group map[string]any, result *ValidationResult) {
 	// Check for target
 	if _, hasTarget := group["target"]; !hasTarget {
 		result.Warnings = append(result.Warnings,
@@ -363,7 +353,7 @@ func validateCloneGroup(name string, group map[string]interface{}, result *Valid
 		return
 	}
 
-	repoList, ok := repos.([]interface{})
+	repoList, ok := repos.([]any)
 	if !ok {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("group '%s': 'repositories' must be an array", name))
@@ -382,13 +372,7 @@ func validateCloneGroup(name string, group map[string]interface{}, result *Valid
 
 	// Check strategy override
 	if strategy, ok := group["strategy"].(string); ok {
-		valid := false
-		for _, s := range ValidCloneStrategies {
-			if s == strategy {
-				valid = true
-				break
-			}
-		}
+		valid := slices.Contains(ValidCloneStrategies, strategy)
 		if !valid {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("group '%s': invalid strategy '%s'", name, strategy))
@@ -397,7 +381,7 @@ func validateCloneGroup(name string, group map[string]interface{}, result *Valid
 }
 
 // validateCloneRepoEntry validates a repository entry in flat format.
-func validateCloneRepoEntry(index int, entry interface{}, result *ValidationResult) {
+func validateCloneRepoEntry(index int, entry any, result *ValidationResult) {
 	// String format (just URL)
 	if url, ok := entry.(string); ok {
 		if url == "" {
@@ -408,7 +392,7 @@ func validateCloneRepoEntry(index int, entry interface{}, result *ValidationResu
 	}
 
 	// Map format
-	repoMap, ok := entry.(map[string]interface{})
+	repoMap, ok := entry.(map[string]any)
 	if !ok {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("repositories[%d]: invalid format, must be string or map", index))
@@ -423,7 +407,7 @@ func validateCloneRepoEntry(index int, entry interface{}, result *ValidationResu
 }
 
 // validateCloneRepoEntryInGroup validates a repository entry within a group.
-func validateCloneRepoEntryInGroup(groupName string, index int, entry interface{}, result *ValidationResult) {
+func validateCloneRepoEntryInGroup(groupName string, index int, entry any, result *ValidationResult) {
 	// String format (just URL)
 	if url, ok := entry.(string); ok {
 		if url == "" {
@@ -434,7 +418,7 @@ func validateCloneRepoEntryInGroup(groupName string, index int, entry interface{
 	}
 
 	// Map format
-	repoMap, ok := entry.(map[string]interface{})
+	repoMap, ok := entry.(map[string]any)
 	if !ok {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("group '%s' repositories[%d]: invalid format, must be string or map", groupName, index))
@@ -449,7 +433,7 @@ func validateCloneRepoEntryInGroup(groupName string, index int, entry interface{
 }
 
 // validateKind checks the kind field.
-func validateKind(config map[string]interface{}, result *ValidationResult) {
+func validateKind(config map[string]any, result *ValidationResult) {
 	kind, ok := config["kind"]
 	if !ok {
 		result.Errors = append(result.Errors,
@@ -483,7 +467,7 @@ func validateKind(config map[string]interface{}, result *ValidationResult) {
 }
 
 // validateVersion checks the version field.
-func validateVersion(config map[string]interface{}, result *ValidationResult) {
+func validateVersion(config map[string]any, result *ValidationResult) {
 	version, ok := config["version"]
 	if !ok {
 		result.Suggestions = append(result.Suggestions,
@@ -509,12 +493,12 @@ func validateVersion(config map[string]interface{}, result *ValidationResult) {
 
 // validateBranchConfig checks the branch configuration.
 // Branch should be explicitly specified to avoid ambiguity.
-func validateBranchConfig(config map[string]interface{}, result *ValidationResult) {
+func validateBranchConfig(config map[string]any, result *ValidationResult) {
 	// Check for branch at config level (defaults.branch or branch)
 	hasBranch := false
 
 	// Check defaults.branch
-	if defaults, ok := config["defaults"].(map[string]interface{}); ok {
+	if defaults, ok := config["defaults"].(map[string]any); ok {
 		if _, hasBranchInDefaults := defaults["branch"]; hasBranchInDefaults {
 			hasBranch = true
 		}
@@ -534,7 +518,7 @@ func validateBranchConfig(config map[string]interface{}, result *ValidationResul
 }
 
 // validateStrategy checks the strategy field.
-func validateStrategy(config map[string]interface{}, result *ValidationResult) {
+func validateStrategy(config map[string]any, result *ValidationResult) {
 	strategy, ok := config["strategy"]
 	if !ok {
 		result.Suggestions = append(result.Suggestions,
@@ -555,7 +539,7 @@ func validateStrategy(config map[string]interface{}, result *ValidationResult) {
 }
 
 // validateStructure checks that the config has the right structure for its kind.
-func validateStructure(config map[string]interface{}, result *ValidationResult) {
+func validateStructure(config map[string]any, result *ValidationResult) {
 	kind, ok := config["kind"].(string)
 	if !ok {
 		kind = ""
@@ -588,16 +572,16 @@ func validateStructure(config map[string]interface{}, result *ValidationResult) 
 }
 
 // validateEntries checks individual repository/workspace entries.
-func validateEntries(config map[string]interface{}, result *ValidationResult) {
+func validateEntries(config map[string]any, result *ValidationResult) {
 	// Check repositories array
-	if repos, ok := config["repositories"].([]interface{}); ok {
+	if repos, ok := config["repositories"].([]any); ok {
 		for i, repo := range repos {
 			validateRepoEntry(i, repo, result)
 		}
 	}
 
 	// Check workspaces map
-	if workspaces, ok := config["workspaces"].(map[string]interface{}); ok {
+	if workspaces, ok := config["workspaces"].(map[string]any); ok {
 		for name, ws := range workspaces {
 			validateWorkspaceEntry(name, ws, result)
 		}
@@ -605,14 +589,14 @@ func validateEntries(config map[string]interface{}, result *ValidationResult) {
 }
 
 // validateRepoEntry validates a single repository entry.
-func validateRepoEntry(index int, entry interface{}, result *ValidationResult) {
+func validateRepoEntry(index int, entry any, result *ValidationResult) {
 	// String format (just URL)
 	if _, ok := entry.(string); ok {
 		return // Valid simple format
 	}
 
 	// Map format
-	repoMap, ok := entry.(map[string]interface{})
+	repoMap, ok := entry.(map[string]any)
 	if !ok {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("repositories[%d]: invalid format, must be string or map", index))
@@ -630,8 +614,8 @@ func validateRepoEntry(index int, entry interface{}, result *ValidationResult) {
 }
 
 // validateWorkspaceEntry validates a single workspace entry.
-func validateWorkspaceEntry(name string, entry interface{}, result *ValidationResult) {
-	wsMap, ok := entry.(map[string]interface{})
+func validateWorkspaceEntry(name string, entry any, result *ValidationResult) {
+	wsMap, ok := entry.(map[string]any)
 	if !ok {
 		result.Errors = append(result.Errors,
 			fmt.Sprintf("workspaces.%s: invalid format, must be a map", name))
@@ -649,13 +633,7 @@ func validateWorkspaceEntry(name string, entry interface{}, result *ValidationRe
 	// Check type field
 	if wsType, ok := wsMap["type"].(string); ok {
 		validTypes := []string{"git", "config", "forge"}
-		isValid := false
-		for _, t := range validTypes {
-			if t == wsType {
-				isValid = true
-				break
-			}
-		}
+		isValid := slices.Contains(validTypes, wsType)
 		if !isValid {
 			result.Warnings = append(result.Warnings,
 				fmt.Sprintf("workspaces.%s: unknown type '%s', expected git, config, or forge", name, wsType))

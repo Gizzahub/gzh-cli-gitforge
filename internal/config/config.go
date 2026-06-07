@@ -40,7 +40,7 @@ type GiteaConfig struct {
 
 // SyncConfig holds sync operation defaults.
 type SyncConfig struct {
-	TargetPath      string `yaml:"target_path"`       //nolint:tagliatelle // snake_case is the established config file convention
+	TargetPath      string `yaml:"target_path"` //nolint:tagliatelle // snake_case is the established config file convention
 	Parallel        int    `yaml:"parallel"`
 	IncludeArchived bool   `yaml:"include_archived"` //nolint:tagliatelle // snake_case is the established config file convention
 	IncludeForks    bool   `yaml:"include_forks"`    //nolint:tagliatelle // snake_case is the established config file convention

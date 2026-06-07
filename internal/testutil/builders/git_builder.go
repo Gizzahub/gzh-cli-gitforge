@@ -183,8 +183,8 @@ func (b *CloneOptionsBuilder) WithoutProgress() *CloneOptionsBuilder {
 }
 
 // Build returns the clone options as a map.
-func (b *CloneOptionsBuilder) Build() map[string]interface{} {
-	return map[string]interface{}{
+func (b *CloneOptionsBuilder) Build() map[string]any {
+	return map[string]any{
 		"url":      b.url,
 		"path":     b.path,
 		"branch":   b.branch,

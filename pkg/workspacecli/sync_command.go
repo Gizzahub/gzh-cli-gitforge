@@ -1545,8 +1545,8 @@ func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) { //nol
 	}
 
 	// Parse output: each line is "STATUS\tFILENAME"
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(string(output)), "\n")
+	for line := range lines {
 		if line == "" {
 			continue
 		}
@@ -2179,7 +2179,7 @@ type SyncResultJSON struct {
 	Total     int            `json:"total"`
 	Succeeded int            `json:"succeeded"`
 	Failed    int            `json:"failed"`
-	Duration  int64          `json:"duration_ms"` //nolint:tagliatelle // existing JSON API field name
+	Duration  int64          `json:"duration_ms"`  //nolint:tagliatelle // existing JSON API field name
 	Repos     []SyncRepoJSON `json:"repositories"` //nolint:tagliatelle // existing JSON API field name
 }
 

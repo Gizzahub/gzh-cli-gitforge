@@ -283,8 +283,8 @@ func (p *parallelWorkflow) getModifiedFiles(ctx context.Context, path string) ([
 	}
 
 	files := make([]string, 0)
-	lines := strings.Split(result.Stdout, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(result.Stdout, "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

@@ -198,7 +198,7 @@ func TestScrollBounds(t *testing.T) {
 	m.height = 20 // small terminal
 
 	// scrollDown should not exceed max
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		m.scrollDown()
 	}
 	visibleHeight := m.height - 8
@@ -208,7 +208,7 @@ func TestScrollBounds(t *testing.T) {
 	}
 
 	// scrollUp should not go below 0
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		m.scrollUp()
 	}
 	if m.scrollTop < 0 {

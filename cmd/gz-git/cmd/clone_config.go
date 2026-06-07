@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -68,12 +69,7 @@ var ValidCloneStrategies = []string{"skip", "pull", "reset", "rebase", "fetch"}
 
 // IsValidCloneStrategy checks if the strategy is valid.
 func IsValidCloneStrategy(strategy string) bool {
-	for _, s := range ValidCloneStrategies {
-		if s == strategy {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ValidCloneStrategies, strategy)
 }
 
 // CloneGroup represents a named group of repositories with its own target.
@@ -122,7 +118,7 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 	}
 
 	// Helper to unmarshal based on extension
-	unmarshal := func(d []byte, v interface{}) error {
+	unmarshal := func(d []byte, v any) error {
 		ext := ""
 		if !useStdin {
 			ext = strings.ToLower(filepath.Ext(configPath))
@@ -137,7 +133,7 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 	}
 
 	// First, unmarshal to detect format
-	var rawMap map[string]interface{}
+	var rawMap map[string]any
 	if err := unmarshal(data, &rawMap); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
@@ -169,7 +165,7 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 }
 
 // parseGroupedCloneConfig parses grouped format where keys are group names.
-func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config *CloneConfig) error {
+func parseGroupedCloneConfig(data []byte, rawMap map[string]any, config *CloneConfig) error {
 	// Known global keys (not groups)
 	globalKeys := map[string]bool{
 		"parallel": true, "strategy": true, "structure": true,
@@ -196,7 +192,7 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 		}
 
 		// Check if this looks like a group (map with target and repositories)
-		groupMap, ok := value.(map[string]interface{})
+		groupMap, ok := value.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -221,14 +217,14 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 		}
 
 		// Parse group-level hooks
-		if hooksRaw, ok := groupMap["hooks"].(map[string]interface{}); ok {
+		if hooksRaw, ok := groupMap["hooks"].(map[string]any); ok {
 			group.Hooks = parseCloneHooks(hooksRaw)
 		}
 
 		// Parse repositories
-		if reposRaw, ok := groupMap["repositories"].([]interface{}); ok {
+		if reposRaw, ok := groupMap["repositories"].([]any); ok {
 			for _, repoRaw := range reposRaw {
-				repoMap, ok := repoRaw.(map[string]interface{})
+				repoMap, ok := repoRaw.(map[string]any)
 				if !ok {
 					continue
 				}
@@ -249,7 +245,7 @@ func parseGroupedCloneConfig(data []byte, rawMap map[string]interface{}, config 
 				}
 
 				// Parse repo-level hooks
-				if hooksRaw, ok := repoMap["hooks"].(map[string]interface{}); ok {
+				if hooksRaw, ok := repoMap["hooks"].(map[string]any); ok {
 					spec.Hooks = parseCloneHooks(hooksRaw)
 				}
 
@@ -369,14 +365,14 @@ func validateFlatRepositories(repos []CloneRepoSpec, groupName string) error {
 
 // extractFlexBranch extracts a FlexBranch from a raw interface{} value.
 // Handles string values directly and map values by extracting the defaultBranch key.
-func extractFlexBranch(v interface{}) config.FlexBranch {
+func extractFlexBranch(v any) config.FlexBranch {
 	if v == nil {
 		return ""
 	}
 	switch val := v.(type) {
 	case string:
 		return config.FlexBranch(val)
-	case map[string]interface{}:
+	case map[string]any:
 		db, ok := val["defaultBranch"]
 		if !ok {
 			return ""
@@ -384,7 +380,7 @@ func extractFlexBranch(v interface{}) config.FlexBranch {
 		switch dbVal := db.(type) {
 		case string:
 			return config.FlexBranch(dbVal)
-		case []interface{}:
+		case []any:
 			parts := make([]string, 0, len(dbVal))
 			for _, item := range dbVal {
 				if s, ok := item.(string); ok && s != "" {
@@ -699,9 +695,7 @@ func cloneRepositoriesParallel(
 	// Start worker pool
 	var wg sync.WaitGroup
 	for w := 0; w < opts.Parallel; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for work := range workChan {
 				// Show progress
 				if shouldShowProgress(cloneFlags.Format, quiet) {
@@ -715,7 +709,7 @@ func cloneRepositoriesParallel(
 				result := cloneSingleRepository(ctx, client, work.repoSpec, work.repoName, opts, groupHooks)
 				resultsChan <- result
 			}
-		}()
+		})
 	}
 
 	// Send work items

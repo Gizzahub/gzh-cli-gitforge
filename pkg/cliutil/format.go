@@ -5,6 +5,7 @@ package cliutil
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -16,10 +17,8 @@ var TabularFormats = []string{"default", "compact", "json", "llm", "table", "csv
 
 // ValidateFormat checks if the given format is in the allowed list.
 func ValidateFormat(format string, allowed []string) error {
-	for _, f := range allowed {
-		if format == f {
-			return nil
-		}
+	if slices.Contains(allowed, format) {
+		return nil
 	}
 	return fmt.Errorf("invalid format: %s (allowed: %s)", format, strings.Join(allowed, ", "))
 }

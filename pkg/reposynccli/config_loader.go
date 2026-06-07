@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,7 +79,7 @@ type repoEntry struct {
 
 type gzhYamlConfig struct {
 	Provider     string        `yaml:"provider"`
-	SyncMode     gzhYamlMode   `yaml:"sync_mode"`      //nolint:tagliatelle // matches existing gzh.yaml format
+	SyncMode     gzhYamlMode   `yaml:"sync_mode"` //nolint:tagliatelle // matches existing gzh.yaml format
 	Repositories []gzhYamlRepo `yaml:"repositories"`
 }
 
@@ -852,8 +853,8 @@ func getGitRemoteURL(repoPath string) string {
 			if strings.HasPrefix(line, "[") {
 				break
 			}
-			if strings.HasPrefix(line, "url = ") {
-				return strings.TrimPrefix(line, "url = ")
+			if after, ok := strings.CutPrefix(line, "url = "); ok {
+				return after
 			}
 		}
 	}
@@ -899,16 +900,12 @@ func loadParentProfiles(configPath string, visited map[string]bool) (map[string]
 			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config: %v\n", err)
 		} else {
 			// Copy parent profiles
-			for k, v := range parentProfiles {
-				profiles[k] = v
-			}
+			maps.Copy(profiles, parentProfiles)
 		}
 	}
 
 	// Merge current config's profiles (overrides parent)
-	for k, v := range cfg.Profiles {
-		profiles[k] = v
-	}
+	maps.Copy(profiles, cfg.Profiles)
 
 	return profiles, nil
 }

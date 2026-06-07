@@ -226,7 +226,7 @@ func checkConflicts(ctx context.Context, executor *gitcmd.Executor, repoPath, na
 	}
 
 	conflictCount := 0
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		if len(line) < 2 {
 			continue
 		}
@@ -381,7 +381,7 @@ func checkFeatureBranchDivergence(ctx context.Context, executor *gitcmd.Executor
 	}
 
 	var results []CheckResult
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		branchName := strings.TrimSpace(line)
 		if branchName == "" {
 			continue

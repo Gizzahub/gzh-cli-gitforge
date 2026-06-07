@@ -23,6 +23,7 @@ import (
 //   - --dry-run applies to auto-init too (no files written)
 //   - Clear, actionable error messages when repos are not found
 //   - Optional --check runs `workspace status` after sync
+//
 //nolint:gocognit // sync command orchestrates auto-init + sync with many flag combinations; splitting would harm readability
 func (f CommandFactory) NewQuickSyncCmd() *cobra.Command {
 	var (

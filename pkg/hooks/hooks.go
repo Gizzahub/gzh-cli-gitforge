@@ -16,7 +16,7 @@ import (
 
 // Logger interface for hook execution logging.
 type Logger interface {
-	Info(msg string, keysAndValues ...interface{})
+	Info(msg string, keysAndValues ...any)
 }
 
 // DefaultTimeout is the default timeout for hook commands (30 seconds).

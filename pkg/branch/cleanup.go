@@ -196,8 +196,8 @@ func (c *cleanupService) isBranchMerged(ctx context.Context, repo *repository.Re
 	}
 
 	// Parse output
-	lines := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		line = strings.TrimPrefix(line, "* ")
 		if line == branch {
@@ -251,8 +251,8 @@ func (c *cleanupService) isBranchOrphaned(ctx context.Context, repo *repository.
 	}
 
 	// Parse remotes
-	remotes := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	for _, remote := range remotes {
+	remotes := strings.SplitSeq(strings.TrimSpace(result.Stdout), "\n")
+	for remote := range remotes {
 		if strings.TrimSpace(remote) == remoteName {
 			return false, nil // Remote exists, not orphaned
 		}

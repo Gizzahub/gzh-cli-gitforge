@@ -396,9 +396,9 @@ func (m *manager) parseBranchLine(line string) (*Branch, error) {
 
 		// Parse upstream and ahead/behind info
 		// Format: "origin/main" or "origin/main: ahead 2" or "origin/main: ahead 2, behind 3"
-		if colonIdx := strings.Index(bracketContent, ":"); colonIdx != -1 {
-			branch.Upstream = strings.TrimSpace(bracketContent[:colonIdx])
-			statusPart := bracketContent[colonIdx+1:]
+		if before, after, ok := strings.Cut(bracketContent, ":"); ok {
+			branch.Upstream = strings.TrimSpace(before)
+			statusPart := after
 
 			// Parse ahead/behind counts
 			branch.AheadBy, branch.BehindBy = parseAheadBehindFromStatus(statusPart)
@@ -429,13 +429,13 @@ func parseAheadBehindFromStatus(status string) (ahead, behind int) {
 
 // extractNumber extracts the number following a keyword.
 func extractNumber(s, keyword string) string {
-	idx := strings.Index(s, keyword)
-	if idx == -1 {
+	_, after, ok := strings.Cut(s, keyword)
+	if !ok {
 		return "0"
 	}
 
 	// Skip the keyword and any spaces
-	rest := strings.TrimSpace(s[idx+len(keyword):])
+	rest := strings.TrimSpace(after)
 
 	// Extract digits
 	var num strings.Builder

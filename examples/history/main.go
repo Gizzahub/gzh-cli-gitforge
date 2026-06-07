@@ -68,11 +68,8 @@ func main() {
 	if err != nil {
 		log.Printf("Warning: Failed to get contributors: %v", err)
 	} else {
-		limit := 5
-		if len(contributors) < limit {
-			limit = len(contributors)
-		}
-		for i := 0; i < limit; i++ {
+		limit := min(len(contributors), 5)
+		for i := range limit {
 			contrib := contributors[i]
 			fmt.Printf("%d. %s <%s>\n", i+1, contrib.Name, contrib.Email)
 			fmt.Printf("   Commits: %d\n", contrib.TotalCommits)
@@ -115,7 +112,7 @@ func main() {
 		fmt.Printf("Weekly commits: %d different weeks\n", len(trends.Weekly))
 		fmt.Printf("Monthly commits: %d different months\n", len(trends.Monthly))
 		fmt.Println("Commits by hour:")
-		for hour := 0; hour < 24; hour++ {
+		for hour := range 24 {
 			if count, ok := trends.Hourly[hour]; ok && count > 0 {
 				fmt.Printf("  %02d:00 - %d commits\n", hour, count)
 			}

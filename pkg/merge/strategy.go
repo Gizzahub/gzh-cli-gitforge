@@ -282,8 +282,8 @@ func (m *mergeManager) parseMergeResult(ctx context.Context, repo *repository.Re
 
 // parseStats extracts statistics from git merge output.
 func (m *mergeManager) parseStats(output string) (files, additions, deletions int) {
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		// Look for lines like: "3 files changed, 10 insertions(+), 5 deletions(-)"
 		if !strings.Contains(line, "file") || !strings.Contains(line, "changed") {
 			continue

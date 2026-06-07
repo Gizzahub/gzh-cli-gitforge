@@ -6,6 +6,7 @@ package reposynccli
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -59,12 +60,7 @@ func (f *MetadataFilter) Match(repo *provider.Repository) bool {
 
 // containsString checks if slice contains the target string.
 func containsString(slice []string, target string) bool {
-	for _, s := range slice {
-		if s == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, target)
 }
 
 // ParseDuration parses duration strings with extended unit support.

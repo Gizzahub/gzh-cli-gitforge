@@ -190,17 +190,11 @@ func renderRepoList(m StatusModel) string {
 		visibleHeight = 10
 	}
 
-	start := m.cursor - visibleHeight/2
-	if start < 0 {
-		start = 0
-	}
+	start := max(m.cursor-visibleHeight/2, 0)
 	end := start + visibleHeight
 	if end > len(m.repos) {
 		end = len(m.repos)
-		start = end - visibleHeight
-		if start < 0 {
-			start = 0
-		}
+		start = max(end-visibleHeight, 0)
 	}
 
 	for i := start; i < end; i++ {

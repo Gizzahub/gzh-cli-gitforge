@@ -205,13 +205,13 @@ type BranchConfig struct {
 // When YAML contains `branch: develop` (a plain string), it is converted to
 // BranchConfig{DefaultBranch: ["develop"]}. This follows the same pattern
 // as BranchList.UnmarshalYAML.
-func (b *BranchConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (b *BranchConfig) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string first (shorthand: branch: develop)
 	var str string
 	if err := unmarshal(&str); err == nil {
 		var bl BranchList
 		// Reuse BranchList parsing logic for comma-separated support
-		if err := bl.UnmarshalYAML(func(v interface{}) error {
+		if err := bl.UnmarshalYAML(func(v any) error {
 			sp, ok := v.(*string)
 			if ok {
 				*sp = str
@@ -264,7 +264,7 @@ func (b *BranchConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type FlexBranch string
 
 // UnmarshalYAML implements yaml.Unmarshaler to support both string and map formats.
-func (f *FlexBranch) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (f *FlexBranch) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string first
 	var str string
 	if err := unmarshal(&str); err == nil {
@@ -273,7 +273,7 @@ func (f *FlexBranch) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	// Try map with defaultBranch key
-	var m map[string]interface{}
+	var m map[string]any
 	if err := unmarshal(&m); err != nil {
 		return fmt.Errorf("branch: expected string or map with defaultBranch key")
 	}
@@ -287,7 +287,7 @@ func (f *FlexBranch) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	switch v := val.(type) {
 	case string:
 		*f = FlexBranch(v)
-	case []interface{}:
+	case []any:
 		parts := make([]string, 0, len(v))
 		for _, item := range v {
 			if s, ok := item.(string); ok && s != "" {
@@ -307,7 +307,7 @@ func (f FlexBranch) String() string {
 }
 
 // MarshalYAML implements yaml.Marshaler to output as a plain string.
-func (f FlexBranch) MarshalYAML() (interface{}, error) {
+func (f FlexBranch) MarshalYAML() (any, error) {
 	if f == "" {
 		return nil, nil //nolint:nilnil // returning nil to yaml marshaler means "omit this field"
 	}
@@ -322,7 +322,7 @@ func (f FlexBranch) MarshalYAML() (interface{}, error) {
 type BranchList []string
 
 // UnmarshalYAML implements yaml.Unmarshaler to support both string and list formats.
-func (b *BranchList) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (b *BranchList) UnmarshalYAML(unmarshal func(any) error) error {
 	// Try string first
 	var str string
 	if err := unmarshal(&str); err == nil {
@@ -353,7 +353,7 @@ func (b *BranchList) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements yaml.Marshaler to output as comma-separated string.
-func (b BranchList) MarshalYAML() (interface{}, error) {
+func (b BranchList) MarshalYAML() (any, error) {
 	if len(b) == 0 {
 		return nil, nil //nolint:nilnil // returning nil to yaml marshaler means "omit this field"
 	}
@@ -412,7 +412,7 @@ type GlobalConfig struct {
 	ActiveProfile string `yaml:"activeProfile,omitempty"`
 
 	// Defaults apply to all profiles unless overridden
-	Defaults map[string]interface{} `yaml:"defaults,omitempty"`
+	Defaults map[string]any `yaml:"defaults,omitempty"`
 
 	// Environments define named token sets
 	Environments map[string]Environment `yaml:"environments,omitempty"`

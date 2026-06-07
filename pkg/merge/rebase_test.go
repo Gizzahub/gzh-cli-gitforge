@@ -3,6 +3,7 @@ package merge
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -486,13 +487,7 @@ func TestRebaseManager_BuildRebaseArgs(t *testing.T) {
 			args := manager.buildRebaseArgs(tt.opts)
 
 			for _, want := range tt.wantContains {
-				found := false
-				for _, arg := range args {
-					if arg == want {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(args, want)
 				if !found {
 					t.Errorf("buildRebaseArgs() missing %q in %v", want, args)
 				}

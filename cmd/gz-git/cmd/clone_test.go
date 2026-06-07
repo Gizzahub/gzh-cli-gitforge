@@ -714,14 +714,14 @@ repositories:
 func TestParseCloneHooks(t *testing.T) {
 	tests := []struct {
 		name string
-		raw  map[string]interface{}
+		raw  map[string]any
 		want *CloneHooks
 	}{
 		{
 			name: "before and after hooks",
-			raw: map[string]interface{}{
-				"before": []interface{}{"echo before"},
-				"after":  []interface{}{"echo after", "make setup"},
+			raw: map[string]any{
+				"before": []any{"echo before"},
+				"after":  []any{"echo after", "make setup"},
 			},
 			want: &CloneHooks{
 				Before: []string{"echo before"},
@@ -730,8 +730,8 @@ func TestParseCloneHooks(t *testing.T) {
 		},
 		{
 			name: "only after hooks",
-			raw: map[string]interface{}{
-				"after": []interface{}{"./reset-all-repos"},
+			raw: map[string]any{
+				"after": []any{"./reset-all-repos"},
 			},
 			want: &CloneHooks{
 				After: []string{"./reset-all-repos"},
@@ -739,8 +739,8 @@ func TestParseCloneHooks(t *testing.T) {
 		},
 		{
 			name: "only before hooks",
-			raw: map[string]interface{}{
-				"before": []interface{}{"mkdir -p backup"},
+			raw: map[string]any{
+				"before": []any{"mkdir -p backup"},
 			},
 			want: &CloneHooks{
 				Before: []string{"mkdir -p backup"},
@@ -748,14 +748,14 @@ func TestParseCloneHooks(t *testing.T) {
 		},
 		{
 			name: "empty hooks",
-			raw:  map[string]interface{}{},
+			raw:  map[string]any{},
 			want: nil,
 		},
 		{
 			name: "empty arrays",
-			raw: map[string]interface{}{
-				"before": []interface{}{},
-				"after":  []interface{}{},
+			raw: map[string]any{
+				"before": []any{},
+				"after":  []any{},
 			},
 			want: nil,
 		},
