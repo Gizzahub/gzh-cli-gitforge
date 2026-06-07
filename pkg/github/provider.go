@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/google/go-github/v66/github"
-	"golang.org/x/oauth2"
+	"github.com/google/go-github/v88/github"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/ratelimit"
@@ -31,15 +30,14 @@ func NewProvider(token string) *Provider {
 }
 
 func (p *Provider) initClient(token string) {
+	var opts []github.ClientOptionsFunc
 	if token != "" {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-		tc := oauth2.NewClient(context.Background(), ts)
-		p.client = github.NewClient(tc)
-	} else {
-		p.client = github.NewClient(nil)
+		opts = append(opts, github.WithAuthToken(token))
 	}
+	// NewClient only returns an error when an option fails to apply (e.g. URL
+	// parsing or env-proxy setup); WithAuthToken never errors, so it is safe to
+	// ignore the error for the options used here.
+	p.client, _ = github.NewClient(opts...)
 }
 
 // SetToken sets the authentication token
@@ -138,13 +136,13 @@ func (p *Provider) ListOrganizations(ctx context.Context) ([]*provider.Organizat
 func (p *Provider) ListUserRepos(ctx context.Context, user string) ([]*provider.Repository, error) {
 	var allRepos []*provider.Repository
 
-	opts := &github.RepositoryListOptions{
+	opts := &github.RepositoryListByUserOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 		Type:        "all",
 	}
 
 	for {
-		repos, resp, err := p.client.Repositories.List(ctx, user, opts)
+		repos, resp, err := p.client.Repositories.ListByUser(ctx, user, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list repos for user %s: %w", user, err)
 		}
