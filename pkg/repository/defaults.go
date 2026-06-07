@@ -13,7 +13,7 @@ package repository
 const (
 	// DefaultLocalScanDepth is the default directory depth to scan for repositories.
 	// maxDepth=1 means scan only direct children of root (depth 0 -> depth 1)
-	// maxDepth=2 means scan root + 2 levels (depth 0 -> depth 1 -> depth 2)
+	// maxDepth=2 means scan root + 2 levels (depth 0 -> depth 1 -> depth 2).
 	DefaultLocalScanDepth = 1
 
 	// DefaultLocalParallel is the default number of parallel workers for local Git operations.
@@ -44,10 +44,12 @@ const (
 // New code should prefer the group-specific constants above.
 const (
 	// DefaultBulkParallel is an alias for DefaultLocalParallel.
+	//
 	// Deprecated: Use DefaultLocalParallel for local operations or DefaultForgeParallel for API operations.
 	DefaultBulkParallel = DefaultLocalParallel
 
 	// DefaultBulkMaxDepth is an alias for DefaultLocalScanDepth.
+	//
 	// Deprecated: Use DefaultLocalScanDepth instead.
 	DefaultBulkMaxDepth = DefaultLocalScanDepth
 )

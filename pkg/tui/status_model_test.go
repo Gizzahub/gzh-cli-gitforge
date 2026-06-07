@@ -60,7 +60,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test window size message
 	msg := tea.WindowSizeMsg{Width: 100, Height: 30}
 	updated, _ := model.Update(msg)
-	m := updated.(StatusModel)
+	m, ok := updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if m.width != 100 || m.height != 30 {
 		t.Errorf("expected width=100 height=30, got width=%d height=%d", m.width, m.height)
@@ -73,7 +76,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test navigation down
 	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if m.cursor != 1 {
 		t.Errorf("expected cursor to be 1, got %d", m.cursor)
@@ -82,7 +88,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test navigation up
 	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if m.cursor != 0 {
 		t.Errorf("expected cursor to be 0, got %d", m.cursor)
@@ -91,7 +100,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test selection toggle
 	keyMsg = tea.KeyMsg{Type: tea.KeySpace}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if !m.selected["/path/to/repo1"] {
 		t.Error("expected repo1 to be selected")
@@ -100,7 +112,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test select all
 	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if len(m.selected) != 2 {
 		t.Errorf("expected 2 selected repos, got %d", len(m.selected))
@@ -109,7 +124,10 @@ func TestStatusModelUpdate(t *testing.T) {
 	// Test deselect all
 	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if len(m.selected) != 0 {
 		t.Errorf("expected 0 selected repos, got %d", len(m.selected))
@@ -224,10 +242,13 @@ func TestBatchActions(t *testing.T) {
 
 			// executeAction returns pointer, so check both types
 			var finalModel StatusModel
-			if pm, ok := updated.(*StatusModel); ok {
-				finalModel = *pm
-			} else {
-				finalModel = updated.(StatusModel)
+			switch v := updated.(type) {
+			case *StatusModel:
+				finalModel = *v
+			case StatusModel:
+				finalModel = v
+			default:
+				t.Fatal("expected StatusModel or *StatusModel from Update")
 			}
 
 			if finalModel.GetAction() != tt.expectedAction {
@@ -316,7 +337,10 @@ func TestFiltering(t *testing.T) {
 	// Test filter key binding
 	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}}
 	updated, _ := model.Update(keyMsg)
-	m := updated.(StatusModel)
+	m, ok := updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if m.filter != FilterDirty {
 		t.Errorf("expected FilterDirty, got %v", m.filter)
@@ -328,7 +352,10 @@ func TestFiltering(t *testing.T) {
 	// Test reset filter
 	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'0'}}
 	updated, _ = m.Update(keyMsg)
-	m = updated.(StatusModel)
+	m, ok = updated.(StatusModel)
+	if !ok {
+		t.Fatal("expected StatusModel from Update")
+	}
 
 	if m.filter != FilterNone {
 		t.Errorf("expected FilterNone, got %v", m.filter)

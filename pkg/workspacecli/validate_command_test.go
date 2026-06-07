@@ -186,7 +186,7 @@ func TestValidateCmd_ConfigFlag(t *testing.T) {
 
 	flag := cmd.Flags().Lookup("config")
 	if flag == nil {
-		t.Error("config flag should exist")
+		t.Fatal("config flag should exist")
 	}
 
 	if flag.Shorthand != "c" {

@@ -60,7 +60,7 @@ func findOrBuildBinary(t *testing.T) string {
 
 	// Build the binary
 	t.Log("Building gz-git binary for E2E tests...")
-	cmd := exec.Command("go", "build", "-o", "gz-git", "./cmd/gz-git")
+	cmd := exec.Command("go", "build", "-o", "gz-git", "./cmd/gz-git") //nolint:noctx // build step, no context needed
 	cmd.Dir = "../../"
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -72,10 +72,12 @@ func findOrBuildBinary(t *testing.T) string {
 }
 
 // runCommand runs a command in the specified directory.
-func (r *E2ERepo) runCommand(dir string, name string, args ...string) string {
+//
+//nolint:unparam // generic command runner; name kept for clarity
+func (r *E2ERepo) runCommand(dir, name string, args ...string) string {
 	r.t.Helper()
 
-	cmd := exec.Command(name, args...)
+	cmd := exec.Command(name, args...) //nolint:noctx // test helper, no context needed
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -89,7 +91,7 @@ func (r *E2ERepo) runCommand(dir string, name string, args ...string) string {
 func (r *E2ERepo) RunGzhGit(args ...string) string {
 	r.t.Helper()
 
-	cmd := exec.Command(r.binaryPath, args...)
+	cmd := exec.Command(r.binaryPath, args...) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.repoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -103,7 +105,7 @@ func (r *E2ERepo) RunGzhGit(args ...string) string {
 func (r *E2ERepo) RunGzhGitExpectError(args ...string) string {
 	r.t.Helper()
 
-	cmd := exec.Command(r.binaryPath, args...)
+	cmd := exec.Command(r.binaryPath, args...) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.repoDir
 	output, err := cmd.CombinedOutput()
 	if err == nil {

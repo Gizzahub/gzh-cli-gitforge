@@ -404,7 +404,7 @@ func TestValidateBranchName(t *testing.T) {
 
 // contains is a helper to check if a string contains a substring.
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || (len(s) > 0 && containsHelper(s, substr)))
+	return len(s) >= len(substr) && (s == substr || substr == "" || (s != "" && containsHelper(s, substr)))
 }
 
 func containsHelper(s, substr string) bool {

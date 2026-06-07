@@ -290,7 +290,7 @@ func (r *CleanupReport) IsEmpty() bool {
 
 // GetAllBranches returns all branches eligible for cleanup.
 func (r *CleanupReport) GetAllBranches() []*Branch {
-	all := make([]*Branch, 0)
+	all := make([]*Branch, 0, len(r.Merged)+len(r.Stale)+len(r.Orphaned))
 	all = append(all, r.Merged...)
 	all = append(all, r.Stale...)
 	all = append(all, r.Orphaned...)

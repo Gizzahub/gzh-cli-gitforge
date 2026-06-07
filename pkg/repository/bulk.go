@@ -865,7 +865,8 @@ func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth,
 		// 1. This is a submodule AND IncludeSubmodules is false
 		// 2. This is depth > 0 AND is an independent nested repo (to avoid recursing into nested repo's children)
 
-		if isSubmodule(dir) {
+		switch {
+		case isSubmodule(dir):
 			if !config.includeSubmodules {
 				// Skip submodule and its children
 				logger.Debug("skipping submodule", "path", dir)
@@ -873,11 +874,11 @@ func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth,
 			}
 			// Include submodules, continue scanning
 			logger.Debug("including submodule", "path", dir)
-		} else if depth > 0 {
+		case depth > 0:
 			// This is an independent nested repository at depth > 0
 			// Continue scanning its children to find more nested repos
 			logger.Debug("found independent nested repository, continuing scan", "path", dir)
-		} else {
+		default:
 			// This is the root directory (depth 0), always scan its children
 			logger.Debug("scanning children of root repository", "path", dir)
 		}
@@ -925,7 +926,7 @@ func (c *client) walkDirectoryWithConfig(ctx context.Context, dir string, depth,
 // shouldIgnoreDirectory checks if a directory should be skipped.
 func shouldIgnoreDirectory(name string) bool {
 	// Skip hidden directories
-	if len(name) > 0 && name[0] == '.' {
+	if name != "" && name[0] == '.' {
 		return true
 	}
 
@@ -1336,17 +1337,18 @@ func (c *client) processFetchRepository(ctx context.Context, rootDir, repoPath s
 
 		// Update status based on behind/ahead state
 		// Use StatusFetched when changes were fetched, StatusUpToDate when no changes
-		if result.CommitsBehind > 0 {
+		switch {
+		case result.CommitsBehind > 0:
 			result.Status = StatusFetched
 			if result.CommitsAhead > 0 {
 				result.Message = fmt.Sprintf("Fetched updates: %d behind, %d ahead", result.CommitsBehind, result.CommitsAhead)
 			} else {
 				result.Message = fmt.Sprintf("Fetched updates: %d behind", result.CommitsBehind)
 			}
-		} else if result.CommitsAhead > 0 {
+		case result.CommitsAhead > 0:
 			result.Status = StatusUpToDate
 			result.Message = fmt.Sprintf("Up to date: %d ahead", result.CommitsAhead)
-		} else {
+		default:
 			result.Status = StatusUpToDate
 			result.Message = "Already up to date"
 		}
@@ -1488,7 +1490,7 @@ func (c *client) processPullRepositories(ctx context.Context, rootDir string, re
 
 // processPullRepository processes a single repository pull.
 //
-//nolint:gocognit // TODO: Refactor into smaller helper functions (validateRepo, handleState, executePull, handleResult)
+//nolint:gocognit,gocyclo // TODO: Refactor into smaller helper functions (validateRepo, handleState, executePull, handleResult)
 func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath string, opts BulkPullOptions, logger Logger) RepositoryPullResult {
 	startTime := time.Now()
 
@@ -1949,7 +1951,7 @@ func (c *client) processPushRepositories(ctx context.Context, rootDir string, re
 
 // processPushRepository processes a single repository push.
 //
-//nolint:gocognit // TODO: Refactor into smaller helper functions (similar to processPullRepository)
+//nolint:gocognit,gocyclo // TODO: Refactor into smaller helper functions (similar to processPullRepository)
 func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath string, opts BulkPushOptions, logger Logger) RepositoryPushResult {
 	startTime := time.Now()
 
@@ -2134,7 +2136,7 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	var actualCommitsToPush int
 	if opts.Refspec != "" {
 		// Parse refspec - already validated and checked earlier, so this should not fail
-		parsed, _ := ValidateRefspec(opts.Refspec)
+		parsed, _ := ValidateRefspec(opts.Refspec) //nolint:errcheck // refspec already validated upstream; error here is impossible in practice
 
 		// Calculate commits between local source branch and remote destination branch
 		// This gives us the actual commit count for refspec push
@@ -2401,7 +2403,7 @@ func (c *client) processStatusRepositories(ctx context.Context, rootDir string, 
 }
 
 // processStatusRepository processes a single repository status check.
-func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath string, opts BulkStatusOptions, logger Logger) RepositoryStatusResult {
+func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath string, _ BulkStatusOptions, logger Logger) RepositoryStatusResult {
 	startTime := time.Now()
 
 	result := RepositoryStatusResult{
@@ -2471,16 +2473,17 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 	result.UntrackedFiles = len(status.UntrackedFiles)
 
 	// Determine status
-	if repoState.HasConflicts {
+	switch {
+	case repoState.HasConflicts:
 		result.Status = StatusConflict
 		result.Message = fmt.Sprintf("Repository has conflicts in %d file(s)", len(repoState.ConflictedFiles))
-	} else if repoState.RebaseInProgress {
+	case repoState.RebaseInProgress:
 		result.Status = StatusRebaseInProgress
 		result.Message = "Rebase in progress"
-	} else if repoState.MergeInProgress {
+	case repoState.MergeInProgress:
 		result.Status = StatusMergeInProgress
 		result.Message = "Merge in progress"
-	} else if info.RemoteURL == "" {
+	case info.RemoteURL == "":
 		if status.IsClean {
 			result.Status = StatusNoRemote
 			result.Message = "No remote configured (clean)"
@@ -2488,7 +2491,7 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 			result.Status = StatusDirty
 			result.Message = "Working tree has uncommitted changes (no remote)"
 		}
-	} else if info.Upstream == "" {
+	case info.Upstream == "":
 		if status.IsClean {
 			result.Status = StatusNoUpstream
 			result.Message = "No upstream branch configured (clean)"
@@ -2496,19 +2499,20 @@ func (c *client) processStatusRepository(ctx context.Context, rootDir, repoPath 
 			result.Status = StatusDirty
 			result.Message = "Working tree has uncommitted changes (no upstream)"
 		}
-	} else if !status.IsClean {
+	case !status.IsClean:
 		result.Status = StatusDirty
 		result.Message = fmt.Sprintf("Working tree has %d uncommitted file(s), %d untracked file(s)",
 			result.UncommittedFiles, result.UntrackedFiles)
-	} else {
+	default:
 		result.Status = StatusClean
-		if info.AheadBy > 0 && info.BehindBy > 0 {
+		switch {
+		case info.AheadBy > 0 && info.BehindBy > 0:
 			result.Message = fmt.Sprintf("Clean (%d ahead, %d behind)", info.AheadBy, info.BehindBy)
-		} else if info.AheadBy > 0 {
+		case info.AheadBy > 0:
 			result.Message = fmt.Sprintf("Clean (%d ahead)", info.AheadBy)
-		} else if info.BehindBy > 0 {
+		case info.BehindBy > 0:
 			result.Message = fmt.Sprintf("Clean (%d behind)", info.BehindBy)
-		} else {
+		default:
 			result.Message = "Clean and up to date"
 		}
 	}
@@ -2657,7 +2661,7 @@ func (c *client) ScanRepositories(ctx context.Context, opts ScanOptions) (*ScanR
 func (c *client) scanAndFilterRepositories(
 	ctx context.Context,
 	common *bulkOperationCommon,
-) ([]string, int, error) {
+) (paths []string, totalScanned int, err error) {
 	common.Logger.Info("scanning for repositories", "directory", common.Directory, "maxDepth", common.MaxDepth)
 
 	// Scan for repositories
@@ -2669,7 +2673,7 @@ func (c *client) scanAndFilterRepositories(
 	}
 
 	common.Logger.Info("scan complete", "found", len(repos))
-	totalScanned := len(repos)
+	totalScanned = len(repos)
 
 	// Filter repositories
 	filteredRepos, err := filterRepositories(repos, common.IncludePattern, common.ExcludePattern, common.Logger)

@@ -264,11 +264,12 @@ func renderRepoLine(repo reposync.RepoHealth, isCursor, isSelected bool) string 
 	)
 
 	// Apply styling
-	if isCursor {
+	switch {
+	case isCursor:
 		return CursorStyle.Render(line)
-	} else if repo.HealthStatus != reposync.HealthHealthy {
+	case repo.HealthStatus != reposync.HealthHealthy:
 		return UnhealthyStyle.Render(line)
-	} else if repo.WorkTreeStatus != reposync.WorkTreeClean {
+	case repo.WorkTreeStatus != reposync.WorkTreeClean:
 		return DirtyStyle.Render(line)
 	}
 
@@ -276,7 +277,7 @@ func renderRepoLine(repo reposync.RepoHealth, isCursor, isSelected bool) string 
 }
 
 // getStatusDisplay returns status icon and text for a repository.
-func getStatusDisplay(repo reposync.RepoHealth) (string, string) {
+func getStatusDisplay(repo reposync.RepoHealth) (icon, text string) {
 	// Health status
 	switch repo.HealthStatus {
 	case reposync.HealthHealthy:
@@ -338,7 +339,9 @@ func renderFooter(m StatusModel) string {
 	detailActions := []string{"Enter: Details"}
 
 	// Combine all actions
-	allActions := append(navActions, batchActions...)
+	allActions := make([]string, 0, len(navActions)+len(batchActions)+len(filterActions)+len(detailActions)+1)
+	allActions = append(allActions, navActions...)
+	allActions = append(allActions, batchActions...)
 	allActions = append(allActions, filterActions...)
 	allActions = append(allActions, detailActions...)
 	allActions = append(allActions, "q: Quit")
@@ -400,6 +403,8 @@ func (m StatusModel) applyFilter(filter FilterType) []reposync.RepoHealth {
 			include = repo.WorkTreeStatus == reposync.WorkTreeClean
 		case FilterAhead:
 			include = repo.AheadBy > 0
+		case FilterNone, FilterAll:
+			include = true
 		}
 
 		if include {

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestCommitBulkCommand tests the bulk commit functionality (now the default behavior)
+// TestCommitBulkCommand tests the bulk commit functionality (now the default behavior).
 func TestCommitBulkCommand(t *testing.T) {
 	t.Run("dry run with no changes", func(t *testing.T) {
 		repo := NewTestRepo(t)

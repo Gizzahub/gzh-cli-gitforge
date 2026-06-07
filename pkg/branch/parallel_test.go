@@ -102,7 +102,6 @@ func TestWorkContext_Struct(t *testing.T) {
 	ctx := &WorkContext{
 		Path:          "/work/feature-a",
 		Branch:        "feature/a",
-		IsMain:        false,
 		HasChanges:    true,
 		ModifiedFiles: []string{"file1.go", "file2.go"},
 	}
@@ -440,10 +439,7 @@ func TestWorkContext_AllFields(t *testing.T) {
 
 func TestWorkContext_MainContext(t *testing.T) {
 	ctx := &WorkContext{
-		Path:          "/project",
-		Branch:        "main",
 		IsMain:        true,
-		HasChanges:    false,
 		ModifiedFiles: []string{},
 	}
 

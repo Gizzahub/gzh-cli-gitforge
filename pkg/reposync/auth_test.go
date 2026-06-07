@@ -328,7 +328,7 @@ func TestExpandHomePath(t *testing.T) {
 		{
 			name:     "Home path",
 			path:     "~/.ssh/id_rsa",
-			expected: filepath.Join(home, ".ssh/id_rsa"),
+			expected: filepath.Join(home, ".ssh", "id_rsa"),
 		},
 		{
 			name:     "Absolute path unchanged",

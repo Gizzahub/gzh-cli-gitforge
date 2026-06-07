@@ -195,6 +195,8 @@ func ParseAheadBehind(output string) (ahead, behind int, err error) {
 
 // ParseCommitInfo parses basic commit information from "git log" output.
 // Format: "HASH|AUTHOR|EMAIL|TIMESTAMP|SUBJECT".
+//
+//nolint:gocritic // tooManyResultsChecker: changing to a struct return would break callers outside this package
 func ParseCommitInfo(line string) (hash, author, email, subject string, timestamp int64, err error) {
 	parts := strings.Split(line, "|")
 	if len(parts) < 5 {

@@ -14,7 +14,7 @@ func TestBuildPullError(t *testing.T) {
 	t.Run("returns execErr when non-nil", func(t *testing.T) {
 		execErr := errors.New("process start failed")
 		got := buildPullError(execErr, 128, "some stderr", nil)
-		if got != execErr {
+		if !errors.Is(got, execErr) {
 			t.Errorf("expected execErr returned directly, got %v", got)
 		}
 	})
@@ -69,7 +69,7 @@ func TestBulkPullDirtyRepoWithMergeStrategy(t *testing.T) {
 	if err := os.MkdirAll(remotePath, 0o755); err != nil {
 		t.Fatalf("Failed to create remote dir: %v", err)
 	}
-	cmd := exec.Command("git", "init", "--bare")
+	cmd := exec.Command("git", "init", "--bare") //nolint:noctx // test setup, no context available
 	cmd.Dir = remotePath
 	if err := cmd.Run(); err != nil {
 		t.Skipf("Skipping: git not available: %v", err)
@@ -91,7 +91,7 @@ func TestBulkPullDirtyRepoWithMergeStrategy(t *testing.T) {
 		{"remote", "add", "origin", remotePath},
 	}
 	for _, args := range cmds {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", args...) //nolint:noctx // test setup, no context available
 		c.Dir = repoPath
 		if err := c.Run(); err != nil {
 			t.Fatalf("git %s failed: %v", args[0], err)
@@ -107,7 +107,7 @@ func TestBulkPullDirtyRepoWithMergeStrategy(t *testing.T) {
 		{"commit", "-m", "Initial commit"},
 		{"push", "-u", "origin", "master"},
 	} {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", args...) //nolint:noctx // test setup, no context available
 		c.Dir = repoPath
 		if err := c.Run(); err != nil {
 			t.Fatalf("git %s failed: %v", args[0], err)
@@ -121,7 +121,7 @@ func TestBulkPullDirtyRepoWithMergeStrategy(t *testing.T) {
 		{"-C", clonePath, "config", "user.name", "Other User"},
 		{"-C", clonePath, "config", "user.email", "other@example.com"},
 	} {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", args...) //nolint:noctx // test setup, no context available
 		if err := c.Run(); err != nil {
 			t.Fatalf("git %s failed: %v", args[0], err)
 		}
@@ -134,7 +134,7 @@ func TestBulkPullDirtyRepoWithMergeStrategy(t *testing.T) {
 		{"-C", clonePath, "commit", "-m", "Remote commit"},
 		{"-C", clonePath, "push"},
 	} {
-		c := exec.Command("git", args...)
+		c := exec.Command("git", args...) //nolint:noctx // test setup, no context available
 		if err := c.Run(); err != nil {
 			t.Fatalf("git %s failed: %v", args[0], err)
 		}

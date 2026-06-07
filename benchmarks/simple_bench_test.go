@@ -17,7 +17,7 @@ func BenchmarkCLIStatus(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "status")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "status")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -36,7 +36,7 @@ func BenchmarkCLIInfo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "info")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "info")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -55,7 +55,7 @@ func BenchmarkCLIBranchList(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "branch", "list")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "branch", "list")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -74,7 +74,7 @@ func BenchmarkCLIHistoryStats(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "history", "stats")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "history", "stats")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -93,7 +93,7 @@ func BenchmarkCLIHistoryContributors(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "history", "contributors")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "history", "contributors")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -112,7 +112,7 @@ func BenchmarkCLIHistoryFile(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "history", "file", "README.md")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "history", "file", "README.md")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -131,7 +131,7 @@ func BenchmarkCLIHistoryBlame(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "history", "blame", "README.md")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "history", "blame", "README.md")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -145,7 +145,7 @@ func BenchmarkCLICommitValidate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "commit", "validate", "feat(api): add user endpoint")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "commit", "validate", "feat(api): add user endpoint")
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
 		}
@@ -158,7 +158,7 @@ func BenchmarkCLICommitTemplateList(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "commit", "template", "list")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "commit", "template", "list")
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
 		}
@@ -176,7 +176,7 @@ func BenchmarkCLIStatusLargeRepo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "status")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "status")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -195,7 +195,7 @@ func BenchmarkCLIHistoryStatsLargeRepo(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cmd := exec.Command(binaryPath, "history", "stats")
+		cmd := exec.CommandContext(b.Context(), binaryPath, "history", "stats")
 		cmd.Dir = repoPath
 		if _, err := cmd.CombinedOutput(); err != nil {
 			b.Fatalf("Command failed: %v", err)
@@ -213,7 +213,7 @@ func findOrBuildBinary(b *testing.B) string {
 
 	// Build if needed
 	b.Logf("Building gz-git binary to %s...", absPath)
-	cmd := exec.Command("go", "build", "-o", absPath, "./cmd/gz-git")
+	cmd := exec.CommandContext(b.Context(), "go", "build", "-o", absPath, "./cmd/gz-git")
 	cmd.Dir = ".."
 	if output, err := cmd.CombinedOutput(); err != nil {
 		b.Fatalf("Failed to build binary: %v\nOutput: %s", err, output)

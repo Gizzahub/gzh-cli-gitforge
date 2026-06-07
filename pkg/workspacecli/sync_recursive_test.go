@@ -89,9 +89,7 @@ func TestSyncConfigCleanupOrphans(t *testing.T) {
 
 	// Verify it works in workspace context
 	ws := &config.Workspace{
-		Path:   "~/mydevbox",
-		Source: &config.ForgeSource{Provider: "gitlab", Org: "devbox"},
-		Sync:   sync,
+		Sync: sync,
 	}
 
 	if ws.Sync == nil || !ws.Sync.CleanupOrphans {
@@ -99,10 +97,7 @@ func TestSyncConfigCleanupOrphans(t *testing.T) {
 	}
 
 	// Verify nil sync doesn't panic
-	wsNoSync := &config.Workspace{
-		Path:   "~/other",
-		Source: &config.ForgeSource{Provider: "github", Org: "org"},
-	}
+	wsNoSync := &config.Workspace{}
 	if wsNoSync.Sync != nil && wsNoSync.Sync.CleanupOrphans {
 		t.Error("expected nil sync to not have cleanupOrphans")
 	}
@@ -413,7 +408,7 @@ func TestEnsureChildConfigs_ConfigLink(t *testing.T) {
 // TestEnsureChildConfigs_ConfigLinkReplacesUserMaintainedFile verifies that when
 // configLink is explicitly set, an existing user-maintained .gz-git.yaml is replaced
 // with a symlink (warn & replace) instead of returning an error.
-// Regression test for: ISSUE-configlink-overrides-user-maintained-guard
+// Regression test for: ISSUE-configlink-overrides-user-maintained-guard.
 func TestEnsureChildConfigs_ConfigLinkReplacesUserMaintainedFile(t *testing.T) {
 	tmpDir := t.TempDir()
 

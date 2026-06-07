@@ -5,6 +5,7 @@ package tag
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -15,6 +16,9 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
+
+// ErrNoTags is returned when no tags are found in the repository.
+var ErrNoTags = errors.New("no tags found")
 
 // Manager defines tag operations.
 type Manager interface {
@@ -171,11 +175,12 @@ func (m *manager) Push(ctx context.Context, repo *repository.Repository, opts Pu
 
 	args := []string{"push", remote}
 
-	if opts.All {
+	switch {
+	case opts.All:
 		args = append(args, "--tags")
-	} else if opts.Name != "" {
+	case opts.Name != "":
 		args = append(args, opts.Name)
-	} else {
+	default:
 		return fmt.Errorf("either --all or tag name is required")
 	}
 
@@ -231,7 +236,10 @@ func (m *manager) Exists(ctx context.Context, repo *repository.Repository, name 
 		return false, fmt.Errorf("repository cannot be nil")
 	}
 
-	result, _ := m.executor.Run(ctx, repo.Path, "rev-parse", "--verify", "refs/tags/"+name)
+	result, err := m.executor.Run(ctx, repo.Path, "rev-parse", "--verify", "refs/tags/"+name)
+	if err != nil {
+		return false, fmt.Errorf("failed to check tag existence: %w", err)
+	}
 	return result.ExitCode == 0, nil
 }
 
@@ -242,7 +250,7 @@ func (m *manager) Latest(ctx context.Context, repo *repository.Repository) (*Tag
 		return nil, err
 	}
 	if len(tags) == 0 {
-		return nil, nil
+		return nil, ErrNoTags
 	}
 	return tags[0], nil
 }
@@ -251,11 +259,10 @@ func (m *manager) Latest(ctx context.Context, repo *repository.Repository) (*Tag
 func (m *manager) NextVersion(ctx context.Context, repo *repository.Repository, bump string) (string, error) {
 	latest, err := m.Latest(ctx, repo)
 	if err != nil {
+		if errors.Is(err, ErrNoTags) {
+			return "v0.1.0", nil
+		}
 		return "", err
-	}
-
-	if latest == nil {
-		return "v0.1.0", nil
 	}
 
 	// Parse current version
@@ -293,6 +300,7 @@ func parseTagLine(line string) *Tag {
 		message = parts[3]
 	}
 
+	//nolint:errcheck // zero timestamp on parse failure is safe: date defaults to Unix epoch
 	timestamp, _ := strconv.ParseInt(timestampStr, 10, 64)
 	date := time.Unix(timestamp, 0)
 
@@ -316,8 +324,11 @@ func parseSemVer(version string) (major, minor, patch int) {
 	matches := re.FindStringSubmatch(version)
 
 	if len(matches) >= 4 {
+		//nolint:errcheck // regex \d+ guarantees digits-only input; Atoi cannot fail here
 		major, _ = strconv.Atoi(matches[1])
+		//nolint:errcheck // regex \d+ guarantees digits-only input; Atoi cannot fail here
 		minor, _ = strconv.Atoi(matches[2])
+		//nolint:errcheck // regex \d+ guarantees digits-only input; Atoi cannot fail here
 		patch, _ = strconv.Atoi(matches[3])
 	}
 

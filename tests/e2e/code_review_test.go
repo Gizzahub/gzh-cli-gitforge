@@ -246,7 +246,7 @@ func TestBranchComparisonForReview(t *testing.T) {
 		output := repo.RunGzhGit("conflict", "detect", "feature/review", "master")
 
 		// Should complete successfully with merge analysis
-		if len(output) > 0 {
+		if output != "" {
 			t.Log("Conflict detect completed for branch review")
 		}
 	})

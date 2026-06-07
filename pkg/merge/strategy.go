@@ -230,7 +230,7 @@ func (m *mergeManager) buildMergeArgs(opts MergeOptions, canFastForward bool) []
 }
 
 // handleMergeError handles merge execution errors.
-func (m *mergeManager) handleMergeError(ctx context.Context, repo *repository.Repository, opts MergeOptions, err error) (*MergeResult, error) {
+func (m *mergeManager) handleMergeError(ctx context.Context, repo *repository.Repository, opts MergeOptions, err error) (*MergeResult, error) { //nolint:unparam // ctx is reserved for future logging/tracing use
 	return &MergeResult{
 		Success: false,
 		Message: fmt.Sprintf("merge failed: %v", err),
@@ -285,18 +285,19 @@ func (m *mergeManager) parseStats(output string) (files, additions, deletions in
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		// Look for lines like: "3 files changed, 10 insertions(+), 5 deletions(-)"
-		if strings.Contains(line, "file") && strings.Contains(line, "changed") {
-			var f, a, d int
-			_, _ = fmt.Sscanf(line, "%d files changed, %d insertions(+), %d deletions(-)", &f, &a, &d) //nolint:errcheck
-			if f > 0 {
-				files = f
-			}
-			if a > 0 {
-				additions = a
-			}
-			if d > 0 {
-				deletions = d
-			}
+		if !strings.Contains(line, "file") || !strings.Contains(line, "changed") {
+			continue
+		}
+		var f, a, d int
+		_, _ = fmt.Sscanf(line, "%d files changed, %d insertions(+), %d deletions(-)", &f, &a, &d) //nolint:errcheck // partial scan result is acceptable; named return vars default to 0
+		if f > 0 {
+			files = f
+		}
+		if a > 0 {
+			additions = a
+		}
+		if d > 0 {
+			deletions = d
 		}
 	}
 	return

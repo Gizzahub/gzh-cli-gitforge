@@ -82,12 +82,8 @@ func TestInferType(t *testing.T) {
 
 func TestBranch_Struct(t *testing.T) {
 	branch := &Branch{
-		Name:     "feature/test",
-		Ref:      "refs/heads/feature/test",
-		SHA:      "abc1234",
-		IsHead:   true,
-		IsMerged: false,
-		Upstream: "origin/feature/test",
+		Name:   "feature/test",
+		IsHead: true,
 	}
 
 	if branch.Name != "feature/test" {
@@ -348,9 +344,6 @@ func TestBranch_AllFields(t *testing.T) {
 		Upstream:   "origin/feature/all-fields",
 		AheadBy:    5,
 		BehindBy:   3,
-		LastCommit: nil,
-		CreatedAt:  nil,
-		UpdatedAt:  nil,
 	}
 
 	if branch.Name != "feature/all-fields" {
@@ -395,7 +388,6 @@ func TestCommit_Struct(t *testing.T) {
 		SHA:      "abc123def",
 		Author:   "John Doe",
 		Email:    "john@example.com",
-		Message:  "feat: add new feature\n\nThis adds a new feature.",
 		ShortMsg: "feat: add new feature",
 	}
 

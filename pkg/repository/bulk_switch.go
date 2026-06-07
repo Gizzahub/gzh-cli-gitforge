@@ -232,13 +232,14 @@ func (c *client) processSwitchRepository(ctx context.Context, rootDir, repoPath 
 
 	// Dry run - don't actually switch
 	if opts.DryRun {
-		if branchExists {
+		switch {
+		case branchExists:
 			result.Status = StatusWouldSwitch
 			result.Message = fmt.Sprintf("Would switch from '%s' to '%s'", info.Branch, opts.Branch)
-		} else if opts.Create {
+		case opts.Create:
 			result.Status = StatusWouldSwitch
 			result.Message = fmt.Sprintf("Would create and switch to '%s'", opts.Branch)
-		} else {
+		default:
 			result.Status = StatusWouldSwitch
 			result.Message = fmt.Sprintf("Would switch to '%s' (tracking remote)", opts.Branch)
 		}
@@ -250,14 +251,15 @@ func (c *client) processSwitchRepository(ctx context.Context, rootDir, repoPath 
 	var switchErr error
 	var created bool
 
-	if branchExists {
+	switch {
+	case branchExists:
 		// Switch to existing local branch
 		switchErr = c.switchBranch(ctx, repoPath, opts.Branch)
-	} else if opts.Create {
+	case opts.Create:
 		// Create new branch from current HEAD
 		switchErr = c.createAndSwitchBranch(ctx, repoPath, opts.Branch)
 		created = switchErr == nil
-	} else {
+	default:
 		// Try to checkout remote tracking branch
 		switchErr = c.checkoutRemoteTrackingBranch(ctx, repoPath, opts.Branch)
 	}
@@ -288,20 +290,24 @@ func (c *client) processSwitchRepository(ctx context.Context, rootDir, repoPath 
 }
 
 // branchExistsLocally checks if a branch exists locally.
+//
+//nolint:unparam // error return is intentional for future extensibility and consistent interface
 func (c *client) branchExistsLocally(ctx context.Context, repoPath, branch string) (bool, error) {
 	result, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", fmt.Sprintf("refs/heads/%s", branch))
 	if err != nil {
-		return false, nil // Branch doesn't exist
+		return false, nil //nolint:nilerr // executor error means branch doesn't exist; not a real error
 	}
 	return result.ExitCode == 0, nil
 }
 
 // branchExistsOnRemote checks if a branch exists on the remote.
+//
+//nolint:unparam // error return is intentional for future extensibility and consistent interface
 func (c *client) branchExistsOnRemote(ctx context.Context, repoPath, branch string) (bool, error) {
 	// First try origin
 	result, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", fmt.Sprintf("refs/remotes/origin/%s", branch))
 	if err != nil {
-		return false, nil
+		return false, nil //nolint:nilerr // executor error means branch doesn't exist on remote; not a real error
 	}
 	return result.ExitCode == 0, nil
 }

@@ -171,7 +171,10 @@ func TestAddOptions_DuplicateDetection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repos := loaded["repositories"].([]interface{})
+	repos, ok := loaded["repositories"].([]interface{})
+	if !ok {
+		t.Fatal("repositories field is not []interface{}")
+	}
 	newTargetPath := "./repos/existing"
 
 	// Check duplicate detection logic

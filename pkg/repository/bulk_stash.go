@@ -244,8 +244,8 @@ func (c *client) processStashRepository(ctx context.Context, rootDir, repoPath s
 		result.Branch = info.Branch
 	}
 
-	// Get current stash count
-	stashCountResult, _ := c.executor.Run(ctx, repoPath, "stash", "list")
+	// Get current stash count; executor error is treated as empty list (ExitCode != 0)
+	stashCountResult, _ := c.executor.Run(ctx, repoPath, "stash", "list") //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 	if stashCountResult.ExitCode == 0 {
 		lines := strings.Split(strings.TrimSpace(stashCountResult.Stdout), "\n")
 		if lines[0] != "" {
@@ -271,8 +271,8 @@ func (c *client) processStashRepository(ctx context.Context, rootDir, repoPath s
 
 // processStashSave handles stash save operation.
 func (c *client) processStashSave(ctx context.Context, repoPath string, opts BulkStashOptions, result RepositoryStashResult, logger Logger) RepositoryStashResult {
-	// Check if repository has changes
-	statusResult, _ := c.executor.Run(ctx, repoPath, "status", "--porcelain")
+	// Check if repository has changes; executor error treated as dirty (ExitCode != 0)
+	statusResult, _ := c.executor.Run(ctx, repoPath, "status", "--porcelain") //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 	if statusResult.ExitCode == 0 && strings.TrimSpace(statusResult.Stdout) == "" {
 		result.Status = StatusNoChanges
 		result.Message = "No changes to stash"
@@ -351,7 +351,7 @@ func (c *client) processStashPop(ctx context.Context, repoPath string, opts Bulk
 }
 
 // processStashList handles stash list operation.
-func (c *client) processStashList(ctx context.Context, repoPath string, opts BulkStashOptions, result RepositoryStashResult, logger Logger) RepositoryStashResult {
+func (c *client) processStashList(_ context.Context, _ string, _ BulkStashOptions, result RepositoryStashResult, _ Logger) RepositoryStashResult {
 	if result.StashCount == 0 {
 		result.Status = StatusNoStash
 		result.Message = "No stashes"

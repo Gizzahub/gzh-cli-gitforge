@@ -442,12 +442,14 @@ func TestContributorAnalyzer_ParseContributorStats_CommitsPerWeek(t *testing.T) 
 	baseTime := time.Date(2025, 11, 1, 12, 0, 0, 0, time.UTC).Unix()
 
 	// 14 commits over 14 days = 1 per day = 7 per week
-	var lines []string
+	lines := make([]string, 0, 42)
 	for i := 0; i < 14; i++ {
 		timestamp := baseTime + int64(i*86400) // One per day
-		lines = append(lines, fmt.Sprintf("%d", timestamp))
-		lines = append(lines, "1\t0\tfile.go")
-		lines = append(lines, "") // Empty line
+		lines = append(lines,
+			fmt.Sprintf("%d", timestamp),
+			"1\t0\tfile.go",
+			"", // Empty line
+		)
 	}
 
 	output := strings.Join(lines, "\n")

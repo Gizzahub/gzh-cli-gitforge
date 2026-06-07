@@ -87,7 +87,7 @@ func (w *ProfileCreateWizard) Run(_ context.Context) (*config.Profile, error) {
 	}
 
 	if !confirm {
-		return nil, fmt.Errorf("profile creation cancelled")
+		return nil, fmt.Errorf("profile creation canceled")
 	}
 
 	return w.profile, nil
@@ -269,8 +269,7 @@ func (w *ProfileCreateWizard) runGitLabOptionsStep() error {
 }
 
 func (w *ProfileCreateWizard) runParallelStep() error {
-	var parallel string
-	parallel = strconv.Itoa(repository.DefaultLocalParallel)
+	parallel := strconv.Itoa(repository.DefaultLocalParallel)
 
 	form := huh.NewForm(
 		huh.NewGroup(

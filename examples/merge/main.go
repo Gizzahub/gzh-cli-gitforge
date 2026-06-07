@@ -76,7 +76,10 @@ func main() {
 	fmt.Println("=== Example 2: Pre-Merge Conflict Detection ===")
 
 	// Check if there's a main/master branch to test with
-	branches, _ := branchManager.List(ctx, repo, branch.ListOptions{})
+	branches, err := branchManager.List(ctx, repo, branch.ListOptions{})
+	if err != nil {
+		log.Printf("Warning: Failed to list branches: %v", err)
+	}
 
 	var targetBranch string
 	for _, b := range branches {
@@ -97,13 +100,17 @@ func main() {
 			log.Printf("Warning: Failed to detect conflicts: %v", err)
 		} else {
 			// Check for fast-forward possibility
-			canFF, _ := conflictDetector.CanFastForward(ctx, repo, current.Name, targetBranch)
+			canFF, ffErr := conflictDetector.CanFastForward(ctx, repo, current.Name, targetBranch)
+			if ffErr != nil {
+				log.Printf("Warning: Failed to check fast-forward: %v", ffErr)
+			}
 
-			if canFF {
+			switch {
+			case canFF:
 				fmt.Println("✓ Can fast-forward (no merge commit needed)")
-			} else if len(report.Conflicts) == 0 {
+			case len(report.Conflicts) == 0:
 				fmt.Println("✓ No conflicts detected - safe to merge")
-			} else {
+			default:
 				fmt.Printf("⚠️  %d potential conflicts detected:\n", len(report.Conflicts))
 				for _, conflict := range report.Conflicts {
 					fmt.Printf("  - %s (%s)\n", conflict.FilePath, conflict.ConflictType)

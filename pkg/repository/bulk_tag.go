@@ -251,8 +251,8 @@ func (c *client) processTagRepository(ctx context.Context, rootDir, repoPath str
 		result.Branch = info.Branch
 	}
 
-	// Get tag count and latest tag in a single sorted call
-	tagResult, _ := c.executor.Run(ctx, repoPath, "tag", "-l", "--sort=-v:refname")
+	// Get tag count and latest tag in a single sorted call; executor error treated as no tags
+	tagResult, _ := c.executor.Run(ctx, repoPath, "tag", "-l", "--sort=-v:refname") //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 	if tagResult.ExitCode == 0 {
 		tagOutput := strings.TrimSpace(tagResult.Stdout)
 		if tagOutput != "" {
@@ -286,8 +286,8 @@ func (c *client) processTagCreate(ctx context.Context, repoPath string, opts Bul
 		return result
 	}
 
-	// Check if tag already exists
-	checkResult, _ := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", "refs/tags/"+opts.TagName)
+	// Check if tag already exists; executor error treated as not existing (ExitCode != 0)
+	checkResult, _ := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", "refs/tags/"+opts.TagName) //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 	if checkResult.ExitCode == 0 && !opts.Force {
 		result.Status = StatusTagExists
 		result.Message = fmt.Sprintf("Tag %s already exists", opts.TagName)
@@ -348,11 +348,12 @@ func (c *client) processTagPush(ctx context.Context, repoPath string, opts BulkT
 
 	// Execute tag push
 	args := []string{"push", "origin"}
-	if opts.PushAll {
+	switch {
+	case opts.PushAll:
 		args = append(args, "--tags")
-	} else if opts.TagName != "" {
+	case opts.TagName != "":
 		args = append(args, opts.TagName)
-	} else {
+	default:
 		args = append(args, "--tags")
 	}
 
@@ -374,7 +375,7 @@ func (c *client) processTagPush(ctx context.Context, repoPath string, opts BulkT
 }
 
 // processTagList handles tag list/status operation.
-func (c *client) processTagList(ctx context.Context, repoPath string, opts BulkTagOptions, result RepositoryTagResult, logger Logger) RepositoryTagResult {
+func (c *client) processTagList(_ context.Context, _ string, _ BulkTagOptions, result RepositoryTagResult, _ Logger) RepositoryTagResult {
 	if result.TagCount == 0 {
 		result.Status = StatusNoTags
 		result.Message = "No tags"

@@ -285,6 +285,7 @@ func TestBuildFilterFromOptions(t *testing.T) {
 			name:    "empty options",
 			wantErr: false,
 			checkFn: func(t *testing.T, f *MetadataFilter) {
+				t.Helper()
 				if !f.IsEmpty() {
 					t.Error("expected empty filter")
 				}
@@ -294,6 +295,7 @@ func TestBuildFilterFromOptions(t *testing.T) {
 			name:     "with languages",
 			language: "go,rust",
 			checkFn: func(t *testing.T, f *MetadataFilter) {
+				t.Helper()
 				if len(f.Languages) != 2 {
 					t.Errorf("expected 2 languages, got %d", len(f.Languages))
 				}
@@ -304,6 +306,7 @@ func TestBuildFilterFromOptions(t *testing.T) {
 			minStars: 100,
 			maxStars: 1000,
 			checkFn: func(t *testing.T, f *MetadataFilter) {
+				t.Helper()
 				if f.MinStars != 100 || f.MaxStars != 1000 {
 					t.Errorf("stars mismatch: min=%d, max=%d", f.MinStars, f.MaxStars)
 				}
@@ -313,6 +316,7 @@ func TestBuildFilterFromOptions(t *testing.T) {
 			name:           "with valid duration",
 			lastPushWithin: "30d",
 			checkFn: func(t *testing.T, f *MetadataFilter) {
+				t.Helper()
 				if f.LastPushAfter.IsZero() {
 					t.Error("expected non-zero LastPushAfter")
 				}

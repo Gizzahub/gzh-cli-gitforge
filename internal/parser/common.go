@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
+// Package parser provides utilities for parsing git command output.
 package parser
 
 import (
@@ -67,14 +68,14 @@ func SplitLines(text string) []string {
 
 // ParseKeyValue parses a "key: value" or "key=value" format line.
 // Returns the key and value, with whitespace trimmed.
-func ParseKeyValue(line string, separator string) (string, string, error) {
+func ParseKeyValue(line, separator string) (key, value string, err error) {
 	parts := strings.SplitN(line, separator, 2)
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("invalid key-value format")
 	}
 
-	key := strings.TrimSpace(parts[0])
-	value := strings.TrimSpace(parts[1])
+	key = strings.TrimSpace(parts[0])
+	value = strings.TrimSpace(parts[1])
 
 	return key, value, nil
 }
@@ -136,7 +137,7 @@ func ParseDate(s string) (time.Time, error) {
 
 // ParseRef parses a Git reference in format "ref -> target" or just "ref".
 // Returns the ref name and optionally the target it points to.
-func ParseRef(line string) (ref string, target string) {
+func ParseRef(line string) (ref, target string) {
 	parts := strings.Split(line, "->")
 	ref = strings.TrimSpace(parts[0])
 
@@ -168,7 +169,7 @@ func ParseCommitHash(s string) (string, error) {
 // isHex checks if a string contains only hexadecimal characters.
 func isHex(s string) bool {
 	for _, r := range s {
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}

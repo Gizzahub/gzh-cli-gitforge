@@ -170,7 +170,7 @@ func (c *client) BulkBranchList(ctx context.Context, opts BulkBranchListOptions)
 	}
 
 	// Process repositories in parallel
-	results, err := c.processBranchListRepositories(ctx, opts.Directory, filteredRepos, opts, common.Logger)
+	results, err := c.processBranchListRepositories(ctx, opts.Directory, filteredRepos, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process repositories: %w", err)
 	}
@@ -192,7 +192,7 @@ func (c *client) BulkBranchList(ctx context.Context, opts BulkBranchListOptions)
 }
 
 // processBranchListRepositories processes repositories in parallel for branch list operations.
-func (c *client) processBranchListRepositories(ctx context.Context, rootDir string, repos []string, opts BulkBranchListOptions, logger Logger) ([]RepositoryBranchListResult, error) {
+func (c *client) processBranchListRepositories(ctx context.Context, rootDir string, repos []string, opts BulkBranchListOptions) ([]RepositoryBranchListResult, error) {
 	results := make([]RepositoryBranchListResult, len(repos))
 
 	// Create error group with concurrency limit
@@ -208,7 +208,7 @@ func (c *client) processBranchListRepositories(ctx context.Context, rootDir stri
 				opts.ProgressCallback(i+1, len(repos), repoPath)
 			}
 
-			result := c.processBranchListRepository(gctx, rootDir, repoPath, opts, logger)
+			result := c.processBranchListRepository(gctx, rootDir, repoPath, opts)
 			results[i] = result
 
 			return nil // Don't fail entire operation on single repo error
@@ -223,7 +223,7 @@ func (c *client) processBranchListRepositories(ctx context.Context, rootDir stri
 }
 
 // processBranchListRepository processes a single repository branch list operation.
-func (c *client) processBranchListRepository(ctx context.Context, rootDir, repoPath string, opts BulkBranchListOptions, logger Logger) RepositoryBranchListResult {
+func (c *client) processBranchListRepository(ctx context.Context, rootDir, repoPath string, opts BulkBranchListOptions) RepositoryBranchListResult {
 	startTime := time.Now()
 
 	result := RepositoryBranchListResult{
@@ -380,12 +380,12 @@ func parseBranchAheadBehind(status string) (ahead, behind int) {
 
 	// Parse "ahead N"
 	if strings.Contains(status, "ahead") {
-		_, _ = fmt.Sscanf(extractNumberAfter(status, "ahead"), "%d", &ahead) //nolint:errcheck
+		_, _ = fmt.Sscanf(extractNumberAfter(status, "ahead"), "%d", &ahead) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
 	}
 
 	// Parse "behind N"
 	if strings.Contains(status, "behind") {
-		_, _ = fmt.Sscanf(extractNumberAfter(status, "behind"), "%d", &behind) //nolint:errcheck
+		_, _ = fmt.Sscanf(extractNumberAfter(status, "behind"), "%d", &behind) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
 	}
 
 	return ahead, behind

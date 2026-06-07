@@ -61,6 +61,10 @@ func TestBranchCleanupResult(t *testing.T) {
 		t.Errorf("BranchesDeleted = %d, want 10", result.BranchesDeleted)
 	}
 
+	if result.BranchesSkipped != 3 {
+		t.Errorf("BranchesSkipped = %d, want 3", result.BranchesSkipped)
+	}
+
 	if len(result.Errors) != 2 {
 		t.Errorf("Errors count = %d, want 2", len(result.Errors))
 	}

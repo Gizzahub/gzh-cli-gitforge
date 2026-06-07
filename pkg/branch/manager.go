@@ -323,7 +323,7 @@ func (m *manager) Exists(ctx context.Context, repo *repository.Repository, name 
 }
 
 // parseBranchList parses git branch -vv output.
-func (m *manager) parseBranchList(output string) ([]*Branch, error) {
+func (m *manager) parseBranchList(output string) ([]*Branch, error) { //nolint:unparam // error return kept for future use and consistent interface
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	branches := make([]*Branch, 0, len(lines))
 
@@ -416,12 +416,12 @@ func parseAheadBehindFromStatus(status string) (ahead, behind int) {
 
 	// Parse "ahead N" (defaults to 0 on parse failure)
 	if strings.Contains(status, "ahead") {
-		_, _ = fmt.Sscanf(extractNumber(status, "ahead"), "%d", &ahead) //nolint:errcheck
+		_, _ = fmt.Sscanf(extractNumber(status, "ahead"), "%d", &ahead) //nolint:errcheck // default 0 on parse failure is correct behavior
 	}
 
 	// Parse "behind N" (defaults to 0 on parse failure)
 	if strings.Contains(status, "behind") {
-		_, _ = fmt.Sscanf(extractNumber(status, "behind"), "%d", &behind) //nolint:errcheck
+		_, _ = fmt.Sscanf(extractNumber(status, "behind"), "%d", &behind) //nolint:errcheck // default 0 on parse failure is correct behavior
 	}
 
 	return ahead, behind

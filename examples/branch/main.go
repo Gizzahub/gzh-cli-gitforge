@@ -113,14 +113,15 @@ func main() {
 	// Example 5: List worktrees (if any)
 	fmt.Println("=== Example 5: List Worktrees ===")
 	worktrees, err := worktreeManager.List(ctx, repo)
-	if err != nil {
+	switch {
+	case err != nil:
 		log.Printf("Warning: Failed to list worktrees: %v", err)
-	} else if len(worktrees) > 0 {
+	case len(worktrees) > 0:
 		fmt.Println("Active worktrees:")
 		for _, wt := range worktrees {
 			fmt.Printf("  %s -> %s (branch: %s)\n", wt.Path, wt.Ref, wt.Branch)
 		}
-	} else {
+	default:
 		fmt.Println("No additional worktrees (only main working tree)")
 	}
 	fmt.Println()

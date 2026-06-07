@@ -23,7 +23,7 @@ func (m *mockConflictDetector) Detect(ctx context.Context, repo *repository.Repo
 }
 
 func (m *mockConflictDetector) Preview(ctx context.Context, repo *repository.Repository, source, target string) (*MergePreview, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil // mock stub; Preview is not exercised in these tests
 }
 
 func (m *mockConflictDetector) CanFastForward(ctx context.Context, repo *repository.Repository, source, target string) (bool, error) {

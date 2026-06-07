@@ -121,7 +121,7 @@ func (c *client) Open(ctx context.Context, path string) (*Repository, error) {
 //	    },
 //	})
 //
-//nolint:gocognit // TODO: Refactor clone logic into smaller functions
+//nolint:gocognit,gocyclo // TODO: Refactor clone logic into smaller functions
 func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, error) {
 	c.logger.Debug("Cloning repository from %s to %s", opts.URL, opts.Destination)
 
@@ -280,6 +280,8 @@ func (c *client) IsRepository(ctx context.Context, path string) bool {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Branch: %s\n", info.CurrentBranch)
+//
+//nolint:gocognit // GetInfo collects many git fields in one pass; splitting would require multiple round-trips
 func (c *client) GetInfo(ctx context.Context, repo *Repository) (*Info, error) {
 	if repo == nil {
 		return nil, fmt.Errorf("repository cannot be nil")
@@ -456,8 +458,8 @@ func parseAheadBehind(output string) (ahead, behind int, err error) {
 	}
 
 	// Simple integer parsing (ignoring errors returns 0)
-	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)  //nolint:errcheck
-	_, _ = fmt.Sscanf(parts[1], "%d", &behind) //nolint:errcheck
+	_, _ = fmt.Sscanf(parts[0], "%d", &ahead)  //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
+	_, _ = fmt.Sscanf(parts[1], "%d", &behind) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
 
 	return ahead, behind, nil
 }

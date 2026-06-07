@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
+// Package gzhcligitforge provides git forge operations and synchronization utilities.
 package gzhcligitforge
 
 import (

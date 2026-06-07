@@ -36,7 +36,7 @@ func initTestGitRepo(t *testing.T, dir string) string {
 	}
 
 	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
 		cmd.Dir = realDir
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Failed to run %v: %v\nOutput: %s", args, err, output)

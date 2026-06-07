@@ -18,17 +18,17 @@ func tempGitRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 
-	cmd := exec.Command("git", "init")
+	cmd := exec.Command("git", "init") //nolint:noctx // test helper has no context available
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to init git repo: %v", err)
 	}
 
-	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd = exec.Command("git", "config", "user.email", "test@test.com") //nolint:noctx // test helper has no context available
 	cmd.Dir = dir
 	_ = cmd.Run()
 
-	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd = exec.Command("git", "config", "user.name", "Test") //nolint:noctx // test helper has no context available
 	cmd.Dir = dir
 	_ = cmd.Run()
 
@@ -45,11 +45,11 @@ func tempGitRepoWithCommit(t *testing.T) string {
 		t.Fatalf("failed to create README: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test helper has no context available
 	cmd.Dir = dir
 	_ = cmd.Run()
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test helper has no context available
 	cmd.Dir = dir
 	_ = cmd.Run()
 
@@ -233,11 +233,11 @@ func TestManager_StashWorkflow(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", "test.txt")
+	cmd := exec.CommandContext(ctx, "git", "add", "test.txt")
 	cmd.Dir = dir
 	_ = cmd.Run()
 
-	cmd = exec.Command("git", "commit", "-m", "add test file")
+	cmd = exec.CommandContext(ctx, "git", "commit", "-m", "add test file")
 	cmd.Dir = dir
 	_ = cmd.Run()
 

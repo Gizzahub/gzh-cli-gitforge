@@ -144,7 +144,7 @@ func validateConfigFile(path string) (*ValidationResult, error) {
 		validateCloneConfig(rawConfig, result)
 	case ConfigTypeWorkspace:
 		validateWorkspaceConfig(rawConfig, result)
-	default:
+	case ConfigTypeUnknown:
 		// Try to determine what the user intended
 		result.Errors = append(result.Errors,
 			"cannot determine config type: add 'kind' field to specify")
@@ -556,7 +556,10 @@ func validateStrategy(config map[string]interface{}, result *ValidationResult) {
 
 // validateStructure checks that the config has the right structure for its kind.
 func validateStructure(config map[string]interface{}, result *ValidationResult) {
-	kind, _ := config["kind"].(string)
+	kind, ok := config["kind"].(string)
+	if !ok {
+		kind = ""
+	}
 
 	hasRepositories := config["repositories"] != nil
 	hasWorkspaces := config["workspaces"] != nil

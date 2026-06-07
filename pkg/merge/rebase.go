@@ -220,7 +220,7 @@ func (r *rebaseManager) buildRebaseArgs(opts RebaseOptions) []string {
 }
 
 // handleRebaseError handles rebase execution errors.
-func (r *rebaseManager) handleRebaseError(ctx context.Context, repo *repository.Repository, err error) (*RebaseResult, error) {
+func (r *rebaseManager) handleRebaseError(ctx context.Context, repo *repository.Repository, err error) (*RebaseResult, error) { //nolint:unparam // ctx is reserved for future logging/tracing use
 	return &RebaseResult{
 		Success: false,
 		Status:  RebaseAborted,
@@ -237,7 +237,7 @@ func (r *rebaseManager) handleRebaseConflict(ctx context.Context, repo *reposito
 	}
 
 	// Get current commit (best effort during conflict)
-	commitResult, _ := r.executor.Run(ctx, repo.Path, "rev-parse", "HEAD") //nolint:errcheck
+	commitResult, _ := r.executor.Run(ctx, repo.Path, "rev-parse", "HEAD") //nolint:errcheck // best-effort during conflict; empty string is acceptable
 	currentCommit := strings.TrimSpace(commitResult.Stdout)
 
 	return &RebaseResult{

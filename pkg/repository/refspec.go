@@ -118,7 +118,7 @@ func validateBranchName(name string) error {
 		return fmt.Errorf("branch name cannot start with -")
 	}
 	if strings.HasPrefix(name, ".") {
-		return fmt.Errorf("branch name cannot start with .")
+		return fmt.Errorf("branch name cannot start with a period")
 	}
 	if strings.HasPrefix(name, "/") {
 		return fmt.Errorf("branch name cannot start with /")
@@ -126,7 +126,7 @@ func validateBranchName(name string) error {
 
 	// Check if ends with invalid characters/patterns
 	if strings.HasSuffix(name, ".") {
-		return fmt.Errorf("branch name cannot end with .")
+		return fmt.Errorf("branch name cannot end with a period")
 	}
 	if strings.HasSuffix(name, "/") {
 		return fmt.Errorf("branch name cannot end with /")

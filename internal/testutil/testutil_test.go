@@ -17,7 +17,7 @@ func TestTempGitRepo(t *testing.T) {
 	}
 
 	// Check git config is set.
-	cmd := exec.Command("git", "config", "user.email")
+	cmd := exec.Command("git", "config", "user.email") //nolint:noctx // test verification helper; no context.Context available in *testing.T API
 	cmd.Dir = dir
 	output, err := cmd.Output()
 	if err != nil {
@@ -44,7 +44,7 @@ func TestTempGitRepoWithCommit(t *testing.T) {
 	}
 
 	// Check commit exists.
-	cmd := exec.Command("git", "log", "--oneline", "-1")
+	cmd := exec.Command("git", "log", "--oneline", "-1") //nolint:noctx // test verification helper; no context.Context available
 	cmd.Dir = dir
 	output, err := cmd.Output()
 	if err != nil {
@@ -60,7 +60,7 @@ func TestTempGitRepoWithBranch(t *testing.T) {
 	dir := TempGitRepoWithBranch(t, branchName)
 
 	// Check branch exists and is current.
-	cmd := exec.Command("git", "branch", "--show-current")
+	cmd := exec.Command("git", "branch", "--show-current") //nolint:noctx // test verification helper; no context.Context available
 	cmd.Dir = dir
 	output, err := cmd.Output()
 	if err != nil {

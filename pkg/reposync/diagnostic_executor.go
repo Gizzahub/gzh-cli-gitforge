@@ -171,11 +171,12 @@ func (e DiagnosticExecutor) checkOne(ctx context.Context, client repo.Client, lo
 			health.UntrackedFiles = len(status.UntrackedFiles)
 			health.ConflictFiles = len(status.ConflictFiles)
 
-			if len(status.ConflictFiles) > 0 {
+			switch {
+			case len(status.ConflictFiles) > 0:
 				health.WorkTreeStatus = WorkTreeConflict
-			} else if len(status.ModifiedFiles)+len(status.StagedFiles) > 0 {
+			case len(status.ModifiedFiles)+len(status.StagedFiles) > 0:
 				health.WorkTreeStatus = WorkTreeDirty
-			} else {
+			default:
 				health.WorkTreeStatus = WorkTreeClean
 			}
 		}
@@ -331,6 +332,10 @@ func generateRecommendation(health RepoHealth) string {
 			return fmt.Sprintf("Push %d local commits to upstream: gz-git push", health.AheadBy)
 		case DivergenceNoUpstream:
 			return "No upstream branch configured. Set upstream with: git branch --set-upstream-to=origin/" + health.CurrentBranch
+		case DivergenceNone:
+			// No divergence — fall through to dirty working tree check below
+		case DivergenceConflict:
+			return "Resolve merge conflicts, then commit or reset"
 		}
 		// Check dirty working tree (when divergence is none)
 		if health.WorkTreeStatus == WorkTreeDirty {

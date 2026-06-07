@@ -80,7 +80,7 @@ func TestWorkspaceSyncDirtyWorktreeShowsWarning(t *testing.T) {
 	localRepoPath := filepath.Join(workspaceDir, "my-repo")
 
 	// Clone the source repo using standard git
-	cloneCmd := exec.Command("git", "clone", sourceRepo.Path, localRepoPath)
+	cloneCmd := exec.Command("git", "clone", sourceRepo.Path, localRepoPath) //nolint:noctx // test helper, no context needed
 	if out, err := cloneCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to clone repo: %v\n%s", err, out)
 	}
@@ -168,8 +168,8 @@ func TestWorkspaceSyncYesFlagSkipsConfirmation(t *testing.T) {
 	workspaceTestRepo := &TestRepo{Path: workspaceDir, T: t}
 	output := workspaceTestRepo.RunGzhGitSuccess("workspace", "sync", "-c", configPath, "--yes")
 
-	// Should NOT show "Sync cancelled"
-	AssertNotContains(t, output, "Sync cancelled")
+	// Should NOT show "Sync canceled"
+	AssertNotContains(t, output, "Sync canceled")
 
 	// Repo should actually be cloned
 	clonedPath := filepath.Join(workspaceDir, "auto-repo")

@@ -237,7 +237,7 @@ func TestResolveSymlinkPath(t *testing.T) {
 			baseDir: tmpDir,
 			wantErr: false,
 			validate: func(result string) bool {
-				return result == filepath.Join(tmpDir, "relative/file.yaml")
+				return result == filepath.Join(tmpDir, "relative", "file.yaml")
 			},
 		},
 		{
@@ -246,7 +246,7 @@ func TestResolveSymlinkPath(t *testing.T) {
 			baseDir: tmpDir,
 			wantErr: false,
 			validate: func(result string) bool {
-				return result == filepath.Join(tmpDir, "./file.yaml")
+				return result == filepath.Join(tmpDir, "file.yaml")
 			},
 		},
 	}

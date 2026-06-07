@@ -373,20 +373,20 @@ func TestWatchIntegration_InvalidRepository(t *testing.T) {
 
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
-	cmd := exec.Command("git", "init")
+	cmd := exec.Command("git", "init") //nolint:noctx // test helper; no context available at this call site
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
-	// Configure git user for commits
-	exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()
-	exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run()
+	// Configure git user for commits; ignore errors as these are best-effort test setup steps.
+	_ = exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()   //nolint:noctx // test helper; no context available at this call site
+	_ = exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run() //nolint:noctx // test helper; no context available at this call site
 }
 
 func gitAdd(t *testing.T, dir, file string) {
 	t.Helper()
-	cmd := exec.Command("git", "add", file)
+	cmd := exec.Command("git", "add", file) //nolint:noctx // test helper; no context available at this call site
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git add: %v", err)
@@ -395,7 +395,7 @@ func gitAdd(t *testing.T, dir, file string) {
 
 func gitCommit(t *testing.T, dir, message string) {
 	t.Helper()
-	cmd := exec.Command("git", "commit", "-m", message)
+	cmd := exec.Command("git", "commit", "-m", message) //nolint:noctx // test helper; no context available at this call site
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git commit: %v", err)

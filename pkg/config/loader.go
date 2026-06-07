@@ -199,19 +199,19 @@ func (l *ConfigLoader) applyProfile(cfg *EffectiveConfig) {
 
 	// Command-specific configs
 	if prof.Sync != nil {
-		l.applySyncConfig(&cfg.Sync, prof.Sync, source)
+		l.applySyncConfig(&cfg.Sync, prof.Sync)
 	}
 	if prof.Branch != nil {
-		l.applyBranchConfig(&cfg.Branch, prof.Branch, source)
+		l.applyBranchConfig(&cfg.Branch, prof.Branch)
 	}
 	if prof.Fetch != nil {
-		l.applyFetchConfig(&cfg.Fetch, prof.Fetch, source)
+		l.applyFetchConfig(&cfg.Fetch, prof.Fetch)
 	}
 	if prof.Pull != nil {
-		l.applyPullConfig(&cfg.Pull, prof.Pull, source)
+		l.applyPullConfig(&cfg.Pull, prof.Pull)
 	}
 	if prof.Push != nil {
-		l.applyPushConfig(&cfg.Push, prof.Push, source)
+		l.applyPushConfig(&cfg.Push, prof.Push)
 	}
 }
 
@@ -222,23 +222,22 @@ func (l *ConfigLoader) applyProjectConfig(cfg *EffectiveConfig) {
 	}
 
 	proj := l.projectConfig
-	source := string(SourceProject)
 
 	// Command-specific configs
 	if proj.Sync != nil {
-		l.applySyncConfig(&cfg.Sync, proj.Sync, source)
+		l.applySyncConfig(&cfg.Sync, proj.Sync)
 	}
 	if proj.Branch != nil {
-		l.applyBranchConfig(&cfg.Branch, proj.Branch, source)
+		l.applyBranchConfig(&cfg.Branch, proj.Branch)
 	}
 	if proj.Fetch != nil {
-		l.applyFetchConfig(&cfg.Fetch, proj.Fetch, source)
+		l.applyFetchConfig(&cfg.Fetch, proj.Fetch)
 	}
 	if proj.Pull != nil {
-		l.applyPullConfig(&cfg.Pull, proj.Pull, source)
+		l.applyPullConfig(&cfg.Pull, proj.Pull)
 	}
 	if proj.Push != nil {
-		l.applyPushConfig(&cfg.Push, proj.Push, source)
+		l.applyPushConfig(&cfg.Push, proj.Push)
 	}
 }
 
@@ -290,7 +289,7 @@ func (l *ConfigLoader) applyFlags(cfg *EffectiveConfig, flags map[string]interfa
 }
 
 // applySyncConfig merges sync configuration.
-func (l *ConfigLoader) applySyncConfig(dst *SyncConfig, src *SyncConfig, source string) {
+func (l *ConfigLoader) applySyncConfig(dst, src *SyncConfig) {
 	if src == nil {
 		return
 	}
@@ -307,7 +306,7 @@ func (l *ConfigLoader) applySyncConfig(dst *SyncConfig, src *SyncConfig, source 
 }
 
 // applyBranchConfig merges branch configuration.
-func (l *ConfigLoader) applyBranchConfig(dst *BranchConfig, src *BranchConfig, source string) {
+func (l *ConfigLoader) applyBranchConfig(dst, src *BranchConfig) {
 	if src == nil {
 		return
 	}
@@ -321,7 +320,7 @@ func (l *ConfigLoader) applyBranchConfig(dst *BranchConfig, src *BranchConfig, s
 }
 
 // applyFetchConfig merges fetch configuration.
-func (l *ConfigLoader) applyFetchConfig(dst *FetchConfig, src *FetchConfig, source string) {
+func (l *ConfigLoader) applyFetchConfig(dst, src *FetchConfig) {
 	if src == nil {
 		return
 	}
@@ -335,7 +334,7 @@ func (l *ConfigLoader) applyFetchConfig(dst *FetchConfig, src *FetchConfig, sour
 }
 
 // applyPullConfig merges pull configuration.
-func (l *ConfigLoader) applyPullConfig(dst *PullConfig, src *PullConfig, source string) {
+func (l *ConfigLoader) applyPullConfig(dst, src *PullConfig) {
 	if src == nil {
 		return
 	}
@@ -349,7 +348,7 @@ func (l *ConfigLoader) applyPullConfig(dst *PullConfig, src *PullConfig, source 
 }
 
 // applyPushConfig merges push configuration.
-func (l *ConfigLoader) applyPushConfig(dst *PushConfig, src *PushConfig, source string) {
+func (l *ConfigLoader) applyPushConfig(dst, src *PushConfig) {
 	if src == nil {
 		return
 	}
@@ -386,7 +385,7 @@ func (cfg *EffectiveConfig) GetInt(key string) (int, bool) {
 }
 
 // GetBool retrieves a boolean value by key from effective config.
-func (cfg *EffectiveConfig) GetBool(key string) (bool, bool) {
+func (cfg *EffectiveConfig) GetBool(key string) (value, ok bool) {
 	val := reflect.ValueOf(cfg).Elem()
 	field := val.FieldByName(key)
 

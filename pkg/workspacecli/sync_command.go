@@ -29,7 +29,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
 
-func (f CommandFactory) newSyncCmd() *cobra.Command {
+func (f CommandFactory) newSyncCmd() *cobra.Command { //nolint:gocognit,gocyclo // CLI command setup naturally requires handling all flag/mode combinations
 	var (
 		configPath     string
 		strategy       string
@@ -157,7 +157,7 @@ Config File Structure (Reference):
 				spinnerModel := newPlanningSpinnerModel()
 				planSpinnerProgram = tea.NewProgram(spinnerModel)
 				planOut = newPlanningProgressWriter(planSpinnerProgram, planOut)
-				go planSpinnerProgram.Run() //nolint:errcheck
+				go planSpinnerProgram.Run() //nolint:errcheck // spinner error is non-critical and only logged by Bubble Tea internally
 			}
 
 			// Load Recursive Config (File 4 style)
@@ -266,7 +266,7 @@ Config File Structure (Reference):
 						return fmt.Errorf("confirmation prompt failed: %w", err)
 					}
 					if !proceed {
-						fmt.Fprintln(out, "Sync cancelled.")
+						fmt.Fprintln(out, "Sync canceled.")
 						return nil
 					}
 				}
@@ -275,7 +275,10 @@ Config File Structure (Reference):
 				// unless we're outputting JSON/LLM
 				if dryRun {
 					if recursive {
-						absConfigDirDry, _ := filepath.Abs(configDir)
+						absConfigDirDry, err := filepath.Abs(configDir)
+						if err != nil {
+							absConfigDirDry = configDir
+						}
 						rOpts := recursiveSyncOpts{
 							MaxDepth: recursiveDepth,
 							Visited:  map[string]bool{absConfigDirDry: true},
@@ -327,6 +330,7 @@ Config File Structure (Reference):
 			var execResult reposync.ExecutionResult
 			var durationMs int64
 
+			//nolint:gocritic // ifElseChain: three distinct bool conditions cannot be expressed as a switch
 			if isMachine {
 				// No progress display in machine output mode
 				orch := reposync.NewOrchestrator(staticPlanner, exec, state)
@@ -366,17 +370,25 @@ Config File Structure (Reference):
 			}
 
 			// Display machine output if requested
-			if format == "json" {
-				displaySyncResultsJSON(out, execResult, durationMs, verbose)
+			switch format {
+			case "json":
+				if err := displaySyncResultsJSON(out, execResult, durationMs, verbose); err != nil {
+					return fmt.Errorf("failed to display JSON output: %w", err)
+				}
 				return nil // Skip recursive child diff printing for machine format for now
-			} else if format == "llm" {
-				displaySyncResultsLLM(out, execResult, durationMs)
+			case "llm":
+				if err := displaySyncResultsLLM(out, execResult, durationMs); err != nil {
+					return fmt.Errorf("failed to display LLM output: %w", err)
+				}
 				return nil // Skip recursive child diff printing for machine format for now
 			}
 
 			// Recursive child workspace sync
 			if recursive {
-				absConfigDir, _ := filepath.Abs(configDir)
+				absConfigDir, err := filepath.Abs(configDir)
+				if err != nil {
+					absConfigDir = configDir
+				}
 				rOpts := recursiveSyncOpts{
 					MaxDepth: recursiveDepth,
 					Visited:  map[string]bool{absConfigDir: true},
@@ -439,13 +451,19 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 	}
 
 	// Get absolute path of config directory to compare with target paths
-	absConfigDir, _ := filepath.Abs(configDir)
+	absConfigDir, err := filepath.Abs(configDir)
+	if err != nil {
+		absConfigDir = configDir
+	}
 
 	actions := make([]reposync.Action, 0, len(req.Input.Repos))
 	for _, repo := range req.Input.Repos {
 		// CRITICAL: Skip if target path resolves to the devbox directory itself
 		// This prevents workspace sync from resetting the devbox repository
-		absTargetPath, _ := filepath.Abs(repo.TargetPath)
+		absTargetPath, err := filepath.Abs(repo.TargetPath)
+		if err != nil {
+			absTargetPath = repo.TargetPath
+		}
 		if absTargetPath == absConfigDir {
 			// Skip devbox directory itself
 			continue
@@ -469,7 +487,7 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 }
 
 // planForgeWorkspaces generates actions from recursive config workspaces.
-func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput bool) ([]reposync.Action, error) {
+func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // forge workspace planning requires handling many config combinations
 	workspaces := config.GetForgeWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -519,7 +537,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		// Execute before hooks
 		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
 			// Ensure parent directory exists for before hooks
-			if err := os.MkdirAll(filepath.Dir(wsPath), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
 				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
 			}
 
@@ -651,7 +669,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			}
 		} else {
 			// Write child config with repository list
-			if err := writeChildForgeConfig(out, cfg, name, ws, wsPath, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
+			if err := writeChildForgeConfig(out, cfg, ws, wsPath, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
 				return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
 			}
 		}
@@ -676,10 +694,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 	return allActions, nil
 }
 
-func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) ([]string, []string) {
-	var includePatterns []string
-	var excludePatterns []string
-
+func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) (includePatterns, excludePatterns []string) {
 	if cfg != nil {
 		includePatterns = cfg.GetIncludePatterns()
 		excludePatterns = cfg.GetExcludePatterns()
@@ -695,7 +710,7 @@ func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) (
 }
 
 // planGitWorkspaces generates actions from git workspaces (type=git with URL).
-func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // git workspace planning requires handling hooks, branches, strategies, and config inheritance
 	workspaces := config.GetGitWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -739,7 +754,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 		// Execute before hooks
 		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
 			// Ensure parent directory exists for before hooks
-			if err := os.MkdirAll(filepath.Dir(wsPath), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
 				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
 			}
 
@@ -754,7 +769,11 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 		// 경고만 출력하고 symlink로 교체한다 (CreateConfigSymlinkForce 사용).
 		if ws.ConfigLink != "" {
 			childCfgFile := filepath.Join(wsPath, ".gz-git.yaml")
-			if isSymlink, _ := config.IsConfigSymlink(childCfgFile); !isSymlink {
+			isSymlink, symlinkErr := config.IsConfigSymlink(childCfgFile)
+			if symlinkErr != nil {
+				isSymlink = false // treat as non-symlink on error
+			}
+			if !isSymlink {
 				if _, statErr := os.Stat(childCfgFile); statErr == nil {
 					fmt.Fprintf(out, "  ⚠ workspace '%s': replacing existing config with configLink symlink: %s\n", name, childCfgFile)
 				}
@@ -808,7 +827,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 		// Execute after hooks
 		if mergedHooks != nil && len(mergedHooks.After) > 0 {
 			// Ensure workspace directory exists for after hooks
-			if err := os.MkdirAll(wsPath, 0o755); err != nil {
+			if err := os.MkdirAll(wsPath, 0o750); err != nil {
 				return nil, fmt.Errorf("failed to create workspace directory '%s' for after hooks: %w", name, err)
 			}
 
@@ -824,7 +843,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 
 // planConfigWorkspaces loads child configs from type=config workspaces with sync.recursive=true
 // and returns their repository actions for inclusion in the parent's execution plan.
-func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) { //nolint:gocognit // config workspace planning requires loading and recursing into child configs
 	workspaces := config.GetConfigWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -914,7 +933,7 @@ func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir str
 
 // writeChildForgeConfig writes a child config file with the list of repositories.
 // It respects the workspace's ChildConfigMode and protects user-maintained files.
-func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, wsPath string, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
+func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, wsPath string, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
 	if len(actions) == 0 {
 		return nil
 	}
@@ -928,7 +947,7 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 
 	// If mode is "none": create directory only, no config file
 	if mode == config.ChildConfigModeNone {
-		if err := os.MkdirAll(wsPath, 0o755); err != nil {
+		if err := os.MkdirAll(wsPath, 0o750); err != nil {
 			return fmt.Errorf("create directory: %w", err)
 		}
 		fmt.Fprintf(out, "  → Created directory %s (no config, childConfigMode: none)\n", wsPath)
@@ -950,21 +969,27 @@ func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName strin
 	}
 
 	// Ensure directory exists
-	if err := os.MkdirAll(wsPath, 0o755); err != nil {
+	if err := os.MkdirAll(wsPath, 0o750); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
 	// Generate config based on mode
 	switch mode {
 	case config.ChildConfigModeWorkspaces:
-		return writeWorkspacesFormatConfig(out, parentCfg, ws, actions, childConfigPath, fullOutput)
-	default: // ChildConfigModeRepositories
+		return writeWorkspacesFormatConfig(out, parentCfg, ws, actions, childConfigPath)
+	case config.ChildConfigModeNone:
+		// Already handled above before directory creation; should not reach here.
+		return nil
+	case config.ChildConfigModeRepositories:
+		return writeRepositoriesFormatConfig(out, parentCfg, ws, actions, childConfigPath, cloneProto, sshPort, fullOutput)
+	default:
+		// unknown/empty mode: fall back to repositories format
 		return writeRepositoriesFormatConfig(out, parentCfg, ws, actions, childConfigPath, cloneProto, sshPort, fullOutput)
 	}
 }
 
 // writeRepositoriesFormatConfig writes a child config in repositories array format.
-func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, cloneProto string, sshPort int, fullOutput bool) error {
+func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath, cloneProto string, sshPort int, fullOutput bool) error {
 	// Build repository list from actions
 	repos := make([]templates.ChildForgeRepoData, 0, len(actions))
 	for _, action := range actions {
@@ -1022,7 +1047,7 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	if err := os.WriteFile(childConfigPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(childConfigPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -1031,7 +1056,7 @@ func writeRepositoriesFormatConfig(out io.Writer, parentCfg *config.Config, ws *
 }
 
 // writeWorkspacesFormatConfig writes a child config in workspaces map format.
-func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string, fullOutput bool) error {
+func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *config.Workspace, actions []reposync.Action, childConfigPath string) error {
 	// Build workspace entries from actions
 	workspaces := make([]templates.ChildWorkspaceEntry, 0, len(actions))
 	for _, action := range actions {
@@ -1061,7 +1086,7 @@ func writeWorkspacesFormatConfig(out io.Writer, parentCfg *config.Config, ws *co
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	if err := os.WriteFile(childConfigPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(childConfigPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -1075,7 +1100,7 @@ func createProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg
 	return reposynccli.CreateProviderFromSource(src, ws, cfg)
 }
 
-// Helper types
+// Helper types.
 type precomputedPlanner struct {
 	actions []reposync.Action
 }
@@ -1122,7 +1147,7 @@ func (p *consoleProgress) OnComplete(result reposync.ActionResult) {
 }
 
 // ensureChildConfigs checks explicit workspaces and creates .gz-git.yaml if missing.
-func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
+func ensureChildConfigs(out io.Writer, cfg *config.Config) error { //nolint:gocognit // workspace bootstrapping requires checking multiple config modes, symlinks, and file states
 	if cfg == nil || len(cfg.Workspaces) == 0 {
 		return nil
 	}
@@ -1166,7 +1191,10 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 		// 에러로 중단하지 않고 경고만 출력한 뒤 symlink로 교체한다.
 		if ws.ConfigLink != "" {
 			childConfigFile := filepath.Join(wsPath, ".gz-git.yaml")
-			isSymlink, _ := config.IsConfigSymlink(childConfigFile)
+			isSymlink, symlinkErr := config.IsConfigSymlink(childConfigFile)
+			if symlinkErr != nil {
+				isSymlink = false // treat as non-symlink on error
+			}
 			if !isSymlink {
 				if _, statErr := os.Stat(childConfigFile); statErr == nil {
 					// 파일 존재 여부만 확인 - auto-generated/user-maintained 구분 없이 경고 후 교체
@@ -1188,7 +1216,7 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 			// Missing! Create it.
 			fmt.Fprintf(out, "→ Bootstrapping workspace '%s': creating %s\n", name, childConfigFile)
 
-			if err := os.MkdirAll(wsPath, 0o755); err != nil {
+			if err := os.MkdirAll(wsPath, 0o750); err != nil {
 				return fmt.Errorf("failed to create directory for workspace '%s': %w", name, err)
 			}
 
@@ -1201,7 +1229,7 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
 				return fmt.Errorf("failed to render bootstrap template for '%s': %w", name, err)
 			}
 
-			if err := os.WriteFile(childConfigFile, []byte(content), 0o644); err != nil {
+			if err := os.WriteFile(childConfigFile, []byte(content), 0o600); err != nil {
 				return fmt.Errorf("failed to write bootstrap config for '%s': %w", name, err)
 			}
 		}
@@ -1334,7 +1362,7 @@ func isWorkingTreeDirty(ctx context.Context, repoPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return len(strings.TrimSpace(string(output))) > 0, nil
+	return strings.TrimSpace(string(output)) != "", nil
 }
 
 // gitFetch runs git fetch --all in the specified directory.
@@ -1392,7 +1420,7 @@ type ConflictInfo struct {
 	Description   string // Human-readable description
 }
 
-// ConflictType constants
+// ConflictType constants.
 const (
 	ConflictTypeLocalChanges     = "local-changes"
 	ConflictTypeDivergedBranches = "diverged-branches"
@@ -1422,7 +1450,7 @@ func buildSyncSummary(actions []reposync.Action) syncSummary {
 
 // analyzeRepoChanges performs detailed analysis of changes for a repository.
 // Returns nil if repository doesn't exist yet (new clone) or analysis fails.
-func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChanges, error) {
+func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChanges, error) { //nolint:unparam // error is always nil; kept for consistent error-return interface
 	changes := &RepoChanges{
 		RepoName: action.Repo.Name,
 		Action:   action.Type,
@@ -1490,7 +1518,7 @@ func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChang
 
 // getFileDiff analyzes file changes between local HEAD and remote.
 // Returns empty summary if fetch hasn't been done yet.
-func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
+func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) { //nolint:unparam // error is always nil; kept for consistent error-return interface
 	summary := FileChangeSummary{
 		Added:    []string{},
 		Modified: []string{},
@@ -1508,12 +1536,12 @@ func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
 	}
 
 	// Run git diff --name-status HEAD..origin/branch
-	cmd := exec.Command("git", "diff", "--name-status", fmt.Sprintf("HEAD..%s", remoteBranch))
+	cmd := exec.Command("git", "diff", "--name-status", fmt.Sprintf("HEAD..%s", remoteBranch)) //nolint:noctx // preview helper runs without context; errors return empty summary
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
-		// If remote branch doesn't exist or fetch not done, return empty summary
-		return summary, nil
+		// If remote branch doesn't exist or fetch not done, return empty summary.
+		return summary, nil //nolint:nilerr // git errors here (no remote/fetch) are expected; caller handles empty summary
 	}
 
 	// Parse output: each line is "STATUS\tFILENAME"
@@ -1545,33 +1573,40 @@ func getFileDiff(repoPath, baseBranch string) (FileChangeSummary, error) {
 
 // checkDivergence checks if local branch has diverged from remote.
 // Returns true if local has commits not in remote AND remote has commits not in local.
-func checkDivergence(repoPath, baseBranch string) (bool, error) {
+func checkDivergence(repoPath, baseBranch string) (bool, error) { //nolint:unparam // error is always nil; kept for consistent error-return interface
 	remoteBranch := fmt.Sprintf("origin/%s", baseBranch)
 	if baseBranch == "HEAD" {
 		remoteBranch = "origin/HEAD"
 	}
 
 	// Check commits in local not in remote
-	cmd := exec.Command("git", "rev-list", "--count", fmt.Sprintf("%s..HEAD", remoteBranch))
+	cmd := exec.Command("git", "rev-list", "--count", fmt.Sprintf("%s..HEAD", remoteBranch)) //nolint:noctx // preview helper runs without context; errors return false
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
 	if err != nil {
-		return false, nil // Remote branch might not exist
+		return false, nil //nolint:nilerr // remote branch may not exist yet; treat as not diverged
 	}
 	localAhead := strings.TrimSpace(string(output))
 
 	// Check commits in remote not in local
-	cmd = exec.Command("git", "rev-list", "--count", fmt.Sprintf("HEAD..%s", remoteBranch))
+	cmd = exec.Command("git", "rev-list", "--count", fmt.Sprintf("HEAD..%s", remoteBranch)) //nolint:noctx // preview helper runs without context; errors return false
 	cmd.Dir = repoPath
 	output, err = cmd.Output()
 	if err != nil {
-		return false, nil
+		return false, nil //nolint:nilerr // remote branch may not exist yet; treat as not diverged
 	}
 	remoteBehind := strings.TrimSpace(string(output))
 
-	// Diverged if both have commits
-	localCount, _ := strconv.Atoi(localAhead)
-	remoteCount, _ := strconv.Atoi(remoteBehind)
+	// Diverged if both have commits.
+	// git rev-list --count always outputs a valid decimal integer; parse errors default to not-diverged.
+	localCount, err := strconv.Atoi(localAhead)
+	if err != nil {
+		return false, nil //nolint:nilerr // parse failure means count unknown; treat as not diverged
+	}
+	remoteCount, err := strconv.Atoi(remoteBehind)
+	if err != nil {
+		return false, nil //nolint:nilerr // parse failure means count unknown; treat as not diverged
+	}
 
 	return localCount > 0 && remoteCount > 0, nil
 }
@@ -1920,7 +1955,10 @@ func syncChildWorkspaces(ctx context.Context, result reposync.ExecutionResult, o
 // runChildSync loads config, plans, and executes sync for a single child workspace.
 // Errors are reported as warnings and do not propagate to the parent.
 func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) {
-	absPath, _ := filepath.Abs(childDir)
+	absPath, err := filepath.Abs(childDir)
+	if err != nil {
+		absPath = childDir
+	}
 	opts.Visited[absPath] = true
 
 	configPath := filepath.Join(childDir, DefaultConfigFile)
@@ -2021,7 +2059,9 @@ func buildResultTree(result reposync.ExecutionResult, rootName string) *TreeNode
 	var groups []wsGroup
 	groupIdx := map[string]int{}
 
-	allResults := append(result.Succeeded, result.Failed...)
+	allResults := make([]reposync.ActionResult, 0, len(result.Succeeded)+len(result.Failed))
+	allResults = append(allResults, result.Succeeded...)
+	allResults = append(allResults, result.Failed...)
 	for _, r := range allResults {
 		ws := r.Action.Workspace
 		if idx, ok := groupIdx[ws]; ok {
@@ -2134,13 +2174,13 @@ func scanForChildConfigs(out io.Writer, actions []reposync.Action, opts recursiv
 	}
 }
 
-// sync 결과 JSON 구조
+// SyncResultJSON is the JSON representation of a sync operation result.
 type SyncResultJSON struct {
 	Total     int            `json:"total"`
 	Succeeded int            `json:"succeeded"`
 	Failed    int            `json:"failed"`
-	Duration  int64          `json:"duration_ms"`
-	Repos     []SyncRepoJSON `json:"repositories"`
+	Duration  int64          `json:"duration_ms"` //nolint:tagliatelle // existing JSON API field name
+	Repos     []SyncRepoJSON `json:"repositories"` //nolint:tagliatelle // existing JSON API field name
 }
 
 type SyncRepoJSON struct {
@@ -2216,7 +2256,7 @@ type pushResult struct {
 
 // collectPushTargets returns target paths from successfully synced repos.
 func collectPushTargets(result reposync.ExecutionResult) []string {
-	var targets []string
+	targets := make([]string, 0, len(result.Succeeded))
 	for _, r := range result.Succeeded {
 		targets = append(targets, r.Action.Repo.TargetPath)
 	}
@@ -2265,7 +2305,10 @@ func pushOneRepo(ctx context.Context, repoPath string) pushResult {
 		// Remote tracking branch may not exist (e.g. freshly cloned)
 		return pushResult{Path: repoPath, Pushed: false, Message: "no remote tracking branch"}
 	}
-	count, _ := strconv.Atoi(strings.TrimSpace(string(countOut)))
+	count, err := strconv.Atoi(strings.TrimSpace(string(countOut)))
+	if err != nil {
+		count = 0 // treat parse failure as nothing to push
+	}
 	if count == 0 {
 		return pushResult{Path: repoPath, Pushed: false, Message: "nothing to push"}
 	}

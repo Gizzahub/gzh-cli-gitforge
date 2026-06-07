@@ -180,7 +180,7 @@ func FormatBool(b bool) string {
 }
 
 // FormatInt formats an integer for display, returning "(default)" for zero values.
-func FormatInt(i int, defaultVal int) string {
+func FormatInt(i, defaultVal int) string {
 	if i == 0 || i == defaultVal {
 		return fmt.Sprintf("%d (default)", defaultVal)
 	}

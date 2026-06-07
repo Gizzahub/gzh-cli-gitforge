@@ -280,7 +280,7 @@ func (w *worktreeManager) Exists(ctx context.Context, repo *repository.Repositor
 }
 
 // parseWorktreeList parses git worktree list --porcelain output.
-func (w *worktreeManager) parseWorktreeList(output string) ([]*Worktree, error) {
+func (w *worktreeManager) parseWorktreeList(output string) ([]*Worktree, error) { //nolint:unparam // error return kept for future use and consistent interface
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	worktrees := make([]*Worktree, 0)
 
@@ -307,17 +307,18 @@ func (w *worktreeManager) parseWorktreeList(output string) ([]*Worktree, error) 
 			}
 		} else if current != nil {
 			// Parse worktree attributes
-			if strings.HasPrefix(line, "HEAD ") {
+			switch {
+			case strings.HasPrefix(line, "HEAD "):
 				current.Ref = strings.TrimPrefix(line, "HEAD ")
-			} else if strings.HasPrefix(line, "branch ") {
+			case strings.HasPrefix(line, "branch "):
 				current.Branch = strings.TrimPrefix(line, "branch refs/heads/")
-			} else if line == "bare" {
+			case line == "bare":
 				current.IsBare = true
-			} else if line == "detached" {
+			case line == "detached":
 				current.IsDetached = true
-			} else if strings.HasPrefix(line, "locked") {
+			case strings.HasPrefix(line, "locked"):
 				current.IsLocked = true
-			} else if strings.HasPrefix(line, "prunable") {
+			case strings.HasPrefix(line, "prunable"):
 				current.IsPrunable = true
 			}
 		}

@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 // createRepoWithChanges creates a git repo with staged and unstaged changes.
@@ -25,13 +24,13 @@ func createRepoWithChanges(path string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
@@ -48,7 +47,7 @@ func createRepoWithChanges(path string) error {
 		return err
 	}
 
-	cmd = exec.Command("git", "add", "new.go")
+	cmd = exec.Command("git", "add", "new.go") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
@@ -123,13 +122,13 @@ func TestBulkDiffCleanRepo(t *testing.T) {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to add: %v", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
@@ -282,18 +281,12 @@ func TestBulkDiffEmptyDirectory(t *testing.T) {
 func TestRepositoryDiffResult(t *testing.T) {
 	result := RepositoryDiffResult{
 		Path:           "/tmp/test",
-		RelativePath:   "test",
-		Branch:         "main",
 		Status:         "has-changes",
-		DiffContent:    "diff content here",
-		DiffSummary:    "3 files changed",
 		FilesChanged:   3,
 		Additions:      10,
 		Deletions:      5,
 		ChangedFiles:   []ChangedFile{{Path: "a.go", Status: "M"}},
 		UntrackedFiles: []string{"new.txt"},
-		Truncated:      false,
-		Duration:       100 * time.Millisecond,
 	}
 
 	if result.Path != "/tmp/test" {
@@ -327,9 +320,8 @@ func TestRepositoryDiffResult(t *testing.T) {
 
 func TestChangedFile(t *testing.T) {
 	cf := ChangedFile{
-		Path:    "src/main.go",
-		Status:  "M",
-		OldPath: "",
+		Path:   "src/main.go",
+		Status: "M",
 	}
 
 	if cf.Path != "src/main.go" {
@@ -342,9 +334,7 @@ func TestChangedFile(t *testing.T) {
 
 	// Test renamed file
 	renamedFile := ChangedFile{
-		Path:    "new-name.go",
 		OldPath: "old-name.go",
-		Status:  "R",
 	}
 
 	if renamedFile.OldPath != "old-name.go" {
@@ -539,9 +529,7 @@ func TestBulkDiffMaxDiffSize(t *testing.T) {
 
 func TestBulkDiffOptions(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
-		opts := BulkDiffOptions{
-			Directory: "/tmp/test",
-		}
+		opts := BulkDiffOptions{}
 
 		// ContextLines defaults to 0, will be set to 3 in BulkDiff
 		if opts.ContextLines != 0 {
@@ -556,16 +544,12 @@ func TestBulkDiffOptions(t *testing.T) {
 
 	t.Run("Custom values", func(t *testing.T) {
 		opts := BulkDiffOptions{
-			Directory:        "/tmp/test",
 			Parallel:         4,
 			MaxDepth:         3,
 			Staged:           true,
 			IncludeUntracked: true,
 			ContextLines:     5,
 			MaxDiffSize:      50000,
-			IncludePattern:   "test.*",
-			ExcludePattern:   "vendor.*",
-			Verbose:          true,
 		}
 
 		if opts.Parallel != 4 {

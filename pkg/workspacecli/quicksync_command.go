@@ -23,6 +23,7 @@ import (
 //   - --dry-run applies to auto-init too (no files written)
 //   - Clear, actionable error messages when repos are not found
 //   - Optional --check runs `workspace status` after sync
+//nolint:gocognit // sync command orchestrates auto-init + sync with many flag combinations; splitting would harm readability
 func (f CommandFactory) NewQuickSyncCmd() *cobra.Command {
 	var (
 		// ── Sync flags (mirrors workspace sync exactly) ─────────────────────
@@ -173,7 +174,7 @@ Auto-Init Behavior:
 						fmt.Fprintln(out, "")
 						// Simple "press Enter" prompt (no dependency on huh/survey)
 						if _, scanErr := fmt.Scanln(); scanErr != nil && scanErr.Error() != "unexpected newline" {
-							return fmt.Errorf("prompt cancelled: %w", scanErr)
+							return fmt.Errorf("prompt canceled: %w", scanErr)
 						}
 					}
 				} else {
@@ -184,7 +185,10 @@ Auto-Init Behavior:
 			// ── 3. Build args to pass to inner workspace sync ─────────────────
 			// Use cmd.Flags().Changed() so we never guess at default values
 			// and don't accidentally override config-file defaults.
-			absConfig, _ := filepath.Abs(effectiveConfig)
+			absConfig, err := filepath.Abs(effectiveConfig)
+			if err != nil {
+				absConfig = effectiveConfig // fall back to the input path on error
+			}
 			syncArgs := []string{"--config", absConfig}
 
 			flags := cmd.Flags()

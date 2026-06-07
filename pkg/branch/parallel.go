@@ -108,12 +108,12 @@ func (p *parallelWorkflow) GetActiveContexts(ctx context.Context, repo *reposito
 	// Build contexts
 	contexts := make([]*WorkContext, 0, len(worktrees))
 	for _, wt := range worktrees {
-		context, err := p.buildWorkContext(ctx, wt)
+		workCtx, err := p.buildWorkContext(ctx, wt)
 		if err != nil {
 			// Log error but continue with other worktrees
 			continue
 		}
-		contexts = append(contexts, context)
+		contexts = append(contexts, workCtx)
 	}
 
 	return contexts, nil
@@ -237,7 +237,7 @@ func (p *parallelWorkflow) GetStatus(ctx context.Context, repo *repository.Repos
 }
 
 // buildWorkContext builds a WorkContext from a Worktree.
-func (p *parallelWorkflow) buildWorkContext(ctx context.Context, wt *Worktree) (*WorkContext, error) {
+func (p *parallelWorkflow) buildWorkContext(ctx context.Context, wt *Worktree) (*WorkContext, error) { //nolint:unparam // error return kept for future use and consistent interface
 	// Check for uncommitted changes
 	hasChanges, err := p.hasUncommittedChanges(ctx, wt.Path)
 	if err != nil {
@@ -253,7 +253,7 @@ func (p *parallelWorkflow) buildWorkContext(ctx context.Context, wt *Worktree) (
 		}
 	}
 
-	context := &WorkContext{
+	workCtx := &WorkContext{
 		Path:          wt.Path,
 		Branch:        wt.Branch,
 		IsMain:        wt.IsMain,
@@ -261,7 +261,7 @@ func (p *parallelWorkflow) buildWorkContext(ctx context.Context, wt *Worktree) (
 		ModifiedFiles: modifiedFiles,
 	}
 
-	return context, nil
+	return workCtx, nil
 }
 
 // hasUncommittedChanges checks if a worktree has uncommitted changes.

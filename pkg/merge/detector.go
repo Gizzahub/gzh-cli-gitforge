@@ -146,7 +146,7 @@ func (d *conflictDetector) CanFastForward(ctx context.Context, repo *repository.
 	// Check if target is ancestor of source
 	result, err := d.executor.Run(ctx, repo.Path, "merge-base", "--is-ancestor", target, source)
 	if err != nil {
-		return false, nil // Not an error, just can't fast-forward
+		return false, nil //nolint:nilerr // git command failure means target is not an ancestor; this is not an error condition
 	}
 
 	return result.ExitCode == 0, nil

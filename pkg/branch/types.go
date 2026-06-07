@@ -111,7 +111,7 @@ func matchPattern(name, pattern string) bool {
 	}
 
 	// Handle trailing wildcard (e.g., "release/*")
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
+	if pattern != "" && pattern[len(pattern)-1] == '*' {
 		prefix := pattern[:len(pattern)-1]
 		return len(name) >= len(prefix) && name[:len(prefix)] == prefix
 	}

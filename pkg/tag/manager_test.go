@@ -5,6 +5,7 @@ package tag
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,19 +17,20 @@ import (
 // tempGitRepo creates a temporary git repository for testing.
 func tempGitRepo(t *testing.T) string {
 	t.Helper()
+	ctx := context.Background()
 	dir := t.TempDir()
 
-	cmd := exec.Command("git", "init")
+	cmd := exec.CommandContext(ctx, "git", "init")
 	cmd.Dir = dir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to init git repo: %v", err)
 	}
 
-	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd = exec.CommandContext(ctx, "git", "config", "user.email", "test@test.com")
 	cmd.Dir = dir
 	_ = cmd.Run()
 
-	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd = exec.CommandContext(ctx, "git", "config", "user.name", "Test")
 	cmd.Dir = dir
 	_ = cmd.Run()
 
@@ -38,6 +40,7 @@ func tempGitRepo(t *testing.T) string {
 // tempGitRepoWithCommit creates a temp git repo with an initial commit.
 func tempGitRepoWithCommit(t *testing.T) string {
 	t.Helper()
+	ctx := context.Background()
 	dir := tempGitRepo(t)
 
 	readme := filepath.Join(dir, "README.md")
@@ -45,11 +48,11 @@ func tempGitRepoWithCommit(t *testing.T) string {
 		t.Fatalf("failed to create README: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.CommandContext(ctx, "git", "add", ".")
 	cmd.Dir = dir
 	_ = cmd.Run()
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.CommandContext(ctx, "git", "commit", "-m", "Initial commit")
 	cmd.Dir = dir
 	_ = cmd.Run()
 
@@ -206,13 +209,10 @@ func TestManager_Latest(t *testing.T) {
 		WorkTree: dir,
 	}
 
-	// No tags - should return nil
+	// No tags - should return ErrNoTags
 	latest, err := m.Latest(ctx, repo)
-	if err != nil {
-		t.Fatalf("Latest() error = %v", err)
-	}
-	if latest != nil {
-		t.Error("Latest() expected nil for no tags")
+	if err == nil || !errors.Is(err, ErrNoTags) {
+		t.Fatalf("Latest() expected ErrNoTags for no tags, got err=%v, latest=%v", err, latest)
 	}
 
 	// Create some tags

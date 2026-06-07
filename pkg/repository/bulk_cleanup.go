@@ -254,6 +254,8 @@ func (c *client) processCleanupRepositories(ctx context.Context, rootDir string,
 }
 
 // processCleanupRepository processes a single repository cleanup.
+//
+//nolint:gocognit,gocyclo // cleanup orchestration inherently branches across multiple cleanup types; splitting would harm readability
 func (c *client) processCleanupRepository(ctx context.Context, rootDir, repoPath string, opts BulkCleanupOptions, logger Logger) RepositoryCleanupResult {
 	startTime := time.Now()
 
@@ -338,7 +340,7 @@ func (c *client) processCleanupRepository(ctx context.Context, rootDir, repoPath
 	}
 
 	// Count total analyzed branches
-	allBranchesResult, _ := c.executor.Run(ctx, repoPath, "branch", "--list")
+	allBranchesResult, _ := c.executor.Run(ctx, repoPath, "branch", "--list") //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 	if allBranchesResult.ExitCode == 0 {
 		lines := strings.Split(strings.TrimSpace(allBranchesResult.Stdout), "\n")
 		result.TotalAnalyzed = len(lines)
@@ -414,7 +416,7 @@ func containsBranch(list []branchInfo, name string) bool {
 func (c *client) detectBaseBranch(ctx context.Context, repoPath string) string {
 	candidates := []string{"main", "master", "develop", "development"}
 	for _, branch := range candidates {
-		result, _ := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", branch)
+		result, _ := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", branch) //nolint:errcheck // ExitCode check below handles both error and non-zero exit
 		if result.ExitCode == 0 {
 			return branch
 		}
@@ -470,7 +472,7 @@ func (c *client) getStaleBranches(ctx context.Context, repoPath string, threshol
 // getGoneBranches returns tracking branches whose remote branch was deleted.
 func (c *client) getGoneBranches(ctx context.Context, repoPath string) ([]string, error) {
 	// First prune remote tracking branches (non-interactive to prevent credential prompts)
-	_, _ = c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, "fetch", "--prune")
+	_, _ = c.executor.RunWithEnv(ctx, repoPath, nonInteractiveEnv, "fetch", "--prune") //nolint:errcheck // best-effort prune; subsequent for-each-ref handles missing tracking info gracefully
 
 	// Find branches with gone upstream
 	result, err := c.executor.Run(ctx, repoPath, "for-each-ref", "--format=%(refname:short) %(upstream:track)", "refs/heads/")
@@ -521,7 +523,7 @@ func matchBranchPattern(name, pattern string) bool {
 	if pattern == name {
 		return true
 	}
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
+	if pattern != "" && pattern[len(pattern)-1] == '*' {
 		prefix := pattern[:len(pattern)-1]
 		return len(name) >= len(prefix) && name[:len(prefix)] == prefix
 	}

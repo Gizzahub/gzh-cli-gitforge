@@ -446,7 +446,7 @@ func TestForgePlanner_toRepoSpec(t *testing.T) {
 
 		spec := planner.toRepoSpec(repo)
 
-		expected := filepath.Join("/home/user/repos", "myproject")
+		expected := filepath.FromSlash("/home/user/repos/myproject")
 		if spec.TargetPath != expected {
 			t.Errorf("expected target path %s, got %s", expected, spec.TargetPath)
 		}
@@ -957,7 +957,7 @@ func TestNewForgePlanner_InvalidSeparator(t *testing.T) {
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+	return len(s) >= len(substr) && (s == substr || s != "" && containsHelper(s, substr))
 }
 
 func containsHelper(s, substr string) bool {

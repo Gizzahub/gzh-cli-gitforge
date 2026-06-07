@@ -65,7 +65,7 @@ func TestDefaultConfigFile(t *testing.T) {
 	}
 }
 
-// mockRunner implements reposync.Runner for testing
+// mockRunner implements reposync.Runner for testing.
 type mockRunner struct{}
 
 func (m *mockRunner) Run(_ context.Context, _ reposync.RunRequest) (reposync.ExecutionResult, error) {

@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
+// Package config provides configuration loading for forge provider credentials and sync settings.
 package config
 
 import (
@@ -13,8 +14,8 @@ import (
 
 // Config represents the application configuration.
 type Config struct {
-	GitHub GitHubConfig `yaml:"github"`
-	GitLab GitLabConfig `yaml:"gitlab"`
+	GitHub GitHubConfig `yaml:"github"` //nolint:tagliatelle // "github" is the canonical platform name used in config files
+	GitLab GitLabConfig `yaml:"gitlab"` //nolint:tagliatelle // "gitlab" is the canonical platform name used in config files
 	Gitea  GiteaConfig  `yaml:"gitea"`
 	Sync   SyncConfig   `yaml:"sync"`
 }
@@ -22,28 +23,28 @@ type Config struct {
 // GitHubConfig holds GitHub-specific configuration.
 type GitHubConfig struct {
 	Token   string `yaml:"token"`
-	BaseURL string `yaml:"base_url"` // For GitHub Enterprise
+	BaseURL string `yaml:"base_url"` //nolint:tagliatelle // snake_case is the established config file convention; changing would break existing configs
 }
 
 // GitLabConfig holds GitLab-specific configuration.
 type GitLabConfig struct {
 	Token   string `yaml:"token"`
-	BaseURL string `yaml:"base_url"`
+	BaseURL string `yaml:"base_url"` //nolint:tagliatelle // snake_case is the established config file convention; changing would break existing configs
 }
 
 // GiteaConfig holds Gitea-specific configuration.
 type GiteaConfig struct {
 	Token   string `yaml:"token"`
-	BaseURL string `yaml:"base_url"`
+	BaseURL string `yaml:"base_url"` //nolint:tagliatelle // snake_case is the established config file convention; changing would break existing configs
 }
 
 // SyncConfig holds sync operation defaults.
 type SyncConfig struct {
-	TargetPath      string `yaml:"target_path"`
+	TargetPath      string `yaml:"target_path"`       //nolint:tagliatelle // snake_case is the established config file convention
 	Parallel        int    `yaml:"parallel"`
-	IncludeArchived bool   `yaml:"include_archived"`
-	IncludeForks    bool   `yaml:"include_forks"`
-	IncludePrivate  bool   `yaml:"include_private"`
+	IncludeArchived bool   `yaml:"include_archived"` //nolint:tagliatelle // snake_case is the established config file convention
+	IncludeForks    bool   `yaml:"include_forks"`    //nolint:tagliatelle // snake_case is the established config file convention
+	IncludePrivate  bool   `yaml:"include_private"`  //nolint:tagliatelle // snake_case is the established config file convention
 }
 
 // DefaultConfig returns a config with default values.
@@ -61,7 +62,7 @@ func DefaultConfig() *Config {
 
 // Load loads configuration from file.
 func Load(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G703: path is a caller-provided config file path, not tainted user input
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -87,7 +88,7 @@ func LoadDefault() (*Config, error) {
 	}
 
 	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil {
+		if _, err := os.Stat(loc); err == nil { //nolint:gosec // G703: loc is constructed from known safe paths and HOME env var
 			return Load(loc)
 		}
 	}

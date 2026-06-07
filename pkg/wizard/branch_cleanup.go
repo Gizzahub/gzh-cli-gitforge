@@ -109,12 +109,10 @@ func (w *BranchCleanupWizard) Run(ctx context.Context) (*BranchCleanupResult, er
 }
 
 func (w *BranchCleanupWizard) runOptionsStep() error {
-	var directory string
-	directory = w.directory
+	directory := w.directory
 
 	var cleanupTypes []string
-	var staleThresholdDays string
-	staleThresholdDays = "30"
+	staleThresholdDays := "30"
 
 	form := huh.NewForm(
 		huh.NewGroup(
@@ -254,8 +252,7 @@ func (w *BranchCleanupWizard) processRepository(ctx context.Context, repoPath st
 	}
 
 	// Let user select branches to delete
-	var selectedBranches []string
-	selectedBranches = preSelected
+	selectedBranches := preSelected
 
 	selectForm := huh.NewForm(
 		huh.NewGroup(
@@ -294,7 +291,7 @@ func (w *BranchCleanupWizard) processRepository(ctx context.Context, repoPath st
 	}
 
 	if !confirmDelete {
-		w.printer.PrintInfo("Deletion cancelled")
+		w.printer.PrintInfo("Deletion canceled")
 		return 0, len(selectedBranches), nil
 	}
 

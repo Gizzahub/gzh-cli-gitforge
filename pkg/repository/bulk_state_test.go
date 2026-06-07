@@ -20,7 +20,7 @@ func TestCheckRepositoryState(t *testing.T) {
 	}
 
 	// Initialize git
-	cmd := exec.Command("git", "init")
+	cmd := exec.Command("git", "init") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to init git: %v", err)
@@ -32,7 +32,7 @@ func TestCheckRepositoryState(t *testing.T) {
 		{"config", "user.email", "test@example.com"},
 	}
 	for _, args := range configCmds {
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", args...) //nolint:noctx // test setup, no context available
 		cmd.Dir = repoPath
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to config git: %v", err)
@@ -45,13 +45,13 @@ func TestCheckRepositoryState(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	cmd = exec.Command("git", "add", ".")
+	cmd = exec.Command("git", "add", ".") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git add: %v", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git commit: %v", err)
@@ -103,7 +103,7 @@ func TestCheckRepositoryState(t *testing.T) {
 		}
 
 		// Clean up - reset the file
-		cmd := exec.Command("git", "checkout", ".")
+		cmd := exec.Command("git", "checkout", ".") //nolint:noctx // test cleanup, no context available
 		cmd.Dir = repoPath
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to reset file: %v", err)

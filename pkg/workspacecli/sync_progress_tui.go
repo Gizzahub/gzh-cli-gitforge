@@ -533,7 +533,7 @@ type tuiProgressBridge struct {
 func newTUIProgressBridge(program *tea.Program, total int) *tuiProgressBridge {
 	return &tuiProgressBridge{
 		program: program,
-		total:   int32(total),
+		total:   int32(total), //nolint:gosec // repo count will never exceed int32 max (2^31-1)
 	}
 }
 
@@ -581,7 +581,7 @@ func (b *tuiProgressBridge) OnComplete(result reposync.ActionResult) {
 type syncTUIResult struct {
 	ExecResult reposync.ExecutionResult
 	Duration   time.Duration
-	Cancelled  bool
+	Canceled   bool
 	ErrDetails []string
 }
 
@@ -642,11 +642,11 @@ func runSyncTUI(
 
 	result := &syncTUIResult{
 		Duration:   time.Since(fm.startTime),
-		Cancelled:  fm.quitting,
+		Canceled:   fm.quitting,
 		ErrDetails: fm.errDetails,
 	}
 
-	// If user cancelled, cancel orchestrator and drain
+	// If user canceled, cancel orchestrator and drain
 	if fm.quitting {
 		orchCancel()
 	}
@@ -670,7 +670,7 @@ func printSyncSummary(out io.Writer, m SyncProgressModel, elapsed time.Duration)
 	fmt.Fprintln(out)
 
 	if m.quitting {
-		fmt.Fprintf(out, "\033[33m⚠  Sync cancelled by user after %s.\033[0m\n", elapsed.Truncate(time.Second))
+		fmt.Fprintf(out, "\033[33m⚠  Sync canceled by user after %s.\033[0m\n", elapsed.Truncate(time.Second))
 		if m.done > 0 {
 			fmt.Fprintf(out, "   %d/%d completed before cancellation.\n", m.done, m.total)
 		}

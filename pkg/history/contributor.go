@@ -128,15 +128,15 @@ func (c *contributorAnalyzer) parseShortlog(output string) []*Contributor {
 	return contributors
 }
 
-func (c *contributorAnalyzer) parseNameEmail(nameEmail string) (string, string) {
+func (c *contributorAnalyzer) parseNameEmail(nameEmail string) (name, email string) {
 	// Format: "Name <email>"
 	parts := strings.Split(nameEmail, "<")
 	if len(parts) != 2 {
 		return nameEmail, ""
 	}
 
-	name := strings.TrimSpace(parts[0])
-	email := strings.TrimSpace(strings.TrimSuffix(parts[1], ">"))
+	name = strings.TrimSpace(parts[0])
+	email = strings.TrimSpace(strings.TrimSuffix(parts[1], ">"))
 
 	return name, email
 }

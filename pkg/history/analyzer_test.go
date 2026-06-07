@@ -443,14 +443,16 @@ func TestHistoryAnalyzer_ParseCommitTrends(t *testing.T) {
 func TestHistoryAnalyzer_ParseCommitStats_Averages(t *testing.T) {
 	// Create commits over 7 days (1 week)
 	baseTime := time.Date(2025, 11, 1, 12, 0, 0, 0, time.UTC).Unix()
-	var lines []string
+	lines := make([]string, 0, 42)
 
 	// 14 commits over 7 days = 2 per day average
 	for i := 0; i < 14; i++ {
 		timestamp := baseTime + int64(i*43200) // Every 12 hours
-		lines = append(lines, fmt.Sprintf("hash%d|Author|author@example.com|%d", i, timestamp))
-		lines = append(lines, "") // Empty line between commits
-		lines = append(lines, " 1 file changed, 1 insertion(+)")
+		lines = append(lines,
+			fmt.Sprintf("hash%d|Author|author@example.com|%d", i, timestamp),
+			"",                              // Empty line between commits
+			" 1 file changed, 1 insertion(+)",
+		)
 	}
 
 	output := strings.Join(lines, "\n")

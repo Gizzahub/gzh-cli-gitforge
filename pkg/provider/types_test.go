@@ -60,6 +60,52 @@ func TestRepository(t *testing.T) {
 	if len(repo.Topics) != 2 {
 		t.Errorf("Topics length = %d, want 2", len(repo.Topics))
 	}
+	// Verify remaining fields are set as expected.
+	if repo.CloneURL != "https://github.com/org/test-repo.git" {
+		t.Errorf("CloneURL = %q, want %q", repo.CloneURL, "https://github.com/org/test-repo.git")
+	}
+	if repo.SSHURL != "git@github.com:org/test-repo.git" {
+		t.Errorf("SSHURL = %q, want %q", repo.SSHURL, "git@github.com:org/test-repo.git")
+	}
+	if repo.HTMLURL != "https://github.com/org/test-repo" {
+		t.Errorf("HTMLURL = %q, want %q", repo.HTMLURL, "https://github.com/org/test-repo")
+	}
+	if repo.Description != "A test repository" {
+		t.Errorf("Description = %q, want %q", repo.Description, "A test repository")
+	}
+	if repo.DefaultBranch != "main" {
+		t.Errorf("DefaultBranch = %q, want %q", repo.DefaultBranch, "main")
+	}
+	if repo.Private {
+		t.Error("Private should be false")
+	}
+	if repo.Archived {
+		t.Error("Archived should be false")
+	}
+	if repo.Fork {
+		t.Error("Fork should be false")
+	}
+	if repo.Disabled {
+		t.Error("Disabled should be false")
+	}
+	if repo.Language != "Go" {
+		t.Errorf("Language = %q, want %q", repo.Language, "Go")
+	}
+	if repo.Size != 1024 {
+		t.Errorf("Size = %d, want 1024", repo.Size)
+	}
+	if repo.Visibility != "public" {
+		t.Errorf("Visibility = %q, want %q", repo.Visibility, "public")
+	}
+	if !repo.CreatedAt.Equal(now) {
+		t.Errorf("CreatedAt = %v, want %v", repo.CreatedAt, now)
+	}
+	if !repo.UpdatedAt.Equal(now) {
+		t.Errorf("UpdatedAt = %v, want %v", repo.UpdatedAt, now)
+	}
+	if !repo.PushedAt.Equal(now) {
+		t.Errorf("PushedAt = %v, want %v", repo.PushedAt, now)
+	}
 }
 
 func TestOrganization(t *testing.T) {
@@ -71,6 +117,12 @@ func TestOrganization(t *testing.T) {
 
 	if org.Name != "test-org" {
 		t.Errorf("Name = %q, want %q", org.Name, "test-org")
+	}
+	if org.Description != "A test organization" {
+		t.Errorf("Description = %q, want %q", org.Description, "A test organization")
+	}
+	if org.URL != "https://github.com/test-org" {
+		t.Errorf("URL = %q, want %q", org.URL, "https://github.com/test-org")
 	}
 }
 
@@ -92,6 +144,9 @@ func TestRateLimit(t *testing.T) {
 	if rl.Used != 500 {
 		t.Errorf("Used = %d, want 500", rl.Used)
 	}
+	if !rl.Reset.Equal(reset) {
+		t.Errorf("Reset = %v, want %v", rl.Reset, reset)
+	}
 }
 
 func TestSyncOptions(t *testing.T) {
@@ -112,6 +167,12 @@ func TestSyncOptions(t *testing.T) {
 	}
 	if opts.IncludeArchived {
 		t.Error("IncludeArchived should be false")
+	}
+	if !opts.IncludeForks {
+		t.Error("IncludeForks should be true")
+	}
+	if !opts.IncludePrivate {
+		t.Error("IncludePrivate should be true")
 	}
 	if !opts.DryRun {
 		t.Error("DryRun should be true")

@@ -84,7 +84,7 @@ type ForgePlanner struct {
 }
 
 // NewForgePlanner creates a new ForgePlanner with the given provider and config.
-func NewForgePlanner(provider ForgeProvider, config ForgePlannerConfig) *ForgePlanner {
+func NewForgePlanner(fp ForgeProvider, config ForgePlannerConfig) *ForgePlanner {
 	// Validate flat separator for filesystem safety
 	if config.SubgroupMode == "flat" && config.FlatSeparator != "" {
 		if !isValidFlatSeparator(config.FlatSeparator) {
@@ -94,7 +94,7 @@ func NewForgePlanner(provider ForgeProvider, config ForgePlannerConfig) *ForgePl
 	}
 
 	return &ForgePlanner{
-		provider: provider,
+		provider: fp,
 		config:   config,
 	}
 }
@@ -322,7 +322,7 @@ func (p *ForgePlanner) buildTargetPath(repo *provider.Repository) string {
 }
 
 // stripOrgPrefix removes the organization prefix from FullName.
-// Example: "org/repo" -> "repo", "org/sub/repo" -> "sub/repo"
+// Example: "org/repo" -> "repo", "org/sub/repo" -> "sub/repo".
 func (p *ForgePlanner) stripOrgPrefix(fullName string) string {
 	// Split by / and remove first component (organization)
 	parts := strings.Split(fullName, "/")

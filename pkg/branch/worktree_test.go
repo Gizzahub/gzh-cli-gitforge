@@ -313,10 +313,6 @@ func TestWorktree_Struct(t *testing.T) {
 	wt := &Worktree{
 		Path:       "/home/user/work/feature-x",
 		Branch:     "feature/x",
-		Ref:        "abc1234",
-		IsMain:     false,
-		IsLocked:   false,
-		IsPrunable: false,
 		IsDetached: false,
 	}
 

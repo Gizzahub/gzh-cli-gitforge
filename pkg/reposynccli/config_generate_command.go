@@ -222,7 +222,7 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 		return fmt.Errorf("failed to render template: %w", err)
 	}
 
-	if err := os.WriteFile(opts.Output, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(opts.Output, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

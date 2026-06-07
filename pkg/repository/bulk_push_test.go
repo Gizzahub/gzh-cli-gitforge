@@ -23,13 +23,13 @@ func initGitRepoWithCommit(path string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
@@ -112,7 +112,7 @@ func TestBulkPushSetUpstreamWhenMissingAndAheadIsZero(t *testing.T) {
 
 	remoteDir := t.TempDir()
 	remotePath := filepath.Join(remoteDir, "origin.git")
-	cmd := exec.Command("git", "init", "--bare", remotePath)
+	cmd := exec.Command("git", "init", "--bare", remotePath) //nolint:noctx // test setup, no context available
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Skipf("Skipping test: git not available or failed to init bare remote: %v\n%s", err, output)
 	}
@@ -121,36 +121,36 @@ func TestBulkPushSetUpstreamWhenMissingAndAheadIsZero(t *testing.T) {
 		t.Skipf("Skipping test: git not available or failed to init repo: %v", err)
 	}
 
-	cmd = exec.Command("git", "checkout", "-b", "develop")
+	cmd = exec.Command("git", "checkout", "-b", "develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create branch develop: %v\n%s", err, output)
 	}
 
-	cmd = exec.Command("git", "remote", "add", "origin", remotePath)
+	cmd = exec.Command("git", "remote", "add", "origin", remotePath) //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to add origin remote: %v\n%s", err, output)
 	}
 
 	// Push without -u to ensure the remote branch exists but no upstream is configured.
-	cmd = exec.Command("git", "push", "origin", "develop:develop")
+	cmd = exec.Command("git", "push", "origin", "develop:develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to push branch to origin: %v\n%s", err, output)
 	}
 
-	cmd = exec.Command("git", "branch", "--unset-upstream", "develop")
+	cmd = exec.Command("git", "branch", "--unset-upstream", "develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	_ = cmd.Run() // Ignore: may already have no upstream
 
-	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err == nil {
 		t.Fatalf("Expected upstream to be missing before BulkPush")
 	}
 
-	cmd = exec.Command("git", "--git-dir", remotePath, "show-ref", "--verify", "refs/heads/develop")
+	cmd = exec.Command("git", "--git-dir", remotePath, "show-ref", "--verify", "refs/heads/develop") //nolint:noctx // test setup, no context available
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Expected remote branch to exist: %v\n%s", err, output)
 	}
@@ -172,7 +172,7 @@ func TestBulkPushSetUpstreamWhenMissingAndAheadIsZero(t *testing.T) {
 		t.Fatalf("BulkPush TotalProcessed = %d, want 1", result.TotalProcessed)
 	}
 
-	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -192,7 +192,7 @@ func TestBulkPushSetUpstreamDryRunDoesNotChangeUpstream(t *testing.T) {
 
 	remoteDir := t.TempDir()
 	remotePath := filepath.Join(remoteDir, "origin.git")
-	cmd := exec.Command("git", "init", "--bare", remotePath)
+	cmd := exec.Command("git", "init", "--bare", remotePath) //nolint:noctx // test setup, no context available
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Skipf("Skipping test: git not available or failed to init bare remote: %v\n%s", err, output)
 	}
@@ -201,19 +201,19 @@ func TestBulkPushSetUpstreamDryRunDoesNotChangeUpstream(t *testing.T) {
 		t.Skipf("Skipping test: git not available or failed to init repo: %v", err)
 	}
 
-	cmd = exec.Command("git", "checkout", "-b", "develop")
+	cmd = exec.Command("git", "checkout", "-b", "develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create branch develop: %v\n%s", err, output)
 	}
 
-	cmd = exec.Command("git", "remote", "add", "origin", remotePath)
+	cmd = exec.Command("git", "remote", "add", "origin", remotePath) //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to add origin remote: %v\n%s", err, output)
 	}
 
-	cmd = exec.Command("git", "branch", "--unset-upstream", "develop")
+	cmd = exec.Command("git", "branch", "--unset-upstream", "develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	_ = cmd.Run() // Ignore: may already have no upstream
 
@@ -240,7 +240,7 @@ func TestBulkPushSetUpstreamDryRunDoesNotChangeUpstream(t *testing.T) {
 		t.Fatalf("BulkPush Status = %q, want %q", result.Repositories[0].Status, StatusWouldPush)
 	}
 
-	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "@{upstream}") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err == nil {
 		t.Fatalf("Expected upstream to remain missing after DryRun")
@@ -601,12 +601,8 @@ func TestBulkPushEmptyDirectory(t *testing.T) {
 func TestRepositoryPushResult(t *testing.T) {
 	result := RepositoryPushResult{
 		Path:          "/tmp/test",
-		RelativePath:  "test",
 		Status:        "success",
-		Message:       "Test message",
 		Duration:      100 * time.Millisecond,
-		Branch:        "main",
-		RemoteURL:     "https://github.com/test/repo.git",
 		CommitsAhead:  5,
 		PushedCommits: 5,
 	}
@@ -1027,7 +1023,7 @@ func TestBulkPush_RefspecWithValidSourceBranch(t *testing.T) {
 	}
 
 	// Create develop branch
-	cmd := exec.Command("git", "checkout", "-b", "develop")
+	cmd := exec.Command("git", "checkout", "-b", "develop") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Skipf("Skipping test: failed to create develop branch: %v", err)
@@ -1039,13 +1035,13 @@ func TestBulkPush_RefspecWithValidSourceBranch(t *testing.T) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	cmd = exec.Command("git", "add", ".")
+	cmd = exec.Command("git", "add", ".") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Skipf("Skipping test: git add failed: %v", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Test commit")
+	cmd = exec.Command("git", "commit", "-m", "Test commit") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Skipf("Skipping test: git commit failed: %v", err)

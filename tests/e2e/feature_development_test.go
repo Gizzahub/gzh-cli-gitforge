@@ -86,7 +86,7 @@ func TestAuthenticate(t *testing.T) {
 
 		// Detect potential conflicts before merge
 		detectOutput := repo.RunGzhGit("conflict", "detect", "feature/authentication", "master")
-		if len(detectOutput) > 0 {
+		if detectOutput != "" {
 			t.Log("Conflict detect completed for feature branch")
 		}
 

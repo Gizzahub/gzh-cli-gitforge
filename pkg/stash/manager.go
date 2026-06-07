@@ -233,8 +233,11 @@ func parseStashLine(line string, index int) (*Stash, error) {
 	message := parts[2]
 	timestampStr := parts[3]
 
-	// Parse timestamp
-	timestamp, _ := strconv.ParseInt(timestampStr, 10, 64)
+	// Parse timestamp; on parse failure timestamp defaults to 0 (Unix epoch), which is acceptable
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		timestamp = 0
+	}
 	date := time.Unix(timestamp, 0)
 
 	// Extract branch from message if present (format: "On <branch>: <message>")

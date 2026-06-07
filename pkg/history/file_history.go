@@ -104,7 +104,7 @@ func (f *fileHistoryTracker) GetBlame(ctx context.Context, repo *repository.Repo
 	return blameInfo, nil
 }
 
-func (f *fileHistoryTracker) parseFileHistory(output, targetPath string) ([]*FileCommit, error) {
+func (f *fileHistoryTracker) parseFileHistory(output, targetPath string) ([]*FileCommit, error) { //nolint:unparam // targetPath is part of the public-facing API contract and may be used in future filtering
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
 		return nil, nil
@@ -188,7 +188,7 @@ func (f *fileHistoryTracker) parseFileHistory(output, targetPath string) ([]*Fil
 	return commits, nil
 }
 
-func (f *fileHistoryTracker) parseBlame(output, path string) (*BlameInfo, error) {
+func (f *fileHistoryTracker) parseBlame(output, path string) (*BlameInfo, error) { //nolint:unparam // error return is part of the interface contract and may be used in future implementations
 	lines := strings.Split(output, "\n")
 
 	blameInfo := &BlameInfo{
@@ -264,7 +264,7 @@ func (f *fileHistoryTracker) parseBlameMetadata(metadata string) (author, email 
 			// Reconstruct date string without line number
 			dateStr = strings.Join(tokens[:len(tokens)-1], " ")
 			// Try to parse ISO date format (returns zero time on parse failure)
-			date, _ = time.Parse("2006-01-02 15:04:05 -0700", dateStr) //nolint:errcheck
+			date, _ = time.Parse("2006-01-02 15:04:05 -0700", dateStr) //nolint:errcheck // zero time is the correct fallback on parse failure
 		}
 	}
 

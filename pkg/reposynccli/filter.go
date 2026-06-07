@@ -69,7 +69,7 @@ func containsString(slice []string, target string) bool {
 
 // ParseDuration parses duration strings with extended unit support.
 // Supports: s, m (minute), h, d (day), w (week), M (month), y (year)
-// Examples: "30d", "6M", "1y", "2w"
+// Examples: "30d", "6M", "1y", "2w".
 func ParseDuration(s string) (time.Duration, error) {
 	if s == "" {
 		return 0, fmt.Errorf("empty duration string")
@@ -124,7 +124,7 @@ func ParseDuration(s string) (time.Duration, error) {
 
 // ParseLanguages parses a comma-separated list of languages.
 // Returns lowercase language names.
-// Examples: "go,rust" -> ["go", "rust"], "Go, Rust" -> ["go", "rust"]
+// Examples: "go,rust" -> ["go", "rust"], "Go, Rust" -> ["go", "rust"].
 func ParseLanguages(s string) []string {
 	if s == "" {
 		return nil

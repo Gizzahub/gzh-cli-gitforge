@@ -390,9 +390,7 @@ func (w *SyncSetupWizard) printSummary() {
 func (w *SyncSetupWizard) BuildCommand() string {
 	parts := []string{"gz-git", "forge", "from"}
 
-	parts = append(parts, "--provider", w.opts.Provider)
-	parts = append(parts, "--org", w.opts.Organization)
-	parts = append(parts, "--path", w.opts.TargetPath)
+	parts = append(parts, "--provider", w.opts.Provider, "--org", w.opts.Organization, "--path", w.opts.TargetPath)
 
 	if w.opts.BaseURL != "" {
 		parts = append(parts, "--base-url", w.opts.BaseURL)

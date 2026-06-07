@@ -38,12 +38,14 @@ const (
 //
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
-func LoadConfigRecursive(path string, configFile string) (*Config, error) {
+func LoadConfigRecursive(path, configFile string) (*Config, error) {
 	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), true, 0)
 }
 
 // loadConfigRecursiveWithVisited loads config with circular reference detection.
-func loadConfigRecursiveWithVisited(path string, configFile string, visited map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
+//
+//nolint:gocognit,gocyclo // complex by design: handles recursive config loading with cycle detection, path resolution, and workspace traversal
+func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
 	// Check depth limit
 	if depth > MaxConfigDepth {
 		return nil, fmt.Errorf("config recursion depth exceeded (max %d): possible circular or excessively nested config", MaxConfigDepth)
@@ -207,7 +209,7 @@ func loadConfigRecursiveWithVisited(path string, configFile string, visited map[
 //   - Absolute paths: /foo/bar → /foo/bar
 //   - Relative paths: ./foo → /parent/path/foo
 //   - Relative paths: foo → /parent/path/foo
-func resolvePath(parentPath string, childPath string) (string, error) {
+func resolvePath(parentPath, childPath string) (string, error) {
 	// Handle home-relative paths
 	if strings.HasPrefix(childPath, "~/") {
 		home, err := os.UserHomeDir()
@@ -228,6 +230,8 @@ func resolvePath(parentPath string, childPath string) (string, error) {
 
 // mergeWorkspaceOverrides applies workspace overrides to loaded Config.
 // Workspace overrides take precedence over the nested config file settings.
+//
+//nolint:gocognit // complex by design: merges many optional sub-config fields across multiple config types
 func mergeWorkspaceOverrides(config *Config, ws *Workspace) {
 	if ws.Profile != "" {
 		config.Profile = ws.Profile
@@ -288,7 +292,7 @@ func mergeWorkspaceOverrides(config *Config, ws *Workspace) {
 }
 
 // mergeSyncConfig merges override into target (override takes precedence).
-func mergeSyncConfig(target *SyncConfig, override *SyncConfig) {
+func mergeSyncConfig(target, override *SyncConfig) {
 	if override.Strategy != "" {
 		target.Strategy = override.Strategy
 	}
@@ -301,7 +305,7 @@ func mergeSyncConfig(target *SyncConfig, override *SyncConfig) {
 }
 
 // mergeBranchConfig merges override into target (override takes precedence).
-func mergeBranchConfig(target *BranchConfig, override *BranchConfig) {
+func mergeBranchConfig(target, override *BranchConfig) {
 	if len(override.DefaultBranch) > 0 {
 		target.DefaultBranch = override.DefaultBranch
 	}
@@ -311,7 +315,7 @@ func mergeBranchConfig(target *BranchConfig, override *BranchConfig) {
 }
 
 // mergeFetchConfig merges override into target (override takes precedence).
-func mergeFetchConfig(target *FetchConfig, override *FetchConfig) {
+func mergeFetchConfig(target, override *FetchConfig) {
 	if override.AllRemotes {
 		target.AllRemotes = override.AllRemotes
 	}
@@ -321,7 +325,7 @@ func mergeFetchConfig(target *FetchConfig, override *FetchConfig) {
 }
 
 // mergePullConfig merges override into target (override takes precedence).
-func mergePullConfig(target *PullConfig, override *PullConfig) {
+func mergePullConfig(target, override *PullConfig) {
 	if override.Rebase {
 		target.Rebase = override.Rebase
 	}
@@ -331,7 +335,7 @@ func mergePullConfig(target *PullConfig, override *PullConfig) {
 }
 
 // mergePushConfig merges override into target (override takes precedence).
-func mergePushConfig(target *PushConfig, override *PushConfig) {
+func mergePushConfig(target, override *PushConfig) {
 	if override.SetUpstream {
 		target.SetUpstream = override.SetUpstream
 	}
@@ -340,7 +344,9 @@ func mergePushConfig(target *PushConfig, override *PushConfig) {
 // mergeParentConfig merges parent config into child config.
 // Child values override parent values (child takes precedence).
 // This is the inverse of mergeWorkspaceOverrides - parent provides defaults.
-func mergeParentConfig(child *Config, parent *Config) {
+//
+//nolint:gocyclo // complex by design: merges many optional config fields across provider, defaults, and command-specific configs
+func mergeParentConfig(child, parent *Config) {
 	if parent == nil {
 		return
 	}
@@ -401,7 +407,7 @@ func mergeParentConfig(child *Config, parent *Config) {
 }
 
 // mergeParentSyncConfig fills empty child fields from parent.
-func mergeParentSyncConfig(child *SyncConfig, parent *SyncConfig) {
+func mergeParentSyncConfig(child, parent *SyncConfig) {
 	if child.Strategy == "" && parent.Strategy != "" {
 		child.Strategy = parent.Strategy
 	}
@@ -414,7 +420,7 @@ func mergeParentSyncConfig(child *SyncConfig, parent *SyncConfig) {
 }
 
 // mergeParentBranchConfig fills empty child fields from parent.
-func mergeParentBranchConfig(child *BranchConfig, parent *BranchConfig) {
+func mergeParentBranchConfig(child, parent *BranchConfig) {
 	if len(child.DefaultBranch) == 0 && len(parent.DefaultBranch) > 0 {
 		child.DefaultBranch = parent.DefaultBranch
 	}
@@ -425,7 +431,9 @@ func mergeParentBranchConfig(child *BranchConfig, parent *BranchConfig) {
 
 // mergeParentDefaults merges parent defaults into child defaults.
 // Child values take precedence over parent values.
-func mergeParentDefaults(child *Config, parent *Config) {
+//
+//nolint:gocognit,gocyclo // complex by design: merges many optional nested default config sections
+func mergeParentDefaults(child, parent *Config) {
 	if parent.Defaults == nil {
 		return
 	}
@@ -604,7 +612,7 @@ func autoDiscoverWorkspaces(path string, config *Config) error {
 }
 
 // hasFile checks if a file exists in a directory.
-func hasFile(dir string, fileName string) bool {
+func hasFile(dir, fileName string) bool {
 	filePath := filepath.Join(dir, fileName)
 	info, err := os.Stat(filePath)
 	if err != nil {
@@ -629,7 +637,7 @@ func hasFile(dir string, fileName string) bool {
 //	// Find nearest .gz-git.yaml
 //	configDir, err := FindConfigRecursive("/home/user/mydevbox/project", ".gz-git.yaml")
 //	// Returns: "/home/user/mydevbox" if .gz-git.yaml exists there
-func FindConfigRecursive(startPath string, configFile string) (string, error) {
+func FindConfigRecursive(startPath, configFile string) (string, error) {
 	currentPath, err := filepath.Abs(startPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
@@ -818,7 +826,7 @@ func GetProfileFromChain(config *Config, name string) *Profile {
 	return nil
 }
 
-// GetProfileSources returns the source location of a profile.
+// GetProfileSource returns the source location of a profile.
 // Useful for debugging config precedence.
 // Returns empty string if profile not found.
 func GetProfileSource(config *Config, name string) string {

@@ -56,7 +56,7 @@ type FromForgeOptions struct {
 func (f CommandFactory) newFromForgeCmd() *cobra.Command {
 	opts := &FromForgeOptions{
 		Strategy:     "reset",
-		Parallel:     repository.DefaultBulkParallel,
+		Parallel:     repository.DefaultForgeParallel,
 		MaxRetries:   3,
 		CloneProto:   "ssh",  // Default to SSH
 		SubgroupMode: "flat", // Default to flat
@@ -342,7 +342,7 @@ func CreateForgeProviderRaw(providerName, token, baseURL string, sshPort int) (r
 // CreateProviderFromSource creates a forge provider from config types with profile fallback.
 // This handles the common pattern of extracting provider settings from ForgeSource,
 // falling back to Workspace settings, then to profile settings from the config chain.
-func CreateProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg *config.Config) (reposync.ForgeProvider, error) {
+func CreateProviderFromSource(src *config.ForgeSource, ws *config.Workspace, cfg *config.Config) (reposync.ForgeProvider, error) { //nolint:gocognit // multi-layer profile fallback chain — extracting helpers would obscure the precedence logic
 	// Extract values from source
 	token := src.Token
 	baseURL := src.BaseURL

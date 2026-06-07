@@ -26,7 +26,7 @@ func TestConflictDetection(t *testing.T) {
 		output := repo.RunGzhGit("conflict", "detect", "feature/clean", "master")
 
 		// Should indicate no conflicts or show merge analysis
-		if len(output) > 0 {
+		if output != "" {
 			t.Log("Conflict detect completed successfully")
 		}
 	})
@@ -99,7 +99,7 @@ func TestFastForwardMerge(t *testing.T) {
 
 		// Detect merge - should show fast-forward possible
 		output := repo.RunGzhGit("conflict", "detect", "feature/ff", "master")
-		if len(output) > 0 {
+		if output != "" {
 			t.Log("Conflict detect completed for fast-forward scenario")
 		}
 
@@ -188,7 +188,7 @@ func TestCompleteConflictWorkflow(t *testing.T) {
 		// Verify basic commands work (bulk status format)
 		status := repo.RunGzhGit("status")
 		// Bulk status shows repository status in results
-		if len(status) == 0 {
+		if status == "" {
 			t.Error("Status command returned no output")
 		}
 

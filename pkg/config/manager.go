@@ -229,7 +229,11 @@ func (m *Manager) DeleteProfile(name string) error {
 	}
 
 	// If this was the active profile, reset to default
-	activeProfile, _ := m.paths.GetActiveProfile()
+	activeProfile, err := m.paths.GetActiveProfile()
+	if err != nil {
+		// Failure to read the active profile is non-fatal here; treat as if no active profile is set.
+		activeProfile = ""
+	}
 	if activeProfile == name {
 		if err := m.paths.SetActiveProfile(DefaultProfileName); err != nil {
 			// Log warning but don't fail
@@ -353,7 +357,7 @@ func (m *Manager) LoadProjectConfig() (*ProjectConfig, error) {
 
 	// No project config found (not an error)
 	if configPath == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // nil config is the documented "not found" sentinel for this function
 	}
 
 	// Unmarshal YAML or JSON
@@ -376,7 +380,7 @@ func (m *Manager) LoadProjectConfig() (*ProjectConfig, error) {
 
 // LoadConfigRecursiveFromPath loads a recursive config from the specified path.
 // This is a wrapper around LoadConfigRecursive with manager validation.
-func (m *Manager) LoadConfigRecursiveFromPath(path string, configFile string) (*Config, error) {
+func (m *Manager) LoadConfigRecursiveFromPath(path, configFile string) (*Config, error) {
 	// Use the standalone LoadConfigRecursive function
 	config, err := LoadConfigRecursive(path, configFile)
 	if err != nil {
@@ -392,7 +396,7 @@ func (m *Manager) LoadConfigRecursiveFromPath(path string, configFile string) (*
 }
 
 // SaveConfig saves a recursive config to the specified path.
-func (m *Manager) SaveConfig(path string, configFile string, config *Config) error {
+func (m *Manager) SaveConfig(path, configFile string, config *Config) error {
 	if config == nil {
 		return fmt.Errorf("config is nil")
 	}
@@ -411,7 +415,7 @@ func (m *Manager) SaveConfig(path string, configFile string, config *Config) err
 	return nil
 }
 
-// LoadWorkstationConfig loads the workstation-level config (~/.gz-git-config.yaml).
+// FindNearestConfig finds the nearest config file by walking up from the current directory.
 func (m *Manager) FindNearestConfig(configFile string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {

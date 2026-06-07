@@ -16,7 +16,7 @@ func getBinaryPath() string {
 
 // TestCLIVersion tests the version command.
 func TestCLIVersion(t *testing.T) {
-	cmd := exec.Command(getBinaryPath(), "--version")
+	cmd := exec.Command(getBinaryPath(), "--version") //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run version command: %v\nOutput: %s", err, output)
@@ -30,7 +30,7 @@ func TestCLIVersion(t *testing.T) {
 
 // TestCLIHelp tests the help command.
 func TestCLIHelp(t *testing.T) {
-	cmd := exec.Command(getBinaryPath(), "--help")
+	cmd := exec.Command(getBinaryPath(), "--help") //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run help command: %v\nOutput: %s", err, output)
@@ -55,7 +55,7 @@ func TestCLIHelp(t *testing.T) {
 func TestCLIStatus(t *testing.T) {
 	// Change to repository root
 	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command(getBinaryPath(), "status", repoRoot)
+	cmd := exec.Command(getBinaryPath(), "status", repoRoot) //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run status command: %v\nOutput: %s", err, output)
@@ -85,7 +85,7 @@ func TestCLIStatus(t *testing.T) {
 func TestCLIInfo(t *testing.T) {
 	// Change to repository root
 	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command(getBinaryPath(), "info", repoRoot)
+	cmd := exec.Command(getBinaryPath(), "info", repoRoot) //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run info command: %v\nOutput: %s", err, output)
@@ -115,7 +115,7 @@ func TestCLIClone(t *testing.T) {
 
 	// Clone a small, well-known repository using --url flag
 	// Pattern: gz-git clone [directory] --url <url>
-	cmd := exec.Command(getBinaryPath(), "clone",
+	cmd := exec.Command(getBinaryPath(), "clone", //nolint:noctx // test helper, no context needed
 		tmpDir, // directory as positional arg
 		"--depth", "1",
 		"--single-branch",
@@ -144,20 +144,20 @@ func TestCLIStatusQuietClean(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Initialize git repository
-	initCmd := exec.Command("git", "init")
+	initCmd := exec.Command("git", "init") //nolint:noctx // test helper, no context needed
 	initCmd.Dir = tmpDir
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v\nOutput: %s", err, output)
 	}
 
 	// Configure git user
-	configUserCmd := exec.Command("git", "config", "user.name", "Test User")
+	configUserCmd := exec.Command("git", "config", "user.name", "Test User") //nolint:noctx // test helper, no context needed
 	configUserCmd.Dir = tmpDir
 	if output, err := configUserCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to configure git user: %v\nOutput: %s", err, output)
 	}
 
-	configEmailCmd := exec.Command("git", "config", "user.email", "test@example.com")
+	configEmailCmd := exec.Command("git", "config", "user.email", "test@example.com") //nolint:noctx // test helper, no context needed
 	configEmailCmd.Dir = tmpDir
 	if output, err := configEmailCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to configure git email: %v\nOutput: %s", err, output)
@@ -169,20 +169,20 @@ func TestCLIStatusQuietClean(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	addCmd := exec.Command("git", "add", "test.txt")
+	addCmd := exec.Command("git", "add", "test.txt") //nolint:noctx // test helper, no context needed
 	addCmd.Dir = tmpDir
 	if output, err := addCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to add test file: %v\nOutput: %s", err, output)
 	}
 
-	commitCmd := exec.Command("git", "commit", "-m", "Initial commit")
+	commitCmd := exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test helper, no context needed
 	commitCmd.Dir = tmpDir
 	if output, err := commitCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to commit test file: %v\nOutput: %s", err, output)
 	}
 
 	// Run status command with --quiet flag
-	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir)
+	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir) //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	// For a clean repository, exit code should be 0
 	if err != nil {
@@ -191,7 +191,7 @@ func TestCLIStatusQuietClean(t *testing.T) {
 
 	// In quiet mode, output should be minimal or empty
 	outputStr := strings.TrimSpace(string(output))
-	if len(outputStr) > 0 {
+	if outputStr != "" {
 		// Some output is acceptable as long as it's not verbose
 		t.Logf("Quiet mode output: %s", outputStr)
 	}
@@ -203,7 +203,7 @@ func TestCLIStatusQuietDirty(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Initialize git repository
-	initCmd := exec.Command("git", "init")
+	initCmd := exec.Command("git", "init") //nolint:noctx // test helper, no context needed
 	initCmd.Dir = tmpDir
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to initialize git repository: %v\nOutput: %s", err, output)
@@ -216,7 +216,7 @@ func TestCLIStatusQuietDirty(t *testing.T) {
 	}
 
 	// Run status command with --quiet flag
-	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir)
+	cmd := exec.Command(getBinaryPath(), "status", "--quiet", tmpDir) //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	// Quiet mode suppresses output but still returns 0 (command success)
 	// Similar to git status --porcelain which returns 0 regardless of dirty state
@@ -231,7 +231,7 @@ func TestCLIStatusQuietDirty(t *testing.T) {
 
 // TestCLIInvalidCommand tests behavior with invalid command.
 func TestCLIInvalidCommand(t *testing.T) {
-	cmd := exec.Command(getBinaryPath(), "invalid-command")
+	cmd := exec.Command(getBinaryPath(), "invalid-command") //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 
 	// Should fail with non-zero exit code
@@ -251,7 +251,7 @@ func TestCLICloneInvalidURL(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Use --url flag pattern
-	cmd := exec.Command(getBinaryPath(), "clone", tmpDir, "--url", "not-a-valid-url")
+	cmd := exec.Command(getBinaryPath(), "clone", tmpDir, "--url", "not-a-valid-url") //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
 	// Bulk mode: command succeeds but reports failures in output
 	if err != nil {

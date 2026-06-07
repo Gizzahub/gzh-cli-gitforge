@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 // createDirtyRepo creates a git repo with uncommitted changes.
@@ -25,13 +24,13 @@ func createDirtyRepo(path string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
@@ -259,13 +258,13 @@ func TestBulkCommitCleanRepo(t *testing.T) {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to add: %v", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
@@ -362,18 +361,11 @@ func TestBulkCommitEmptyDirectory(t *testing.T) {
 
 func TestRepositoryCommitResult(t *testing.T) {
 	result := RepositoryCommitResult{
-		Path:             "/tmp/test",
-		RelativePath:     "test",
-		Branch:           "main",
-		Status:           "success",
-		CommitHash:       "abc1234",
-		Message:          "test: commit",
-		SuggestedMessage: "test: auto message",
-		FilesChanged:     5,
-		Additions:        10,
-		Deletions:        3,
-		ChangedFiles:     []string{"a.go", "b.go"},
-		Duration:         100 * time.Millisecond,
+		Path:         "/tmp/test",
+		Status:       "success",
+		CommitHash:   "abc1234",
+		FilesChanged: 5,
+		ChangedFiles: []string{"a.go", "b.go"},
 	}
 
 	if result.Path != "/tmp/test" {
@@ -579,13 +571,13 @@ func TestFilePathParsing(t *testing.T) {
 	}
 
 	// Initial commit
-	cmd := exec.Command("git", "add", ".")
+	cmd := exec.Command("git", "add", ".") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git add: %v", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.Command("git", "commit", "-m", "Initial commit") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoPath
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to git commit: %v", err)

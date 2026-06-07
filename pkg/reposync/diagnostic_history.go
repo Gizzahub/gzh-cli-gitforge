@@ -42,7 +42,7 @@ func (s *FileHistoryStore) Save(ctx context.Context, report *HealthReport) error
 	}
 
 	// Ensure base directory exists
-	if err := os.MkdirAll(s.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(s.BaseDir, 0o750); err != nil {
 		return fmt.Errorf("create history directory: %w", err)
 	}
 
@@ -53,14 +53,14 @@ func (s *FileHistoryStore) Save(ctx context.Context, report *HealthReport) error
 
 	// File name: YYYYMMDD-HHMMSS.json
 	filename := snapshot.Timestamp.Format("20060102-150405") + ".json"
-	filepath := filepath.Join(s.BaseDir, filename)
+	snapshotPath := filepath.Join(s.BaseDir, filename)
 
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
 
-	if err := os.WriteFile(filepath, data, 0o644); err != nil {
+	if err := os.WriteFile(snapshotPath, data, 0o600); err != nil {
 		return fmt.Errorf("write snapshot: %w", err)
 	}
 
@@ -88,8 +88,8 @@ func (s *FileHistoryStore) Load(ctx context.Context, limit int) ([]HistorySnapsh
 			continue
 		}
 
-		filepath := filepath.Join(s.BaseDir, entry.Name())
-		data, err := os.ReadFile(filepath)
+		entryPath := filepath.Join(s.BaseDir, entry.Name())
+		data, err := os.ReadFile(entryPath)
 		if err != nil {
 			continue // Skip unreadable files
 		}
@@ -157,8 +157,8 @@ func (s *FileHistoryStore) CleanupOld(ctx context.Context, olderThan time.Durati
 		}
 
 		if info.ModTime().Before(cutoff) {
-			filepath := filepath.Join(s.BaseDir, entry.Name())
-			if err := os.Remove(filepath); err == nil {
+			removePath := filepath.Join(s.BaseDir, entry.Name())
+			if err := os.Remove(removePath); err == nil {
 				removed++
 			}
 		}

@@ -34,7 +34,7 @@ func initTestGitRepo(t *testing.T, dir string) string {
 	}
 
 	for _, args := range cmds {
-		cmd := exec.Command(args[0], args[1:]...)
+		cmd := exec.Command(args[0], args[1:]...) //nolint:noctx // test helper, no context available
 		cmd.Dir = realDir
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Failed to run %v: %v\nOutput: %s", args, err, output)
@@ -277,7 +277,7 @@ func TestIntegration_Client_GetStatus_Staged(t *testing.T) {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
-	cmd := exec.Command("git", "add", "staged.txt")
+	cmd := exec.Command("git", "add", "staged.txt") //nolint:noctx // test setup, no context available
 	cmd.Dir = repoDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to stage file: %v", err)

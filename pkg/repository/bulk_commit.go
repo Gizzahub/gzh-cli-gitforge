@@ -225,7 +225,7 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 		}
 
 		wg.Add(1)
-		go func(idx int, path string, res *RepositoryCommitResult) {
+		go func(_ int, path string, res *RepositoryCommitResult) {
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
@@ -381,7 +381,7 @@ func (c *client) executeCommit(ctx context.Context, repoPath, message string) (s
 	// Get commit hash
 	hashResult, err := c.executor.Run(ctx, repoPath, "rev-parse", "--short", "HEAD")
 	if err != nil {
-		return "", nil // Commit succeeded but couldn't get hash
+		return "", nil //nolint:nilerr // commit succeeded; hash retrieval is best-effort, empty string is acceptable
 	}
 
 	return strings.TrimSpace(hashResult.Stdout), nil
@@ -480,10 +480,10 @@ func parseDiffStats(output string) (additions, deletions int) {
 			for _, part := range parts {
 				part = strings.TrimSpace(part)
 				if strings.Contains(part, "insertion") {
-					_, _ = fmt.Sscanf(part, "%d", &additions) //nolint:errcheck
+					_, _ = fmt.Sscanf(part, "%d", &additions) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
 				}
 				if strings.Contains(part, "deletion") {
-					_, _ = fmt.Sscanf(part, "%d", &deletions) //nolint:errcheck
+					_, _ = fmt.Sscanf(part, "%d", &deletions) //nolint:errcheck // Sscanf on a known numeric string is best-effort; zero value on failure is acceptable
 				}
 			}
 		}

@@ -392,10 +392,10 @@ repositories:
 	}
 }
 
-// contains checks if substr is in s (helper for error matching)
+// contains checks if substr is in s (helper for error matching).
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && searchString(s, substr)))
+	return len(s) >= len(substr) && (s == substr || substr == "" ||
+		(s != "" && substr != "" && searchString(s, substr)))
 }
 
 func searchString(s, substr string) bool {

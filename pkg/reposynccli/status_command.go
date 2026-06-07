@@ -88,7 +88,7 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
 }
 
 // RunStatus executes the status checks.
-func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error {
+func RunStatus(cmd *cobra.Command, opts *StatusOptions, loader SpecLoader) error { //nolint:gocognit // status command orchestrates multiple code paths; complexity is inherent to its scope
 	ctx := cmd.Context()
 
 	// Load repositories from config or scan directory
@@ -294,7 +294,7 @@ func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport, ve
 		HealthStatus    string  `json:"health_status"`
 		NetworkStatus   string  `json:"network_status"`
 		DivergenceType  string  `json:"divergence_type"`
-		WorkTreeStatus  string  `json:"worktree_status"`
+		WorkTreeStatus  string  `json:"worktree_status"` //nolint:tagliatelle // existing JSON API field name
 		CurrentBranch   string  `json:"current_branch"`
 		UpstreamBranch  string  `json:"upstream_branch,omitempty"`
 		AheadBy         int     `json:"ahead_by"`
@@ -311,7 +311,7 @@ func printHealthReportJSON(cmd *cobra.Command, report *reposync.HealthReport, ve
 	type JSONHealthReport struct {
 		Results   []JSONRepoHealth       `json:"results"`
 		Summary   reposync.HealthSummary `json:"summary"`
-		TotalMs   float64                `json:"total_duration_ms"`
+		TotalMs   float64                `json:"total_duration_ms"` //nolint:tagliatelle // existing JSON API field name
 		CheckedAt string                 `json:"checked_at"`
 	}
 
@@ -374,10 +374,17 @@ func printHealthReportCompact(cmd *cobra.Command, report *reposync.HealthReport)
 			status = "="
 		}
 
-		if health.WorkTreeStatus == reposync.WorkTreeDirty {
+		switch health.WorkTreeStatus {
+		case reposync.WorkTreeDirty:
 			status += " dirty"
-		} else if health.WorkTreeStatus == reposync.WorkTreeConflict {
+		case reposync.WorkTreeConflict:
 			status += " CONFLICT"
+		case reposync.WorkTreeRebaseInProgress:
+			status += " REBASE"
+		case reposync.WorkTreeMergeInProgress:
+			status += " MERGE"
+		case reposync.WorkTreeClean:
+			// clean — no suffix needed
 		}
 
 		fmt.Fprintf(out, "%s %s (%s) %s\n", icon, name, health.CurrentBranch, status)

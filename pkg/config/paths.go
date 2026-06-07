@@ -10,29 +10,29 @@ import (
 )
 
 const (
-	// ConfigDirName is the config directory name under XDG_CONFIG_HOME
+	// ConfigDirName is the config directory name under XDG_CONFIG_HOME.
 	ConfigDirName = "gz-git"
 
-	// ProfilesDirName is the subdirectory for profile files
+	// ProfilesDirName is the subdirectory for profile files.
 	ProfilesDirName = "profiles"
 
-	// StateDirName is the subdirectory for runtime state
+	// StateDirName is the subdirectory for runtime state.
 	StateDirName = "state"
 
-	// GlobalConfigFileName is the base name for the main config file
+	// GlobalConfigFileName is the base name for the main config file.
 	GlobalConfigFileName = "config"
 
-	// ProjectConfigFileName is the base name for the project-specific config file
+	// ProjectConfigFileName is the base name for the project-specific config file.
 	ProjectConfigFileName = ".gz-git"
 
-	// ActiveProfileFileName stores the active profile name
+	// ActiveProfileFileName stores the active profile name.
 	ActiveProfileFileName = "active-profile.txt"
 
-	// DefaultProfileName is the default profile
+	// DefaultProfileName is the default profile.
 	DefaultProfileName = "default"
 )
 
-// supportedExtensions is the list of config file extensions to check
+// supportedExtensions is the list of config file extensions to check.
 var supportedExtensions = []string{".yaml", ".yml", ".json"}
 
 // Paths provides access to all config file locations.

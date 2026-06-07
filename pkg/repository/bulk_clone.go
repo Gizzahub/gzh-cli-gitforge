@@ -16,11 +16,11 @@ type DirectoryStructure string
 
 const (
 	// StructureFlat clones all repos directly into target directory.
-	// Example: github.com/user/repo → ./repo/
+	// Example: github.com/user/repo → ./repo/.
 	StructureFlat DirectoryStructure = "flat"
 
 	// StructureUser organizes repos by user/org name.
-	// Example: github.com/user/repo → ./user/repo/
+	// Example: github.com/user/repo → ./user/repo/.
 	StructureUser DirectoryStructure = "user"
 )
 
@@ -241,8 +241,8 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 		}
 	}
 
-	relPath, _ := filepath.Rel(opts.Directory, destination)
-	if relPath == "" {
+	relPath, err := filepath.Rel(opts.Directory, destination)
+	if err != nil || relPath == "" {
 		relPath = filepath.Base(destination)
 	}
 
@@ -251,7 +251,7 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 
 	// Dry run mode
 	if opts.DryRun {
-		exists, isGitRepo, _ := checkTargetDirectory(destination)
+		exists, isGitRepo, _ := checkTargetDirectory(destination) //nolint:errcheck // dry-run path: stat error treated as non-existent; no real risk
 		if exists && isGitRepo {
 			if strategy != StrategySkip {
 				return RepositoryCloneResult{
@@ -305,7 +305,7 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 	status := cloneResult.Action
 	branch := ""
 	if cloneResult.Repository != nil {
-		info, _ := c.GetInfo(ctx, cloneResult.Repository)
+		info, _ := c.GetInfo(ctx, cloneResult.Repository) //nolint:errcheck // branch is optional metadata; GetInfo error leaves branch empty
 		if info != nil {
 			branch = info.Branch
 		}
@@ -329,6 +329,10 @@ func (c *client) resolveCloneDestination(url, baseDir string, structure Director
 	}
 
 	switch structure {
+	case StructureFlat:
+		// Clone all repos directly into target directory
+		return filepath.Join(baseDir, repoName), nil
+
 	case StructureUser:
 		// Extract user/org from URL
 		userName := extractUserFromURL(url)
@@ -338,8 +342,6 @@ func (c *client) resolveCloneDestination(url, baseDir string, structure Director
 		// Fallback to flat if can't extract user
 		return filepath.Join(baseDir, repoName), nil
 
-	case StructureFlat:
-		fallthrough
 	default:
 		return filepath.Join(baseDir, repoName), nil
 	}
@@ -350,9 +352,7 @@ func extractUserFromURL(url string) string {
 	url = strings.TrimSpace(url)
 
 	// Remove .git suffix
-	if strings.HasSuffix(url, ".git") {
-		url = strings.TrimSuffix(url, ".git")
-	}
+	url = strings.TrimSuffix(url, ".git")
 
 	var pathPart string
 

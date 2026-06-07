@@ -103,17 +103,17 @@ func (f *formatter) formatStatsTable(stats *CommitStats) []byte {
 
 	b.WriteString("Commit Statistics\n")
 	b.WriteString("==================\n\n")
-	b.WriteString(fmt.Sprintf("Total Commits:    %d\n", stats.TotalCommits))
-	b.WriteString(fmt.Sprintf("Unique Authors:   %d\n", stats.UniqueAuthors))
-	b.WriteString(fmt.Sprintf("Total Additions:  %d lines\n", stats.TotalAdditions))
-	b.WriteString(fmt.Sprintf("Total Deletions:  %d lines\n", stats.TotalDeletions))
-	b.WriteString(fmt.Sprintf("First Commit:     %s\n", formatTime(stats.FirstCommit)))
-	b.WriteString(fmt.Sprintf("Last Commit:      %s\n", formatTime(stats.LastCommit)))
-	b.WriteString(fmt.Sprintf("Date Range:       %s\n", formatDuration(stats.DateRange)))
-	b.WriteString(fmt.Sprintf("Avg Per Day:      %.2f commits\n", stats.AvgPerDay))
-	b.WriteString(fmt.Sprintf("Avg Per Week:     %.2f commits\n", stats.AvgPerWeek))
-	b.WriteString(fmt.Sprintf("Avg Per Month:    %.2f commits\n", stats.AvgPerMonth))
-	b.WriteString(fmt.Sprintf("Peak Day:         %s (%d commits)\n", formatDate(stats.PeakDay), stats.PeakCount))
+	fmt.Fprintf(&b, "Total Commits:    %d\n", stats.TotalCommits)
+	fmt.Fprintf(&b, "Unique Authors:   %d\n", stats.UniqueAuthors)
+	fmt.Fprintf(&b, "Total Additions:  %d lines\n", stats.TotalAdditions)
+	fmt.Fprintf(&b, "Total Deletions:  %d lines\n", stats.TotalDeletions)
+	fmt.Fprintf(&b, "First Commit:     %s\n", formatTime(stats.FirstCommit))
+	fmt.Fprintf(&b, "Last Commit:      %s\n", formatTime(stats.LastCommit))
+	fmt.Fprintf(&b, "Date Range:       %s\n", formatDuration(stats.DateRange))
+	fmt.Fprintf(&b, "Avg Per Day:      %.2f commits\n", stats.AvgPerDay)
+	fmt.Fprintf(&b, "Avg Per Week:     %.2f commits\n", stats.AvgPerWeek)
+	fmt.Fprintf(&b, "Avg Per Month:    %.2f commits\n", stats.AvgPerMonth)
+	fmt.Fprintf(&b, "Peak Day:         %s (%d commits)\n", formatDate(stats.PeakDay), stats.PeakCount)
 
 	return []byte(b.String())
 }
@@ -146,17 +146,17 @@ func (f *formatter) formatStatsMarkdown(stats *CommitStats) []byte {
 	b.WriteString("# Commit Statistics\n\n")
 	b.WriteString("| Metric | Value |\n")
 	b.WriteString("|--------|-------|\n")
-	b.WriteString(fmt.Sprintf("| Total Commits | %d |\n", stats.TotalCommits))
-	b.WriteString(fmt.Sprintf("| Unique Authors | %d |\n", stats.UniqueAuthors))
-	b.WriteString(fmt.Sprintf("| Total Additions | %d lines |\n", stats.TotalAdditions))
-	b.WriteString(fmt.Sprintf("| Total Deletions | %d lines |\n", stats.TotalDeletions))
-	b.WriteString(fmt.Sprintf("| First Commit | %s |\n", formatTime(stats.FirstCommit)))
-	b.WriteString(fmt.Sprintf("| Last Commit | %s |\n", formatTime(stats.LastCommit)))
-	b.WriteString(fmt.Sprintf("| Date Range | %s |\n", formatDuration(stats.DateRange)))
-	b.WriteString(fmt.Sprintf("| Avg Per Day | %.2f commits |\n", stats.AvgPerDay))
-	b.WriteString(fmt.Sprintf("| Avg Per Week | %.2f commits |\n", stats.AvgPerWeek))
-	b.WriteString(fmt.Sprintf("| Avg Per Month | %.2f commits |\n", stats.AvgPerMonth))
-	b.WriteString(fmt.Sprintf("| Peak Day | %s (%d commits) |\n", formatDate(stats.PeakDay), stats.PeakCount))
+	fmt.Fprintf(&b, "| Total Commits | %d |\n", stats.TotalCommits)
+	fmt.Fprintf(&b, "| Unique Authors | %d |\n", stats.UniqueAuthors)
+	fmt.Fprintf(&b, "| Total Additions | %d lines |\n", stats.TotalAdditions)
+	fmt.Fprintf(&b, "| Total Deletions | %d lines |\n", stats.TotalDeletions)
+	fmt.Fprintf(&b, "| First Commit | %s |\n", formatTime(stats.FirstCommit))
+	fmt.Fprintf(&b, "| Last Commit | %s |\n", formatTime(stats.LastCommit))
+	fmt.Fprintf(&b, "| Date Range | %s |\n", formatDuration(stats.DateRange))
+	fmt.Fprintf(&b, "| Avg Per Day | %.2f commits |\n", stats.AvgPerDay)
+	fmt.Fprintf(&b, "| Avg Per Week | %.2f commits |\n", stats.AvgPerWeek)
+	fmt.Fprintf(&b, "| Avg Per Month | %.2f commits |\n", stats.AvgPerMonth)
+	fmt.Fprintf(&b, "| Peak Day | %s (%d commits) |\n", formatDate(stats.PeakDay), stats.PeakCount)
 
 	return []byte(b.String())
 }
@@ -166,17 +166,17 @@ func (f *formatter) formatContributorsTable(contributors []*Contributor) []byte 
 
 	b.WriteString("Contributors\n")
 	b.WriteString("============\n\n")
-	b.WriteString(fmt.Sprintf("%-4s %-30s %-8s %10s %10s %8s\n", "Rank", "Name", "Commits", "Additions", "Deletions", "Files"))
+	fmt.Fprintf(&b, "%-4s %-30s %-8s %10s %10s %8s\n", "Rank", "Name", "Commits", "Additions", "Deletions", "Files")
 	b.WriteString(strings.Repeat("-", 80) + "\n")
 
 	for _, c := range contributors {
-		b.WriteString(fmt.Sprintf("%-4d %-30s %-8d %10d %10d %8d\n",
+		fmt.Fprintf(&b, "%-4d %-30s %-8d %10d %10d %8d\n",
 			c.Rank,
 			truncate(c.Name, 30),
 			c.TotalCommits,
 			c.LinesAdded,
 			c.LinesDeleted,
-			c.FilesTouched))
+			c.FilesTouched)
 	}
 
 	return []byte(b.String())
@@ -216,13 +216,13 @@ func (f *formatter) formatContributorsMarkdown(contributors []*Contributor) []by
 	b.WriteString("|------|------|---------|-----------|-----------|-------|\n")
 
 	for _, c := range contributors {
-		b.WriteString(fmt.Sprintf("| %d | %s | %d | %d | %d | %d |\n",
+		fmt.Fprintf(&b, "| %d | %s | %d | %d | %d | %d |\n",
 			c.Rank,
 			c.Name,
 			c.TotalCommits,
 			c.LinesAdded,
 			c.LinesDeleted,
-			c.FilesTouched))
+			c.FilesTouched)
 	}
 
 	return []byte(b.String())
@@ -233,7 +233,7 @@ func (f *formatter) formatFileHistoryTable(history []*FileCommit) []byte {
 
 	b.WriteString("File History\n")
 	b.WriteString("============\n\n")
-	b.WriteString(fmt.Sprintf("%-10s %-20s %-30s %6s %6s\n", "Hash", "Date", "Author", "Added", "Deleted"))
+	fmt.Fprintf(&b, "%-10s %-20s %-30s %6s %6s\n", "Hash", "Date", "Author", "Added", "Deleted")
 	b.WriteString(strings.Repeat("-", 80) + "\n")
 
 	for _, commit := range history {
@@ -241,12 +241,12 @@ func (f *formatter) formatFileHistoryTable(history []*FileCommit) []byte {
 		author := truncate(commit.Author, 30)
 		date := formatDate(commit.Date)
 
-		b.WriteString(fmt.Sprintf("%-10s %-20s %-30s %6d %6d\n",
+		fmt.Fprintf(&b, "%-10s %-20s %-30s %6d %6d\n",
 			hash,
 			date,
 			author,
 			commit.LinesAdded,
-			commit.LinesDeleted))
+			commit.LinesDeleted)
 	}
 
 	return []byte(b.String())
@@ -290,12 +290,12 @@ func (f *formatter) formatFileHistoryMarkdown(history []*FileCommit) []byte {
 		message := truncate(commit.Message, 40)
 		changes := fmt.Sprintf("+%d/-%d", commit.LinesAdded, commit.LinesDeleted)
 
-		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n",
 			hash,
 			formatDate(commit.Date),
 			author,
 			message,
-			changes))
+			changes)
 	}
 
 	return []byte(b.String())

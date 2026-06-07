@@ -161,9 +161,9 @@ func ValidateOrganization(v string) error {
 
 	// Basic validation - no spaces, no special chars except - and _
 	for _, r := range v {
-		if !(r >= 'a' && r <= 'z') &&
-			!(r >= 'A' && r <= 'Z') &&
-			!(r >= '0' && r <= '9') &&
+		if (r < 'a' || r > 'z') &&
+			(r < 'A' || r > 'Z') &&
+			(r < '0' || r > '9') &&
 			r != '-' && r != '_' && r != '/' {
 			return errors.New("invalid character in organization name")
 		}
@@ -220,7 +220,7 @@ func ValidateToken(v string) error {
 			if i == 0 && r >= '0' && r <= '9' {
 				return errors.New("environment variable name cannot start with a number")
 			}
-			if !((r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_') {
+			if (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '_' {
 				return errors.New("invalid environment variable name")
 			}
 		}

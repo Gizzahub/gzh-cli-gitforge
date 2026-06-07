@@ -12,7 +12,7 @@ import (
 
 // initGitRepo initializes a git repository at the given path.
 func initGitRepo(path string) error {
-	cmd := exec.Command("git", "init")
+	cmd := exec.Command("git", "init") //nolint:noctx // test helper, no context available
 	cmd.Dir = path
 	if err := cmd.Run(); err != nil {
 		return err
@@ -25,7 +25,7 @@ func initGitRepo(path string) error {
 	}
 
 	for _, args := range configCmds {
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context available
 		cmd.Dir = path
 		if err := cmd.Run(); err != nil {
 			return err
@@ -453,13 +453,9 @@ func TestBulkFetchEmptyDirectory(t *testing.T) {
 
 func TestRepositoryFetchResult(t *testing.T) {
 	result := RepositoryFetchResult{
-		Path:         "/tmp/test",
-		RelativePath: "test",
-		Status:       "success",
-		Message:      "Test message",
-		Duration:     100 * time.Millisecond,
-		Branch:       "main",
-		RemoteURL:    "https://github.com/test/repo.git",
+		Path:     "/tmp/test",
+		Status:   "success",
+		Duration: 100 * time.Millisecond,
 	}
 
 	if result.Path != "/tmp/test" {

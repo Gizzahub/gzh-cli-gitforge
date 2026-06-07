@@ -6,7 +6,6 @@ package workspacecli
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +14,16 @@ import (
 )
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+
+// mustSyncModel asserts that a tea.Model is a SyncProgressModel, failing the test otherwise.
+func mustSyncModel(t *testing.T, m tea.Model) SyncProgressModel {
+	t.Helper()
+	sm, ok := m.(SyncProgressModel)
+	if !ok {
+		t.Fatal("expected SyncProgressModel from Update()")
+	}
+	return sm
+}
 
 func makeActions(names ...string) []reposync.Action {
 	actions := make([]reposync.Action, len(names))
@@ -86,7 +95,7 @@ func TestSyncStartMsg(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, _ := m.Update(syncStartMsg{RepoName: "repo-a", ActionType: reposync.ActionClone})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.repos[0].status != statusRunning {
 		t.Errorf("repo-a status: got %q, want %q", m.repos[0].status, statusRunning)
@@ -101,7 +110,7 @@ func TestSyncProgressMsg(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, _ := m.Update(syncProgressMsg{RepoName: "repo-a", Message: "cloning", Progress: 0.5})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.repos[0].message != "cloning" {
 		t.Errorf("message: got %q, want %q", m.repos[0].message, "cloning")
@@ -116,7 +125,7 @@ func TestSyncCompleteMsgSuccess(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, _ := m.Update(syncCompleteMsg{RepoName: "repo-a", Message: "already up-to-date"})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.done != 1 {
 		t.Errorf("done: got %d, want 1", m.done)
@@ -140,7 +149,7 @@ func TestSyncCompleteMsgError(t *testing.T) {
 		RepoName: "repo-a",
 		Error:    fmt.Errorf("network timeout\nsecond line"),
 	})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.errored != 1 {
 		t.Errorf("errored: got %d, want 1", m.errored)
@@ -166,7 +175,7 @@ func TestSyncAllDoneMsg(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, cmd := m.Update(syncAllDoneMsg{})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if !m.allDone {
 		t.Error("allDone should be true after syncAllDoneMsg")
@@ -234,7 +243,7 @@ func TestWindowSizeMsg(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.width != 120 || m.height != 40 {
 		t.Errorf("size: got %dx%d, want 120x40", m.width, m.height)
@@ -248,7 +257,7 @@ func TestCtrlCQuitting(t *testing.T) {
 	m := newSyncProgressModel(actions)
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if !m.quitting {
 		t.Error("quitting should be true after ctrl+c")
@@ -261,29 +270,9 @@ func TestCtrlCQuitting(t *testing.T) {
 // ─── Bridge: atomic syncAllDoneMsg fires exactly once ───────────────────────
 
 func TestBridgeAllDoneOnce(t *testing.T) {
-	// Use a recording program-like approach
-	var allDoneCount int
-	var mu sync.Mutex
-
-	// Create a mock that counts syncAllDoneMsg
-	recorder := &msgRecorder{
-		onMsg: func(msg tea.Msg) {
-			if _, ok := msg.(syncAllDoneMsg); ok {
-				mu.Lock()
-				allDoneCount++
-				mu.Unlock()
-			}
-		},
-	}
-
 	bridge := &tuiProgressBridge{
-		program: nil, // We'll use the recorder instead
-		total:   3,
+		total: 3,
 	}
-
-	// Replace program.Send with recorder (simulate via direct calls)
-	// Since we can't easily mock tea.Program, test the atomic logic directly
-	_ = recorder
 
 	// Verify atomic counter behavior
 	bridge.done.Add(1) // 1 of 3
@@ -300,11 +289,6 @@ func TestBridgeAllDoneOnce(t *testing.T) {
 	}
 }
 
-// msgRecorder is a test helper for recording messages.
-type msgRecorder struct {
-	onMsg func(tea.Msg)
-}
-
 // ─── View rendering ─────────────────────────────────────────────────────────
 
 func TestViewRenderingSmoke(t *testing.T) {
@@ -315,9 +299,9 @@ func TestViewRenderingSmoke(t *testing.T) {
 
 	// Apply some state changes
 	updated, _ := m.Update(syncStartMsg{RepoName: "repo-a", ActionType: reposync.ActionClone})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 	updated, _ = m.Update(syncCompleteMsg{RepoName: "repo-b", Message: "done"})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	view := m.View()
 
@@ -374,8 +358,8 @@ func TestPrintSyncSummaryCancelled(t *testing.T) {
 	printSyncSummary(&buf, m, 3*1e9)
 
 	output := buf.String()
-	if !strings.Contains(output, "cancelled") {
-		t.Errorf("expected cancelled message, got: %s", output)
+	if !strings.Contains(output, "canceled") {
+		t.Errorf("expected canceled message, got: %s", output)
 	}
 	if !strings.Contains(output, "1/2 completed") {
 		t.Errorf("expected partial completion count, got: %s", output)
@@ -519,7 +503,7 @@ func TestSyncCompleteMsgWithPostStatus(t *testing.T) {
 			BehindBy: 3,
 		},
 	})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.repos[0].message != "develop|↓3" {
 		t.Errorf("message: got %q, want %q", m.repos[0].message, "develop|↓3")
@@ -537,7 +521,7 @@ func TestSyncCompleteMsgWithoutPostStatus(t *testing.T) {
 		RepoName: "repo-a",
 		Message:  "already up-to-date",
 	})
-	m = updated.(SyncProgressModel)
+	m = mustSyncModel(t, updated)
 
 	if m.repos[0].message != "already up-to-date" {
 		t.Errorf("message: got %q, want %q", m.repos[0].message, "already up-to-date")

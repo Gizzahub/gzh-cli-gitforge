@@ -11,32 +11,32 @@ import (
 )
 
 var (
-	// envVarPattern matches ${VAR_NAME} syntax
+	// envVarPattern matches ${VAR_NAME} syntax.
 	envVarPattern = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}`)
 
-	// validProfileName matches valid profile names (alphanumeric, dash, underscore)
+	// validProfileName matches valid profile names (alphanumeric, dash, underscore).
 	validProfileName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
-	// validProviders lists supported forge providers
+	// validProviders lists supported forge providers.
 	validProviders = map[string]bool{
 		"github": true,
 		"gitlab": true,
 		"gitea":  true,
 	}
 
-	// validCloneProtos lists supported clone protocols
+	// validCloneProtos lists supported clone protocols.
 	validCloneProtos = map[string]bool{
 		"ssh":   true,
 		"https": true,
 	}
 
-	// validSubgroupModes lists supported subgroup modes
+	// validSubgroupModes lists supported subgroup modes.
 	validSubgroupModes = map[string]bool{
 		"flat":   true,
 		"nested": true,
 	}
 
-	// validSyncStrategies lists supported sync strategies
+	// validSyncStrategies lists supported sync strategies.
 	validSyncStrategies = map[string]bool{
 		"pull":   true,
 		"reset":  true,
@@ -286,6 +286,8 @@ func (v *Validator) ExpandEnvVarsInWorkspace(ws *Workspace) error {
 
 // expandString expands environment variables in a string.
 // Returns the expanded string or an error if expansion fails.
+//
+//nolint:unparam // error return is always nil now but kept for future expansion (e.g. strict mode for missing vars)
 func (v *Validator) expandString(s string) (string, error) {
 	if s == "" {
 		return s, nil
@@ -347,6 +349,8 @@ func NormalizeProvider(provider string) string {
 // ================================================================================
 
 // ValidateConfig validates a recursive hierarchical config.
+//
+//nolint:gocognit,gocyclo // complex by design: validates all optional fields of a hierarchical config with many sub-sections
 func (v *Validator) ValidateConfig(c *Config) error {
 	if c == nil {
 		return nil // nil config is valid (optional)
@@ -561,12 +565,6 @@ func (v *Validator) ValidateDiscoveryConfig(d *DiscoveryConfig) error {
 func (v *Validator) ValidateParentPath(path string) error {
 	if path == "" {
 		return nil // Empty is valid (no parent)
-	}
-
-	// Check for dangerous patterns
-	if strings.Contains(path, "..") && !strings.HasPrefix(path, "../") && !strings.Contains(path, "/..") {
-		// Allow legitimate relative paths like ../parent/.gz-git.yaml
-		// but warn about suspicious patterns
 	}
 
 	// Validate path characters (basic security check)

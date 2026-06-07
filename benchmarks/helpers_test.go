@@ -48,10 +48,12 @@ func setupLargeRepo(b *testing.B, path string, commits int) {
 }
 
 // runCmd executes a command in the specified directory.
-func runCmd(b *testing.B, dir string, name string, args ...string) {
+//
+//nolint:unparam // generic command runner; name kept for clarity
+func runCmd(b *testing.B, dir, name string, args ...string) {
 	b.Helper()
 
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(b.Context(), name, args...)
 	cmd.Dir = dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {

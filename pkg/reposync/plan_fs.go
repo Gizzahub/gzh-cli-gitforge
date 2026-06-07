@@ -179,7 +179,7 @@ func isGitRepo(path string) bool {
 	return false
 }
 
-func effectiveStrategy(repo Strategy, fallback Strategy) Strategy {
+func effectiveStrategy(repo, fallback Strategy) Strategy {
 	if repo != "" {
 		return repo
 	}

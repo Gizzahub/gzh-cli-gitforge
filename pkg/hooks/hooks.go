@@ -26,7 +26,7 @@ const DefaultTimeout = 30 * time.Second
 // It runs hooks for the specified phase ("before" or "after").
 // Returns error if any hook fails (marks operation as failed).
 // Uses direct exec without shell for security (no pipes, redirects, variables).
-func Execute(ctx context.Context, hooks *config.Hooks, phase string, workDir string, logger Logger) error {
+func Execute(ctx context.Context, hooks *config.Hooks, phase, workDir string, logger Logger) error {
 	if hooks == nil {
 		return nil
 	}

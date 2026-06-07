@@ -206,7 +206,7 @@ func (f CommandFactory) createTemplate(cmd *cobra.Command, opts *InitOptions, ou
 		return fmt.Errorf("failed to load sample template: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, sampleContent, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, sampleContent, 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -279,7 +279,7 @@ func (f CommandFactory) generateConfigFromScan(cmd *cobra.Command, opts *InitOpt
 		return fmt.Errorf("render template: %w", err)
 	}
 
-	if err := os.WriteFile(outputPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write config file: %w", err)
 	}
 
@@ -309,7 +309,7 @@ const (
 // Returns (relPath, pathValue, skip).
 // - relPath: the relative path from baseDir
 // - pathValue: the path to use in config (empty if equals name for compact mode)
-// - skip: true if this repo should be skipped (e.g., root directory ".")
+// - skip: true if this repo should be skipped (e.g., root directory ".").
 func processRepoPath(baseDir, repoPath, repoName string) (relPath, pathValue string, skip bool) {
 	relPath = relativeRepoPath(baseDir, repoPath)
 
@@ -422,7 +422,7 @@ func (f CommandFactory) renderWorkspaceScanned(opts *InitOptions, repos []*scann
 }
 
 // renderRepositoriesScanned renders repositories (flat list) format.
-func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) {
+func (f CommandFactory) renderRepositoriesScanned(opts *InitOptions, repos []*scanner.ScannedRepo, baseDir string) (string, error) { //nolint:gocognit // complex remote-handling logic is inherently branchy but all in one place
 	repoEntries := make([]templates.ScannedRepoData, 0, len(repos))
 	for _, repo := range repos {
 		_, pathValue, skip := processRepoPath(baseDir, repo.Path, repo.Name)

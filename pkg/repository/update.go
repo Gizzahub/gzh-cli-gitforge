@@ -254,7 +254,7 @@ func (c *client) applyUpdateStrategy(ctx context.Context, opts CloneOrUpdateOpti
 }
 
 // applyFetchStrategy fetches remote changes without updating working directory.
-func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptions, logger Logger) (*CloneOrUpdateResult, error) {
+func (c *client) applyFetchStrategy(ctx context.Context, opts CloneOrUpdateOptions, _ Logger) (*CloneOrUpdateResult, error) {
 	args := []string{"fetch", "origin"}
 	if opts.Branch != "" {
 		args = append(args, opts.Branch)
@@ -452,7 +452,7 @@ func (c *client) applyRebaseStrategy(ctx context.Context, opts CloneOrUpdateOpti
 }
 
 // checkTargetDirectory checks if target directory exists and is a git repository.
-func checkTargetDirectory(path string) (exists bool, isGitRepo bool, err error) {
+func checkTargetDirectory(path string) (exists, isGitRepo bool, err error) {
 	// Check if directory exists
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -514,20 +514,19 @@ func ExtractRepoNameFromURL(repoURL string) (string, error) {
 	url := strings.TrimSpace(repoURL)
 
 	// Remove .git suffix if present
-	if strings.HasSuffix(url, ".git") {
-		url = strings.TrimSuffix(url, ".git")
-	}
+	url = strings.TrimSuffix(url, ".git")
 
 	var repoPath string
 
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+	switch {
+	case strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://"):
 		// HTTP/HTTPS URLs: https://github.com/user/repo
 		parts := strings.Split(url, "/")
 		if len(parts) < 2 {
 			return "", fmt.Errorf("invalid HTTP/HTTPS URL format: %s", repoURL)
 		}
 		repoPath = parts[len(parts)-1]
-	} else if strings.Contains(url, "@") && strings.Contains(url, ":") {
+	case strings.Contains(url, "@") && strings.Contains(url, ":"):
 		// SSH URLs: git@github.com:user/repo
 		if strings.HasPrefix(url, "ssh://") {
 			// ssh://git@server.com/user/repo
@@ -546,7 +545,7 @@ func ExtractRepoNameFromURL(repoURL string) (string, error) {
 			parts := strings.Split(pathPart, "/")
 			repoPath = parts[len(parts)-1]
 		}
-	} else {
+	default:
 		// Fallback: try to extract from the last part of the path
 		parts := strings.Split(url, "/")
 		if len(parts) < 1 {

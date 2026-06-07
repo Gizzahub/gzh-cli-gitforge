@@ -47,7 +47,7 @@ func CreateConfigSymlink(srcPath, targetDir, parentConfigDir string) error {
 	}
 
 	// Ensure target directory exists
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return fmt.Errorf("create target directory: %w", err)
 	}
 
@@ -101,7 +101,7 @@ func CreateConfigSymlinkForce(srcPath, targetDir, parentConfigDir string) error 
 	}
 
 	// Ensure target directory exists
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return fmt.Errorf("create target directory: %w", err)
 	}
 

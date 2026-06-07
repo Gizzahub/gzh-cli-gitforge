@@ -45,7 +45,7 @@ func (f CommandFactory) runSetup(cmd *cobra.Command) error {
 	w := wizard.NewSyncSetupWizard()
 	opts, err := w.Run(ctx)
 	if err != nil {
-		return fmt.Errorf("wizard cancelled: %w", err)
+		return fmt.Errorf("wizard canceled: %w", err)
 	}
 
 	// Save config if requested
@@ -107,7 +107,7 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(opts.ConfigPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -117,7 +117,7 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(opts.ConfigPath, data, 0o644); err != nil {
+	if err := os.WriteFile(opts.ConfigPath, data, 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -151,7 +151,10 @@ func (f CommandFactory) executeSyncFromWizard(ctx context.Context, cmd *cobra.Co
 	orchestrator := reposync.NewOrchestrator(planner, executor, nil)
 
 	// Build plan request
-	strategy, _ := reposync.ParseStrategy("reset")
+	strategy, err := reposync.ParseStrategy("reset")
+	if err != nil {
+		return fmt.Errorf("invalid strategy: %w", err)
+	}
 	planReq := reposync.PlanRequest{
 		Options: reposync.PlanOptions{
 			DefaultStrategy: strategy,

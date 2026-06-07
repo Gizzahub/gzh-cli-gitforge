@@ -23,7 +23,7 @@ func NewTestRepo(t *testing.T) *TestRepo {
 	tmpDir := t.TempDir()
 
 	// Initialize Git repository
-	cmd := exec.Command("git", "init")
+	cmd := exec.Command("git", "init") //nolint:noctx // test helper, no context needed
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to init git repo: %v", err)
@@ -36,7 +36,7 @@ func NewTestRepo(t *testing.T) *TestRepo {
 	}
 
 	for _, args := range configCmds {
-		cmd := exec.Command("git", args...)
+		cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context needed
 		cmd.Dir = tmpDir
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Failed to configure git: %v", err)
@@ -70,7 +70,7 @@ func (r *TestRepo) GitAdd(files ...string) {
 	r.T.Helper()
 
 	args := append([]string{"add"}, files...)
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	if err := cmd.Run(); err != nil {
 		r.T.Fatalf("Failed to git add: %v", err)
@@ -81,7 +81,7 @@ func (r *TestRepo) GitAdd(files ...string) {
 func (r *TestRepo) GitCommit(message string) {
 	r.T.Helper()
 
-	cmd := exec.Command("git", "commit", "-m", message)
+	cmd := exec.Command("git", "commit", "-m", message) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	if err := cmd.Run(); err != nil {
 		r.T.Fatalf("Failed to git commit: %v", err)
@@ -92,7 +92,7 @@ func (r *TestRepo) GitCommit(message string) {
 func (r *TestRepo) GitBranch(name string) {
 	r.T.Helper()
 
-	cmd := exec.Command("git", "branch", name)
+	cmd := exec.Command("git", "branch", name) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	if err := cmd.Run(); err != nil {
 		r.T.Fatalf("Failed to create branch: %v", err)
@@ -103,7 +103,7 @@ func (r *TestRepo) GitBranch(name string) {
 func (r *TestRepo) GitCheckout(ref string) {
 	r.T.Helper()
 
-	cmd := exec.Command("git", "checkout", ref)
+	cmd := exec.Command("git", "checkout", ref) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -121,7 +121,7 @@ func (r *TestRepo) SetupWithCommits() {
 	r.GitCommit("Initial commit")
 
 	// Ensure we're on master branch (not detached HEAD)
-	cmd := exec.Command("git", "checkout", "-B", "master")
+	cmd := exec.Command("git", "checkout", "-B", "master") //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	cmd.Run() // Ignore error as we might already be on master
 
@@ -143,7 +143,7 @@ func (r *TestRepo) RunGzhGit(args ...string) (string, error) {
 	// Find gz-git binary
 	binary := findGzhGitBinary(r.T)
 
-	cmd := exec.Command(binary, args...)
+	cmd := exec.Command(binary, args...) //nolint:noctx // test helper, no context needed
 	cmd.Dir = r.Path
 	output, err := cmd.CombinedOutput()
 
@@ -222,7 +222,7 @@ func findGzhGitBinary(t *testing.T) string {
 
 	// Build if not found
 	t.Log("Binary not found, building...")
-	buildCmd := exec.Command("make", "build")
+	buildCmd := exec.Command("make", "build") //nolint:noctx // build step, no context needed
 	buildCmd.Dir = "../.."
 	if err := buildCmd.Run(); err != nil {
 		t.Fatalf("Failed to build gz-git: %v", err)

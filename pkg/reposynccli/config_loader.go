@@ -78,20 +78,20 @@ type repoEntry struct {
 
 type gzhYamlConfig struct {
 	Provider     string        `yaml:"provider"`
-	SyncMode     gzhYamlMode   `yaml:"sync_mode"`
+	SyncMode     gzhYamlMode   `yaml:"sync_mode"`      //nolint:tagliatelle // matches existing gzh.yaml format
 	Repositories []gzhYamlRepo `yaml:"repositories"`
 }
 
 type gzhYamlMode struct {
-	CleanupOrphans bool `yaml:"cleanup_orphans"`
+	CleanupOrphans bool `yaml:"cleanup_orphans"` //nolint:tagliatelle // matches existing gzh.yaml format
 }
 
 type gzhYamlRepo struct {
 	Name     string `yaml:"name"`
-	CloneURL string `yaml:"clone_url"`
+	CloneURL string `yaml:"clone_url"` //nolint:tagliatelle // matches existing gzh.yaml format
 }
 
-// workspacesConfig represents the new hierarchical config format with workspaces
+// workspacesConfig represents the new hierarchical config format with workspaces.
 type workspacesConfig struct {
 	Parent     string                     `yaml:"parent"`
 	Profile    string                     `yaml:"profile"`
@@ -117,7 +117,7 @@ type workspaceEntry struct {
 type forgeSource struct {
 	Provider         string `yaml:"provider"` // gitlab, github, gitea
 	Org              string `yaml:"org"`
-	BaseURL          string `yaml:"baseURL"`
+	BaseURL          string `yaml:"baseURL"` //nolint:tagliatelle // matches existing workspace config format
 	Token            string `yaml:"token"`
 	IncludeSubgroups bool   `yaml:"includeSubgroups"`
 	SubgroupMode     string `yaml:"subgroupMode"`  // flat, nested
@@ -132,7 +132,7 @@ type syncSettings struct {
 type profileEntry struct {
 	Name             string        `yaml:"name"`
 	Provider         string        `yaml:"provider"`
-	BaseURL          string        `yaml:"baseURL"`
+	BaseURL          string        `yaml:"baseURL"` //nolint:tagliatelle // matches existing workspace config format
 	Token            string        `yaml:"token"`
 	CloneProto       string        `yaml:"cloneProto"`
 	SSHPort          int           `yaml:"sshPort"`
@@ -144,7 +144,7 @@ type profileEntry struct {
 }
 
 // Load implements SpecLoader.
-func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error) {
+func (l FileSpecLoader) Load(ctx context.Context, path string) (ConfigData, error) { //nolint:gocognit,gocyclo // multi-format config loading with parent inheritance — complexity is inherent
 	if path == "" {
 		return ConfigData{}, errors.New("config path is required")
 	}
@@ -161,7 +161,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 
 	// Route to appropriate loader based on kind
 	if kind == config.KindWorkspace {
-		return l.loadWorkspacesConfig(raw, configPath)
+		return l.loadWorkspacesConfig(ctx, raw, configPath)
 	}
 
 	if isGzhYaml(raw) {
@@ -313,7 +313,7 @@ func (l FileSpecLoader) Load(_ context.Context, path string) (ConfigData, error)
 // detectConfigKind determines the config type using priority:
 // 1. Explicit "kind" field in YAML
 // 2. Content detection (workspaces/profiles keys → workspace)
-// 3. Default to repositories
+// 3. Default to repositories.
 func detectConfigKind(raw []byte, _ string) config.ConfigKind {
 	var meta struct {
 		Kind config.ConfigKind `yaml:"kind"`
@@ -454,7 +454,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 //   - type: forge  → fetch repos from forge API (GitHub/GitLab/Gitea)
 //   - type: config → recursively load nested .gz-git.yaml
 //   - type: git    → scan directory for git repositories (default)
-func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (ConfigData, error) {
+func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, configPath string) (ConfigData, error) { //nolint:gocognit,gocyclo // complex multi-workspace loading logic — extracting helpers would lose clarity
 	var cfg workspacesConfig
 	if err := yaml.Unmarshal(raw, &cfg); err != nil {
 		return ConfigData{}, fmt.Errorf("parse workspaces config: %w", err)
@@ -576,7 +576,7 @@ func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (Con
 
 		switch wsType {
 		case "forge":
-			repos, err = l.loadForgeWorkspace(name, ws, wsProfile, wsPath, defaultCloneProto, defaultSSHPort)
+			repos, err = l.loadForgeWorkspace(ctx, ws, wsProfile, wsPath, defaultCloneProto, defaultSSHPort)
 			if err != nil {
 				// Log warning but continue with other workspaces
 				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' forge fetch failed: %v\n", name, err)
@@ -584,14 +584,14 @@ func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (Con
 			}
 
 		case "config":
-			repos, err = l.loadConfigWorkspace(wsPath)
+			repos, err = l.loadConfigWorkspace(ctx, wsPath)
 			if err != nil {
 				// Config workspace might not exist yet
 				continue
 			}
 
 		default: // "git" or unspecified
-			repos, err = scanGitRepos(wsPath, name)
+			repos, err = scanGitRepos(wsPath)
 			if err != nil {
 				// Workspace might not exist yet
 				continue
@@ -629,8 +629,8 @@ func (l FileSpecLoader) loadWorkspacesConfig(raw []byte, configPath string) (Con
 }
 
 // loadForgeWorkspace fetches repos from a forge (GitHub/GitLab/Gitea).
-func (l FileSpecLoader) loadForgeWorkspace(
-	name string,
+func (l FileSpecLoader) loadForgeWorkspace( //nolint:gocyclo // complex provider resolution logic — adding helpers would obscure the fallback chain
+	ctx context.Context,
 	ws *workspaceEntry,
 	profile *profileEntry,
 	targetPath string,
@@ -722,7 +722,6 @@ func (l FileSpecLoader) loadForgeWorkspace(
 	planner := reposync.NewForgePlanner(forgeProvider, plannerConfig)
 
 	// Generate plan to get repo list
-	ctx := context.Background()
 	planResult, err := planner.Plan(ctx, reposync.PlanRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("fetch repos: %w", err)
@@ -738,7 +737,7 @@ func (l FileSpecLoader) loadForgeWorkspace(
 }
 
 // loadConfigWorkspace recursively loads a nested config file.
-func (l FileSpecLoader) loadConfigWorkspace(wsPath string) ([]reposync.RepoSpec, error) {
+func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) ([]reposync.RepoSpec, error) {
 	// Try .gz-git.yaml first, then .gz-git.yml
 	candidates := []string{".gz-git.yaml", ".gz-git.yml"}
 
@@ -746,7 +745,7 @@ func (l FileSpecLoader) loadConfigWorkspace(wsPath string) ([]reposync.RepoSpec,
 		configPath := filepath.Join(wsPath, name)
 		if _, err := os.Stat(configPath); err == nil {
 			// Recursively load the nested config
-			data, err := l.Load(context.Background(), configPath)
+			data, err := l.Load(ctx, configPath)
 			if err != nil {
 				return nil, err
 			}
@@ -755,7 +754,7 @@ func (l FileSpecLoader) loadConfigWorkspace(wsPath string) ([]reposync.RepoSpec,
 	}
 
 	// No config file found, fall back to scanning for git repos
-	return scanGitRepos(wsPath, filepath.Base(wsPath))
+	return scanGitRepos(wsPath)
 }
 
 // createForgeProvider creates a forge provider based on provider type.
@@ -797,7 +796,7 @@ func expandEnvVar(s string) string {
 }
 
 // scanGitRepos scans a directory for git repositories (depth 1).
-func scanGitRepos(dir string, workspaceName string) ([]reposync.RepoSpec, error) {
+func scanGitRepos(dir string) ([]reposync.RepoSpec, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err

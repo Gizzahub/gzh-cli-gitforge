@@ -205,7 +205,7 @@ func writeConfig(path string, config map[string]interface{}) error {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 func extractRepoName(url string) string {

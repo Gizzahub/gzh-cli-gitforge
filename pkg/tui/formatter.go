@@ -57,10 +57,17 @@ func FormatStatusText(health reposync.RepoHealth) string {
 	}
 
 	// Working tree status
-	if health.WorkTreeStatus == reposync.WorkTreeDirty {
+	switch health.WorkTreeStatus {
+	case reposync.WorkTreeClean:
+		// clean state adds no extra info
+	case reposync.WorkTreeDirty:
 		parts = append(parts, "dirty")
-	} else if health.WorkTreeStatus == reposync.WorkTreeConflict {
+	case reposync.WorkTreeConflict:
 		parts = append(parts, "conflict")
+	case reposync.WorkTreeRebaseInProgress:
+		parts = append(parts, "rebase-in-progress")
+	case reposync.WorkTreeMergeInProgress:
+		parts = append(parts, "merge-in-progress")
 	}
 
 	result := parts[0]

@@ -32,10 +32,10 @@ type Hooks struct {
 }
 
 const (
-	// KindRepositories is for simple flat repository lists (repositories array)
+	// KindRepositories is for simple flat repository lists (repositories array).
 	KindRepositories ConfigKind = "repositories"
 
-	// KindWorkspace is for hierarchical workspace configurations (workspaces map)
+	// KindWorkspace is for hierarchical workspace configurations (workspaces map).
 	KindWorkspace ConfigKind = "workspace"
 )
 
@@ -309,7 +309,7 @@ func (f FlexBranch) String() string {
 // MarshalYAML implements yaml.Marshaler to output as a plain string.
 func (f FlexBranch) MarshalYAML() (interface{}, error) {
 	if f == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // returning nil to yaml marshaler means "omit this field"
 	}
 	return string(f), nil
 }
@@ -355,7 +355,7 @@ func (b *BranchList) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // MarshalYAML implements yaml.Marshaler to output as comma-separated string.
 func (b BranchList) MarshalYAML() (interface{}, error) {
 	if len(b) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // returning nil to yaml marshaler means "omit this field"
 	}
 	if len(b) == 1 {
 		return b[0], nil
@@ -670,15 +670,15 @@ type WorkspaceType string
 
 const (
 	// WorkspaceTypeForge indicates the workspace syncs from a forge (GitLab/GitHub/Gitea)
-	// This is the default when Source is defined
+	// This is the default when Source is defined.
 	WorkspaceTypeForge WorkspaceType = "forge"
 
 	// WorkspaceTypeGit indicates the workspace is a single git repository
-	// No forge sync, just manages an existing repo
+	// No forge sync, just manages an existing repo.
 	WorkspaceTypeGit WorkspaceType = "git"
 
 	// WorkspaceTypeConfig indicates the workspace has a nested config file
-	// Loads .gz-git.yaml from the workspace path
+	// Loads .gz-git.yaml from the workspace path.
 	WorkspaceTypeConfig WorkspaceType = "config"
 )
 
@@ -687,11 +687,11 @@ type ChildConfigMode string
 
 const (
 	// ChildConfigModeRepositories generates a flat array format (default).
-	// Example: repositories: [{name: repo1, url: ...}, ...]
+	// Example: repositories: [{name: repo1, url: ...}, ...].
 	ChildConfigModeRepositories ChildConfigMode = "repositories"
 
 	// ChildConfigModeWorkspaces generates a map structure format.
-	// Example: workspaces: {repo1: {path: repo1, type: git}, ...}
+	// Example: workspaces: {repo1: {path: repo1, type: git}, ...}.
 	ChildConfigModeWorkspaces ChildConfigMode = "workspaces"
 
 	// ChildConfigModeNone creates directory only, no config file.
@@ -781,15 +781,15 @@ type DiscoveryConfig struct {
 type DiscoveryMode string
 
 const (
-	// ExplicitMode only uses children explicitly defined in the config
+	// ExplicitMode only uses children explicitly defined in the config.
 	ExplicitMode DiscoveryMode = "explicit"
 
 	// AutoMode scans directories to find children automatically
-	// Ignores explicit children definition
+	// Ignores explicit children definition.
 	AutoMode DiscoveryMode = "auto"
 
 	// HybridMode uses children if defined, otherwise scans directories
-	// This is the default mode
+	// This is the default mode.
 	HybridMode DiscoveryMode = "hybrid"
 )
 

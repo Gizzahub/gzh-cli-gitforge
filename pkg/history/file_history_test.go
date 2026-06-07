@@ -380,6 +380,7 @@ def456|Jane Smith|jane@example.com|1700001000|Second commit
 3	2	main.go`,
 			wantCount: 2,
 			checkFunc: func(t *testing.T, commits []*FileCommit) {
+				t.Helper()
 				if commits[0].Hash != "abc123" {
 					t.Errorf("commits[0].Hash = %q, want \"abc123\"", commits[0].Hash)
 				}
@@ -431,6 +432,7 @@ def456 (Jane Smith <jane@example.com> 2025-11-27 13:00:00 +0000 2) import "fmt"
 abc789 (Bob Jones <bob@example.com> 2025-11-27 14:00:00 +0000 3) func main() {`,
 			wantCount: 3,
 			checkFunc: func(t *testing.T, info *BlameInfo) {
+				t.Helper()
 				if info.FilePath != "main.go" {
 					t.Errorf("FilePath = %q, want \"main.go\"", info.FilePath)
 				}
