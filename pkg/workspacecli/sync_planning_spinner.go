@@ -33,6 +33,7 @@ func newPlanningSpinnerModel() PlanningSpinnerModel {
 	}
 }
 
+// Init implements tea.Model and starts the spinner tick loop.
 func (m PlanningSpinnerModel) Init() tea.Cmd {
 	return planSpinnerTickCmd()
 }
@@ -43,6 +44,7 @@ func planSpinnerTickCmd() tea.Cmd {
 	})
 }
 
+// Update implements tea.Model and handles planning phase transitions and spinner ticks.
 func (m PlanningSpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case planPhaseMsg:
@@ -63,6 +65,7 @@ func (m PlanningSpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// View implements tea.Model and renders the current spinner frame and planning phase label.
 func (m PlanningSpinnerModel) View() string {
 	if m.done {
 		return ""

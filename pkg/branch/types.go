@@ -64,6 +64,7 @@ type ListOptions struct {
 // SortBy defines branch sorting order.
 type SortBy string
 
+// SortBy values for ordering branch lists.
 const (
 	SortByName     SortBy = "name"     // Alphabetical by name
 	SortByDate     SortBy = "date"     // Most recent first
@@ -74,6 +75,7 @@ const (
 // BranchType represents branch purpose/category.
 type BranchType string
 
+// BranchType values classify a branch by its purpose.
 const (
 	BranchTypeFeature    BranchType = "feature"    // feature/*
 	BranchTypeFix        BranchType = "fix"        // fix/*
@@ -196,6 +198,7 @@ type CleanupReport struct {
 // CleanupStrategy defines cleanup approach.
 type CleanupStrategy string
 
+// CleanupStrategy values select which categories of branches to remove.
 const (
 	StrategyMerged   CleanupStrategy = "merged"   // Only merged branches
 	StrategyStale    CleanupStrategy = "stale"    // Only stale branches

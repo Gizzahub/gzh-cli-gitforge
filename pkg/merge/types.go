@@ -28,6 +28,7 @@ type Conflict struct {
 // ConflictType defines the type of conflict.
 type ConflictType string
 
+// ConflictType values classify the nature of a merge conflict.
 const (
 	ConflictContent ConflictType = "content" // Content conflicts
 	ConflictRename  ConflictType = "rename"  // Rename conflicts
@@ -38,6 +39,7 @@ const (
 // ChangeType defines the type of change.
 type ChangeType string
 
+// ChangeType values describe how a file was modified.
 const (
 	ChangeAdded    ChangeType = "added"
 	ChangeModified ChangeType = "modified"
@@ -49,6 +51,7 @@ const (
 // ConflictSeverity indicates conflict severity.
 type ConflictSeverity string
 
+// ConflictSeverity values rank how serious a conflict is.
 const (
 	SeverityLow    ConflictSeverity = "low"
 	SeverityMedium ConflictSeverity = "medium"
@@ -58,6 +61,7 @@ const (
 // MergeDifficulty indicates merge complexity.
 type MergeDifficulty string
 
+// MergeDifficulty values estimate the effort required to complete a merge.
 const (
 	DifficultyTrivial MergeDifficulty = "trivial" // No conflicts
 	DifficultyEasy    MergeDifficulty = "easy"    // Auto-resolvable
@@ -88,6 +92,7 @@ type MergePreview struct {
 // MergeStrategy defines merge approach.
 type MergeStrategy string
 
+// MergeStrategy values select the git merge algorithm.
 const (
 	StrategyFastForward MergeStrategy = "fast-forward"
 	StrategyRecursive   MergeStrategy = "recursive"
@@ -142,6 +147,7 @@ type RebaseResult struct {
 // RebaseStatus indicates rebase state.
 type RebaseStatus string
 
+// RebaseStatus values reflect the current stage of a rebase operation.
 const (
 	RebaseComplete   RebaseStatus = "complete"
 	RebaseInProgress RebaseStatus = "in_progress"
@@ -152,6 +158,7 @@ const (
 // RebaseAction defines interactive rebase action.
 type RebaseAction string
 
+// RebaseAction values correspond to interactive rebase commit commands.
 const (
 	ActionPick   RebaseAction = "pick"
 	ActionReword RebaseAction = "reword"
@@ -181,6 +188,7 @@ type Resolution struct {
 // ResolutionStrategy defines how to resolve.
 type ResolutionStrategy string
 
+// ResolutionStrategy values specify which side to keep when resolving a conflict.
 const (
 	StrategyKeepBoth   ResolutionStrategy = "keep_both"
 	StrategyKeepOurs   ResolutionStrategy = "keep_ours"

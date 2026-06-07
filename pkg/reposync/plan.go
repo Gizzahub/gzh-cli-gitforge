@@ -76,6 +76,7 @@ type Action struct {
 // ActionType enumerates planned operations.
 type ActionType string
 
+// ActionType values represent the planned operation for each repository.
 const (
 	ActionClone  ActionType = "clone"
 	ActionUpdate ActionType = "update"

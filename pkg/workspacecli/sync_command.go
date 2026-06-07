@@ -2183,6 +2183,7 @@ type SyncResultJSON struct {
 	Repos     []SyncRepoJSON `json:"repositories"` //nolint:tagliatelle // existing JSON API field name
 }
 
+// SyncRepoJSON represents the JSON output for a single repository in a sync result.
 type SyncRepoJSON struct {
 	Name    string `json:"name"`
 	Action  string `json:"action"`

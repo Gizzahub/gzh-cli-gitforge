@@ -26,6 +26,7 @@ type RunStateItem struct {
 // RunStatus represents the last known state of a repository.
 type RunStatus string
 
+// RunStatus values track a repository's execution state across a sync run.
 const (
 	RunStatusPending RunStatus = "pending"
 	RunStatusRunning RunStatus = "running"

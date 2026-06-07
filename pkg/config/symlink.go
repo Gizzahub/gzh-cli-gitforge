@@ -58,14 +58,13 @@ func CreateConfigSymlink(srcPath, targetDir, parentConfigDir string) error {
 	fi, err := os.Lstat(linkPath)
 	if err == nil {
 		// Something exists
-		if fi.Mode()&os.ModeSymlink != 0 {
-			// It's a symlink - remove it
-			if err := os.Remove(linkPath); err != nil {
-				return fmt.Errorf("remove existing symlink: %w", err)
-			}
-		} else {
+		if fi.Mode()&os.ModeSymlink == 0 {
 			// It's a regular file - don't overwrite without force
 			return fmt.Errorf("config file already exists at %s (not a symlink); remove it or use configLink on a fresh directory", linkPath)
+		}
+		// It's a symlink - remove it
+		if err := os.Remove(linkPath); err != nil {
+			return fmt.Errorf("remove existing symlink: %w", err)
 		}
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("check link path: %w", err)

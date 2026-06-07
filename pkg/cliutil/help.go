@@ -5,6 +5,7 @@ package cliutil
 
 import "strings"
 
+// ANSI escape sequences for bold color output in terminal help text.
 const (
 	ColorCyanBold    = "\033[1;36m"
 	ColorGreenBold   = "\033[1;32m"

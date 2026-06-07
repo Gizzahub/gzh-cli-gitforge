@@ -413,14 +413,17 @@ func NewWriterLogger(w io.Writer) Logger {
 	return &WriterLogger{w: w}
 }
 
+// Debug writes a DEBUG-level log message to the writer.
 func (l *WriterLogger) Debug(msg string, args ...interface{}) {
 	l.log("DEBUG", msg, args...)
 }
 
+// Info writes an INFO-level log message to the writer.
 func (l *WriterLogger) Info(msg string, args ...interface{}) {
 	l.log("INFO", msg, args...)
 }
 
+// Warn writes a WARN-level log message to the writer.
 func (l *WriterLogger) Warn(msg string, args ...interface{}) {
 	l.log("WARN", msg, args...)
 }

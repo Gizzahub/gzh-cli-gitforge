@@ -37,6 +37,7 @@ type PostSyncStatus struct {
 // Strategy defines how updates are performed.
 type Strategy string
 
+// Strategy values control how an existing repository is brought up to date.
 const (
 	StrategyReset  Strategy = "reset"
 	StrategyPull   Strategy = "pull"

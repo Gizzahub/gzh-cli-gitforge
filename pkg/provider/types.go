@@ -58,6 +58,7 @@ type SyncResult struct {
 // SyncAction represents what action was taken during sync.
 type SyncAction string
 
+// SyncAction values describe the outcome of a repository sync operation.
 const (
 	ActionCloned  SyncAction = "cloned"
 	ActionUpdated SyncAction = "updated"

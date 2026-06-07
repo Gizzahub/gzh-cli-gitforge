@@ -57,6 +57,7 @@ type Conflict struct {
 // ConflictSeverity indicates conflict severity.
 type ConflictSeverity string
 
+// ConflictSeverity values indicate how severe a branch conflict is.
 const (
 	SeverityLow    ConflictSeverity = "low"    // Different files
 	SeverityMedium ConflictSeverity = "medium" // Same directory

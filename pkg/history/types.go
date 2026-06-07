@@ -72,6 +72,7 @@ type ContributorOptions struct {
 // ContributorSortBy defines sorting criteria for contributors.
 type ContributorSortBy string
 
+// ContributorSortBy values specify how to order contributor results.
 const (
 	SortByCommits      ContributorSortBy = "commits"
 	SortByLinesAdded   ContributorSortBy = "additions"
@@ -121,6 +122,7 @@ type HistoryOptions struct {
 // OutputFormat defines the output format for analysis results.
 type OutputFormat string
 
+// OutputFormat values select the rendering style for analysis output.
 const (
 	FormatTable    OutputFormat = "table"
 	FormatJSON     OutputFormat = "json"

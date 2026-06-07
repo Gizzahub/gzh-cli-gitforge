@@ -839,6 +839,7 @@ type EffectiveConfig struct {
 // ConfigSource represents where a config value came from.
 type ConfigSource string
 
+// ConfigSource values identify which layer of the 5-layer precedence provided a value.
 const (
 	SourceFlag    ConfigSource = "flag"
 	SourceProject ConfigSource = "project"

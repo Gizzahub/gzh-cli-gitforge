@@ -20,7 +20,7 @@ linters:
     - gocyclo
     - godot
     - goheader
-    - gomodguard
+    - gomodguard_v2
     - gosec
     - govet
     - ineffassign
@@ -117,14 +117,13 @@ linters:
       template: |-
         Copyright (c) {{ YEAR }} {{ COMPANY }}
         SPDX-License-Identifier: {{ LICENSE }}
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
-                - fmt
-              reason: We use stdlib errors with Go 1.13+ error wrapping
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
+            - fmt
+          reason: We use stdlib errors with Go 1.13+ error wrapping
     gosec:
       excludes:
         - G104
@@ -170,7 +169,7 @@ linters:
         - name: exported
           disabled: false
           arguments:
-            - disableStutteringCheck: true
+            - disableStutteringCheck
         - name: package-comments
           disabled: true
         - name: var-naming

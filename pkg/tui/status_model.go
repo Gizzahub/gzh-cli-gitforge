@@ -15,6 +15,7 @@ import (
 // FilterType represents the type of filter applied.
 type FilterType string
 
+// FilterType values control which repositories are shown in the status TUI.
 const (
 	FilterNone  FilterType = ""
 	FilterDirty FilterType = "dirty" // Show only dirty repos
