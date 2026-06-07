@@ -52,12 +52,12 @@ defaults:
   #   compact: true           # Omit redundant fields (path when equals name)
   #   format: default         # Output format: default, compact, json, llm
 
-  # --- Filter settings ---
+  # --- Forge workspace filter settings ---
   # filter:
-  #   include:                # Include repos matching these patterns (regex)
+  #   include:                # Include forge repos matching these patterns (regex; name or full path)
   #     - "^core-"
   #     - "^lib-"
-  #   exclude:                # Exclude repos matching these patterns (regex)
+  #   exclude:                # Exclude forge repos matching these patterns (regex; name or full path)
   #     - "archived-"
   #     - "deprecated-"
 {{- end}}

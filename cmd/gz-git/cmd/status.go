@@ -352,7 +352,8 @@ func displayDiagnosticResultsCompact(report *reposync.HealthReport) {
 			hasIssues = true
 			icon := getHealthIcon(repo.HealthStatus)
 			repoName := filepath.Base(repo.Repo.TargetPath)
-			fmt.Printf("%s %s (%s) - %s\n",
+			fmt.Printf(
+				"%s %s (%s) - %s\n",
 				icon,
 				repoName,
 				repo.CurrentBranch,
@@ -428,7 +429,8 @@ func displayHealthRepositoryResult(health reposync.RepoHealth) {
 
 	// Print timing if verbose
 	if verbose {
-		fmt.Printf("     ⏱  Check: %s, Fetch: %s\n",
+		fmt.Printf(
+			"     ⏱  Check: %s, Fetch: %s\n",
 			health.Duration.Round(10*time.Millisecond),
 			health.FetchDuration.Round(10*time.Millisecond),
 		)

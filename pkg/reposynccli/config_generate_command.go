@@ -17,6 +17,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
 )
 
@@ -46,6 +47,8 @@ type ConfigGenerateOptions struct {
 	FilterMinStars int    // Minimum star count
 	FilterMaxStars int    // Maximum star count (0 = unlimited)
 	FilterLastPush string // Activity filter (e.g., "30d", "6M", "1y")
+	FilterInclude  []string
+	FilterExclude  []string
 }
 
 func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
@@ -78,7 +81,12 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
   # Self-hosted GitLab with custom SSH port
   gz-git forge config generate --provider gitlab --org mygroup \
     --base-url https://gitlab.company.com --ssh-port 2224 -o sync.yaml \
-    --token $GITLAB_TOKEN --path ~/repos`),
+    --token $GITLAB_TOKEN --path ~/repos
+
+  # Generate config for selected repositories by name or full path
+  gz-git forge config generate --provider github --org myorg \
+    --include "api|web" --exclude "archive" -o sync.yaml \
+    --token $GITHUB_TOKEN --path ~/repos`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return f.runConfigGenerate(cmd, opts)
 		},
@@ -123,6 +131,8 @@ func (f CommandFactory) newConfigGenerateCmd() *cobra.Command {
 	cmd.Flags().IntVar(&opts.FilterMinStars, "min-stars", 0, "Minimum star count")
 	cmd.Flags().IntVar(&opts.FilterMaxStars, "max-stars", 0, "Maximum star count (0 = unlimited)")
 	cmd.Flags().StringVar(&opts.FilterLastPush, "last-push-within", "", "Filter by recent activity (e.g., 7d, 30d, 6M, 1y)")
+	cmd.Flags().StringSliceVar(&opts.FilterInclude, "include", nil, "Include repos matching regex (name or full path; can be repeated)")
+	cmd.Flags().StringSliceVar(&opts.FilterExclude, "exclude", nil, "Exclude repos matching regex (name or full path; can be repeated)")
 
 	// Mark required
 	cmd.MarkFlagRequired("provider")
@@ -154,6 +164,10 @@ func RunConfigGenerate(cmd *cobra.Command, opts *ConfigGenerateOptions) error {
 		opts.FilterLastPush,
 	)
 	if err != nil {
+		return err
+	}
+
+	if _, err := reposync.NewRepositoryPatternFilter(opts.FilterInclude, opts.FilterExclude); err != nil {
 		return err
 	}
 
@@ -267,6 +281,11 @@ func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Prov
 		return nil, err
 	}
 
+	patternFilter, err := reposync.NewRepositoryPatternFilter(opts.FilterInclude, opts.FilterExclude)
+	if err != nil {
+		return nil, err
+	}
+
 	// Filter based on options
 	filtered := make([]*provider.Repository, 0, len(repos))
 	for _, repo := range repos {
@@ -289,6 +308,11 @@ func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Prov
 			if repo.FullName != fmt.Sprintf("%s/%s", opts.Organization, repo.Name) {
 				continue
 			}
+		}
+
+		// Apply name/full name regex filter
+		if !patternFilter.Match(repo) {
+			continue
 		}
 
 		// Apply metadata filter

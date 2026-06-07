@@ -198,7 +198,8 @@ func runHistoryBlame(cmd *cobra.Command, args []string) error {
 	// Note: Blame output is typically shown in a special format
 	// Show lines with author and commit info
 	for _, line := range blameInfo.Lines {
-		fmt.Printf("%s (%s %s) %s\n",
+		fmt.Printf(
+			"%s (%s %s) %s\n",
 			line.Hash[:8],
 			line.Author,
 			line.Date.Format("2006-01-02"),

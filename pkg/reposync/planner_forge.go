@@ -71,6 +71,10 @@ type ForgePlannerConfig struct {
 	FilterMinStars      int       // Minimum star count
 	FilterMaxStars      int       // Maximum star count (0 = unlimited)
 	FilterLastPushAfter time.Time // Only include repos pushed after this time
+
+	// Name/path regex filters
+	FilterIncludePatterns []string // Include repos whose name or full name matches
+	FilterExcludePatterns []string // Exclude repos whose name or full name matches
 }
 
 // ForgePlanner produces a Plan by querying a gitforge Provider.
@@ -125,7 +129,10 @@ func (p *ForgePlanner) Plan(ctx context.Context, req PlanRequest) (Plan, error) 
 	}
 
 	// Filter repositories based on config
-	filteredRepos := p.filterRepos(repos)
+	filteredRepos, err := p.filterRepos(repos)
+	if err != nil {
+		return Plan{}, fmt.Errorf("filter repositories: %w", err)
+	}
 
 	if len(filteredRepos) == 0 {
 		return Plan{}, nil
@@ -173,7 +180,7 @@ func (p *ForgePlanner) Plan(ctx context.Context, req PlanRequest) (Plan, error) 
 
 	// Handle orphan cleanup if enabled
 	if req.Options.CleanupOrphans && len(req.Options.Roots) > 0 {
-		orphanActions := p.planOrphanCleanup(filteredRepos, req.Options.Roots)
+		orphanActions := p.planOrphanCleanup(repos, req.Options.Roots)
 		actions = append(actions, orphanActions...)
 	}
 
@@ -181,7 +188,12 @@ func (p *ForgePlanner) Plan(ctx context.Context, req PlanRequest) (Plan, error) 
 }
 
 // filterRepos filters repositories based on configuration.
-func (p *ForgePlanner) filterRepos(repos []*provider.Repository) []*provider.Repository {
+func (p *ForgePlanner) filterRepos(repos []*provider.Repository) ([]*provider.Repository, error) {
+	patternFilter, err := NewRepositoryPatternFilter(p.config.FilterIncludePatterns, p.config.FilterExcludePatterns)
+	if err != nil {
+		return nil, err
+	}
+
 	filtered := make([]*provider.Repository, 0, len(repos))
 
 	for _, repo := range repos {
@@ -223,10 +235,15 @@ func (p *ForgePlanner) filterRepos(repos []*provider.Repository) []*provider.Rep
 			continue
 		}
 
+		// Name/full name regex filters
+		if !patternFilter.Match(repo) {
+			continue
+		}
+
 		filtered = append(filtered, repo)
 	}
 
-	return filtered
+	return filtered, nil
 }
 
 // containsStringSlice checks if slice contains the target string.
@@ -324,10 +341,12 @@ func (p *ForgePlanner) stripOrgPrefix(fullName string) string {
 
 // planOrphanCleanup identifies directories that should be deleted.
 func (p *ForgePlanner) planOrphanCleanup(repos []*provider.Repository, roots []string) []Action {
-	// Build a set of expected repository names
-	expectedNames := make(map[string]struct{}, len(repos))
+	// Build a set of expected repository directory names from the full forge
+	// repository list. Name/full-name filters limit sync targets, but must not
+	// make valid forge repositories look like local orphans.
+	expectedDirs := make(map[string]struct{}, len(repos))
 	for _, repo := range repos {
-		expectedNames[repo.Name] = struct{}{}
+		expectedDirs[filepath.Base(p.buildTargetPath(repo))] = struct{}{}
 	}
 
 	var deleteActions []Action
@@ -345,7 +364,7 @@ func (p *ForgePlanner) planOrphanCleanup(repos []*provider.Repository, roots []s
 			}
 
 			// Check if this directory is an expected repository
-			if _, expected := expectedNames[entry.Name()]; !expected {
+			if _, expected := expectedDirs[entry.Name()]; !expected {
 				dirPath := filepath.Join(root, entry.Name())
 
 				reason := "orphan: not in organization repository list"

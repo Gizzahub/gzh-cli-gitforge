@@ -349,6 +349,32 @@ repositories:
     assumePresent: true  # 이미 clone됨으로 간주
 ```
 
+### Forge workspace 필터
+
+`workspaces:`에서 forge source를 사용할 때 `defaults.filter` 또는 workspace별 `includePatterns`/`excludePatterns`로 repo name/full path regex를 필터링할 수 있습니다. `excludePatterns`가 우선합니다.
+
+```yaml
+version: 1
+kind: workspace
+
+defaults:
+  filter:
+    include:
+      - "api|web"
+    exclude:
+      - "archive"
+
+workspaces:
+  codes:
+    path: ./codes
+    source:
+      provider: gitlab
+      org: platform
+      includeSubgroups: true
+    includePatterns:
+      - "^platform/services/"
+```
+
 ### Repository 필드
 
 | 필드 | 설명 | 필수 |

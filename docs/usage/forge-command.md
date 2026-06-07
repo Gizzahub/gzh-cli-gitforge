@@ -54,8 +54,41 @@ gz-git forge from \
 | `--ssh-port` | SSH 포트 (비표준) | - |
 | `--include-subgroups` | GitLab 하위 그룹 포함 | false |
 | `--subgroup-mode` | flat, nested | flat |
+| `--include` | Repo name/full path regex 포함 필터 | - |
+| `--exclude` | Repo name/full path regex 제외 필터 | - |
 | `-j, --parallel` | 병렬 처리 수 | 10 |
 | `-n, --dry-run` | 미리보기 | false |
+
+### Name Filtering
+
+Repository 이름 또는 forge full path (`org/repo`, `group/subgroup/repo`) 기준 regex 필터링:
+
+```bash
+# api 또는 web repo만 동기화
+gz-git forge from \
+  --provider github \
+  --org myorg \
+  --include "api|web" \
+  --path ./repos
+
+# subgroup 경로까지 포함해서 필터링
+gz-git forge from \
+  --provider gitlab \
+  --org platform \
+  --include "^platform/services/" \
+  --include-subgroups \
+  --path ./repos
+
+# include 결과에서 archive repo 제외
+gz-git forge from \
+  --provider github \
+  --org myorg \
+  --include "api|web" \
+  --exclude "archive" \
+  --path ./repos
+```
+
+`--exclude`는 `--include`보다 우선합니다.
 
 ### Metadata Filtering
 
@@ -138,6 +171,14 @@ gz-git forge config generate \
   --min-stars 100 \
   --last-push-within 6M \
   -o k8s-go-repos.yaml
+
+# Name/full path filtering
+gz-git forge config generate \
+  --provider github \
+  --org myorg \
+  --include "api|web" \
+  --exclude "archive" \
+  -o selected-repos.yaml
 ```
 
 ### 생성되는 config 형식

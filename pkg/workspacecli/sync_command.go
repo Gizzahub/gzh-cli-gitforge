@@ -590,13 +590,17 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			branch = strings.Join(cfg.Branch.DefaultBranch, ",")
 		}
 
+		includePatterns, excludePatterns := effectiveForgeWorkspacePatterns(cfg, ws)
+
 		plannerConfig := reposync.ForgePlannerConfig{
-			TargetPath:       ws.Path,
-			Organization:     ws.Source.Org,
-			IncludeSubgroups: ws.Source.IncludeSubgroups,
-			SubgroupMode:     ws.Source.SubgroupMode,
-			IncludePrivate:   true, // workspace sync should include private/internal repos
-			Branch:           branch,
+			TargetPath:            wsPath,
+			Organization:          ws.Source.Org,
+			IncludeSubgroups:      ws.Source.IncludeSubgroups,
+			SubgroupMode:          ws.Source.SubgroupMode,
+			IncludePrivate:        true, // workspace sync should include private/internal repos
+			Branch:                branch,
+			FilterIncludePatterns: includePatterns,
+			FilterExcludePatterns: excludePatterns,
 			Auth: reposync.AuthConfig{
 				Token:    token,
 				Provider: ws.Source.Provider,
@@ -647,7 +651,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 			}
 		} else {
 			// Write child config with repository list
-			if err := writeChildForgeConfig(out, cfg, name, ws, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
+			if err := writeChildForgeConfig(out, cfg, name, ws, wsPath, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
 				return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
 			}
 		}
@@ -670,6 +674,24 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 	}
 
 	return allActions, nil
+}
+
+func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) ([]string, []string) {
+	var includePatterns []string
+	var excludePatterns []string
+
+	if cfg != nil {
+		includePatterns = cfg.GetIncludePatterns()
+		excludePatterns = cfg.GetExcludePatterns()
+	}
+	if len(ws.IncludePatterns) > 0 {
+		includePatterns = ws.IncludePatterns
+	}
+	if len(ws.ExcludePatterns) > 0 {
+		excludePatterns = ws.ExcludePatterns
+	}
+
+	return includePatterns, excludePatterns
 }
 
 // planGitWorkspaces generates actions from git workspaces (type=git with URL).
@@ -892,18 +914,9 @@ func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir str
 
 // writeChildForgeConfig writes a child config file with the list of repositories.
 // It respects the workspace's ChildConfigMode and protects user-maintained files.
-func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
+func writeChildForgeConfig(out io.Writer, parentCfg *config.Config, wsName string, ws *config.Workspace, wsPath string, actions []reposync.Action, cloneProto string, sshPort int, fullOutput bool) error {
 	if len(actions) == 0 {
 		return nil
-	}
-
-	// Resolve workspace path
-	wsPath := ws.Path
-	if len(wsPath) > 1 && wsPath[0] == '~' && wsPath[1] == '/' {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			wsPath = filepath.Join(home, wsPath[2:])
-		}
 	}
 
 	// Get child config mode (workspace > config > default)

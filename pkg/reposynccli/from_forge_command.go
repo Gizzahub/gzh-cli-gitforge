@@ -48,6 +48,8 @@ type FromForgeOptions struct {
 	FilterMinStars int    // Minimum star count
 	FilterMaxStars int    // Maximum star count (0 = unlimited)
 	FilterLastPush string // Activity filter (e.g., "30d", "6M", "1y")
+	FilterInclude  []string
+	FilterExclude  []string
 }
 
 // newFromForgeCmd creates a command for syncing from git forges.
@@ -96,7 +98,13 @@ func (f CommandFactory) newFromForgeCmd() *cobra.Command {
   gz-git forge from --provider github --org myorg --path ./repos \
     --last-push-within 6M
 
+  # Sync only selected repositories by name or full path
+  gz-git forge from --provider github --org myorg --path ./repos \
+    --include "api|web" --exclude "archive"
+
 Filter Flags:
+  --include          Include repos matching regex (name or full path; repeatable)
+  --exclude          Exclude repos matching regex (name or full path; repeatable)
   --language          Comma-separated languages (e.g., go,rust,python)
   --min-stars         Minimum star count (0 = no minimum)
   --max-stars         Maximum star count (0 = unlimited)
@@ -147,6 +155,8 @@ Note: GitLab and Gitea do not provide language info via API; --language may not 
 	cmd.Flags().IntVar(&opts.FilterMinStars, "min-stars", 0, "Minimum star count")
 	cmd.Flags().IntVar(&opts.FilterMaxStars, "max-stars", 0, "Maximum star count (0 = unlimited)")
 	cmd.Flags().StringVar(&opts.FilterLastPush, "last-push-within", "", "Filter by recent activity (e.g., 7d, 30d, 6M, 1y)")
+	cmd.Flags().StringSliceVar(&opts.FilterInclude, "include", nil, "Include repos matching regex (name or full path; can be repeated)")
+	cmd.Flags().StringSliceVar(&opts.FilterExclude, "exclude", nil, "Exclude repos matching regex (name or full path; can be repeated)")
 
 	// Required flags
 	_ = cmd.MarkFlagRequired("provider")
@@ -177,6 +187,10 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 		opts.FilterLastPush,
 	)
 	if err != nil {
+		return err
+	}
+
+	if _, err := reposync.NewRepositoryPatternFilter(opts.FilterInclude, opts.FilterExclude); err != nil {
 		return err
 	}
 
@@ -215,10 +229,12 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 			SSHPort:       opts.SSHPort,
 		},
 		// Metadata filters
-		FilterLanguages:     metadataFilter.Languages,
-		FilterMinStars:      metadataFilter.MinStars,
-		FilterMaxStars:      metadataFilter.MaxStars,
-		FilterLastPushAfter: metadataFilter.LastPushAfter,
+		FilterLanguages:       metadataFilter.Languages,
+		FilterMinStars:        metadataFilter.MinStars,
+		FilterMaxStars:        metadataFilter.MaxStars,
+		FilterLastPushAfter:   metadataFilter.LastPushAfter,
+		FilterIncludePatterns: opts.FilterInclude,
+		FilterExcludePatterns: opts.FilterExclude,
 	}
 
 	planner := reposync.NewForgePlanner(forgeProvider, plannerConfig)

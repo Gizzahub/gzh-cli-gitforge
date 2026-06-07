@@ -68,6 +68,10 @@ gz-git forge from --provider github --org myorg --path ./repos --token $GITHUB_T
 gz-git forge from --provider github --org kubernetes --path ./k8s \
   --language go --min-stars 100 --last-push-within 30d
 
+# Filter repos by name or full path regex
+gz-git forge from --provider github --org myorg --path ./repos \
+  --include "api|web" --exclude "archive"
+
 # Workspace sync with detailed preview (NEW: shows file changes, conflicts)
 gz-git workspace sync  # Preview then auto-proceed
 gz-git workspace sync --dry-run  # Preview only

@@ -213,7 +213,8 @@ func printHealthReport(cmd *cobra.Command, report *reposync.HealthReport, verbos
 		icon := getHealthIcon(health.HealthStatus)
 		statusStr := getStatusString(health)
 
-		fmt.Fprintf(out, "%s %-30s  %s\n",
+		fmt.Fprintf(
+			out, "%s %-30s  %s\n",
 			icon,
 			formatRepoName(health.Repo),
 			statusStr,
@@ -235,7 +236,8 @@ func printHealthReport(cmd *cobra.Command, report *reposync.HealthReport, verbos
 	}
 
 	// Print summary
-	fmt.Fprintf(out, "\nSummary: %d healthy, %d warnings, %d errors, %d unreachable (%d total)\n",
+	fmt.Fprintf(
+		out, "\nSummary: %d healthy, %d warnings, %d errors, %d unreachable (%d total)\n",
 		report.Summary.Healthy,
 		report.Summary.Warning,
 		report.Summary.Error,
@@ -382,7 +384,8 @@ func printHealthReportCompact(cmd *cobra.Command, report *reposync.HealthReport)
 	}
 
 	// Summary line
-	fmt.Fprintf(out, "\n%d ok, %d warn, %d err, %d unreachable\n",
+	fmt.Fprintf(
+		out, "\n%d ok, %d warn, %d err, %d unreachable\n",
 		report.Summary.Healthy,
 		report.Summary.Warning,
 		report.Summary.Error,

@@ -57,12 +57,6 @@ defaults:
   #   compact: true           # Omit redundant fields (path when equals name)
   #   format: default         # Output format: default, compact, json, llm
 
-  # --- Filter settings ---
-  # filter:
-  #   include:                # Include repos matching these patterns (regex)
-  #     - "^core-"
-  #   exclude:                # Exclude repos matching these patterns
-  #     - "archived-"
 {{- end}}
 
 # =============================================================================

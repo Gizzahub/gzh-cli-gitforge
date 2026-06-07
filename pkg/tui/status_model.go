@@ -253,7 +253,8 @@ func renderRepoLine(repo reposync.RepoHealth, isCursor, isSelected bool) string 
 	statusIcon, statusText := getStatusDisplay(repo)
 
 	// Build line
-	line := fmt.Sprintf("  %s %-30s %-15s %-10s %s %s",
+	line := fmt.Sprintf(
+		"  %s %-30s %-15s %-10s %s %s",
 		checkbox,
 		name,
 		branch,
@@ -322,7 +323,8 @@ func renderFooter(m StatusModel) string {
 	// Batch actions (visible when items selected)
 	batchActions := []string{}
 	if selectedCount > 0 {
-		batchActions = append(batchActions,
+		batchActions = append(
+			batchActions,
 			fmt.Sprintf("s: Sync (%d)", selectedCount),
 			fmt.Sprintf("p: Pull (%d)", selectedCount),
 			fmt.Sprintf("f: Fetch (%d)", selectedCount),

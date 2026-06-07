@@ -186,6 +186,52 @@ func TestForgePlanner_Plan(t *testing.T) {
 			t.Error("expected error, got nil")
 		}
 	})
+
+	t.Run("cleanup orphans preserves repos excluded by name filter", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		for _, repoName := range []string{"api-server", "web-client"} {
+			gitDir := filepath.Join(tmpDir, repoName, ".git")
+			if err := os.MkdirAll(gitDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		orphanDir := filepath.Join(tmpDir, "orphan-repo", ".git")
+		if err := os.MkdirAll(orphanDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		repos := []*provider.Repository{
+			{Name: "api-server", CloneURL: "https://github.com/org/api-server.git"},
+			{Name: "web-client", CloneURL: "https://github.com/org/web-client.git"},
+		}
+		p := &mockForgeProvider{name: "github", orgRepos: repos}
+		planner := NewForgePlanner(p, ForgePlannerConfig{
+			TargetPath:            tmpDir,
+			Organization:          "myorg",
+			FilterIncludePatterns: []string{"^api-"},
+		})
+
+		plan, err := planner.Plan(context.Background(), PlanRequest{
+			Options: PlanOptions{
+				CleanupOrphans: true,
+				Roots:          []string{tmpDir},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		deletes := make([]string, 0)
+		for _, action := range plan.Actions {
+			if action.Type == ActionDelete {
+				deletes = append(deletes, action.Repo.Name)
+			}
+		}
+
+		if len(deletes) != 1 || deletes[0] != "orphan-repo" {
+			t.Fatalf("delete actions = %v, want [orphan-repo]", deletes)
+		}
+	})
 }
 
 func TestForgePlanner_filterRepos(t *testing.T) {
@@ -260,6 +306,48 @@ func TestForgePlanner_filterRepos(t *testing.T) {
 			config:   ForgePlannerConfig{},
 			expected: 1,
 		},
+		{
+			name: "includes repos matching name pattern",
+			repos: []*provider.Repository{
+				{Name: "api-server"},
+				{Name: "web-client"},
+				{Name: "docs"},
+			},
+			config:   ForgePlannerConfig{FilterIncludePatterns: []string{"api|web"}},
+			expected: 2,
+		},
+		{
+			name: "includes repos matching full name pattern",
+			repos: []*provider.Repository{
+				{Name: "manager", FullName: "platform/services/manager"},
+				{Name: "manager", FullName: "tools/other/manager"},
+			},
+			config:   ForgePlannerConfig{FilterIncludePatterns: []string{"^platform/services/"}},
+			expected: 1,
+		},
+		{
+			name: "excludes repos matching name pattern",
+			repos: []*provider.Repository{
+				{Name: "api-server"},
+				{Name: "api-archive"},
+				{Name: "web-client"},
+			},
+			config:   ForgePlannerConfig{FilterExcludePatterns: []string{"archive"}},
+			expected: 2,
+		},
+		{
+			name: "exclude wins over include",
+			repos: []*provider.Repository{
+				{Name: "api-server"},
+				{Name: "api-archive"},
+				{Name: "web-client"},
+			},
+			config: ForgePlannerConfig{
+				FilterIncludePatterns: []string{"api|web"},
+				FilterExcludePatterns: []string{"archive"},
+			},
+			expected: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -267,12 +355,28 @@ func TestForgePlanner_filterRepos(t *testing.T) {
 			p := &mockForgeProvider{name: "github"}
 			planner := NewForgePlanner(p, tt.config)
 
-			filtered := planner.filterRepos(tt.repos)
+			filtered, err := planner.filterRepos(tt.repos)
+			if err != nil {
+				t.Fatalf("filterRepos() unexpected error: %v", err)
+			}
 
 			if len(filtered) != tt.expected {
 				t.Errorf("expected %d repos, got %d", tt.expected, len(filtered))
 			}
 		})
+	}
+}
+
+func TestForgePlanner_filterRepos_InvalidPattern(t *testing.T) {
+	p := &mockForgeProvider{name: "github"}
+	planner := NewForgePlanner(p, ForgePlannerConfig{
+		FilterIncludePatterns: []string{"["},
+	})
+
+	_, err := planner.filterRepos([]*provider.Repository{{Name: "repo"}})
+
+	if err == nil {
+		t.Fatal("expected invalid regex error, got nil")
 	}
 }
 
