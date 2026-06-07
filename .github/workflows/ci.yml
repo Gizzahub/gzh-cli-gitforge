@@ -77,7 +77,7 @@ jobs:
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v1.55
+        version: v2.12.2
         args: --timeout=5m
 
   build:
@@ -105,14 +105,14 @@ jobs:
     - name: Verify binary (Unix)
       if: matrix.os != 'windows-latest'
       run: |
-        ./gzh-git --version
-        ./gzh-git --help
+        ./gz-git --version
+        ./gz-git --help
 
     - name: Verify binary (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        .\gzh-git.exe --version
-        .\gzh-git.exe --help
+        .\gz-git.exe --version
+        .\gz-git.exe --help
 
   examples:
     name: Test Examples
