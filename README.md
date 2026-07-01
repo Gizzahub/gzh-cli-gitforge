@@ -2,7 +2,7 @@
 
 > Bulk-first Git operations CLI (`gz-git`) + Go library
 
-[![Go Version](https://img.shields.io/badge/go-1.25.1%2B-blue)](https://go.dev)
+[![Go Version](https://img.shields.io/badge/go-1.26%2B-blue)](https://go.dev)
 [![Version](https://img.shields.io/badge/version-v0.7.0-blue)](https://github.com/gizzahub/gzh-cli-gitforge/releases/tag/v0.7.0)
 [![CI](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml/badge.svg)](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -84,7 +84,7 @@ ______________________________________________________________________
 ## Requirements
 
 - Git 2.30+
-- Go 1.25.1+ (building from source / using as a library)
+- Go 1.26+ (building from source / using as a library)
 
 ______________________________________________________________________
 

@@ -2,7 +2,7 @@
 
 LLM-optimized guidance for gzh-cli-gitforge.
 
-**Binary**: `gz-git` | **Module**: `github.com/gizzahub/gzh-cli-gitforge` | **Go**: 1.25.1+
+**Binary**: `gz-git` | **Module**: `github.com/gizzahub/gzh-cli-gitforge` | **Go**: 1.26+
 
 ## Top Commands
 

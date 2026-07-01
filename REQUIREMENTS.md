@@ -5,7 +5,7 @@ This file is a short index so requirements stay discoverable without duplicating
 
 ## Compatibility
 
-- Go: `1.25.1+` (see `go.mod`)
+- Go: `1.26+` (see `go.mod`)
 - Git: `2.30+`
 
 ## Safety / Security

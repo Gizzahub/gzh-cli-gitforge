@@ -6,7 +6,7 @@ This document is intentionally short. Canonical agent guidance lives in `CLAUDE.
 
 - **Binary**: `gz-git`
 - **Module**: `github.com/gizzahub/gzh-cli-gitforge`
-- **Go**: `1.25.1` (see `go.mod`)
+- **Go**: `1.26` (see `go.mod`)
 - **Core rule**: no shell execution; sanitize Git args (command injection prevention)
 
 ## Read Order (Recommended)
