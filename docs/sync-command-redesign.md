@@ -1,9 +1,9 @@
 # gz-git sync 명령어 재구성 (Option A)
 
 > **STATUS**: ✅ IMPLEMENTED & ARCHIVED
-> **VERSION**: v3.0.0 (Jan 2026)
+> **VERSION**: v0.6.0 (Jan 2026; originally labeled v3.0.0 — renumbered to the 0.x release line)
 > **NOTE**: Historical design document. For current usage, see `CLAUDE.md` → Sync Commands section.
-> Old commands (`sync forge`, `sync run`) have been removed. Use `sync from-forge` and `workspace sync` instead.
+> Old commands (`sync forge`, `sync run`) have been removed. Use `forge from` and `workspace sync` instead (renamed again from `sync from-forge` in v0.7.0).
 
 ## 목표
 
@@ -319,7 +319,7 @@ Warning: 'sync run' is deprecated, use 'sync from-config' instead
 ### Phase 3: 제거 (Breaking Change)
 
 ```bash
-# v3.0.0
+# v0.6.0 (originally labeled v3.0.0)
 gz-git sync forge ...     # Error: unknown command
 gz-git sync run ...       # Error: unknown command
 ```

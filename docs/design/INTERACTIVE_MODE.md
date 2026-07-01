@@ -5,7 +5,7 @@
 **Feature**: Guided workflows for common tasks
 **Priority**: P2
 **Phase**: 8.3
-**Status**: Design
+**Status**: Partially Implemented — sync setup, branch cleanup, profile create wizards shipped in `pkg/wizard` (charmbracelet/huh); commit assistant wizard not yet implemented
 
 ## Problem Statement
 

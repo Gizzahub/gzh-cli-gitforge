@@ -65,6 +65,7 @@
 | Feature                  | Description                   | Priority |
 | ------------------------ | ----------------------------- | -------- |
 | Additional forge support | Bitbucket, Azure DevOps       | P2       |
+| GitHub Enterprise        | Custom base URL for GitHub provider (GitLab/Gitea already support self-hosted) | P2       |
 | Submodule support        | Full submodule workflow       | P3       |
 | LFS integration          | Large file storage operations | P3       |
 

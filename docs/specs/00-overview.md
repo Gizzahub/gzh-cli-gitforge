@@ -143,9 +143,10 @@ gzh-cli-gitforge (gz-git)
 │   └── Strategy selection ✅
 │
 ├── Sync & Watch
-│   ├── sync forge - GitHub/GitLab/Gitea org sync
-│   ├── sync run   - YAML config-based sync
-│   └── watch      - Real-time repo monitoring
+│   ├── forge from     - GitHub/GitLab/Gitea org sync
+│   ├── workspace sync - YAML config-based sync
+│   ├── sync           - Quick-sync (auto-init + sync)
+│   └── watch          - Real-time repo monitoring
 │
 ├── Utilities
 │   ├── stash      - Stash management

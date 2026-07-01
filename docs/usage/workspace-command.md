@@ -313,7 +313,7 @@ No issues found.
 
 ## generate-config
 
-Forge API에서 config 생성 (`sync config generate`와 동일).
+Forge API에서 config 생성 (`forge config generate`와 동일).
 
 ```bash
 gz-git workspace generate-config \
@@ -439,5 +439,5 @@ gz-git workspace sync
 | `sync` | Forge API 직접 호출 | GitHub/GitLab/Gitea API |
 
 일반적인 워크플로우:
-1. `sync config generate` → config 생성
+1. `forge config generate` → config 생성
 2. `workspace sync` → config 기반 동기화

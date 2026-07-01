@@ -272,7 +272,7 @@ ______________________________________________________________________
 
 ## Version History
 
-- **v3.0.0** (2026-01-21): Initial v3.0 release with breaking changes
+- **v0.6.0** (2026-01-21): Config schema v3 release with breaking changes (originally labeled v3.0.0 in the changelog; renumbered to the 0.x release line)
 - **v2.x**: Last version with workspace management commands
 
 ______________________________________________________________________

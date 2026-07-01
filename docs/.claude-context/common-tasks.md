@@ -57,12 +57,12 @@ ______________________________________________________________________
 
 ### Where to add
 
-`cmd/gzh-git/` - create new command file
+`cmd/gz-git/` - create new command file
 
 ### Example
 
 ```go
-// cmd/gzh-git/status.go
+// cmd/gz-git/status.go
 var statusCmd = &cobra.Command{
     Use:   "status",
     Short: "Show working tree status",
