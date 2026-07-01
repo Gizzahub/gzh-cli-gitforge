@@ -7,12 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-02
+
 ### BREAKING CHANGES
 
 - Removed `gz-git merge` command group/alias. Use `gz-git conflict detect` for pre-merge checks and native Git for merges.
-- Renamed Forge API command group: `gz-git sync ...` → `gz-git forge ...` (no compatibility alias).
+- Renamed Forge API command group: `gz-git sync ...` → `gz-git forge ...` (no compatibility alias). The top-level `gz-git sync` is now the quick-sync command (auto-init config + sync).
 
-## [3.0.0] - 2026-01-21
+### Added
+
+- `gz-git worktree` command group (`list`/`add`/`remove`) exposing the existing `pkg/branch` worktree API.
+
+### Changed
+
+- Version numbering unified on the 0.x release line: the changelog entry previously published as `3.0.0` is renumbered to `0.6.0` (no git tag had ever been published, so no released artifact is affected). The `v3` naming continues to refer to the config schema version only (see `docs/MIGRATION_V2_TO_V3.md`).
+
+### Internal
+
+- Upgraded Go toolchain to 1.26 and refreshed module dependencies; applied Go 1.26 modernizers.
+- Migrated CI and local lint to golangci-lint v2; resolved outstanding lint debt.
+- Added tests for `internal/config`.
+
+## [0.6.1] - 2026-01-25
+
+### Changed
+
+- Version bump and improved CLI suggestion text.
+- Removed deprecated clone flags and config fields.
+
+## [0.6.0] - 2026-01-21
+
+> Originally published in this changelog as `3.0.0`. Renumbered to `0.6.0` to match the actual 0.x release line (`VERSION` file); no git tag for `3.0.0` was ever created. "V3" refers to the config schema version.
 
 ### BREAKING CHANGES
 
@@ -61,7 +86,7 @@ See `docs/MIGRATION_V2_TO_V3.md` for detailed migration instructions.
 
 **Note**: All existing config files continue to work without modification.
 
-## [0.4.0] - 2025-01-02
+## [0.4.0] - 2026-01-02
 
 ### Added
 
@@ -129,7 +154,9 @@ See `docs/MIGRATION_V2_TO_V3.md` for detailed migration instructions.
 - Added comprehensive commit command usage examples
 - Updated version badges and feature lists
 
-## [0.3.0] - 2025-12-02
+## [0.3.1] - 2025-12-02
+
+> Originally published as a duplicate `0.3.0` entry; renumbered to `0.3.1`.
 
 ### Added
 
