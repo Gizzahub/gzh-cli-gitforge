@@ -54,7 +54,7 @@ func init() {
 	watchCmd.Flags().DurationVar(&watchInterval, "interval", 2*time.Second, "polling interval for checking changes")
 	watchCmd.Flags().BoolVar(&watchIncludeClean, "include-clean", false, "notify when repository becomes clean")
 	watchCmd.Flags().StringVar(&watchOutputFormat, "format", "default", "output format: default, compact, json, llm")
-	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (macOS/Linux)")
+	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (not yet implemented; flag reserved)")
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
