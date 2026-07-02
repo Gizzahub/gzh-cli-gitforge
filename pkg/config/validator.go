@@ -79,6 +79,11 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		return fmt.Errorf("invalid provider '%s': must be github, gitlab, or gitea", p.Provider)
 	}
 
+	// Validate base URL if set (github.com / GitHub Enterprise / GitLab / Gitea)
+	if p.BaseURL != "" && !IsValidBaseURL(p.BaseURL) {
+		return fmt.Errorf("invalid baseURL '%s': must be an http(s) URL", p.BaseURL)
+	}
+
 	// Validate clone protocol if set
 	if p.CloneProto != "" && !validCloneProtos[p.CloneProto] {
 		return fmt.Errorf("invalid clone protocol '%s': must be ssh or https", p.CloneProto)
@@ -324,6 +329,15 @@ func IsValidCloneProto(proto string) bool {
 	return validCloneProtos[proto]
 }
 
+// IsValidBaseURL reports whether s is empty (optional) or an http(s) URL.
+// Used to validate forge base URLs (GitHub Enterprise / GitLab / Gitea).
+func IsValidBaseURL(s string) bool {
+	if s = strings.TrimSpace(s); s == "" {
+		return true
+	}
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
 // IsValidSyncStrategy checks if a sync strategy is valid.
 func IsValidSyncStrategy(strategy string) bool {
 	return validSyncStrategies[strategy]
@@ -527,6 +541,11 @@ func (v *Validator) ValidateForgeSource(s *ForgeSource) error {
 	// Validate org
 	if s.Org == "" {
 		return fmt.Errorf("forge source org is required")
+	}
+
+	// Validate base URL if set
+	if s.BaseURL != "" && !IsValidBaseURL(s.BaseURL) {
+		return fmt.Errorf("invalid baseURL '%s': must be an http(s) URL", s.BaseURL)
 	}
 
 	// Validate subgroup mode if specified

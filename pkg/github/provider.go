@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/go-github/v88/github"
@@ -15,37 +16,80 @@ import (
 type Provider struct {
 	client      *github.Client
 	token       string
+	baseURL     string // Enterprise base URL; empty means github.com
 	rateLimiter *ratelimit.Limiter
 	mu          sync.RWMutex
 }
 
-// NewProvider creates a new GitHub provider
-func NewProvider(token string) *Provider {
+// ProviderOptions configures the GitHub Provider.
+type ProviderOptions struct {
+	Token   string
+	BaseURL string // GitHub Enterprise Server URL; empty for github.com
+}
+
+// NewProvider creates a new GitHub provider.
+//
+// A non-empty baseURL targets a GitHub Enterprise Server instance. An empty
+// baseURL keeps the default github.com behavior (backward compatible).
+func NewProvider(token, baseURL string) *Provider {
+	return NewProviderWithOptions(ProviderOptions{
+		Token:   token,
+		BaseURL: baseURL,
+	})
+}
+
+// NewProviderWithOptions creates a new GitHub provider with custom options.
+func NewProviderWithOptions(opts ProviderOptions) *Provider {
 	p := &Provider{
-		token:       token,
+		token:       opts.Token,
+		baseURL:     normalizeBaseURL(opts.BaseURL),
 		rateLimiter: ratelimit.NewLimiter(5000), // GitHub default
 	}
-	p.initClient(token)
+	p.initClient(p.token, p.baseURL)
 	return p
 }
 
-func (p *Provider) initClient(token string) {
+// BaseURL returns the configured Enterprise base URL, or "" for github.com.
+func (p *Provider) BaseURL() string {
+	return p.baseURL
+}
+
+// initClient builds the github.Client. When baseURL is set the client is pointed
+// at a GitHub Enterprise Server instance via WithEnterpriseURLs; the uploads
+// endpoint follows the GHE convention (baseURL + "/api/uploads").
+//
+// NewClient only errors when an option fails to apply (e.g. URL parsing). If
+// WithEnterpriseURLs fails on a malformed URL we fall back to a token-only
+// client so callers never observe a nil client.
+func (p *Provider) initClient(token, baseURL string) {
 	var opts []github.ClientOptionsFunc
 	if token != "" {
 		opts = append(opts, github.WithAuthToken(token))
 	}
-	// NewClient only returns an error when an option fails to apply (e.g. URL
-	// parsing or env-proxy setup); WithAuthToken never errors, so it is safe to
-	// ignore the error for the options used here.
-	p.client, _ = github.NewClient(opts...)
+	if baseURL != "" {
+		opts = append(opts, github.WithEnterpriseURLs(baseURL, enterpriseUploadURL(baseURL)))
+	}
+
+	client, err := github.NewClient(opts...)
+	if err == nil {
+		p.client = client
+		return
+	}
+
+	// GHE URL malformed: fall back to the default (github.com) client.
+	var fallback []github.ClientOptionsFunc
+	if token != "" {
+		fallback = append(fallback, github.WithAuthToken(token))
+	}
+	p.client, _ = github.NewClient(fallback...)
 }
 
-// SetToken sets the authentication token
+// SetToken sets the authentication token, preserving the configured base URL.
 func (p *Provider) SetToken(token string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.token = token
-	p.initClient(token)
+	p.initClient(token, p.baseURL)
 	return nil
 }
 
@@ -198,4 +242,24 @@ func convertGitHubRepo(repo *github.Repository) *provider.Repository {
 		UpdatedAt:     repo.GetUpdatedAt().Time,
 		PushedAt:      repo.GetPushedAt().Time,
 	}
+}
+
+// normalizeBaseURL trims surrounding whitespace and trailing slashes. Non-http(s)
+// values collapse to "" (treated as github.com) so a stray config value can never
+// produce a malformed Enterprise client.
+func normalizeBaseURL(baseURL string) string {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL == "" {
+		return ""
+	}
+	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+		return ""
+	}
+	return strings.TrimRight(baseURL, "/")
+}
+
+// enterpriseUploadURL derives the GHE uploads endpoint from the REST base URL.
+// GitHub Enterprise Server serves uploads at "<baseURL>/api/uploads" by convention.
+func enterpriseUploadURL(baseURL string) string {
+	return strings.TrimRight(baseURL, "/") + "/api/uploads"
 }

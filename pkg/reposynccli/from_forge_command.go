@@ -297,7 +297,7 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, error) {
 	switch opts.Provider {
 	case "github":
-		return github.NewProvider(opts.Token), nil
+		return github.NewProvider(opts.Token, opts.BaseURL), nil
 
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{

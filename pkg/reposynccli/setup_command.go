@@ -190,7 +190,7 @@ func (f CommandFactory) executeSyncFromWizard(ctx context.Context, cmd *cobra.Co
 func createProviderFromWizard(opts *wizard.SyncSetupOptions) (reposync.ForgeProvider, error) {
 	switch opts.Provider {
 	case "github":
-		return github.NewProvider(opts.Token), nil
+		return github.NewProvider(opts.Token, opts.BaseURL), nil
 
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{

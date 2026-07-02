@@ -12,9 +12,11 @@
 //   - Token validation
 //   - Rate limit management
 //   - Pagination handling
+//   - GitHub Enterprise Server (custom base URL)
 //
 // # Usage
 //
-//	provider := github.NewProvider(token)
+//	// baseURL="" targets github.com; set it for a GitHub Enterprise Server.
+//	provider := github.NewProvider(token, baseURL)
 //	repos, err := provider.ListOrganizationRepos(ctx, "myorg")
 package github

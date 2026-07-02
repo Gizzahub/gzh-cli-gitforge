@@ -16,7 +16,7 @@ import (
 func createProvider(providerName, token, baseURL string) (provider.ProviderWithAuth, error) {
 	switch providerName {
 	case "github":
-		return github.NewProvider(token), nil
+		return github.NewProvider(token, baseURL), nil
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
 			Token:   token,

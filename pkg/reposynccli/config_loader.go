@@ -762,7 +762,7 @@ func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) 
 func createForgeProvider(provider, token, baseURL string, sshPort int) (reposync.ForgeProvider, error) {
 	switch provider {
 	case "github":
-		return github.NewProvider(token), nil
+		return github.NewProvider(token, baseURL), nil
 
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
