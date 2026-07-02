@@ -24,7 +24,7 @@ ______________________________________________________________________
 ### Git Forge Integration
 
 - **provider/** - Forge provider interface (GitHub/GitLab/Gitea)
-- **github/** - GitHub provider implementation
+- **github/** - GitHub provider (github.com + GitHub Enterprise Server via custom base URL)
 - **gitlab/** - GitLab provider implementation
 - **gitea/** - Gitea provider implementation
 
