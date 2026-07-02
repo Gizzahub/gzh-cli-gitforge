@@ -378,3 +378,79 @@ func TestValidateConfig_ChildConfigMode(t *testing.T) {
 		})
 	}
 }
+
+func TestIsValidBaseURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{"empty is allowed (optional field)", "", true},
+		{"whitespace only collapses to empty", "   ", true},
+		{"https is valid", "https://github.example.com", true},
+		{"http is valid", "http://ghe.insecure.local", true},
+		{"https with path is valid", "https://github.example.com/api/v3", true},
+		{"https with port is valid", "https://ghe.io:8443", true},
+		{"ftp scheme rejected", "ftp://github.example.com", false},
+		{"ssh scheme rejected", "ssh://git@github.example.com", false},
+		{"missing scheme rejected", "github.example.com", false},
+		{"javascript scheme rejected", "javascript:alert(1)", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidBaseURL(tt.url); got != tt.want {
+				t.Errorf("IsValidBaseURL(%q) = %v, want %v", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateProfile_InvalidBaseURL(t *testing.T) {
+	validator := NewValidator()
+
+	tests := []struct {
+		name    string
+		baseURL string
+		wantErr bool
+	}{
+		{"empty base URL is allowed", "", false},
+		{"https base URL is allowed", "https://github.example.com", false},
+		{"ftp base URL rejected", "ftp://github.example.com", true},
+		{"missing scheme rejected", "github.example.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Profile{Name: "test", Provider: "github", BaseURL: tt.baseURL}
+			err := validator.ValidateProfile(p)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateProfile() baseURL=%q error = %v, wantErr %v", tt.baseURL, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateForgeSource_InvalidBaseURL(t *testing.T) {
+	validator := NewValidator()
+
+	tests := []struct {
+		name    string
+		baseURL string
+		wantErr bool
+	}{
+		{"empty base URL is allowed", "", false},
+		{"https base URL is allowed", "https://github.example.com", false},
+		{"ftp base URL rejected", "ftp://x.example.com", true},
+		{"missing scheme rejected", "example.com", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &ForgeSource{Provider: "github", Org: "myorg", BaseURL: tt.baseURL}
+			err := validator.ValidateForgeSource(s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateForgeSource() baseURL=%q error = %v, wantErr %v", tt.baseURL, err, tt.wantErr)
+			}
+		})
+	}
+}
