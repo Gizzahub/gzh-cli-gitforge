@@ -375,12 +375,14 @@ Config File Structure (Reference):
 				if err := displaySyncResultsJSON(out, execResult, durationMs, verbose); err != nil {
 					return fmt.Errorf("failed to display JSON output: %w", err)
 				}
-				return nil // Skip recursive child diff printing for machine format for now
+				// Skip recursive child diff printing for machine format for now
+				return errSyncPartialFailure(execResult)
 			case "llm":
 				if err := displaySyncResultsLLM(out, execResult, durationMs); err != nil {
 					return fmt.Errorf("failed to display LLM output: %w", err)
 				}
-				return nil // Skip recursive child diff printing for machine format for now
+				// Skip recursive child diff printing for machine format for now
+				return errSyncPartialFailure(execResult)
 			}
 
 			// Recursive child workspace sync
@@ -419,7 +421,7 @@ Config File Structure (Reference):
 				}
 			}
 
-			return nil
+			return errSyncPartialFailure(execResult)
 		},
 	}
 
@@ -2044,6 +2046,17 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 	childOpts := opts
 	childOpts.Depth = opts.Depth + 1
 	syncChildWorkspaces(ctx, execResult, childOpts)
+}
+
+// errSyncPartialFailure returns a non-nil error when some repositories failed
+// to sync, so the process exit code reflects partial failure in scripts and CI.
+func errSyncPartialFailure(result reposync.ExecutionResult) error {
+	failed := len(result.Failed)
+	if failed == 0 {
+		return nil
+	}
+	total := failed + len(result.Succeeded) + len(result.Skipped)
+	return fmt.Errorf("%d of %d repositories failed to sync", failed, total)
 }
 
 // buildResultTree constructs a TreeNode hierarchy from execution results.

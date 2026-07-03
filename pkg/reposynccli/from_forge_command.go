@@ -290,6 +290,10 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 	fmt.Fprintf(cmd.OutOrStdout(), "\nSync completed: %d succeeded, %d failed, %d skipped\n",
 		len(result.Succeeded), len(result.Failed), len(result.Skipped))
 
+	if failed := len(result.Failed); failed > 0 {
+		total := failed + len(result.Succeeded) + len(result.Skipped)
+		return fmt.Errorf("%d of %d repositories failed to sync", failed, total)
+	}
 	return nil
 }
 
