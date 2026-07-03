@@ -54,6 +54,12 @@ func (f CommandFactory) runSetup(cmd *cobra.Command) error {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to save config: %v\n", err)
 		} else {
 			fmt.Fprintf(cmd.OutOrStdout(), "\nConfiguration saved to: %s\n", opts.ConfigPath)
+			if opts.Token != "" {
+				envVar := tokenEnvVarForProvider(opts.Provider)
+				fmt.Fprintf(cmd.OutOrStdout(),
+					"Note: the token itself was not saved; the config references ${%s}.\nExport it before syncing: export %s=<your-token>\n",
+					envVar, envVar)
+			}
 		}
 	}
 
@@ -74,6 +80,18 @@ func (f CommandFactory) runSetup(cmd *cobra.Command) error {
 	return nil
 }
 
+// tokenEnvVarForProvider returns the conventional token env var name for a provider.
+func tokenEnvVarForProvider(provider string) string {
+	switch provider {
+	case "gitlab":
+		return "GITLAB_TOKEN"
+	case "gitea":
+		return "GITEA_TOKEN"
+	default:
+		return "GITHUB_TOKEN"
+	}
+}
+
 func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 	// Create a SyncConfig from wizard options
 	config := map[string]any{
@@ -89,7 +107,8 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 	}
 
 	if opts.Token != "" {
-		config["token"] = opts.Token
+		// Never persist raw tokens to disk; reference an env var instead.
+		config["token"] = "${" + tokenEnvVarForProvider(opts.Provider) + "}"
 	}
 
 	if opts.SSHPort != 0 && opts.SSHPort != 22 {
