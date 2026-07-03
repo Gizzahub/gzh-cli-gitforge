@@ -48,6 +48,18 @@ func init() {
 func runUpdate(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	// Load config with profile support
+	effective, _ := LoadEffectiveConfig(cmd, nil)
+	if effective != nil {
+		// Apply config if flag not explicitly set
+		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
+			updateFlags.Parallel = effective.Parallel
+		}
+		if verbose {
+			PrintConfigSources(cmd, effective)
+		}
+	}
+
 	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)
 	if err != nil {

@@ -274,17 +274,10 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Load and show effective config
-	loader, err := config.NewLoader()
-	if err != nil {
-		return fmt.Errorf("failed to create loader: %w", err)
-	}
-
-	if err := loader.Load(); err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	effective, err := loader.ResolveConfig(nil)
+	// Load and show effective config.
+	// LoadEffectiveConfig applies the global --profile override, so the output
+	// matches what other commands will actually use.
+	effective, err := LoadEffectiveConfig(cmd, nil)
 	if err != nil {
 		return fmt.Errorf("failed to resolve config: %w", err)
 	}
