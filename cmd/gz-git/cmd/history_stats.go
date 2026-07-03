@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -133,10 +134,11 @@ func runHistoryStats(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// parseOutputFormat converts string format to OutputFormat enum
+// parseOutputFormat converts string format to OutputFormat enum.
+// It must accept every format that validateHistoryFormat allows.
 func parseOutputFormat(format string) (history.OutputFormat, error) {
 	switch format {
-	case "table":
+	case "table", "default", "compact":
 		return history.FormatTable, nil
 	case "json":
 		return history.FormatJSON, nil
@@ -147,7 +149,7 @@ func parseOutputFormat(format string) (history.OutputFormat, error) {
 	case "llm":
 		return history.FormatLLM, nil
 	default:
-		return history.FormatTable, fmt.Errorf("unknown format: %s (valid: table, json, csv, markdown, llm)", format)
+		return history.FormatTable, fmt.Errorf("unknown format: %s (valid: %s)", format, strings.Join(ValidHistoryFormats, ", "))
 	}
 }
 

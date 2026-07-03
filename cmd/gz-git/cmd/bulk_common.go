@@ -120,6 +120,15 @@ func validateBulkDepth(cmd *cobra.Command, depth int) error {
 	return nil
 }
 
+// errPartialFailure returns a non-nil error when some repositories failed,
+// so the process exit code reflects partial failure in scripts and CI.
+func errPartialFailure(failed, total int) error {
+	if failed > 0 {
+		return fmt.Errorf("%d of %d repositories failed", failed, total)
+	}
+	return nil
+}
+
 // Core formats (supported by all commands)
 var CoreFormats = cliutil.CoreFormats
 
@@ -156,7 +165,7 @@ func createBulkLogger(verbose bool) repository.Logger {
 // The callback is used to display progress during bulk operations
 func createProgressCallback(operationName string, format string, quiet bool) func(int, int, string) {
 	return func(current, total int, repo string) {
-		if !quiet && format != "compact" && format != "json" {
+		if !quiet && format != "compact" && !cliutil.IsMachineFormat(format) {
 			fmt.Printf("[%d/%d] %s %s...\n", current, total, operationName, repo)
 		}
 	}
@@ -210,7 +219,7 @@ func getBulkStatusIcon(status string, changesCount int) string {
 	// Skipped/dry-run states
 	case "skipped":
 		return "⊘"
-	case "would-fetch", "would-pull", "would-push", "would-clean":
+	case "would-fetch", "would-pull", "would-push", "would-update", "would-clean":
 		return "→"
 
 	// Warning states

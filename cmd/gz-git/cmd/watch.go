@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -254,22 +255,30 @@ func (f *compactFormatter) Format(event watch.Event) string {
 // jsonFormatter provides JSON output for machine parsing.
 type jsonFormatter struct{}
 
+// watchEventJSON is the wire format for a watch event.
+type watchEventJSON struct {
+	Timestamp string   `json:"timestamp"`
+	Path      string   `json:"path"`
+	Type      string   `json:"type"`
+	Files     []string `json:"files"`
+}
+
 func (f *jsonFormatter) Format(event watch.Event) string {
-	// Simplified JSON for now
-	files := "[]"
-	if len(event.Files) > 0 {
-		fileList := make([]string, len(event.Files))
-		for i, file := range event.Files {
-			fileList[i] = fmt.Sprintf("%q", file)
-		}
-		files = "[" + strings.Join(fileList, ",") + "]"
+	files := event.Files
+	if files == nil {
+		files = []string{}
 	}
 
-	return fmt.Sprintf(`{"timestamp":"%s","path":"%s","type":"%s","files":%s}`+"\n",
-		event.Timestamp.Format(time.RFC3339),
-		event.Path,
-		event.Type,
-		files)
+	data, err := json.Marshal(watchEventJSON{
+		Timestamp: event.Timestamp.Format(time.RFC3339),
+		Path:      event.Path,
+		Type:      string(event.Type),
+		Files:     files,
+	})
+	if err != nil {
+		return fmt.Sprintf(`{"error":%q}`+"\n", err.Error())
+	}
+	return string(data) + "\n"
 }
 
 // llmFormatter provides LLM-friendly structured output.
