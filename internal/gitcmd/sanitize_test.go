@@ -83,9 +83,27 @@ func TestSanitizeArgs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "unsafe flag",
-			args:    []string{"log", "--malicious-flag"},
-			wantErr: true,
+			// Regression: these flags were rejected by the removed whitelist,
+			// which made `gz-git stash save -u` always fail.
+			name:    "stash flags previously blocked by whitelist",
+			args:    []string{"stash", "push", "--include-untracked", "--keep-index"},
+			want:    []string{"stash", "push", "--include-untracked", "--keep-index"},
+			wantErr: false,
+		},
+		{
+			// No shell is involved, so a non-allowlisted flag without dangerous
+			// characters is accepted; option injection is handled by '--' + value validators.
+			name:    "non-allowlisted flag is accepted (no shell)",
+			args:    []string{"log", "--first-parent"},
+			want:    []string{"log", "--first-parent"},
+			wantErr: false,
+		},
+		{
+			// The '--' end-of-options separator must pass through untouched.
+			name:    "end-of-options separator",
+			args:    []string{"checkout", "--", "path/to/file"},
+			want:    []string{"checkout", "--", "path/to/file"},
+			wantErr: false,
 		},
 		{
 			name:    "arguments with whitespace trimming",
@@ -125,65 +143,6 @@ func TestSanitizeArgs(t *testing.T) {
 				if got[i] != tt.want[i] {
 					t.Errorf("SanitizeArgs() arg[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
-			}
-		})
-	}
-}
-
-// TestValidateFlag tests flag validation
-func TestValidateFlag(t *testing.T) {
-	tests := []struct {
-		name    string
-		flag    string
-		wantErr bool
-	}{
-		{
-			name:    "safe flag",
-			flag:    "--porcelain",
-			wantErr: false,
-		},
-		{
-			name:    "safe flag with value",
-			flag:    "--branch=main",
-			wantErr: false,
-		},
-		{
-			name:    "short flag",
-			flag:    "-v",
-			wantErr: false,
-		},
-		{
-			name:    "unsafe flag",
-			flag:    "--exec=malicious",
-			wantErr: true,
-		},
-		{
-			name:    "unknown flag",
-			flag:    "--unknown-flag",
-			wantErr: true,
-		},
-		{
-			name:    "help flag",
-			flag:    "--help",
-			wantErr: false,
-		},
-		{
-			name:    "version flag",
-			flag:    "--version",
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateFlag(tt.flag)
-
-			if tt.wantErr && err == nil {
-				t.Errorf("validateFlag() expected error, got nil")
-			}
-
-			if !tt.wantErr && err != nil {
-				t.Errorf("validateFlag() unexpected error: %v", err)
 			}
 		})
 	}
@@ -461,6 +420,11 @@ func TestSanitizeBranchName(t *testing.T) {
 		{
 			name:       "branch starting with dot",
 			branchName: ".feature",
+			wantErr:    true,
+		},
+		{
+			name:       "branch starting with dash (option injection)",
+			branchName: "--upload-pack=evil",
 			wantErr:    true,
 		},
 		{

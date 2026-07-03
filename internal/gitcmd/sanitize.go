@@ -17,121 +17,14 @@ var dangerousPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\r|\n`),                   // Newlines (could break parsing)
 }
 
-// Safe Git flags that are known to be secure.
-// This is a whitelist approach - only these flags are allowed.
-var safeGitFlags = map[string]bool{
-	// Common flags
-	"--help":    true,
-	"--version": true,
-	"--verbose": true,
-	"--quiet":   true,
-
-	// Repository flags
-	"--git-dir":   true,
-	"--work-tree": true,
-	"--bare":      true,
-
-	// Clone flags
-	"--branch":           true,
-	"--depth":            true,
-	"--single-branch":    true,
-	"--no-single-branch": true,
-	"--recursive":        true,
-	"--shallow-since":    true,
-	"--shallow-exclude":  true,
-
-	// Status flags
-	"--porcelain":       true,
-	"--short":           true,
-	"--long":            true,
-	"--untracked-files": true,
-	"--ignored":         true,
-
-	// Log flags
-	"--oneline":   true,
-	"--graph":     true,
-	"--decorate":  true,
-	"--all":       true,
-	"--stat":      true,
-	"--shortstat": true,
-	"--format":    true,
-	"--pretty":    true,
-	"--since":     true,
-	"--until":     true,
-	"--author":    true,
-	"--committer": true,
-	"--max-count": true,
-	"--follow":    true,
-	"--date":      true,
-
-	// Commit flags
-	"--message":     true,
-	"--amend":       true,
-	"--no-verify":   true,
-	"--allow-empty": true,
-
-	// Fetch/Pull/Push flags
-	"--force":        true,
-	"--dry-run":      true,
-	"--tags":         true,
-	"--no-tags":      true,
-	"--prune":        true,
-	"--set-upstream": true,
-
-	// Merge/Rebase flags
-	"--ff":        true,
-	"--no-ff":     true,
-	"--ff-only":   true,
-	"--squash":    true,
-	"--rebase":    true,
-	"--no-rebase": true,
-	"--abort":     true,
-	"--continue":  true,
-	"--skip":      true,
-
-	// Diff flags
-	"--cached":      true,
-	"--staged":      true,
-	"--name-only":   true,
-	"--name-status": true,
-	"--numstat":     true,
-	"--unified":     true,
-	"--no-color":    true,
-	"--color":       true,
-
-	// Reset flags
-	"--hard":  true,
-	"--soft":  true,
-	"--mixed": true,
-
-	// Remote flags
-	"--add":    true,
-	"--remove": true,
-	"--rename": true,
-
-	// Branch flags
-	"--delete":       true,
-	"--force-delete": true,
-	"--list":         true,
-	"--remote":       true,
-	"--merged":       true,
-	"--no-merged":    true,
-	"--show-current": true,
-
-	// Other safe flags
-	"--abbrev-ref":          true,
-	"--show-toplevel":       true,
-	"--is-inside-work-tree": true,
-	"--verify":              true,
-	"--track":               true,
-
-	// Rev-list flags
-	"--left-right": true,
-	"--count":      true,
-}
-
 // SanitizeArgs validates and sanitizes Git command arguments.
-// This prevents command injection and other security issues.
+//
+// Git is executed via exec.CommandContext without a shell, so a flag allowlist
+// provides no shell-injection defense — it only blocks legitimate flags until
+// each one is manually added. The residual threat is option injection (a
+// user-supplied value parsed by git as a flag), which is handled by the '--'
+// end-of-options separator and the per-value validators (SanitizeBranchName,
+// SanitizePath, SanitizeURL, SanitizeCommitMessage) at the call sites.
 //
 // Returns an error if any argument contains dangerous patterns.
 // Returns the sanitized arguments if all checks pass.
@@ -156,46 +49,11 @@ func SanitizeArgs(args []string) ([]string, error) {
 			}
 		}
 
-		// Validate flags
-		if strings.HasPrefix(arg, "-") {
-			if err := validateFlag(arg); err != nil {
-				return nil, fmt.Errorf("argument %d: %w", i, err)
-			}
-		}
-
 		// Trim and add to sanitized list
 		sanitized = append(sanitized, strings.TrimSpace(arg))
 	}
 
 	return sanitized, nil
-}
-
-// validateFlag checks if a flag is in the safe list.
-// Flags with values (e.g., --branch=main) are also validated.
-func validateFlag(flag string) error {
-	// Allow the special '--' separator (used to separate flags from paths)
-	if flag == "--" {
-		return nil
-	}
-
-	// Extract flag name (before '=' if present)
-	flagName := flag
-	if before, _, ok := strings.Cut(flag, "="); ok {
-		flagName = before
-	}
-
-	// Check if flag is in whitelist
-	if !safeGitFlags[flagName] {
-		// Allow short flags (-v, -q, etc.) if single character
-		if len(flagName) == 2 && flagName[0] == '-' && flagName[1] != '-' {
-			// Single-letter short flags are generally safe
-			return nil
-		}
-
-		return fmt.Errorf("unknown or unsafe Git flag: %s", flagName)
-	}
-
-	return nil
 }
 
 // SanitizePath validates a file system path.
@@ -307,6 +165,7 @@ func SanitizeBranchName(name string) error {
 
 	// Git branch name restrictions
 	invalidPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`^-`),            // Cannot start with dash (option injection)
 		regexp.MustCompile(`^\.`),           // Cannot start with dot
 		regexp.MustCompile(`\.\.`),          // Cannot contain double dots
 		regexp.MustCompile(`[~^:?*\[\]\\]`), // Cannot contain special chars
