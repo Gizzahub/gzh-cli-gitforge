@@ -85,9 +85,10 @@ func TestCloneCommand(t *testing.T) {
 		tmpDir := t.TempDir()
 		repo := &TestRepo{Path: tmpDir, T: t}
 
-		// Bulk clone mode: command succeeds but shows errors in results
+		// Bulk clone mode: errors are shown in results AND the command
+		// exits non-zero so scripts/CI can detect partial failure.
 		// Use --url flag pattern (consistent with commit --messages)
-		output := repo.RunGzhGitSuccess("clone", "--url", "invalid-url")
+		output := repo.RunGzhGitExpectError("clone", "--url", "invalid-url")
 
 		// Should show error status in results
 		AssertContains(t, output, "error")

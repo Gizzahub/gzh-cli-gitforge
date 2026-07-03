@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -189,7 +188,7 @@ func runClone(cmd *cobra.Command, args []string) error {
 	// Display results
 	displayCloneResults(result)
 
-	return nil
+	return errPartialFailure(result.TotalFailed, result.TotalRequested)
 }
 
 // collectCloneURLs collects URLs from --url flags and --file.
@@ -495,20 +494,22 @@ func cloneSingleRepository(
 	var status string
 
 	if exists && isGitRepo && shouldUpdate {
-		// Update existing repository based on strategy
-		pullCmd := exec.CommandContext(ctx, "git", "-C", destination, "pull", "--rebase")
-		output, pullErr := pullCmd.CombinedOutput()
+		// Update existing repository using the configured strategy
+		// (reset/fetch/rebase/pull/clone), same dispatch as CloneOrUpdate.
+		updateResult, updateErr := client.CloneOrUpdate(ctx, repository.CloneOrUpdateOptions{
+			URL:         spec.URL,
+			Destination: destination,
+			Strategy:    baseOpts.Strategy,
+			Branch:      branch,
+			Depth:       depth,
+			Logger:      baseOpts.Logger,
+		})
 
-		if pullErr != nil {
-			err = fmt.Errorf("git pull failed: %w (output: %s)", pullErr, string(output))
+		if updateErr != nil {
+			err = fmt.Errorf("update failed (strategy: %s): %w", baseOpts.Strategy, updateErr)
 			status = "error"
 		} else {
-			// Check if there were any changes
-			if strings.Contains(string(output), "Already up to date") {
-				status = "up-to-date"
-			} else {
-				status = "updated"
-			}
+			status = updateResult.Action
 		}
 	} else {
 		// Clone new repository

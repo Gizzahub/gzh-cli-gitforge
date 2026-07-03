@@ -530,7 +530,7 @@ func runCloneFromFlatConfig(ctx context.Context, config *CloneConfig, directory 
 	results := cloneRepositoriesParallel(ctx, client, config.Repositories, baseOpts, "", nil)
 	displayCloneResults(results)
 
-	return nil
+	return errPartialFailure(results.TotalFailed, results.TotalRequested)
 }
 
 // runCloneFromGroupedConfig handles grouped format (named groups with targets).
@@ -600,7 +600,7 @@ func runCloneFromGroupedConfig(ctx context.Context, config *CloneConfig, directo
 			switch r.Status {
 			case "cloned":
 				allResults.TotalCloned++
-			case "updated", "pulled", "rebased":
+			case "updated", "pulled", "rebased", "fetched", "reset":
 				allResults.TotalUpdated++
 			case "skipped":
 				allResults.TotalSkipped++
@@ -613,7 +613,7 @@ func runCloneFromGroupedConfig(ctx context.Context, config *CloneConfig, directo
 	allResults.Duration = time.Since(startTime)
 	displayCloneResults(allResults)
 
-	return nil
+	return errPartialFailure(allResults.TotalFailed, allResults.TotalRequested)
 }
 
 // buildGroupCloneOptions builds clone options for a specific group.
@@ -743,7 +743,7 @@ func cloneRepositoriesParallel(
 		switch result.Status {
 		case "cloned":
 			results.TotalCloned++
-		case "updated", "pulled", "rebased":
+		case "updated", "pulled", "rebased", "fetched", "reset":
 			results.TotalUpdated++
 		case "skipped":
 			results.TotalSkipped++

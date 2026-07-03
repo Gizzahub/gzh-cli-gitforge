@@ -246,16 +246,16 @@ func TestCLIInvalidCommand(t *testing.T) {
 }
 
 // TestCLICloneInvalidURL tests clone with invalid URL.
-// Note: Bulk clone mode returns success (exit 0) and reports failures in results.
+// Bulk clone reports failures in results AND exits non-zero so scripts/CI
+// can detect partial failure.
 func TestCLICloneInvalidURL(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Use --url flag pattern
 	cmd := exec.Command(getBinaryPath(), "clone", tmpDir, "--url", "not-a-valid-url") //nolint:noctx // test helper, no context needed
 	output, err := cmd.CombinedOutput()
-	// Bulk mode: command succeeds but reports failures in output
-	if err != nil {
-		t.Fatalf("Unexpected error from bulk clone command: %v\nOutput: %s", err, output)
+	if err == nil {
+		t.Fatalf("Expected non-zero exit for failed clone, got success\nOutput: %s", output)
 	}
 
 	outputStr := string(output)
