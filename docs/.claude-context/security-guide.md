@@ -26,8 +26,8 @@ func goodExample(url string) error {
 
 1. **Never use shell execution** (`sh -c`)
 1. **Always pass arguments separately** (not concatenated)
-1. **Validate input format** before execution
-1. **Use allowlists** for known-safe values
+1. **Validate input format** before execution — per-value validators (URL scheme, branch name, path), not a git-flag allowlist
+1. **Prevent option injection**: reject `-`-leading values (`SanitizeBranchName`) and put a `--` separator before user-supplied positional args. No shell is involved, so a flag allowlist adds no shell-injection defense.
 
 ### Validation Functions
 

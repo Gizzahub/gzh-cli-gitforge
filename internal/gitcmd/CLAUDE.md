@@ -48,8 +48,13 @@ if err := gitcmd.SanitizeInput(userInput); err != nil {
 - System dirs: `/etc/ /usr/ /bin/ /sbin/`
 - Null bytes, newlines
 
-### Safe flags whitelist
-Only whitelisted flags in `safeGitFlags` map are allowed. Add new flags there explicitly.
+### No flag allowlist (by design)
+Git runs via `exec.CommandContext` **without a shell**, so a flag allowlist gives no
+shell-injection defense — it only breaks legitimate flags. The residual threat is
+**option injection** (a user value parsed by git as a flag, e.g. a branch named
+`--upload-pack=…`). Defend it at the value layer, not with a flag list:
+- `--` end-of-options separator before user-supplied positional args
+- per-value validators: `SanitizeBranchName` (rejects leading `-`), `SanitizePath`, `SanitizeURL`, `SanitizeCommitMessage`
 
 ---
 

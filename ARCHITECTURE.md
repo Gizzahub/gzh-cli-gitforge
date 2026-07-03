@@ -914,37 +914,19 @@ func SanitizeArgs(args []string) ([]string, error) {
             }
         }
 
-        // Additional validation for specific arg types
-        if strings.HasPrefix(arg, "-") {
-            // Flag validation
-            if !isValidGitFlag(arg) {
-                return nil, fmt.Errorf("invalid Git flag: %s", arg)
-            }
-        }
-
-        sanitized = append(sanitized, arg)
+        sanitized = append(sanitized, strings.TrimSpace(arg))
     }
 
     return sanitized, nil
 }
-
-func isValidGitFlag(flag string) bool {
-    // Whitelist of known safe Git flags
-    safeFlags := []string{
-        "--all", "--amend", "--no-verify", "--dry-run",
-        "--force", "--quiet", "--verbose",
-        // ... more safe flags
-    }
-
-    for _, safe := range safeFlags {
-        if flag == safe || strings.HasPrefix(flag, safe+"=") {
-            return true
-        }
-    }
-
-    return false
-}
 ```
+
+> **No flag allowlist by design.** Git is executed via `exec.CommandContext`
+> without a shell, so a flag allowlist provides no shell-injection defense and only
+> breaks legitimate flags. The residual threat is *option injection* (a user value
+> parsed by git as a flag), handled by the `--` end-of-options separator and the
+> per-value validators (`SanitizeBranchName`, `SanitizePath`, `SanitizeURL`,
+> `SanitizeCommitMessage`) at the call sites.
 
 ### 10.3 Path Validation
 
