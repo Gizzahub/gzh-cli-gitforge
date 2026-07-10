@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -390,6 +391,179 @@ func TestIntegration_CloneOrUpdate_NonGitDirectory(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("CloneOrUpdate() should return error for non-git directory")
+	}
+}
+
+// runGitCmd runs a git command in dir and fails the test on error.
+func runGitCmd(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context available
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v failed: %v\nOutput: %s", args, err, output)
+	}
+}
+
+// gitOutput runs a git command in dir and returns its trimmed stdout.
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context available
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v failed: %v", args, err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// setupUpstreamAndClone creates an upstream repo with an initial commit and a local
+// clone of it, returning both resolved paths and the checked-out branch name.
+func setupUpstreamAndClone(t *testing.T) (upstream, work, branch string) {
+	t.Helper()
+
+	upstream = initTestGitRepo(t, t.TempDir())
+
+	cloneParent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	work = filepath.Join(cloneParent, "work")
+
+	runGitCmd(t, cloneParent, "clone", upstream, work)
+	// A local clone does not inherit the upstream's local git identity.
+	runGitCmd(t, work, "config", "user.email", "test@example.com")
+	runGitCmd(t, work, "config", "user.name", "Test User")
+
+	branch = gitOutput(t, work, "rev-parse", "--abbrev-ref", "HEAD")
+	return upstream, work, branch
+}
+
+// TestIntegration_CloneOrUpdate_ResetStrategy verifies that StrategyReset hard-resets
+// the working tree to match remote HEAD, discarding local commits and uncommitted edits.
+func TestIntegration_CloneOrUpdate_ResetStrategy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	upstream, work, branch := setupUpstreamAndClone(t)
+
+	// Advance upstream by one commit.
+	if err := os.WriteFile(filepath.Join(upstream, "README.md"), []byte("# Updated Upstream\n"), 0o644); err != nil {
+		t.Fatalf("write upstream: %v", err)
+	}
+	runGitCmd(t, upstream, "commit", "-am", "upstream advance")
+	upstreamHEAD := gitOutput(t, upstream, "rev-parse", "HEAD")
+
+	// Create a divergent local commit plus an uncommitted change in the clone.
+	if err := os.WriteFile(filepath.Join(work, "README.md"), []byte("# Local Divergent\n"), 0o644); err != nil {
+		t.Fatalf("write divergent commit: %v", err)
+	}
+	runGitCmd(t, work, "commit", "-am", "local divergent")
+	if err := os.WriteFile(filepath.Join(work, "README.md"), []byte("# Dirty Uncommitted\n"), 0o644); err != nil {
+		t.Fatalf("dirty working tree: %v", err)
+	}
+
+	ctx := context.Background()
+	client := NewClient()
+
+	result, err := client.CloneOrUpdate(ctx, CloneOrUpdateOptions{
+		URL:         upstream,
+		Destination: work,
+		Strategy:    StrategyReset,
+		Branch:      branch,
+	})
+	if err != nil {
+		t.Fatalf("CloneOrUpdate() error = %v", err)
+	}
+
+	if result.Action != "reset" {
+		t.Errorf("Action = %q, want 'reset'", result.Action)
+	}
+	if result.StrategyUsed != StrategyReset {
+		t.Errorf("StrategyUsed = %q, want StrategyReset", result.StrategyUsed)
+	}
+	if !result.Success {
+		t.Error("Success should be true")
+	}
+
+	// Local HEAD now matches upstream; the divergent local commit is discarded.
+	if got := gitOutput(t, work, "rev-parse", "HEAD"); got != upstreamHEAD {
+		t.Errorf("work HEAD = %q, want upstream HEAD %q", got, upstreamHEAD)
+	}
+
+	// Working tree content matches remote; the uncommitted change is discarded.
+	content, err := os.ReadFile(filepath.Join(work, "README.md"))
+	if err != nil {
+		t.Fatalf("read work README: %v", err)
+	}
+	if string(content) != "# Updated Upstream\n" {
+		t.Errorf("README = %q, want upstream content", string(content))
+	}
+
+	// Working tree is clean after the reset.
+	if status := gitOutput(t, work, "status", "--porcelain"); status != "" {
+		t.Errorf("working tree not clean after reset: %q", status)
+	}
+}
+
+// TestIntegration_CloneOrUpdate_FetchStrategy verifies that StrategyFetch advances the
+// remote-tracking ref without moving the local branch or touching the working tree.
+func TestIntegration_CloneOrUpdate_FetchStrategy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	upstream, work, branch := setupUpstreamAndClone(t)
+
+	origWorkHEAD := gitOutput(t, work, "rev-parse", "HEAD")
+
+	// Advance upstream by one commit.
+	if err := os.WriteFile(filepath.Join(upstream, "README.md"), []byte("# Updated Upstream\n"), 0o644); err != nil {
+		t.Fatalf("write upstream: %v", err)
+	}
+	runGitCmd(t, upstream, "commit", "-am", "upstream advance")
+	upstreamHEAD := gitOutput(t, upstream, "rev-parse", "HEAD")
+
+	ctx := context.Background()
+	client := NewClient()
+
+	result, err := client.CloneOrUpdate(ctx, CloneOrUpdateOptions{
+		URL:         upstream,
+		Destination: work,
+		Strategy:    StrategyFetch,
+		Branch:      branch,
+	})
+	if err != nil {
+		t.Fatalf("CloneOrUpdate() error = %v", err)
+	}
+
+	if result.Action != "fetched" {
+		t.Errorf("Action = %q, want 'fetched'", result.Action)
+	}
+	if result.StrategyUsed != StrategyFetch {
+		t.Errorf("StrategyUsed = %q, want StrategyFetch", result.StrategyUsed)
+	}
+	if !result.Success {
+		t.Error("Success should be true")
+	}
+
+	// Local branch is untouched: fetch does not move HEAD.
+	if got := gitOutput(t, work, "rev-parse", "HEAD"); got != origWorkHEAD {
+		t.Errorf("work HEAD = %q, want unchanged %q", got, origWorkHEAD)
+	}
+
+	// Working tree content is unchanged from the original clone.
+	content, err := os.ReadFile(filepath.Join(work, "README.md"))
+	if err != nil {
+		t.Fatalf("read work README: %v", err)
+	}
+	if string(content) != "# Test Repository\n" {
+		t.Errorf("README = %q, want original content", string(content))
+	}
+
+	// Remote-tracking ref advanced to the new upstream HEAD.
+	if got := gitOutput(t, work, "rev-parse", "origin/"+branch); got != upstreamHEAD {
+		t.Errorf("origin/%s = %q, want %q", branch, got, upstreamHEAD)
 	}
 }
 
