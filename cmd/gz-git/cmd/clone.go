@@ -56,8 +56,17 @@ See 'gcl' alias for single repository cloning.`),
 func init() {
 	rootCmd.AddCommand(cloneCmd)
 
-	// Bulk operation flags
-	addBulkFlags(cloneCmd, &cloneFlags)
+	// Bulk operation flags — clone only consumes parallel/format/dry-run.
+	// Suppress non-functional bulk flags; --submodules/--single-branch below
+	// cover clone's own recurse/branch scoping.
+	addBulkFlagsWithOpts(cloneCmd, &cloneFlags, BulkFlagOptions{
+		SkipScanDepth: true,
+		SkipRecursive: true,
+		SkipInclude:   true,
+		SkipExclude:   true,
+		SkipWatch:     true,
+		SkipFetch:     true,
+	})
 
 	// Clone-specific flags
 	cloneCmd.Flags().StringArrayVar(&cloneURLs, "url", nil, "repository URL to clone (can be repeated)")
@@ -140,16 +149,18 @@ func runClone(cmd *cobra.Command, args []string) error {
 
 	// Build options
 	opts := repository.BulkCloneOptions{
-		URLs:      urls,
-		Directory: directory,
-		Structure: structure,
-		Strategy:  strategy,
-		Branch:    cloneBranch,
-		Depth:     cloneDepth,
-		Parallel:  cloneFlags.Parallel,
-		DryRun:    cloneFlags.DryRun,
-		Verbose:   verbose,
-		Logger:    logger,
+		URLs:         urls,
+		Directory:    directory,
+		Structure:    structure,
+		Strategy:     strategy,
+		Branch:       cloneBranch,
+		Depth:        cloneDepth,
+		SingleBranch: cloneSingleBranch,
+		Recursive:    cloneSubmodules,
+		Parallel:     cloneFlags.Parallel,
+		DryRun:       cloneFlags.DryRun,
+		Verbose:      verbose,
+		Logger:       logger,
 		ProgressCallback: func(current, total int, url string) {
 			if shouldShowProgress(cloneFlags.Format, quiet) {
 				repoName, _ := repository.ExtractRepoNameFromURL(url)

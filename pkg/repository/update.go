@@ -57,6 +57,12 @@ type CloneOrUpdateOptions struct {
 	// Only effective when Branch is specified
 	CreateBranch bool
 
+	// SingleBranch clones only the history of the target branch (--single-branch)
+	SingleBranch bool
+
+	// Recursive initializes and clones submodules (--recurse-submodules)
+	Recursive bool
+
 	// Logger is an optional logger for operation feedback
 	Logger Logger
 
@@ -192,6 +198,8 @@ func (c *client) performCloneOperation(ctx context.Context, opts CloneOrUpdateOp
 		Branch:       opts.Branch,
 		Depth:        opts.Depth,
 		CreateBranch: opts.CreateBranch,
+		SingleBranch: opts.SingleBranch,
+		Recursive:    opts.Recursive,
 		Logger:       logger,
 		Progress:     opts.Progress,
 		Env:          opts.Env,

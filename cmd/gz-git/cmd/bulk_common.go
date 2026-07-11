@@ -19,7 +19,7 @@ import (
 // WatchModeHelpText provides consistent documentation for watch mode across commands.
 //
 // This constant centralizes watch mode documentation to ensure consistency
-// across all commands that support the --watch flag (status, fetch, pull, push, clone).
+// across all commands that support the --watch flag (status, fetch, pull, push).
 const WatchModeHelpText = `
 Watch Mode:
   Use --watch to continuously execute the operation at regular intervals.
@@ -63,17 +63,26 @@ type BulkFlagOptions struct {
 	SkipFormat    bool
 	SkipWatch     bool
 	SkipRecursive bool
+	SkipScanDepth bool
+	SkipInclude   bool
+	SkipExclude   bool
 }
 
 // addBulkFlagsWithOpts registers common bulk operation flags to a command, skipping those specified in opts.
 func addBulkFlagsWithOpts(cmd *cobra.Command, flags *BulkCommandFlags, opts BulkFlagOptions) {
-	cmd.Flags().IntVarP(&flags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
+	if !opts.SkipScanDepth {
+		cmd.Flags().IntVarP(&flags.Depth, "scan-depth", "d", repository.DefaultBulkMaxDepth, "directory depth to scan for repositories")
+	}
 	cmd.Flags().IntVarP(&flags.Parallel, "parallel", "j", repository.DefaultBulkParallel, "number of parallel operations")
 	if !opts.SkipRecursive {
 		cmd.Flags().BoolVarP(&flags.IncludeSubmodules, "recursive", "r", false, "recursively include nested repositories and submodules")
 	}
-	cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
-	cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	if !opts.SkipInclude {
+		cmd.Flags().StringVar(&flags.Include, "include", "", "regex pattern to include repositories")
+	}
+	if !opts.SkipExclude {
+		cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	}
 
 	if !opts.SkipFormat {
 		cmd.Flags().StringVar(&flags.Format, "format", "default", "output format: default, compact, json, llm")

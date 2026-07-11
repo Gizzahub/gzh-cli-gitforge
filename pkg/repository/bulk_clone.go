@@ -45,6 +45,12 @@ type BulkCloneOptions struct {
 	// Depth limits clone depth (0 = full clone).
 	Depth int
 
+	// SingleBranch clones only the target branch history (--single-branch).
+	SingleBranch bool
+
+	// Recursive initializes and clones submodules (--recurse-submodules).
+	Recursive bool
+
 	// Parallel is the number of concurrent operations.
 	Parallel int
 
@@ -279,12 +285,14 @@ func (c *client) cloneSingleRepo(ctx context.Context, url string, opts BulkClone
 
 	// Use CloneOrUpdate for the actual operation
 	cloneOpts := CloneOrUpdateOptions{
-		URL:         url,
-		Destination: destination,
-		Strategy:    strategy,
-		Branch:      opts.Branch,
-		Depth:       opts.Depth,
-		Logger:      logger,
+		URL:          url,
+		Destination:  destination,
+		Strategy:     strategy,
+		Branch:       opts.Branch,
+		Depth:        opts.Depth,
+		SingleBranch: opts.SingleBranch,
+		Recursive:    opts.Recursive,
+		Logger:       logger,
 	}
 
 	cloneResult, err := c.CloneOrUpdate(ctx, cloneOpts)

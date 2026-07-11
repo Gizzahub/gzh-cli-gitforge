@@ -567,6 +567,97 @@ func TestIntegration_CloneOrUpdate_FetchStrategy(t *testing.T) {
 	}
 }
 
+// TestIntegration_Clone_Submodules verifies that CloneOptions.Recursive checks out
+// submodule contents (emits --recurse-submodules), rather than leaving an empty gitlink.
+func TestIntegration_Clone_Submodules(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Standalone repo to embed as a submodule, with a distinctive file to assert on.
+	sub := initTestGitRepo(t, t.TempDir())
+	if err := os.WriteFile(filepath.Join(sub, "SUBFILE.md"), []byte("# Submodule\n"), 0o644); err != nil {
+		t.Fatalf("write subfile: %v", err)
+	}
+	runGitCmd(t, sub, "add", "SUBFILE.md")
+	runGitCmd(t, sub, "commit", "-m", "add subfile")
+
+	// Local file:// submodules are blocked by default (CVE-2022-39253); allow for the add.
+	upstream := initTestGitRepo(t, t.TempDir())
+	runGitCmd(t, upstream, "-c", "protocol.file.allow=always", "submodule", "add", sub, "sub")
+	runGitCmd(t, upstream, "commit", "-am", "add submodule")
+
+	cloneParent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	work := filepath.Join(cloneParent, "work")
+
+	ctx := context.Background()
+	client := NewClient()
+
+	// The recursive clone spawns a child git to fetch the submodule over file://,
+	// so protocol.file.allow must reach that child — injected via env config.
+	if _, err := client.Clone(ctx, CloneOptions{
+		URL:         upstream,
+		Destination: work,
+		Recursive:   true,
+		Env: []string{
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=protocol.file.allow",
+			"GIT_CONFIG_VALUE_0=always",
+		},
+	}); err != nil {
+		t.Fatalf("Clone() error = %v", err)
+	}
+
+	// The submodule's file exists only when its content was actually checked out.
+	if _, err := os.Stat(filepath.Join(work, "sub", "SUBFILE.md")); err != nil {
+		t.Errorf("submodule content not checked out: %v", err)
+	}
+}
+
+// TestIntegration_Clone_SingleBranch verifies that CloneOptions.SingleBranch restricts the
+// clone to the target branch (emits --single-branch), excluding other remote branches.
+func TestIntegration_Clone_SingleBranch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	upstream := initTestGitRepo(t, t.TempDir())
+	mainBranch := gitOutput(t, upstream, "rev-parse", "--abbrev-ref", "HEAD")
+
+	// A second upstream branch that single-branch mode must NOT fetch.
+	runGitCmd(t, upstream, "branch", "feature-x")
+
+	cloneParent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("EvalSymlinks: %v", err)
+	}
+	work := filepath.Join(cloneParent, "work")
+
+	ctx := context.Background()
+	client := NewClient()
+
+	if _, err := client.Clone(ctx, CloneOptions{
+		URL:          upstream,
+		Destination:  work,
+		Branch:       mainBranch,
+		SingleBranch: true,
+	}); err != nil {
+		t.Fatalf("Clone() error = %v", err)
+	}
+
+	// Only the target branch's remote-tracking ref should be present.
+	remotes := gitOutput(t, work, "branch", "-r")
+	if strings.Contains(remotes, "feature-x") {
+		t.Errorf("single-branch clone should not fetch feature-x; got remotes:\n%s", remotes)
+	}
+	if !strings.Contains(remotes, mainBranch) {
+		t.Errorf("single-branch clone missing target branch %q; got remotes:\n%s", mainBranch, remotes)
+	}
+}
+
 // TestExtractRepoNameFromURL tests URL parsing.
 func TestExtractRepoNameFromURL(t *testing.T) {
 	tests := []struct {

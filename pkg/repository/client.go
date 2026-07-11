@@ -156,6 +156,10 @@ func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, err
 		args = append(args, "--single-branch")
 	}
 
+	if opts.Recursive {
+		args = append(args, "--recurse-submodules")
+	}
+
 	if opts.Bare {
 		args = append(args, "--bare")
 	}
@@ -200,6 +204,9 @@ func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, err
 		argsWithoutBranch := []string{"clone"}
 		if opts.Depth > 0 {
 			argsWithoutBranch = append(argsWithoutBranch, "--depth", fmt.Sprintf("%d", opts.Depth))
+		}
+		if opts.Recursive {
+			argsWithoutBranch = append(argsWithoutBranch, "--recurse-submodules")
 		}
 		if opts.Bare {
 			argsWithoutBranch = append(argsWithoutBranch, "--bare")
