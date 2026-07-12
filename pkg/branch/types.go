@@ -3,7 +3,11 @@
 
 package branch
 
-import "time"
+import (
+	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
+)
 
 // Branch represents a Git branch with metadata.
 type Branch struct {
@@ -85,24 +89,16 @@ const (
 	BranchTypeOther      BranchType = "other"      // Unclassified
 )
 
-// ProtectedBranches are branches that require --force to delete.
-var ProtectedBranches = []string{
-	"main",
-	"master",
-	"develop",
-	"development",
-	"release/*",
-	"hotfix/*",
-}
+// ProtectedBranches are branches that require --force to delete. It aliases the
+// canonical list in pkg/repository so both cleanup paths share one source.
+var ProtectedBranches = repository.ProtectedBranches
 
-// IsProtected checks if a branch name matches protected patterns.
+// IsProtected checks if a branch name matches protected patterns. It delegates
+// to pkg/repository, the single source of truth for protected-branch judgment
+// (pkg/repository cannot import pkg/branch — the dependency runs branch →
+// repository — so ownership lives in the lower package).
 func IsProtected(name string) bool {
-	for _, pattern := range ProtectedBranches {
-		if matchPattern(name, pattern) {
-			return true
-		}
-	}
-	return false
+	return repository.IsProtected(name)
 }
 
 // matchPattern checks if name matches pattern (supports * wildcard).

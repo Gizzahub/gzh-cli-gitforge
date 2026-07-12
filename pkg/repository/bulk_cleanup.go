@@ -6,7 +6,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -142,14 +141,6 @@ const (
 	StatusNothingToDo  = "nothing-to-do"
 	StatusWouldCleanup = "would-cleanup"
 )
-
-// Default protected branch patterns.
-var defaultProtectedBranches = []string{
-	"main",
-	"master",
-	"develop",
-	"development",
-}
 
 // BulkCleanup scans for repositories and performs branch cleanup in parallel.
 func (c *client) BulkCleanup(ctx context.Context, opts BulkCleanupOptions) (*BulkCleanupResult, error) {
@@ -492,38 +483,27 @@ func (c *client) getGoneBranches(ctx context.Context, repoPath string) ([]string
 	return gone, nil
 }
 
-// isProtectedBranch checks if a branch should not be deleted.
+// isProtectedBranch checks if a branch should not be deleted. Built-in
+// protection is resolved through the shared IsProtected source; the current
+// branch and any caller-supplied patterns are layered on top.
 func (c *client) isProtectedBranch(branchName, currentBranch string, additionalPatterns []string) bool {
 	// Never delete current branch
 	if branchName == currentBranch {
 		return true
 	}
 
-	// Check default protected branches
-	if slices.Contains(defaultProtectedBranches, branchName) {
+	// Built-in protected set (single source of truth)
+	if IsProtected(branchName) {
 		return true
 	}
 
-	// Check patterns with wildcards
-	patterns := append([]string{"release/*", "hotfix/*"}, additionalPatterns...)
-	for _, pattern := range patterns {
+	// Caller-supplied extra patterns
+	for _, pattern := range additionalPatterns {
 		if matchBranchPattern(branchName, pattern) {
 			return true
 		}
 	}
 
-	return false
-}
-
-// matchBranchPattern checks if name matches pattern (supports * wildcard).
-func matchBranchPattern(name, pattern string) bool {
-	if pattern == name {
-		return true
-	}
-	if pattern != "" && pattern[len(pattern)-1] == '*' {
-		prefix := pattern[:len(pattern)-1]
-		return len(name) >= len(prefix) && name[:len(prefix)] == prefix
-	}
 	return false
 }
 
