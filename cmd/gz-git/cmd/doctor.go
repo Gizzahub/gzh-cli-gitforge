@@ -102,13 +102,13 @@ func printDoctorReport(report *doctor.Report) {
 	s := report.Summary
 	fmt.Printf("Checks: %d total", s.Total)
 	if s.OK > 0 {
-		fmt.Printf(", %s%d ok%s", "\033[32m", s.OK, cliutil.ColorReset)
+		fmt.Printf(", %s%d ok%s", cliutil.ColorGreen, s.OK, cliutil.ColorReset)
 	}
 	if s.Warning > 0 {
-		fmt.Printf(", %s%d warning%s", "\033[33m", s.Warning, cliutil.ColorReset)
+		fmt.Printf(", %s%d warning%s", cliutil.ColorYellow, s.Warning, cliutil.ColorReset)
 	}
 	if s.Error > 0 {
-		fmt.Printf(", %s%d error%s", "\033[31m", s.Error, cliutil.ColorReset)
+		fmt.Printf(", %s%d error%s", cliutil.ColorRed, s.Error, cliutil.ColorReset)
 	}
 	if s.Unreachable > 0 {
 		fmt.Printf(", %d unreachable", s.Unreachable)
@@ -120,15 +120,15 @@ func printDoctorReport(report *doctor.Report) {
 func statusSymbol(s doctor.Status) string {
 	switch s {
 	case doctor.StatusOK:
-		return "\033[32m✓\033[0m"
+		return cliutil.ColorGreen + "✓" + cliutil.ColorReset
 	case doctor.StatusWarning:
-		return "\033[33m⚠\033[0m"
+		return cliutil.ColorYellow + "⚠" + cliutil.ColorReset
 	case doctor.StatusError:
-		return "\033[31m✗\033[0m"
+		return cliutil.ColorRed + "✗" + cliutil.ColorReset
 	case doctor.StatusUnreachable:
-		return "\033[90m⊘\033[0m"
+		return cliutil.ColorGray + "⊘" + cliutil.ColorReset
 	case doctor.StatusSkipped:
-		return "\033[90m-\033[0m"
+		return cliutil.ColorGray + "-" + cliutil.ColorReset
 	default:
 		return "?"
 	}

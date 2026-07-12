@@ -203,23 +203,23 @@ func (f *defaultFormatter) Format(event watch.Event) string {
 
 	// Timestamp and repository
 	timestamp := event.Timestamp.Format("15:04:05")
-	sb.WriteString(fmt.Sprintf("\x1b[90m[%s]\x1b[0m ", timestamp))
-	sb.WriteString(fmt.Sprintf("\x1b[36m%s\x1b[0m ", filepath.Base(event.Path)))
+	sb.WriteString(fmt.Sprintf("%s[%s]%s ", cliutil.ColorGray, timestamp, cliutil.ColorReset))
+	sb.WriteString(fmt.Sprintf("%s%s%s ", cliutil.ColorCyan, filepath.Base(event.Path), cliutil.ColorReset))
 
 	// Event type with color
 	switch event.Type {
 	case watch.EventTypeModified:
-		sb.WriteString("\x1b[33m● Modified\x1b[0m")
+		sb.WriteString(cliutil.ColorYellow + "● Modified" + cliutil.ColorReset)
 	case watch.EventTypeStaged:
-		sb.WriteString("\x1b[32m● Staged\x1b[0m")
+		sb.WriteString(cliutil.ColorGreen + "● Staged" + cliutil.ColorReset)
 	case watch.EventTypeUntracked:
-		sb.WriteString("\x1b[35m● Untracked\x1b[0m")
+		sb.WriteString(cliutil.ColorMagenta + "● Untracked" + cliutil.ColorReset)
 	case watch.EventTypeDeleted:
-		sb.WriteString("\x1b[31m● Deleted\x1b[0m")
+		sb.WriteString(cliutil.ColorRed + "● Deleted" + cliutil.ColorReset)
 	case watch.EventTypeBranch:
-		sb.WriteString("\x1b[36m● Branch Changed\x1b[0m")
+		sb.WriteString(cliutil.ColorCyan + "● Branch Changed" + cliutil.ColorReset)
 	case watch.EventTypeClean:
-		sb.WriteString("\x1b[32m✓ Clean\x1b[0m")
+		sb.WriteString(cliutil.ColorGreen + "✓ Clean" + cliutil.ColorReset)
 	default:
 		sb.WriteString(fmt.Sprintf("● %s", event.Type))
 	}
@@ -237,7 +237,7 @@ func (f *defaultFormatter) Format(event watch.Event) string {
 		for i, file := range event.Files {
 			if i >= maxFiles {
 				remaining := len(event.Files) - maxFiles
-				sb.WriteString(fmt.Sprintf("    \x1b[90m... and %d more\x1b[0m\n", remaining))
+				sb.WriteString(fmt.Sprintf("    %s... and %d more%s\n", cliutil.ColorGray, remaining, cliutil.ColorReset))
 				break
 			}
 			sb.WriteString(fmt.Sprintf("    %s\n", file))

@@ -60,6 +60,11 @@ func TestStripIndent(t *testing.T) {
 }
 
 func TestColorConstants(t *testing.T) {
+	// The exported color vars are runtime-gated (blanked when stdout is not a
+	// terminal, as in `go test`), so force them on before checking their values.
+	t.Cleanup(restoreColorState)
+	EnableColors()
+
 	// Verify color constants are ANSI escape sequences
 	if !strings.HasPrefix(ColorCyanBold, "\033[") {
 		t.Error("ColorCyanBold should be ANSI escape sequence")

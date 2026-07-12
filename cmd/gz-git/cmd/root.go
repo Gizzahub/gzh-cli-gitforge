@@ -147,11 +147,8 @@ func Execute(version string) {
 	appVersion = version
 	rootCmd.Version = version
 
-	// Custom Usage Template with Colors
-	rootCmd.SetUsageTemplate(usageTemplate)
-
 	setCommandGroups(rootCmd)
-	applyUsageTemplateRecursive(rootCmd)
+	applyUsageTemplateRecursive(rootCmd, buildUsageTemplate())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -183,14 +180,14 @@ func setCommandGroups(cmd *cobra.Command) {
 	}
 }
 
-func applyUsageTemplateRecursive(cmd *cobra.Command) {
-	cmd.SetUsageTemplate(usageTemplate)
+func applyUsageTemplateRecursive(cmd *cobra.Command, tmpl string) {
+	cmd.SetUsageTemplate(tmpl)
 	// Cobra does not propagate SilenceUsage/SilenceErrors to child commands.
 	// Set on every command so runtime errors never print usage text.
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 	for _, c := range cmd.Commands() {
-		applyUsageTemplateRecursive(c)
+		applyUsageTemplateRecursive(c, tmpl)
 	}
 }
 
@@ -207,11 +204,16 @@ func init() {
 	rootCmd.SetVersionTemplate(`{{with .Name}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}
 `)
 
-	// Custom Usage Template with Colors
-	rootCmd.SetUsageTemplate(usageTemplate)
+	// The usage template is applied in Execute() via buildUsageTemplate() so it
+	// reflects the resolved color state (see the color gate in pkg/cliutil).
 }
 
-const usageTemplate = `{{if .Runnable}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
+// buildUsageTemplate assembles the colored usage template. It is a function
+// (not a const) because the colors are runtime vars that the color gate blanks
+// when output is not a terminal; building at call time captures the resolved
+// color values instead of freezing them at compile time.
+func buildUsageTemplate() string {
+	return `{{if .Runnable}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
@@ -241,3 +243,4 @@ Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
 
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
 `
+}

@@ -5,14 +5,8 @@ package cliutil
 
 import "strings"
 
-// ANSI escape sequences for bold color output in terminal help text.
-const (
-	ColorCyanBold    = "\033[1;36m"
-	ColorGreenBold   = "\033[1;32m"
-	ColorYellowBold  = "\033[1;33m"
-	ColorMagentaBold = "\033[1;35m"
-	ColorReset       = "\033[0m"
-)
+// ANSI color codes (ColorCyanBold, ColorReset, …) and the color gate live in
+// colors.go.
 
 // QuickStartHelp returns a standardized "Quick Start" help string with colors.
 // It wraps the content (which should contain the examples) with the styled header.

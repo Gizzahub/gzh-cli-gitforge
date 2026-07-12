@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
@@ -520,10 +519,10 @@ func withInterruptCancel(ctx context.Context) (context.Context, context.CancelFu
 
 // stdinIsInteractive reports whether stdin is a terminal we can prompt on. The
 // confirmation answer is read from stdin, so the gate keys on stdin (not stdout):
-// a piped or CI invocation is treated as non-interactive.
+// a piped or CI invocation is treated as non-interactive. It shares cliutil's
+// TTY detection with the color gate.
 func stdinIsInteractive() bool {
-	fd := os.Stdin.Fd()
-	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+	return cliutil.IsTerminal(os.Stdin.Fd())
 }
 
 // confirmDestructiveBulk gates a destructive bulk operation. The caller must have
