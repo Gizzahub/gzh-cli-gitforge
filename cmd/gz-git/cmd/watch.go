@@ -56,6 +56,9 @@ func init() {
 	watchCmd.Flags().BoolVar(&watchIncludeClean, "include-clean", false, "notify when repository becomes clean")
 	watchCmd.Flags().StringVar(&watchOutputFormat, "format", "default", "output format: default, compact, json, llm")
 	watchCmd.Flags().BoolVar(&watchNotifySound, "notify", false, "play sound on changes (not yet implemented; flag reserved)")
+	// Hidden until the sound backend is implemented; passing it emits a
+	// "not implemented" warning at startup instead of failing.
+	_ = watchCmd.Flags().MarkHidden("notify")
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
@@ -64,6 +67,13 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	// Validate format (reuse centralized validator from bulk_common.go)
 	if err := validateBulkFormat(watchOutputFormat); err != nil {
 		return err
+	}
+
+	// Warn once if --notify was requested: the feature is not implemented yet
+	// (real sound support is tracked separately). Goes to stderr so it never
+	// pollutes a --format json/llm stdout stream.
+	if watchNotifySound {
+		fmt.Fprintln(os.Stderr, "warning: --notify is not yet implemented; no sound will play")
 	}
 
 	// Determine paths to watch
@@ -112,8 +122,8 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to start watching: %w", err)
 	}
 
-	// Print header
-	if !quiet {
+	// Print header (suppressed for machine formats so stdout stays parseable)
+	if shouldShowProgress(watchOutputFormat, quiet) {
 		fmt.Printf("Watching %d repositor%s for changes (interval: %s)\n",
 			len(absPaths),
 			pluralize(len(absPaths), "y", "ies"),
@@ -136,7 +146,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	for {
 		select {
 		case <-sigChan:
-			if !quiet {
+			if shouldShowProgress(watchOutputFormat, quiet) {
 				fmt.Println("\nStopping watch...")
 			}
 			return nil
