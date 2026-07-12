@@ -175,18 +175,21 @@ func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
 			label string
 		}
 		switchIcons := map[string]switchIcon{
-			repository.StatusSwitched:        {"+", "switched"},
-			repository.StatusBranchCreated:   {"+", "created"},
-			repository.StatusAlreadyOnBranch: {"=", "already"},
-			repository.StatusWouldSwitch:     {"~", "would-switch"},
-			repository.StatusDirty:           {"!", "dirty"},
-			repository.StatusBranchNotFound:  {"?", "not-found"},
-			repository.StatusError:           {"✗", "error"},
+			repository.StatusSwitched:         {"+", "switched"},
+			repository.StatusBranchCreated:    {"+", "created"},
+			repository.StatusAlreadyOnBranch:  {"=", "already"},
+			repository.StatusWouldSwitch:      {"~", "would-switch"},
+			repository.StatusDirty:            {"!", "dirty"},
+			repository.StatusRebaseInProgress: {"!", "rebasing"},
+			repository.StatusMergeInProgress:  {"!", "merging"},
+			repository.StatusBranchNotFound:   {"?", "not-found"},
+			repository.StatusError:            {"✗", "error"},
 		}
 		switchOrder := []string{
 			repository.StatusSwitched, repository.StatusBranchCreated,
 			repository.StatusAlreadyOnBranch, repository.StatusWouldSwitch,
-			repository.StatusDirty, repository.StatusBranchNotFound, repository.StatusError,
+			repository.StatusDirty, repository.StatusRebaseInProgress, repository.StatusMergeInProgress,
+			repository.StatusBranchNotFound, repository.StatusError,
 		}
 
 		var parts []string
@@ -205,10 +208,12 @@ func displaySwitchResults(result *repository.BulkSwitchResult, format string) {
 		durationStr := result.Duration.Round(time.Millisecond).String()
 		fmt.Printf("Switched → %s: %d repos%s  %s\n", result.TargetBranch, result.TotalProcessed, bracket, durationStr)
 
-		// Show failures only
+		// Show failures and skipped repos only
 		for _, repo := range result.Repositories {
 			if repo.Status == repository.StatusError ||
 				repo.Status == repository.StatusDirty ||
+				repo.Status == repository.StatusRebaseInProgress ||
+				repo.Status == repository.StatusMergeInProgress ||
 				repo.Status == repository.StatusBranchNotFound {
 				displaySwitchRepoResult(repo)
 			}

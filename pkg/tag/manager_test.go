@@ -9,10 +9,33 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
+
+// runTagGit runs a git command in dir, failing the test on error.
+func runTagGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context available
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v failed: %v\nOutput: %s", args, err, out)
+	}
+}
+
+// tagGitOutput runs a git command in dir and returns its trimmed stdout.
+func tagGitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...) //nolint:noctx // test helper, no context available
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v failed: %v", args, err)
+	}
+	return strings.TrimSpace(string(out))
+}
 
 // tempGitRepo creates a temporary git repository for testing.
 func tempGitRepo(t *testing.T) string {
@@ -382,6 +405,42 @@ func TestManager_Push_NoTagOrAll(t *testing.T) {
 	err := m.Push(ctx, repo, PushOptions{})
 	if err == nil {
 		t.Error("Push() expected error when neither All nor Name is set")
+	}
+}
+
+// TestManager_Push_SingleTag verifies that PushOptions.Name pushes only the named
+// tag to the remote, leaving other local tags unpushed.
+func TestManager_Push_SingleTag(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager()
+
+	// Bare remote to receive the push.
+	remote := t.TempDir()
+	runTagGit(t, remote, "init", "--bare")
+
+	// Work repo with a commit, two local tags, wired to the bare remote.
+	dir := tempGitRepoWithCommit(t)
+	runTagGit(t, dir, "remote", "add", "origin", remote)
+	runTagGit(t, dir, "tag", "v1.2.3")
+	runTagGit(t, dir, "tag", "v2.0.0")
+
+	repo := &repository.Repository{
+		Path:     dir,
+		GitDir:   filepath.Join(dir, ".git"),
+		WorkTree: dir,
+	}
+
+	if err := m.Push(ctx, repo, PushOptions{Name: "v1.2.3"}); err != nil {
+		t.Fatalf("Push(Name: v1.2.3) error = %v", err)
+	}
+
+	// Only the named tag reached the remote; the other local tag stayed behind.
+	remoteTags := tagGitOutput(t, remote, "tag", "--list")
+	if !strings.Contains(remoteTags, "v1.2.3") {
+		t.Errorf("remote missing pushed tag v1.2.3; got: %q", remoteTags)
+	}
+	if strings.Contains(remoteTags, "v2.0.0") {
+		t.Errorf("single-tag push should not push v2.0.0; got: %q", remoteTags)
 	}
 }
 

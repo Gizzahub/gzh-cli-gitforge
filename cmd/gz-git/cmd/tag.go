@@ -100,13 +100,16 @@ var tagListCmd = &cobra.Command{
 
 // tagPushCmd pushes tags
 var tagPushCmd = &cobra.Command{
-	Use:   "push [directory]",
+	Use:   "push [name] [directory]",
 	Short: "Push tags to remote",
-	Long: cliutil.QuickStartHelp(`  # Push all tags
-  gz-git tag push
+	Long: cliutil.QuickStartHelp(`  # Push a single tag (current repo)
+  gz-git tag push v1.2.3
 
-  # BULK: Push tags from all repos
-  gz-git tag push .`),
+  # Push all tags (current repo)
+  gz-git tag push --all
+
+  # BULK: Push all tags from every repo under a directory
+  gz-git tag push --all .`),
 	Example: ``,
 	RunE:    runTagPush,
 }
@@ -136,7 +139,7 @@ func init() {
 	tagAutoCmd.Flags().StringVarP(&tagMessage, "message", "m", "", "tag message")
 
 	// Push flags
-	tagPushCmd.Flags().BoolVar(&tagPushAll, "all", true, "push all tags")
+	tagPushCmd.Flags().BoolVar(&tagPushAll, "all", false, "push all tags (required for bulk/directory mode)")
 
 	// Bulk flags for subcommands (using shared addBulkFlags)
 	addBulkFlags(tagCreateCmd, &tagCreateBulkFlags)
@@ -377,16 +380,22 @@ func runBulkTagList(ctx context.Context, directory string) error {
 func runTagPush(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Bulk mode
-	if len(args) > 0 {
-		return runBulkTagPush(ctx, args[0])
+	if tagPushAll {
+		// All-tags mode. An optional directory arg selects bulk mode.
+		if len(args) > 0 {
+			return runBulkTagPush(ctx, args[0])
+		}
+		return runSingleTagPush(ctx, "")
 	}
 
-	// Single repo mode
-	return runSingleTagPush(ctx)
+	// Without --all, a tag name is required (single-repo, single-tag push).
+	if len(args) == 0 {
+		return fmt.Errorf("either --all or a tag name is required (e.g. 'gz-git tag push v1.2.3' or 'gz-git tag push --all')")
+	}
+	return runSingleTagPush(ctx, args[0])
 }
 
-func runSingleTagPush(ctx context.Context) error {
+func runSingleTagPush(ctx context.Context, name string) error {
 	repoPath, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -409,7 +418,8 @@ func runSingleTagPush(ctx context.Context) error {
 
 	mgr := tag.NewManager()
 	opts := tag.PushOptions{
-		All: tagPushAll,
+		All:  tagPushAll,
+		Name: name,
 	}
 
 	if err := mgr.Push(ctx, repo, opts); err != nil {
@@ -417,7 +427,11 @@ func runSingleTagPush(ctx context.Context) error {
 	}
 
 	if !quiet {
-		fmt.Println("✓ Tags pushed")
+		if name != "" {
+			fmt.Printf("✓ Pushed tag %s\n", name)
+		} else {
+			fmt.Println("✓ Tags pushed")
+		}
 	}
 
 	return nil

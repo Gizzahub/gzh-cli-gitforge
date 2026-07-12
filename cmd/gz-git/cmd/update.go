@@ -222,7 +222,7 @@ func displayUpdateResults(result *repository.BulkUpdateResult) {
 		WriteSummaryLine(os.Stdout, "Updated", result.TotalProcessed, result.Summary, result.Duration)
 		for _, repo := range result.Repositories {
 			if repo.Status == "error" || repo.Status == "dirty" || repo.Status == "conflict" ||
-				repo.Status == "no-remote" || repo.Status == "no-upstream" ||
+				repo.Status == "no-remote" || repo.Status == "no-upstream" || repo.Status == "auth-required" ||
 				repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" {
 				displayUpdateRepositoryResult(repo)
 			}
