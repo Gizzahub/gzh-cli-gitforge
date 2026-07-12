@@ -38,7 +38,7 @@ var fetchCmd = &cobra.Command{
   gz-git fetch --tags ~/repos
 
   # Filter by pattern
-  gz-git fetch --include "myproject.*" ~/workspace`),
+  gz-git fetch --include "myproject.*" ~/workspace`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runFetch,
 }
@@ -140,7 +140,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		displayFetchResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runFetchWatch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {

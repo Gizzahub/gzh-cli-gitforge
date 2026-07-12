@@ -47,7 +47,7 @@ var tagCmd = &cobra.Command{
   gz-git tag create v1.0.0 . -m "Release"
 
   # BULK: Check tag status
-  gz-git tag status .`),
+  gz-git tag status .`) + cliutil.ExitCodesBulkHelp(),
 	Example: ``,
 	Args:    cobra.NoArgs,
 }
@@ -228,7 +228,7 @@ func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 	}
 
 	printBulkTagResult(result, "create", tagCreateBulkFlags.DryRun, tagCreateBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runTagAuto(cmd *cobra.Command, args []string) error {
@@ -374,7 +374,7 @@ func runBulkTagList(ctx context.Context, directory string) error {
 	}
 
 	printBulkTagResult(result, "list", false, tagListBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runTagPush(cmd *cobra.Command, args []string) error {
@@ -462,7 +462,7 @@ func runBulkTagPush(ctx context.Context, directory string) error {
 	}
 
 	printBulkTagResult(result, "push", tagPushBulkFlags.DryRun, tagPushBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runTagStatus(cmd *cobra.Command, args []string) error {
@@ -495,7 +495,7 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	printBulkTagResult(result, "status", false, tagStatusBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func printBulkTagResult(result *repository.BulkTagResult, operation string, dryRun bool, format string) {

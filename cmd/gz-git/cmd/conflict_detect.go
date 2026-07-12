@@ -30,7 +30,7 @@ var detectCmd = &cobra.Command{
   gz-git conflict detect feature/new-feature main --include-binary
 
   # Detect with specific base commit
-  gz-git conflict detect feature/new-feature main --base abc123`),
+  gz-git conflict detect feature/new-feature main --base abc123`) + cliutil.ExitCodesConflictHelp(),
 	Example: ``,
 	Args:    cobra.ExactArgs(2),
 	RunE:    runConflictDetect,
@@ -43,6 +43,9 @@ func init() {
 	detectCmd.Flags().StringVar(&detectBaseCommit, "base", "", "base commit for three-way merge")
 }
 
+// runConflictDetect follows the grep-style exit convention, NOT the bulk
+// convention: 0 = no conflict (clean), 1 = conflict found, 2 = execution error.
+// This lets scripts branch on "is there a conflict?" via the exit code alone.
 func runConflictDetect(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	source := args[0]
@@ -51,12 +54,12 @@ func runConflictDetect(cmd *cobra.Command, args []string) error {
 	// Get repository path
 	repoPath, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return cliutil.NewExitError(2, fmt.Errorf("failed to get current directory: %w", err))
 	}
 
 	absPath, err := filepath.Abs(repoPath)
 	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+		return cliutil.NewExitError(2, fmt.Errorf("failed to resolve path: %w", err))
 	}
 
 	// Create client
@@ -64,13 +67,13 @@ func runConflictDetect(cmd *cobra.Command, args []string) error {
 
 	// Check if it's a repository
 	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
+		return cliutil.NewExitError(2, fmt.Errorf("not a git repository: %s", absPath))
 	}
 
 	// Open repository
 	repo, err := client.Open(ctx, absPath)
 	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return cliutil.NewExitError(2, fmt.Errorf("failed to open repository: %w", err))
 	}
 
 	// Create conflict detector
@@ -91,7 +94,7 @@ func runConflictDetect(cmd *cobra.Command, args []string) error {
 	// Detect conflicts
 	report, err := detector.Detect(ctx, repo, opts)
 	if err != nil {
-		return fmt.Errorf("failed to detect conflicts: %w", err)
+		return cliutil.NewExitError(2, fmt.Errorf("failed to detect conflicts: %w", err))
 	}
 
 	// Display report
@@ -121,7 +124,7 @@ func runConflictDetect(cmd *cobra.Command, args []string) error {
 	}
 
 	if report.TotalConflicts > 0 {
-		return fmt.Errorf("merge would result in conflicts")
+		return cliutil.NewExitError(1, fmt.Errorf("merge would result in conflicts"))
 	}
 
 	return nil

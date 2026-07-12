@@ -155,7 +155,7 @@ func Execute(version string) {
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		os.Exit(cliutil.ExitCodeForError(err))
 	}
 }
 

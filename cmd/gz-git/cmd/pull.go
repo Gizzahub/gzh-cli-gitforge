@@ -45,7 +45,7 @@ var pullCmd = &cobra.Command{
   gz-git pull --stash ~/projects
 
   # Filter by pattern
-  gz-git pull --include "myproject.*" ~/workspace`),
+  gz-git pull --include "myproject.*" ~/workspace`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runPull,
 }
@@ -151,7 +151,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		displayPullResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runPullWatch(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {

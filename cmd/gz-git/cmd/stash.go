@@ -37,7 +37,7 @@ var stashCmd = &cobra.Command{
   gz-git stash list
 
   # Pop latest stash
-  gz-git stash pop`),
+  gz-git stash pop`) + cliutil.ExitCodesBulkHelp(),
 	Example: ``,
 	Args:    cobra.NoArgs,
 }
@@ -183,7 +183,7 @@ func runBulkStashSave(ctx context.Context, directory string) error {
 	}
 
 	printBulkStashResult(result, "save", stashSaveBulkFlags.DryRun, stashSaveBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runStashList(cmd *cobra.Command, args []string) error {
@@ -272,7 +272,7 @@ func runBulkStashList(ctx context.Context, directory string) error {
 	}
 
 	printBulkStashResult(result, "list", false, stashListBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runStashPop(cmd *cobra.Command, args []string) error {
@@ -344,7 +344,7 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 	}
 
 	printBulkStashResult(result, "pop", stashPopBulkFlags.DryRun, stashPopBulkFlags.Format)
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func printBulkStashResult(result *repository.BulkStashResult, operation string, dryRun bool, format string) {

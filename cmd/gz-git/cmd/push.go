@@ -46,7 +46,7 @@ var pushCmd = &cobra.Command{
   gz-git push --tags ~/repos
 
   # Skip dirty status check (useful for CI/CD)
-  gz-git push --ignore-dirty ~/projects`),
+  gz-git push --ignore-dirty ~/projects`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runPush,
 }
@@ -160,7 +160,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 		displayPushResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runPushWatch(ctx context.Context, client repository.Client, opts repository.BulkPushOptions) error {

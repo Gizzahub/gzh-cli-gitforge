@@ -52,7 +52,7 @@ var commitCmd = &cobra.Command{
   gz-git commit
 
   # Skip confirmation
-  gz-git commit --yes`),
+  gz-git commit --yes`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCommit,
 }
@@ -271,7 +271,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		displayCommitResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.TotalFailed, result.TotalDirty)
 }
 
 // parseRepoMessage parses "repo:message" format

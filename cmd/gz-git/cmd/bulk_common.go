@@ -129,11 +129,13 @@ func validateBulkDepth(cmd *cobra.Command, depth int) error {
 	return nil
 }
 
-// errPartialFailure returns a non-nil error when some repositories failed,
-// so the process exit code reflects partial failure in scripts and CI.
+// errPartialFailure returns an exit-code-2 error when some repositories failed,
+// so the process exit code distinguishes partial failure (2) from tool/config
+// errors (1) in scripts and CI. Returns nil when nothing failed.
 func errPartialFailure(failed, total int) error {
 	if failed > 0 {
-		return fmt.Errorf("%d of %d repositories failed", failed, total)
+		return cliutil.NewExitError(cliutil.ExitPartialFailed,
+			fmt.Errorf("%d of %d repositories failed", failed, total))
 	}
 	return nil
 }

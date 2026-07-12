@@ -41,7 +41,7 @@ var diffCmd = &cobra.Command{
   gz-git diff --no-content ~/projects
 
   # JSON output (for scripting/LLM)
-  gz-git diff --format json ~/projects`),
+  gz-git diff --format json ~/projects`) + cliutil.ExitCodesBulkHelp(),
 	Example: ``,
 	Args:    cobra.MaximumNArgs(1),
 	RunE:    runDiff,
@@ -159,7 +159,7 @@ func executeDiff(ctx context.Context, client repository.Client, opts repository.
 		displayDiffResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalScanned)
 }
 
 func displayDiffResults(result *repository.BulkDiffResult) {

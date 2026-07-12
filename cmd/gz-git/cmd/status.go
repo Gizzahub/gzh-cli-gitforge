@@ -36,7 +36,7 @@ var statusCmd = &cobra.Command{
   gz-git status --skip-fetch
 
   # Continuously check at intervals (watch mode)
-  gz-git status --scan-depth 2 --watch --interval 30s ~/projects`),
+  gz-git status --scan-depth 2 --watch --interval 30s ~/projects`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runStatus,
 }
@@ -115,7 +115,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		displayDiagnosticResults(result)
 	}
 
-	return nil
+	// Exit 2 only when the health check itself failed for some repositories;
+	// warning/unreachable are health states, not operation failures.
+	return errPartialFailure(result.Summary.Error, result.Summary.Total)
 }
 
 func runDiagnosticStatus(ctx context.Context, client repository.Client, directory string, logger repository.Logger) (*reposync.HealthReport, error) {

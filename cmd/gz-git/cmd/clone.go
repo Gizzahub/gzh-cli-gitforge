@@ -47,7 +47,7 @@ var cloneCmd = &cobra.Command{
   # 3. Clone with user directory structure (user/repo)
   gz-git clone --structure user --url ...
 
-See 'gcl' alias for single repository cloning.`),
+See 'gcl' alias for single repository cloning.`) + cliutil.ExitCodesBulkHelp(),
 	Example: "",
 	Args:    cobra.MaximumNArgs(1),
 	RunE:    runClone,

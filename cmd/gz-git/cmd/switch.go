@@ -36,7 +36,7 @@ var switchCmd = &cobra.Command{
   gz-git switch develop --include "gzh-cli-.*"
 
   # Force switch (discards uncommitted changes - DANGEROUS!)
-  gz-git switch main --force`),
+  gz-git switch main --force`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runSwitch,
 }
@@ -118,12 +118,8 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		displaySwitchResults(result, switchFlags.Format)
 	}
 
-	// Return error if there were any failures
-	if result.Summary[repository.StatusError] > 0 {
-		return fmt.Errorf("%d repositories failed to switch", result.Summary[repository.StatusError])
-	}
-
-	return nil
+	// Signal partial failure via exit code 2
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 // displaySwitchResults displays the results of a bulk switch operation

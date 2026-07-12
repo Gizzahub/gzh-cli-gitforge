@@ -30,7 +30,7 @@ var updateCmd = &cobra.Command{
   gz-git update --no-fetch ~/workspace
 
   # Detailed output
-  gz-git update --verbose`),
+  gz-git update --verbose`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runUpdate,
 }
@@ -122,7 +122,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		displayUpdateResults(result)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runUpdateWatch(ctx context.Context, client repository.Client, opts repository.BulkUpdateOptions) error {

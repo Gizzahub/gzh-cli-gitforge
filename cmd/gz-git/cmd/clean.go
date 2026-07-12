@@ -46,7 +46,7 @@ var cleanCmd = &cobra.Command{
   gz-git clean --force --include "myproject.*"
 
   # JSON output
-  gz-git clean --format json`),
+  gz-git clean --format json`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runClean,
 }
@@ -149,7 +149,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 		displayCleanResults(result, dryRun)
 	}
 
-	return nil
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
 func runCleanWatch(ctx context.Context, client repository.Client, opts repository.BulkCleanOptions) error {
