@@ -620,6 +620,11 @@ Describe how you tested this change:
 1. **Maintainer review** for significant changes
 1. **Address feedback** promptly and professionally
 
+> **Destructive commands** (delete/overwrite branches, files, worktrees, history)
+> must comply with the [Destructive-Operation Safety Policy](docs/design/DESTRUCTIVE_OP_SAFETY.md).
+> Reviewers: use its checklist as the acceptance criterion for any new or changed
+> destructive command.
+
 ### Merging
 
 - Maintainers will merge approved PRs

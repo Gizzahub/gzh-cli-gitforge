@@ -221,6 +221,79 @@ func TestWorktreeRemove(t *testing.T) {
 	}
 }
 
+// TestWorktreeRemove_DryRun verifies that --dry-run previews the removal but
+// leaves the worktree in place.
+func TestWorktreeRemove_DryRun(t *testing.T) {
+	repoDir := testutil.TempGitRepoWithCommit(t)
+	t.Chdir(repoDir)
+
+	ctx := context.Background()
+	client := repository.NewClient()
+
+	repo, err := client.Open(ctx, repoDir)
+	if err != nil {
+		t.Fatalf("failed to open repo: %v", err)
+	}
+
+	removeBase, evalErr := filepath.EvalSymlinks(t.TempDir())
+	if evalErr != nil {
+		t.Fatalf("failed to resolve temp dir symlinks: %v", evalErr)
+	}
+	worktreeTarget := filepath.Join(removeBase, "wt-dryrun")
+	mgr := branch.NewWorktreeManager()
+	if _, err := mgr.Add(ctx, repo, branch.AddOptions{
+		Path:         worktreeTarget,
+		Branch:       "dryrun-test-branch",
+		CreateBranch: true,
+	}); err != nil {
+		t.Fatalf("failed to add worktree: %v", err)
+	}
+
+	// Dry-run remove should succeed without touching the worktree.
+	worktreeRmForce = false
+	worktreeRmDryRun = true
+	t.Cleanup(func() { worktreeRmDryRun = false })
+
+	if err := runWorktreeRemove(worktreeRemoveCmd, []string{worktreeTarget}); err != nil {
+		t.Errorf("runWorktreeRemove(--dry-run) error = %v", err)
+	}
+
+	// The worktree must still be present.
+	worktrees, err := mgr.List(ctx, repo)
+	if err != nil {
+		t.Fatalf("failed to list worktrees after dry-run: %v", err)
+	}
+	found := false
+	for _, wt := range worktrees {
+		if filepath.Clean(wt.Path) == filepath.Clean(worktreeTarget) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("dry-run removed the worktree; it should still be present")
+	}
+}
+
+// TestWorktreeRemove_DryRunNotAWorktree verifies that dry-run reports an error
+// for a path that is not a worktree of the repository.
+func TestWorktreeRemove_DryRunNotAWorktree(t *testing.T) {
+	repoDir := testutil.TempGitRepoWithCommit(t)
+	t.Chdir(repoDir)
+
+	worktreeRmForce = false
+	worktreeRmDryRun = true
+	t.Cleanup(func() { worktreeRmDryRun = false })
+
+	err := runWorktreeRemove(worktreeRemoveCmd, []string{filepath.Join(t.TempDir(), "not-a-worktree")})
+	if err == nil {
+		t.Fatal("expected error for a path that is not a worktree, got nil")
+	}
+	if !strings.Contains(err.Error(), "not a worktree") {
+		t.Errorf("error = %q, want containing 'not a worktree'", err.Error())
+	}
+}
+
 // TestWorktreeRemove_NotARepo verifies an error when not in a git repository.
 func TestWorktreeRemove_NotARepo(t *testing.T) {
 	nonRepo := t.TempDir()

@@ -15,6 +15,7 @@ import (
 var (
 	cleanFlags       BulkCommandFlags
 	cleanForce       bool
+	cleanYes         bool
 	cleanDirs        bool
 	cleanIgnored     bool
 	cleanOnlyIgnored bool
@@ -27,8 +28,11 @@ var cleanCmd = &cobra.Command{
 	Long: cliutil.QuickStartHelp(`  # Preview what would be cleaned (dry-run by default)
   gz-git clean
 
-  # Actually delete untracked files
+  # Actually delete untracked files (prompts for confirmation on a terminal)
   gz-git clean --force
+
+  # Delete without a prompt (required in scripts / CI)
+  gz-git clean --force --yes
 
   # Also remove untracked directories
   gz-git clean --force --dirs
@@ -59,6 +63,7 @@ func init() {
 
 	// Clean-specific flags
 	cleanCmd.Flags().BoolVar(&cleanForce, "force", false, "actually delete files (without this flag, operates in dry-run mode)")
+	cleanCmd.Flags().BoolVarP(&cleanYes, "yes", "y", false, "skip the confirmation prompt (required to delete in a non-interactive environment)")
 	cleanCmd.Flags().BoolVar(&cleanDirs, "dirs", false, "also remove untracked directories")
 	cleanCmd.Flags().BoolVarP(&cleanIgnored, "ignored", "x", false, "also remove ignored files")
 	cleanCmd.Flags().BoolVarP(&cleanOnlyIgnored, "only-ignored", "X", false, "remove only ignored files (not untracked)")
@@ -66,7 +71,10 @@ func init() {
 }
 
 func runClean(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	// SIGINT/SIGTERM cancels the context so an in-progress clean stops
+	// gracefully and still reports what it managed to process.
+	ctx, cancel := withInterruptCancel(context.Background())
+	defer cancel()
 
 	// Load config with profile support
 	effective, _ := LoadEffectiveConfig(cmd, nil)
@@ -131,6 +139,21 @@ func runClean(cmd *cobra.Command, args []string) error {
 		return runCleanWatch(ctx, client, opts)
 	}
 
+	// Destructive execute path: preview what would be removed, then require
+	// confirmation (bulk × destructive) before actually deleting.
+	if !dryRun {
+		proceed, err := confirmBulkClean(ctx, client, opts)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			if !quiet {
+				fmt.Println("Aborted. No files were deleted.")
+			}
+			return nil
+		}
+	}
+
 	// One-time clean
 	if shouldShowProgress(cleanFlags.Format, quiet) {
 		printScanningMessage(directory, cleanFlags.Depth, cleanFlags.Parallel, dryRun)
@@ -150,6 +173,45 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
+}
+
+// confirmBulkClean runs a dry-run preview, prints the files that would be
+// removed, and asks the user to confirm before the real (destructive) clean.
+// It returns (proceed, err): proceed is false when nothing would be removed or
+// the user declines; a non-interactive run without --yes returns an error.
+func confirmBulkClean(ctx context.Context, client repository.Client, opts repository.BulkCleanOptions) (bool, error) {
+	previewOpts := opts
+	previewOpts.DryRun = true
+	previewOpts.ProgressCallback = nil
+
+	preview, err := client.BulkClean(ctx, previewOpts)
+	if err != nil {
+		return false, fmt.Errorf("clean preview failed: %w", err)
+	}
+
+	if preview.TotalFiles == 0 {
+		if !quiet {
+			fmt.Println("Nothing to clean.")
+		}
+		return false, nil
+	}
+
+	if !quiet {
+		repoCount := 0
+		for _, repo := range preview.Repositories {
+			if repo.FilesCount > 0 {
+				repoCount++
+			}
+		}
+		fmt.Printf("About to remove %d file(s) across %d repositor(ies):\n", preview.TotalFiles, repoCount)
+		for _, repo := range preview.Repositories {
+			if repo.FilesCount > 0 {
+				fmt.Printf("  %s: %d file(s)\n", repo.RelativePath, repo.FilesCount)
+			}
+		}
+	}
+
+	return confirmDestructiveBulk(cleanYes)
 }
 
 func runCleanWatch(ctx context.Context, client repository.Client, opts repository.BulkCleanOptions) error {

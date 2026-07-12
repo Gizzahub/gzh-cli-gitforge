@@ -20,6 +20,7 @@ var (
 	worktreeAddCreate bool
 	worktreeAddForce  bool
 	worktreeRmForce   bool
+	worktreeRmDryRun  bool
 	worktreeListFlags BulkCommandFlags
 )
 
@@ -88,6 +89,9 @@ var worktreeRemoveCmd = &cobra.Command{
 	Long: cliutil.QuickStartHelp(`  # Remove a worktree
   gz-git worktree remove ../my-repo-feature
 
+  # Preview removal without touching anything
+  gz-git worktree remove ../my-repo-feature --dry-run
+
   # Force remove (even with uncommitted changes or if locked)
   gz-git worktree remove ../my-repo-feature --force`),
 	Example: ``,
@@ -114,6 +118,7 @@ func init() {
 
 	// remove flags
 	worktreeRemoveCmd.Flags().BoolVar(&worktreeRmForce, "force", false, "remove even if worktree has uncommitted changes or is locked")
+	worktreeRemoveCmd.Flags().BoolVarP(&worktreeRmDryRun, "dry-run", "n", false, "preview the removal without deleting the worktree")
 }
 
 // ─── worktree list ────────────────────────────────────────────────────────────
@@ -312,6 +317,37 @@ func runWorktreeRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	mgr := branch.NewWorktreeManager()
+
+	// Dry-run: confirm the path is a worktree of this repo and report what would
+	// happen, without deleting anything.
+	if worktreeRmDryRun {
+		worktrees, err := mgr.List(ctx, repo)
+		if err != nil {
+			return fmt.Errorf("failed to list worktrees: %w", err)
+		}
+
+		target := worktreePath
+		if abs, absErr := filepath.Abs(worktreePath); absErr == nil {
+			target = filepath.Clean(abs)
+		}
+
+		matched := ""
+		for _, wt := range worktrees {
+			if filepath.Clean(wt.Path) == target || wt.Path == worktreePath {
+				matched = wt.Path
+				break
+			}
+		}
+		if matched == "" {
+			return fmt.Errorf("not a worktree of this repository: %s", worktreePath)
+		}
+
+		if !quiet {
+			fmt.Printf("[DRY-RUN] Would remove worktree %s\n", matched)
+		}
+		return nil
+	}
+
 	opts := branch.RemoveOptions{
 		Path:  worktreePath,
 		Force: worktreeRmForce,

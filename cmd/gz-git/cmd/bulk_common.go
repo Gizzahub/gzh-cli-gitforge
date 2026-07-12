@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
@@ -481,6 +485,72 @@ func RunBulkWatch(cfg WatchConfig, executor WatchExecutor) error {
 			}
 		}
 	}
+}
+
+// ─── destructive-op safety helpers ─────────────────────────────────────────────
+// Shared safety primitives for the destructive-op policy (dry-run default,
+// confirm gate on bulk×destructive, SIGINT graceful shutdown).
+// See docs/design/DESTRUCTIVE_OP_SAFETY.md.
+
+// withInterruptCancel returns a child context that is cancelled when the process
+// receives SIGINT or SIGTERM, so long-running bulk operations stop gracefully and
+// report partial results instead of being hard-killed by the default handler.
+// The caller MUST defer the returned cancel func; it also tears down the signal
+// handler and lets the watcher goroutine exit (no leak).
+func withInterruptCancel(ctx context.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		select {
+		case <-sigChan:
+			if !quiet {
+				fmt.Fprintln(os.Stderr, "\nInterrupted, cancelling...")
+			}
+			cancel()
+		case <-ctx.Done():
+		}
+		signal.Stop(sigChan)
+	}()
+
+	return ctx, cancel
+}
+
+// stdinIsInteractive reports whether stdin is a terminal we can prompt on. The
+// confirmation answer is read from stdin, so the gate keys on stdin (not stdout):
+// a piped or CI invocation is treated as non-interactive.
+func stdinIsInteractive() bool {
+	fd := os.Stdin.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+// confirmDestructiveBulk gates a destructive bulk operation. The caller must have
+// already printed the deletion summary. On an interactive terminal it asks y/N;
+// in a non-interactive environment it refuses unless assumeYes (the --yes flag)
+// is set, so piped/CI invocations cannot delete without explicitly opting in.
+func confirmDestructiveBulk(assumeYes bool) (bool, error) {
+	if assumeYes {
+		return true, nil
+	}
+	if !stdinIsInteractive() {
+		return false, errors.New("refusing to run a destructive bulk operation without confirmation; re-run with --yes to proceed in a non-interactive environment")
+	}
+	fmt.Fprint(os.Stderr, "Proceed with deletion? [y/N]: ")
+	return readYesNo(os.Stdin)
+}
+
+// readYesNo reads a single line and reports whether it is an affirmative answer.
+// Anything other than "y"/"yes" (case-insensitive), including EOF or a bare
+// newline, is treated as No — the safe default for destructive operations.
+func readYesNo(r io.Reader) (bool, error) {
+	line, err := bufio.NewReader(r).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("failed to read confirmation: %w", err)
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes", nil
 }
 
 // writeBulkOutput serializes the output for bulk operations based on the format.

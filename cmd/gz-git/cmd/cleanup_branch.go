@@ -25,6 +25,7 @@ var (
 	cleanupBranchStaleDays  int
 	cleanupBranchDryRun     bool
 	cleanupBranchForce      bool
+	cleanupBranchYes        bool
 	cleanupBranchRemote     bool
 	cleanupBranchProtect    string
 	cleanupBranchBaseBranch string
@@ -62,6 +63,7 @@ func init() {
 	cleanupBranchCmd.Flags().IntVar(&cleanupBranchStaleDays, "stale-days", 30, "days threshold for stale branches")
 	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchDryRun, "dry-run", "n", true, "preview changes without deleting (default: true)")
 	cleanupBranchCmd.Flags().BoolVar(&cleanupBranchForce, "force", false, "actually delete branches (disables dry-run)")
+	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchYes, "yes", "y", false, "skip the confirmation prompt for bulk deletion (required in a non-interactive environment)")
 	cleanupBranchCmd.Flags().BoolVarP(&cleanupBranchRemote, "remote", "r", false, "also delete remote branches")
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchProtect, "protect", "", "additional branches to protect (comma-separated)")
 	cleanupBranchCmd.Flags().StringVar(&cleanupBranchBaseBranch, "base", "", "base branch for merge detection (default: auto-detect)")
@@ -72,7 +74,10 @@ func init() {
 }
 
 func runCleanupBranch(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	// SIGINT/SIGTERM cancels the context so an in-progress deletion stops
+	// gracefully instead of being hard-killed.
+	ctx, cancel := withInterruptCancel(context.Background())
+	defer cancel()
 
 	// Require at least one cleanup type
 	if !cleanupBranchMerged && !cleanupBranchStale && !cleanupBranchGone {
@@ -168,11 +173,13 @@ func runSingleRepoCleanupBranch(ctx context.Context, excludePatterns []string) e
 
 	// Execute cleanup if not dry-run
 	if !cleanupBranchDryRun {
+		// Force deletes unmerged branches too; Confirm is only consulted when
+		// Force is false, so it is intentionally omitted here (setting it was a
+		// no-op that read as "--force means the user confirmed").
 		executeOpts := branch.ExecuteOptions{
 			DryRun:  false,
-			Force:   true, // We already confirmed with --force flag
+			Force:   true,
 			Remote:  cleanupBranchRemote,
-			Confirm: true, // Skip confirmation
 			Exclude: excludePatterns,
 		}
 
@@ -214,6 +221,21 @@ func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns
 		Logger:            repository.NewNoopLogger(),
 	}
 
+	// Destructive execute path: preview what would be deleted, then require
+	// confirmation (bulk × destructive) before actually deleting.
+	if !cleanupBranchDryRun {
+		proceed, err := confirmBulkCleanupBranch(ctx, client, opts)
+		if err != nil {
+			return err
+		}
+		if !proceed {
+			if !quiet {
+				fmt.Println("Aborted. No branches were deleted.")
+			}
+			return nil
+		}
+	}
+
 	if !quiet {
 		modeStr := "[DRY-RUN]"
 		if !cleanupBranchDryRun {
@@ -231,6 +253,47 @@ func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns
 	printBulkCleanupBranchResult(result, cleanupBranchDryRun)
 
 	return nil
+}
+
+// confirmBulkCleanupBranch runs a dry-run preview, prints the branches that
+// would be deleted, and asks the user to confirm before the real deletion.
+// It returns (proceed, err): proceed is false when nothing would be deleted or
+// the user declines; a non-interactive run without --yes returns an error.
+func confirmBulkCleanupBranch(ctx context.Context, client repository.Client, opts repository.BulkCleanupOptions) (bool, error) {
+	previewOpts := opts
+	previewOpts.DryRun = true
+
+	preview, err := client.BulkCleanup(ctx, previewOpts)
+	if err != nil {
+		return false, fmt.Errorf("bulk cleanup preview failed: %w", err)
+	}
+
+	branchCount := 0
+	repoCount := 0
+	for _, repo := range preview.Repositories {
+		if repo.Status == repository.StatusWouldCleanup && len(repo.DeletedBranches) > 0 {
+			branchCount += len(repo.DeletedBranches)
+			repoCount++
+		}
+	}
+
+	if branchCount == 0 {
+		if !quiet {
+			fmt.Println("\n✓ No branches to clean up")
+		}
+		return false, nil
+	}
+
+	if !quiet {
+		fmt.Printf("\nAbout to delete %d branch(es) across %d repositor(ies):\n", branchCount, repoCount)
+		for _, repo := range preview.Repositories {
+			if repo.Status == repository.StatusWouldCleanup && len(repo.DeletedBranches) > 0 {
+				fmt.Printf("  %s: %s\n", repo.RelativePath, strings.Join(repo.DeletedBranches, ", "))
+			}
+		}
+	}
+
+	return confirmDestructiveBulk(cleanupBranchYes)
 }
 
 // printBulkCleanupBranchResult displays bulk cleanup results

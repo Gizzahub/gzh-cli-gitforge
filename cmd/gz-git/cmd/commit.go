@@ -7,10 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -73,22 +71,10 @@ func init() {
 }
 
 func runCommit(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	ctx, cancel := context.WithCancel(ctx)
+	// SIGINT/SIGTERM cancels the shared context so in-flight commits stop
+	// gracefully (extracted into bulk_common's withInterruptCancel).
+	ctx, cancel := withInterruptCancel(context.Background())
 	defer cancel()
-
-	go func() {
-		<-sigChan
-		if !quiet {
-			fmt.Println("\nInterrupted, cancelling...")
-		}
-		cancel()
-	}()
 
 	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)
