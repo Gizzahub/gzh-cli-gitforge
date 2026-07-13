@@ -65,6 +65,14 @@ func (m *manager) Create(ctx context.Context, repo *repository.Repository, opts 
 		return fmt.Errorf("tag name is required")
 	}
 
+	// Option-injection defense: opts.Name is external (CLI arg) and is passed to
+	// `git tag` as a bare positional below. Tag names obey the same ref-format
+	// rules as branches, so reject values git could parse as options
+	// (e.g. --upload-pack=…). opts.Ref is never CLI-set, so it is left as-is.
+	if err := gitcmd.SanitizeBranchName(opts.Name); err != nil {
+		return fmt.Errorf("invalid tag name: %w", err)
+	}
+
 	args := []string{"tag"}
 
 	if opts.Message != "" {

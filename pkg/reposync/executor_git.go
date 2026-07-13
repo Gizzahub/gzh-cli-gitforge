@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	repo "github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -468,6 +469,16 @@ func checkoutBranch(ctx context.Context, repoPath, branch string, logger repo.Lo
 	for _, b := range branches {
 		b = strings.TrimSpace(b)
 		if b == "" {
+			continue
+		}
+
+		// Option-injection defense: these branch names come from config
+		// (defaultBranch: "develop,master") and flow to git as bare positional
+		// args in branchExists/checkout below. Reject values git could parse as
+		// options (e.g. --upload-pack=…); skip to the next fallback on rejection.
+		if err := gitcmd.SanitizeBranchName(b); err != nil {
+			lastErr = fmt.Errorf("invalid branch name %q: %w", b, err)
+			logger.Debug("branch name rejected, trying next: %s -> %s: %v", repoPath, b, lastErr)
 			continue
 		}
 

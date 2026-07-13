@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 // BulkSwitch scans for repositories and switches their branches in parallel.
@@ -19,6 +21,12 @@ func (c *client) BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkS
 	// Validate required options
 	if opts.Branch == "" {
 		return nil, fmt.Errorf("branch name is required")
+	}
+	// Option-injection defense: the target branch is external (CLI arg) and is
+	// passed to `git checkout` as a bare positional in the switch helpers below,
+	// so reject values git could read as options (e.g. --upload-pack=…).
+	if err := gitcmd.SanitizeBranchName(opts.Branch); err != nil {
+		return nil, fmt.Errorf("invalid branch name: %w", err)
 	}
 
 	// Initialize common settings

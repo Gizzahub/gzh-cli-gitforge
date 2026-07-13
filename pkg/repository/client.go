@@ -141,6 +141,18 @@ func (c *client) Clone(ctx context.Context, opts CloneOptions) (*Repository, err
 		}
 	}
 
+	// Option-injection defense: the URL and branch are external (forge API,
+	// config, or CLI) and flow to git as positional/flag values. Reject values
+	// that git could parse as options (e.g. --upload-pack=…) before use.
+	if err := gitcmd.SanitizeURL(opts.URL); err != nil {
+		return nil, &ValidationError{Field: "URL", Value: opts.URL, Reason: err.Error()}
+	}
+	if opts.Branch != "" {
+		if err := gitcmd.SanitizeBranchName(opts.Branch); err != nil {
+			return nil, &ValidationError{Field: "Branch", Value: opts.Branch, Reason: err.Error()}
+		}
+	}
+
 	// Build Git clone command arguments
 	args := []string{"clone"}
 

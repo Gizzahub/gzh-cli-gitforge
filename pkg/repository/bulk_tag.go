@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 // BulkTagOptions configures bulk tag operations.
@@ -129,6 +131,16 @@ const (
 // BulkTag scans for repositories and performs tag operations in parallel.
 func (c *client) BulkTag(ctx context.Context, opts BulkTagOptions) (*BulkTagResult, error) {
 	startTime := time.Now()
+
+	// Option-injection defense: TagName is external (CLI arg) and flows to git
+	// as a bare positional in the create/push helpers below. When set, reject
+	// values git could parse as options (e.g. --upload-pack=…). Empty is valid
+	// for list operations, so only validate when present.
+	if opts.TagName != "" {
+		if err := gitcmd.SanitizeBranchName(opts.TagName); err != nil {
+			return nil, fmt.Errorf("invalid tag name: %w", err)
+		}
+	}
 
 	// Initialize common settings
 	common, err := initializeBulkOperation(
