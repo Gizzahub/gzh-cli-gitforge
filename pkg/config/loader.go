@@ -105,7 +105,13 @@ func (l *ConfigLoader) ResolveConfig(flags map[string]any) (*EffectiveConfig, er
 		l.applyProjectConfig(effective)
 	}
 
-	// Layer 5: Command flags (highest priority)
+	// Layer 5: OS keychain (above config files; below env/flags)
+	l.applyKeychainToken(effective)
+
+	// Layer 6: Environment variables (CI overrides; below flags)
+	l.applyEnvToken(effective)
+
+	// Layer 7: Command flags (highest priority)
 	l.applyFlags(effective, flags)
 
 	return effective, nil
@@ -239,6 +245,30 @@ func (l *ConfigLoader) applyProjectConfig(cfg *EffectiveConfig) {
 	if proj.Push != nil {
 		l.applyPushConfig(&cfg.Push, proj.Push)
 	}
+}
+
+// applyKeychainToken loads a forge token from the OS keychain when available.
+// Failures (missing backend, not found) are silent so headless/CI keeps working.
+func (l *ConfigLoader) applyKeychainToken(cfg *EffectiveConfig) {
+	if cfg.Provider == "" {
+		return
+	}
+	tok, err := DefaultTokenStore.Get(cfg.Provider)
+	if err != nil || tok == "" {
+		return
+	}
+	cfg.Token = tok
+	cfg.Sources["token"] = string(SourceKeychain)
+}
+
+// applyEnvToken applies provider/env token overrides (CI-friendly).
+func (l *ConfigLoader) applyEnvToken(cfg *EffectiveConfig) {
+	tok, source := ResolveTokenFromEnv(cfg.Provider)
+	if tok == "" {
+		return
+	}
+	cfg.Token = tok
+	cfg.Sources["token"] = source
 }
 
 // applyFlags applies command-line flags (highest priority).

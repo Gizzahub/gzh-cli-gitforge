@@ -841,11 +841,13 @@ type ConfigSource string
 
 // ConfigSource values identify which layer of the 5-layer precedence provided a value.
 const (
-	SourceFlag    ConfigSource = "flag"
-	SourceProject ConfigSource = "project"
-	SourceProfile ConfigSource = "profile"
-	SourceGlobal  ConfigSource = "global"
-	SourceDefault ConfigSource = "default"
+	SourceFlag     ConfigSource = "flag"
+	SourceEnv      ConfigSource = "env"
+	SourceKeychain ConfigSource = "keychain"
+	SourceProject  ConfigSource = "project"
+	SourceProfile  ConfigSource = "profile"
+	SourceGlobal   ConfigSource = "global"
+	SourceDefault  ConfigSource = "default"
 )
 
 // String returns a human-readable source description.

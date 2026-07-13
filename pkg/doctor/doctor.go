@@ -37,6 +37,7 @@ func Run(ctx context.Context, opts Options) *Report {
 
 	// Auth checks (from profile)
 	checks = append(checks, checkSSHKeys()...)
+	checks = append(checks, checkTokenSources()...)
 
 	// Forge checks
 	if !opts.SkipForge {
@@ -398,6 +399,59 @@ func checkProjectConfig(_ string) []CheckResult {
 }
 
 // --- Auth Checks ---
+
+func checkTokenSources() []CheckResult {
+	loader, err := config.NewLoader()
+	if err != nil {
+		return []CheckResult{{
+			Name:     "token-source",
+			Category: CategoryAuth,
+			Status:   StatusWarning,
+			Message:  "cannot load config for token source check",
+			Detail:   err.Error(),
+		}}
+	}
+	if err := loader.Load(); err != nil {
+		return []CheckResult{{
+			Name:     "token-source",
+			Category: CategoryAuth,
+			Status:   StatusWarning,
+			Message:  "cannot load config layers for token source check",
+			Detail:   err.Error(),
+		}}
+	}
+	eff, err := loader.ResolveConfig(nil)
+	if err != nil {
+		return []CheckResult{{
+			Name:     "token-source",
+			Category: CategoryAuth,
+			Status:   StatusWarning,
+			Message:  "cannot resolve effective token",
+			Detail:   err.Error(),
+		}}
+	}
+	src := eff.GetSource("token")
+	if eff.Token == "" {
+		return []CheckResult{{
+			Name:     "token-source",
+			Category: CategoryAuth,
+			Status:   StatusWarning,
+			Message:  "no forge token resolved (env | keychain | config | none)",
+			Detail:   "set GITHUB_TOKEN/GITLAB_TOKEN/GITEA_TOKEN/GZ_GIT_TOKEN or: gz-git config token set <provider> <token>",
+		}}
+	}
+	if src == "" {
+		src = "unknown"
+	}
+	return []CheckResult{{
+		Name:     "token-source",
+		Category: CategoryAuth,
+		Status:   StatusOK,
+		Message:  fmt.Sprintf("forge token source: %s", src),
+	}}
+}
+
+
 
 func checkSSHKeys() []CheckResult {
 	manager, err := config.NewManager()
