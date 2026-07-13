@@ -86,6 +86,10 @@ type Client interface {
 	// This is useful for listing branches across multiple repositories at once.
 	BulkBranchList(ctx context.Context, opts BulkBranchListOptions) (*BulkBranchListResult, error)
 
+	// BulkExec scans for repositories and runs an arbitrary command in each
+	// working tree in parallel. Command is executed without a shell.
+	BulkExec(ctx context.Context, opts BulkExecOptions) (*BulkExecResult, error)
+
 	// ScanRepositories scans a directory for Git repositories and returns their paths.
 	// This is a lightweight scan-only operation (no GetInfo/GetStatus) used when
 	// only repository discovery is needed (e.g., before DiagnosticExecutor).
