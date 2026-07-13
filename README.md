@@ -13,6 +13,16 @@
 - **`gz-git` (CLI)**: scan directories and run safe Git operations across many repositories in parallel.
 - **Go library**: reusable packages under `pkg/` for repository operations, bulk workflows, and forge sync.
 
+### Two engines (role separation)
+
+| Engine | Commands | Role |
+|--------|----------|------|
+| **Ad-hoc scan** | `status`, `fetch`, `pull`, `push`, `update`, `clone`, `commit`, … | Instant scan of a directory tree; no config required |
+| **Declarative workspace** | `workspace sync` / `sync`, `forge from` | Converge repos from `.gz-git.yaml` or forge org listing |
+
+Scan flags like `--recursive` mean “include nested git repos”. Workspace recursion uses
+`--recurse-workspaces` (deprecated alias: `--recursive` on workspace/sync only).
+
 ______________________________________________________________________
 
 ## CLI Highlights (`gz-git`)
@@ -26,7 +36,7 @@ ______________________________________________________________________
 - Monitoring: `watch` (default/compact/json/llm)
 - Insights: `history` (stats/contributors/file/blame), `info`, `conflict detect`
 - Diagnostics: `doctor` (system, config, auth, forge health checks)
-- Tag/stash helpers: `tag`, `stash`
+- Tag/stash/worktree helpers: `tag`, `stash`, `worktree`
 
 ______________________________________________________________________
 

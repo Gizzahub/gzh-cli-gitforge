@@ -9,6 +9,10 @@ CLI commands for local workspace management (config-based repo sync).
 Implements all `gz-git workspace` subcommands using local `.gz-git.yaml` config.
 **Does NOT call Forge APIs** — use `reposynccli` for that.
 
+This is the **declarative workspace engine** (config-driven convergence).
+Contrast with scan-based bulk commands (`fetch`/`pull`/`status`, …) which are
+**ad-hoc scan operations** over a directory tree.
+
 ---
 
 ## Commands
@@ -29,26 +33,31 @@ Implements all `gz-git workspace` subcommands using local `.gz-git.yaml` config.
 
 ```
 sync_command.go
-  → config_loader.go   (load .gz-git.yaml)
+  → config load (.gz-git.yaml)
   → reposync.Planner   (build action plan)
   → sync_preview       (show diff preview to user)
   → reposync.Executor  (execute: clone / pull / skip)
   → sync_progress_tui  (TUI progress display)
 ```
 
+Workspace recursion (child configs): `--recurse-workspaces`
+(deprecated alias: `--recursive` / `-R`).
+
 ---
 
 ## Factory Pattern (`factory.go`)
 
-Commands share dependencies via `Factory`:
+Commands are methods on `CommandFactory` (empty struct; no DI options today):
+
 ```go
-type Factory struct {
-    ConfigLoader ConfigLoader
-    PlannerFn    func(cfg *config.Config) reposync.Planner
-    ExecutorFn   func() reposync.Executor
-}
+type CommandFactory struct{}
+
+f := workspacecli.CommandFactory{}
+root := f.NewRootCmd() // workspace root + subcommands
 ```
-Inject mocks in tests via `factory_test.go`.
+
+Inject mocks in tests by constructing `CommandFactory{}` and exercising
+command constructors (`newSyncCmd`, `newInitCmd`, …) / `NewRootCmd`.
 
 ---
 
@@ -58,14 +67,14 @@ Inject mocks in tests via `factory_test.go`.
 - Repository summary (clone/update/skip counts)
 - File-level changes (added/modified/deleted)
 - Conflict warnings (dirty worktree, diverged branches)
-- Interactive confirmation
+- Interactive confirmation (`--interactive`)
 
 ---
 
 ## DO / DON'T
 
-- **DO** use `Factory` for dependency injection — not direct instantiation
-- **DO** show preview + confirm before destructive sync operations
+- **DO** build commands via `CommandFactory` — not ad-hoc package-level constructors
+- **DO** show preview + confirm before destructive sync when interactive
 - **DON'T** call Forge APIs here — delegate to `reposynccli`
 - **DON'T** run hook commands via shell — use `exec.Command(args[0], args[1:]...)`
 
@@ -74,10 +83,7 @@ Inject mocks in tests via `factory_test.go`.
 ## Testing
 
 ```go
-// factory_test.go pattern
-f := workspacecli.NewFactory(
-    workspacecli.WithConfigLoader(mockLoader),
-    workspacecli.WithPlannerFn(func(cfg) reposync.Planner { return mockPlanner }),
-)
-cmd := workspacecli.NewSyncCommand(f)
+f := workspacecli.CommandFactory{}
+cmd := f.NewRootCmd()
+// or: f.newSyncCmd() for focused tests
 ```

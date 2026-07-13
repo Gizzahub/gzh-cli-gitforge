@@ -85,7 +85,16 @@ func init() {
 func runClone(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Setup signal handling
+	effective, _ := LoadEffectiveConfig(cmd, nil)
+	if effective != nil {
+		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
+			cloneFlags.Parallel = effective.Parallel
+		}
+		if verbose {
+			PrintConfigSources(cmd, effective)
+		}
+	}
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -100,11 +109,9 @@ func runClone(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
-	// Parse directory from positional argument (consistent with other bulk commands)
 	directory := "."
 	if len(args) > 0 {
 		directory = args[0]
-		// Validate directory exists (if not current dir)
 		if directory != "." {
 			if _, err := os.Stat(directory); os.IsNotExist(err) {
 				return fmt.Errorf("directory does not exist: %s", directory)
@@ -112,7 +119,6 @@ func runClone(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Check for YAML config mode
 	if cloneConfig != "" || cloneConfigStdin {
 		return runCloneFromConfig(ctx, directory)
 	}

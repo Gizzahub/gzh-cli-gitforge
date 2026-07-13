@@ -27,7 +27,7 @@ var updateCmd = &cobra.Command{
   gz-git update -d 2 .
 
   # Skip fetching (only update already fetched repos)
-  gz-git update --no-fetch ~/workspace
+  gz-git update --skip-fetch ~/workspace
 
   # Detailed output
   gz-git update --verbose`) + cliutil.ExitCodesBulkHelp(),
@@ -38,20 +38,19 @@ var updateCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(updateCmd)
 
-	// Common bulk operation flags
 	addBulkFlags(updateCmd, &updateFlags)
 
-	// Update-specific flags
-	updateCmd.Flags().BoolVar(&updateNoFetch, "no-fetch", false, "skip fetching from remote (only update already fetched repos)")
+	updateCmd.Flags().BoolVar(&updateNoFetch, "no-fetch", false, "deprecated: use --skip-fetch")
+	if err := updateCmd.Flags().MarkDeprecated("no-fetch", "use --skip-fetch instead"); err != nil {
+		panic(err)
+	}
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Load config with profile support
 	effective, _ := LoadEffectiveConfig(cmd, nil)
 	if effective != nil {
-		// Apply config if flag not explicitly set
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
 			updateFlags.Parallel = effective.Parallel
 		}
@@ -60,36 +59,31 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)
 	if err != nil {
 		return err
 	}
 
-	// Validate depth
 	if err := validateBulkDepth(cmd, updateFlags.Depth); err != nil {
 		return err
 	}
 
-	// Validate format
 	if err := validateBulkFormat(updateFlags.Format); err != nil {
 		return err
 	}
 
-	// Create client
-	client := repository.NewClient()
+	skipFetch := updateFlags.SkipFetch || updateNoFetch
 
-	// Create logger for verbose mode
+	client := repository.NewClient()
 	logger := createBulkLogger(verbose)
 
-	// Build options
 	opts := repository.BulkUpdateOptions{
 		Directory:         directory,
 		Parallel:          updateFlags.Parallel,
 		MaxDepth:          updateFlags.Depth,
 		DryRun:            updateFlags.DryRun,
 		Verbose:           verbose,
-		NoFetch:           updateNoFetch,
+		NoFetch:           skipFetch,
 		IncludeSubmodules: updateFlags.IncludeSubmodules,
 		IncludePattern:    updateFlags.Include,
 		ExcludePattern:    updateFlags.Exclude,

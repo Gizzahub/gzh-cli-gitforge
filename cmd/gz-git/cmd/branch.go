@@ -20,7 +20,11 @@ var branchCmd = &cobra.Command{
   gz-git branch list .
 
   # Clean up branches
-  gz-git cleanup branch --merged`),
+  gz-git cleanup branch --merged`) + `
+
+Policy: branch create/delete are not exposed — use plain git for single-repo
+create; for bulk deletion of merged/stale branches use: gz-git cleanup branch
+`,
 	Example: ``,
 	Args:    cobra.NoArgs,
 }

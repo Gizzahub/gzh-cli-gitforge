@@ -31,12 +31,12 @@ and sync them locally. Bridges CLI → forge providers → `reposync` executor.
 
 ```go
 filter := reposynccli.NewFilter(reposynccli.FilterOptions{
-    Language:       "go",       // --language go
-    MinStars:       100,        // --min-stars 100
-    MaxStars:       1000,       // --max-stars 1000
-    LastPushWithin: "30d",      // --last-push-within 30d
-    Include:        "^myorg/",  // --include regex
-    Exclude:        "^myorg/deprecated", // --exclude regex
+    Language:       "go",
+    MinStars:       100,
+    MaxStars:       1000,
+    LastPushWithin: "30d",
+    Include:        "^myorg/",
+    Exclude:        "^myorg/deprecated",
 })
 repos := filter.Apply(allRepos)
 ```
@@ -46,12 +46,24 @@ repos := filter.Apply(allRepos)
 ## Factory Pattern (`factory.go`)
 
 ```go
-type Factory struct {
-    ProviderFn  func(cfg) provider.Provider
-    ExecutorFn  func() reposync.Executor
-    ProgressFn  func() Progress
+type CommandFactory struct {
+    Use   string
+    Short string
+
+    Orchestrator reposync.Runner
+    SpecLoader   SpecLoader
+
+    Version   string
+    Commit    string
+    BuildDate string
 }
+
+f := reposynccli.CommandFactory{}
+root := f.NewRootCmd()
 ```
+
+Optional fields override defaults when set (orchestrator, version metadata).
+There is no `WithConfigLoader` / generic options-builder API.
 
 ---
 
@@ -76,8 +88,6 @@ type Factory struct {
 ## Testing
 
 ```go
-// factory_test.go pattern — mock provider
-f := reposynccli.NewFactory(
-    reposynccli.WithProviderFn(func(cfg) provider.Provider { return mockProvider }),
-)
+f := reposynccli.CommandFactory{}
+cmd := f.NewRootCmd()
 ```

@@ -277,8 +277,12 @@ Auto-Init Behavior:
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show detailed repository preview")
 	cmd.Flags().StringVar(&stateFile, "state-file", "", "Path to persist run state for resume")
 	cmd.Flags().BoolVar(&fullOutput, "full", false, "Output all fields (name, path) even if redundant")
-	cmd.Flags().BoolVarP(&recursive, "recursive", "R", false, "Recursively sync child workspaces")
-	cmd.Flags().IntVar(&recursiveDepth, "recursive-depth", 3, "Maximum recursion depth for --recursive")
+	cmd.Flags().BoolVar(&recursive, "recurse-workspaces", false, "Recursively sync child workspaces")
+	cmd.Flags().BoolVarP(&recursive, "recursive", "R", false, "deprecated: use --recurse-workspaces")
+	if err := cmd.Flags().MarkDeprecated("recursive", "use --recurse-workspaces instead"); err != nil {
+		panic(err)
+	}
+	cmd.Flags().IntVar(&recursiveDepth, "recursive-depth", 3, "Maximum recursion depth for --recurse-workspaces")
 	cmd.Flags().StringVar(&format, "format", "default", "Output format (default, compact, json, llm)")
 
 	// ── Auto-init flags ───────────────────────────────────────────────────────
