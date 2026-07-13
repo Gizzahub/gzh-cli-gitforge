@@ -1,13 +1,15 @@
 # Merge & Conflict Detection Example
 
-This example demonstrates gz-git conflict detection and merge-related library features.
+Demonstrates **pre-merge conflict detection** with `merge.ConflictDetector`.
+
+Merge/rebase *execution* is intentionally left to plain git (bulk-first identity:
+gz-git diagnoses; interactive merge/rebase stays in git).
 
 ## Features Demonstrated
 
 1. **Pre-Merge Conflict Detection**: Identify conflicts before attempting merge
-1. **Merge Execution (Library)**: Execute merges with various strategies
-1. **Merge Abort (Library)**: Safely abort in-progress merges
-1. **Rebase Operations (Library)**: Rebase branches interactively or non-interactively
+2. **Fast-forward check**: Whether merge can fast-forward
+3. **CLI pointer**: `gz-git conflict detect <source> <target>`
 
 ## Usage
 

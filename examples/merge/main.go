@@ -1,6 +1,8 @@
 // Copyright (c) 2025 Archmagece
 // SPDX-License-Identifier: MIT
 
+// Example: pre-merge conflict detection with ConflictDetector.
+// Merge/rebase execution is intentionally left to plain git (bulk-first identity).
 package main
 
 import (
@@ -18,21 +20,16 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Get repository path from args or use current directory
 	repoPath := "."
 	if len(os.Args) >= 2 {
 		repoPath = os.Args[1]
 	}
 
-	// Create clients
 	repoClient := repository.NewClient()
 	branchManager := branch.NewManager()
 	executor := gitcmd.NewExecutor()
 	conflictDetector := merge.NewConflictDetector(executor)
-	mergeManager := merge.NewMergeManager(executor, conflictDetector)
-	rebaseManager := merge.NewRebaseManager(executor)
 
-	// Open repository
 	repo, err := repoClient.Open(ctx, repoPath)
 	if err != nil {
 		log.Fatalf("Failed to open repository: %v", err)
@@ -40,7 +37,6 @@ func main() {
 
 	fmt.Printf("Repository: %s\n\n", repo.Path)
 
-	// Get current branch
 	current, err := branchManager.Current(ctx, repo)
 	if err != nil {
 		log.Fatalf("Failed to get current branch: %v", err)
@@ -48,34 +44,8 @@ func main() {
 
 	fmt.Printf("Current branch: %s\n\n", current.Name)
 
-	// Example 1: Check rebase status
-	fmt.Println("=== Example 1: Check Rebase Status ===")
+	fmt.Println("=== Pre-Merge Conflict Detection ===")
 
-	status, err := rebaseManager.Status(ctx, repo)
-	if err != nil {
-		log.Printf("Warning: Failed to check rebase status: %v", err)
-	} else {
-		switch status {
-		case merge.RebaseInProgress:
-			fmt.Println("⚠️  Rebase in progress")
-			fmt.Println("Complete or abort the rebase before proceeding")
-		case merge.RebaseConflict:
-			fmt.Println("⚠️  Rebase has conflicts")
-			fmt.Println("Resolve conflicts and continue or abort")
-		case merge.RebaseComplete:
-			fmt.Println("✓ Rebase completed successfully")
-		case merge.RebaseAborted:
-			fmt.Println("✓ Rebase was aborted")
-		default:
-			fmt.Println("✓ No rebase in progress")
-		}
-	}
-	fmt.Println()
-
-	// Example 2: Detect conflicts before merging
-	fmt.Println("=== Example 2: Pre-Merge Conflict Detection ===")
-
-	// Check if there's a main/master branch to test with
 	branches, err := branchManager.List(ctx, repo, branch.ListOptions{})
 	if err != nil {
 		log.Printf("Warning: Failed to list branches: %v", err)
@@ -99,7 +69,6 @@ func main() {
 		if err != nil {
 			log.Printf("Warning: Failed to detect conflicts: %v", err)
 		} else {
-			// Check for fast-forward possibility
 			canFF, ffErr := conflictDetector.CanFastForward(ctx, repo, current.Name, targetBranch)
 			if ffErr != nil {
 				log.Printf("Warning: Failed to check fast-forward: %v", ffErr)
@@ -132,51 +101,10 @@ func main() {
 	}
 	fmt.Println()
 
-	// Example 3: Merge strategies
-	fmt.Println("=== Example 3: Available Merge Strategies ===")
-	fmt.Println("gzh-cli-gitforge supports multiple merge strategies:")
-	fmt.Printf("  - %s: Fast-forward only (no merge commit)\n", merge.StrategyFastForward)
-	fmt.Printf("  - %s: Default 3-way merge\n", merge.StrategyRecursive)
-	fmt.Printf("  - %s: Prefer current branch on conflicts\n", merge.StrategyOurs)
-	fmt.Printf("  - %s: Prefer incoming branch on conflicts\n", merge.StrategyTheirs)
-	fmt.Printf("  - %s: Merge multiple branches\n", merge.StrategyOctopus)
-	fmt.Println()
-
-	// Example 4: Merge execution (demonstration only)
-	fmt.Println("=== Example 4: Execute Merge (Example) ===")
-	if targetBranch != "" {
-		fmt.Printf("To merge '%s' into current branch:\n", targetBranch)
-		fmt.Println()
-		fmt.Println("Using gzh-cli-gitforge library:")
-		fmt.Printf("  result, err := mergeManager.Merge(ctx, repo, merge.MergeOptions{\n")
-		fmt.Printf("      Source:   \"%s\",\n", targetBranch)
-		fmt.Println("      Strategy: merge.StrategyRecursive,")
-		fmt.Println("      NoCommit: false,")
-		fmt.Println("  })")
-		fmt.Println()
-		fmt.Println("Using Git:")
-		fmt.Printf("  git merge %s\n", targetBranch)
-		fmt.Println()
-		fmt.Println("⚠️  This example does NOT execute the merge")
-	}
-
-	// Example 5: Rebase operations
-	fmt.Println("=== Example 5: Rebase Operations ===")
-	fmt.Println("Rebase current branch onto another:")
-	fmt.Println()
-	fmt.Println("Using gzh-cli-gitforge library:")
-	fmt.Println("  result, err := rebaseManager.Rebase(ctx, repo, merge.RebaseOptions{")
-	fmt.Println("      Onto:        \"main\",")
-	fmt.Println("      Interactive: false,")
-	fmt.Println("  })")
-	fmt.Println()
-	fmt.Println("Using Git:")
-	fmt.Println("  git rebase main")
-	fmt.Println()
-
-	// Suppress unused warning
-	_ = mergeManager
-
-	fmt.Println("Tip: Always detect conflicts before merging:")
+	fmt.Println("Tip: use the CLI for conflict detection:")
 	fmt.Println("  gz-git conflict detect <source> <target>")
+	fmt.Println()
+	fmt.Println("For actual merge/rebase, use plain git:")
+	fmt.Println("  git merge <branch>")
+	fmt.Println("  git rebase <onto>")
 }
