@@ -459,9 +459,12 @@ func runConfigHierarchy(cmd *cobra.Command, args []string) error {
 	// Try to find config starting from current directory
 	configDir, err := config.FindConfigRecursive(cwd, ".gz-git.yaml")
 	if err != nil {
-		// If not found, try home directory
+		// No project .gz-git.yaml between cwd and $HOME. Fall back to the home
+		// directory so the global/profile layers still render — but say so,
+		// rather than silently switching the search root.
 		home, _ := os.UserHomeDir()
 		configDir = home
+		fmt.Printf("No project config found between %s and $HOME; showing home config hierarchy (%s)\n\n", cwd, configDir)
 	}
 
 	cfg, err := config.LoadConfigRecursive(configDir, ".gz-git.yaml")

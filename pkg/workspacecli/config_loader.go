@@ -161,9 +161,9 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 	return result, nil
 }
 
-// detectConfigFile searches for config files in the given directory.
-// Priority: .gz-git.yaml > .gz-git.yml
-// This is a wrapper around config.DetectConfigFile for backward compatibility.
+// detectConfigFile searches upward from the given directory to $HOME for a
+// .gz-git config file (priority: .gz-git.yaml > .gz-git.yml > .gz-git.json).
+// This is a thin wrapper around config.DetectConfigFile.
 func detectConfigFile(dir string) (string, error) {
 	return config.DetectConfigFile(dir)
 }

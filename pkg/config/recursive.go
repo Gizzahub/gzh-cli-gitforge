@@ -621,8 +621,10 @@ func hasFile(dir, fileName string) bool {
 	return !info.IsDir()
 }
 
-// FindConfigRecursive walks up the directory tree to find a config file.
-// This is used to find the nearest config file for the current directory.
+// FindConfigRecursive walks up from startPath to $HOME to find the nearest
+// directory containing configFile. It delegates to the shared findConfigUpward
+// core, so the $HOME ceiling is identical to FindProjectConfig/DetectConfigFile;
+// the configFile parameter lets callers probe a non-default filename.
 //
 // Parameters:
 //   - startPath: The directory to start searching from
@@ -638,28 +640,19 @@ func hasFile(dir, fileName string) bool {
 //	configDir, err := FindConfigRecursive("/home/user/mydevbox/project", ".gz-git.yaml")
 //	// Returns: "/home/user/mydevbox" if .gz-git.yaml exists there
 func FindConfigRecursive(startPath, configFile string) (string, error) {
-	currentPath, err := filepath.Abs(startPath)
+	absStart, err := filepath.Abs(startPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// Walk up the directory tree
-	for {
-		configPath := filepath.Join(currentPath, configFile)
-		if _, err := os.Stat(configPath); err == nil {
-			return currentPath, nil
-		}
-
-		// Move to parent directory
-		parentPath := filepath.Dir(currentPath)
-		if parentPath == currentPath {
-			// Reached root
-			break
-		}
-		currentPath = parentPath
+	dir, _, err := findConfigUpward(absStart, []string{configFile})
+	if err != nil {
+		return "", err
 	}
-
-	return "", fmt.Errorf("config file %s not found in %s or any parent directory", configFile, startPath)
+	if dir == "" {
+		return "", fmt.Errorf("config file %s not found in %s or any parent directory", configFile, startPath)
+	}
+	return dir, nil
 }
 
 // GetWorkspaceByName returns a workspace by name from the config.

@@ -68,6 +68,10 @@ func (f CommandFactory) runAdd(cmd *cobra.Command, opts *AddOptions) error {
 			fmt.Fprintf(cmd.OutOrStdout(), "Creating new config: %s\n", configPath)
 		} else {
 			configPath = detected
+			// DetectConfigFile searches upward, so this may resolve a parent
+			// workspace's config; surface it so `add` never silently targets a
+			// different workspace than the user expects.
+			fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
 		}
 	}
 

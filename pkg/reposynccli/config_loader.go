@@ -976,9 +976,9 @@ func cleanRoots(roots []string) []string {
 	return out
 }
 
-// detectConfigFile searches for config files in the given directory.
-// Priority: .gz-git.yaml > .gz-git.yml (current directory only, no parent scan)
-// This is a wrapper around config.DetectConfigFile for backward compatibility.
+// detectConfigFile searches upward from the given directory to $HOME for a
+// .gz-git config file (priority: .gz-git.yaml > .gz-git.yml > .gz-git.json).
+// This is a thin wrapper around config.DetectConfigFile.
 func detectConfigFile(dir string) (string, error) {
 	return config.DetectConfigFile(dir)
 }

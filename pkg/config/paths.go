@@ -148,42 +148,77 @@ func (p *Paths) ListProfiles() ([]string, error) {
 	return profiles, nil
 }
 
-// FindProjectConfig walks up the directory tree to find .gz-git config file.
-// It starts from the current working directory and stops at the home directory.
+// projectConfigNames returns the concrete config filenames probed per directory,
+// in priority order (.gz-git.yaml, .gz-git.yml, .gz-git.json).
+func projectConfigNames() []string {
+	names := make([]string, 0, len(supportedExtensions))
+	for _, ext := range supportedExtensions {
+		names = append(names, ProjectConfigFileName+ext)
+	}
+	return names
+}
+
+// findConfigUpward is the single config-discovery algorithm shared by
+// FindProjectConfig, DetectConfigFile and FindConfigRecursive. Starting at
+// startDir it ascends the parent chain, returning the first directory that
+// contains one of names together with the full path to that file. The ascent is
+// bounded by $HOME: it never rises above the user's home directory, which keeps
+// discovery from leaking into other users' or system directories. For start
+// directories outside $HOME it stops at the filesystem root. Returns
+// ("", "", nil) when nothing matches — absence is not an error here; callers that
+// require a config translate the empty result into their own error.
+func findConfigUpward(startDir string, names []string) (dir, path string, err error) {
+	// $HOME is the ascent ceiling when it can be determined. If it can't (e.g.
+	// HOME unset in a minimal container), fall back to no ceiling and stop at the
+	// filesystem root rather than failing discovery outright — an empty homeDir
+	// never equals a real directory, so the loop simply walks to the root.
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		homeDir = ""
+	}
+
+	// Resolve to an absolute path first: a relative start like "." has
+	// filepath.Dir(".") == ".", which would trap the ascent in a single
+	// directory and silently defeat the upward search.
+	current, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to resolve %q: %w", startDir, err)
+	}
+
+	for {
+		for _, name := range names {
+			candidate := filepath.Join(current, name)
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				return current, candidate, nil
+			}
+		}
+
+		if homeDir != "" && current == homeDir {
+			break // never ascend above $HOME
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break // reached filesystem root
+		}
+		current = parent
+	}
+
+	return "", "", nil
+}
+
+// FindProjectConfig walks up from the current working directory to $HOME and
+// returns the path to the nearest .gz-git config file, or "" if none exists.
 func FindProjectConfig() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	homeDir, err := os.UserHomeDir()
+	_, path, err := findConfigUpward(cwd, projectConfigNames())
 	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+		return "", err
 	}
-
-	// Walk up directory tree
-	dir := cwd
-	for {
-		basePath := filepath.Join(dir, ProjectConfigFileName)
-		if configPath := findFile(basePath, supportedExtensions); configPath != "" {
-			return configPath, nil
-		}
-
-		// Stop at home directory
-		if dir == homeDir {
-			break
-		}
-
-		// Move to parent directory
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached root
-			break
-		}
-		dir = parent
-	}
-
-	return "", nil // Not found (not an error)
+	return path, nil // "" when not found (not an error)
 }
 
 // GetActiveProfile reads the active profile name from state file.
@@ -219,13 +254,19 @@ func (p *Paths) SetActiveProfile(name string) error {
 	return nil
 }
 
-// DetectConfigFile searches for config files in the given directory.
-// It checks for supported extensions in their defined order.
-// Returns the full path to the found config file, or an error if not found.
+// DetectConfigFile searches upward from the given directory to $HOME for a
+// .gz-git config file and returns the full path to the nearest one. Searching
+// upward (rather than the given directory alone) lets commands run from a
+// workspace subdirectory resolve the workspace's existing config instead of
+// re-initializing a second one in the wrong place. Returns an error when no
+// config exists between dir and $HOME.
 func DetectConfigFile(dir string) (string, error) {
-	path, _ := DetectConfigFileWithKind(dir)
+	_, path, err := findConfigUpward(dir, projectConfigNames())
+	if err != nil {
+		return "", err
+	}
 	if path == "" {
-		return "", fmt.Errorf("config file not found in %s (tried %s with extensions %v)",
+		return "", fmt.Errorf("config file not found in %s or any parent up to $HOME (tried %s with extensions %v)",
 			dir, ProjectConfigFileName, supportedExtensions)
 	}
 	return path, nil
@@ -237,8 +278,10 @@ type ConfigFileInfo struct {
 	Kind ConfigKind
 }
 
-// DetectConfigFileWithKind searches for config files and returns path.
-// It checks for supported extensions in their defined order.
+// DetectConfigFileWithKind probes a single directory (no parent walk, unlike
+// DetectConfigFile) for a .gz-git config file, checking supported extensions in
+// their defined order. Use it when the caller specifically wants "is there a
+// config in exactly this directory".
 func DetectConfigFileWithKind(dir string) (string, ConfigKind) {
 	basePath := filepath.Join(dir, ProjectConfigFileName)
 	if path := findFile(basePath, supportedExtensions); path != "" {

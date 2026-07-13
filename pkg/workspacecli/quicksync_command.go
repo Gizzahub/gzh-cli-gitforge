@@ -180,6 +180,11 @@ Auto-Init Behavior:
 					}
 				} else {
 					effectiveConfig = detected
+					// Surface which config was picked — DetectConfigFile now
+					// searches upward, so this may be a parent workspace's config
+					// rather than one in workDir. Making it visible prevents the
+					// silent "wrong workspace" surprise.
+					fmt.Fprintf(out, "Using config: %s\n", detected)
 				}
 			}
 
