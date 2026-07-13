@@ -4,10 +4,7 @@
 package workspacecli
 
 import (
-	"context"
 	"testing"
-
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 func TestCommandFactory_NewRootCmd(t *testing.T) {
@@ -45,29 +42,8 @@ func TestCommandFactory_NewRootCmd(t *testing.T) {
 	}
 }
 
-func TestCommandFactory_WithOrchestrator(t *testing.T) {
-	mockOrchestrator := &mockRunner{}
-
-	factory := CommandFactory{
-		Orchestrator: mockOrchestrator,
-	}
-
-	cmd := factory.NewRootCmd()
-
-	if cmd == nil {
-		t.Error("NewRootCmd should not return nil")
-	}
-}
-
 func TestDefaultConfigFile(t *testing.T) {
 	if DefaultConfigFile != ".gz-git.yaml" {
 		t.Errorf("DefaultConfigFile = %q, want %q", DefaultConfigFile, ".gz-git.yaml")
 	}
-}
-
-// mockRunner implements reposync.Runner for testing.
-type mockRunner struct{}
-
-func (m *mockRunner) Run(_ context.Context, _ reposync.RunRequest) (reposync.ExecutionResult, error) {
-	return reposync.ExecutionResult{}, nil
 }

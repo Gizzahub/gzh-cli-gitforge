@@ -13,9 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/wizard"
 )
@@ -60,6 +58,13 @@ func (f CommandFactory) runSetup(cmd *cobra.Command) error {
 					"Note: the token itself was not saved; the config references ${%s}.\nExport it before syncing: export %s=<your-token>\n",
 					envVar, envVar)
 			}
+			if wizardFiltersDropped(opts) {
+				fmt.Fprintf(cmd.OutOrStdout(),
+					"Note: repository filters (archived/private/forks) are not stored in the workspace config.\n"+
+						"When syncing with 'gz-git sync -c %s', private repos are included and archived/forks excluded.\n"+
+						"Use the equivalent 'gz-git forge from' command above to apply your chosen filters.\n",
+					opts.ConfigPath)
+			}
 		}
 	}
 
@@ -92,37 +97,77 @@ func tokenEnvVarForProvider(provider string) string {
 	}
 }
 
-func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
-	// Create a SyncConfig from wizard options
-	config := map[string]any{
-		"provider":     opts.Provider,
-		"organization": opts.Organization,
-		"target":       opts.TargetPath,
-		"cloneProto":   opts.CloneProto,
-		"parallel":     opts.Parallel,
-	}
+// wizardConfigFile wraps the hierarchical config with the version/kind header so
+// the saved file is self-describing. detectConfigKind honors the explicit kind
+// first, guaranteeing the file routes to the workspace loader rather than the
+// gzh.yaml path that requires a repositories array.
+type wizardConfigFile struct {
+	Version int               `yaml:"version"`
+	Kind    config.ConfigKind `yaml:"kind"`
+	Config  config.Config     `yaml:",inline"`
+}
 
-	if opts.BaseURL != "" {
-		config["baseURL"] = opts.BaseURL
+// buildWizardConfig converts wizard options into the hierarchical pkg/config
+// typed structure (kind: workspace, one forge workspace). The wizard previously
+// wrote a flat map that no loader could consume — the sync loader detected it as
+// a gzh.yaml and rejected it for having no repositories. Emitting a real
+// config.Config makes the saved file loadable by `gz-git sync -c` and lets it
+// pass config validation (the AC4 round-trip).
+//
+// The wizard's archived/private/forks filter choices have no field in the
+// hierarchical schema (loadForgeWorkspace applies fixed behavior), so they are
+// intentionally not persisted here; runSetup warns when that drops a choice.
+func buildWizardConfig(opts *wizard.SyncSetupOptions) config.Config {
+	src := &config.ForgeSource{
+		Provider: opts.Provider,
+		Org:      opts.Organization,
+		BaseURL:  opts.BaseURL,
 	}
-
 	if opts.Token != "" {
 		// Never persist raw tokens to disk; reference an env var instead.
-		config["token"] = "${" + tokenEnvVarForProvider(opts.Provider) + "}"
+		src.Token = "${" + tokenEnvVarForProvider(opts.Provider) + "}"
 	}
-
-	if opts.SSHPort != 0 && opts.SSHPort != 22 {
-		config["sshPort"] = opts.SSHPort
-	}
-
 	if opts.Provider == "gitlab" {
-		config["includeSubgroups"] = opts.IncludeSubgroups
-		config["subgroupMode"] = opts.SubgroupMode
+		src.IncludeSubgroups = opts.IncludeSubgroups
+		src.SubgroupMode = opts.SubgroupMode
 	}
 
-	config["includeArchived"] = opts.IncludeArchived
-	config["includePrivate"] = opts.IncludePrivate
-	config["includeForks"] = opts.IncludeForks
+	ws := &config.Workspace{
+		Path:       opts.TargetPath,
+		Type:       config.WorkspaceTypeForge,
+		Source:     src,
+		CloneProto: opts.CloneProto,
+		Parallel:   opts.Parallel,
+	}
+	if opts.SSHPort != 0 && opts.SSHPort != 22 {
+		ws.SSHPort = opts.SSHPort
+	}
+
+	return config.Config{
+		Metadata: &config.Metadata{Name: opts.Organization},
+		Workspaces: map[string]*config.Workspace{
+			opts.Organization: ws,
+		},
+	}
+}
+
+// wizardFiltersDropped reports whether the wizard captured repo-filter choices
+// that the hierarchical workspace config cannot express. loadForgeWorkspace
+// fixes these (private included, archived/forks excluded), so a config saved
+// from non-default filter choices would sync differently than the wizard's
+// immediate run — we surface that rather than silently dropping the setting.
+func wizardFiltersDropped(opts *wizard.SyncSetupOptions) bool {
+	return opts.IncludeArchived || !opts.IncludePrivate || opts.IncludeForks
+}
+
+func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
+	cfg := buildWizardConfig(opts)
+
+	// Route through the shared validator so we never persist a config that
+	// `gz-git sync` / `config validate` would later reject.
+	if err := config.NewValidator().ValidateConfig(&cfg); err != nil {
+		return fmt.Errorf("generated config failed validation: %w", err)
+	}
 
 	// Ensure directory exists
 	dir := filepath.Dir(opts.ConfigPath)
@@ -130,8 +175,12 @@ func saveWizardConfig(opts *wizard.SyncSetupOptions) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Write config file
-	data, err := yaml.Marshal(config)
+	// Write config file with an explicit version/kind header.
+	data, err := yaml.Marshal(wizardConfigFile{
+		Version: 1,
+		Kind:    config.KindWorkspace,
+		Config:  cfg,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
@@ -150,7 +199,9 @@ func (f CommandFactory) executeSyncFromWizard(ctx context.Context, cmd *cobra.Co
 		return fmt.Errorf("failed to create provider: %w", err)
 	}
 
-	// Create ForgePlanner config
+	// Create ForgePlanner config. Auth mirrors `forge from`: without it the
+	// planner injects no token into HTTPS clone URLs, so private-repo clones
+	// from the wizard's execute-now path would fail authentication.
 	plannerConfig := reposync.ForgePlannerConfig{
 		TargetPath:       opts.TargetPath,
 		Organization:     opts.Organization,
@@ -161,6 +212,11 @@ func (f CommandFactory) executeSyncFromWizard(ctx context.Context, cmd *cobra.Co
 		SSHPort:          opts.SSHPort,
 		IncludeSubgroups: opts.IncludeSubgroups,
 		SubgroupMode:     opts.SubgroupMode,
+		Auth: reposync.AuthConfig{
+			Token:    opts.Token,
+			Provider: opts.Provider,
+			SSHPort:  opts.SSHPort,
+		},
 	}
 
 	planner := reposync.NewForgePlanner(forgeProvider, plannerConfig)
@@ -207,29 +263,5 @@ func (f CommandFactory) executeSyncFromWizard(ctx context.Context, cmd *cobra.Co
 }
 
 func createProviderFromWizard(opts *wizard.SyncSetupOptions) (reposync.ForgeProvider, error) {
-	switch opts.Provider {
-	case "github":
-		return github.NewProvider(opts.Token, opts.BaseURL), nil
-
-	case "gitlab":
-		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
-			Token:   opts.Token,
-			BaseURL: opts.BaseURL,
-			SSHPort: opts.SSHPort,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return forgeProviderAdapter{p}, nil
-
-	case "gitea":
-		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
-		if err != nil {
-			return nil, err
-		}
-		return forgeProviderAdapter{p}, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", opts.Provider)
-	}
+	return CreateForgeProviderRaw(opts.Provider, opts.Token, opts.BaseURL, opts.SSHPort)
 }

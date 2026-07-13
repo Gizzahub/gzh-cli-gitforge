@@ -13,9 +13,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/provider"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/templates"
@@ -237,34 +234,14 @@ func (f CommandFactory) runConfigGenerate(cmd *cobra.Command, opts *ConfigGenera
 }
 
 func createConfigGenerateProvider(opts *ConfigGenerateOptions) (provider.Provider, error) {
-	switch opts.Provider {
-	case "github":
-		return github.NewProvider(opts.Token, opts.BaseURL), nil
-
-	case "gitlab":
-		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
-			Token:   opts.Token,
-			BaseURL: opts.BaseURL,
-			SSHPort: opts.SSHPort,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return p, nil
-
-	case "gitea":
-		if opts.BaseURL == "" {
-			return nil, fmt.Errorf("gitea requires --base-url")
-		}
-		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
-		if err != nil {
-			return nil, err
-		}
-		return p, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s (must be github, gitlab, or gitea)", opts.Provider)
+	// Keep the command-specific hint before delegating: NewForgeProviderWithAuth
+	// would surface the constructor's generic "baseURL is required" message here.
+	if opts.Provider == "gitea" && opts.BaseURL == "" {
+		return nil, fmt.Errorf("gitea requires --base-url")
 	}
+	// Delegate to the single owner of provider construction (returns the
+	// auth-capable interface, which satisfies provider.Provider).
+	return NewForgeProviderWithAuth(opts.Provider, opts.Token, opts.BaseURL, opts.SSHPort)
 }
 
 func fetchRepositoriesFromForge(ctx context.Context, forgeProvider provider.Provider, opts *ConfigGenerateOptions, filter *MetadataFilter) ([]*provider.Repository, error) {

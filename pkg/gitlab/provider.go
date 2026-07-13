@@ -107,6 +107,14 @@ func (p *Provider) Name() string {
 	return "gitlab"
 }
 
+// SSHPort returns the configured custom SSH port (0 means the default, 22).
+// It makes the SSH-port wiring observable so callers/tests can confirm the port
+// survived provider construction — the field that historically drifted between
+// the forge-sync and doctor provider-creation paths.
+func (p *Provider) SSHPort() int {
+	return p.sshPort
+}
+
 // ListOrganizationRepos lists all repositories in a GitLab group
 func (p *Provider) ListOrganizationRepos(ctx context.Context, group string) ([]*provider.Repository, error) {
 	var allRepos []*provider.Repository

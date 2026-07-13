@@ -5,17 +5,13 @@ package workspacecli
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // DefaultConfigFile is the default workspace config filename.
 const DefaultConfigFile = ".gz-git.yaml"
 
 // CommandFactory builds workspace CLI commands.
-type CommandFactory struct {
-	Orchestrator reposync.Runner
-}
+type CommandFactory struct{}
 
 // NewRootCmd returns the workspace root command.
 func (f CommandFactory) NewRootCmd() *cobra.Command {

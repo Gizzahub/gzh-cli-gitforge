@@ -11,7 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // AddOptions holds options for the add command.
@@ -103,29 +105,11 @@ func (f CommandFactory) runAdd(cmd *cobra.Command, opts *AddOptions) error {
 		return err
 	}
 
-	// Add repository
-	newRepo := map[string]any{
-		"name":       name,
-		"url":        opts.URL,
-		"targetPath": targetPath,
+	// Validate and add the repository. appendRepoEntry rejects empty/invalid
+	// URLs and duplicates before anything is written to disk.
+	if err := appendRepoEntry(config, name, opts.URL, targetPath); err != nil {
+		return err
 	}
-
-	repos, ok := config["repositories"].([]any)
-	if !ok {
-		repos = []any{}
-	}
-
-	// Check for duplicates
-	for _, r := range repos {
-		if rm, ok := r.(map[string]any); ok {
-			if rm["targetPath"] == targetPath {
-				return fmt.Errorf("repository with targetPath %q already exists", targetPath)
-			}
-		}
-	}
-
-	repos = append(repos, newRepo)
-	config["repositories"] = repos
 
 	// Write config
 	if err := writeConfig(configPath, config); err != nil {
@@ -142,39 +126,81 @@ func (f CommandFactory) addFromCurrent(cmd *cobra.Command, configPath string) er
 		return fmt.Errorf("current directory is not a git repository")
 	}
 
-	// Get remote URL
-	// This is a simple implementation - could be enhanced
 	absPath, err := filepath.Abs(".")
 	if err != nil {
 		return err
 	}
-
 	name := filepath.Base(absPath)
+
+	// Resolve the real remote URL instead of scaffolding an empty entry. An
+	// empty URL is unusable by sync and used to be written silently; if the repo
+	// has no usable remote we fail loudly rather than persist a broken entry.
+	ctx := cmd.Context()
+	client := repository.NewClient()
+	repo, err := client.Open(ctx, absPath)
+	if err != nil {
+		return fmt.Errorf("open current repository: %w", err)
+	}
+	info, err := client.GetInfo(ctx, repo)
+	if err != nil {
+		return fmt.Errorf("read current repository info: %w", err)
+	}
+	if info.RemoteURL == "" {
+		return fmt.Errorf("current repository has no 'origin' remote; add one with 'git remote add origin <url>' or run 'workspace add <url>'")
+	}
 
 	config, err := loadOrCreateConfig(configPath)
 	if err != nil {
 		return err
 	}
 
-	newRepo := map[string]any{
-		"name":       name,
-		"url":        "", // Will be filled by user
-		"targetPath": absPath,
+	// appendRepoEntry validates the resolved URL and rejects duplicates.
+	if err := appendRepoEntry(config, name, info.RemoteURL, absPath); err != nil {
+		return err
+	}
+
+	if err := writeConfig(configPath, config); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "✓ Added %s (%s) to %s\n", name, info.RemoteURL, configPath)
+	return nil
+}
+
+// appendRepoEntry validates a new repository and appends it to the config's
+// repositories list. It rejects empty or malformed URLs via the shared git-input
+// sanitizer and refuses duplicates (by URL or by path, tolerating the legacy
+// "targetPath" key on existing entries) — so `workspace add` never writes an
+// unusable entry to disk. New entries use the canonical "path" key that every
+// config loader reads (the old code wrote "targetPath", which loaders ignore).
+func appendRepoEntry(config map[string]any, name, url, path string) error {
+	if err := gitcmd.SanitizeURL(url); err != nil {
+		return fmt.Errorf("invalid repository URL %q: %w", url, err)
 	}
 
 	repos, ok := config["repositories"].([]any)
 	if !ok {
 		repos = []any{}
 	}
-	repos = append(repos, newRepo)
-	config["repositories"] = repos
 
-	if err := writeConfig(configPath, config); err != nil {
-		return err
+	for _, r := range repos {
+		rm, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		if rm["url"] == url {
+			return fmt.Errorf("repository with URL %q already exists", url)
+		}
+		if rm["path"] == path || rm["targetPath"] == path {
+			return fmt.Errorf("repository with path %q already exists", path)
+		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "✓ Added %s to %s\n", name, configPath)
-	fmt.Fprintln(cmd.OutOrStdout(), "  Note: Please set the repository URL in the config file")
+	config["repositories"] = append(repos, map[string]any{
+		"name": name,
+		"url":  url,
+		"path": path,
+	})
 	return nil
 }
 

@@ -297,50 +297,64 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 	return nil
 }
 
-// createFromForgeProvider creates the appropriate provider based on options.
-func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, error) {
-	switch opts.Provider {
+// NewForgeProviderWithAuth is the single owner of forge-provider construction.
+// It maps a provider name to the concrete github/gitlab/gitea provider and
+// returns it as provider.ProviderWithAuth — the richest common interface, so
+// callers that need token validation or rate-limit access (e.g. doctor) get
+// them, while sync callers narrow it to reposync.ForgeProvider via
+// CreateForgeProviderRaw. Keeping this switch in exactly one place is the point:
+// per-provider wiring — notably the GitLab SSH port — can no longer drift
+// between the from_forge, wizard, config-loader and doctor paths.
+func NewForgeProviderWithAuth(providerName, token, baseURL string, sshPort int) (provider.ProviderWithAuth, error) {
+	switch providerName {
 	case "github":
-		return github.NewProvider(opts.Token, opts.BaseURL), nil
+		// github.NewProvider never fails and takes no SSH port (API-only here).
+		return github.NewProvider(token, baseURL), nil
 
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
-			Token:   opts.Token,
-			BaseURL: opts.BaseURL,
-			SSHPort: opts.SSHPort,
+			Token:   token,
+			BaseURL: baseURL,
+			SSHPort: sshPort, // only GitLab honors a custom SSH port
 		})
 		if err != nil {
 			return nil, err
 		}
-		return forgeProviderAdapter{p}, nil
+		return p, nil
 
 	case "gitea":
-		p, err := gitea.NewProvider(opts.Token, opts.BaseURL)
+		p, err := gitea.NewProvider(token, baseURL)
 		if err != nil {
 			return nil, err
 		}
-		return forgeProviderAdapter{p}, nil
+		return p, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported provider: %s (supported: github, gitlab, gitea)", opts.Provider)
+		return nil, fmt.Errorf("unsupported provider: %s (supported: github, gitlab, gitea)", providerName)
 	}
 }
 
-// forgeProviderAdapter adapts gitforge providers to ForgeProvider interface.
+// createFromForgeProvider adapts FromForgeOptions to the shared constructor.
+func createFromForgeProvider(opts *FromForgeOptions) (reposync.ForgeProvider, error) {
+	return CreateForgeProviderRaw(opts.Provider, opts.Token, opts.BaseURL, opts.SSHPort)
+}
+
+// forgeProviderAdapter adapts gitforge providers to the narrow ForgeProvider
+// interface used by the reposync core (Name + repo listing only).
 type forgeProviderAdapter struct {
 	provider.Provider
 }
 
-// CreateForgeProviderRaw creates a provider from raw strings.
-// This is a helper for other packages (like workspacecli) to avoid duplicating provider creation logic.
+// CreateForgeProviderRaw creates a provider from raw strings and narrows it to
+// reposync.ForgeProvider. It is the entry point for sync callers (and other
+// packages like workspacecli); doctor uses NewForgeProviderWithAuth directly
+// when it needs the auth-capable interface.
 func CreateForgeProviderRaw(providerName, token, baseURL string, sshPort int) (reposync.ForgeProvider, error) {
-	opts := &FromForgeOptions{
-		Provider: providerName,
-		Token:    token,
-		BaseURL:  baseURL,
-		SSHPort:  sshPort,
+	p, err := NewForgeProviderWithAuth(providerName, token, baseURL, sshPort)
+	if err != nil {
+		return nil, err
 	}
-	return createFromForgeProvider(opts)
+	return forgeProviderAdapter{p}, nil
 }
 
 // CreateProviderFromSource creates a forge provider from config types with profile fallback.

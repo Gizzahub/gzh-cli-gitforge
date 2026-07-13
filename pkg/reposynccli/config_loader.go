@@ -15,9 +15,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitea"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/github"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/gitlab"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
@@ -704,7 +701,7 @@ func (l FileSpecLoader) loadForgeWorkspace( //nolint:gocyclo // complex provider
 	// Default separator is "-" (handled in buildTargetPath)
 
 	// Create ForgePlanner and fetch repos
-	forgeProvider, err := createForgeProvider(provider, token, baseURL, sshPort)
+	forgeProvider, err := CreateForgeProviderRaw(provider, token, baseURL, sshPort)
 	if err != nil {
 		return nil, fmt.Errorf("create provider: %w", err)
 	}
@@ -756,35 +753,6 @@ func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) 
 
 	// No config file found, fall back to scanning for git repos
 	return scanGitRepos(wsPath)
-}
-
-// createForgeProvider creates a forge provider based on provider type.
-func createForgeProvider(provider, token, baseURL string, sshPort int) (reposync.ForgeProvider, error) {
-	switch provider {
-	case "github":
-		return github.NewProvider(token, baseURL), nil
-
-	case "gitlab":
-		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{
-			Token:   token,
-			BaseURL: baseURL,
-			SSHPort: sshPort,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return forgeProviderAdapter{p}, nil
-
-	case "gitea":
-		p, err := gitea.NewProvider(token, baseURL)
-		if err != nil {
-			return nil, err
-		}
-		return forgeProviderAdapter{p}, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s (supported: github, gitlab, gitea)", provider)
-	}
 }
 
 // expandEnvVar expands ${VAR} syntax in a string.
