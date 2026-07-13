@@ -185,152 +185,69 @@ func executePull(ctx context.Context, client repository.Client, opts repository.
 }
 
 func displayPullResults(result *repository.BulkPullResult) {
-	// JSON or LLM output mode
-	if pullFlags.Format == "json" || pullFlags.Format == "llm" {
-		displayPullResultsStructured(result, pullFlags.Format)
-		return
+	rows := make([]BulkRenderRow, 0, len(result.Repositories))
+	for _, repo := range result.Repositories {
+		rows = append(rows, BulkRenderRow{
+			Path:             repo.GetPath(),
+			Branch:           repo.Branch,
+			Status:           repo.GetStatus(),
+			Message:          repo.GetMessage(),
+			Remote:           repo.Remote,
+			Err:              repo.GetError(),
+			Duration:         repo.Duration,
+			CommitsAhead:     repo.CommitsAhead,
+			CommitsBehind:    repo.CommitsBehind,
+			UncommittedFiles: repo.UncommittedFiles,
+			UntrackedFiles:   repo.UntrackedFiles,
+			Stashed:          repo.Stashed,
+		})
 	}
 
-	// Compact mode: unchanged
-	if pullFlags.Format == "compact" {
-		fmt.Println()
-		fmt.Println("=== Pull Results ===")
-		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
-		fmt.Println()
-		if len(result.Summary) > 0 {
-			fmt.Println("Summary by status:")
-			for status, count := range result.Summary {
-				icon := getBulkStatusIconSimple(status)
-				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-			}
-			fmt.Println()
-		}
-		hasIssues := false
-		for _, repo := range result.Repositories {
-			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
-				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" ||
-				repo.Status == "dirty" {
-				if !hasIssues {
-					fmt.Println("Issues found:")
-					hasIssues = true
-				}
-				displayPullRepositoryResult(repo)
-			}
-		}
-		if !hasIssues {
-			fmt.Println("✓ All repositories pulled successfully")
-		}
-	} else if verbose {
-		// Verbose: full detailed output (old default behavior)
-		fmt.Println()
-		fmt.Println("=== Pull Results ===")
-		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
-		fmt.Println()
-		if len(result.Summary) > 0 {
-			fmt.Println("Summary by status:")
-			for status, count := range result.Summary {
-				icon := getBulkStatusIconSimple(status)
-				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-			}
-			fmt.Println()
-		}
-		if len(result.Repositories) > 0 {
-			fmt.Println("Repository details:")
-			for _, repo := range result.Repositories {
-				displayPullRepositoryResult(repo)
-			}
-		}
-	} else {
-		// Default: summary line + issues only
-		WriteSummaryLine(os.Stdout, "Pulled", result.TotalProcessed, result.Summary, result.Duration)
-		for _, repo := range result.Repositories {
-			if repo.Status == "error" || repo.Status == "no-remote" || repo.Status == "no-upstream" ||
-				repo.Status == "conflict" || repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" ||
-				repo.Status == "dirty" || repo.Status == "auth-required" {
-				displayPullRepositoryResult(repo)
-			}
-		}
+	issueStatuses := issueStatusSet(
+		"error", "no-remote", "no-upstream", "conflict",
+		"rebase-in-progress", "merge-in-progress", "dirty",
+	)
+	if pullFlags.Format != "compact" {
+		issueStatuses["auth-required"] = true
 	}
 
-	// Always show dirty warning and auth errors
-	dirtyCount := countPullDirtyRepositories(result.Repositories)
-	if dirtyCount > 0 {
-		fmt.Println()
-		fmt.Printf("⚠ Warning: %d repository(ies) have uncommitted changes\n", dirtyCount)
-	}
-
-	authErrors := getPullAuthRequiredRepositories(result.Repositories)
-	if len(authErrors) > 0 {
-		fmt.Println()
-		fmt.Printf("🔐 Authentication required for %d repository(ies):\n", len(authErrors))
-		for _, path := range authErrors {
-			fmt.Printf("   • %s\n", path)
-		}
-		fmt.Println()
-		fmt.Println("💡 To fix: Configure credential helper or switch to SSH")
-		fmt.Println("   git config --global credential.helper cache")
-	}
+	RenderBulkResults(os.Stdout, BulkRenderConfig{
+		Title:          "=== Pull Results ===",
+		Verb:           "Pulled",
+		Format:         pullFlags.Format,
+		Verbose:        verbose,
+		IssueStatuses:  issueStatuses,
+		FormatStatus:   formatPullStatus,
+		ChangesCount:   func(row BulkRenderRow) int { return row.CommitsBehind },
+		SuccessMessage: "✓ All repositories pulled successfully",
+		ShowFooters:    true,
+	}, BulkRenderInput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		Duration:       result.Duration,
+		Summary:        result.Summary,
+		Rows:           rows,
+	})
 }
 
-// getPullAuthRequiredRepositories returns paths of repositories that failed due to authentication.
-func getPullAuthRequiredRepositories(repos []repository.RepositoryPullResult) []string {
-	var paths []string
-	for _, repo := range repos {
-		if repo.Status == repository.StatusAuthRequired {
-			paths = append(paths, repo.RelativePath)
-		}
-	}
-	return paths
-}
-
-func displayPullRepositoryResult(repo repository.RepositoryPullResult) {
-	// Determine icon based on actual result, not just status
-	// ✓ = changes pulled, = = no changes (up-to-date)
-	// ⚠ = dirty (has uncommitted/untracked files)
-	icon := getBulkStatusIcon(repo.Status, repo.CommitsBehind)
-
-	// Override icon if repo is dirty (uncommitted or untracked files)
-	isDirty := repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0
-	if isDirty && repo.Status != "error" && repo.Status != "conflict" {
-		icon = "⚠"
-	}
-
-	// Build compact one-line format: icon path (branch) status duration [dirty]
-	parts := []string{icon}
-
-	// Path with branch
-	pathPart := repo.RelativePath
-	if repo.Branch != "" {
-		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
-	}
-	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
-
-	// Show status compactly
-	// Status Display Guidelines:
-	//   - Changes occurred: "N↓ pulled" with ✓ icon
-	//   - No changes: "up-to-date" with = icon
+func formatPullStatus(row BulkRenderRow) string {
 	statusStr := ""
-	switch repo.Status {
+	switch row.Status {
 	case "success", "pulled":
-		if repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("%d↓ pulled", repo.CommitsBehind)
+		if row.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("%d↓ pulled", row.CommitsBehind)
 		} else {
-			// No changes pulled - display as up-to-date for consistency
 			statusStr = "up-to-date"
 		}
 	case "up-to-date":
-		if repo.CommitsAhead > 0 {
-			statusStr = fmt.Sprintf("up-to-date %d↑", repo.CommitsAhead)
+		if row.CommitsAhead > 0 {
+			statusStr = fmt.Sprintf("up-to-date %d↑", row.CommitsAhead)
 		} else {
 			statusStr = "up-to-date"
 		}
 	case "would-pull":
-		if repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("would pull %d↓", repo.CommitsBehind)
+		if row.CommitsBehind > 0 {
+			statusStr = fmt.Sprintf("would pull %d↓", row.CommitsBehind)
 		} else {
 			statusStr = "would pull"
 		}
@@ -351,106 +268,10 @@ func displayPullRepositoryResult(repo repository.RepositoryPullResult) {
 	case "skipped":
 		statusStr = "skipped"
 	default:
-		statusStr = repo.Status
+		statusStr = row.Status
 	}
-
-	// Add stash indicator
-	if repo.Stashed {
+	if row.Stashed {
 		statusStr += " [stash]"
 	}
-
-	parts = append(parts, fmt.Sprintf("%-18s", statusStr))
-
-	// Duration
-	if repo.Duration > 0 {
-		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
-	}
-
-	// Build output line safely
-	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
-	if len(parts) > 3 {
-		line += " " + parts[3]
-	}
-
-	// Add dirty status annotation
-	if isDirty {
-		dirtyInfo := fmt.Sprintf("[dirty: %d uncommitted, %d untracked]", repo.UncommittedFiles, repo.UntrackedFiles)
-		line += " " + dirtyInfo
-	}
-
-	fmt.Println(line)
-
-	// Show fix hint for no-upstream status
-	if repo.Status == "no-upstream" {
-		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
-	}
-
-	// Show error details: always for failed repos, verbose-only for others
-	if repo.Error != nil && (repo.Status == "error" || verbose) {
-		fmt.Printf("    Error: %v\n", repo.Error)
-	}
-}
-
-// countPullDirtyRepositories counts repositories with uncommitted or untracked files.
-func countPullDirtyRepositories(repos []repository.RepositoryPullResult) int {
-	count := 0
-	for _, repo := range repos {
-		if repo.UncommittedFiles > 0 || repo.UntrackedFiles > 0 {
-			count++
-		}
-	}
-	return count
-}
-
-// PullJSONOutput represents the JSON output structure for pull command
-type PullJSONOutput struct {
-	TotalScanned   int                        `json:"total_scanned"`
-	TotalProcessed int                        `json:"total_processed"`
-	DurationMs     int64                      `json:"duration_ms"`
-	Summary        map[string]int             `json:"summary"`
-	Repositories   []PullRepositoryJSONOutput `json:"repositories"`
-}
-
-// PullRepositoryJSONOutput represents a single repository in JSON output
-type PullRepositoryJSONOutput struct {
-	Path             string `json:"path"`
-	Branch           string `json:"branch,omitempty"`
-	Status           string `json:"status"`
-	CommitsAhead     int    `json:"commits_ahead,omitempty"`
-	CommitsBehind    int    `json:"commits_behind,omitempty"`
-	UncommittedFiles int    `json:"uncommitted_files,omitempty"`
-	UntrackedFiles   int    `json:"untracked_files,omitempty"`
-	Stashed          bool   `json:"stashed,omitempty"`
-	DurationMs       int64  `json:"duration_ms,omitempty"`
-	Error            string `json:"error,omitempty"`
-}
-
-func displayPullResultsStructured(result *repository.BulkPullResult, format string) {
-	output := PullJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]PullRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
-	for _, repo := range result.Repositories {
-		repoOutput := PullRepositoryJSONOutput{
-			Path:             repo.RelativePath,
-			Branch:           repo.Branch,
-			Status:           repo.Status,
-			CommitsAhead:     repo.CommitsAhead,
-			CommitsBehind:    repo.CommitsBehind,
-			UncommittedFiles: repo.UncommittedFiles,
-			UntrackedFiles:   repo.UntrackedFiles,
-			Stashed:          repo.Stashed,
-			DurationMs:       repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
-	}
-
-	writeBulkOutput(format, output)
+	return statusStr
 }

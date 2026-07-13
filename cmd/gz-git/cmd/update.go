@@ -156,214 +156,92 @@ func executeUpdate(ctx context.Context, client repository.Client, opts repositor
 }
 
 func displayUpdateResults(result *repository.BulkUpdateResult) {
-	// JSON or LLM output mode
-	if updateFlags.Format == "json" || updateFlags.Format == "llm" {
-		displayUpdateResultsStructured(result, updateFlags.Format)
-		return
-	}
-
-	// Compact mode: unchanged
-	if updateFlags.Format == "compact" {
-		fmt.Println()
-		fmt.Println("=== Update Results ===")
-		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
-		fmt.Println()
-		if len(result.Summary) > 0 {
-			fmt.Println("Summary by status:")
-			for status, count := range result.Summary {
-				icon := getBulkStatusIconSimple(status)
-				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-			}
-			fmt.Println()
-		}
-		hasIssues := false
-		for _, repo := range result.Repositories {
-			if repo.Status == "error" || repo.Status == "dirty" || repo.Status == "conflict" {
-				if !hasIssues {
-					fmt.Println("Issues found:")
-					hasIssues = true
-				}
-				displayUpdateRepositoryResult(repo)
-			}
-		}
-		if !hasIssues {
-			fmt.Println("✓ All repositories updated successfully")
-		}
-		return
-	}
-
-	fmt.Println()
-
-	if verbose {
-		// Verbose: full detailed output (old default behavior)
-		fmt.Println("=== Update Results ===")
-		fmt.Printf("Total scanned:   %d repositories\n", result.TotalScanned)
-		fmt.Printf("Total processed: %d repositories\n", result.TotalProcessed)
-		fmt.Printf("Duration:        %s\n", result.Duration.Round(100_000_000))
-		fmt.Println()
-		if len(result.Summary) > 0 {
-			fmt.Println("Summary by status:")
-			for status, count := range result.Summary {
-				icon := getBulkStatusIconSimple(status)
-				fmt.Printf("  %s %-15s %d\n", icon, status+":", count)
-			}
-			fmt.Println()
-		}
-		if len(result.Repositories) > 0 {
-			fmt.Println("Repository details:")
-			for _, repo := range result.Repositories {
-				displayUpdateRepositoryResult(repo)
-			}
-		}
-	} else {
-		// Default: summary line + issues only
-		WriteSummaryLine(os.Stdout, "Updated", result.TotalProcessed, result.Summary, result.Duration)
-		for _, repo := range result.Repositories {
-			if repo.Status == "error" || repo.Status == "dirty" || repo.Status == "conflict" ||
-				repo.Status == "no-remote" || repo.Status == "no-upstream" || repo.Status == "auth-required" ||
-				repo.Status == "rebase-in-progress" || repo.Status == "merge-in-progress" {
-				displayUpdateRepositoryResult(repo)
-			}
-		}
-	}
-}
-
-func displayUpdateRepositoryResult(repo repository.RepositoryUpdateResult) {
-	// Determine icon based on actual result
-	icon := getBulkStatusIcon(repo.Status, repo.CommitsBehind)
-
-	// Build compact one-line format: icon path (branch) status duration
-	parts := []string{icon}
-
-	// Path with branch
-	pathPart := repo.RelativePath
-	if repo.Branch != "" {
-		pathPart += fmt.Sprintf(" (%s)", repo.Branch)
-	}
-	parts = append(parts, fmt.Sprintf("%-50s", pathPart))
-
-	// Show status compactly
-	statusStr := ""
-	switch repo.Status {
-	case "success", "pulled", "updated":
-		if repo.CommitsBehind > 0 && repo.CommitsAhead > 0 {
-			statusStr = fmt.Sprintf("%d↓ %d↑ updated", repo.CommitsBehind, repo.CommitsAhead)
-		} else if repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("%d↓ updated", repo.CommitsBehind)
-		} else if repo.CommitsAhead > 0 {
-			statusStr = fmt.Sprintf("up-to-date %d↑", repo.CommitsAhead)
-		} else {
-			statusStr = "up-to-date"
-		}
-	case "up-to-date":
-		if repo.CommitsAhead > 0 {
-			statusStr = fmt.Sprintf("up-to-date %d↑", repo.CommitsAhead)
-		} else {
-			statusStr = "up-to-date"
-		}
-	case "error":
-		statusStr = "failed"
-	case "dirty":
-		statusStr = "has changes"
-	case "no-remote":
-		statusStr = "no remote"
-	case "no-upstream":
-		statusStr = "no upstream"
-	case "would-update":
-		if repo.CommitsBehind > 0 {
-			statusStr = fmt.Sprintf("would update %d↓", repo.CommitsBehind)
-		} else {
-			statusStr = "would update"
-		}
-	case "skipped":
-		if repo.HasUncommittedChanges {
-			statusStr = "skipped (dirty)"
-		} else {
-			statusStr = "skipped"
-		}
-	case "conflict":
-		statusStr = "conflict"
-	case "rebase-in-progress":
-		statusStr = "rebase in progress"
-	case "merge-in-progress":
-		statusStr = "merge in progress"
-	default:
-		statusStr = repo.Status
-	}
-	parts = append(parts, fmt.Sprintf("%-18s", statusStr))
-
-	// Duration
-	if repo.Duration > 0 {
-		parts = append(parts, fmt.Sprintf("%6s", repo.Duration.Round(10_000_000)))
-	}
-
-	// Build output line safely
-	line := "  " + parts[0] + " " + parts[1] + " " + parts[2]
-	if len(parts) > 3 {
-		line += " " + parts[3]
-	}
-	fmt.Println(line)
-
-	// Show fix hint for no-upstream status
-	if repo.Status == "no-upstream" {
-		fmt.Print(FormatUpstreamFixHint(repo.Branch, repo.Remote))
-	}
-
-	// Show error details if present
-	if repo.Error != nil && verbose {
-		fmt.Printf("    Error: %v\n", repo.Error)
-	}
-}
-
-// UpdateJSONOutput represents the JSON output structure for update command
-type UpdateJSONOutput struct {
-	TotalScanned   int                          `json:"total_scanned"`
-	TotalProcessed int                          `json:"total_processed"`
-	DurationMs     int64                        `json:"duration_ms"`
-	Summary        map[string]int               `json:"summary"`
-	Repositories   []UpdateRepositoryJSONOutput `json:"repositories"`
-}
-
-// UpdateRepositoryJSONOutput represents a single repository in JSON output
-type UpdateRepositoryJSONOutput struct {
-	Path                  string `json:"path"`
-	Branch                string `json:"branch,omitempty"`
-	Status                string `json:"status"`
-	Message               string `json:"message,omitempty"`
-	CommitsAhead          int    `json:"commits_ahead,omitempty"`
-	CommitsBehind         int    `json:"commits_behind,omitempty"`
-	HasUncommittedChanges bool   `json:"has_uncommitted_changes,omitempty"`
-	DurationMs            int64  `json:"duration_ms,omitempty"`
-	Error                 string `json:"error,omitempty"`
-}
-
-func displayUpdateResultsStructured(result *repository.BulkUpdateResult, format string) {
-	output := UpdateJSONOutput{
-		TotalScanned:   result.TotalScanned,
-		TotalProcessed: result.TotalProcessed,
-		DurationMs:     result.Duration.Milliseconds(),
-		Summary:        result.Summary,
-		Repositories:   make([]UpdateRepositoryJSONOutput, 0, len(result.Repositories)),
-	}
-
+	rows := make([]BulkRenderRow, 0, len(result.Repositories))
 	for _, repo := range result.Repositories {
-		repoOutput := UpdateRepositoryJSONOutput{
-			Path:                  repo.RelativePath,
+		rows = append(rows, BulkRenderRow{
+			Path:                  repo.GetPath(),
 			Branch:                repo.Branch,
-			Status:                repo.Status,
-			Message:               repo.Message,
+			Status:                repo.GetStatus(),
+			Message:               repo.GetMessage(),
+			Remote:                repo.Remote,
+			Err:                   repo.GetError(),
+			Duration:              repo.Duration,
 			CommitsAhead:          repo.CommitsAhead,
 			CommitsBehind:         repo.CommitsBehind,
 			HasUncommittedChanges: repo.HasUncommittedChanges,
-			DurationMs:            repo.Duration.Milliseconds(),
-		}
-		if repo.Error != nil {
-			repoOutput.Error = repo.Error.Error()
-		}
-		output.Repositories = append(output.Repositories, repoOutput)
+		})
 	}
 
-	writeBulkOutput(format, output)
+	issueStatuses := issueStatusSet("error", "dirty", "conflict")
+	if updateFlags.Format != "compact" {
+		issueStatuses = issueStatusSet(
+			"error", "dirty", "conflict", "no-remote", "no-upstream",
+			"auth-required", "rebase-in-progress", "merge-in-progress",
+		)
+	}
+
+	RenderBulkResults(os.Stdout, BulkRenderConfig{
+		Title:          "=== Update Results ===",
+		Verb:           "Updated",
+		Format:         updateFlags.Format,
+		Verbose:        verbose,
+		IssueStatuses:  issueStatuses,
+		FormatStatus:   formatUpdateStatus,
+		ChangesCount:   func(row BulkRenderRow) int { return row.CommitsBehind },
+		SuccessMessage: "✓ All repositories updated successfully",
+		ShowFooters:    false,
+	}, BulkRenderInput{
+		TotalScanned:   result.TotalScanned,
+		TotalProcessed: result.TotalProcessed,
+		Duration:       result.Duration,
+		Summary:        result.Summary,
+		Rows:           rows,
+	})
+}
+
+func formatUpdateStatus(row BulkRenderRow) string {
+	switch row.Status {
+	case "success", "pulled", "updated":
+		if row.CommitsBehind > 0 && row.CommitsAhead > 0 {
+			return fmt.Sprintf("%d↓ %d↑ updated", row.CommitsBehind, row.CommitsAhead)
+		}
+		if row.CommitsBehind > 0 {
+			return fmt.Sprintf("%d↓ updated", row.CommitsBehind)
+		}
+		if row.CommitsAhead > 0 {
+			return fmt.Sprintf("up-to-date %d↑", row.CommitsAhead)
+		}
+		return "up-to-date"
+	case "up-to-date":
+		if row.CommitsAhead > 0 {
+			return fmt.Sprintf("up-to-date %d↑", row.CommitsAhead)
+		}
+		return "up-to-date"
+	case "error":
+		return "failed"
+	case "dirty":
+		return "has changes"
+	case "no-remote":
+		return "no remote"
+	case "no-upstream":
+		return "no upstream"
+	case "would-update":
+		if row.CommitsBehind > 0 {
+			return fmt.Sprintf("would update %d↓", row.CommitsBehind)
+		}
+		return "would update"
+	case "skipped":
+		if row.HasUncommittedChanges {
+			return "skipped (dirty)"
+		}
+		return "skipped"
+	case "conflict":
+		return "conflict"
+	case "rebase-in-progress":
+		return "rebase in progress"
+	case "merge-in-progress":
+		return "merge in progress"
+	default:
+		return row.Status
+	}
 }
