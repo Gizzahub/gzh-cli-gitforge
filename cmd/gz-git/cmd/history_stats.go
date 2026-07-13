@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -12,7 +10,6 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/history"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 var (
@@ -60,32 +57,11 @@ func runHistoryStats(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Get repository path
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
 
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	// Create client
-	client := repository.NewClient()
-
-	// Check if it's a repository
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	// Open repository
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	// Create analyzer
 	analyzer := history.NewHistoryAnalyzer(gitcmd.NewExecutor())
 
 	// Parse dates
@@ -151,5 +127,3 @@ func parseOutputFormat(format string) (history.OutputFormat, error) {
 		return history.FormatTable, fmt.Errorf("unknown format: %s (valid: %s)", format, strings.Join(ValidHistoryFormats, ", "))
 	}
 }
-
-

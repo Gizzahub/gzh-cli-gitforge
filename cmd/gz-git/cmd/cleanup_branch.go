@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -109,34 +107,12 @@ func runCleanupBranch(cmd *cobra.Command, args []string) error {
 	return runSingleRepoCleanupBranch(ctx, excludePatterns)
 }
 
-// runSingleRepoCleanupBranch performs cleanup on a single repository
 func runSingleRepoCleanupBranch(ctx context.Context, excludePatterns []string) error {
-	// Get repository path
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
 
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	// Create client
-	client := repository.NewClient()
-
-	// Check if it's a repository
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	// Open repository
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	// Create cleanup service
 	svc := branch.NewCleanupService()
 
 	// Analyze branches
