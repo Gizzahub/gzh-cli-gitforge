@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/stash"
 )
 
 var (
@@ -21,9 +18,9 @@ var (
 	stashSaveBulkFlags  BulkCommandFlags
 	stashListBulkFlags  BulkCommandFlags
 	stashPopBulkFlags   BulkCommandFlags
+	stashApplyBulkFlags BulkCommandFlags
 )
 
-// stashCmd represents the stash command group
 var stashCmd = &cobra.Command{
 	Use:   "stash",
 	Short: "Stash management commands",
@@ -37,12 +34,14 @@ var stashCmd = &cobra.Command{
   gz-git stash list
 
   # Pop latest stash
-  gz-git stash pop`) + cliutil.ExitCodesBulkHelp(),
+  gz-git stash pop
+
+  # Apply latest stash without dropping it
+  gz-git stash apply`) + cliutil.ExitCodesBulkHelp(),
 	Example: ``,
 	Args:    cobra.NoArgs,
 }
 
-// stashSaveCmd saves changes to stash
 var stashSaveCmd = &cobra.Command{
 	Use:   "save [directory]",
 	Short: "Save changes to stash",
@@ -58,7 +57,6 @@ var stashSaveCmd = &cobra.Command{
 	RunE:    runStashSave,
 }
 
-// stashListCmd lists stash entries
 var stashListCmd = &cobra.Command{
 	Use:   "list [directory]",
 	Short: "List stash entries",
@@ -71,7 +69,6 @@ var stashListCmd = &cobra.Command{
 	RunE:    runStashList,
 }
 
-// stashPopCmd pops latest stash
 var stashPopCmd = &cobra.Command{
 	Use:   "pop [directory]",
 	Short: "Pop latest stash",
@@ -87,74 +84,49 @@ var stashPopCmd = &cobra.Command{
 	RunE:    runStashPop,
 }
 
+var stashApplyCmd = &cobra.Command{
+	Use:   "apply [directory]",
+	Short: "Apply latest stash without removing it",
+	Long: cliutil.QuickStartHelp(`  # Apply latest stash
+  gz-git stash apply
+
+  # BULK: Apply stashes in all repos
+  gz-git stash apply .
+
+  # BULK: Dry-run to preview
+  gz-git stash apply . -n`),
+	Example: ``,
+	RunE:    runStashApply,
+}
+
 func init() {
 	rootCmd.AddCommand(stashCmd)
 	stashCmd.AddCommand(stashSaveCmd)
 	stashCmd.AddCommand(stashListCmd)
 	stashCmd.AddCommand(stashPopCmd)
+	stashCmd.AddCommand(stashApplyCmd)
 
-	// Save flags
 	stashSaveCmd.Flags().StringVarP(&stashMessage, "message", "m", "", "stash message")
 	stashSaveCmd.Flags().BoolVarP(&stashIncludeUntrack, "include-untracked", "u", false, "include untracked files")
 
-	// Bulk flags for each subcommand (using shared addBulkFlags)
 	addBulkFlags(stashSaveCmd, &stashSaveBulkFlags)
 	addBulkFlags(stashListCmd, &stashListBulkFlags)
 	addBulkFlags(stashPopCmd, &stashPopBulkFlags)
+	addBulkFlags(stashApplyCmd, &stashApplyBulkFlags)
 }
 
 func runStashSave(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Bulk mode
-	if len(args) > 0 {
-		return runBulkStashSave(ctx, args[0])
-	}
-
-	// Single repo mode
-	return runSingleStashSave(ctx)
-}
-
-func runSingleStashSave(ctx context.Context) error {
-	repoPath, err := os.Getwd()
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+	if err := validateBulkDepth(cmd, stashSaveBulkFlags.Depth); err != nil {
+		return err
 	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
+	if err := validateBulkFormat(stashSaveBulkFlags.Format); err != nil {
+		return err
 	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	mgr := stash.NewManager()
-	opts := stash.SaveOptions{
-		Message:          stashMessage,
-		IncludeUntracked: stashIncludeUntrack,
-	}
-
-	if err := mgr.Save(ctx, repo, opts); err != nil {
-		return fmt.Errorf("failed to save stash: %w", err)
-	}
-
-	if !quiet {
-		msg := "Changes stashed"
-		if stashMessage != "" {
-			msg = fmt.Sprintf("Stashed: %s", stashMessage)
-		}
-		fmt.Printf("✓ %s\n", msg)
-	}
-
-	return nil
+	return runBulkStashSave(cmdContext(cmd), directory)
 }
 
 func runBulkStashSave(ctx context.Context, directory string) error {
@@ -187,66 +159,17 @@ func runBulkStashSave(ctx context.Context, directory string) error {
 }
 
 func runStashList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Bulk mode
-	if len(args) > 0 {
-		return runBulkStashList(ctx, args[0])
-	}
-
-	// Single repo mode
-	return runSingleStashList(ctx)
-}
-
-func runSingleStashList(ctx context.Context) error {
-	repoPath, err := os.Getwd()
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+	if err := validateBulkDepth(cmd, stashListBulkFlags.Depth); err != nil {
+		return err
 	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
+	if err := validateBulkFormat(stashListBulkFlags.Format); err != nil {
+		return err
 	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	mgr := stash.NewManager()
-	stashes, err := mgr.List(ctx, repo, stash.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list stashes: %w", err)
-	}
-
-	if len(stashes) == 0 {
-		if !quiet {
-			fmt.Println("No stashes")
-		}
-		return nil
-	}
-
-	if !quiet {
-		fmt.Printf("Stashes (%d):\n\n", len(stashes))
-		for _, s := range stashes {
-			msg := s.Message
-			if msg == "" {
-				msg = "(no message)"
-			}
-			fmt.Printf("  %s: %s\n", s.Ref, msg)
-			if verbose && s.Branch != "" {
-				fmt.Printf("         on branch: %s, created: %s\n", s.Branch, s.Date.Format("2006-01-02 15:04"))
-			}
-		}
-	}
-
-	return nil
+	return runBulkStashList(cmdContext(cmd), directory)
 }
 
 func runBulkStashList(ctx context.Context, directory string) error {
@@ -276,48 +199,17 @@ func runBulkStashList(ctx context.Context, directory string) error {
 }
 
 func runStashPop(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Bulk mode
-	if len(args) > 0 {
-		return runBulkStashPop(ctx, args[0])
-	}
-
-	// Single repo mode
-	return runSingleStashPop(ctx)
-}
-
-func runSingleStashPop(ctx context.Context) error {
-	repoPath, err := os.Getwd()
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+	if err := validateBulkDepth(cmd, stashPopBulkFlags.Depth); err != nil {
+		return err
 	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
+	if err := validateBulkFormat(stashPopBulkFlags.Format); err != nil {
+		return err
 	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	mgr := stash.NewManager()
-	if err := mgr.Pop(ctx, repo, stash.PopOptions{}); err != nil {
-		return fmt.Errorf("failed to pop stash: %w", err)
-	}
-
-	if !quiet {
-		fmt.Println("✓ Stash popped")
-	}
-
-	return nil
+	return runBulkStashPop(cmdContext(cmd), directory)
 }
 
 func runBulkStashPop(ctx context.Context, directory string) error {
@@ -347,8 +239,48 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
 }
 
+func runStashApply(cmd *cobra.Command, args []string) error {
+	directory, err := validateBulkDirectory(args)
+	if err != nil {
+		return err
+	}
+	if err := validateBulkDepth(cmd, stashApplyBulkFlags.Depth); err != nil {
+		return err
+	}
+	if err := validateBulkFormat(stashApplyBulkFlags.Format); err != nil {
+		return err
+	}
+	return runBulkStashApply(cmdContext(cmd), directory)
+}
+
+func runBulkStashApply(ctx context.Context, directory string) error {
+	client := repository.NewClient()
+
+	opts := repository.BulkStashOptions{
+		Directory:      directory,
+		Parallel:       stashApplyBulkFlags.Parallel,
+		MaxDepth:       stashApplyBulkFlags.Depth,
+		DryRun:         stashApplyBulkFlags.DryRun,
+		Operation:      "apply",
+		IncludePattern: stashApplyBulkFlags.Include,
+		ExcludePattern: stashApplyBulkFlags.Exclude,
+		Logger:         repository.NewNoopLogger(),
+	}
+
+	if shouldShowProgress(stashApplyBulkFlags.Format, quiet) {
+		printScanningMessage(directory, stashApplyBulkFlags.Depth, stashApplyBulkFlags.Parallel, stashApplyBulkFlags.DryRun)
+	}
+
+	result, err := client.BulkStash(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("bulk stash apply failed: %w", err)
+	}
+
+	printBulkStashResult(result, "apply", stashApplyBulkFlags.DryRun, stashApplyBulkFlags.Format)
+	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
+}
+
 func printBulkStashResult(result *repository.BulkStashResult, operation string, dryRun bool, format string) {
-	// JSON or LLM output mode
 	if format == "json" || format == "llm" {
 		displayStashResultsStructured(result, operation, format)
 		return
@@ -359,10 +291,9 @@ func printBulkStashResult(result *repository.BulkStashResult, operation string, 
 		modeStr = "[DRY-RUN] "
 	}
 
-	fmt.Printf("\n%sBulk Stash %s Report\n", modeStr, strings.Title(operation))
+	fmt.Printf("\n%sBulk Stash %s Report\n", modeStr, titleCase(operation))
 	fmt.Println(strings.Repeat("─", 50))
 
-	// Show repos with stashes or changes
 	for _, repo := range result.Repositories {
 		switch repo.Status {
 		case repository.StatusStashed, repository.StatusWouldStash:
@@ -393,7 +324,6 @@ func printBulkStashResult(result *repository.BulkStashResult, operation string, 
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Millisecond))
 }
 
-// StashJSONOutput represents the JSON output structure for stash command
 type StashJSONOutput struct {
 	Operation      string                      `json:"operation"`
 	TotalScanned   int                         `json:"total_scanned"`
@@ -403,7 +333,6 @@ type StashJSONOutput struct {
 	Repositories   []StashRepositoryJSONOutput `json:"repositories"`
 }
 
-// StashRepositoryJSONOutput represents a single repository in JSON output
 type StashRepositoryJSONOutput struct {
 	Path    string `json:"path"`
 	Status  string `json:"status"`

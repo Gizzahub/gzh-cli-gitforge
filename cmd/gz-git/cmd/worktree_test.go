@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
@@ -72,28 +74,25 @@ func TestWorktreeList_SingleRepo(t *testing.T) {
 		t.Skipf("git worktree add not available or failed: %v", err)
 	}
 
-	// Reset flag state before running.
 	worktreeListFlags = BulkCommandFlags{}
 
-	err := runSingleWorktreeList(context.Background())
+	cmd := &cobra.Command{}
+	err := runWorktreeList(cmd, nil)
 	if err != nil {
-		t.Errorf("runSingleWorktreeList() error = %v", err)
+		t.Errorf("runWorktreeList() error = %v", err)
 	}
 }
 
-// TestWorktreeList_NotARepo verifies an error is returned outside of a git repo.
 func TestWorktreeList_NotARepo(t *testing.T) {
 	nonRepo := t.TempDir()
 	t.Chdir(nonRepo)
 
 	worktreeListFlags = BulkCommandFlags{}
 
-	err := runSingleWorktreeList(context.Background())
-	if err == nil {
-		t.Error("runSingleWorktreeList() expected error for non-repo directory, got nil")
-	}
-	if !strings.Contains(err.Error(), "not a git repository") {
-		t.Errorf("runSingleWorktreeList() error = %q, want containing 'not a git repository'", err.Error())
+	cmd := &cobra.Command{}
+	err := runWorktreeList(cmd, nil)
+	if err != nil {
+		t.Errorf("runWorktreeList() unexpected error = %v", err)
 	}
 }
 

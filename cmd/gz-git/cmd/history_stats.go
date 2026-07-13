@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -90,12 +89,12 @@ func runHistoryStats(cmd *cobra.Command, args []string) error {
 	analyzer := history.NewHistoryAnalyzer(gitcmd.NewExecutor())
 
 	// Parse dates
-	sinceTime, err := parseStatsDate(statsSince)
+	sinceTime, err := parseDate(statsSince)
 	if err != nil {
 		return fmt.Errorf("invalid --since date: %w", err)
 	}
 
-	untilTime, err := parseStatsDate(statsUntil)
+	untilTime, err := parseDate(statsUntil)
 	if err != nil {
 		return fmt.Errorf("invalid --until date: %w", err)
 	}
@@ -153,24 +152,4 @@ func parseOutputFormat(format string) (history.OutputFormat, error) {
 	}
 }
 
-// parseStatsDate parses a date string in common formats
-func parseStatsDate(dateStr string) (time.Time, error) {
-	if dateStr == "" {
-		return time.Time{}, nil
-	}
 
-	// Try common date formats
-	formats := []string{
-		"2006-01-02",
-		"2006-01-02 15:04:05",
-		time.RFC3339,
-	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, dateStr); err == nil {
-			return t, nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unsupported date format (use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS): %s", dateStr)
-}

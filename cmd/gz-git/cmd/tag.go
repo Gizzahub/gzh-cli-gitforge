@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -163,24 +161,9 @@ func runTagCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runSingleTagCreate(ctx context.Context, tagName string) error {
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return err
 	}
 
 	mgr := tag.NewManager()
@@ -234,25 +217,9 @@ func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 func runTagAuto(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Single repo mode only for now
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return err
 	}
 
 	mgr := tag.NewManager()
@@ -289,66 +256,17 @@ func runTagAuto(cmd *cobra.Command, args []string) error {
 }
 
 func runTagList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Bulk mode
-	if len(args) > 0 {
-		return runBulkTagList(ctx, args[0])
-	}
-
-	// Single repo mode
-	return runSingleTagList(ctx)
-}
-
-func runSingleTagList(ctx context.Context) error {
-	repoPath, err := os.Getwd()
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+	if err := validateBulkDepth(cmd, tagListBulkFlags.Depth); err != nil {
+		return err
 	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
+	if err := validateBulkFormat(tagListBulkFlags.Format); err != nil {
+		return err
 	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	mgr := tag.NewManager()
-	tags, err := mgr.List(ctx, repo, tag.ListOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to list tags: %w", err)
-	}
-
-	if len(tags) == 0 {
-		if !quiet {
-			fmt.Println("No tags")
-		}
-		return nil
-	}
-
-	if !quiet {
-		fmt.Printf("Tags (%d):\n\n", len(tags))
-		for _, t := range tags {
-			msg := ""
-			if t.Message != "" {
-				msg = fmt.Sprintf(" - %s", t.Message)
-			}
-			fmt.Printf("  %s%s\n", t.Name, msg)
-			if verbose {
-				fmt.Printf("       SHA: %s, Date: %s\n", t.SHA, t.Date.Format("2006-01-02"))
-			}
-		}
-	}
-
-	return nil
+	return runBulkTagList(cmdContext(cmd), directory)
 }
 
 func runBulkTagList(ctx context.Context, directory string) error {
@@ -396,24 +314,9 @@ func runTagPush(cmd *cobra.Command, args []string) error {
 }
 
 func runSingleTagPush(ctx context.Context, name string) error {
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return err
 	}
 
 	mgr := tag.NewManager()
@@ -466,11 +369,15 @@ func runBulkTagPush(ctx context.Context, directory string) error {
 }
 
 func runTagStatus(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	directory := "."
-	if len(args) > 0 {
-		directory = args[0]
+	directory, err := validateBulkDirectory(args)
+	if err != nil {
+		return err
+	}
+	if err := validateBulkDepth(cmd, tagStatusBulkFlags.Depth); err != nil {
+		return err
+	}
+	if err := validateBulkFormat(tagStatusBulkFlags.Format); err != nil {
+		return err
 	}
 
 	client := repository.NewClient()
@@ -489,7 +396,7 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 		printScanningMessage(directory, tagStatusBulkFlags.Depth, tagStatusBulkFlags.Parallel, false)
 	}
 
-	result, err := client.BulkTag(ctx, opts)
+	result, err := client.BulkTag(cmdContext(cmd), opts)
 	if err != nil {
 		return fmt.Errorf("tag status failed: %w", err)
 	}
@@ -510,7 +417,7 @@ func printBulkTagResult(result *repository.BulkTagResult, operation string, dryR
 		modeStr = "[DRY-RUN] "
 	}
 
-	fmt.Printf("\n%sBulk Tag %s Report\n", modeStr, strings.Title(operation))
+	fmt.Printf("\n%sBulk Tag %s Report\n", modeStr, titleCase(operation))
 	fmt.Println(strings.Repeat("─", 50))
 
 	// Show repos with tags

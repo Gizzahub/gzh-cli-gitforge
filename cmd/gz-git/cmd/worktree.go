@@ -124,49 +124,14 @@ func init() {
 // ─── worktree list ────────────────────────────────────────────────────────────
 
 func runWorktreeList(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Bulk mode when a directory argument is provided.
-	if len(args) > 0 {
-		return runBulkWorktreeList(ctx, args[0])
-	}
-
-	return runSingleWorktreeList(ctx)
-}
-
-func runSingleWorktreeList(ctx context.Context) error {
-	repoPath, err := os.Getwd()
+	directory, err := validateBulkDirectory(args)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
+	if err := validateBulkDepth(cmd, worktreeListFlags.Depth); err != nil {
+		return err
 	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	mgr := branch.NewWorktreeManager()
-	worktrees, err := mgr.List(ctx, repo)
-	if err != nil {
-		return fmt.Errorf("failed to list worktrees: %w", err)
-	}
-
-	if worktreeListFlags.Format == "json" {
-		return printWorktreesJSON([]repoWorktreeResult{{Path: absPath, Worktrees: worktrees}})
-	}
-
-	printWorktreesTable(absPath, worktrees)
-	return nil
+	return runBulkWorktreeList(cmdContext(cmd), directory)
 }
 
 func runBulkWorktreeList(ctx context.Context, directory string) error {
@@ -241,27 +206,12 @@ func runWorktreeAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid branch name: %w", err)
 	}
 
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return err
 	}
+	absPath := repo.Path
 
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
-	}
-
-	// Compute target path for the worktree.
 	worktreePath := ""
 	if len(args) > 1 {
 		worktreePath = args[1]
@@ -296,24 +246,9 @@ func runWorktreeRemove(cmd *cobra.Command, args []string) error {
 
 	worktreePath := args[0]
 
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve path: %w", err)
-	}
-
-	client := repository.NewClient()
-	if !client.IsRepository(ctx, absPath) {
-		return fmt.Errorf("not a git repository: %s", absPath)
-	}
-
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return fmt.Errorf("failed to open repository: %w", err)
+		return err
 	}
 
 	mgr := branch.NewWorktreeManager()

@@ -26,7 +26,7 @@ type BulkStashOptions struct {
 	// DryRun performs simulation without actual changes
 	DryRun bool
 
-	// Operation is the stash operation: "save", "list", "pop"
+	// Operation is the stash operation: "save", "list", "pop", "apply"
 	Operation string
 
 	// Message is the stash message (for save operation)
@@ -256,6 +256,8 @@ func (c *client) processStashRepository(ctx context.Context, rootDir, repoPath s
 		result = c.processStashSave(ctx, repoPath, opts, result, logger)
 	case "pop":
 		result = c.processStashPop(ctx, repoPath, opts, result, logger)
+	case "apply":
+		result = c.processStashApply(ctx, repoPath, opts, result, logger)
 	case "list":
 		result = c.processStashList(ctx, repoPath, opts, result, logger)
 	default:
@@ -345,6 +347,35 @@ func (c *client) processStashPop(ctx context.Context, repoPath string, opts Bulk
 	result.StashCount--
 
 	logger.Info("stash popped", "path", result.RelativePath)
+	return result
+}
+
+func (c *client) processStashApply(ctx context.Context, repoPath string, opts BulkStashOptions, result RepositoryStashResult, logger Logger) RepositoryStashResult {
+	if result.StashCount == 0 {
+		result.Status = StatusNoStash
+		result.Message = "No stash to apply"
+		return result
+	}
+
+	if opts.DryRun {
+		result.Status = StatusWouldPop
+		result.Message = fmt.Sprintf("Would apply stash (%d available)", result.StashCount)
+		return result
+	}
+
+	applyResult, err := c.executor.Run(ctx, repoPath, "stash", "apply")
+	if err != nil || applyResult.ExitCode != 0 {
+		result.Status = StatusError
+		result.Message = "Failed to apply stash"
+		if applyResult.Stderr != "" {
+			result.Error = fmt.Errorf("%s", applyResult.Stderr)
+		}
+		return result
+	}
+
+	result.Status = StatusPopped
+	result.Message = "Stash applied"
+	logger.Info("stash applied", "path", result.RelativePath)
 	return result
 }
 

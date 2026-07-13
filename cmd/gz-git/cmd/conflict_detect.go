@@ -3,15 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/merge"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 var (
@@ -51,32 +48,11 @@ func runConflictDetect(cmd *cobra.Command, args []string) error {
 	source := args[0]
 	target := args[1]
 
-	// Get repository path
-	repoPath, err := os.Getwd()
+	repo, err := openCurrentRepo(ctx)
 	if err != nil {
-		return cliutil.NewExitError(2, fmt.Errorf("failed to get current directory: %w", err))
+		return cliutil.NewExitError(2, err)
 	}
 
-	absPath, err := filepath.Abs(repoPath)
-	if err != nil {
-		return cliutil.NewExitError(2, fmt.Errorf("failed to resolve path: %w", err))
-	}
-
-	// Create client
-	client := repository.NewClient()
-
-	// Check if it's a repository
-	if !client.IsRepository(ctx, absPath) {
-		return cliutil.NewExitError(2, fmt.Errorf("not a git repository: %s", absPath))
-	}
-
-	// Open repository
-	repo, err := client.Open(ctx, absPath)
-	if err != nil {
-		return cliutil.NewExitError(2, fmt.Errorf("failed to open repository: %w", err))
-	}
-
-	// Create conflict detector
 	detector := merge.NewConflictDetector(gitcmd.NewExecutor())
 
 	// Build options
