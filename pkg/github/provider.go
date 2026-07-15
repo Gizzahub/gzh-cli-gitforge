@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -31,7 +32,8 @@ type ProviderOptions struct {
 //
 // A non-empty baseURL targets a GitHub Enterprise Server instance. An empty
 // baseURL keeps the default github.com behavior (backward compatible).
-func NewProvider(token, baseURL string) *Provider {
+// Invalid non-empty base URLs return an error (fail-closed; no silent fallback).
+func NewProvider(token, baseURL string) (*Provider, error) {
 	return NewProviderWithOptions(ProviderOptions{
 		Token:   token,
 		BaseURL: baseURL,
@@ -39,14 +41,21 @@ func NewProvider(token, baseURL string) *Provider {
 }
 
 // NewProviderWithOptions creates a new GitHub provider with custom options.
-func NewProviderWithOptions(opts ProviderOptions) *Provider {
+func NewProviderWithOptions(opts ProviderOptions) (*Provider, error) {
+	baseURL, err := parseBaseURL(opts.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+
 	p := &Provider{
 		token:       opts.Token,
-		baseURL:     normalizeBaseURL(opts.BaseURL),
+		baseURL:     baseURL,
 		rateLimiter: ratelimit.NewLimiter(5000), // GitHub default
 	}
-	p.initClient(p.token, p.baseURL)
-	return p
+	if err := p.initClient(p.token, p.baseURL); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // BaseURL returns the configured Enterprise base URL, or "" for github.com.
@@ -58,10 +67,9 @@ func (p *Provider) BaseURL() string {
 // at a GitHub Enterprise Server instance via WithEnterpriseURLs; the uploads
 // endpoint follows the GHE convention (baseURL + "/api/uploads").
 //
-// NewClient only errors when an option fails to apply (e.g. URL parsing). If
-// WithEnterpriseURLs fails on a malformed URL we fall back to a token-only
-// client so callers never observe a nil client.
-func (p *Provider) initClient(token, baseURL string) {
+// Malformed Enterprise URLs return an error (fail-closed). Callers never receive
+// a provider that silently talks to github.com after a bad GHE base URL.
+func (p *Provider) initClient(token, baseURL string) error {
 	var opts []github.ClientOptionsFunc
 	if token != "" {
 		opts = append(opts, github.WithAuthToken(token))
@@ -71,17 +79,11 @@ func (p *Provider) initClient(token, baseURL string) {
 	}
 
 	client, err := github.NewClient(opts...)
-	if err == nil {
-		p.client = client
-		return
+	if err != nil {
+		return fmt.Errorf("failed to create GitHub client: %w", err)
 	}
-
-	// GHE URL malformed: fall back to the default (github.com) client.
-	var fallback []github.ClientOptionsFunc
-	if token != "" {
-		fallback = append(fallback, github.WithAuthToken(token))
-	}
-	p.client, _ = github.NewClient(fallback...)
+	p.client = client
+	return nil
 }
 
 // SetToken sets the authentication token, preserving the configured base URL.
@@ -89,8 +91,7 @@ func (p *Provider) SetToken(token string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.token = token
-	p.initClient(token, p.baseURL)
-	return nil
+	return p.initClient(token, p.baseURL)
 }
 
 // ValidateToken validates the current token
@@ -244,18 +245,26 @@ func convertGitHubRepo(repo *github.Repository) *provider.Repository {
 	}
 }
 
-// normalizeBaseURL trims surrounding whitespace and trailing slashes. Non-http(s)
-// values collapse to "" (treated as github.com) so a stray config value can never
-// produce a malformed Enterprise client.
-func normalizeBaseURL(baseURL string) string {
+// parseBaseURL trims whitespace/trailing slashes and validates http(s) URLs with a host.
+// Empty input is valid and means github.com. Non-empty invalid values fail closed.
+func parseBaseURL(baseURL string) (string, error) {
 	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
-		return ""
+		return "", nil
 	}
-	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-		return ""
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid baseURL %q: %w", baseURL, err)
 	}
-	return strings.TrimRight(baseURL, "/")
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("invalid baseURL %q: must use http or https scheme", baseURL)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("invalid baseURL %q: host is required", baseURL)
+	}
+
+	return strings.TrimRight(baseURL, "/"), nil
 }
 
 // enterpriseUploadURL derives the GHE uploads endpoint from the REST base URL.

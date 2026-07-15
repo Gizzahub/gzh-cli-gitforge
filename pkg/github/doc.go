@@ -17,6 +17,9 @@
 // # Usage
 //
 //	// baseURL="" targets github.com; set it for a GitHub Enterprise Server.
-//	provider := github.NewProvider(token, baseURL)
+//	provider, err := github.NewProvider(token, baseURL)
+//	if err != nil {
+//		return err
+//	}
 //	repos, err := provider.ListOrganizationRepos(ctx, "myorg")
 package github

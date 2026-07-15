@@ -5,11 +5,21 @@ package github
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
+func mustNewProvider(t *testing.T, token, baseURL string) *Provider {
+	t.Helper()
+	p, err := NewProvider(token, baseURL)
+	if err != nil {
+		t.Fatalf("NewProvider(%q, %q) unexpected error: %v", token, baseURL, err)
+	}
+	return p
+}
+
 func TestNewProvider(t *testing.T) {
-	provider := NewProvider("test-token", "")
+	provider := mustNewProvider(t, "test-token", "")
 
 	if provider.Name() != "github" {
 		t.Errorf("Name() = %q, want %q", provider.Name(), "github")
@@ -29,20 +39,19 @@ func TestNewProvider(t *testing.T) {
 }
 
 func TestNewProvider_EmptyToken(t *testing.T) {
-	provider := NewProvider("", "")
+	provider := mustNewProvider(t, "", "")
 
 	if provider.Name() != "github" {
 		t.Errorf("Name() = %q, want %q", provider.Name(), "github")
 	}
 
-	// Client should still be created (for unauthenticated access)
 	if provider.client == nil {
 		t.Error("client should not be nil even with empty token")
 	}
 }
 
 func TestNewProvider_EnterpriseBaseURL(t *testing.T) {
-	provider := NewProvider("token", "https://github.example.com")
+	provider := mustNewProvider(t, "token", "https://github.example.com")
 
 	if provider.baseURL != "https://github.example.com" {
 		t.Errorf("baseURL = %q, want %q", provider.baseURL, "https://github.example.com")
@@ -54,29 +63,52 @@ func TestNewProvider_EnterpriseBaseURL(t *testing.T) {
 
 func TestNewProvider_NormalizesBaseURL(t *testing.T) {
 	cases := map[string]string{
-		"https://github.example.com/":    "https://github.example.com", // trailing slash stripped
-		"  https://github.example.com  ": "https://github.example.com", // whitespace trimmed
-		"https://github.example.com//":   "https://github.example.com", // repeated trailing slashes stripped
-		"ftp://github.example.com":       "",                           // non-http(s) scheme rejected
-		"github.example.com":             "",                           // missing scheme rejected
+		"https://github.example.com/":    "https://github.example.com",
+		"  https://github.example.com  ": "https://github.example.com",
+		"https://github.example.com//":   "https://github.example.com",
 	}
 	for input, want := range cases {
-		p := NewProvider("token", input)
+		p := mustNewProvider(t, "token", input)
 		if p.baseURL != want {
-			t.Errorf("normalizeBaseURL(%q) = %q, want %q", input, p.baseURL, want)
+			t.Errorf("parseBaseURL(%q) = %q, want %q", input, p.baseURL, want)
 		}
-		// client must never be nil, even when baseURL collapses to ""
 		if p.client == nil {
 			t.Errorf("client is nil for baseURL %q", input)
 		}
 	}
 }
 
+func TestNewProvider_InvalidBaseURLFailClosed(t *testing.T) {
+	cases := []string{
+		"https://",
+		"http://",
+		"ftp://github.example.com",
+		"github.example.com",
+		"javascript:alert(1)",
+	}
+	for _, input := range cases {
+		p, err := NewProvider("token", input)
+		if err == nil {
+			t.Errorf("NewProvider(%q) expected error, got provider baseURL=%q", input, p.baseURL)
+			continue
+		}
+		if p != nil {
+			t.Errorf("NewProvider(%q) expected nil provider on error", input)
+		}
+		if !strings.Contains(err.Error(), "invalid baseURL") && !strings.Contains(err.Error(), "failed to create GitHub client") {
+			t.Errorf("NewProvider(%q) error = %v, want invalid baseURL or client create failure", input, err)
+		}
+	}
+}
+
 func TestNewProviderWithOptions(t *testing.T) {
-	p := NewProviderWithOptions(ProviderOptions{
+	p, err := NewProviderWithOptions(ProviderOptions{
 		Token:   "tok",
 		BaseURL: "https://ghe.acme.io",
 	})
+	if err != nil {
+		t.Fatalf("NewProviderWithOptions: %v", err)
+	}
 	if p.token != "tok" {
 		t.Errorf("token = %q, want %q", p.token, "tok")
 	}
@@ -89,7 +121,7 @@ func TestNewProviderWithOptions(t *testing.T) {
 }
 
 func TestProvider_SetToken(t *testing.T) {
-	provider := NewProvider("initial-token", "https://github.example.com")
+	provider := mustNewProvider(t, "initial-token", "https://github.example.com")
 
 	err := provider.SetToken("new-token")
 	if err != nil {
@@ -100,7 +132,6 @@ func TestProvider_SetToken(t *testing.T) {
 		t.Errorf("token = %q, want %q", provider.token, "new-token")
 	}
 
-	// SetToken must preserve the configured base URL
 	if provider.baseURL != "https://github.example.com" {
 		t.Errorf("baseURL = %q, want %q", provider.baseURL, "https://github.example.com")
 	}
@@ -110,7 +141,7 @@ func TestProvider_SetToken(t *testing.T) {
 }
 
 func TestProvider_ValidateToken_EmptyToken(t *testing.T) {
-	provider := NewProvider("", "")
+	provider := mustNewProvider(t, "", "")
 
 	valid, err := provider.ValidateToken(context.TODO())
 	if err != nil {
@@ -122,7 +153,7 @@ func TestProvider_ValidateToken_EmptyToken(t *testing.T) {
 }
 
 func TestProvider_Name(t *testing.T) {
-	provider := NewProvider("token", "")
+	provider := mustNewProvider(t, "token", "")
 
 	if provider.Name() != "github" {
 		t.Errorf("Name() = %q, want %q", provider.Name(), "github")
@@ -130,11 +161,11 @@ func TestProvider_Name(t *testing.T) {
 }
 
 func TestBaseURLAccessor(t *testing.T) {
-	if got := NewProvider("token", "").BaseURL(); got != "" {
+	if got := mustNewProvider(t, "token", "").BaseURL(); got != "" {
 		t.Errorf("BaseURL() = %q, want empty", got)
 	}
 	want := "https://github.example.com"
-	if got := NewProvider("token", want).BaseURL(); got != want {
+	if got := mustNewProvider(t, "token", want).BaseURL(); got != want {
 		t.Errorf("BaseURL() = %q, want %q", got, want)
 	}
 }

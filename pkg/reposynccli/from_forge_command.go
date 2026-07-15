@@ -308,8 +308,11 @@ func (f CommandFactory) runFromForge(cmd *cobra.Command, opts *FromForgeOptions)
 func NewForgeProviderWithAuth(providerName, token, baseURL string, sshPort int) (provider.ProviderWithAuth, error) {
 	switch providerName {
 	case "github":
-		// github.NewProvider never fails and takes no SSH port (API-only here).
-		return github.NewProvider(token, baseURL), nil
+			p, err := github.NewProvider(token, baseURL)
+			if err != nil {
+				return nil, err
+			}
+			return p, nil
 
 	case "gitlab":
 		p, err := gitlab.NewProviderWithOptions(gitlab.ProviderOptions{

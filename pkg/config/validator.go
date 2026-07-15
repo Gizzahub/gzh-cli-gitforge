@@ -5,6 +5,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -329,13 +330,21 @@ func IsValidCloneProto(proto string) bool {
 	return validCloneProtos[proto]
 }
 
-// IsValidBaseURL reports whether s is empty (optional) or an http(s) URL.
+// IsValidBaseURL reports whether s is empty (optional) or a parseable http(s) URL with a host.
 // Used to validate forge base URLs (GitHub Enterprise / GitLab / Gitea).
+// Prefix-only values such as "https://" are rejected (fail-closed).
 func IsValidBaseURL(s string) bool {
 	if s = strings.TrimSpace(s); s == "" {
 		return true
 	}
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+	u, err := url.Parse(s)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	return u.Host != ""
 }
 
 // IsValidSyncStrategy checks if a sync strategy is valid.
