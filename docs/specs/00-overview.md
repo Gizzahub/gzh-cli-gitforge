@@ -794,8 +794,8 @@ ______________________________________________________________________
 
 ### 11.1 Internal Documents
 
-- [PRD.md](../PRD.md) - Product Requirements Document
-- [REQUIREMENTS.md](../REQUIREMENTS.md) - Technical Requirements
+- [PRD.md](../../PRODUCT.md) - Product Requirements Document
+- [REQUIREMENTS.md](../../REQUIREMENTS.md) - Technical Requirements
 - [ARCHITECTURE.md](../../ARCHITECTURE.md) - Architecture Design (details: [10-architecture/](../10-architecture/README.md))
 - [README.md](../README.md) - Project Overview
 

@@ -50,7 +50,7 @@ gz-git branch delete feature/experimental --force
 
 ## Library Usage
 
-For library integration, see [Library Guide](../../docs/LIBRARY.md).
+For library integration, see [Library Guide](../../docs/user/getting-started/library-usage.md).
 
 Basic library example:
 

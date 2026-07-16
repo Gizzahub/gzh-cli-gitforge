@@ -263,8 +263,8 @@ Then run them:
 ### User Documentation
 
 - [Main README](../README.md)
-- [Quick Start Guide](../docs/QUICKSTART.md)
-- [Library Integration Guide](../docs/LIBRARY.md)
+- [Quick Start Guide](../docs/user/README.md)
+- [Library Integration Guide](../docs/user/getting-started/library-usage.md)
 - [FAQ](../docs/user/guides/faq.md)
 
 ## Adding More Examples

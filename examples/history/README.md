@@ -57,6 +57,6 @@ gz-git history contributors --format csv
 
 ## Library Usage
 
-For library integration, see [Library Guide](../../docs/LIBRARY.md).
+For library integration, see [Library Guide](../../docs/user/getting-started/library-usage.md).
 
 See [pkg/history](../../pkg/history) for complete API documentation.

@@ -386,7 +386,7 @@ ______________________________________________________________________
 - Testing strategy
 - Security considerations
 
-**CONFIG_PROFILES_IMPLEMENTATION_STATUS.md** (570 lines):
+**archive/CONFIG_PROFILES_IMPLEMENTATION_STATUS.md** (570 lines):
 
 - Executive summary
 - Implementation details per phase
@@ -620,7 +620,7 @@ ______________________________________________________________________
 
 - **Package docs**: See `pkg/config/doc.go`
 - **Design spec**: See [CONFIG_PROFILES.md](CONFIG_PROFILES.md)
-- **Implementation guide**: See [CONFIG_PROFILES_IMPLEMENTATION_STATUS.md](CONFIG_PROFILES_IMPLEMENTATION_STATUS.md)
+- **Implementation guide**: See [archive/CONFIG_PROFILES_IMPLEMENTATION_STATUS.md](archive/CONFIG_PROFILES_IMPLEMENTATION_STATUS.md)
 - **Integration pattern**: See `cmd/gz-git/cmd/config_helper.go`
 
 ______________________________________________________________________

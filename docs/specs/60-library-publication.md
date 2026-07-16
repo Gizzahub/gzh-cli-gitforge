@@ -394,11 +394,11 @@ go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.1.0-alpha
 
 ## 📚 Documentation
 
-- [Quick Start Guide](docs/QUICKSTART.md)
-- [Installation Guide](docs/INSTALL.md)
-- [Library Integration](docs/LIBRARY.md)
+- [Quick Start Guide](../user/README.md)
+- [Installation Guide](../user/README.md)
+- [Library Integration](../user/getting-started/library-usage.md)
 - [API Documentation](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)
-- [Contributing Guide](CONTRIBUTING.md)
+- [Contributing Guide](../../CONTRIBUTING.md)
 
 ## 🔄 What's Next
 
@@ -408,7 +408,7 @@ go install github.com/gizzahub/gzh-cli-gitforge/cmd/gz-git@v0.1.0-alpha
 
 ## ⚠️ Pre-release Notice
 
-This is an **alpha release** for early adopters and testing. APIs may change before v1.0.0. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report issues.
+This is an **alpha release** for early adopters and testing. APIs may change before v1.0.0. See [CONTRIBUTING.md](../../CONTRIBUTING.md) for how to report issues.
 
 ## 🙏 Acknowledgments
 

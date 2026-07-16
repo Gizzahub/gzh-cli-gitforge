@@ -334,7 +334,7 @@ ______________________________________________________________________
 - **internal/**: 80% minimum
 - **Security-critical code**: 100% required
 
-Current coverage: **69.1%** - See [docs/COVERAGE.md](docs/COVERAGE.md)
+Current coverage: **69.1%** - See coverage report (run make coverage)
 
 ### Running Tests
 

@@ -65,6 +65,6 @@ gz-git library supports multiple merge strategies:
 
 ## Library Usage
 
-For library integration, see [Library Guide](../../docs/LIBRARY.md).
+For library integration, see [Library Guide](../../docs/user/getting-started/library-usage.md).
 
 See [pkg/merge](../../pkg/merge) for complete API documentation.
