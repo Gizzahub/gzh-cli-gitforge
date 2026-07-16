@@ -29,7 +29,7 @@ Root-level docs (`README.md`, `QUICK_START.md`, `CONTRIBUTING.md`, `ARCHITECTURE
 ### Development
 
 - Contributing: [CONTRIBUTING.md](../CONTRIBUTING.md)
-- Architecture: [ARCHITECTURE.md](../ARCHITECTURE.md)
+- Architecture: [ARCHITECTURE.md](../ARCHITECTURE.md) (overview) · [10-architecture/](10-architecture/README.md) (details)
 - Specifications (design/requirements-by-feature): [specs/](../specs/)
 - Release notes: [CHANGELOG.md](../CHANGELOG.md)
 - Homebrew distribution notes: [docs/homebrew-setup.md](homebrew-setup.md)

@@ -796,7 +796,7 @@ ______________________________________________________________________
 
 - [PRD.md](../PRD.md) - Product Requirements Document
 - [REQUIREMENTS.md](../REQUIREMENTS.md) - Technical Requirements
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Architecture Design
+- [ARCHITECTURE.md](../../ARCHITECTURE.md) - Architecture Design (details: [10-architecture/](../10-architecture/README.md))
 - [README.md](../README.md) - Project Overview
 
 ### 11.2 External Standards

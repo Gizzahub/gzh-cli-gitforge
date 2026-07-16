@@ -702,7 +702,7 @@ ______________________________________________________________________
 ### 10.3 Internal Documents
 
 - [PRD.md](../PRD.md) - Section 4.2
-- [ARCHITECTURE.md](../ARCHITECTURE.md) - Section 5
+- [10-architecture/40-interface-contracts.md](../10-architecture/40-interface-contracts.md) - Section 5 (Interface Contracts)
 - [specs/00-overview.md](./00-overview.md)
 
 ______________________________________________________________________

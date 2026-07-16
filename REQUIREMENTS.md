@@ -18,7 +18,7 @@ This file is a short index so requirements stay discoverable without duplicating
 
 - Feature specifications: `specs/00-overview.md`
 - Product docs: `docs/00-product/`
-- Architecture overview: `ARCHITECTURE.md`
+- Architecture overview: `ARCHITECTURE.md` (details: `docs/10-architecture/`)
 
 ## Archived
 
