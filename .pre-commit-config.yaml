@@ -39,10 +39,3 @@ repos:
         language: system
         pass_filenames: false
         files: ^go\.(mod|sum)$
-
-      - id: markdown-format
-        name: Format markdown files
-        entry: mdformat
-        language: system
-        types: [markdown]
-        require_serial: true
