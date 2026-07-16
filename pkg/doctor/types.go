@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Archmagece
+// Copyright (c) 2026 Gizzahub
 // SPDX-License-Identifier: MIT
 
 // Package doctor provides health check diagnostics for gz-git.
