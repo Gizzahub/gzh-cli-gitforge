@@ -12,17 +12,17 @@ ______________________________________________________________________
 
 ## Document Map
 
-| 질문 | 이동처 |
-| ---- | ------ |
-| 전체 구조와 패키지 구성을 알고 싶다 | [10-overview.md](docs/10-architecture/10-overview.md) |
-| 어떤 설계 원칙을 따르는지 알고 싶다 | [20-design-principles.md](docs/10-architecture/20-design-principles.md) |
-| 각 컴포넌트의 역할과 책임이 궁금하다 | [30-component-design.md](docs/10-architecture/30-component-design.md) |
-| 인터페이스/API 시그니처를 찾고 있다 | [40-interface-contracts.md](docs/10-architecture/40-interface-contracts.md) |
-| 데이터 흐름과 에러 처리 방식이 궁금하다 | [50-data-flow-and-error-handling.md](docs/10-architecture/50-data-flow-and-error-handling.md) |
-| 테스트 구조와 모킹 전략을 알고 싶다 | [60-testing-architecture.md](docs/10-architecture/60-testing-architecture.md) |
-| 성능 특성과 보안 모델이 궁금하다 | [70-performance-and-security.md](docs/10-architecture/70-performance-and-security.md) |
-| 빌드·배포 방식을 알고 싶다 | [80-deployment.md](docs/10-architecture/80-deployment.md) |
-| 왜 이렇게 설계했는지, 앞으로의 계획이 궁금하다 | [90-design-decisions.md](docs/10-architecture/90-design-decisions.md) |
+| 질문                                           | 이동처                                                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 전체 구조와 패키지 구성을 알고 싶다            | [10-overview.md](docs/10-architecture/10-overview.md)                                         |
+| 어떤 설계 원칙을 따르는지 알고 싶다            | [20-design-principles.md](docs/10-architecture/20-design-principles.md)                       |
+| 각 컴포넌트의 역할과 책임이 궁금하다           | [30-component-design.md](docs/10-architecture/30-component-design.md)                         |
+| 인터페이스/API 시그니처를 찾고 있다            | [40-interface-contracts.md](docs/10-architecture/40-interface-contracts.md)                   |
+| 데이터 흐름과 에러 처리 방식이 궁금하다        | [50-data-flow-and-error-handling.md](docs/10-architecture/50-data-flow-and-error-handling.md) |
+| 테스트 구조와 모킹 전략을 알고 싶다            | [60-testing-architecture.md](docs/10-architecture/60-testing-architecture.md)                 |
+| 성능 특성과 보안 모델이 궁금하다               | [70-performance-and-security.md](docs/10-architecture/70-performance-and-security.md)         |
+| 빌드·배포 방식을 알고 싶다                     | [80-deployment.md](docs/10-architecture/80-deployment.md)                                     |
+| 왜 이렇게 설계했는지, 앞으로의 계획이 궁금하다 | [90-design-decisions.md](docs/10-architecture/90-design-decisions.md)                         |
 
 전체 목차: [`docs/10-architecture/README.md`](docs/10-architecture/README.md)
 
@@ -94,10 +94,10 @@ ______________________________________________________________________
 
 ## Revision History
 
-| Version | Date       | Author      | Changes                     |
-| ------- | ---------- | ----------- | --------------------------- |
-| 1.0     | 2025-11-27 | Claude (AI) | Initial architecture design |
-| 2.0     | 2026-01-23 | Claude (AI) | Add provider, reposync, workspace packages |
+| Version | Date       | Author      | Changes                                                                         |
+| ------- | ---------- | ----------- | ------------------------------------------------------------------------------- |
+| 1.0     | 2025-11-27 | Claude (AI) | Initial architecture design                                                     |
+| 2.0     | 2026-01-23 | Claude (AI) | Add provider, reposync, workspace packages                                      |
 | 2.1     | 2026-07-16 | Claude (AI) | Split sections 2-13 into `docs/10-architecture/`; root retains overview + index |
 
 ______________________________________________________________________
