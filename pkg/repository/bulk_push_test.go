@@ -1254,3 +1254,88 @@ func TestGitStderrSummary(t *testing.T) {
 		})
 	}
 }
+
+// TestBulkPushEmptyRepositoryIsNotAnError pins the classification of a
+// repository that has been initialized and never used.
+//
+// Before this, `--refspec HEAD:master` reported such a repository as an error
+// reading "Source branch 'HEAD' does not exist" -- the message for a mistyped
+// branch, applied to a repository with no branches at all. It cost a person one
+// investigation per bulk run to establish that the repository was never a push
+// target. The two cases are distinguished by whether any commit exists, not by
+// whether the named ref resolves, because in an empty repository no ref
+// resolves.
+func TestBulkPushEmptyRepositoryIsNotAnError(t *testing.T) {
+	for _, refspec := range []string{"", "HEAD:master"} {
+		name := "no refspec"
+		if refspec != "" {
+			name = refspec
+		}
+		t.Run(name, func(t *testing.T) {
+			rootDir := t.TempDir()
+			repoPath := filepath.Join(rootDir, "never-used")
+			if err := os.MkdirAll(repoPath, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := initGitRepo(repoPath); err != nil {
+				t.Skipf("Skipping test: git not available: %v", err)
+			}
+
+			result, err := NewClient().BulkPush(context.Background(), BulkPushOptions{
+				Directory: rootDir,
+				MaxDepth:  2,
+				Refspec:   refspec,
+				Logger:    NewNoopLogger(),
+			})
+			if err != nil {
+				t.Fatalf("BulkPush() error = %v", err)
+			}
+			if len(result.Repositories) != 1 {
+				t.Fatalf("len(Repositories) = %d, want 1", len(result.Repositories))
+			}
+
+			got := result.Repositories[0]
+			if got.Status != StatusNoCommits {
+				t.Errorf("status = %q, want %q", got.Status, StatusNoCommits)
+			}
+			if got.Error != nil {
+				t.Errorf("Error = %v, want nil: an unused repository is not a failure", got.Error)
+			}
+			if !strings.Contains(got.Message, "no commits") {
+				t.Errorf("message = %q, want it to say the repository has no commits", got.Message)
+			}
+		})
+	}
+}
+
+// TestBulkPushInvalidRefspecOutranksEmptyRepository keeps the two checks in the
+// order that matches whose mistake each one is. A malformed refspec is wrong in
+// every repository, so it is reported even when the repository would otherwise
+// be classified as having nothing to push; only after the command is known to
+// be well-formed does the repository's own state get to answer.
+func TestBulkPushInvalidRefspecOutranksEmptyRepository(t *testing.T) {
+	rootDir := t.TempDir()
+	repoPath := filepath.Join(rootDir, "never-used")
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := initGitRepo(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	result, err := NewClient().BulkPush(context.Background(), BulkPushOptions{
+		Directory: rootDir,
+		MaxDepth:  2,
+		Refspec:   "develop::master",
+		Logger:    NewNoopLogger(),
+	})
+	if err != nil {
+		t.Fatalf("BulkPush() error = %v", err)
+	}
+	if len(result.Repositories) != 1 {
+		t.Fatalf("len(Repositories) = %d, want 1", len(result.Repositories))
+	}
+	if got := result.Repositories[0].Status; got != StatusError {
+		t.Errorf("status = %q, want %q: a malformed refspec is the caller's error, not the repository's state", got, StatusError)
+	}
+}

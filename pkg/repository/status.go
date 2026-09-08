@@ -52,6 +52,21 @@ const (
 	// StatusNoUpstream indicates no upstream branch is configured.
 	StatusNoUpstream = "no-upstream"
 
+	// StatusNoCommits indicates the repository has no commits at all, so there
+	// is nothing that could be pushed.
+	//
+	// It is separate from StatusError because the two are cleared by different
+	// actions and only one of them is the user's to clear. Without this status a
+	// `--refspec HEAD:master` run reports an empty repository as "source branch
+	// 'HEAD' does not exist", which is textually true and diagnostically wrong:
+	// it reads as "you named a branch that isn't here" when the fact is "nothing
+	// is here yet". The first is a typo in the command; the second is a
+	// repository that was created and never used. A person scanning an error
+	// list for real push failures has to open the second kind to find out it was
+	// never a target, and in a bulk run over a hundred repositories that cost is
+	// paid on every run.
+	StatusNoCommits = "no-commits"
+
 	// StatusBaseBlocked indicates the repository's own branch updated cleanly
 	// but its local base ref diverged from the remote and was left untouched.
 	// It is a distinct status rather than a note on a success because a base ref

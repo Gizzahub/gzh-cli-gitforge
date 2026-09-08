@@ -103,6 +103,33 @@ workspaces:
 기록하므로, 이후 소유 config 바깥에서 직접 실행한 push/handoff도 차단됩니다.
 `access`를 생략하면 기존과 같은 `read-write` 동작입니다.
 
+#### ad-hoc bulk push의 범위를 가르는 선언
+
+`gz-git push`를 설정 목록 없이 디렉터리에서 그냥 실행할 때(ad-hoc 실행), 어떤
+저장소가 대상에서 빠지는지를 정하는 저장소측 선언은 **두 개뿐**이고, 서로 다른
+축에서 동작합니다.
+
+| 선언                    | 축          | ad-hoc push에 대한 효과                             |
+| ----------------------- | ----------- | --------------------------------------------------- |
+| `defaults.scan.exclude` | 탐색(scan)  | 대상 목록에서 아예 빠집니다 — 상태 표시도 되지 않음 |
+| `access: read-only`     | 쓰기(write) | 스캔·조회는 되지만 push는 `skipped`로 거부됩니다    |
+| `discovery.mode`        | —           | **없음.** 어떤 명령도 이 키를 읽지 않습니다         |
+| `sync.strategy`         | —           | **없음.** `workspace sync` 전용 축입니다            |
+
+두 축을 나눠 둔 이유는 답하는 질문이 다르기 때문입니다. `defaults.scan.exclude`는
+"이 디렉터리를 아예 보지 말라"이고, `access: read-only`는 "보되 쓰지는 말라"입니다.
+참조용 upstream 미러는 후자여야 합니다 — 목록에서 사라지면 뒤처진 사실조차 보이지
+않기 때문입니다. 반대로 매번 새로 만들어지는 임시 clone은 전자가 맞습니다.
+
+`--exclude` regex를 매번 손으로 붙이고 있다면, 같은 regex를 그 트리를 소유한
+`.gz-git.yaml`의 `defaults.scan.exclude`로 옮기세요. 플래그로 들고 다니는 선언은
+셸 히스토리에만 남아서, 기억에 의존해 명령을 다시 치는 순간 사라집니다.
+자세한 규칙은 [`defaults.scan.exclude`](config-command.md#%EB%A1%9C%EC%BB%AC-%EC%8A%A4%EC%BA%94-%EC%A0%9C%EC%99%B8-defaultsscanexclude)를 보세요.
+
+> `discovery.mode`는 스키마가 받아들이고 validator가 값까지 검사하지만, 이를
+> 읽는 실행 코드가 없습니다. 검증을 통과한다는 사실이 "적용된다"는 확인으로
+> 읽히기 쉬우므로 여기 명시해 둡니다. push 범위를 좁히려면 위 두 키를 쓰세요.
+
 **repositories**:
 
 ```yaml

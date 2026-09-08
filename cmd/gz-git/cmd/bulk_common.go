@@ -241,7 +241,7 @@ func getBulkStatusIcon(status string, changesCount int) string {
 		return "✓"
 
 	// Warning states
-	case "no-remote", "no-upstream", "base-blocked", "base-failed":
+	case "no-remote", "no-upstream", "no-commits", "base-blocked", "base-failed":
 		return "⚠"
 
 	// Authentication required
@@ -265,7 +265,7 @@ var summaryDisplayOrder = []string{
 	"would-fetch", "would-pull", "would-push", "would-update", "would-clean",
 	"skipped",
 	"dirty",
-	"no-remote", "no-upstream",
+	"no-remote", "no-upstream", "no-commits",
 	"auth-required",
 	"conflict", "rebase-in-progress", "merge-in-progress",
 	"error",
@@ -291,7 +291,7 @@ func getSummaryIcon(status string) string {
 		return "⚠"
 	case "error":
 		return "✗"
-	case "no-remote", "no-upstream":
+	case "no-remote", "no-upstream", "no-commits":
 		return "⚠"
 	case "auth-required":
 		return "🔐"

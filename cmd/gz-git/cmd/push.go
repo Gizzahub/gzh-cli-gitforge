@@ -230,7 +230,7 @@ func displayPushResults(result *repository.BulkPushResult) {
 	}
 
 	issueStatuses := issueStatusSet(
-		"error", "blocked", "no-remote", "no-upstream", "conflict",
+		"error", "blocked", "no-remote", "no-upstream", "no-commits", "conflict",
 		"rebase-in-progress", "merge-in-progress",
 	)
 	if pushFlags.Format != "compact" {
@@ -283,6 +283,8 @@ func formatPushStatus(row BulkRenderRow) string {
 		return "no remote"
 	case "no-upstream":
 		return "no upstream"
+	case "no-commits":
+		return "no commits"
 	case "conflict":
 		return "CONFLICT"
 	case "rebase-in-progress":

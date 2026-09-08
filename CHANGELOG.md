@@ -57,6 +57,26 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   stderr, ungated by `--quiet`. "Nothing to clean up" and "checked, and refused" are
   different facts for an operator deciding whether to pass `--force`.
 
+### Fixed
+
+- `gz-git push` now reports a repository with no commits as `no-commits` instead of
+  failing it. Under `--refspec HEAD:master` an empty repository previously produced
+  "source branch 'HEAD' does not exist", which is textually true and diagnostically
+  wrong: it reads as a refspec typo when the fact is that nothing has been committed
+  yet — a state no refspec can fix. Refspec *format* validation still runs first,
+  because a malformed refspec is the caller's error in every repository alike and must
+  not be masked by the state of whichever one happened to be scanned first.
+
+### Documentation
+
+- Documented which `.gz-git.yaml` declarations actually narrow an ad-hoc bulk push, on
+  two separate axes: `defaults.scan.exclude` (removed at scan time) and
+  `access: read-only` (scanned, but refused at write time). Also recorded the two keys
+  that read as scope and are not — `sync.strategy` belongs to `workspace sync`, and
+  `discovery.mode` is validated by the schema but consulted by no command at all. A key
+  that validates and is never read is worse than an absent one, because the validator's
+  silence reads as confirmation.
+
 ______________________________________________________________________
 
 ## Source-version milestones

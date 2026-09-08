@@ -2254,6 +2254,15 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	// CRITICAL: Check refspec validity BEFORE checking remote/state
 	// This ensures we give clear error messages for missing source branches
 	// rather than generic "no remote" errors
+	//
+	// The refspec is examined in two stages with the repository's own emptiness
+	// check between them, because the two stages answer questions belonging to
+	// different people. Whether the refspec parses is a property of what the
+	// caller typed: it is wrong in exactly the same way in every repository, so
+	// it is reported first and no repository state can excuse it. Whether the
+	// source branch resolves is a property of this repository, and it is only a
+	// meaningful question once the repository has any history at all.
+	var parsedRefspec *ParsedRefspec
 	if opts.Refspec != "" {
 		// Parse refspec to get source branch
 		parsed, err := ValidateRefspec(opts.Refspec)
@@ -2264,9 +2273,31 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 			result.Duration = time.Since(startTime)
 			return result
 		}
+		parsedRefspec = parsed
+	}
 
+	// A repository with no commits is not a push target, and saying so here
+	// keeps the source-branch check below from mistaking it for a bad command.
+	// That check asks whether the source branch resolves; in an empty repository
+	// no ref resolves, so every refspec produces "source branch does not exist"
+	// -- the message for a typo, reported for a repository that simply has
+	// nothing in it yet. It runs whether or not a refspec was given so the
+	// classification does not depend on which flags the caller passed.
+	//
+	// hasCommits is the same probe SyncBase uses for the same question, and
+	// reusing it is what keeps the two answers from drifting: it walks refs
+	// rather than reading HEAD, so an orphan branch is not mistaken for an empty
+	// repository, and it fails open when the probe itself cannot run.
+	if !c.hasCommits(ctx, repoPath) {
+		result.Status = StatusNoCommits
+		result.Message = "Repository has no commits"
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
+	if parsedRefspec != nil {
 		// Check if source branch exists locally BEFORE checking remote
-		sourceBranch := parsed.GetSourceBranch()
+		sourceBranch := parsedRefspec.GetSourceBranch()
 		sourceCheckResult, err := c.executor.Run(ctx, repoPath, "rev-parse", "--verify", sourceBranch)
 		if err != nil || sourceCheckResult.ExitCode != 0 {
 			result.Status = StatusError
