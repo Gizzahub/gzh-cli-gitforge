@@ -12,7 +12,6 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -33,7 +32,7 @@ type infoEnrichment struct {
 	// Integration is resolved independently from Base using the repo-root
 	// integrationBranch declaration. Base retains the existing defaultBranch
 	// divergence contract; this answer is only for integration safety checks.
-	Integration integrate.Resolution
+	Integration config.Resolution
 
 	// UpstreamTargetsIntegration is true only for a branch matching the
 	// repo-root taskPattern whose tracking ref names the canonical integration
@@ -180,7 +179,7 @@ func enrichOne(
 				out.Err = declErr
 			}
 		} else {
-			resolution, resolutionErr := integrate.ResolveIntegrationBranch(
+			resolution, resolutionErr := config.ResolveIntegrationBranch(
 				ctx, gitcmd.NewExecutor(), status.Path, decl.IntegrationBranch,
 			)
 			if resolutionErr != nil {
@@ -192,7 +191,7 @@ func enrichOne(
 				remotes := remoteNames(status.Remotes)
 				isTaskBranch := isDeclaredTaskBranch(status.Branch, decl.Patterns)
 				out.UpstreamTargetsIntegration = isTaskBranch &&
-					integrate.UpstreamTargetsIntegration(status.Branch, status.Upstream, resolution, remotes)
+					config.UpstreamTargetsIntegration(status.Branch, status.Upstream, resolution, remotes)
 				if out.UpstreamTargetsIntegration {
 					out.UpstreamRemote = trackingRemote(status.Upstream, status.Remotes)
 					out.TaskRemoteExists = containsExactString(status.RemoteBranches, out.UpstreamRemote+"/"+status.Branch)
@@ -251,7 +250,7 @@ func isDeclaredTaskBranch(branchName string, patterns []string) bool {
 }
 
 func trackingRemote(upstream string, remotes map[string]string) string {
-	if remote, _, ok := integrate.SplitRemoteBranch(upstream, remoteNames(remotes)); ok {
+	if remote, _, ok := config.SplitRemoteBranch(upstream, remoteNames(remotes)); ok {
 		return remote
 	}
 	if _, exists := remotes["origin"]; exists {

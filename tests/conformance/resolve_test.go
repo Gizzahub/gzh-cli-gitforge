@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 func TestResolverMatchesCommittedCorpus(t *testing.T) {
@@ -24,7 +24,7 @@ func TestResolverMatchesCommittedCorpus(t *testing.T) {
 		if row.Config != "" {
 			cfg = []string{row.Config}
 		}
-		got := integrate.ResolveFromFacts(integrate.Facts{
+		got := config.ResolveFromFacts(config.Facts{
 			Config:      cfg,
 			Refs:        row.Refs,
 			Remotes:     remotes,

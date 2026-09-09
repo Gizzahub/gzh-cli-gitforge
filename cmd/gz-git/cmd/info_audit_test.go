@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -97,7 +97,7 @@ func TestRunInfoAudit_IntegrationUpstreamJSONContract(t *testing.T) {
 	enr := map[string]infoEnrichment{
 		"/ws/a": {
 			Base:                       repository.BaseBranchInfo{Name: "main", Source: "config.defaultBranch[0]"},
-			Integration:                integrate.Resolution{Participates: true, Name: "develop", Source: "config[0]"},
+			Integration:                config.Resolution{Participates: true, Name: "develop", Source: "config[0]"},
 			UpstreamTargetsIntegration: true,
 			UpstreamRemote:             "origin",
 			TaskRemoteExists:           true,
