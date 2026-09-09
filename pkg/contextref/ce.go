@@ -198,7 +198,7 @@ type ceProc struct {
 func invokeCE(ctx context.Context, opts Options, dir string, env, args []string) (ceProc, error) {
 	runCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, opts.CE.Path, args...) //nolint:gosec // G204: absolute trusted descriptor, fixed args
+	cmd := exec.CommandContext(runCtx, opts.CE.Path, args...) // #nosec G204 -- trusted absolute CE descriptor with fixed arguments
 	cmd.Dir = dir
 	cmd.Env = env
 	setProcGroup(cmd)

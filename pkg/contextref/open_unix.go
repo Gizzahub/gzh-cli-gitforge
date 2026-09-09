@@ -181,7 +181,7 @@ func identFromStat(st unix.Stat_t) fileIdent {
 		size:  st.Size,
 		mtime: st.Mtim.Nano(),
 		ctime: st.Ctim.Nano(),
-		dev:   uint64(st.Dev), //nolint:gosec // G115: device ID is an opaque kernel identifier
+		dev:   uint64(st.Dev), // #nosec G115 -- device ID is an opaque kernel identifier
 		ino:   st.Ino,
 	}
 }
@@ -191,7 +191,7 @@ func lstatNoFollow(path string) (os.FileInfo, error) {
 }
 
 func openExecNoFollow(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW, 0) //nolint:gosec // G304: path is a trusted CE descriptor
+	return os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW, 0) // #nosec G304 -- path is a trusted CE descriptor
 }
 
 func identFromInfo(info os.FileInfo) fileIdent {

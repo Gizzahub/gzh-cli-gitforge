@@ -5,7 +5,7 @@ package contextref
 
 import (
 	"context"
-	"crypto/sha1" //nolint:gosec // G505: Git object IDs, not a security digest
+	"crypto/sha1" // #nosec G505 -- Git object IDs, not a security digest
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -131,7 +131,7 @@ func gitBlobDigest(algo string, data []byte) string {
 	if algo == "sha256" {
 		h = sha256.New()
 	} else {
-		h = sha1.New() //nolint:gosec // G401: Git SHA-1 object ID
+		h = sha1.New() // #nosec G401 -- Git SHA-1 object ID compatibility
 		algo = "sha1"
 	}
 	_, _ = fmt.Fprintf(h, "blob %d\x00", len(data))
