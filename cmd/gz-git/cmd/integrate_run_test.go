@@ -22,7 +22,7 @@ func TestIntegrateRunHelp(t *testing.T) {
 			t.Errorf("integrate run missing --%s", name)
 		}
 	}
-	if !strings.Contains(cmd.Long, "Engine: legacy-shell-backend") {
+	if !strings.Contains(cmd.Long, "Engine: gz-git-integrate (Go)") {
 		t.Errorf("integrate run help missing engine identifier:\n%s", cmd.Long)
 	}
 }

@@ -38,7 +38,7 @@ No declaration means reclaim nothing. Remote branch delete uses
 --force-with-lease against the commit that just landed.
 Run a bare integrate from a task-branch worktree, not from the target checkout.
 
-Engine: legacy-shell-backend (gz-git integrate)
+Engine: gz-git-integrate (Go)
 
 Exit Codes:
   0  integrated (reclaim finished or intentionally skipped)

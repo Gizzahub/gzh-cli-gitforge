@@ -36,7 +36,7 @@ var integrateCheckCmd = &cobra.Command{
 This is read-only. It never pushes and never reclaims.
 Run a bare check from a task-branch worktree, not from the target checkout.
 
-Engine: legacy-shell-backend (gz-git integrate)
+Engine: gz-git-integrate (Go)
 
 Exit Codes:
   0  READY
