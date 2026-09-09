@@ -69,6 +69,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Documentation
 
+- Planned the gated retirement of `gz-git integrate`: it owns one repository's
+  integration lifecycle even though gz-git is bulk-first, while external shell gates
+  duplicate its correctness decisions. [devenv TD-100](https://gitlab.polypia.net/archmagece/ce-devenv/-/blob/master/docs/70-tech-debt/TD-100.md)
+  moves strategy to `ce` and the engine to Worktrunk; [ce-agent-kit PLAN-001](https://gitlab.polypia.net/archmagece/ce-agent-kit/-/blob/master/tasks/plan/001-taskruntime-owns-strategy-worktrunk-engine.md)
+  must complete its `run-finish` rewrite before migration and removal proceed.
 - Documented which `.gz-git.yaml` declarations actually narrow an ad-hoc bulk push, on
   two separate axes: `defaults.scan.exclude` (removed at scan time) and
   `access: read-only` (scanned, but refused at write time). Also recorded the two keys
