@@ -162,6 +162,60 @@ func TestCleanupBranchCountsDeletionsNotCandidates(t *testing.T) {
 	}
 }
 
+func TestCleanupBranchRemoteRespectsReadOnly(t *testing.T) {
+	fixture := func(t *testing.T, access string) (origin, clone string) {
+		t.Helper()
+		seed := testutil.TempGitRepoWithCommit(t)
+		runGit(t, seed, "branch", "-M", "master")
+		runGit(t, seed, "checkout", "-b", "dependabot/go_modules/x")
+		runGit(t, seed, "commit", "--allow-empty", "-m", "bot")
+		runGit(t, seed, "checkout", "master")
+		runGit(t, seed, "merge", "--no-ff", "--no-edit", "dependabot/go_modules/x")
+
+		root := t.TempDir()
+		origin = filepath.Join(root, "origin.git")
+		clone = filepath.Join(root, "clone")
+		runGit(t, t.TempDir(), "clone", "--bare", seed, origin)
+		runGit(t, t.TempDir(), "clone", origin, clone)
+		config := "version: \"1.0\"\nworkspaces:\n  target:\n    path: clone\n    access: " + access + "\n"
+		if err := os.WriteFile(filepath.Join(root, ".gz-git.yaml"), []byte(config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return origin, clone
+	}
+
+	for _, tt := range []struct {
+		name        string
+		access      string
+		wantExit    int
+		wantDeleted bool
+	}{
+		{name: "read-only refuses remote deletion", access: "read-only", wantExit: cliutil.ExitPartialFailed},
+		{name: "read-write deletes remote branch", access: "read-write", wantDeleted: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			origin, clone := fixture(t, tt.access)
+			setCleanupBranchTestGlobals(t, "master")
+			origBots := cleanupBranchBots
+			cleanupBranchRemote = true
+			cleanupBranchBots = true
+			t.Cleanup(func() { cleanupBranchBots = origBots })
+			t.Chdir(clone)
+
+			err := runCleanupBranch(cleanupBranchCmd, nil)
+			if got := cliutil.ExitCodeForError(err); got != tt.wantExit {
+				t.Fatalf("exit code = %d, want %d; err=%v", got, tt.wantExit, err)
+			}
+
+			cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/dependabot/go_modules/x") //nolint:noctx // test helper
+			cmd.Dir = origin
+			if gotDeleted := cmd.Run() != nil; gotDeleted != tt.wantDeleted {
+				t.Errorf("remote branch deleted = %v, want %v", gotDeleted, tt.wantDeleted)
+			}
+		})
+	}
+}
+
 func TestCleanupBranchHelpMentionsSuperseded(t *testing.T) {
 	flag := cleanupBranchCmd.Flags().Lookup("superseded")
 	if flag == nil {

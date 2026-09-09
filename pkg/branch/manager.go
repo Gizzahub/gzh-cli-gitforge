@@ -36,7 +36,8 @@ type BranchManager interface {
 
 // manager implements BranchManager.
 type manager struct {
-	executor *gitcmd.Executor
+	executor          *gitcmd.Executor
+	remoteDeleteGuard RemoteDeleteGuard
 }
 
 // NewManager creates a new BranchManager.
@@ -50,6 +51,16 @@ func NewManager() BranchManager {
 func NewManagerWithExecutor(executor *gitcmd.Executor) BranchManager {
 	return &manager{
 		executor: executor,
+	}
+}
+
+// NewManagerWithRemoteDeleteGuard creates a branch manager that asks guard
+// before mutating a remote branch. The guard is supplied by the caller that
+// owns the access policy, keeping this package independent of workspace config.
+func NewManagerWithRemoteDeleteGuard(guard RemoteDeleteGuard) BranchManager {
+	return &manager{
+		executor:          gitcmd.NewExecutor(),
+		remoteDeleteGuard: guard,
 	}
 }
 
@@ -198,18 +209,32 @@ func (m *manager) Delete(ctx context.Context, repo *repository.Repository, opts 
 
 	// Delete remote branch if requested
 	if opts.Remote {
-		// Parse remote from upstream
-		if branch.Upstream != "" {
-			parts := strings.Split(branch.Upstream, "/")
-			if len(parts) >= 2 {
-				remote := parts[0]
-				remoteBranch := strings.Join(parts[1:], "/")
-
-				if _, err := m.run(ctx, repo.Path, "push", remote, "--delete", remoteBranch); err != nil {
-					return fmt.Errorf("failed to delete remote branch: %w", err)
-				}
-			}
+		if err := m.deleteRemoteBranch(ctx, repo, branch); err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+func (m *manager) deleteRemoteBranch(ctx context.Context, repo *repository.Repository, branch *Branch) error {
+	if branch.Upstream == "" {
+		return nil
+	}
+
+	parts := strings.Split(branch.Upstream, "/")
+	if len(parts) < 2 {
+		return nil
+	}
+	remote := parts[0]
+	remoteBranch := strings.Join(parts[1:], "/")
+	if m.remoteDeleteGuard != nil {
+		if err := m.remoteDeleteGuard(ctx, repo); err != nil {
+			return fmt.Errorf("remote branch deletion refused: %w", err)
+		}
+	}
+	if _, err := m.run(ctx, repo.Path, "push", remote, "--delete", remoteBranch); err != nil {
+		return fmt.Errorf("failed to delete remote branch: %w", err)
 	}
 
 	return nil

@@ -64,6 +64,11 @@ type BulkCleanupOptions struct {
 	// DeleteRemote also deletes remote branches
 	DeleteRemote bool
 
+	// RemoteDeleteGuard authorizes a remote branch deletion for one repository.
+	// It is injected by the command boundary because workspace access policy is
+	// outside this package. A nil guard preserves existing read-write behavior.
+	RemoteDeleteGuard func(ctx context.Context, repoPath string) error
+
 	// BotsOnly restricts candidates to Dependabot/Renovate/github-actions
 	// prefixes. It is a filter, not a cleanup type.
 	BotsOnly bool
@@ -436,7 +441,7 @@ func (c *client) processCleanupRepository(ctx context.Context, rootDir, repoPath
 		return result
 	}
 
-	deleted, failed := c.executeCleanupDeletes(ctx, repoPath, remote, toDelete, logger, result.RelativePath)
+	deleted, failed := c.executeCleanupDeletes(ctx, repoPath, remote, toDelete, logger, result.RelativePath, opts.RemoteDeleteGuard)
 	recordCleanupBranches(&result, deleted)
 	// The screen's refusals are failures of this run just as much as git's are,
 	// and everything below counts from this combined list. Counting only the

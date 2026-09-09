@@ -26,15 +26,32 @@ type CleanupService interface {
 
 // cleanupService implements CleanupService.
 type cleanupService struct {
-	executor      *gitcmd.Executor
-	branchManager BranchManager
+	executor          *gitcmd.Executor
+	branchManager     BranchManager
+	remoteDeleteGuard RemoteDeleteGuard
 }
+
+// RemoteDeleteGuard authorizes a remote branch deletion at the caller's
+// boundary. pkg/branch deliberately does not resolve workspace configuration:
+// callers that own an access policy inject it here instead.
+type RemoteDeleteGuard func(ctx context.Context, repo *repository.Repository) error
 
 // NewCleanupService creates a new CleanupService.
 func NewCleanupService() CleanupService {
 	return &cleanupService{
 		executor:      gitcmd.NewExecutor(),
 		branchManager: NewManager(),
+	}
+}
+
+// NewCleanupServiceWithRemoteDeleteGuard creates a cleanup service that asks
+// guard immediately before deleting a remote branch. A nil guard preserves the
+// existing read-write behavior.
+func NewCleanupServiceWithRemoteDeleteGuard(guard RemoteDeleteGuard) CleanupService {
+	return &cleanupService{
+		executor:          gitcmd.NewExecutor(),
+		branchManager:     NewManagerWithRemoteDeleteGuard(guard),
+		remoteDeleteGuard: guard,
 	}
 }
 
@@ -294,6 +311,12 @@ func (c *cleanupService) Execute(ctx context.Context, repo *repository.Repositor
 	// same-named unmerged remote would drop an open PR.
 	for _, branch := range toDelete {
 		if branch.IsRemote {
+			if c.remoteDeleteGuard != nil {
+				if err := c.remoteDeleteGuard(ctx, repo); err != nil {
+					result.Failed = append(result.Failed, DeleteFailure{Branch: branch.Name, Err: err})
+					continue
+				}
+			}
 			if err := c.deleteRemoteBranch(ctx, repo, branch); err != nil {
 				result.Failed = append(result.Failed, DeleteFailure{Branch: branch.Name, Err: err})
 				continue

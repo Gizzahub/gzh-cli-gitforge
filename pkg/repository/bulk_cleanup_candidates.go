@@ -238,8 +238,21 @@ func (c *client) executeCleanupDeletes(
 	toDelete []branchInfo,
 	logger Logger,
 	relPath string,
+	remoteDeleteGuards ...func(ctx context.Context, repoPath string) error,
 ) (deleted []branchInfo, failed []CleanupFailureEntry) {
+	var remoteDeleteGuard func(ctx context.Context, repoPath string) error
+	if len(remoteDeleteGuards) > 0 {
+		remoteDeleteGuard = remoteDeleteGuards[0]
+	}
 	for _, b := range toDelete {
+		if b.location == branchLocationRemote && remoteDeleteGuard != nil {
+			if err := remoteDeleteGuard(ctx, repoPath); err != nil {
+				failed = append(failed, CleanupFailureEntry{
+					Name: b.name, Reason: b.reason, Location: b.location, Error: err.Error(),
+				})
+				continue
+			}
+		}
 		err := c.deleteCleanupBranch(ctx, repoPath, remote, b)
 		if err == nil {
 			deleted = append(deleted, b)

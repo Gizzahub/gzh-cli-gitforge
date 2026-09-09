@@ -97,7 +97,8 @@ workspaces:
 `access: read-only`는 외부·참조 저장소용 안전 계약입니다. 해당 workspace는
 `--strategy` override와 관계없이 `pull`로 동기화되며, `gz-git push`와
 `workspace sync --push`, `gz-git handoff end`에서는 실패가 아닌 `skipped`로
-보고되어 원격 쓰기를 하지 않습니다. 이 계약은 forge/config workspace 아래의
+보고되어 원격 쓰기를 하지 않습니다. `gz-git cleanup branch --remote`도 원격
+브랜치 삭제를 거부합니다. 이 계약은 forge/config workspace 아래의
 모든 하위 저장소와 workspace 경로가 가리키는 심볼릭 링크 대상에도 적용됩니다.
 절대경로 외부 workspace는 첫 동기화 때 repository-local Git config에도 계약을
 기록하므로, 이후 소유 config 바깥에서 직접 실행한 push/handoff도 차단됩니다.
@@ -112,7 +113,7 @@ workspaces:
 | 선언                    | 축          | ad-hoc push에 대한 효과                             |
 | ----------------------- | ----------- | --------------------------------------------------- |
 | `defaults.scan.exclude` | 탐색(scan)  | 대상 목록에서 아예 빠집니다 — 상태 표시도 되지 않음 |
-| `access: read-only`     | 쓰기(write) | 스캔·조회는 되지만 push는 `skipped`로 거부됩니다    |
+| `access: read-only`     | 쓰기(write) | 스캔·조회는 되지만 push와 원격 브랜치 삭제는 거부됩니다 |
 | `discovery.mode`        | —           | **없음.** 어떤 명령도 이 키를 읽지 않습니다         |
 | `sync.strategy`         | —           | **없음.** `workspace sync` 전용 축입니다            |
 

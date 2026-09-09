@@ -5,9 +5,35 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
+
+func TestBulkCleanup_RemoteDeleteGuardRefusesReadOnly(t *testing.T) {
+	origin, clone := botRemoteBareClone(t)
+
+	result, err := NewClient().BulkCleanup(context.Background(), BulkCleanupOptions{
+		Directory:     clone,
+		MaxDepth:      1,
+		IncludeMerged: true,
+		DeleteRemote:  true,
+		BotsOnly:      true,
+		BaseBranch:    "master",
+		RemoteDeleteGuard: func(context.Context, string) error {
+			return errors.New("read-only workspace")
+		},
+	})
+	if err != nil {
+		t.Fatalf("BulkCleanup: %v", err)
+	}
+	if result.TotalBranchesDeleted != 0 || result.TotalBranchesFailed != 1 {
+		t.Fatalf("deleted = %d, failed = %d; want one refused remote delete", result.TotalBranchesDeleted, result.TotalBranchesFailed)
+	}
+	if !refExists(t, origin, "refs/heads/dependabot/go_modules/x") {
+		t.Fatal("remote branch was deleted despite the guard")
+	}
+}
 
 // The bulk engine's silent drop, measured rather than argued.
 //

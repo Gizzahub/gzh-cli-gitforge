@@ -5,13 +5,62 @@ package branch
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
+
+func TestCleanupService_ExecuteRemoteDeleteGuardRefusesReadOnly(t *testing.T) {
+	seed := testutil.TempGitRepoWithCommit(t)
+	gitCommit(t, seed, "branch", "-M", "master")
+	gitCommit(t, seed, "checkout", "-b", "dependabot/go_modules/x")
+	writeAndCommit(t, seed, "bot.txt", "bot")
+	gitCommit(t, seed, "checkout", "master")
+	gitCommit(t, seed, "merge", "--no-ff", "--no-edit", "dependabot/go_modules/x")
+
+	root := t.TempDir()
+	origin := filepath.Join(root, "origin.git")
+	clone := filepath.Join(root, "clone")
+	gitCommit(t, t.TempDir(), "clone", "--bare", seed, origin)
+	gitCommit(t, t.TempDir(), "clone", origin, clone)
+
+	repo := &repository.Repository{Path: clone}
+	svc := NewCleanupServiceWithRemoteDeleteGuard(func(context.Context, *repository.Repository) error {
+		return errors.New("read-only workspace")
+	})
+	report, err := svc.Analyze(context.Background(), repo, AnalyzeOptions{
+		IncludeMerged: true,
+		IncludeRemote: true,
+		BotsOnly:      true,
+		BaseBranch:    "master",
+	})
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+
+	result, err := svc.Execute(context.Background(), repo, report, ExecuteOptions{Force: true, Remote: true})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(result.Deleted) != 0 || len(result.Failed) != 1 {
+		t.Fatalf("Deleted = %v, Failed = %v; want one refused remote delete", result.Deleted, result.Failed)
+	}
+	if !strings.Contains(result.Failed[0].Err.Error(), "read-only workspace") {
+		t.Errorf("refusal = %q, want read-only workspace", result.Failed[0].Err)
+	}
+
+	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/dependabot/go_modules/x") //nolint:noctx // test helper
+	cmd.Dir = origin
+	if err := cmd.Run(); err != nil {
+		t.Fatal("remote branch was deleted despite the guard")
+	}
+}
 
 // TestCleanupService_ExecuteSkipsProtectedEvenWhenExcludeEmpty pins the safety
 // net that must not depend on Analyze: a hand-built report that lists main under

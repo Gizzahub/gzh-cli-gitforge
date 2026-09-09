@@ -145,7 +145,7 @@ func runSingleRepoCleanupBranch(ctx context.Context, excludePatterns []string) e
 		return err
 	}
 
-	svc := branch.NewCleanupService()
+	svc := branch.NewCleanupServiceWithRemoteDeleteGuard(configuredWorkspaceRemoteDeleteGuard)
 
 	// Analyze branches
 	analyzeOpts := branch.AnalyzeOptions{
@@ -295,6 +295,7 @@ func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns
 		StaleThreshold:    time.Duration(cleanupBranchStaleDays) * 24 * time.Hour,
 		BaseBranch:        cleanupBranchBaseBranch,
 		DeleteRemote:      cleanupBranchRemote,
+		RemoteDeleteGuard: configuredWorkspaceBulkRemoteDeleteGuard,
 		BotsOnly:          cleanupBranchBots,
 		ProtectPatterns:   excludePatterns,
 		IncludeSubmodules: cleanupBranchBulkFlags.IncludeSubmodules,

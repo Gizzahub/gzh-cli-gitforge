@@ -5,11 +5,52 @@ package branch
 
 import (
 	"context"
+	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 
+	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
+
+func TestManager_DeleteRemoteGuardRespectsReadOnlyAndReadWrite(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		guard    RemoteDeleteGuard
+		wantErr  bool
+		wantLive bool
+	}{
+		{
+			name: "read-only refuses remote deletion",
+			guard: func(context.Context, *repository.Repository) error {
+				return errors.New("read-only workspace")
+			},
+			wantErr:  true,
+			wantLive: true,
+		},
+		{name: "read-write deletes remote branch", wantLive: false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fx := testutil.TempWorktreeWithBareOrigin(t)
+			gitCommit(t, fx.Clone, "checkout", "-b", "feature/delete-me")
+			gitCommit(t, fx.Clone, "push", "-u", fx.Remote, "feature/delete-me")
+			gitCommit(t, fx.Clone, "checkout", "main")
+
+			err := NewManagerWithRemoteDeleteGuard(tt.guard).Delete(context.Background(),
+				&repository.Repository{Path: fx.Clone}, DeleteOptions{Name: "feature/delete-me", Force: true, Remote: true})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Delete error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/feature/delete-me") //nolint:noctx // test helper
+			cmd.Dir = fx.Origin
+			if gotLive := cmd.Run() == nil; gotLive != tt.wantLive {
+				t.Errorf("remote branch exists = %v, want %v", gotLive, tt.wantLive)
+			}
+		})
+	}
+}
 
 // divergedTrunkFixture builds the case the operator cannot currently see: the
 // declaration names develop, a local master is still here, and master carries a

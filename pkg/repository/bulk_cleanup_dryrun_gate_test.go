@@ -5,10 +5,42 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestBulkCleanup_DryRunDoesNotInvokeRemoteDeleteGuard(t *testing.T) {
+	origin, clone := botRemoteBareClone(t)
+	guardCalls := 0
+
+	result, err := NewClient().BulkCleanup(context.Background(), BulkCleanupOptions{
+		Directory:     clone,
+		MaxDepth:      1,
+		DryRun:        true,
+		IncludeMerged: true,
+		DeleteRemote:  true,
+		BotsOnly:      true,
+		BaseBranch:    "master",
+		RemoteDeleteGuard: func(context.Context, string) error {
+			guardCalls++
+			return errors.New("read-only workspace")
+		},
+	})
+	if err != nil {
+		t.Fatalf("BulkCleanup: %v", err)
+	}
+	if guardCalls != 0 {
+		t.Fatalf("remote delete guard called %d times during dry-run", guardCalls)
+	}
+	if result.TotalBranchesDeleted != 1 || result.TotalBranchesFailed != 0 {
+		t.Fatalf("dry-run deleted = %d, failed = %d; want one previewed remote delete", result.TotalBranchesDeleted, result.TotalBranchesFailed)
+	}
+	if !refExists(t, origin, "refs/heads/dependabot/go_modules/x") {
+		t.Fatal("dry-run deleted the remote branch")
+	}
+}
 
 // The property under test is agreement, not refusal: whatever --dry-run names
 // as a deletion, the real run must actually delete. The gate used to live only
