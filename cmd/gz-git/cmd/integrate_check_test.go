@@ -20,6 +20,9 @@ func TestIntegrateCheckHelp(t *testing.T) {
 			t.Errorf("integrate check missing --%s", name)
 		}
 	}
+	if !strings.Contains(cmd.Long, "Engine: legacy-shell-backend") {
+		t.Errorf("integrate check help missing engine identifier:\n%s", cmd.Long)
+	}
 }
 
 func TestIntegrateCheckBareTargetCheckoutExitsOne(t *testing.T) {
