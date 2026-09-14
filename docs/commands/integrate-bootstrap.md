@@ -51,6 +51,10 @@ plan cannot be reused. No cleanup is attempted before the push.
 This is a bootstrap transaction, not a general-purpose file copier: symlinks,
 submodules, additional config changes, and multi-commit branches are rejected.
 
-The CLI does not authenticate the operator. The downstream agent policy and
-PreToolUse hook must deny `integrate bootstrap apply`; execution is reserved
-for a separately reviewed human-operated procedure.
+The CLI does not authenticate the operator, and `apply` refuses to run without
+an interactive terminal: the digest is a human review acknowledgement, and a
+pipe or CI runner has nobody to supply it. There is no `--yes` or environment
+bypass. The downstream agent policy and PreToolUse hook must still deny
+`integrate bootstrap apply` -- the terminal check narrows the blast radius, it
+does not identify the operator -- and execution stays reserved for a separately
+reviewed human-operated procedure.

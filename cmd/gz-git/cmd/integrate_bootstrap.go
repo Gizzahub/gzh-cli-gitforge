@@ -56,6 +56,16 @@ var (
 var integrateBootstrapApplyCmd = &cobra.Command{
 	Use: "apply", Short: "Apply an exact bootstrap plan with a lease", Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// Introducing a readiness contract is deliberately not automatable, and
+		// the digest is a human review acknowledgement a pipe or CI runner has
+		// nobody to supply. The documented downstream agent policy and hook deny
+		// this command, but a denial that lives only outside the binary is one
+		// unreviewed config away from absent -- so it is also refused here. This
+		// matches readiness update apply. There is intentionally no --yes or
+		// environment bypass.
+		if !stdinIsInteractive() {
+			return cliutil.NewExitError(2, fmt.Errorf("bootstrap apply requires an interactive terminal"))
+		}
 		if bootstrapApplyFile == "" {
 			return cliutil.NewExitError(2, fmt.Errorf("--plan is required"))
 		}
