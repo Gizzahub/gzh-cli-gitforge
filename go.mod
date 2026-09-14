@@ -1,6 +1,6 @@
 module github.com/gizzahub/gzh-cli-gitforge
 
-go 1.26
+go 1.26.0
 
 toolchain go1.26.7
 
@@ -12,12 +12,12 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gizzahub/gzh-cli-core v0.0.0-20260805234833-84a0f3d05f5d
 	github.com/google/go-github/v88 v88.0.0
-	github.com/mattn/go-isatty v0.0.22
+	github.com/mattn/go-isatty v0.0.24
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/zalando/go-keyring v0.2.8
 	gitlab.com/gitlab-org/api/client-go v1.46.0
-	golang.org/x/mod v0.35.0
+	golang.org/x/mod v0.41.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
