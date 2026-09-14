@@ -10,6 +10,29 @@ gz-git integrate bootstrap apply --plan /tmp/readiness-bootstrap.json \
   --confirm <CONFIRM_DIGEST>
 ```
 
+The two commands cannot be chained. `plan && apply` can never work: `apply`
+requires both the plan file and the `CONFIRM_DIGEST` that `plan` prints to
+stderr, and a human has to read that digest before retyping it. `plan` prints
+the exact `apply` command to run next, but running it stays a separate,
+deliberate act.
+
+## Issuer
+
+`--issuer` records who is accountable for the plan. When it is omitted, `plan`
+reads `git config gzgit.issuer`, then `git config user.email`, and fails naming
+all three when neither is set:
+
+```sh
+git config --global gzgit.issuer alice@example.com
+```
+
+`gzgit.issuer` is owned by gz-git, so external identity tooling can populate it
+without gz-git depending on any particular identity framework or file format.
+
+The environment is never consulted for the issuer. It is an audit field, and an
+environment variable is the one source a process can set for itself, in flight,
+without leaving a reviewable trace on disk.
+
 `plan` never changes remote refs, though it may update local fetch state. It emits an expiring canonical
 confirmation plan (it is not a signed authorization). `apply` is an
 explicitly human-operated action: it requires `--confirm <sha256>` equal to

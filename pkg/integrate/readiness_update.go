@@ -66,7 +66,7 @@ func ReadinessUpdatePlanFor(ctx context.Context, exec *gitcmd.Executor, opts Rea
 		return ReadinessUpdatePlan{}, fmt.Errorf("git executor is nil")
 	}
 	if strings.TrimSpace(opts.Issuer) == "" {
-		return ReadinessUpdatePlan{}, fmt.Errorf("--issuer is required")
+		return ReadinessUpdatePlan{}, fmt.Errorf("issuer is required")
 	}
 	if opts.Expiry <= 0 || opts.Expiry > 15*time.Minute || opts.Expiry%time.Second != 0 {
 		return ReadinessUpdatePlan{}, fmt.Errorf("expiry must be positive, whole seconds, and no greater than 15m")

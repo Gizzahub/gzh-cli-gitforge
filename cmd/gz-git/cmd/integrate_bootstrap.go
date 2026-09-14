@@ -23,7 +23,12 @@ var (
 	integrateBootstrapPlanCmd = &cobra.Command{
 		Use: "plan", Short: "Create a read-only, expiring bootstrap plan", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			p, err := integrate.BootstrapPlanFor(cmdContext(cmd), gitcmd.NewExecutor(), integrate.BootstrapOptions{RepoPath: ".", Branch: bootstrapPlanBranch, Target: bootstrapPlanTarget, Issuer: bootstrapPlanIssuer, Expiry: bootstrapPlanExpiry})
+			ctx, exec := cmdContext(cmd), gitcmd.NewExecutor()
+			issuer, err := resolveIssuer(ctx, exec, ".", bootstrapPlanIssuer)
+			if err != nil {
+				return cliutil.NewExitError(2, err)
+			}
+			p, err := integrate.BootstrapPlanFor(ctx, exec, integrate.BootstrapOptions{RepoPath: ".", Branch: bootstrapPlanBranch, Target: bootstrapPlanTarget, Issuer: issuer, Expiry: bootstrapPlanExpiry})
 			if err != nil {
 				return cliutil.NewExitError(2, err)
 			}
@@ -35,6 +40,14 @@ var (
 				return cliutil.NewExitError(2, fmt.Errorf("encode bootstrap plan digest"))
 			}
 			fmt.Fprintf(cmd.ErrOrStderr(), "CONFIRM_DIGEST %s\n", digest)
+			// plan and apply cannot be chained: apply needs a plan file and the
+			// digest a human has read. Naming the exact next command removes the
+			// guesswork without removing that human step.
+			if bootstrapPlanOutput == "" {
+				fmt.Fprintf(cmd.ErrOrStderr(), "next: re-run with --output <file>, then apply --plan <file> --confirm %s\n", digest)
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "next: gz-git integrate bootstrap apply --plan %s --confirm %s\n", bootstrapPlanOutput, digest)
+			}
 			return nil
 		},
 	}
@@ -63,7 +76,7 @@ func init() {
 	integrateBootstrapCmd.AddCommand(integrateBootstrapPlanCmd, integrateBootstrapApplyCmd)
 	integrateBootstrapPlanCmd.Flags().StringVar(&bootstrapPlanBranch, "branch", "", "source branch")
 	integrateBootstrapPlanCmd.Flags().StringVar(&bootstrapPlanTarget, "target", "", "target ref")
-	integrateBootstrapPlanCmd.Flags().StringVar(&bootstrapPlanIssuer, "issuer", "", "human or automation identity recorded in the plan")
+	integrateBootstrapPlanCmd.Flags().StringVar(&bootstrapPlanIssuer, "issuer", "", "identity recorded in the plan (default: git config gzgit.issuer, then user.email)")
 	integrateBootstrapPlanCmd.Flags().DurationVar(&bootstrapPlanExpiry, "expires-in", 15*time.Minute, "plan lifetime")
 	integrateBootstrapPlanCmd.Flags().StringVarP(&bootstrapPlanOutput, "output", "o", "", "write plan JSON to this file (stdout when omitted)")
 	integrateBootstrapApplyCmd.Flags().StringVar(&bootstrapApplyFile, "plan", "", "plan JSON file")

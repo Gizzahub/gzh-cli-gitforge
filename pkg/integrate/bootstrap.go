@@ -59,7 +59,7 @@ func BootstrapPlanFor(ctx context.Context, exec *gitcmd.Executor, opts Bootstrap
 		return BootstrapPlan{}, fmt.Errorf("git executor is nil")
 	}
 	if strings.TrimSpace(opts.Issuer) == "" {
-		return BootstrapPlan{}, fmt.Errorf("--issuer is required")
+		return BootstrapPlan{}, fmt.Errorf("issuer is required")
 	}
 	g := newGitRepo(exec, opts.RepoPath)
 	root, err := g.toplevel(ctx)
