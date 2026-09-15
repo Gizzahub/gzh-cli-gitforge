@@ -214,15 +214,50 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 		}
 	}
 	if len(branch) > len(base) {
+		// The pair of numbers says the branch got worse; it does not say where,
+		// and the reader's next move is always to go look. This function is
+		// holding the locations while it reports the arithmetic, so carry them
+		// out with it — rule (a) forty lines up already does exactly that.
+		//
+		// The list is never empty here. branch and base are both sets by the
+		// time they reach this line (uniqueSorted, top of the function), so
+		// len(branch) > len(base) rules out branch being a subset of base, and
+		// a non-subset has at least one member base does not carry.
 		return BaselineResult{
 			Status: BaselineFail,
-			Reason: fmt.Sprintf("diagnostic count increased (%d → %d)", len(base), len(branch)),
+			Reason: fmt.Sprintf("diagnostic count increased (%d → %d), new: %s",
+				len(base), len(branch), strings.Join(locationsNotIn(branch, preexisting), " ")),
 		}
 	}
 	return BaselineResult{
 		Status: BaselinePass,
 		Reason: fmt.Sprintf("count %d → %d, no diagnostics on changed paths", len(base), len(branch)),
 	}
+}
+
+// locationsNotIn returns the locations that `known` does not already carry.
+// Callers here pass a uniqueSorted set, so the result comes out sorted; the
+// dedupe below is for the helper to stay correct if that ever stops holding.
+//
+// This is a set difference, not the count delta, and the two disagree whenever
+// a baseline diagnostic disappears while new ones arrive: base 3 → branch 4 can
+// carry two new places, not one. The reader is chasing places, so the list is
+// the set difference; the count pair stays beside it because that is what the
+// non-worsening rule actually judged on.
+func locationsNotIn(locs []string, known map[string]struct{}) []string {
+	var novel []string
+	seen := make(map[string]struct{}, len(locs))
+	for _, loc := range locs {
+		if _, old := known[loc]; old {
+			continue
+		}
+		if _, dup := seen[loc]; dup {
+			continue
+		}
+		seen[loc] = struct{}{}
+		novel = append(novel, loc)
+	}
+	return novel
 }
 
 // ExtractLocations pulls file:line tokens from tool output and normalizes

@@ -687,3 +687,74 @@ func TestEvaluateBaselineNewDiagnosticOnChangedPathStillFails(t *testing.T) {
 		t.Fatalf("rule (a) must not claim an unchanged path, got %q", untouched.Reason)
 	}
 }
+
+// The count-increase verdict used to report only the pair of numbers, so an
+// operator reading "count increased (3 → 4)" had no way to tell which location
+// was new and had to re-run the checker by hand. The locations were in the
+// function's hands the whole time.
+func TestEvaluateBaseline_CountIncreaseNamesTheNewLocations(t *testing.T) {
+	got := EvaluateBaseline(BaselineInput{
+		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
+		BaseLocations:   []string{"a.go:1", "b.go:2"},
+	})
+	if got.Status != BaselineFail {
+		t.Fatalf("count increase must FAIL, got %+v", got)
+	}
+	if !strings.Contains(got.Reason, "c.go:3") {
+		t.Fatalf("reason must name the new location, got %q", got.Reason)
+	}
+	if !strings.Contains(got.Reason, "2 → 3") {
+		t.Fatalf("reason must keep the count pair it judged on, got %q", got.Reason)
+	}
+}
+
+// A location the baseline already carried is not news. Listing it would send
+// the reader to a line that was failing before the branch existed.
+func TestEvaluateBaseline_CountIncreaseOmitsPreexistingLocations(t *testing.T) {
+	got := EvaluateBaseline(BaselineInput{
+		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
+		BaseLocations:   []string{"a.go:1", "b.go:2"},
+	})
+	if strings.Contains(got.Reason, "a.go:1") || strings.Contains(got.Reason, "b.go:2") {
+		t.Fatalf("reason must not replay pre-existing locations, got %q", got.Reason)
+	}
+}
+
+// The count delta and the set difference are different sizes whenever a
+// baseline diagnostic disappears while new ones arrive. 3 → 4 is "+1", but
+// three places are new, and those three are what the reader has to go fix.
+// Reporting only the arithmetic hides two of them.
+func TestEvaluateBaseline_CountIncreaseListsEveryNewLocationNotJustTheDelta(t *testing.T) {
+	got := EvaluateBaseline(BaselineInput{
+		BranchLocations: []string{"a.go:1", "d.go:4", "e.go:5", "f.go:6"},
+		BaseLocations:   []string{"a.go:1", "b.go:2", "c.go:3"},
+	})
+	if got.Status != BaselineFail {
+		t.Fatalf("count increase must FAIL, got %+v", got)
+	}
+	for _, loc := range []string{"d.go:4", "e.go:5", "f.go:6"} {
+		if !strings.Contains(got.Reason, loc) {
+			t.Fatalf("reason must name every new location, %q missing from %q", loc, got.Reason)
+		}
+	}
+	if strings.Contains(got.Reason, "b.go:2") || strings.Contains(got.Reason, "c.go:3") {
+		t.Fatalf("reason must not name locations the branch cleared, got %q", got.Reason)
+	}
+}
+
+// Rule (a) owns diagnostics on changed paths and reports them with its own
+// wording. The count rule must not be the one that speaks when a changed path
+// carries a new diagnostic, or the operator gets the weaker message.
+func TestEvaluateBaseline_ChangedPathVerdictStillOutranksTheCountVerdict(t *testing.T) {
+	got := EvaluateBaseline(BaselineInput{
+		BranchLocations: []string{"a.go:1", "b.go:2", "touched.go:9"},
+		BaseLocations:   []string{"a.go:1", "b.go:2"},
+		ChangedPaths:    []string{"touched.go"},
+	})
+	if got.Status != BaselineFail {
+		t.Fatalf("must FAIL, got %+v", got)
+	}
+	if !strings.Contains(got.Reason, "diagnostics on changed paths") {
+		t.Fatalf("rule (a) must win, got %q", got.Reason)
+	}
+}
