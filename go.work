@@ -7,3 +7,7 @@ toolchain go1.26.7
 // this repository buildable outside the devbox layout. Cross-repository devbox
 // tests explicitly select the generated root workspace through GOWORK instead.
 use .
+
+// The go directive carries the patch component on purpose. go.mod requires
+// go 1.26.0, and `go` reads a bare `1.26` as ordering before 1.26.0, so the
+// workspace refuses the module it is built to contain.
