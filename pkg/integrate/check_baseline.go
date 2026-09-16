@@ -120,6 +120,13 @@ func findLocationMatch(line string) string {
 	return ""
 }
 
+// maxNewLocationsListed bounds how many novel locations the count-increase
+// verdict names in its Reason. The measured lint run cited above produced
+// 121 locations; nothing about that message is scannable, and the operator
+// is going to re-run the checker for the full list regardless, so the FAIL
+// line only needs enough of it to start reading.
+const maxNewLocationsListed = 10
+
 // EvaluateBaseline is the non-worsening gate.
 //
 // It does not compare diagnostic location sets. The measured lint run
@@ -223,10 +230,21 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 		// time they reach this line (uniqueSorted, top of the function), so
 		// len(branch) > len(base) rules out branch being a subset of base, and
 		// a non-subset has at least one member base does not carry.
+		novel := locationsNotIn(branch, preexisting)
+		shown := novel
+		omitted := 0
+		if len(novel) > maxNewLocationsListed {
+			shown = novel[:maxNewLocationsListed]
+			omitted = len(novel) - maxNewLocationsListed
+		}
+		reason := fmt.Sprintf("diagnostic count increased (%d → %d), new: %s",
+			len(base), len(branch), strings.Join(shown, " "))
+		if omitted > 0 {
+			reason += fmt.Sprintf(" (+%d more)", omitted)
+		}
 		return BaselineResult{
 			Status: BaselineFail,
-			Reason: fmt.Sprintf("diagnostic count increased (%d → %d), new: %s",
-				len(base), len(branch), strings.Join(locationsNotIn(branch, preexisting), " ")),
+			Reason: reason,
 		}
 	}
 	return BaselineResult{
@@ -236,8 +254,9 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 }
 
 // locationsNotIn returns the locations that `known` does not already carry.
-// Callers here pass a uniqueSorted set, so the result comes out sorted; the
-// dedupe below is for the helper to stay correct if that ever stops holding.
+// The sole caller passes a uniqueSorted set, so locs is already deduplicated
+// and the result comes out sorted; a second dedupe here would never fire and
+// so cannot be exercised by a falsifying test.
 //
 // This is a set difference, not the count delta, and the two disagree whenever
 // a baseline diagnostic disappears while new ones arrive: base 3 → branch 4 can
@@ -246,15 +265,10 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 // non-worsening rule actually judged on.
 func locationsNotIn(locs []string, known map[string]struct{}) []string {
 	var novel []string
-	seen := make(map[string]struct{}, len(locs))
 	for _, loc := range locs {
 		if _, old := known[loc]; old {
 			continue
 		}
-		if _, dup := seen[loc]; dup {
-			continue
-		}
-		seen[loc] = struct{}{}
 		novel = append(novel, loc)
 	}
 	return novel

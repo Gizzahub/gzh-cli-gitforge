@@ -715,8 +715,47 @@ func TestEvaluateBaseline_CountIncreaseOmitsPreexistingLocations(t *testing.T) {
 		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},
 	})
+	if got.Status != BaselineFail {
+		t.Fatalf("count increase must FAIL, got %+v", got)
+	}
 	if strings.Contains(got.Reason, "a.go:1") || strings.Contains(got.Reason, "b.go:2") {
 		t.Fatalf("reason must not replay pre-existing locations, got %q", got.Reason)
+	}
+}
+
+// The set difference has no ceiling: a measured-zero baseline against a
+// branch that failed a lint run puts every branch location in the list (the
+// EvaluateBaseline doc comment cites a real 121-location run). Past
+// maxNewLocationsListed the Reason must stop naming locations and instead
+// say how many it left out, or the FAIL line is exactly as unscannable as
+// before the cap existed.
+func TestEvaluateBaseline_CountIncreaseCapsTheList(t *testing.T) {
+	branch := make([]string, 0, 16)
+	branch = append(branch, "a.go:1")
+	for i := 1; i <= 15; i++ {
+		branch = append(branch, fmt.Sprintf("loc%02d.go:%d", i, i))
+	}
+	got := EvaluateBaseline(BaselineInput{
+		BranchLocations: branch,
+		BaseLocations:   []string{"a.go:1"},
+	})
+	if got.Status != BaselineFail {
+		t.Fatalf("count increase must FAIL, got %+v", got)
+	}
+	for i := 1; i <= 10; i++ {
+		loc := fmt.Sprintf("loc%02d.go:%d", i, i)
+		if !strings.Contains(got.Reason, loc) {
+			t.Fatalf("reason must name %q within the cap, got %q", loc, got.Reason)
+		}
+	}
+	for i := 11; i <= 15; i++ {
+		loc := fmt.Sprintf("loc%02d.go:%d", i, i)
+		if strings.Contains(got.Reason, loc) {
+			t.Fatalf("reason must not name %q past the cap, got %q", loc, got.Reason)
+		}
+	}
+	if !strings.Contains(got.Reason, "(+5 more)") {
+		t.Fatalf("reason must say how many locations were omitted, got %q", got.Reason)
 	}
 }
 
