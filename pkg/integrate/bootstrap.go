@@ -126,7 +126,7 @@ func BootstrapApply(ctx context.Context, exec *gitcmd.Executor, plan BootstrapPl
 	if _, present, err := loadReadinessContract(ctx, g, plan.TargetSHA); err != nil {
 		return err
 	} else if present {
-		return fmt.Errorf("target already declares readiness; plan is one-use")
+		return fmt.Errorf("target already declares readiness; plan is one-use; rotate the contract with gz-git integrate readiness-update")
 	}
 	res, err := g.run(ctx, "push", "--force-with-lease="+plan.DestinationRef+":"+plan.TargetSHA, plan.PushEndpoint, plan.SourceSHA+":"+plan.DestinationRef)
 	if err != nil {
@@ -195,7 +195,7 @@ func bootstrapSnapshot(ctx context.Context, g gitRepo, opts BootstrapOptions) (B
 	if _, present, err := loadReadinessContract(ctx, g, shaTarget); err != nil {
 		return BootstrapPlan{}, err
 	} else if present {
-		return BootstrapPlan{}, fmt.Errorf("target already declares readiness")
+		return BootstrapPlan{}, fmt.Errorf("target already declares readiness; rotate the contract with gz-git integrate readiness-update")
 	}
 	n, err := g.revCount(ctx, shaTarget+".."+sha)
 	if err != nil || n != 1 {
