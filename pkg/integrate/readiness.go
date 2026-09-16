@@ -127,7 +127,7 @@ func checkReadinessContract(ctx context.Context, g gitRepo, plan TargetPlan, rep
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "source is missing target readiness contract"}
 	}
 	if !sameReadinessContract(target, source) {
-		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "readiness contract changed between target and source; land the change with gz-git integrate readiness-update"}
+		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "readiness contract changed between target and source; land the change with gz-git integrate readiness update"}
 	}
 	if !readinessRunnerSupported() {
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "measurement unavailable: contract runners are unsupported on Windows"}

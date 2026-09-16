@@ -24,7 +24,7 @@ func TestBootstrapPlanOnDeclaredTargetGuidesToReadinessUpdate(t *testing.T) {
 	if err == nil {
 		t.Fatal("bootstrap accepted a target that already declares readiness")
 	}
-	for _, want := range []string{"target already declares readiness", "gz-git integrate readiness-update"} {
+	for _, want := range []string{"target already declares readiness", "gz-git integrate readiness update"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("refusal %q is missing guidance %q", err.Error(), want)
 		}
@@ -47,7 +47,7 @@ func TestContractChangeGateRefusalGuidesToReadinessUpdate(t *testing.T) {
 	if item.Status != checkFail {
 		t.Fatalf("status = %q, detail = %q", item.Status, item.Detail)
 	}
-	for _, want := range []string{"readiness contract changed between target and source", "gz-git integrate readiness-update"} {
+	for _, want := range []string{"readiness contract changed between target and source", "gz-git integrate readiness update"} {
 		if !strings.Contains(item.Detail, want) {
 			t.Fatalf("refusal %q is missing guidance %q", item.Detail, want)
 		}
