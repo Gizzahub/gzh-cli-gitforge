@@ -22,6 +22,7 @@ var (
 	integrateCheckRelease          bool
 	integrateCheckAllowSkipped     bool
 	integrateCheckControllerConfig string
+	integrateCheckNoFetch          bool
 )
 
 var integrateCheckCmd = &cobra.Command{
@@ -32,6 +33,9 @@ var integrateCheckCmd = &cobra.Command{
 
   # Required when no integration branch can be resolved
   gz-git integrate check --target origin/main --direct-to-default
+
+  # Judge freshness from local remote-tracking refs, without fetching
+  gz-git integrate check --no-fetch
 
 This is read-only. It never pushes and never reclaims.
 Run a bare check from a task-branch worktree, not from the target checkout.
@@ -53,6 +57,7 @@ func init() {
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckRelease, "release", false, "promote the integration branch onto the default branch")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, and downgrade SKIPPED CHECK banners to warnings")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
+	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "never read from the remote; judge freshness from local remote-tracking refs")
 }
 
 func runIntegrateCheck(cmd *cobra.Command, args []string) error {
@@ -74,6 +79,7 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		Release:            integrateCheckRelease,
 		AllowSkippedChecks: integrateCheckAllowSkipped,
 		ControllerConfig:   integrateCheckControllerConfig,
+		NoFetch:            integrateCheckNoFetch,
 	})
 	if err != nil {
 		msg := err.Error()

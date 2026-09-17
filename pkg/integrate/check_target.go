@@ -69,7 +69,7 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	plan.Remote = remote
 
-	if err := planFetchDefault(ctx, g, remote, &plan); err != nil {
+	if err := planFetchDefault(ctx, g, remote, opts.NoFetch, &plan); err != nil {
 		return plan, err
 	}
 
@@ -116,12 +116,16 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	return plan, nil
 }
 
-func planFetchDefault(ctx context.Context, g gitRepo, remote string, plan *TargetPlan) error {
+func planFetchDefault(ctx context.Context, g gitRepo, remote string, noFetch bool, plan *TargetPlan) error {
 	if remote == "" {
 		return nil
 	}
-	if err := g.fetchPrune(ctx, remote); err != nil {
-		return err
+	// refs/remotes/<remote>/HEAD is read locally either way; fetch --prune
+	// never updates it, so skipping the fetch changes only ref freshness.
+	if !noFetch {
+		if err := g.fetchPrune(ctx, remote); err != nil {
+			return err
+		}
 	}
 	def, ok, err := g.symbolicRef(ctx, "refs/remotes/"+remote+"/HEAD")
 	if err != nil {

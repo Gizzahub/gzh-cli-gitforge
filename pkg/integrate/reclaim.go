@@ -35,6 +35,7 @@ type reclaimOpts struct {
 	Remote       string
 	PushRemote   string
 	TaskSHA      string
+	NoFetch      bool
 	Patterns     []string
 	Facts        []string
 }
@@ -191,6 +192,17 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	if err == nil && (del == nil || del.ExitCode == 0) {
 		out.Done = append(out.Done, "remote-branch")
 		return true
+	}
+	if opts.NoFetch {
+		// ls-remote is a network read. Without it an already-deleted remote
+		// branch is indistinguishable from a refused lease, so report the
+		// refusal instead of guessing that the branch is gone.
+		detail := ""
+		if del != nil {
+			detail = strings.TrimSpace(del.Stderr)
+		}
+		out.Failed = append(out.Failed, "leased remote delete "+opts.Remote+"/"+opts.Branch+" (--no-fetch: not confirmed with ls-remote): "+detail)
+		return false
 	}
 	heads, lsErr := sg.output(ctx, "ls-remote", "--heads", pushRemote, opts.Branch)
 	if lsErr != nil || strings.TrimSpace(heads) != "" {

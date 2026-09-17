@@ -91,6 +91,12 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		pushRemote = check.Controller.RemoteURL
 	}
 	if err := pushFastForward(ctx, g, pushRemote, sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
+		if check.NoFetch {
+			// Without a fetch the lease is the only freshness judgement that
+			// reached the remote; name that so the rejection reads as stale
+			// local refs rather than an unexplained push failure.
+			return report, fmt.Errorf("%w; --no-fetch judged %s from local refs; if the remote target moved, fetch, rebase, and re-check", err, check.Plan.Target)
+		}
 		return report, err
 	}
 	if err := ffTargetWorktrees(ctx, exec, g, targetName, sourceSHA); err != nil {
@@ -111,7 +117,7 @@ func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport) (
 	if !ok || sourceSHA != check.Plan.BranchSHA {
 		return "", "", "", fmt.Errorf("source branch changed during readiness; re-run check")
 	}
-	if check.Plan.Remote != "" {
+	if check.Plan.Remote != "" && !check.NoFetch {
 		if err := g.fetchPrune(ctx, check.Plan.Remote); err != nil {
 			return "", "", "", err
 		}
@@ -131,6 +137,9 @@ func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport) (
 			return "", "", "", err
 		}
 		if !ok {
+			if check.NoFetch {
+				return "", "", "", fmt.Errorf("target ref not found locally (--no-fetch): %s", check.Plan.Target)
+			}
 			return "", "", "", fmt.Errorf("target ref not found after fetch: %s", check.Plan.Target)
 		}
 	}
@@ -214,6 +223,7 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 			Remote:       report.Check.Plan.Remote,
 			PushRemote:   controllerPushRemote(report.Check),
 			TaskSHA:      report.SHA,
+			NoFetch:      report.Check.NoFetch,
 			Patterns:     decl.Patterns,
 			Facts:        decl.Facts,
 		})

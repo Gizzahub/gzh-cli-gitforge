@@ -32,6 +32,10 @@ type CheckOptions struct {
 	// ControllerConfig is an explicit devbox/controller file. It is never
 	// discovered from ancestors and never inherits repository readiness.
 	ControllerConfig string
+	// NoFetch forbids every network read from the remote. Freshness and
+	// merge-tree are judged against the remote-tracking refs already present
+	// locally; run's leased push is then the only freshness guard.
+	NoFetch bool
 }
 
 // CheckItem is one readiness row.
@@ -60,6 +64,9 @@ type CheckReport struct {
 	ReadinessStatus   string
 	ReadinessDuration time.Duration
 	Controller        *controllerBinding
+	// NoFetch is recorded so run repeats the checked no-fetch judgement
+	// instead of fetching between check and push.
+	NoFetch bool
 }
 
 // Check answers whether the branch can land on the target.
@@ -98,18 +105,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 		return nil, err
 	}
 
-	report := &CheckReport{Plan: plan, Controller: controller}
-	add := func(item CheckItem) {
-		report.Items = append(report.Items, item)
-		switch item.Status {
-		case checkFail:
-			report.Failures++
-		case checkWarn:
-			report.Warnings++
-		}
-	}
+	report := &CheckReport{Plan: plan, Controller: controller, NoFetch: opts.NoFetch}
+	add := report.add
 
-	add(checkFreshness(ctx, g, plan))
+	add(checkFreshnessItems(ctx, g, plan, opts.NoFetch)...)
 	_, mergeItem := checkMergeTree(ctx, g, plan)
 	add(mergeItem)
 	for _, item := range checkOtherBranches(ctx, g, plan) {
@@ -159,6 +158,19 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	return report, nil
 }
 
+// add records readiness rows and keeps the failure and warning tallies.
+func (r *CheckReport) add(items ...CheckItem) {
+	for _, item := range items {
+		r.Items = append(r.Items, item)
+		switch item.Status {
+		case checkFail:
+			r.Failures++
+		case checkWarn:
+			r.Warnings++
+		}
+	}
+}
+
 func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) (*controllerBinding, error) {
 	if strings.TrimSpace(opts.ControllerConfig) == "" {
 		return nil, nil //nolint:nilnil // an omitted optional controller has no binding
@@ -186,6 +198,23 @@ func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) 
 		opts.Target = controller.Remote + "/" + controller.Integration[0]
 	}
 	return controller, nil
+}
+
+// checkFreshnessItems returns the freshness row, preceded under --no-fetch by
+// a row stating which local ref was judged, so the transcript never reads as
+// if the remote had been consulted.
+func checkFreshnessItems(ctx context.Context, g gitRepo, plan TargetPlan, noFetch bool) []CheckItem {
+	freshness := checkFreshness(ctx, g, plan)
+	if !noFetch || plan.Remote == "" {
+		return []CheckItem{freshness}
+	}
+	freshness.Detail += " (local ref, not fetched)"
+	fetch := CheckItem{
+		Name:   "fetch",
+		Status: checkSkip,
+		Detail: fmt.Sprintf("--no-fetch: freshness and merge-tree judged from local ref %s (%s) without fetching; the leased push is the freshness guard", plan.Target, plan.TargetSHA),
+	}
+	return []CheckItem{fetch, freshness}
 }
 
 func checkFreshness(ctx context.Context, g gitRepo, plan TargetPlan) CheckItem {

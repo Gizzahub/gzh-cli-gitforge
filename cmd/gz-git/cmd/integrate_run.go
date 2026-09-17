@@ -22,6 +22,7 @@ var (
 	integrateRunRelease          bool
 	integrateRunAllowSkipped     bool
 	integrateRunControllerConfig string
+	integrateRunNoFetch          bool
 )
 
 var integrateRunCmd = &cobra.Command{
@@ -32,6 +33,9 @@ var integrateRunCmd = &cobra.Command{
 
   # Required when no integration branch can be resolved
   gz-git integrate run --target origin/main --direct-to-default
+
+  # Integrate without fetching; a moved remote rejects the leased push
+  gz-git integrate run --no-fetch
 
 Reclaim only runs for names matching the repo-root taskPattern.
 No declaration means reclaim nothing. Remote branch delete uses
@@ -56,6 +60,7 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunRelease, "release", false, "promote the integration branch onto the default branch")
 	integrateRunCmd.Flags().BoolVar(&integrateRunAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, and downgrade SKIPPED CHECK banners to warnings")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
+	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "never read from the remote; judge freshness from local remote-tracking refs")
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
@@ -78,6 +83,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			Release:            integrateRunRelease,
 			AllowSkippedChecks: integrateRunAllowSkipped,
 			ControllerConfig:   integrateRunControllerConfig,
+			NoFetch:            integrateRunNoFetch,
 		},
 	})
 	if report != nil && !quiet {

@@ -19,6 +19,10 @@ already exists.
 explicit devbox-only policy path for repositories that have no target-owned
 readiness contract.
 
+[Integrating without fetching](integrate-no-fetch.md) explains how
+`integrate check --no-fetch` and `integrate run --no-fetch` finish under a
+no-fetch network policy, and why the leased push is the freshness guard.
+
 ## Global Flags
 
 | Flag        | Short | Description               |
