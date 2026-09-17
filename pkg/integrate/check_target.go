@@ -120,8 +120,10 @@ func planFetchDefault(ctx context.Context, g gitRepo, remote string, noFetch boo
 	if remote == "" {
 		return nil
 	}
-	// refs/remotes/<remote>/HEAD is read locally either way; fetch --prune
-	// never updates it, so skipping the fetch changes only ref freshness.
+	// refs/remotes/<remote>/HEAD is read locally either way. A fetch can
+	// create it when missing (git >= 2.48, remote.<name>.followRemoteHEAD);
+	// without one a missing ref stays missing, so --no-fetch fails below
+	// rather than guessing a default branch.
 	if !noFetch {
 		if err := g.fetchPrune(ctx, remote); err != nil {
 			return err

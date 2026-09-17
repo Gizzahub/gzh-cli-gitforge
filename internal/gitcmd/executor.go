@@ -90,6 +90,14 @@ func NewExecutor(opts ...Option) *Executor {
 	return e
 }
 
+// WithAddedEnv returns a copy of the executor whose commands also carry env,
+// after the executor's own environment. The receiver is not modified.
+func (e *Executor) WithAddedEnv(env ...string) *Executor {
+	c := *e
+	c.env = append(append([]string(nil), e.env...), env...)
+	return &c
+}
+
 // Run executes a Git command in the specified directory.
 // The args are sanitized before execution to prevent command injection.
 //

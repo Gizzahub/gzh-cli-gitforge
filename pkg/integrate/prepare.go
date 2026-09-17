@@ -161,7 +161,7 @@ func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string) e
 	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
 		return fmt.Errorf("preparation changed git refs")
 	}
-	return validatePreparedStatus(ctx, dir)
+	return validatePreparedStatus(ctx, g, dir)
 }
 
 func rejectEntSymlinkChain(dir string) error {
@@ -177,14 +177,17 @@ func rejectEntSymlinkChain(dir string) error {
 	return nil
 }
 
-func validatePreparedStatus(ctx context.Context, dir string) error {
-	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching")
-	cmd.Dir = dir
-	raw, err := cmd.Output()
+// The status runs through the repository's executor so it carries the same
+// environment as every other git subprocess of the check.
+func validatePreparedStatus(ctx context.Context, g gitRepo, dir string) error {
+	res, err := newGitRepo(g.exec, dir).run(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching")
+	if err == nil && res.ExitCode != 0 {
+		err = fmt.Errorf("exit %d: %s", res.ExitCode, strings.TrimSpace(res.Stderr))
+	}
 	if err != nil {
 		return fmt.Errorf("inspect prepared tree: %w", err)
 	}
-	for _, record := range bytes.Split(raw, []byte{0}) {
+	for _, record := range bytes.Split([]byte(res.Stdout), []byte{0}) {
 		if len(record) == 0 {
 			continue
 		}

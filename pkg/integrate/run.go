@@ -51,6 +51,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if check == nil {
 		return nil, fmt.Errorf("readiness report is nil")
 	}
+	exec = noFetchExecutor(exec, check.NoFetch)
 	report := &RunReport{Check: check, Source: check.Plan.Branch, Target: check.Plan.Target}
 	if !check.Ready {
 		return report, fmt.Errorf("not ready")

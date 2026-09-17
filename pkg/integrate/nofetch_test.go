@@ -6,6 +6,7 @@ package integrate
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -154,4 +155,125 @@ func TestReclaimRemoteBranch_NoFetchDoesNotConfirmWithLsRemote(t *testing.T) {
 	if !strings.Contains(strings.Join(out.Failed, "\n"), "--no-fetch: not confirmed with ls-remote") {
 		t.Fatalf("failure must say ls-remote was skipped: %+v", out)
 	}
+}
+
+// gitEnvShim puts a git on PATH that records GIT_NO_LAZY_FETCH for every
+// invocation before running the real git, and returns the log it writes.
+func gitEnvShim(t *testing.T) string {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("look up git: %v", err)
+	}
+	dir := t.TempDir()
+	log := filepath.Join(dir, "git-env.log")
+	script := "#!/bin/sh\nprintf '%s %s\\n' \"${GIT_NO_LAZY_FETCH-unset}\" \"$1\" >> '" + log + "'\nexec '" + realGit + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o700); err != nil { //nolint:gosec // the shim must be executable
+		t.Fatalf("write git shim: %v", err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GIT_NO_LAZY_FETCH", "")
+	if err := os.Unsetenv("GIT_NO_LAZY_FETCH"); err != nil {
+		t.Fatalf("unset GIT_NO_LAZY_FETCH: %v", err)
+	}
+	return log
+}
+
+// shimLines reads and clears the shim log, failing if git never ran.
+func shimLines(t *testing.T, log string) []string {
+	t.Helper()
+	raw, err := os.ReadFile(log) //nolint:gosec // test-owned path
+	if err != nil {
+		t.Fatalf("read git shim log: %v", err)
+	}
+	if err := os.Remove(log); err != nil {
+		t.Fatalf("clear git shim log: %v", err)
+	}
+	lines := splitNonEmpty(string(raw))
+	if len(lines) == 0 {
+		t.Fatal("git shim recorded no invocations")
+	}
+	return lines
+}
+
+// A partial clone fetches missing objects on demand; --no-fetch must switch
+// that off for every git it starts, check and run alike, and only then.
+func TestRun_NoFetchGitSubprocessesDisableLazyFetch(t *testing.T) {
+	fx := runFixture(t, "dev/*")
+	unreadableRemote(t, fx)
+	log := gitEnvShim(t)
+
+	_, _ = Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: noFetchTask})
+	for _, line := range shimLines(t, log) {
+		if !strings.HasPrefix(line, "unset ") {
+			t.Fatalf("default check must not set GIT_NO_LAZY_FETCH: %q", line)
+		}
+	}
+
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
+		CheckOptions: CheckOptions{RepoPath: fx.Worktree, Branch: noFetchTask, NoFetch: true},
+	})
+	lines := shimLines(t, log)
+	if err != nil || !report.Integrated || report.Reclaim.Incomplete() {
+		t.Fatalf("Run --no-fetch: %v\n%s", err, FormatRun(report))
+	}
+	seen := map[string]bool{}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "1 ") {
+			t.Fatalf("--no-fetch git ran without GIT_NO_LAZY_FETCH=1: %q\nall:\n%s", line, strings.Join(lines, "\n"))
+		}
+		seen[strings.TrimPrefix(line, "1 ")] = true
+	}
+	// Both halves went through the shim: check's merge-tree and run's push.
+	for _, sub := range []string{"merge-tree", "push"} {
+		if !seen[sub] {
+			t.Fatalf("shim never saw git %s; recorded:\n%s", sub, strings.Join(lines, "\n"))
+		}
+	}
+}
+
+// A lease is stricter than a fast-forward. When the remote target was rewound
+// to an ancestor of the checked tip, a plain push would land as a
+// fast-forward from there; the lease names the checked tip and must refuse.
+func TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor(t *testing.T) {
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	runGit(t, fx.Clone, "branch", "develop")
+	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
+	ancestor := gitOutput(t, fx.Clone, "rev-parse", "develop")
+	runGit(t, fx.Worktree, "checkout", "-B", "develop-next", "develop")
+	writeFile(t, fx.Worktree, "develop.txt", "second\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "develop second")
+	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD:develop")
+	checkedTarget := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
+	runGit(t, fx.Worktree, "checkout", "-B", noFetchTask, checkedTarget)
+	writeFile(t, fx.Worktree, "task.txt", "task\n")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\n")
+	writeGateMakefile(t, fx.Worktree)
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "task work")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	if got := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/develop"); got != checkedTarget {
+		t.Fatalf("precondition: local origin/develop = %s, want %s", got, checkedTarget)
+	}
+
+	runGit(t, fx.Origin, "update-ref", "refs/heads/develop", ancestor)
+	unreadableRemote(t, fx)
+
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
+		CheckOptions: CheckOptions{RepoPath: fx.Worktree, Branch: noFetchTask, NoFetch: true},
+	})
+	if err == nil {
+		t.Fatalf("Run --no-fetch against a rewound remote must fail:\n%s", FormatRun(report))
+	}
+	if !strings.Contains(err.Error(), "--no-fetch judged origin/develop from local refs") {
+		t.Fatalf("rejection must come from the push: %v", err)
+	}
+	if report == nil || !report.Check.Ready || report.Check.Plan.TargetSHA != checkedTarget || report.Integrated {
+		t.Fatalf("want READY against %s and nothing integrated:\n%s", checkedTarget, FormatRun(report))
+	}
+	if got := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != ancestor {
+		t.Fatalf("origin develop = %s, want still rewound to %s", got, ancestor)
+	}
+	assertRef(t, fx.Origin, "refs/heads/"+noFetchTask)
 }

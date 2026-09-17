@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 // localFlagsSection returns the "Flags:" block of a command's help, stopping
@@ -113,5 +114,31 @@ func TestIntegrateRunNoFetchFlagIntegratesWithoutFetch(t *testing.T) {
 	}
 	if got := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != taskSHA {
 		t.Fatalf("origin develop = %s, want %s", got, taskSHA)
+	}
+}
+
+// The local tracking ref of the task branch is stale: the remote branch moved
+// to another commit, so the leased delete is refused. A full run must carry
+// --no-fetch through to reclaim, report the delete as unconfirmed rather than
+// reading ls-remote, and exit with the incomplete-reclaim code.
+func TestIntegrateRunNoFetchUnconfirmedRemoteDeleteExitsThree(t *testing.T) {
+	restore := setIntegrateRunGlobals(t)
+	defer restore()
+
+	fx := noFetchCommandFixture(t)
+	develop := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop")
+	runGit(t, fx.Origin, "update-ref", "refs/heads/dev/actor/feat/task", develop)
+	t.Chdir(fx.Worktree)
+	var out bytes.Buffer
+	integrateRunCmd.SetOut(&out)
+	defer integrateRunCmd.SetOut(nil)
+	integrateRunNoFetch = true
+
+	err := runIntegrateRun(integrateRunCmd, []string{"dev/actor/feat/task"})
+	if got := cliutil.ExitCodeForError(err); got != cliutil.ExitReclaimIncomplete {
+		t.Fatalf("unconfirmed remote delete exit = %d, want %d (%v)\n%s", got, cliutil.ExitReclaimIncomplete, err, out.String())
+	}
+	if !strings.Contains(out.String(), "RECLAIM incomplete: leased remote delete origin/dev/actor/feat/task (--no-fetch: not confirmed with ls-remote)") {
+		t.Fatalf("run must report the unconfirmed no-fetch delete:\n%s", out.String())
 	}
 }

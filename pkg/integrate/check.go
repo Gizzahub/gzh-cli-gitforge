@@ -74,6 +74,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
 	}
+	exec = noFetchExecutor(exec, opts.NoFetch)
 	dir := strings.TrimSpace(opts.RepoPath)
 	if dir == "" {
 		dir = "."
@@ -198,6 +199,19 @@ func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) 
 		opts.Target = controller.Remote + "/" + controller.Integration[0]
 	}
 	return controller, nil
+}
+
+// noLazyFetchEnv stops a partial clone from fetching a missing object on
+// demand, which would be a network read no --no-fetch caller asked for.
+const noLazyFetchEnv = "GIT_NO_LAZY_FETCH=1"
+
+// noFetchExecutor returns the executor every git subprocess of a no-fetch
+// check or run goes through.
+func noFetchExecutor(exec *gitcmd.Executor, noFetch bool) *gitcmd.Executor {
+	if !noFetch {
+		return exec
+	}
+	return exec.WithAddedEnv(noLazyFetchEnv)
 }
 
 // checkFreshnessItems returns the freshness row, preceded under --no-fetch by
