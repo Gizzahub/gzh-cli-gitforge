@@ -32,6 +32,11 @@ type CheckOptions struct {
 	// ControllerConfig is an explicit devbox/controller file. It is never
 	// discovered from ancestors and never inherits repository readiness.
 	ControllerConfig string
+	// NoFetch skips git fetch of the remote before resolving the target.
+	// The target is resolved from the local remote-tracking ref; when that
+	// ref is absent the check fails instead of falling back to a stale
+	// local integration branch.
+	NoFetch bool
 }
 
 // CheckItem is one readiness row.

@@ -56,6 +56,12 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   fetch; each trunk the gate examined and declined is reported with its reason on
   stderr, ungated by `--quiet`. "Nothing to clean up" and "checked, and refused" are
   different facts for an operator deciding whether to pass `--force`.
+- `gz-git integrate check` and `integrate run` accept `--no-fetch`: the target
+  resolves from local tracking refs without fetching, a missing tracking ref
+  fails instead of falling back to a stale local branch, and a failed leased
+  remote delete during reclaim reports incomplete instead of claiming
+  "already-deleted" on the basis of a network probe the flag forbids. See
+  `docs/commands/integrate-no-fetch.md`.
 
 ### Fixed
 

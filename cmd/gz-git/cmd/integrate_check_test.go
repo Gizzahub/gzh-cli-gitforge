@@ -74,12 +74,14 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	origRelease := integrateCheckRelease
 	origSkip := integrateCheckAllowSkipped
 	origController := integrateCheckControllerConfig
+	origNoFetch := integrateCheckNoFetch
 	origQuiet := quiet
 	integrateCheckTarget = ""
 	integrateCheckDirectToDefault = false
 	integrateCheckRelease = false
 	integrateCheckAllowSkipped = false
 	integrateCheckControllerConfig = ""
+	integrateCheckNoFetch = false
 	quiet = false
 	return func() {
 		integrateCheckTarget = origTarget
@@ -87,6 +89,7 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 		integrateCheckRelease = origRelease
 		integrateCheckAllowSkipped = origSkip
 		integrateCheckControllerConfig = origController
+		integrateCheckNoFetch = origNoFetch
 		quiet = origQuiet
 	}
 }

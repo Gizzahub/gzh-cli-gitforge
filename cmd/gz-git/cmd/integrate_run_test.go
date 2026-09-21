@@ -94,12 +94,14 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	origRelease := integrateRunRelease
 	origSkip := integrateRunAllowSkipped
 	origController := integrateRunControllerConfig
+	origNoFetch := integrateRunNoFetch
 	origQuiet := quiet
 	integrateRunTarget = ""
 	integrateRunDirectToDefault = false
 	integrateRunRelease = false
 	integrateRunAllowSkipped = false
 	integrateRunControllerConfig = ""
+	integrateRunNoFetch = false
 	quiet = false
 	return func() {
 		integrateRunTarget = origTarget
@@ -107,6 +109,7 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 		integrateRunRelease = origRelease
 		integrateRunAllowSkipped = origSkip
 		integrateRunControllerConfig = origController
+		integrateRunNoFetch = origNoFetch
 		quiet = origQuiet
 	}
 }

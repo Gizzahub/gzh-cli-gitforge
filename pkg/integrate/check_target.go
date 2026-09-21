@@ -69,7 +69,7 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	plan.Remote = remote
 
-	if err := planFetchDefault(ctx, g, remote, &plan); err != nil {
+	if err := planFetchDefault(ctx, g, remote, &plan, opts.NoFetch); err != nil {
 		return plan, err
 	}
 
@@ -81,18 +81,10 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 
 	target := strings.TrimSpace(opts.Target)
 	if target == "" {
-		if !integ.Participates {
-			return plan, fmt.Errorf("no integration branch; pass --target")
-		}
-		if remote != "" {
-			target = remote + "/" + integ.Name
-			if _, ok, err := g.revParse(ctx, target); err != nil {
-				return plan, err
-			} else if !ok {
-				target = integ.Name
-			}
-		} else {
-			target = integ.Name
+		var err error
+		target, err = resolveDefaultTarget(ctx, g, opts, integ, remote)
+		if err != nil {
+			return plan, err
 		}
 	}
 	if err := gitcmd.SanitizeBranchName(target); err != nil {
@@ -116,8 +108,39 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	return plan, nil
 }
 
-func planFetchDefault(ctx context.Context, g gitRepo, remote string, plan *TargetPlan) error {
+func resolveDefaultTarget(ctx context.Context, g gitRepo, opts CheckOptions, integ Resolution, remote string) (string, error) {
+	if !integ.Participates {
+		return "", fmt.Errorf("no integration branch; pass --target")
+	}
 	if remote == "" {
+		return integ.Name, nil
+	}
+	target := remote + "/" + integ.Name
+	_, ok, err := g.revParse(ctx, target)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		if opts.NoFetch {
+			return "", fmt.Errorf("no local ref for %s — run without --no-fetch once to fetch it", target)
+		}
+		return integ.Name, nil
+	}
+	return target, nil
+}
+
+func planFetchDefault(ctx context.Context, g gitRepo, remote string, plan *TargetPlan, noFetch bool) error {
+	if remote == "" {
+		return nil
+	}
+	if noFetch {
+		def, ok, err := g.symbolicRef(ctx, "refs/remotes/"+remote+"/HEAD")
+		if err != nil {
+			return err
+		}
+		if ok {
+			plan.DefaultRef = def
+		}
 		return nil
 	}
 	if err := g.fetchPrune(ctx, remote); err != nil {

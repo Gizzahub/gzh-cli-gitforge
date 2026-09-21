@@ -37,6 +37,7 @@ type reclaimOpts struct {
 	TaskSHA      string
 	Patterns     []string
 	Facts        []string
+	NoFetch      bool
 }
 
 func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts reclaimOpts) ReclaimResult {
@@ -191,6 +192,17 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	if err == nil && (del == nil || del.ExitCode == 0) {
 		out.Done = append(out.Done, "remote-branch")
 		return true
+	}
+	if opts.NoFetch {
+		detail := ""
+		if del != nil {
+			detail = strings.TrimSpace(del.Stderr)
+		}
+		if detail != "" {
+			detail += "; "
+		}
+		out.Failed = append(out.Failed, "leased remote delete "+opts.Remote+"/"+opts.Branch+": "+detail+"cannot verify without network -- retry without --no-fetch")
+		return false
 	}
 	heads, lsErr := sg.output(ctx, "ls-remote", "--heads", pushRemote, opts.Branch)
 	if lsErr != nil || strings.TrimSpace(heads) != "" {

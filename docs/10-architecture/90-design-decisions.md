@@ -362,6 +362,51 @@ rather than left to be settled by whoever writes the code first.
 - Rejecting apply preserves product-owned installers and makes the first pilot evidential,
   not mutating.
 
+#### D7: No-Fetch Finish Completes Integration (Interpretation A)
+
+**Decision**: `integrate check` and `integrate run` accept `--no-fetch`, declared in each
+command's own Flags section so CE's help-text probe can detect it. Under the flag, freshness
+is judged from the local `<remote>/<branch>` tracking ref instead of a live fetch, and the
+run completes integration and reclaim on that basis — it does not merely declare "no-fetch
+is refused safely" (TASK-221's alternative reading). See
+[Integrate without fetching](../commands/integrate-no-fetch.md) for the operator-facing
+contract.
+
+**Rationale**: `branch-integrate` already reaches a genuine `INTEGRATED ... RECLAIMED` state
+for the same branch without gz-git needing any new integration mechanism, so the missing
+piece was never the ability to finish — it was a safely bounded way to judge freshness
+without a network read. The local remote-tracking ref plus the SHA `check` already captured
+carries exactly what the push lease and delete lease need; a fetch was only ever a way to
+refresh that ref, not a precondition the lease itself depends on. Declaring the narrower
+"refuses safely" capability instead would have been a policy choice to leave `run-finish`
+permanently without a completion path for every current and future no-fetch-policy
+repository, converting a bounded engineering gap into a standing product limitation — the
+exact failure mode already blocking `TASK-079`-class work.
+
+**Alternatives Considered**:
+
+- **Declare only that no-fetch refuses safely.** Rejected as the default: gz-git can already
+  finish the same branch through `branch-integrate`, so refusing forever would misrepresent
+  an engineering gap as a permanent contract and leave CE's `run-finish` without a completion
+  path for this provider indefinitely.
+- **Fall back to a same-named local branch when the tracking ref is missing**, matching the
+  historic default-target behavior. Rejected: that local branch can be arbitrarily stale with
+  no way to tell, which is exactly the silent-guess risk `--no-fetch` exists to remove; check
+  fails instead and names the one-time fetch that fixes it.
+- **Let reclaim call `ls-remote` to confirm an "already-deleted" remote branch when the leased
+  delete fails.** Rejected: that probe is itself the network read `--no-fetch` forbids, so an
+  unverifiable delete reports incomplete rather than borrowing a check the flag's own contract
+  rules out.
+
+**Trade-offs**:
+
+- No-fetch finish is strictly narrower than a normal run: a missing tracking ref, a target
+  that moved remotely after `check`, or an unverifiable remote delete each fail closed rather
+  than proceeding, so it only ever completes against a clean, current local snapshot.
+- Operators lose the normal run's built-in resync: any of those failures requires an explicit
+  re-run without `--no-fetch`, a deliberate cost for taking the network dependency out of the
+  finish step.
+
 ______________________________________________________________________
 
 ## 13. Future Considerations

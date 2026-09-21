@@ -70,7 +70,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		return report, err
 	}
 
-	sourceSHA, targetSHA, targetName, err := revalidateCheckedRefs(ctx, g, check)
+	sourceSHA, targetSHA, targetName, err := revalidateCheckedRefs(ctx, g, check, opts.NoFetch)
 	if err != nil {
 		return report, err
 	}
@@ -100,10 +100,10 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	report.Integrated = true
 	report.SHA = sourceSHA
 	report.Printed = append(report.Printed, fmt.Sprintf("INTEGRATED %s (%s) -> %s/%s", check.Plan.Branch, sourceSHA, check.Plan.Remote, targetName))
-	return finishRunReclaim(ctx, exec, g, root, targetName, report)
+	return finishRunReclaim(ctx, exec, g, root, targetName, report, opts.NoFetch)
 }
 
-func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport) (sourceSHA, targetSHA, targetName string, err error) {
+func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, noFetch bool) (sourceSHA, targetSHA, targetName string, err error) {
 	sourceSHA, ok, err := g.revParse(ctx, check.Plan.Branch)
 	if err != nil {
 		return "", "", "", err
@@ -111,7 +111,7 @@ func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport) (
 	if !ok || sourceSHA != check.Plan.BranchSHA {
 		return "", "", "", fmt.Errorf("source branch changed during readiness; re-run check")
 	}
-	if check.Plan.Remote != "" {
+	if check.Plan.Remote != "" && !noFetch {
 		if err := g.fetchPrune(ctx, check.Plan.Remote); err != nil {
 			return "", "", "", err
 		}
@@ -192,7 +192,7 @@ func ffTargetWorktrees(ctx context.Context, exec *gitcmd.Executor, g gitRepo, ta
 	return nil
 }
 
-func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, root, targetName string, report *RunReport) (*RunReport, error) {
+func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, root, targetName string, report *RunReport, noFetch bool) (*RunReport, error) {
 	if err := revalidateController(ctx, g, report.Check); err != nil {
 		return report, err
 	}
@@ -216,6 +216,7 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 			TaskSHA:      report.SHA,
 			Patterns:     decl.Patterns,
 			Facts:        decl.Facts,
+			NoFetch:      noFetch,
 		})
 		if report.Reclaim.Skipped != "" {
 			report.Printed = append(report.Printed, "RECLAIM skipped: "+report.Reclaim.Skipped)

@@ -19,6 +19,9 @@ already exists.
 explicit devbox-only policy path for repositories that have no target-owned
 readiness contract.
 
+[Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
+`--no-fetch` finish step on `integrate check` and `integrate run`.
+
 ## Global Flags
 
 | Flag        | Short | Description               |
