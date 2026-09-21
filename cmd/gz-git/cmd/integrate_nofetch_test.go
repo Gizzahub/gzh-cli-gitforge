@@ -48,6 +48,36 @@ func TestIntegrateNoFetchFlagDeclaredOnCheckAndRun(t *testing.T) {
 	}
 }
 
+// TestHelpFlagsSectionDeclaresRejectsWithoutUsagePrecondition exercises the
+// Usage: precondition itself with crafted help text, not just real rendered
+// --help output. Without this, deleting the usage check from
+// helpFlagsSectionDeclares would leave the render-based test above green,
+// silently regressing to the gap TASK-221's F3 finding identified.
+func TestHelpFlagsSectionDeclaresRejectsWithoutUsagePrecondition(t *testing.T) {
+	const flagsOnly = "Flags:\n  --no-fetch   skip fetching before finishing\n"
+	const usageWrongOperation = "Usage:\n  gz-git integrate check [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
+	const usageNotIndented = "Usage:\ngz-git integrate run [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
+	const usageWrongBinary = "Usage:\n  gz integrate run [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
+	const usageThenFlagsMissing = "Usage:\n  gz-git integrate run [flags]\n\nFlags:\n  --other-flag   unrelated\n"
+	const wellFormed = "Usage:\n  gz-git integrate run [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
+
+	for name, tc := range map[string]struct {
+		help string
+		want bool
+	}{
+		"flags section with no usage header at all":          {flagsOnly, false},
+		"usage names a different operation":                  {usageWrongOperation, false},
+		"usage line present but not indented":                {usageNotIndented, false},
+		"usage names a different binary":                     {usageWrongBinary, false},
+		"usage satisfied but flag absent from flags section": {usageThenFlagsMissing, false},
+		"usage and flags both well formed":                   {wellFormed, true},
+	} {
+		if got := helpFlagsSectionDeclares(tc.help, "run", "--no-fetch"); got != tc.want {
+			t.Errorf("%s: helpFlagsSectionDeclares() = %v, want %v", name, got, tc.want)
+		}
+	}
+}
+
 // helpFlagsSectionDeclares mirrors CE's declaresFlag (ce-agent-kit
 // integration_provider.go): it first requires the Usage: section to name
 // "gz-git integrate <operation>" — a mention in a description or another
