@@ -65,10 +65,12 @@ func TestCheck_NoFetchMissingTargetTrackingRefFails(t *testing.T) {
 	}
 }
 
-// TestRun_NoFetchStaleTargetRefuses proves the cached-ref safety: when the
-// remote target advanced after the check (simulated here by a pre-existing
-// stale tracking ref... actually by integrating from a clone whose tracking
-// ref was deliberately rewound), the lease push refuses and run fails closed.
+// TestRun_NoFetchStaleTargetRefusesLease proves the cached-ref safety: the
+// remote target is advanced past the task worktree's local snapshot by a
+// second, separate clone that pushes an extra commit to the shared remote;
+// the task worktree's own tracking ref is never rewound, it is simply never
+// re-fetched, so under --no-fetch it stays stale relative to the remote.
+// Against that staleness, the lease push must refuse and run must fail closed.
 func TestRun_NoFetchStaleTargetRefusesLease(t *testing.T) {
 	fx := runFixture(t, "dev/*")
 
