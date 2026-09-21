@@ -6,6 +6,12 @@ Use it when the network is unavailable or the local snapshot is already
 current — for example, right after a fetch, or inside an offline finish
 sequence where the tracking refs are known good.
 
+`--no-fetch` only skips the read that refreshes local refs from the
+remote. It does not make the command offline: `run --no-fetch` still
+writes to the network — it pushes the integrated commit to the target
+branch, and reclaim pushes a leased delete of the remote task branch.
+Both of those pushes require connectivity even with the flag set.
+
 ```sh
 gz-git integrate check --no-fetch
 gz-git integrate run --no-fetch
