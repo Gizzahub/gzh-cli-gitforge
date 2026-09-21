@@ -13,14 +13,22 @@ import (
 // The no-fetch finish contract is declared through the --no-fetch flag on
 // both integrate check and integrate run. CE's real capability detector
 // (declaresFlag) does not call Lookup on the live *pflag.FlagSet — it parses
-// the rendered --help output's Flags: section and requires a line whose
-// first field is the literal "--no-fetch" token. A flag registered with
-// Hidden: true still passes Lookup() != nil but never appears in that
-// rendered section, so this test reproduces the render-based check CE
-// actually performs, not just registration. See TASK-221, TASK-228.
+// the rendered --help output, first confirming the Usage: section names
+// "gz-git integrate <operation>" and only then trusting the Flags: section
+// for a line whose first field is the literal "--no-fetch" token. A flag
+// registered with Hidden: true still passes Lookup() != nil but never
+// appears in that rendered section, so this test reproduces the render-based
+// check CE actually performs, not just registration. See TASK-221, TASK-228
+// (the Usage: precondition folds in TASK-221's F3 finding).
 func TestIntegrateNoFetchFlagDeclaredOnCheckAndRun(t *testing.T) {
-	for _, path := range [][]string{{"integrate", "check"}, {"integrate", "run"}} {
-		cmd := findCommand(t, rootCmd, path...)
+	for _, tc := range []struct {
+		path      []string
+		operation string
+	}{
+		{[]string{"integrate", "check"}, "check"},
+		{[]string{"integrate", "run"}, "run"},
+	} {
+		cmd := findCommand(t, rootCmd, tc.path...)
 
 		if cmd.Flags().Lookup("no-fetch") == nil {
 			t.Errorf("%s: no-fetch flag not registered", cmd.CommandPath())
@@ -34,33 +42,39 @@ func TestIntegrateNoFetchFlagDeclaredOnCheckAndRun(t *testing.T) {
 			t.Fatalf("%s: Help() error = %v", cmd.CommandPath(), err)
 		}
 
-		if !helpFlagsSectionDeclares(buf.String(), "--no-fetch") {
-			t.Errorf("%s: rendered --help Flags: section does not declare --no-fetch (a Hidden flag would fail this the same way)", cmd.CommandPath())
+		if !helpFlagsSectionDeclares(buf.String(), tc.operation, "--no-fetch") {
+			t.Errorf("%s: rendered --help does not declare --no-fetch under a Usage: gz-git integrate %s Flags: section (a Hidden flag would fail this the same way)", cmd.CommandPath(), tc.operation)
 		}
 	}
 }
 
-// helpFlagsSectionDeclares mirrors CE's declaresFlag: it scans the Flags:
-// section of rendered --help output (stopping at the next section header,
-// e.g. Global Flags:) for a line whose first whitespace-separated field is
-// the literal flag text.
-func helpFlagsSectionDeclares(help, flag string) bool {
+// helpFlagsSectionDeclares mirrors CE's declaresFlag (ce-agent-kit
+// integration_provider.go): it first requires the Usage: section to name
+// "gz-git integrate <operation>" — a mention in a description or another
+// command's usage does not count — and only trusts the Flags: section that
+// follows for a line whose first whitespace-separated field is the literal
+// flag text.
+func helpFlagsSectionDeclares(help, operation, flag string) bool {
+	usageHeader, usage, inFlags := false, false, false
 	scanner := bufio.NewScanner(strings.NewReader(help))
-	inFlags := false
 	for scanner.Scan() {
-		trimmed := strings.TrimSpace(scanner.Text())
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
-		if strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
-			inFlags = trimmed == "Flags:"
-			continue
-		}
-		if !inFlags {
+		indented := line != strings.TrimLeft(line, " \t")
+		if !indented && strings.HasSuffix(trimmed, ":") {
+			usageHeader = trimmed == "Usage:"
+			inFlags = trimmed == "Flags:" && usage
 			continue
 		}
 		fields := strings.Fields(trimmed)
-		if len(fields) > 0 && fields[0] == flag {
+		if usageHeader && indented && len(fields) >= 3 && fields[0] == "gz-git" && fields[1] == "integrate" && fields[2] == operation {
+			usage = true
+			continue
+		}
+		if inFlags && indented && len(fields) > 0 && fields[0] == flag {
 			return true
 		}
 	}
