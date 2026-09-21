@@ -182,7 +182,8 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 		if opts.NoFetch {
 			out.Failed = append(out.Failed, fmt.Sprintf(
 				"no local tracking ref for %s/%s — cannot verify without network -- retry without --no-fetch",
-				opts.Remote, opts.Branch))
+				opts.Remote, opts.Branch,
+			))
 			return false
 		}
 		return true

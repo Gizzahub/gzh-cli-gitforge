@@ -168,6 +168,9 @@ func TestReclaimRemoteBranch_NoFetchMissingTrackingRefFailsClosed(t *testing.T) 
 	// Remove the remote-tracking ref without touching the remote itself:
 	// exactly what a fetch-less clone looks like.
 	runGit(t, fx.Clone, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/"+task)
+	if refExists(t, fx.Clone, "refs/remotes/"+fx.Remote+"/"+task) {
+		t.Fatal("fixture setup: tracking ref must be absent for this case")
+	}
 
 	var out ReclaimResult
 	ok := reclaimRemoteBranch(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Clone), reclaimOpts{
@@ -196,6 +199,9 @@ func TestReclaimRemoteBranch_FetchedMissingTrackingRefSkips(t *testing.T) {
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
 	// Remove the remote-tracking ref without touching the remote itself.
 	runGit(t, fx.Clone, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/"+task)
+	if refExists(t, fx.Clone, "refs/remotes/"+fx.Remote+"/"+task) {
+		t.Fatal("fixture setup: tracking ref must be absent for this case")
+	}
 
 	var out ReclaimResult
 	ok := reclaimRemoteBranch(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Clone), reclaimOpts{
