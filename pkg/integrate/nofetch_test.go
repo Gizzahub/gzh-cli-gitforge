@@ -154,3 +154,60 @@ func TestReclaimRemoteBranch_NoFetchUnverifiableFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+// TestReclaimRemoteBranch_NoFetchMissingTrackingRefFailsClosed proves that a
+// missing local tracking ref under --no-fetch is not treated as proof the
+// remote branch is gone: without a fetch nothing has refreshed that ref, so
+// its absence may just mean it was never fetched or was pruned while the
+// remote branch still exists. Failing open here would leave the remote task
+// branch undeleted while reclaim reports success. See TASK-221 F1.
+func TestReclaimRemoteBranch_NoFetchMissingTrackingRefFailsClosed(t *testing.T) {
+	fx := runFixture(t, "dev/*")
+	task := "dev/actor/feat/task"
+	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
+	// Remove the remote-tracking ref without touching the remote itself:
+	// exactly what a fetch-less clone looks like.
+	runGit(t, fx.Clone, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/"+task)
+
+	var out ReclaimResult
+	ok := reclaimRemoteBranch(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Clone), reclaimOpts{
+		Branch:  task,
+		Remote:  fx.Remote,
+		TaskSHA: sha,
+		NoFetch: true,
+	}, &out)
+	if ok {
+		t.Fatalf("missing tracking ref under --no-fetch must fail closed, got success: %+v", out)
+	}
+	if len(out.Failed) == 0 {
+		t.Fatalf("want a recorded reclaim failure, got %+v", out)
+	}
+	if len(out.Done) != 0 {
+		t.Fatalf("must not record any done step when failing closed: %+v", out)
+	}
+}
+
+// TestReclaimRemoteBranch_FetchedMissingTrackingRefSkips proves the fix does
+// not regress the fetch-allowed path: a missing local tracking ref still
+// means "nothing to reclaim" when a fetch could have kept it current.
+func TestReclaimRemoteBranch_FetchedMissingTrackingRefSkips(t *testing.T) {
+	fx := runFixture(t, "dev/*")
+	task := "dev/actor/feat/task"
+	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
+	// Remove the remote-tracking ref without touching the remote itself.
+	runGit(t, fx.Clone, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/"+task)
+
+	var out ReclaimResult
+	ok := reclaimRemoteBranch(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Clone), reclaimOpts{
+		Branch:  task,
+		Remote:  fx.Remote,
+		TaskSHA: sha,
+		NoFetch: false,
+	}, &out)
+	if !ok {
+		t.Fatalf("missing tracking ref outside --no-fetch must still skip cleanly: %+v", out)
+	}
+	if len(out.Failed) != 0 {
+		t.Fatalf("want no recorded failure, got %+v", out)
+	}
+}
