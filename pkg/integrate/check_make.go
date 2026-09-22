@@ -47,6 +47,15 @@ type makeProbe struct {
 const (
 	golangciLockAttempts  = 3
 	golangciLockRetryWait = 250 * time.Millisecond
+	// makeTargetTimeout bounds a single `make check`/`make lint` invocation.
+	// The target is a repository-owned recipe of unknown shape; without a
+	// ceiling here a recipe that shells out to a live/network-dependent check
+	// (observed: a deploy-verification script gated only by best-effort mock
+	// PATH injection) hangs the whole `integrate check`/`integrate run`
+	// process indefinitely instead of failing the check. Matches the ceiling
+	// the readiness-contract runner already applies to its own subprocess
+	// (readinessTimeout).
+	makeTargetTimeout = 15 * time.Minute
 )
 
 // allowedMakeTargets is the closed set runMakeTarget may launch. check.go
@@ -104,7 +113,9 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	// from how its path happens to end -- a guess that hard-blocks a branch
 	// when it is wrong. The markers cost two lines per sub-make and are
 	// consumed before location scanning, so they never reach a comparison.
-	cmd := exec.CommandContext(ctx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
+	runCtx, cancel := context.WithTimeout(ctx, makeTargetTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
 	if lintCache != "" {
@@ -116,6 +127,16 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	cmd.Stderr = &buf
 	err := cmd.Run()
 	out := buf.String()
+	if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
+		return makeProbe{
+			Target:  target,
+			WorkDir: dir,
+			Output:  out,
+			Defined: true,
+			Err: fmt.Errorf("make %s exceeded %s and was killed — this repository's gate likely shells out to a live/network-dependent check with no timeout of its own; last output:\n%s",
+				target, makeTargetTimeout, crashOutputTail(out, 12)),
+		}
+	}
 	probe := makeProbe{Target: target, WorkDir: dir, Output: out, Err: err}
 	if err == nil {
 		probe.Defined = true
