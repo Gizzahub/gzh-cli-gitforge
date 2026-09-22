@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -56,6 +57,16 @@ const (
 	// the readiness-contract runner already applies to its own subprocess
 	// (readinessTimeout).
 	makeTargetTimeout = 15 * time.Minute
+	// makeTargetWaitDelay bounds how long Cmd.Wait keeps reading the
+	// stdout/stderr pipe after Cancel fires. `make` forks a whole shell-script
+	// tree (observed: a recursive test harness that itself execs a live
+	// verification script); killing only the direct `make` process leaves
+	// grandchildren holding a duplicated copy of the pipe's write end, so
+	// Cmd.Wait blocks for EOF forever even though `make` itself is dead. This
+	// is the documented purpose of Cmd.WaitDelay (Go >=1.20): it forces the
+	// pipe closed and Wait to return once the delay elapses, regardless of
+	// what Cancel managed to kill.
+	makeTargetWaitDelay = 10 * time.Second
 )
 
 // allowedMakeTargets is the closed set runMakeTarget may launch. check.go
@@ -118,6 +129,20 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	// `make` recipes fork shell-script trees of unknown depth. Put the whole
+	// invocation in its own process group and kill the group (not just the
+	// `make` PID) on cancellation — otherwise grandchildren survive the kill,
+	// keep the stdout/stderr pipe open, and Cmd.Wait blocks forever waiting
+	// for EOF even though `make` itself is dead. WaitDelay is the backstop
+	// for a descendant that manages to escape the group (e.g. via setsid).
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	cmd.WaitDelay = makeTargetWaitDelay
 	if lintCache != "" {
 		cmd.Env = withoutEnv(cmd.Env, "GOLANGCI_LINT_CACHE")
 		cmd.Env = append(cmd.Env, "GOLANGCI_LINT_CACHE="+lintCache)
