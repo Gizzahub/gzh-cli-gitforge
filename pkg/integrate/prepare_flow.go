@@ -158,7 +158,7 @@ func snapshotFlowSubproject(ctx context.Context, executor *gitcmd.Executor, chil
 	if err := requireCanonicalRemote(ctx, g, name, wantRemote); err != nil {
 		return prepareInput{}, err
 	}
-	status, err := isolatedGitOutput(ctx, g, "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	status, err := isolatedGitRawOutput(ctx, g, "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return prepareInput{}, fmt.Errorf("%s status: %w", name, err)
 	}
@@ -239,6 +239,14 @@ func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64
 }
 
 func isolatedGitOutput(ctx context.Context, g gitRepo, args ...string) (string, error) {
+	raw, err := isolatedGitRawOutput(ctx, g, args...)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(raw), nil
+}
+
+func isolatedGitRawOutput(ctx context.Context, g gitRepo, args ...string) (string, error) {
 	res, err := g.exec.RunWithEnv(ctx, g.dir, isolatedGitEnv(), args...)
 	if err != nil {
 		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
@@ -246,7 +254,7 @@ func isolatedGitOutput(ctx context.Context, g gitRepo, args ...string) (string, 
 	if res.ExitCode != 0 {
 		return "", fmt.Errorf("git %s failed: %s", strings.Join(args, " "), strings.TrimSpace(res.Stderr))
 	}
-	return strings.TrimSpace(res.Stdout), nil
+	return res.Stdout, nil
 }
 
 func isolatedGitEnv() []string {
@@ -266,6 +274,12 @@ func isolatedGitEnv() []string {
 // user excludes, so tracked changes and every other untracked path remain
 // evidence that the checkout cannot be snapshotted safely.
 func flowSnapshotStatusClean(status string) bool {
+	if status == "" {
+		return true
+	}
+	if !strings.HasSuffix(status, "\x00") {
+		return false
+	}
 	records := bytes.Split([]byte(status), []byte{0})
 	for index, record := range records {
 		if len(record) == 0 {

@@ -152,6 +152,28 @@ func TestFlowTaskchainSnapshotAllowsOnlyUntrackedRuntimeArtifacts(t *testing.T) 
 	}
 }
 
+func TestFlowSnapshotStatusCleanRejectsMalformedOrDirtyRecords(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		status string
+		clean  bool
+	}{
+		{name: "empty", clean: true},
+		{name: "allowed untracked record", status: "?? .ce/audit/events.jsonl\x00", clean: true},
+		{name: "missing terminal NUL", status: "?? .ce/audit/events.jsonl"},
+		{name: "double terminal NUL", status: "?? .ce/audit/events.jsonl\x00\x00"},
+		{name: "short record", status: "?? \x00"},
+		{name: "rename two path record", status: "R  AGENTS.md\x00CLAUDE.md\x00"},
+		{name: "staged allowed path", status: "A  .ce/audit/events.jsonl\x00"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := flowSnapshotStatusClean(test.status); got != test.clean {
+				t.Fatalf("flowSnapshotStatusClean(%q) = %t, want %t", test.status, got, test.clean)
+			}
+		})
+	}
+}
+
 func TestGitArchiveStopsAtConfiguredLimit(t *testing.T) {
 	bin := t.TempDir()
 	path := filepath.Join(bin, "git")
