@@ -33,6 +33,7 @@ func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *test
 	runGitInTest(t, filepath.Join(devbox, "flow-taskchain-engine"), "commit", "-m", "later")
 	prepared := t.TempDir()
 	runGitInTest(t, prepared, "init")
+	setFlowFixtureGitIdentity(t, prepared)
 	writeFile(t, prepared, "tracked", "base\n")
 	runGitInTest(t, prepared, "add", "tracked")
 	runGitInTest(t, prepared, "commit", "-m", "base")
@@ -109,6 +110,7 @@ func TestGitArchiveStopsAtConfiguredLimit(t *testing.T) {
 func TestGitArchiveUsesRecordedOIDWithoutReplaceRefs(t *testing.T) {
 	repo := t.TempDir()
 	runGitInTest(t, repo, "init")
+	setFlowFixtureGitIdentity(t, repo)
 	writeFile(t, repo, "payload.txt", "source-oid-content\n")
 	runGitInTest(t, repo, "add", "payload.txt")
 	runGitInTest(t, repo, "commit", "-m", "original")
@@ -242,6 +244,7 @@ func flowTaskchainFixture(t *testing.T) string {
 		t.Fatal(err)
 	}
 	runGitInTest(t, devbox, "init")
+	setFlowFixtureGitIdentity(t, devbox)
 	writeFile(t, devbox, "Makefile", "check:\n\t@true\nlint:\n\t@true\n")
 	runGitInTest(t, devbox, "add", "Makefile")
 	runGitInTest(t, devbox, "commit", "-m", "root")
@@ -251,12 +254,19 @@ func flowTaskchainFixture(t *testing.T) string {
 			t.Fatal(err)
 		}
 		runGitInTest(t, child, "init")
+		setFlowFixtureGitIdentity(t, child)
 		writeFile(t, child, "snapshot.txt", "original\n")
 		runGitInTest(t, child, "add", "snapshot.txt")
 		runGitInTest(t, child, "commit", "-m", "snapshot")
 		runGitInTest(t, child, "remote", "add", "origin", spec.remote)
 	}
 	return devbox
+}
+
+func setFlowFixtureGitIdentity(t *testing.T, repo string) {
+	t.Helper()
+	runGitInTest(t, repo, "config", "user.name", "Test Fixture")
+	runGitInTest(t, repo, "config", "user.email", "fixture@example.invalid")
 }
 
 func tarArchive(t *testing.T, name, body string, kind byte) []byte {
