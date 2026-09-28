@@ -181,8 +181,10 @@ func identFromStat(st unix.Stat_t) fileIdent {
 		size:  st.Size,
 		mtime: st.Mtim.Nano(),
 		ctime: st.Ctim.Nano(),
-		dev:   uint64(st.Dev), // #nosec G115 -- device ID is an opaque kernel identifier
-		ino:   st.Ino,
+		// Darwin's Stat_t.Dev is int32, so this conversion is needed there.
+		//nolint:unconvert // Linux reports the portable conversion as redundant.
+		dev: uint64(st.Dev), // #nosec G115 -- device ID is an opaque kernel identifier
+		ino: st.Ino,
 	}
 }
 
