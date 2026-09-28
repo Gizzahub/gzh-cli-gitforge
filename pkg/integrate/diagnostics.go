@@ -48,8 +48,9 @@ func writeDiagnostic(kind string, output []byte) (string, error) {
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return "", fmt.Errorf("diagnostic directory is not a regular directory: %s", dir)
 	}
-	if err := os.Chmod(dir, 0o700); err != nil { // #nosec G302 G703 -- checked local state directory needs owner traversal
-		return "", fmt.Errorf("secure diagnostic directory: %w", err)
+	chmodErr := os.Chmod(dir, 0o700) // #nosec G302 G703 -- checked local state directory needs owner traversal
+	if chmodErr != nil {
+		return "", fmt.Errorf("secure diagnostic directory: %w", chmodErr)
 	}
 	f, err := os.CreateTemp(dir, kind+"-*.log")
 	if err != nil {
