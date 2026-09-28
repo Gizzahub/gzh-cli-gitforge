@@ -94,6 +94,64 @@ func TestFlowTaskchainPrepareRejectsDirtySymlinkAndWrongRemote(t *testing.T) {
 	}
 }
 
+func TestFlowTaskchainSnapshotAllowsOnlyUntrackedRuntimeArtifacts(t *testing.T) {
+	t.Run("allows runtime artifacts with NUL-delimited paths", func(t *testing.T) {
+		devbox := flowTaskchainFixture(t)
+		engine := filepath.Join(devbox, "flow-taskchain-engine")
+		for _, name := range []string{
+			".ce/audit/events.jsonl",
+			"nested/.ce/heartbeat/events.jsonl",
+			"nested/.ce/heartbeat/state.json",
+			"nested/.ce/heartbeat/sessions/session-name.json",
+			".omo/run-continuation/ses_snapshot.json",
+		} {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(engine, name)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, engine, name, "runtime\n")
+		}
+		if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	for _, test := range []struct {
+		name string
+		edit func(t *testing.T, engine string)
+	}{
+		{
+			name: "unknown untracked path",
+			edit: func(t *testing.T, engine string) {
+				t.Helper()
+				writeFile(t, engine, "unexpected.txt", "x")
+			},
+		},
+		{
+			name: "tracked edit",
+			edit: func(t *testing.T, engine string) {
+				t.Helper()
+				writeFile(t, engine, "snapshot.txt", "changed\n")
+			},
+		},
+		{
+			name: "staged edit",
+			edit: func(t *testing.T, engine string) {
+				t.Helper()
+				writeFile(t, engine, "snapshot.txt", "changed\n")
+				runGitInTest(t, engine, "add", "snapshot.txt")
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			devbox := flowTaskchainFixture(t)
+			test.edit(t, filepath.Join(devbox, "flow-taskchain-engine"))
+			if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "dirty") {
+				t.Fatalf("snapshot err=%v", err)
+			}
+		})
+	}
+}
+
 func TestGitArchiveStopsAtConfiguredLimit(t *testing.T) {
 	bin := t.TempDir()
 	path := filepath.Join(bin, "git")

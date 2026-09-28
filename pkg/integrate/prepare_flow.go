@@ -162,7 +162,7 @@ func snapshotFlowSubproject(ctx context.Context, executor *gitcmd.Executor, chil
 	if err != nil {
 		return prepareInput{}, fmt.Errorf("%s status: %w", name, err)
 	}
-	if status != "" {
+	if !flowSnapshotStatusClean(status) {
 		return prepareInput{}, fmt.Errorf("%s checkout is dirty", name)
 	}
 	oid, ok, err := g.revParse(ctx, "HEAD")
@@ -259,6 +259,51 @@ func isolatedGitEnv() []string {
 		"GIT_OPTIONAL_LOCKS=0",
 		"LC_ALL=C",
 	}
+}
+
+// flowSnapshotStatusClean admits only untracked runtime records that can be
+// regenerated outside the snapshot. The isolated status deliberately bypasses
+// user excludes, so tracked changes and every other untracked path remain
+// evidence that the checkout cannot be snapshotted safely.
+func flowSnapshotStatusClean(status string) bool {
+	records := bytes.Split([]byte(status), []byte{0})
+	for index, record := range records {
+		if len(record) == 0 {
+			if index == len(records)-1 {
+				continue
+			}
+			return false
+		}
+		if len(record) < 4 || string(record[:2]) != "??" || record[2] != ' ' || !isFlowRuntimeArtifactPath(string(record[3:])) {
+			return false
+		}
+	}
+	return true
+}
+
+func isFlowRuntimeArtifactPath(name string) bool {
+	if name == "" || path.Clean(name) != name || strings.HasPrefix(name, "/") {
+		return false
+	}
+	if relative := strings.TrimPrefix(name, ".omo/run-continuation/"); relative != name {
+		return relative != "" && !strings.Contains(relative, "/") && strings.HasSuffix(relative, ".json")
+	}
+	parts := strings.Split(name, "/")
+	for index, part := range parts {
+		if part != ".ce" {
+			continue
+		}
+		relative := parts[index+1:]
+		switch {
+		case len(relative) == 2 && relative[0] == "audit" && relative[1] == "events.jsonl":
+			return true
+		case len(relative) == 2 && relative[0] == "heartbeat" && (relative[1] == "events.jsonl" || relative[1] == "state.json"):
+			return true
+		case len(relative) == 3 && relative[0] == "heartbeat" && relative[1] == "sessions" && relative[2] != "" && strings.HasSuffix(relative[2], ".json"):
+			return true
+		}
+	}
+	return false
 }
 
 func prepareFlowTaskchainLocalSubprojects(ctx context.Context, dir string, inputs []prepareInput) error {
