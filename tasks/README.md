@@ -33,7 +33,7 @@ ______________________________________________________________________
 | 33  | integrate-subcommand-retirement                    | ADR-0026에 따라 기각. `integrate`는 CE 통합 provider로 유지하며 기존 퇴역 제안은 역사 기록으로 남긴다                                                                                                                                 |
 | 35  | integrate-failure-output-discarded                 | 수정·로컬 검증 완료. legacy make와 readiness runner의 실패 출력을 로컬 진단 파일에 보존한다. 실행 카드: devbox TASK-236                                                                                                               |
 | 37  | contextref-unconvert-lint                          | Linux CI의 unconvert 경고를 Darwin 타입과 호환되게 교정. 실행 카드: devbox TASK-238                                                                                                                                                   |
-| 38  | hosted-gosec-diagnostic-directory                  | 진단 디렉터리 `0700` 설정의 hosted G302를 수정 중. 실행 카드: devbox TASK-239                                                                                                                                                         |
+| 38  | hosted-gosec-diagnostic-directory                  | 진단 디렉터리 `0700` 설정의 hosted G302 수정. exact-SHA `ece25ab` Quality gate 통과; 실행 카드: devbox TASK-239                                                                                                                       |
 
 메인테이너는 다음 stable 버전을 v0.8.0으로 결정했고 `VERSION`과 릴리스 노트를 준비했다.
 실제 태그 발행은 아직 하지 않는다. 빈 `homebrew-tap` 기본 브랜치, 최소 권한
