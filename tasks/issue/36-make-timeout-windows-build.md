@@ -1,6 +1,6 @@
 # ISSUE: make timeout process-group 변경이 Windows 빌드를 깨뜨린다
 
-- status: fixed
+- status: fixing (Windows hosted execution pending)
 - priority: P1
 - category: product/cross-platform
 - created_at: 2026-09-28
