@@ -1,6 +1,6 @@
 # ISSUE: make timeout process-group 변경이 Windows 빌드를 깨뜨린다
 
-- status: fixing (Windows hosted execution pending)
+- status: fixed (2026-09-28; product `a917faa`)
 - priority: P1
 - category: product/cross-platform
 - created_at: 2026-09-28
@@ -25,6 +25,7 @@ batch는 상대 파일명으로만 시작하며 `%`는 이스케이프하고 del
 
 ## 검증
 
-대상 패키지 테스트와 `GOOS=windows GOARCH=amd64 go test -c ./pkg/integrate` 교차
-컴파일로 검증한다. 소스 통합 리비전과 보드 완료 판정은 devbox TASK-237에서
-기록한다.
+대상 패키지 테스트, `GOOS=windows GOARCH=amd64 go test -c ./pkg/integrate`
+교차 컴파일, 로컬 `make quality-check`가 통과했다. 정확한 SHA `a917faa`의
+hosted CI `36410135690`에서 Windows 빌드와 새 `Test Windows make process lifecycle` 단계가 성공했다. Linux/macOS 빌드와 examples도 성공했다. 소스
+통합 리비전과 보드 완료 판정은 devbox TASK-237에서 기록한다.
