@@ -284,6 +284,20 @@ and Git repository override variables are removed, and `LC_ALL`/`LANG` are
 forced to `C`. The manifest cannot configure arguments, environment, cwd, or
 timeout.
 
+## `integrate check` reports a failing gate without its output
+
+Failed legacy `make check` or `make lint` runs and failing target-owned
+readiness runners write their captured output to a local diagnostic file. The
+failing check row shows its absolute path. Files live under
+`${XDG_STATE_HOME}/gz-git/integrate/diagnostics/`, or
+`~/.local/state/gz-git/integrate/diagnostics/` when `XDG_STATE_HOME` is unset
+or relative. The directory is mode `0700` and files are mode `0600` because
+tool output can contain secrets. Files persist after the temporary worktree is
+removed; inspect them locally and delete individual files when no longer
+needed. Successful checks create no diagnostic file.
+On Windows, private POSIX permissions are unavailable, so the check reports
+that diagnostic persistence is unsupported instead of writing a file.
+
 ## Controller-backed `integrate queue` is unavailable
 
 Hooks or wrappers that require explicit controller queue semantics must probe

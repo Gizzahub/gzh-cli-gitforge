@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -750,5 +751,85 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 	writeRepoFile(t, plain, "Makefile", "lint:\n\t@:\n")
 	if bare := runMakeTarget(context.Background(), plain, "check"); bare.Defined {
 		t.Fatalf("missing check target must not be Defined\n%s", bare.Output)
+	}
+}
+
+func TestSaveLegacyMakeDiagnostic_PersistsFailedBranchOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private POSIX diagnostic permissions are unavailable on Windows")
+	}
+	stateRoot := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", stateRoot)
+	output := "make check failed\\nprecise reason\\n"
+	item := saveLegacyMakeDiagnostic(CheckItem{Name: "make check", Status: checkFail, Detail: "failed here"}, makeProbe{
+		Target: "check",
+		Output: output,
+	})
+	if item.Status != checkFail {
+		t.Fatalf("diagnostic persistence changed status: %+v", item)
+	}
+	const prefix = "failed here; diagnostic: "
+	if !strings.HasPrefix(item.Detail, prefix) {
+		t.Fatalf("diagnostic path missing from detail: %q", item.Detail)
+	}
+	path := strings.TrimPrefix(item.Detail, prefix)
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved diagnostic %q: %v", path, err)
+	}
+	if string(got) != output {
+		t.Fatalf("saved diagnostic = %q, want %q", got, output)
+	}
+}
+
+func TestSaveLegacyMakeDiagnostic_SkipsSuccessAndBaselineOnlyOutput(t *testing.T) {
+	stateRoot := filepath.Join(t.TempDir(), "state")
+	t.Setenv("XDG_STATE_HOME", stateRoot)
+	for _, tt := range []struct {
+		name  string
+		item  CheckItem
+		probe makeProbe
+	}{
+		{
+			name:  "success",
+			item:  CheckItem{Name: "make check", Status: checkPass, Detail: "ok"},
+			probe: makeProbe{Target: "check", Output: "successful output"},
+		},
+		{
+			name:  "baseline only",
+			item:  CheckItem{Name: "make lint", Status: checkFail, Detail: "baseline failed"},
+			probe: makeProbe{Target: "lint"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := saveLegacyMakeDiagnostic(tt.item, tt.probe)
+			if got != tt.item {
+				t.Fatalf("unexpected diagnostic update: got %+v, want %+v", got, tt.item)
+			}
+		})
+	}
+	if _, err := os.Stat(stateRoot); !os.IsNotExist(err) {
+		t.Fatalf("no diagnostic directory should be created, stat err = %v", err)
+	}
+}
+
+func TestSaveLegacyMakeDiagnostic_ReportsSaveFailureAndKeepsFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private POSIX diagnostic permissions are unavailable on Windows")
+	}
+	stateRoot := filepath.Join(t.TempDir(), "state-file")
+	if err := os.WriteFile(stateRoot, []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_STATE_HOME", stateRoot)
+	item := saveLegacyMakeDiagnostic(CheckItem{Name: "make lint", Status: checkFail, Detail: "failed here"}, makeProbe{
+		Target: "lint",
+		Output: "lint output",
+	})
+	if item.Status != checkFail {
+		t.Fatalf("diagnostic save failure changed status: %+v", item)
+	}
+	if !strings.Contains(item.Detail, "diagnostic save failed: create diagnostic directory") {
+		t.Fatalf("diagnostic save failure cause missing: %q", item.Detail)
 	}
 }

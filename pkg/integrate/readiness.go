@@ -41,6 +41,7 @@ type readinessResult struct {
 	Version int    `json:"version"`
 	Status  string `json:"status"`
 	Summary string `json:"summary"`
+	stderr  []byte
 }
 
 func loadReadinessContract(ctx context.Context, g gitRepo, sha string) (readinessContract, bool, error) {
@@ -137,15 +138,26 @@ func checkReadinessContract(ctx context.Context, g gitRepo, plan TargetPlan, rep
 	result, duration, err := runContract(ctx, g, plan, target)
 	report.ReadinessStatus, report.ReadinessDuration = result.Status, duration
 	if err != nil {
-		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "measurement unavailable: " + err.Error()}
+		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail("measurement unavailable: "+err.Error(), result.stderr)}
 	}
 	if result.Status == "ready" {
 		return CheckItem{Name: "readiness contract", Status: checkPass, Detail: result.Summary}
 	}
 	if result.Status == "unavailable" {
-		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "measurement unavailable: " + result.Summary}
+		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail("measurement unavailable: "+result.Summary, result.stderr)}
 	}
-	return CheckItem{Name: "readiness contract", Status: checkFail, Detail: result.Summary}
+	return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail(result.Summary, result.stderr)}
+}
+
+func readinessFailureDetail(detail string, stderr []byte) string {
+	path, err := writeDiagnostic("readiness", stderr)
+	if err != nil {
+		return detail + "; diagnostic unavailable: " + err.Error()
+	}
+	if path == "" {
+		return detail
+	}
+	return detail + "; diagnostic: " + path
 }
 
 func runContract(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract) (result readinessResult, duration time.Duration, err error) {
@@ -207,21 +219,22 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	runErr := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return readinessResult{Status: "unavailable"}, fmt.Errorf("runner timed out")
+		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner timed out")
 	}
 	if ctx.Err() != nil {
-		return readinessResult{Status: "unavailable"}, ctx.Err()
+		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, ctx.Err()
 	}
 	if stdout.exceeded || stderr.exceeded {
-		return readinessResult{Status: "unavailable"}, fmt.Errorf("runner output exceeded limit")
+		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner output exceeded limit")
 	}
 	if runErr != nil {
-		return readinessResult{Status: "unavailable"}, fmt.Errorf("runner failed: %s", boundedDetail(stderr.String()))
+		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner failed: %s", boundedDetail(stderr.String()))
 	}
 	result, err := parseReadinessResult(stdout.Bytes())
 	if err != nil {
-		return readinessResult{Status: "unavailable"}, err
+		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, err
 	}
+	result.stderr = bytes.Clone(stderr.Bytes())
 	return result, nil
 }
 

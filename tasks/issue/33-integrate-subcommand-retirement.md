@@ -1,6 +1,6 @@
 # ISSUE: `integrate` 서브커맨드 퇴역 — 소비자가 Worktrunk 엔진 + ce 전략의 2층으로 옮긴다
 
-- status: open
+- status: superseded
 - priority: P2
 - category: product/scope
 - created_at: 2026-09-07T13:30:00+09:00
@@ -10,6 +10,12 @@
 - related: devenv `docs/70-tech-debt/TD-100.md`, ce-agent-kit `tasks/plan/001-*.md`
 
 ## Pointer
+
+2026-09-28 정정: devbox ADR-0026이 이 퇴역 전제를 기각했고 devbox 보드는
+TASK-188–192 퇴역 체인을 취소했다. 설치된 launcher와 CE task runtime은
+현재 `gz-git integrate`를 계속 사용한다. 따라서 아래 내용은 당시 제안의
+기록이며 현재 구현 금지나 동결 정책이 아니다. 후속 결함은 ISSUE-35와
+devbox TASK-236으로 추적한다.
 
 작업 항목은 devbox 루트가 소유한다 →
 `gzh-cli-devbox/tasks/todo/176-retire-gz-git-integrate-subcommand.md`.

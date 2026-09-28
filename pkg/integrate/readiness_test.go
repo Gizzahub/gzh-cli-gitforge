@@ -174,6 +174,94 @@ func TestCheck_AllowSkippedCannotDowngradeUnavailableContract(t *testing.T) {
 	}
 }
 
+func TestCheck_ContractFailurePreservesRunnerStderr(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
+	for _, tt := range []struct {
+		name, runner, detail, output string
+	}{
+		{
+			name:   "not ready",
+			runner: "#!/bin/sh\nprintf 'not-ready stderr' >&2\nprintf '{\"version\":1,\"status\":\"not_ready\",\"summary\":\"waiting for dependency\"}'\n",
+			detail: "waiting for dependency",
+			output: "not-ready stderr",
+		},
+		{
+			name:   "unavailable",
+			runner: "#!/bin/sh\nprintf 'unavailable stderr' >&2\nprintf '{\"version\":1,\"status\":\"unavailable\",\"summary\":\"dependency offline\"}'\n",
+			detail: "measurement unavailable: dependency offline",
+			output: "unavailable stderr",
+		},
+		{
+			name:   "runner error",
+			runner: "#!/bin/sh\nprintf 'runner failure stderr' >&2\nexit 7\n",
+			detail: "measurement unavailable: runner failed",
+			output: "runner failure stderr",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			fx := readinessFixture(t)
+			advanceReadinessTarget(t, fx, "", tt.runner, "failing readiness runner")
+			stateRoot := t.TempDir()
+			t.Setenv("XDG_STATE_HOME", stateRoot)
+
+			report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			item, ok := readinessCheckItem(report, "readiness contract")
+			if !ok || item.Status != checkFail || !strings.Contains(item.Detail, tt.detail) {
+				t.Fatalf("unexpected readiness failure: %+v\n%s", item, FormatCheck(report))
+			}
+			path := readinessDiagnosticPath(t, item.Detail)
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read diagnostic %s: %v", path, err)
+			}
+			if string(got) != tt.output {
+				t.Fatalf("diagnostic output = %q, want %q", got, tt.output)
+			}
+		})
+	}
+}
+
+func TestCheck_ReadyContractDoesNotPersistStderr(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
+	fx := readinessFixture(t)
+	advanceReadinessTarget(t, fx, "", "#!/bin/sh\nprintf 'successful runner stderr' >&2\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n", "ready readiness runner")
+	stateRoot := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", stateRoot)
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil || !report.Ready {
+		t.Fatalf("ready contract: %v\n%s", err, FormatCheck(report))
+	}
+	if _, err := os.Stat(filepath.Join(stateRoot, "gz-git", "integrate", "diagnostics")); !os.IsNotExist(err) {
+		t.Fatalf("ready runner persisted a diagnostic: %v", err)
+	}
+}
+
+func readinessDiagnosticPath(t *testing.T, detail string) string {
+	t.Helper()
+	_, path, found := strings.Cut(detail, "; diagnostic: ")
+	if !found || path == "" {
+		t.Fatalf("failure detail has no diagnostic path: %q", detail)
+	}
+	return path
+}
+
+func readinessCheckItem(report *CheckReport, name string) (CheckItem, bool) {
+	for _, item := range report.Items {
+		if item.Name == name {
+			return item, true
+		}
+	}
+	return CheckItem{}, false
+}
+
 func TestParseReadinessResult_RejectsTrailingAndUnknown(t *testing.T) {
 	for _, raw := range []string{
 		`{"version":1,"status":"ready","summary":"ok"} trailing`,

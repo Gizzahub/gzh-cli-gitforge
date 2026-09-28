@@ -141,6 +141,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 			for _, target := range []string{"check", "lint"} {
 				probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target))
 				item := judgeMakeAgainstProbe(ctx, g, plan, probe, opts.AllowSkippedChecks, prepared.baseline[target])
+				item = saveLegacyMakeDiagnostic(item, probe)
 				if item.Status != checkSkip {
 					declared++
 					add(item)
@@ -162,6 +163,23 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
+}
+
+// saveLegacyMakeDiagnostic preserves branch Make output after the prepared
+// worktree is removed. Baseline output is deliberately never passed here: it
+// explains the comparison, while this diagnostic is the failed branch run the
+// operator needs to inspect.
+func saveLegacyMakeDiagnostic(item CheckItem, probe makeProbe) CheckItem {
+	if item.Status != checkFail || probe.Output == "" {
+		return item
+	}
+	path, err := writeDiagnostic("make-"+probe.Target, []byte(probe.Output))
+	if err != nil {
+		item.Detail += "; diagnostic save failed: " + err.Error()
+		return item
+	}
+	item.Detail += "; diagnostic: " + path
+	return item
 }
 
 func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) (*controllerBinding, error) {
