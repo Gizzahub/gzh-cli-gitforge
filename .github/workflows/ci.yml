@@ -11,8 +11,8 @@ permissions:
 
 # The quality-check target is the single source of truth for formatting, lint,
 # security, build, unit, and self-contained E2E checks.  The platform matrix
-# below only adds cross-platform build coverage; it intentionally does not run
-# the quality gate again.
+# below adds cross-platform build coverage and focused Windows process tests;
+# it intentionally does not run the quality gate again.
 jobs:
   quality:
     name: Quality gate
@@ -102,6 +102,10 @@ jobs:
 
     - name: Build binary
       run: make build
+
+    - name: Test Windows make process lifecycle
+      if: matrix.os == 'windows-latest'
+      run: go test -count=1 -timeout=60s -run '^TestMakeProcessTree' ./pkg/integrate
 
     - name: Verify binary (Unix)
       if: matrix.os != 'windows-latest'

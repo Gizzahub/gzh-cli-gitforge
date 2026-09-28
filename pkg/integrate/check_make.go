@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -129,19 +128,20 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
-	// `make` recipes fork shell-script trees of unknown depth. Put the whole
-	// invocation in its own process group and kill the group (not just the
-	// `make` PID) on cancellation — otherwise grandchildren survive the kill,
-	// keep the stdout/stderr pipe open, and Cmd.Wait blocks forever waiting
-	// for EOF even though `make` itself is dead. WaitDelay is the backstop
-	// for a descendant that manages to escape the group (e.g. via setsid).
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	// `make` recipes fork shell-script trees of unknown depth. On Unix, put
+	// the invocation in its own process group and kill that group on
+	// cancellation. Windows puts make in a Job Object and terminates that
+	// job. WaitDelay bounds Cmd.Wait if a surviving descendant still holds
+	// stdout/stderr open.
+	processTree, err := newMakeProcessTree()
+	if err != nil {
+		return makeProbe{Target: target, WorkDir: dir, Err: fmt.Errorf("create make process tree: %w", err)}
 	}
+	defer processTree.close()
+	if err := processTree.configure(cmd); err != nil {
+		return makeProbe{Target: target, WorkDir: dir, Err: fmt.Errorf("prepare make process tree: %w", err)}
+	}
+	cmd.Cancel = processTree.cancel
 	cmd.WaitDelay = makeTargetWaitDelay
 	if lintCache != "" {
 		cmd.Env = withoutEnv(cmd.Env, "GOLANGCI_LINT_CACHE")
@@ -150,7 +150,16 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
-	err := cmd.Run()
+	err = cmd.Start()
+	if err == nil {
+		if attachErr := processTree.attach(cmd.Process); attachErr != nil {
+			err = makeProcessAttachFailure(cmd, processTree, attachErr)
+		} else if releaseErr := processTree.release(); releaseErr != nil {
+			err = makeProcessAttachFailure(cmd, processTree, releaseErr)
+		} else {
+			err = cmd.Wait()
+		}
+	}
 	out := buf.String()
 	if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
 		return makeProbe{
@@ -183,6 +192,19 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	}
 	probe.ToolCrash = toolCrashSignature(out)
 	return probe
+}
+
+// makeProcessAttachFailure fails closed before the target command is released.
+// On Windows the handshake keeps cmd.exe from spawning make until release, so
+// killing cmd here cannot leave a recipe descendant behind. WaitDelay bounds
+// Wait if a platform process unexpectedly retains one of the output pipes.
+func makeProcessAttachFailure(cmd *exec.Cmd, processTree *makeProcessTree, cause error) error {
+	cancelErr := processTree.cancel()
+	var killErr error
+	if cmd.Process != nil {
+		killErr = cmd.Process.Kill()
+	}
+	return errors.Join(fmt.Errorf("attach make process tree: %w", cause), cancelErr, killErr, cmd.Wait())
 }
 
 // toolCrashSignature returns the line proving the tool terminated abnormally
