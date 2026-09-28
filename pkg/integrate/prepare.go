@@ -18,6 +18,8 @@ import (
 type preparedLegacy struct {
 	source, root string
 	baseline     map[string]makeProbe
+	profile      string
+	inputs       []prepareInput
 	// sourcePrepared is the kind of tree source is. It is stamped onto every
 	// probe measured there so the baseline comparison can see whether the two
 	// sides were prepared alike, instead of assuming they were.
@@ -34,6 +36,19 @@ func (p preparedLegacy) annotateProbe(ctx context.Context, probe makeProbe) make
 	return annotateControllerPreparedProbe(ctx, probe)
 }
 
+// evidence is a stable, human-readable record of the closed profile and the
+// immutable subproject commits extracted into both probes.
+func (p preparedLegacy) evidence() string {
+	if p.profile == "" {
+		return ""
+	}
+	parts := []string{p.profile}
+	for _, input := range p.inputs {
+		parts = append(parts, input.Name+"@"+input.OID)
+	}
+	return strings.Join(parts, " ")
+}
+
 const prepareProfileTimeout = 5 * time.Minute
 
 func (p preparedLegacy) cleanup(ctx context.Context) error {
@@ -46,6 +61,17 @@ func (p preparedLegacy) cleanup(ctx context.Context) error {
 // target is prepared and measured before it is removed; source is never alive
 // at the same time, so repository code cannot use the baseline worktree.
 func prepareLegacyTrees(ctx context.Context, g gitRepo, plan TargetPlan, c *controllerBinding) (preparedLegacy, error) {
+	profile := ""
+	if c != nil {
+		profile = c.PrepareProfile
+	}
+	return prepareLegacyTreesWithProfile(ctx, g, plan, c, profile)
+}
+
+// prepareLegacyTreesWithProfile runs one closed preparation profile against
+// both immutable commits. profile has already been resolved from the commit
+// declarations by the caller; this executor never reads a worktree config.
+func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string) (preparedLegacy, error) {
 	// No profile means no preparation, and the branch is then measured where
 	// the repository already is: the live working directory, carrying deps/,
 	// node_modules/ and .venv from earlier runs. The baseline it will be
@@ -53,8 +79,12 @@ func prepareLegacyTrees(ctx context.Context, g gitRepo, plan TargetPlan, c *cont
 	// asymmetry is not fixed here — it is recorded, so the verdict can name it
 	// instead of reporting an unmeasurable baseline as a fact about the target
 	// commit.
-	if c == nil || c.PrepareProfile == "" {
+	if profile == "" {
 		return preparedLegacy{source: g.dir, sourcePrepared: PrepareStateWorkingDir}, nil
+	}
+	inputs, err := snapshotPrepareInputs(ctx, g, profile)
+	if err != nil {
+		return preparedLegacy{}, fmt.Errorf("snapshot preparation inputs: %w", err)
 	}
 	root, err := os.MkdirTemp("", "gz-git-integrate-prepare-")
 	if err != nil {
@@ -65,13 +95,13 @@ func prepareLegacyTrees(ctx context.Context, g gitRepo, plan TargetPlan, c *cont
 		_ = os.RemoveAll(root)
 		return preparedLegacy{}, fmt.Errorf("prepare target worktree: %w", err)
 	}
-	if err := runPrepareProfile(ctx, g, target, c.PrepareProfile); err != nil {
+	if err := runPrepareProfileWithInputs(ctx, g, target, profile, inputs); err != nil {
 		cleanupErr := removePreparedWorktree(ctx, g, target, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare target: %w", err), cleanupErr)
 	}
 	// Both sides get a fresh worktree and the same profile, so these two
 	// probes ARE prepared alike; the stamp records that symmetry as evidence.
-	prepared := preparedLegacy{controllerPrepared: true, sourcePrepared: PrepareStateProfilePrepared}
+	prepared := preparedLegacy{controllerPrepared: true, sourcePrepared: PrepareStateProfilePrepared, profile: profile, inputs: inputs}
 	baseline := map[string]makeProbe{
 		"check": prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "check")),
 		"lint":  prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "lint")),
@@ -84,11 +114,11 @@ func prepareLegacyTrees(ctx context.Context, g gitRepo, plan TargetPlan, c *cont
 		_ = os.RemoveAll(root)
 		return preparedLegacy{}, fmt.Errorf("prepare source worktree: %w", err)
 	}
-	if err := runPrepareProfile(ctx, g, source, c.PrepareProfile); err != nil {
+	if err := runPrepareProfileWithInputs(ctx, g, source, profile, inputs); err != nil {
 		cleanupErr := removePreparedWorktree(ctx, g, source, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
-	return preparedLegacy{source: source, root: root, baseline: baseline, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, g: g}, nil
+	return preparedLegacy{source: source, root: root, baseline: baseline, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g}, nil
 }
 
 func removePreparedWorktree(parent context.Context, g gitRepo, wt, root string) error {
@@ -121,6 +151,17 @@ func removePreparedWorktree(parent context.Context, g gitRepo, wt, root string) 
 // This is process isolation, not a security sandbox. As with legacy Make,
 // the selected task revision is trusted to execute repository-owned code.
 func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string) error {
+	inputs, err := snapshotPrepareInputs(parent, g, profile)
+	if err != nil {
+		return err
+	}
+	return runPrepareProfileWithInputs(parent, g, dir, profile, inputs)
+}
+
+func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile string, inputs []prepareInput) error {
+	if profile == flowTaskchainLocalSubprojectsV1 {
+		return prepareFlowTaskchainLocalSubprojects(parent, dir, inputs)
+	}
 	if profile != familybookEntPrepareV1 {
 		return fmt.Errorf("unsupported preparation profile %q", profile)
 	}

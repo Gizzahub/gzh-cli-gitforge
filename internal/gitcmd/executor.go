@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -172,6 +173,84 @@ func (e *Executor) RunWithEnv(ctx context.Context, dir string, extraEnv []string
 	}
 
 	return result, nil
+}
+
+// RunWithOutputLimit runs Git with the same binary, timeout, environment, and
+// argument validation as RunWithEnv while retaining at most limit bytes of
+// stdout. overflow reports that the process was canceled after crossing the
+// limit; callers must treat it as a failed command.
+func (e *Executor) RunWithOutputLimit(ctx context.Context, dir string, extraEnv []string, limit int64, args ...string) (*Result, bool, error) {
+	start := time.Now()
+	if limit <= 0 {
+		return &Result{ExitCode: -1}, false, fmt.Errorf("output limit must be positive")
+	}
+	sanitizedArgs, err := SanitizeArgs(args)
+	if err != nil {
+		return &Result{Error: err, ExitCode: -1}, false, fmt.Errorf("argument sanitization failed: %w", err)
+	}
+	commandCtx, cancelCommand := context.WithCancel(ctx)
+	defer cancelCommand()
+	cmdCtx := commandCtx
+	if e.timeout > 0 {
+		var cancelTimeout context.CancelFunc
+		cmdCtx, cancelTimeout = context.WithTimeout(commandCtx, e.timeout)
+		defer cancelTimeout()
+	}
+	cmd := exec.CommandContext(cmdCtx, e.gitBinary, sanitizedArgs...) // #nosec G204 -- arguments are validated by SanitizeArgs and executed without a shell.
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), e.env...)
+	cmd.Env = append(cmd.Env, extraEnv...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return &Result{Error: err, ExitCode: -1}, false, fmt.Errorf("create stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &outputLimitWriter{w: &stderr, remaining: 128 << 10}
+	if err := cmd.Start(); err != nil {
+		return &Result{Error: err, ExitCode: -1}, false, nil
+	}
+	data, readErr := io.ReadAll(io.LimitReader(stdout, limit+1))
+	overflow := int64(len(data)) > limit
+	if overflow {
+		data = data[:limit]
+		cancelCommand()
+	}
+	waitErr := cmd.Wait()
+	if readErr != nil {
+		return commandResult(string(data), stderr.String(), waitErr, start), overflow, fmt.Errorf("read stdout: %w", readErr)
+	}
+	return commandResult(string(data), stderr.String(), waitErr, start), overflow, nil
+}
+
+func commandResult(stdout, stderr string, commandErr error, started time.Time) *Result {
+	exitCode := 0
+	if commandErr != nil {
+		var exitError *exec.ExitError
+		if errors.As(commandErr, &exitError) {
+			exitCode = exitError.ExitCode()
+		} else {
+			exitCode = -1
+		}
+	}
+	return &Result{Stdout: stdout, Stderr: stderr, ExitCode: exitCode, Duration: time.Since(started), Error: commandErr}
+}
+
+type outputLimitWriter struct {
+	w         *bytes.Buffer
+	remaining int64
+}
+
+func (w *outputLimitWriter) Write(data []byte) (int, error) {
+	original := len(data)
+	if w.remaining <= 0 {
+		return original, nil
+	}
+	if int64(len(data)) > w.remaining {
+		data = data[:w.remaining]
+	}
+	w.remaining -= int64(len(data))
+	_, err := w.w.Write(data)
+	return original, err
 }
 
 // RunQuiet executes a Git command and returns only success/failure.

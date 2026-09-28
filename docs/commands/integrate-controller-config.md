@@ -23,7 +23,7 @@ to that same branch (for example `origin/develop` or `develop`). When
 empty pattern deliberately leaves the queue unfiltered. Controller resolution
 errors remain exit 2 even with `--quiet`.
 
-The only preparation profile is the closed `familybook-ent-v1` value:
+An explicit controller can select the closed `familybook-ent-v1` profile:
 
 ```yaml
 workspaces:
@@ -47,3 +47,8 @@ This is not a sandbox: as with the legacy Make gate, the selected task branch
 is trusted to execute repository-owned code. The command receives an isolated
 HOME/XDG/Git configuration and no inherited credential or SSH-agent variables;
 the target worktree is measured and removed before source code is created.
+
+Repository-root declarations and the other fixed profile are described in
+[integration preparation profiles](integrate-prepare-profile.md). A controller
+declaration remains supported, but when the repository also declares a profile
+the values must agree.

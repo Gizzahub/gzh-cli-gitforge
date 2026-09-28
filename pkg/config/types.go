@@ -232,6 +232,11 @@ type BranchConfig struct {
 	// Load it only via LoadRepoRootTaskPattern — never findConfigUpward.
 	TaskPattern BranchList `yaml:"taskPattern,omitempty"`
 
+	// PrepareProfile selects a closed integration preparation profile. It is
+	// preserved on a repository-root project config, but must never be
+	// inherited or merged from a parent, profile, or workspace configuration.
+	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
+
 	// Readiness is a target-owned integration gate. Like TaskPattern, it is
 	// preserved here for project-config round trips but must never be inherited
 	// or merged from a parent, profile, workspace, or global configuration.

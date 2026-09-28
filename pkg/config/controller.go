@@ -57,8 +57,10 @@ func LoadControllerConfig(path string) (*ControllerConfig, error) {
 		if ws.Access != "" && ws.Access != WorkspaceAccessReadWrite && ws.Access != WorkspaceAccessReadOnly {
 			return nil, fmt.Errorf("controller workspace %q has invalid access %q", name, ws.Access)
 		}
-		if ws.Integration.PrepareProfile != "" && ws.Integration.PrepareProfile != "familybook-ent-v1" {
-			return nil, fmt.Errorf("controller workspace %q has unsupported preparation profile %q", name, ws.Integration.PrepareProfile)
+		if ws.Integration.PrepareProfile != "" {
+			if err := ValidatePrepareProfile(ws.Integration.PrepareProfile); err != nil {
+				return nil, fmt.Errorf("controller workspace %q: %w", name, err)
+			}
 		}
 		if ws.Branch == nil || len(ws.Branch.IntegrationBranch) != 1 {
 			return nil, fmt.Errorf("controller workspace %q requires exactly one branch.integrationBranch", name)

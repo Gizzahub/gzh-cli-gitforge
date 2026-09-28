@@ -111,8 +111,13 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 			return fmt.Errorf("invalid sync config: %w", err)
 		}
 	}
-	if p.Branch != nil && p.Branch.Readiness != nil {
-		return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+	if p.Branch != nil {
+		if p.Branch.Readiness != nil {
+			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+		}
+		if p.Branch.PrepareProfile != "" {
+			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
+		}
 	}
 
 	return nil
@@ -171,6 +176,11 @@ func (v *Validator) ValidateProjectConfig(p *ProjectConfig) error {
 	if p.Branch != nil && p.Branch.Readiness != nil {
 		if err := ValidateReadiness(*p.Branch.Readiness); err != nil {
 			return fmt.Errorf("invalid readiness config: %w", err)
+		}
+	}
+	if p.Branch != nil && p.Branch.PrepareProfile != "" {
+		if err := ValidatePrepareProfile(p.Branch.PrepareProfile); err != nil {
+			return fmt.Errorf("invalid preparation profile: %w", err)
 		}
 	}
 
@@ -386,8 +396,13 @@ func (v *Validator) ValidateConfig(c *Config) error {
 	if c == nil {
 		return nil // nil config is valid (optional)
 	}
-	if c.Branch != nil && c.Branch.Readiness != nil {
-		return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+	if c.Branch != nil {
+		if c.Branch.Readiness != nil {
+			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+		}
+		if c.Branch.PrepareProfile != "" {
+			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
+		}
 	}
 
 	// Validate parent path if specified
@@ -552,8 +567,13 @@ func validateWorkspaceReadinessScope(ws *Workspace) error {
 	if ws == nil {
 		return fmt.Errorf("workspace is nil")
 	}
-	if ws.Branch != nil && ws.Branch.Readiness != nil {
-		return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+	if ws.Branch != nil {
+		if ws.Branch.Readiness != nil {
+			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
+		}
+		if ws.Branch.PrepareProfile != "" {
+			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
+		}
 	}
 	return nil
 }

@@ -19,6 +19,9 @@ already exists.
 explicit devbox-only policy path for repositories that have no target-owned
 readiness contract.
 
+[Integration preparation profiles](integrate-prepare-profile.md) describe
+repository-root fixed profiles and symmetric target/source preparation.
+
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
 

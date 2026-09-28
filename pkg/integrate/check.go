@@ -64,6 +64,8 @@ type CheckReport struct {
 	ReadinessTreeOID  string
 	ReadinessStatus   string
 	ReadinessDuration time.Duration
+	PrepareProfile    string
+	PrepareInputs     string
 	Controller        *controllerBinding
 }
 
@@ -129,40 +131,54 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	case "contract-v1":
 		// The contract runner deliberately replaces every head-owned Makefile.
 	case "legacy-make":
-		if plan.HeadSHA != plan.BranchSHA {
-			add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
-		} else {
-			declared := 0
-			prepared, prepErr := prepareLegacyTrees(ctx, g, plan, controller)
-			if prepErr != nil {
-				add(CheckItem{Name: "prepare", Status: checkFail, Detail: prepErr.Error()})
-				break
-			}
-			for _, target := range []string{"check", "lint"} {
-				probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target))
-				item := judgeMakeAgainstProbe(ctx, g, plan, probe, opts.AllowSkippedChecks, prepared.baseline[target])
-				item = saveLegacyMakeDiagnostic(item, probe)
-				if item.Status != checkSkip {
-					declared++
-					add(item)
-				}
-			}
-			if err := prepared.cleanup(ctx); err != nil {
-				add(CheckItem{Name: "prepare cleanup", Status: checkFail, Detail: err.Error()})
-			}
-			if declared == 0 {
-				status := checkFail
-				detail := "undefined — this repo declares no integration gate"
-				if opts.AllowSkippedChecks {
-					status = checkWarn
-					detail += "; allowed by --allow-skipped-checks"
-				}
-				add(CheckItem{Name: "make check/lint", Status: status, Detail: detail})
-			}
-		}
+		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, report, add)
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
+}
+
+func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped bool, report *CheckReport, add func(CheckItem)) {
+	if plan.HeadSHA != plan.BranchSHA {
+		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
+		return
+	}
+	profile, err := resolvePrepareProfile(ctx, g, plan, controller)
+	if err != nil {
+		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
+		return
+	}
+	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile)
+	if err != nil {
+		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
+		return
+	}
+	report.PrepareProfile = profile
+	if profile != "" {
+		report.PrepareInputs = prepared.evidence()
+		add(CheckItem{Name: "prepare profile", Status: checkPass, Detail: report.PrepareInputs})
+	}
+	declared := 0
+	for _, target := range []string{"check", "lint"} {
+		probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target))
+		item := judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, prepared.baseline[target])
+		item = saveLegacyMakeDiagnostic(item, probe)
+		if item.Status != checkSkip {
+			declared++
+			add(item)
+		}
+	}
+	if err := prepared.cleanup(ctx); err != nil {
+		add(CheckItem{Name: "prepare cleanup", Status: checkFail, Detail: err.Error()})
+	}
+	if declared == 0 {
+		status := checkFail
+		detail := "undefined — this repo declares no integration gate"
+		if allowSkipped {
+			status = checkWarn
+			detail += "; allowed by --allow-skipped-checks"
+		}
+		add(CheckItem{Name: "make check/lint", Status: status, Detail: detail})
+	}
 }
 
 // saveLegacyMakeDiagnostic preserves branch Make output after the prepared

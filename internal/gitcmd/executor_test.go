@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,27 @@ func TestNewExecutor(t *testing.T) {
 				t.Errorf("env length = %d, want %d", len(got.env), len(tt.want.env))
 			}
 		})
+	}
+}
+
+func TestExecutorRunWithOutputLimitUsesConfiguredBinaryAndEnvironment(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture is Unix-specific")
+	}
+	binary := filepath.Join(t.TempDir(), "git")
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\n[ \"$GITCMD_LIMIT_TEST\" = configured ] || exit 7\nprintf '%s' '0123456789'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	executor := NewExecutor(WithGitBinary(binary), WithEnv([]string{"GITCMD_LIMIT_TEST=configured"}), WithTimeout(time.Second))
+	result, overflow, err := executor.RunWithOutputLimit(context.Background(), t.TempDir(), nil, 4, "archive", "--format=tar", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !overflow {
+		t.Fatalf("result = %#v, overflow=%t", result, overflow)
+	}
+	if len(result.Stdout) != 4 {
+		t.Fatalf("stdout length = %d, want capped 4", len(result.Stdout))
 	}
 }
 
