@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	flowTaskchainLocalSubprojectsV1       = "flow-taskchain-local-subprojects-v1"
-	flowTaskchainDevboxName               = "flow-taskchain-devbox"
-	flowTaskchainArchiveLimit       int64 = 256 << 20
-	flowTaskchainArchiveEntryLimit        = 100000
+	flowTaskchainLocalSubprojectsV1           = "flow-taskchain-local-subprojects-v1"
+	flowTaskchainDevboxName                   = "flow-taskchain-devbox"
+	flowTaskchainArchiveLimit           int64 = 256 << 20
+	flowTaskchainArchiveInitOutputLimit       = 64 << 10
+	flowTaskchainArchiveEntryLimit            = 100000
 )
 
 type prepareInput struct {
@@ -221,7 +222,35 @@ func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64
 	if limit <= 0 {
 		return nil, fmt.Errorf("archive limit must be positive")
 	}
-	res, overflow, err := g.exec.RunWithOutputLimit(ctx, g.dir, isolatedGitEnv(), limit, "archive", "--format=tar", oid)
+	scratch, err := os.MkdirTemp("", "gzh-git-archive-*")
+	if err != nil {
+		return nil, fmt.Errorf("create archive repository: %w", err)
+	}
+	defer os.RemoveAll(scratch)
+	home := filepath.Join(scratch, "home")
+	if err := os.MkdirAll(filepath.Join(home, "xdg"), 0o700); err != nil {
+		return nil, fmt.Errorf("create archive environment: %w", err)
+	}
+	objects, err := flowArchiveObjectDirectory(g.dir)
+	if err != nil {
+		return nil, err
+	}
+	bare := filepath.Join(scratch, "archive.git")
+	env := isolatedArchiveGitEnv(home)
+	init, overflow, err := g.exec.RunWithOutputLimitCleanEnv(ctx, scratch, env, flowTaskchainArchiveInitOutputLimit, "init", "--bare", "--template=", bare)
+	if err != nil {
+		return nil, fmt.Errorf("initialize archive repository: %w", err)
+	}
+	if overflow || init.ExitCode != 0 {
+		return nil, fmt.Errorf("initialize archive repository failed: %w: %s", init.Error, strings.TrimSpace(init.Stderr))
+	}
+	if err := os.MkdirAll(filepath.Join(bare, "objects", "info"), 0o700); err != nil {
+		return nil, fmt.Errorf("create archive alternates directory: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(bare, "objects", "info", "alternates"), []byte(objects+"\n"), 0o600); err != nil {
+		return nil, fmt.Errorf("write archive alternates: %w", err)
+	}
+	res, overflow, err := g.exec.RunWithOutputLimitCleanEnv(ctx, bare, env, limit, "archive", "--format=tar", oid)
 	if err != nil {
 		return nil, fmt.Errorf("run git archive: %w", err)
 	}
@@ -236,6 +265,39 @@ func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64
 		return nil, fmt.Errorf("archive size 0 exceeds permitted range")
 	}
 	return data, nil
+}
+
+func flowArchiveObjectDirectory(dir string) (string, error) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolve archive checkout: %w", err)
+	}
+	objects := filepath.Join(root, ".git", "objects")
+	info, err := os.Stat(objects)
+	if err != nil {
+		return "", fmt.Errorf("archive object directory: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("archive object directory is not a directory")
+	}
+	return objects, nil
+}
+
+func isolatedArchiveGitEnv(home string) []string {
+	return []string{
+		"HOME=" + home,
+		"XDG_CONFIG_HOME=" + filepath.Join(home, "xdg"),
+		"PATH=" + os.Getenv("PATH"),
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_CONFIG_GLOBAL=/dev/null",
+		"GIT_CONFIG_COUNT=0",
+		"GIT_ATTR_NOSYSTEM=1",
+		"GIT_NO_LAZY_FETCH=1",
+		"GIT_NO_REPLACE_OBJECTS=1",
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_OPTIONAL_LOCKS=0",
+		"LC_ALL=C",
+	}
 }
 
 func isolatedGitOutput(ctx context.Context, g gitRepo, args ...string) (string, error) {

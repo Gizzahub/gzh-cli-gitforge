@@ -14,13 +14,13 @@ the source commit is compared with the target commit before either side runs.
 When a profile is declared, its root config file must be at most 64 KiB;
 configs without this declaration keep their existing size behavior.
 
-| Target declaration | Source declaration | Result |
-| --- | --- | --- |
-| absent | absent | Existing legacy Make gate |
-| absent | supported profile | Apply that built-in profile to both commits (first adoption) |
-| profile A | absent | Fail: declaration removed |
-| profile A | profile A | Apply A to both commits |
-| profile A | profile B | Fail: profile changed |
+| Target declaration | Source declaration | Result                                                       |
+| ------------------ | ------------------ | ------------------------------------------------------------ |
+| absent             | absent             | Existing legacy Make gate                                    |
+| absent             | supported profile  | Apply that built-in profile to both commits (first adoption) |
+| profile A          | absent             | Fail: declaration removed                                    |
+| profile A          | profile A          | Apply A to both commits                                      |
+| profile A          | profile B          | Fail: profile changed                                        |
 
 An explicit controller's `integration.prepareProfile` remains supported for
 existing callers. If both controller and repository declare a profile, their
@@ -32,9 +32,14 @@ needed by the flow-taskchain devbox Make gate: engine and mcp. It locates the
 root repository's registered primary checkout, then checks each child's
 primary checkout, canonical remote, clean tracked and untracked
 state, and symlink-free location. It captures each full HEAD object ID once,
-then copies that exact Git archive into both detached root worktrees before
-measuring target and source sequentially. It performs no fetch or clone. The
-result reports the profile ID and object IDs used for that comparison.
+then reads that object's raw archive through a temporary bare repository whose
+object alternates point only to the child checkout. The temporary repository
+uses an isolated Git environment: no inherited Git configuration or attribute
+settings, filter drivers, replacement refs, lazy fetches, system or global
+configuration. It then copies the resulting archive into both detached root
+worktrees before measuring target and source sequentially. It performs no fetch
+or clone. The result reports the profile ID and object IDs used for that
+comparison.
 
 This is a comparison against the **local child HEAD snapshot at check time**.
 Those object IDs can differ from versioned CI pins and from a later check.

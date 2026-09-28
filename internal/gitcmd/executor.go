@@ -180,6 +180,20 @@ func (e *Executor) RunWithEnv(ctx context.Context, dir string, extraEnv []string
 // stdout. overflow reports that the process was canceled after crossing the
 // limit; callers must treat it as a failed command.
 func (e *Executor) RunWithOutputLimit(ctx context.Context, dir string, extraEnv []string, limit int64, args ...string) (*Result, bool, error) {
+	env := append([]string{}, os.Environ()...)
+	env = append(env, e.env...)
+	env = append(env, extraEnv...)
+	return e.runWithOutputLimit(ctx, dir, env, limit, args...)
+}
+
+// RunWithOutputLimitCleanEnv runs Git with exactly env, omitting the process
+// and executor environments. Callers use it when a repository's local config
+// must not be combined with ambient Git configuration injection.
+func (e *Executor) RunWithOutputLimitCleanEnv(ctx context.Context, dir string, env []string, limit int64, args ...string) (*Result, bool, error) {
+	return e.runWithOutputLimit(ctx, dir, append([]string{}, env...), limit, args...)
+}
+
+func (e *Executor) runWithOutputLimit(ctx context.Context, dir string, env []string, limit int64, args ...string) (*Result, bool, error) {
 	start := time.Now()
 	if limit <= 0 {
 		return &Result{ExitCode: -1}, false, fmt.Errorf("output limit must be positive")
@@ -198,8 +212,7 @@ func (e *Executor) RunWithOutputLimit(ctx context.Context, dir string, extraEnv 
 	}
 	cmd := exec.CommandContext(cmdCtx, e.gitBinary, sanitizedArgs...) // #nosec G204 -- arguments are validated by SanitizeArgs and executed without a shell.
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), e.env...)
-	cmd.Env = append(cmd.Env, extraEnv...)
+	cmd.Env = env
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return &Result{Error: err, ExitCode: -1}, false, fmt.Errorf("create stdout pipe: %w", err)

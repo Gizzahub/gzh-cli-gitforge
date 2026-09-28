@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -177,11 +178,15 @@ func TestFlowSnapshotStatusCleanRejectsMalformedOrDirtyRecords(t *testing.T) {
 func TestGitArchiveStopsAtConfiguredLimit(t *testing.T) {
 	bin := t.TempDir()
 	path := filepath.Join(bin, "git")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n[ \"$GIT_NO_LAZY_FETCH\" = 1 ] && [ \"$GIT_CONFIG_NOSYSTEM\" = 1 ] && [ \"$GIT_CONFIG_GLOBAL\" = /dev/null ] || exit 7\nprintf '%s' '012345678901234567890123456789012'\n"), 0o755); err != nil {
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n[ \"$GIT_NO_LAZY_FETCH\" = 1 ] && [ \"$GIT_CONFIG_NOSYSTEM\" = 1 ] && [ \"$GIT_CONFIG_GLOBAL\" = /dev/null ] || exit 7\ncase \"$1\" in\ninit) mkdir -p \"$4/objects/info\" ;;\narchive) printf '%s' '012345678901234567890123456789012' ;;\nesac\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-	_, err := gitArchiveWithLimit(context.Background(), newGitRepo(gitcmd.NewExecutor(), t.TempDir()), strings.Repeat("a", 40), 32)
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git", "objects"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := gitArchiveWithLimit(context.Background(), newGitRepo(gitcmd.NewExecutor(), repo), strings.Repeat("a", 40), 32)
 	if err == nil || !strings.Contains(err.Error(), "size exceeds") {
 		t.Fatalf("over-limit archive err=%v", err)
 	}
@@ -225,6 +230,91 @@ func TestGitArchiveUsesRecordedOIDWithoutReplaceRefs(t *testing.T) {
 		}
 	}
 	t.Fatal("payload.txt absent from archive")
+}
+
+func TestGitArchiveDoesNotRunChildOrAmbientFilters(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("filter fixture uses a Unix shell script")
+	}
+	for _, test := range []struct {
+		name    string
+		install func(t *testing.T, repo, filter string)
+	}{
+		{
+			name: "child local smudge config",
+			install: func(t *testing.T, repo, filter string) {
+				t.Helper()
+				runGitInTest(t, repo, "config", "filter.repro.smudge", filter)
+			},
+		},
+		{
+			name: "child local process config",
+			install: func(t *testing.T, repo, filter string) {
+				t.Helper()
+				runGitInTest(t, repo, "config", "filter.repro.process", filter)
+			},
+		},
+		{
+			name: "ambient config injection",
+			install: func(t *testing.T, _ string, filter string) {
+				t.Helper()
+				t.Setenv("GIT_CONFIG_COUNT", "1")
+				t.Setenv("GIT_CONFIG_KEY_0", "filter.repro.smudge")
+				t.Setenv("GIT_CONFIG_VALUE_0", filter)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := t.TempDir()
+			runGitInTest(t, repo, "init")
+			setFlowFixtureGitIdentity(t, repo)
+			writeFile(t, repo, ".gitattributes", "payload.txt filter=repro\n")
+			writeFile(t, repo, "payload.txt", "raw blob\n")
+			runGitInTest(t, repo, "add", ".gitattributes", "payload.txt")
+			runGitInTest(t, repo, "commit", "-m", "filtered payload")
+			marker := filepath.Join(t.TempDir(), "filter-ran")
+			filter := filepath.Join(t.TempDir(), "smudge")
+			if err := os.WriteFile(filter, []byte("#!/bin/sh\ntouch "+marker+"\ncat >/dev/null\nprintf 'altered bytes\\n'\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			test.install(t, repo, filter)
+			oid := strings.TrimSpace(runGitInTest(t, repo, "rev-parse", "HEAD"))
+			archive, err := gitArchive(context.Background(), newGitRepo(gitcmd.NewExecutor(), repo), oid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(marker); !os.IsNotExist(err) {
+				t.Fatalf("filter executed: %v", err)
+			}
+			if got := archiveFile(t, archive, "payload.txt"); got != "raw blob\n" {
+				t.Fatalf("archive content = %q", got)
+			}
+		})
+	}
+}
+
+func archiveFile(t *testing.T, archive []byte, want string) string {
+	t.Helper()
+	reader := tar.NewReader(bytes.NewReader(archive))
+	for {
+		header, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if header.Name != want {
+			continue
+		}
+		data, err := io.ReadAll(io.LimitReader(reader, header.Size))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	t.Fatalf("%s absent from archive", want)
+	return ""
 }
 
 func TestFlowTaskchainPrepareRejectsSubprojectSymlink(t *testing.T) {
