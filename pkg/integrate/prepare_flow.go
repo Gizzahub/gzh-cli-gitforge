@@ -387,6 +387,7 @@ func extractGitArchive(ctx context.Context, destination string, data []byte) (er
 	}()
 
 	reader := tar.NewReader(bytes.NewReader(data))
+	allowRootClaudeAlias := archiveContainsRegularRootClaude(data)
 	entries := 0
 	for {
 		if err := ctx.Err(); err != nil {
@@ -408,13 +409,29 @@ func extractGitArchive(ctx context.Context, destination string, data []byte) (er
 		if header.Typeflag == tar.TypeXGlobalHeader || header.Typeflag == tar.TypeXHeader {
 			continue
 		}
-		if err := extractArchiveEntry(ctx, destination, reader, header); err != nil {
+		if err := extractArchiveEntry(ctx, destination, reader, header, allowRootClaudeAlias); err != nil {
 			return err
 		}
 	}
 }
 
-func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Reader, header *tar.Header) error {
+func archiveContainsRegularRootClaude(data []byte) bool {
+	reader := tar.NewReader(bytes.NewReader(data))
+	for {
+		header, err := reader.Next()
+		if errors.Is(err, io.EOF) {
+			return false
+		}
+		if err != nil {
+			return false
+		}
+		if header.Typeflag == tar.TypeReg && header.Name == "CLAUDE.md" {
+			return true
+		}
+	}
+}
+
+func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Reader, header *tar.Header, allowRootClaudeAlias bool) error {
 	rel, err := safeArchivePath(header.Name, header.Typeflag == tar.TypeDir)
 	if err != nil {
 		return err
@@ -426,10 +443,17 @@ func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Re
 	if header.Typeflag == tar.TypeDir {
 		return createArchiveDirectory(name, header.Name)
 	}
+	if header.Typeflag == tar.TypeSymlink && allowRootClaudeAlias && isRootClaudeAlias(header) {
+		return os.Symlink(header.Linkname, name)
+	}
 	if header.Typeflag != tar.TypeReg {
 		return fmt.Errorf("archive contains unsupported entry %q", header.Name)
 	}
 	return extractArchiveFile(ctx, name, header, reader)
+}
+
+func isRootClaudeAlias(header *tar.Header) bool {
+	return (header.Name == "AGENTS.md" || header.Name == "GEMINI.md") && header.Linkname == "CLAUDE.md"
 }
 
 func createArchiveDirectory(name, archiveName string) error {

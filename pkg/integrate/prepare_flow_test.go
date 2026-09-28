@@ -253,6 +253,50 @@ func TestExtractGitArchiveRejectsEscapesAndLinks(t *testing.T) {
 	}
 }
 
+func TestExtractGitArchiveAllowsOnlyRootClaudeAliases(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "child")
+	archive := tarArchiveEntries(
+		t,
+		tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
+		tarEntry{name: "GEMINI.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
+		tarEntry{name: "CLAUDE.md", body: "instructions\n"},
+	)
+	if err := extractGitArchive(context.Background(), destination, archive); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"AGENTS.md", "GEMINI.md"} {
+		info, err := os.Lstat(filepath.Join(destination, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("%s is not a symlink", name)
+		}
+		data, err := os.ReadFile(filepath.Join(destination, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != "instructions\n" {
+			t.Fatalf("%s content = %q", name, data)
+		}
+	}
+}
+
+func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
+	for name, archive := range map[string][]byte{
+		"missing Claude target": tarArchiveEntries(t, tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}),
+		"nested alias":          tarArchiveEntries(t, tarEntry{name: "nested/AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
+		"wrong target":          tarArchiveEntries(t, tarEntry{name: "AGENTS.md", link: "nested/CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
+		"other root link":       tarArchiveEntries(t, tarEntry{name: "OTHER.md", link: "CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := extractGitArchive(context.Background(), filepath.Join(t.TempDir(), "child"), archive); err == nil {
+				t.Fatal("unsupported symlink was extracted")
+			}
+		})
+	}
+}
+
 func TestExtractGitArchiveCancelsAndCleansDestination(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "child")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -327,18 +371,34 @@ func setFlowFixtureGitIdentity(t *testing.T, repo string) {
 	runGitInTest(t, repo, "config", "user.email", "fixture@example.invalid")
 }
 
+type tarEntry struct {
+	name string
+	body string
+	link string
+	kind byte
+}
+
 func tarArchive(t *testing.T, name, body string, kind byte) []byte {
+	t.Helper()
+	return tarArchiveEntries(t, tarEntry{name: name, body: body, kind: kind})
+}
+
+func tarArchiveEntries(t *testing.T, entries ...tarEntry) []byte {
 	t.Helper()
 	var out bytes.Buffer
 	writer := tar.NewWriter(&out)
-	if kind == 0 {
-		kind = tar.TypeReg
-	}
-	if err := writer.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body)), Typeflag: kind}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := writer.Write([]byte(body)); err != nil {
-		t.Fatal(err)
+	for _, entry := range entries {
+		if entry.kind == 0 {
+			entry.kind = tar.TypeReg
+		}
+		if err := writer.WriteHeader(&tar.Header{Name: entry.name, Linkname: entry.link, Mode: 0o644, Size: int64(len(entry.body)), Typeflag: entry.kind}); err != nil {
+			t.Fatal(err)
+		}
+		if entry.kind == tar.TypeReg {
+			if _, err := writer.Write([]byte(entry.body)); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	if err := writer.Close(); err != nil {
 		t.Fatal(err)
