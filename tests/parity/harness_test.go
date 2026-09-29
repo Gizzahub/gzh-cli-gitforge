@@ -28,7 +28,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "f927ae5d"
+	pinnedCECommit = "771c54cf"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -47,10 +47,24 @@ type toolchain struct {
 
 // TestMain resolves the CE binary once for the package. Without it the
 // suite cannot say anything about parity, so it skips loudly instead of
-// failing on machines that do not carry the CE toolchain.
+// failing on machines that do not carry the CE toolchain. Target mode
+// (PARITY_TARGET=gz-git) runs the same fixtures against the port binary
+// instead and needs no CE at all.
 func TestMain(m *testing.M) {
 	if os.Getenv("PARITY_RECORD") == "1" {
 		*recordMode = true
+	}
+	targetMode = os.Getenv("PARITY_TARGET") == "gz-git" || os.Getenv("GZ_GIT_BIN") != ""
+	if targetMode {
+		if *recordMode {
+			fmt.Println("parity: PARITY_RECORD is ignored in target mode; goldens describe CE and are never rewritten from the port")
+			*recordMode = false
+		}
+		code := m.Run()
+		if gzBuildDir != "" {
+			_ = os.RemoveAll(gzBuildDir)
+		}
+		os.Exit(code)
 	}
 	found, err := exec.LookPath(envOr("CE_BIN", "ce"))
 	if err != nil {
@@ -234,9 +248,19 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	// and run-finish drives that check. A trivial target is the smallest
 	// repo that can reach DONE.
 	write(t, filepath.Join(repo, "Makefile"), "check:\n\t@echo sandbox gate ok\nlint:\n\t@echo sandbox lint ok\n")
-	write(t, filepath.Join(repo, ".gitignore"), ".ce/\ntmp/\n")
+	// The branch declaration is runtime-tool-agnostic: both CE and the port
+	// read the integration branch and task pattern from it.
 	write(t, filepath.Join(repo, ".gz-git.yaml"), "branch:\n  integrationBranch:\n    - master\n  taskPattern:\n    - dev/*/*/*\n")
-	write(t, filepath.Join(repo, ".ce", "task-runtime.yaml"), decl)
+	if targetMode {
+		// The port's runtime declaration lives at .gz-git-task.yaml, and it
+		// must stay git-ignored so finish's clean-tree precondition never
+		// sees the fixture's own configuration as a dirty path.
+		write(t, filepath.Join(repo, ".gitignore"), ".gz-git-task.yaml\n.ce/\ntmp/\n")
+		write(t, filepath.Join(repo, targetDeclPath()), decl)
+	} else {
+		write(t, filepath.Join(repo, ".gitignore"), ".ce/\ntmp/\n")
+		write(t, filepath.Join(repo, ".ce", "task-runtime.yaml"), decl)
+	}
 	sb.git("repo", "add", ".")
 	sb.git("repo", "commit", "-q", "-m", "init")
 	// clone --bare (not init --bare) so origin's HEAD/default branch match
@@ -268,15 +292,22 @@ func (sb *sandbox) baseEnv() []string {
 
 func (sb *sandbox) stepEnv(st step) []string {
 	env := sb.baseEnv()
+	// The agent-identity variable is the one runtime-owned knob: CE reads
+	// CE_TASK_ACTOR, the port reads GZ_GIT_TASK_ACTOR; the human fallback
+	// (GIT_WORK_ACTOR) is shared.
+	agentActor := "CE_TASK_ACTOR"
+	if targetMode {
+		agentActor = "GZ_GIT_TASK_ACTOR"
+	}
 	switch {
 	case st.actor != "" && st.human:
 		env = append(env, "GIT_WORK_ACTOR="+st.actor)
 	case st.actor != "":
-		env = append(env, "CE_TASK_ACTOR="+st.actor)
+		env = append(env, agentActor+"="+st.actor)
 	default:
-		// The isolated HOME/XDG leave CE's identity fallback chain empty,
+		// The isolated HOME/XDG leave the identity fallback chain empty,
 		// so the default actor is always set explicitly.
-		env = append(env, "CE_TASK_ACTOR="+actorDefault)
+		env = append(env, agentActor+"="+actorDefault)
 	}
 	return env
 }
@@ -293,10 +324,19 @@ func (sb *sandbox) dir(st step) string {
 func (sb *sandbox) run(st step) (stdout, stderr string, exitCode int) {
 	sb.t.Helper()
 	cmdName := st.cmd
+	args := st.args
 	if cmdName == "" {
-		cmdName = ceBin
+		if targetMode {
+			ensureTargetBinary(sb.t)
+			cmdName = gzGitBin
+			// Executed argv is mapped to the port's surface; the captured
+			// step keeps the CE form so one golden serves both modes.
+			args = mapTargetArgs(st.args)
+		} else {
+			cmdName = ceBin
+		}
 	}
-	cmd := exec.Command(cmdName, st.args...) //nolint:noctx // fixture step under a pinned env
+	cmd := exec.Command(cmdName, args...) //nolint:noctx // fixture step under a pinned env
 	cmd.Dir = sb.dir(st)
 	cmd.Env = sb.stepEnv(st)
 	var out, errBuf strings.Builder
@@ -346,8 +386,12 @@ func (sb *sandbox) snapshotState() *stateSnapshot {
 	snap.Refs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "repo"})
 	snap.OriginRefs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "origin.git"})
 	snap.Log, _, _ = sb.run(step{cmd: "git", args: []string{"log", "--all", "--topo-order", "--format=%H %s"}, dir: "repo"})
-	snap.Executions = sb.readJSON(filepath.Join(sb.root, "repo", ".git", "ce", "task-runtime", "v1", "executions.json"))
-	snap.Receipts = sb.readJSONL(filepath.Join(sb.root, "repo", ".git", "ce", "task-runtime", "v1", "receipts.jsonl"))
+	stateDir := filepath.Join(sb.root, "repo", ".git", "ce", "task-runtime", "v1")
+	if targetMode {
+		stateDir = filepath.Join(append([]string{sb.root, "repo", ".git"}, targetStateDir()...)...)
+	}
+	snap.Executions = sb.readJSON(filepath.Join(stateDir, "executions.json"))
+	snap.Receipts = sb.readJSONL(filepath.Join(stateDir, "receipts.jsonl"))
 	return snap
 }
 
@@ -412,12 +456,19 @@ func (sb *sandbox) walk(v interface{}) {
 func runScenario(t *testing.T, sc scenario) {
 	t.Helper()
 	sb := newSandbox(t, sc)
+	// Target mode folds the toolchain to placeholders: the comparison must
+	// not pin the dev-built gz-git or the machine's wt any more than the
+	// CE golden pins this machine's CE.
+	toolchainBlock := toolchain{CE: "<CE>", Wt: "<WT>", GzGit: "<GZ_GIT>"}
+	if !targetMode {
+		toolchainBlock = probeToolchain(t)
+	}
 	golden := goldenFile{
 		Scenario:       sc.name,
 		Reference:      "ce-agent-kit master " + pinnedCECommit,
 		KnownDivergent: sc.knownDivergent,
 		PortContract:   sc.contract,
-		Toolchain:      probeToolchain(t),
+		Toolchain:      toolchainBlock,
 	}
 	for _, st := range sc.steps {
 		stdout, stderr, code := sb.run(st)
@@ -439,6 +490,18 @@ func runScenario(t *testing.T, sc scenario) {
 		}
 		golden.Steps = append(golden.Steps, cs)
 	}
+	if targetMode {
+		// Both sides of the comparison are pushed through the same
+		// declared-divergence canonicalization before diffing.
+		canonicalizeTarget(t, &golden)
+		if sc.knownDivergent && sc.contract != nil {
+			// The golden pins CE's recorded answer, including the behavior
+			// the port deliberately fixes, so byte-diffing is wrong in both
+			// directions; the port contract is asserted semantically.
+			assertPortContract(t, sc, golden.Steps)
+			return
+		}
+	}
 	if sc.knownDivergent && sc.contract != nil {
 		assertContract(t, sc, golden.Steps)
 	}
@@ -457,8 +520,26 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 	got, err := json.MarshalIndent(golden, "", "  ")
 	must(t, err)
-	if diff := diffLines(strings.TrimRight(string(want), "\n"), string(got)); diff != "" {
-		t.Errorf("%s diverged from the recorded CE reference:\n%s", sc.name, diff)
+	wantText := strings.TrimRight(string(want), "\n")
+	if targetMode {
+		// The committed golden describes CE in CE's own words. It goes
+		// through the same canonicalization as the captured port document,
+		// so the diff names a divergence beyond the declared surface.
+		var wantGolden goldenFile
+		if err := json.Unmarshal([]byte(wantText), &wantGolden); err != nil {
+			t.Fatalf("parse golden %s: %v", goldenPath, err)
+		}
+		canonicalizeTarget(t, &wantGolden)
+		remarshaled, err := json.MarshalIndent(wantGolden, "", "  ")
+		must(t, err)
+		wantText = string(remarshaled)
+	}
+	if diff := diffLines(wantText, string(got)); diff != "" {
+		if targetMode {
+			t.Errorf("%s diverged from the CE golden after target-mode canonicalization:\n%s", sc.name, diff)
+		} else {
+			t.Errorf("%s diverged from the recorded CE reference:\n%s", sc.name, diff)
+		}
 	}
 }
 

@@ -7,10 +7,12 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 Everything in this document is pinned to **CE source `ce-agent-kit` master
-`f927ae5d`** (installed binary `ce 0.8.4`, build `401-gf927ae5d`; fixtures
-were first authored against `bb970b24` / `400-gbb970b24` — the intervening
-commit touches card-lint only, and the goldens were re-recorded across the
-move, which is the toolchain pin doing its job). The behavioral reference is
+`771c54cf`** (installed binary `ce 0.8.4`, build `404-g771c54cf`; fixtures
+were first authored against `bb970b24` / `400-gbb970b24`, re-recorded across
+`f927ae5d` / `401-gf927ae5d`, and re-recorded again across the move to
+`771c54cf` / `404-g771c54cf` — both later moves changed the toolchain stamp
+only, verified by golden diff, which is the toolchain pin doing its job).
+The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
 describes the same surface at the source level; when the two disagree, the
@@ -20,7 +22,7 @@ Reference toolchain used by the fixtures:
 
 | Component | Version | Role |
 |-----------|---------|------|
-| `ce`       | 0.8.4 (`bb970b24`) | system under test (reference) |
+| `ce`       | 0.8.4 (`771c54cf`) | system under test (reference) |
 | `wt` (Worktrunk) | 0.74.0 (hard-pinned by CE: `worktrunkVersion` const) | worktree create/remove/inventory |
 | `gz-git`   | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim) |
 | `git`      | system git | refs, worktree plumbing |
@@ -52,6 +54,51 @@ short-circuits to the usage line and exits 0.
 Flag-value parse errors: `--type requires a value`, `--reason requires a
 value`, `--take-over-from requires a value` (a value starting `--` is
 rejected); unknown flags: `unknown flag %s (valid: ...)`.
+
+### gz-git verb mapping (ADR-0055 port)
+
+The port keeps CE's verb vocabulary but moves it into gz-git's cobra CLI:
+the `task` namespace becomes the `run` command group, and the hyphenated
+`run-<verb>` dispatch becomes two words. Protocol-level tokens in response
+documents (`allowedActions`) keep the CE-hyphenated spelling — they name
+capabilities, not CLI words.
+
+| CE verb | gz-git verb | Flags (identical semantics) | Notes |
+|---------|-------------|------------------------------|-------|
+| `ce task run-doctor` | `gz-git run doctor` | `--json` | |
+| `ce task run-start` | `gz-git run start` | `--type`, `--json` | |
+| `ce task run-status` | `gz-git run status` | `--json` | |
+| `ce task run-list` | `gz-git run list` | `--json` | |
+| `ce task run-finish` | `gz-git run finish` | `--json` | known-divergent: no-arg finish with one ACTIVE run exits 0 (ISSUE-069) |
+| `ce task run-recover` | `gz-git run recover` | `--json` | |
+| `ce task run-abort` | `gz-git run abort` | `--reason`, `--json` | |
+| `ce task run-discard` | `gz-git run discard` | `--reason`, `--take-over-from`, `--json` | |
+| — | `gz-git run import-ce` | `--dry-run`, `--json` | new: ADR-0055 one-shot carryover of in-flight CE records; no CE counterpart |
+
+Structural differences, all declared port divergences rather than behavior
+changes:
+
+- **Dispatcher**: cobra replaces CE's hand-rolled parser. `--help`/`-h`
+  renders cobra help and exits 0; flag parse errors come from cobra on
+  stderr with exit 1. Required-flag enforcement (`--type`, `--reason`)
+  lives in the command bodies and reproduces CE's wording.
+- **Exit-code carrier**: identical — the response document always goes to
+  stdout first; non-zero exits additionally print `Error: <reason>` on
+  stderr.
+- **Target config/state paths**: `.gz-git-task.yaml` and
+  `<git common dir>/gz-git/task-runtime/v1/` replace CE's
+  `.ce/task-runtime.yaml` and `<git common dir>/ce/task-runtime/v1/`
+  (§3 layout and write discipline unchanged; file names identical).
+- **Integration provider**: finish integrates in-process — gz-git *is*
+  the provider CE shelled out to — so no external provider executable is
+  probed for a path, and provider version/capability discovery is local.
+- **CE state**: never read at lifecycle time. The only reader of
+  `<git common dir>/ce/task-runtime/v1/` is `run import-ce`.
+
+The fixture harness (`tests/parity/portmode_test.go`) maps
+`["task", "run-<verb>"]` to `["run", "<verb>"]` at execution time and
+canonicalizes both sides into one diffable shape; the canonicalization
+header in that file is the exhaustive list of declared divergences.
 
 ### Exit codes
 
@@ -382,7 +429,17 @@ from the number of executions: an externally reclaimed run keeps its
 ```bash
 go test ./tests/parity/...                       # verify: fresh CE runs must match goldens
 PARITY_RECORD=1 go test ./tests/parity/...       # record: re-capture goldens from CE
+PARITY_TARGET=gz-git go test ./tests/parity/...  # target: same fixtures against the port
 ```
+
+Target mode (`PARITY_TARGET=gz-git`, or `GZ_GIT_BIN=<path>`) runs the same
+fixtures against the port binary instead of CE. Both sides are
+canonicalized into one shape before diffing — argv, provider prose,
+in-process-provider diagnostics, build-identity folds; the canonicalization
+header in `portmode_test.go` is the exhaustive declared divergence surface.
+Target mode never records: goldens describe CE. The target build runs with
+`GOWORK=off` so a devbox workspace cannot leak another tree's sources into
+the binary being judged.
 
 Each scenario builds a throwaway sandbox (git repo on `master` + bare
 origin cloned from it + `.ce/task-runtime.yaml` + `.gz-git.yaml`), runs a

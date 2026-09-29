@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	gzhcligitforge "github.com/gizzahub/gzh-cli-gitforge"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/runtask"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
@@ -150,6 +152,11 @@ func printCommandRecursive(cmd *cobra.Command, level int) {
 func Execute(version string) {
 	appVersion = version
 	rootCmd.Version = version
+	// The run lifecycle stamps provider reports and receipts with the same
+	// identity `gz-git --version` prints, so evidence names the binary that
+	// performed the integration.
+	runtask.SetRuntimeVersion(version)
+	runtask.SetRuntimeRevision(gzhcligitforge.GitCommit)
 
 	setCommandGroups(rootCmd)
 	applyUsageTemplateRecursive(rootCmd, buildUsageTemplate())
