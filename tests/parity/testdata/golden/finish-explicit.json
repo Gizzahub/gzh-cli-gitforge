@@ -1,0 +1,340 @@
+{
+  "scenario": "finish-explicit",
+  "reference": "ce-agent-kit master f927ae5d",
+  "toolchain": {
+    "ce": "ce-agent-kit version 0.8.4\nRelease:  v0.8.4\nBuild:    401-gf927ae5d\nCommit:   f927ae5df6819a7c0f301f61769544534fb62d1a\nDirty:    false",
+    "wt": "wt 0.74.0",
+    "gzGit": "gz-git version 0.8.0"
+  },
+  "steps": [
+    {
+      "step": "start",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "finish-me",
+        "--type",
+        "feat",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"finish-me\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"finish-me\",\n    \"type\": \"feat\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/feat/finish-me\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"master\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/feat/finish-me\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/feat/finish-me\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/feat/finish-me from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/feat/finish-me\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/feat/finish-me  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "add-feature",
+      "cmd": "touch",
+      "argv": [
+        "feature.txt"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "stage-feature",
+      "cmd": "git",
+      "argv": [
+        "add",
+        "-A"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "commit-feature",
+      "cmd": "git",
+      "argv": [
+        "commit",
+        "-qm",
+        "feature"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "push-branch",
+      "cmd": "git",
+      "argv": [
+        "push",
+        "-qu",
+        "origin",
+        "dev/claude/mbp/feat/finish-me"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "status-ready",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-status",
+        "finish-me",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"finish-me\",\n  \"allowedActions\": [\n    \"run-status\",\n    \"run-finish\",\n    \"run-abort\",\n    \"run-discard\"\n  ],\n  \"reason\": \"task execution is ready to finish\",\n  \"nextAction\": \"run ce task run-finish finish-me\",\n  \"finishReady\": true,\n  \"execution\": {\n    \"task\": \"finish-me\",\n    \"type\": \"feat\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/feat/finish-me\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"receipt\": {\n    \"task\": \"finish-me\",\n    \"operation\": \"start\",\n    \"status\": \"ACTIVE\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/feat/finish-me\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n    \"reason\": \"worktree created and inventory verified\",\n    \"createdAt\": \"\u003cTS\u003e\",\n    \"sourcePushed\": false,\n    \"worktreeRemoved\": false,\n    \"localBranchRemoved\": false,\n    \"remoteBranchRemoved\": false,\n    \"diagnostics\": [\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"--config-set\",\n          \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\"\",\n          \"switch\",\n          \"--create\",\n          \"--base\",\n          \"master\",\n          \"--no-cd\",\n          \"--format=json\",\n          \"dev/claude/mbp/feat/finish-me\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/feat/finish-me\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n        \"stderr\": \"✓ Created branch dev/claude/mbp/feat/finish-me from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\n\"\n      },\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"--config-set\",\n          \"list.json-schema = 2\",\n          \"list\",\n          \"--format=json\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/feat/finish-me\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/feat/finish-me  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n      }\n    ]\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"branch\",\n        \"--show-current\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"dev/claude/mbp/feat/finish-me\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\",\n        \"--untracked-files=all\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-parse\",\n        \"--abbrev-ref\",\n        \"--symbolic-full-name\",\n        \"@{u}\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"origin/dev/claude/mbp/feat/finish-me\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-list\",\n        \"--left-right\",\n        \"--count\",\n        \"@{u}...HEAD\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"0\\t0\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "finish",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-finish",
+        "finish-me",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"DONE\",\n  \"activeCount\": 0,\n  \"task\": \"finish-me\",\n  \"allowedActions\": null,\n  \"reason\": \"integration and recovery completed\",\n  \"nextAction\": \"no action required\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"finish-me\",\n    \"type\": \"feat\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/feat/finish-me\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"receipt\": {\n    \"task\": \"finish-me\",\n    \"operation\": \"finish\",\n    \"status\": \"DONE\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/feat/finish-me\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n    \"reason\": \"integration and recovery completed\",\n    \"createdAt\": \"\u003cTS\u003e\",\n    \"sourceHead\": \"\u003cSHA2\u003e\",\n    \"sourceHeadBefore\": \"\u003cSHA1\u003e\",\n    \"baseHead\": \"\u003cSHA1\u003e\",\n    \"taskHead\": \"\u003cSHA2\u003e\",\n    \"sourcePushed\": true,\n    \"worktreeRemoved\": true,\n    \"localBranchRemoved\": true,\n    \"remoteBranchRemoved\": true,\n    \"tool_version\": \"v0.8.4-401-gf927ae5d\",\n    \"tool_revision\": \"\u003cSHA3\u003e\",\n    \"diagnostics\": [\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"status\",\n          \"--porcelain\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-parse\",\n          \"--abbrev-ref\",\n          \"--symbolic-full-name\",\n          \"@{u}\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"origin/dev/claude/mbp/feat/finish-me\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-list\",\n          \"--left-right\",\n          \"--count\",\n          \"@{u}...HEAD\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"0\\t0\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-parse\",\n          \"HEAD\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"\u003cSHA2\u003e\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-parse\",\n          \"master\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"\u003cSHA1\u003e\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"merge-base\",\n          \"master\",\n          \"HEAD\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"\u003cSHA1\u003e\\n\"\n      },\n      {\n        \"command\": \"gz-git\",\n        \"executable\": \"\u003cHOME\u003e/go/bin/gz-git\",\n        \"args\": [\n          \"integrate\",\n          \"check\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\\n\\n  PASS  freshness — based on origin/master tip\\n  PASS  merge-tree — no conflict with origin/master\\n  PASS  cross-merge — no other open branches\\n  PASS  working-tree — clean\\n  PASS  push — pushed\\n  WARN  readiness contract — legacy head-owned gate\\n  PASS  make check — ok\\n  PASS  make lint — ok\\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\\n\\nREADY to integrate into origin/master — 1 warning(s)\\n\"\n      },\n      {\n        \"command\": \"gz-git\",\n        \"executable\": \"\u003cHOME\u003e/go/bin/gz-git\",\n        \"args\": [\n          \"integrate\",\n          \"run\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"exitCode\": 0,\n        \"stdout\": \"integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\\n\\n  PASS  freshness — based on origin/master tip\\n  PASS  merge-tree — no conflict with origin/master\\n  PASS  cross-merge — no other open branches\\n  PASS  working-tree — clean\\n  PASS  push — pushed\\n  WARN  readiness contract — legacy head-owned gate\\n  PASS  make check — ok\\n  PASS  make lint — ok\\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\\n\\nREADY to integrate into origin/master — 1 warning(s)\\n\\nINTEGRATED dev/claude/mbp/feat/finish-me (\u003cSHA2\u003e) -\\u003e origin/master\\nRECLAIMED dev/claude/mbp/feat/finish-me — worktree(\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me) local-branch remote-branch parent-dir(\u003cSANDBOX\u003e/wt/parity-sandbox)\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-parse\",\n          \"master\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"\u003cSHA2\u003e\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"rev-list\",\n          \"--count\",\n          \"origin/master..master\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"0\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"show-ref\",\n          \"--verify\",\n          \"--quiet\",\n          \"refs/heads/dev/claude/mbp/feat/finish-me\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 1\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"ls-remote\",\n          \"--exit-code\",\n          \"--heads\",\n          \"origin\",\n          \"dev/claude/mbp/feat/finish-me\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 2\n      }\n    ]\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-parse\",\n        \"--abbrev-ref\",\n        \"--symbolic-full-name\",\n        \"@{u}\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"origin/dev/claude/mbp/feat/finish-me\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-list\",\n        \"--left-right\",\n        \"--count\",\n        \"@{u}...HEAD\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"0\\t0\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-parse\",\n        \"HEAD\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"\u003cSHA2\u003e\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-parse\",\n        \"master\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"\u003cSHA1\u003e\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"merge-base\",\n        \"master\",\n        \"HEAD\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"\u003cSHA1\u003e\\n\"\n    },\n    {\n      \"command\": \"gz-git\",\n      \"executable\": \"\u003cHOME\u003e/go/bin/gz-git\",\n      \"args\": [\n        \"integrate\",\n        \"check\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\\n\\n  PASS  freshness — based on origin/master tip\\n  PASS  merge-tree — no conflict with origin/master\\n  PASS  cross-merge — no other open branches\\n  PASS  working-tree — clean\\n  PASS  push — pushed\\n  WARN  readiness contract — legacy head-owned gate\\n  PASS  make check — ok\\n  PASS  make lint — ok\\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\\n\\nREADY to integrate into origin/master — 1 warning(s)\\n\"\n    },\n    {\n      \"command\": \"gz-git\",\n      \"executable\": \"\u003cHOME\u003e/go/bin/gz-git\",\n      \"args\": [\n        \"integrate\",\n        \"run\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n      \"exitCode\": 0,\n      \"stdout\": \"integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\\n\\n  PASS  freshness — based on origin/master tip\\n  PASS  merge-tree — no conflict with origin/master\\n  PASS  cross-merge — no other open branches\\n  PASS  working-tree — clean\\n  PASS  push — pushed\\n  WARN  readiness contract — legacy head-owned gate\\n  PASS  make check — ok\\n  PASS  make lint — ok\\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\\n\\nREADY to integrate into origin/master — 1 warning(s)\\n\\nINTEGRATED dev/claude/mbp/feat/finish-me (\u003cSHA2\u003e) -\\u003e origin/master\\nRECLAIMED dev/claude/mbp/feat/finish-me — worktree(\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me) local-branch remote-branch parent-dir(\u003cSANDBOX\u003e/wt/parity-sandbox)\\n\"\n    }\n  ]\n}\n",
+      "stderr": "",
+      "state": {
+        "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA2\u003e\nbranch refs/heads/master\n\n",
+        "refs": "refs/heads/master \u003cSHA2\u003e\nrefs/remotes/origin/HEAD \u003cSHA2\u003e\nrefs/remotes/origin/master \u003cSHA2\u003e\n",
+        "originRefs": "refs/heads/master \u003cSHA2\u003e\n",
+        "log": "\u003cSHA2\u003e feature\n\u003cSHA1\u003e init\n",
+        "executions": [
+          {
+            "branch": "dev/claude/mbp/feat/finish-me",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "finish-me",
+            "type": "feat",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me"
+          }
+        ],
+        "receipts": [
+          {
+            "branch": "dev/claude/mbp/feat/finish-me",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "master",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/feat/finish-me"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/feat/finish-me from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/feat/finish-me\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\"created_branch\":true,\"base_branch\":\"master\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/feat/finish-me\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/feat/finish-me  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "finish-me",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+            "worktreeRemoved": false
+          },
+          {
+            "baseHead": "\u003cSHA1\u003e",
+            "branch": "dev/claude/mbp/feat/finish-me",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "status",
+                  "--porcelain"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "/usr/bin/git",
+                "exitCode": 0
+              },
+              {
+                "args": [
+                  "rev-parse",
+                  "--abbrev-ref",
+                  "--symbolic-full-name",
+                  "@{u}"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "origin/dev/claude/mbp/feat/finish-me\n"
+              },
+              {
+                "args": [
+                  "rev-list",
+                  "--left-right",
+                  "--count",
+                  "@{u}...HEAD"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "0\t0\n"
+              },
+              {
+                "args": [
+                  "rev-parse",
+                  "HEAD"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "\u003cSHA2\u003e\n"
+              },
+              {
+                "args": [
+                  "rev-parse",
+                  "master"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "\u003cSHA1\u003e\n"
+              },
+              {
+                "args": [
+                  "merge-base",
+                  "master",
+                  "HEAD"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "\u003cSHA1\u003e\n"
+              },
+              {
+                "args": [
+                  "integrate",
+                  "check"
+                ],
+                "command": "gz-git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "\u003cHOME\u003e/go/bin/gz-git",
+                "exitCode": 0,
+                "stdout": "integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\n\n  PASS  freshness — based on origin/master tip\n  PASS  merge-tree — no conflict with origin/master\n  PASS  cross-merge — no other open branches\n  PASS  working-tree — clean\n  PASS  push — pushed\n  WARN  readiness contract — legacy head-owned gate\n  PASS  make check — ok\n  PASS  make lint — ok\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\n\nREADY to integrate into origin/master — 1 warning(s)\n"
+              },
+              {
+                "args": [
+                  "integrate",
+                  "run"
+                ],
+                "command": "gz-git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+                "executable": "\u003cHOME\u003e/go/bin/gz-git",
+                "exitCode": 0,
+                "stdout": "integrate check: dev/claude/mbp/feat/finish-me  (target=origin/master, default=origin/master, integration=master)\n\n  PASS  freshness — based on origin/master tip\n  PASS  merge-tree — no conflict with origin/master\n  PASS  cross-merge — no other open branches\n  PASS  working-tree — clean\n  PASS  push — pushed\n  WARN  readiness contract — legacy head-owned gate\n  PASS  make check — ok\n  PASS  make lint — ok\n  INFO  readiness provenance — mode=legacy-make source=\u003cSHA2\u003e target=\u003cSHA1\u003e\n\nREADY to integrate into origin/master — 1 warning(s)\n\nINTEGRATED dev/claude/mbp/feat/finish-me (\u003cSHA2\u003e) -\u003e origin/master\nRECLAIMED dev/claude/mbp/feat/finish-me — worktree(\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me) local-branch remote-branch parent-dir(\u003cSANDBOX\u003e/wt/parity-sandbox)\n"
+              },
+              {
+                "args": [
+                  "rev-parse",
+                  "master"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "\u003cSHA2\u003e\n"
+              },
+              {
+                "args": [
+                  "rev-list",
+                  "--count",
+                  "origin/master..master"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "0\n"
+              },
+              {
+                "args": [
+                  "show-ref",
+                  "--verify",
+                  "--quiet",
+                  "refs/heads/dev/claude/mbp/feat/finish-me"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 1
+              },
+              {
+                "args": [
+                  "ls-remote",
+                  "--exit-code",
+                  "--heads",
+                  "origin",
+                  "dev/claude/mbp/feat/finish-me"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 2
+              }
+            ],
+            "localBranchRemoved": true,
+            "operation": "finish",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "integration and recovery completed",
+            "remoteBranchRemoved": true,
+            "sourceHead": "\u003cSHA2\u003e",
+            "sourceHeadBefore": "\u003cSHA1\u003e",
+            "sourcePushed": true,
+            "status": "DONE",
+            "task": "finish-me",
+            "taskHead": "\u003cSHA2\u003e",
+            "tool_revision": "\u003cSHA3\u003e",
+            "tool_version": "v0.8.4-401-gf927ae5d",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__feat__finish-me",
+            "worktreeRemoved": true
+          }
+        ]
+      }
+    }
+  ]
+}

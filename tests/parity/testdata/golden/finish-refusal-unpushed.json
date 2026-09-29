@@ -1,0 +1,148 @@
+{
+  "scenario": "finish-refusal-unpushed",
+  "reference": "ce-agent-kit master f927ae5d",
+  "toolchain": {
+    "ce": "ce-agent-kit version 0.8.4\nRelease:  v0.8.4\nBuild:    401-gf927ae5d\nCommit:   f927ae5df6819a7c0f301f61769544534fb62d1a\nDirty:    false",
+    "wt": "wt 0.74.0",
+    "gzGit": "gz-git version 0.8.0"
+  },
+  "steps": [
+    {
+      "step": "start",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "unpushed",
+        "--type",
+        "fix",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"unpushed\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"unpushed\",\n    \"type\": \"fix\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/fix/unpushed\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"master\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/fix/unpushed\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/fix/unpushed\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/fix/unpushed from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/fix/unpushed\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/fix/unpushed  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "add-wip",
+      "cmd": "touch",
+      "argv": [
+        "bug.txt"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "stage-wip",
+      "cmd": "git",
+      "argv": [
+        "add",
+        "-A"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "commit-wip",
+      "cmd": "git",
+      "argv": [
+        "commit",
+        "-qm",
+        "wip"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "finish-refused",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-finish",
+        "unpushed",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"unpushed\",\n  \"allowedActions\": [\n    \"run-status\",\n    \"run-abort\",\n    \"run-discard\"\n  ],\n  \"reason\": \"task branch has no upstream\",\n  \"nextAction\": \"configure and push the task branch upstream\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"unpushed\",\n    \"type\": \"fix\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/fix/unpushed\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"receipt\": {\n    \"task\": \"unpushed\",\n    \"operation\": \"start\",\n    \"status\": \"ACTIVE\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/fix/unpushed\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n    \"reason\": \"worktree created and inventory verified\",\n    \"createdAt\": \"\u003cTS\u003e\",\n    \"sourcePushed\": false,\n    \"worktreeRemoved\": false,\n    \"localBranchRemoved\": false,\n    \"remoteBranchRemoved\": false,\n    \"diagnostics\": [\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"--config-set\",\n          \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\"\",\n          \"switch\",\n          \"--create\",\n          \"--base\",\n          \"master\",\n          \"--no-cd\",\n          \"--format=json\",\n          \"dev/claude/mbp/fix/unpushed\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/fix/unpushed\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n        \"stderr\": \"✓ Created branch dev/claude/mbp/fix/unpushed from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\n\"\n      },\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"--config-set\",\n          \"list.json-schema = 2\",\n          \"list\",\n          \"--format=json\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/fix/unpushed\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/fix/unpushed  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n      }\n    ]\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"branch\",\n        \"--show-current\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n      \"exitCode\": 0,\n      \"stdout\": \"dev/claude/mbp/fix/unpushed\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\",\n        \"--untracked-files=all\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n      \"exitCode\": 0\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"rev-parse\",\n        \"--abbrev-ref\",\n        \"--symbolic-full-name\",\n        \"@{u}\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n      \"exitCode\": 128,\n      \"stderr\": \"fatal: no upstream configured for branch 'dev/claude/mbp/fix/unpushed'\\n\"\n    }\n  ]\n}\n",
+      "stderr": "Error: task branch has no upstream\n",
+      "state": {
+        "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA1\u003e\nbranch refs/heads/master\n\nworktree \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\nHEAD \u003cSHA2\u003e\nbranch refs/heads/dev/claude/mbp/fix/unpushed\n\n",
+        "refs": "refs/heads/dev/claude/mbp/fix/unpushed \u003cSHA2\u003e\nrefs/heads/master \u003cSHA1\u003e\n",
+        "originRefs": "refs/heads/master \u003cSHA1\u003e\n",
+        "log": "\u003cSHA2\u003e wip\n\u003cSHA1\u003e init\n",
+        "executions": [
+          {
+            "branch": "dev/claude/mbp/fix/unpushed",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "unpushed",
+            "type": "fix",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed"
+          }
+        ],
+        "receipts": [
+          {
+            "branch": "dev/claude/mbp/fix/unpushed",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "master",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/fix/unpushed"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/fix/unpushed from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/fix/unpushed\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\"created_branch\":true,\"base_branch\":\"master\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/fix/unpushed\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/fix/unpushed  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "unpushed",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__fix__unpushed",
+            "worktreeRemoved": false
+          }
+        ]
+      }
+    }
+  ]
+}

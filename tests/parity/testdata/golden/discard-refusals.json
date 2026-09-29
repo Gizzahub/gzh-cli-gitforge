@@ -1,0 +1,375 @@
+{
+  "scenario": "discard-refusals",
+  "reference": "ce-agent-kit master f927ae5d",
+  "toolchain": {
+    "ce": "ce-agent-kit version 0.8.4\nRelease:  v0.8.4\nBuild:    401-gf927ae5d\nCommit:   f927ae5df6819a7c0f301f61769544534fb62d1a\nDirty:    false",
+    "wt": "wt 0.74.0",
+    "gzGit": "gz-git version 0.8.0"
+  },
+  "steps": [
+    {
+      "step": "start",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "discard-guards",
+        "--type",
+        "test",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"discard-guards\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"discard-guards\",\n    \"type\": \"test\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/test/discard-guards\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"master\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/test/discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/test/discard-guards\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/test/discard-guards from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/test/discard-guards\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/test/discard-guards  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "dirty-worktree",
+      "cmd": "touch",
+      "argv": [
+        "notes.md"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "discard-dirty",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-discard",
+        "discard-guards",
+        "--reason",
+        "dirty",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"discard-guards\",\n  \"allowedActions\": null,\n  \"reason\": \"task worktree is dirty\",\n  \"nextAction\": \"resolve the Git precondition and retry\",\n  \"finishReady\": false,\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\",\n        \"--untracked-files=all\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n      \"exitCode\": 0,\n      \"stdout\": \"?? notes.md\\n\"\n    }\n  ]\n}\n",
+      "stderr": "Error: task worktree is dirty\n"
+    },
+    {
+      "step": "clean-worktree",
+      "cmd": "git",
+      "argv": [
+        "clean",
+        "-fdq",
+        "."
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "push-branch",
+      "cmd": "git",
+      "argv": [
+        "push",
+        "-q",
+        "origin",
+        "dev/claude/mbp/test/discard-guards"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "discard-remote-branch",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-discard",
+        "discard-guards",
+        "--reason",
+        "remote exists",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"discard-guards\",\n  \"allowedActions\": null,\n  \"reason\": \"task branch still exists on origin\",\n  \"nextAction\": \"resolve the Git precondition and retry\",\n  \"finishReady\": false,\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\",\n        \"--untracked-files=all\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n      \"exitCode\": 0\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"branch\",\n        \"--show-current\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n      \"exitCode\": 0,\n      \"stdout\": \"dev/claude/mbp/test/discard-guards\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"ls-remote\",\n        \"--exit-code\",\n        \"--heads\",\n        \"origin\",\n        \"dev/claude/mbp/test/discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"\u003cSHA1\u003e\\trefs/heads/dev/claude/mbp/test/discard-guards\\n\"\n    }\n  ]\n}\n",
+      "stderr": "Error: task branch still exists on origin\n"
+    },
+    {
+      "step": "delete-remote-branch",
+      "cmd": "git",
+      "argv": [
+        "push",
+        "-q",
+        "origin",
+        "--delete",
+        "dev/claude/mbp/test/discard-guards"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "step": "discard-ok",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-discard",
+        "discard-guards",
+        "--reason",
+        "clean now",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ABORTED\",\n  \"activeCount\": 0,\n  \"task\": \"discard-guards\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"discard completed: clean now\",\n  \"nextAction\": \"no action required\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"discard-guards\",\n    \"type\": \"test\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/test/discard-guards\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"receipt\": {\n    \"task\": \"discard-guards\",\n    \"operation\": \"discard\",\n    \"status\": \"ABORTED\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"performedBy\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/test/discard-guards\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n    \"reason\": \"discard completed: clean now\",\n    \"createdAt\": \"\u003cTS\u003e\",\n    \"sourcePushed\": false,\n    \"worktreeRemoved\": true,\n    \"localBranchRemoved\": true,\n    \"remoteBranchRemoved\": true,\n    \"tool_version\": \"v0.8.4-401-gf927ae5d\",\n    \"tool_revision\": \"\u003cSHA2\u003e\",\n    \"diagnostics\": [\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"status\",\n          \"--porcelain\",\n          \"--untracked-files=all\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n        \"exitCode\": 0\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"branch\",\n          \"--show-current\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n        \"exitCode\": 0,\n        \"stdout\": \"dev/claude/mbp/test/discard-guards\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"ls-remote\",\n          \"--exit-code\",\n          \"--heads\",\n          \"origin\",\n          \"dev/claude/mbp/test/discard-guards\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 2\n      },\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"remove\",\n          \"--no-hooks\",\n          \"--foreground\",\n          \"--format=json\",\n          \"-y\",\n          \"-D\",\n          \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"[\\n  {\\n    \\\"branch\\\": \\\"dev/claude/mbp/test/discard-guards\\\",\\n    \\\"branch_checked_out_at\\\": null,\\n    \\\"branch_outcome\\\": \\\"deleted\\\",\\n    \\\"kind\\\": \\\"worktree\\\",\\n    \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\\"\\n  }\\n]\\n\",\n        \"stderr\": \"◎ Removing dev/claude/mbp/test/discard-guards worktree...\\n✓ Removed dev/claude/mbp/test/discard-guards worktree \\u0026 branch (--force-delete) (5 files · \u003cSIZE\u003e B)\\n\"\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"show-ref\",\n          \"--verify\",\n          \"--quiet\",\n          \"refs/heads/dev/claude/mbp/test/discard-guards\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 1\n      },\n      {\n        \"command\": \"git\",\n        \"executable\": \"/usr/bin/git\",\n        \"args\": [\n          \"ls-remote\",\n          \"--exit-code\",\n          \"--heads\",\n          \"origin\",\n          \"dev/claude/mbp/test/discard-guards\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 2\n      },\n      {\n        \"command\": \"wt\",\n        \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n        \"args\": [\n          \"--config-set\",\n          \"list.json-schema = 2\",\n          \"list\",\n          \"--format=json\"\n        ],\n        \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n        \"exitCode\": 0,\n        \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n      }\n    ]\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"status\",\n        \"--porcelain\",\n        \"--untracked-files=all\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n      \"exitCode\": 0\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"branch\",\n        \"--show-current\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n      \"exitCode\": 0,\n      \"stdout\": \"dev/claude/mbp/test/discard-guards\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"ls-remote\",\n        \"--exit-code\",\n        \"--heads\",\n        \"origin\",\n        \"dev/claude/mbp/test/discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 2\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"remove\",\n        \"--no-hooks\",\n        \"--foreground\",\n        \"--format=json\",\n        \"-y\",\n        \"-D\",\n        \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"[\\n  {\\n    \\\"branch\\\": \\\"dev/claude/mbp/test/discard-guards\\\",\\n    \\\"branch_checked_out_at\\\": null,\\n    \\\"branch_outcome\\\": \\\"deleted\\\",\\n    \\\"kind\\\": \\\"worktree\\\",\\n    \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\\\"\\n  }\\n]\\n\",\n      \"stderr\": \"◎ Removing dev/claude/mbp/test/discard-guards worktree...\\n✓ Removed dev/claude/mbp/test/discard-guards worktree \\u0026 branch (--force-delete) (5 files · \u003cSIZE\u003e B)\\n\"\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"show-ref\",\n        \"--verify\",\n        \"--quiet\",\n        \"refs/heads/dev/claude/mbp/test/discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 1\n    },\n    {\n      \"command\": \"git\",\n      \"executable\": \"/usr/bin/git\",\n      \"args\": [\n        \"ls-remote\",\n        \"--exit-code\",\n        \"--heads\",\n        \"origin\",\n        \"dev/claude/mbp/test/discard-guards\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 2\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": "",
+      "state": {
+        "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA1\u003e\nbranch refs/heads/master\n\n",
+        "refs": "refs/heads/master \u003cSHA1\u003e\n",
+        "originRefs": "refs/heads/master \u003cSHA1\u003e\n",
+        "log": "\u003cSHA1\u003e init\n",
+        "executions": [
+          {
+            "branch": "dev/claude/mbp/test/discard-guards",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "discard-guards",
+            "type": "test",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards"
+          }
+        ],
+        "receipts": [
+          {
+            "branch": "dev/claude/mbp/test/discard-guards",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "master",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/test/discard-guards"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/test/discard-guards from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/test/discard-guards\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\"created_branch\":true,\"base_branch\":\"master\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/test/discard-guards\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/test/discard-guards  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "discard-guards",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+            "worktreeRemoved": false
+          },
+          {
+            "branch": "dev/claude/mbp/test/discard-guards",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "status",
+                  "--porcelain",
+                  "--untracked-files=all"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+                "executable": "/usr/bin/git",
+                "exitCode": 0
+              },
+              {
+                "args": [
+                  "branch",
+                  "--show-current"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "dev/claude/mbp/test/discard-guards\n"
+              },
+              {
+                "args": [
+                  "ls-remote",
+                  "--exit-code",
+                  "--heads",
+                  "origin",
+                  "dev/claude/mbp/test/discard-guards"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 2
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "discard",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "performedBy": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "discard intent recorded before Worktrunk removal: clean now",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "BLOCKED",
+            "task": "discard-guards",
+            "tool_revision": "\u003cSHA2\u003e",
+            "tool_version": "v0.8.4-401-gf927ae5d",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+            "worktreeRemoved": false
+          },
+          {
+            "branch": "dev/claude/mbp/test/discard-guards",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "status",
+                  "--porcelain",
+                  "--untracked-files=all"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+                "executable": "/usr/bin/git",
+                "exitCode": 0
+              },
+              {
+                "args": [
+                  "branch",
+                  "--show-current"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+                "executable": "/usr/bin/git",
+                "exitCode": 0,
+                "stdout": "dev/claude/mbp/test/discard-guards\n"
+              },
+              {
+                "args": [
+                  "ls-remote",
+                  "--exit-code",
+                  "--heads",
+                  "origin",
+                  "dev/claude/mbp/test/discard-guards"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 2
+              },
+              {
+                "args": [
+                  "remove",
+                  "--no-hooks",
+                  "--foreground",
+                  "--format=json",
+                  "-y",
+                  "-D",
+                  "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stderr": "◎ Removing dev/claude/mbp/test/discard-guards worktree...\n✓ Removed dev/claude/mbp/test/discard-guards worktree \u0026 branch (--force-delete) (5 files · \u003cSIZE\u003e B)\n",
+                "stdout": "[\n  {\n    \"branch\": \"dev/claude/mbp/test/discard-guards\",\n    \"branch_checked_out_at\": null,\n    \"branch_outcome\": \"deleted\",\n    \"kind\": \"worktree\",\n    \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards\"\n  }\n]\n"
+              },
+              {
+                "args": [
+                  "show-ref",
+                  "--verify",
+                  "--quiet",
+                  "refs/heads/dev/claude/mbp/test/discard-guards"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 1
+              },
+              {
+                "args": [
+                  "ls-remote",
+                  "--exit-code",
+                  "--heads",
+                  "origin",
+                  "dev/claude/mbp/test/discard-guards"
+                ],
+                "command": "git",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "/usr/bin/git",
+                "exitCode": 2
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": true,
+            "operation": "discard",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "performedBy": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "discard completed: clean now",
+            "remoteBranchRemoved": true,
+            "sourcePushed": false,
+            "status": "ABORTED",
+            "task": "discard-guards",
+            "tool_revision": "\u003cSHA2\u003e",
+            "tool_version": "v0.8.4-401-gf927ae5d",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__test__discard-guards",
+            "worktreeRemoved": true
+          }
+        ]
+      }
+    }
+  ]
+}

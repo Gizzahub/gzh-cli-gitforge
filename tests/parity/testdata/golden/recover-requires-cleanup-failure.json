@@ -1,0 +1,148 @@
+{
+  "scenario": "recover-requires-cleanup-failure",
+  "reference": "ce-agent-kit master f927ae5d",
+  "toolchain": {
+    "ce": "ce-agent-kit version 0.8.4\nRelease:  v0.8.4\nBuild:    401-gf927ae5d\nCommit:   f927ae5df6819a7c0f301f61769544534fb62d1a\nDirty:    false",
+    "wt": "wt 0.74.0",
+    "gzGit": "gz-git version 0.8.0"
+  },
+  "steps": [
+    {
+      "step": "start",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "cleanup-fail",
+        "--type",
+        "chore",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"cleanup-fail\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"cleanup-fail\",\n    \"type\": \"chore\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/chore/cleanup-fail\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"master\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/chore/cleanup-fail\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/chore/cleanup-fail\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"master\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/chore/cleanup-fail from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/chore/cleanup-fail\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/chore/cleanup-fail  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "abort",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-abort",
+        "cleanup-fail",
+        "--reason",
+        "simulate",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ABORTED\",\n  \"activeCount\": 0,\n  \"task\": \"cleanup-fail\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"execution closed by run-abort; CE did not integrate it: simulate\",\n  \"nextAction\": \"no action required\",\n  \"finishReady\": false,\n  \"warnings\": [\n    \"task worktree still exists at \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail; abort does not remove worktrees, branches, or remote refs\"\n  ],\n  \"execution\": {\n    \"task\": \"cleanup-fail\",\n    \"type\": \"chore\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/chore/cleanup-fail\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"receipt\": {\n    \"task\": \"cleanup-fail\",\n    \"operation\": \"abort\",\n    \"status\": \"ABORTED\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/chore/cleanup-fail\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\",\n    \"reason\": \"execution closed by run-abort; CE did not integrate it: simulate\",\n    \"createdAt\": \"\u003cTS\u003e\",\n    \"sourcePushed\": false,\n    \"worktreeRemoved\": false,\n    \"localBranchRemoved\": false,\n    \"remoteBranchRemoved\": false\n  }\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "recover-refused",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-recover",
+        "cleanup-fail",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"cleanup-fail\",\n  \"allowedActions\": null,\n  \"reason\": \"run-recover requires the recorded exit-3 provider cleanup failure\",\n  \"nextAction\": \"inspect task runtime receipt evidence\",\n  \"finishReady\": false\n}\n",
+      "stderr": "Error: run-recover requires the recorded exit-3 provider cleanup failure\n",
+      "state": {
+        "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA1\u003e\nbranch refs/heads/master\n\nworktree \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\nHEAD \u003cSHA1\u003e\nbranch refs/heads/dev/claude/mbp/chore/cleanup-fail\n\n",
+        "refs": "refs/heads/dev/claude/mbp/chore/cleanup-fail \u003cSHA1\u003e\nrefs/heads/master \u003cSHA1\u003e\n",
+        "originRefs": "refs/heads/master \u003cSHA1\u003e\n",
+        "log": "\u003cSHA1\u003e init\n",
+        "executions": [
+          {
+            "branch": "dev/claude/mbp/chore/cleanup-fail",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "cleanup-fail",
+            "type": "chore",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail"
+          }
+        ],
+        "receipts": [
+          {
+            "branch": "dev/claude/mbp/chore/cleanup-fail",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "master",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/chore/cleanup-fail"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/chore/cleanup-fail from master and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/chore/cleanup-fail\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\",\"created_branch\":true,\"base_branch\":\"master\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.74.0/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/chore/cleanup-fail\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/chore/cleanup-fail  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "cleanup-fail",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail",
+            "worktreeRemoved": false
+          },
+          {
+            "branch": "dev/claude/mbp/chore/cleanup-fail",
+            "createdAt": "\u003cTS\u003e",
+            "localBranchRemoved": false,
+            "operation": "abort",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "reason": "execution closed by run-abort; CE did not integrate it: simulate",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ABORTED",
+            "task": "cleanup-fail",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail",
+            "worktreeRemoved": false
+          }
+        ]
+      }
+    }
+  ]
+}
