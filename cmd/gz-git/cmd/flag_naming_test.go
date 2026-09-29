@@ -42,7 +42,7 @@ func TestWorkspaceSyncRecurseWorkspacesFlag(t *testing.T) {
 func TestCommandGroupsCoreIncludesBranchStashTagWorktree(t *testing.T) {
 	setCommandGroups(rootCmd)
 	wantCore := map[string]bool{
-		"branch": true, "stash": true, "tag": true, "worktree": true,
+		"branch": true, "stash": true, "tag": true, "worktree": true, "run": true,
 	}
 	for _, c := range rootCmd.Commands() {
 		if !wantCore[c.Name()] {
