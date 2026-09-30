@@ -23,6 +23,11 @@ import (
 // empty config directories created on first use stay read-only. A fetch
 // updates remote-tracking refs and is declared (tracking-refs), so a consumer
 // allows it deliberately rather than by omission.
+//
+// Git keeps a branch's upstream in .git/config (branch.<name>.*), so a command
+// that can create a tracking branch or delete a local branch in an existing
+// repository declares config as well as refs. The config of a repository the
+// command itself creates is part of that new directory (filesystem).
 
 const (
 	effectReadOnly   = "read-only"
@@ -86,8 +91,8 @@ var commandEffects = map[string][]string{
 	"update":      {mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
 	"watch":       nil,
 
-	"cleanup branch": {mutatesRefs, mutatesTrackingRefs, mutatesRemote},
-	"cleanup wizard": {mutatesRefs, mutatesTrackingRefs, mutatesRemote},
+	"cleanup branch": {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
+	"cleanup wizard": {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 
 	"config hierarchy":      nil,
 	"config show":           nil,
@@ -119,10 +124,12 @@ var commandEffects = map[string][]string{
 	"history stats":        nil,
 
 	// Plans fetch the target unconditionally; tracking refs are their whole
-	// footprint. Applies change the target-owned readiness contract.
+	// footprint. Applies change the target-owned readiness contract. run also
+	// fast-forwards a checked-out target and reclaims the task worktree and
+	// branch.
 	"integrate queue":                  {mutatesTrackingRefs},
 	"integrate check":                  {mutatesTrackingRefs, mutatesArbitrary},
-	"integrate run":                    {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesArbitrary},
+	"integrate run":                    {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
 	"integrate bootstrap plan":         {mutatesTrackingRefs},
 	"integrate bootstrap apply":        {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
 	"integrate readiness update plan":  {mutatesTrackingRefs},
@@ -151,7 +158,7 @@ var commandEffects = map[string][]string{
 	"tag create":      {mutatesRefs},
 	"tag push":        {mutatesRemote},
 	"worktree list":   nil,
-	"worktree add":    {mutatesFilesystem, mutatesRefs},
+	"worktree add":    {mutatesFilesystem, mutatesRefs, mutatesConfig},
 	"worktree remove": {mutatesFilesystem},
 
 	"workspace validate":        nil,

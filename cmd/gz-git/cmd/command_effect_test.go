@@ -70,11 +70,15 @@ func TestEffectDeclarationsUseKnownTargets(t *testing.T) {
 }
 
 // These commands write .git/config on some path (a found done-review gap):
-// handoff end pushes with --set-upstream, switch checks out a remote-only
-// branch with --track, and workspace sync adds remotes and records access
-// and integration-branch markers.
+// handoff end pushes with --set-upstream, switch and worktree add check out a
+// remote-only branch as a tracking branch, workspace sync adds remotes and
+// records access and integration-branch markers, and cleanup and integrate
+// run delete local branches together with their branch.<name>.* section.
 func TestGitConfigWritersDeclareConfig(t *testing.T) {
-	for _, key := range []string{"push", "switch", "handoff end", "sync", "workspace sync"} {
+	for _, key := range []string{
+		"push", "switch", "handoff end", "sync", "workspace sync",
+		"worktree add", "cleanup branch", "cleanup wizard", "integrate run",
+	} {
 		if !slices.Contains(commandEffects[key], mutatesConfig) {
 			t.Errorf("%q writes git config but does not declare %q: %v", key, mutatesConfig, commandEffects[key])
 		}
