@@ -85,6 +85,19 @@ func TestGitConfigWritersDeclareConfig(t *testing.T) {
 	}
 }
 
+// run finish integrates through the same engine as integrate run, in-process,
+// so whatever integrate run can change, run finish can change too.
+func TestRunFinishCoversIntegrateRun(t *testing.T) {
+	for _, target := range commandEffects["integrate run"] {
+		if !slices.Contains(commandEffects["run finish"], target) {
+			t.Errorf("run finish calls the integrate run engine but does not declare %q", target)
+		}
+	}
+	if !slices.Contains(commandEffects["run finish"], mutatesRunState) {
+		t.Errorf("run finish records the run outcome but does not declare %q", mutatesRunState)
+	}
+}
+
 // The readiness contract is what a policy consumer keys on to keep contract
 // changes with a person; a wrong declaration here silently widens that policy.
 func TestReadinessContractDeclarations(t *testing.T) {

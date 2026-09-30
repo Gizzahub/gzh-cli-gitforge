@@ -147,7 +147,7 @@ var commandEffects = map[string][]string{
 	"run abort":       {mutatesRunState},
 	"run start":       {mutatesFilesystem, mutatesRefs, mutatesConfig, mutatesRunState},
 	"run discard":     {mutatesFilesystem, mutatesRefs, mutatesConfig, mutatesRunState},
-	"run finish":      {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesRunState, mutatesArbitrary},
+	"run finish":      {mutatesWorktree, mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesRunState, mutatesArbitrary},
 	"stash list":      nil,
 	"stash apply":     {mutatesWorktree},
 	"stash pop":       {mutatesWorktree, mutatesRefs},
