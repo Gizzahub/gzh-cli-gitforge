@@ -20,7 +20,7 @@ type stateStore struct{ dir string }
 func newStateStore(commonDir string) stateStore {
 	return stateStore{dir: filepath.Join(commonDir, RuntimeStateDir, "task-runtime", "v1")}
 }
-func (s stateStore) init() error { return os.MkdirAll(s.dir, 0o755) } //nolint:gosec // CE-layout state directory parity; the path is the resolved git common dir
+func (s stateStore) init() error { return os.MkdirAll(s.dir, 0o755) } // #nosec G301 -- CE-layout state directory parity; the path is the resolved git common dir
 func (s stateStore) load() ([]TaskExecution, error) {
 	b, err := os.ReadFile(filepath.Join(s.dir, "executions.json"))
 	if os.IsNotExist(err) {
@@ -45,7 +45,7 @@ func (s stateStore) save(executions []TaskExecution) error {
 		return err
 	}
 	tmp := filepath.Join(s.dir, fmt.Sprintf("executions.%d.tmp", time.Now().UnixNano()))
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil { //nolint:gosec // CE-layout state file parity
+	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil { // #nosec G306 -- CE-layout state file parity
 		return err
 	}
 	if err := syncFile(tmp); err != nil {
@@ -64,7 +64,7 @@ func (s stateStore) appendReceipt(receipt TaskReceipt) error {
 	if err := s.init(); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(s.dir, "receipts.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644) //nolint:gosec // append-only receipt log, CE-layout parity
+	f, err := os.OpenFile(filepath.Join(s.dir, "receipts.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644) // #nosec G302 -- append-only receipt log, CE-layout parity
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (s stateStore) lock() (func(), error) {
 		return nil, err
 	}
 	path := filepath.Join(s.dir, "mutation.lock")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) //nolint:gosec // O_EXCL lock under the resolved state dir, not user input
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) // #nosec G302,G304 -- O_EXCL lock under the resolved state dir, not user input
 	if err != nil {
 		if os.IsExist(err) {
 			return nil, fmt.Errorf("task runtime mutation lock exists: %s", path)
@@ -154,7 +154,7 @@ func (s stateStore) lockPath() string { return filepath.Join(s.dir, "mutation.lo
 
 func (s stateStore) lockInfo(now time.Time) (TaskLockInfo, error) {
 	path := s.lockPath()
-	b, err := os.ReadFile(path) //nolint:gosec // the path is this store's lock file under the git common dir
+	b, err := os.ReadFile(path) // #nosec G304 -- the path is this store's lock file under the git common dir
 	if err != nil {
 		return TaskLockInfo{}, err
 	}
@@ -196,7 +196,7 @@ func (s stateStore) lockInfo(now time.Time) (TaskLockInfo, error) {
 }
 
 func syncFile(path string) error {
-	f, err := os.OpenFile(path, os.O_RDWR, 0) //nolint:gosec // syncing a file this store just wrote under its own dir
+	f, err := os.OpenFile(path, os.O_RDWR, 0) // #nosec G304 -- syncing a file this store just wrote under its own dir
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func syncFile(path string) error {
 // deliberately best-effort at the single call site pattern: every caller
 // treats it as advice, never as evidence.
 func syncDir(path string) {
-	dir, err := os.Open(path) //nolint:gosec // the path is a directory this store created under the git common dir
+	dir, err := os.Open(path) // #nosec G304 -- the path is a directory this store created under the git common dir
 	if err != nil {
 		return
 	}

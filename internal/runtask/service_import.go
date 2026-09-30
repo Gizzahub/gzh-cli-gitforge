@@ -80,7 +80,7 @@ func (s *Service) ImportCE(ctx context.Context, dryRun bool) (ImportCEReport, er
 	if dryRun {
 		return report, nil
 	}
-	if err := os.MkdirAll(target.dir, 0o755); err != nil { //nolint:gosec // CE-layout state directory parity
+	if err := os.MkdirAll(target.dir, 0o755); err != nil { // #nosec G301 -- CE-layout state directory parity
 		return report, fmt.Errorf("create %s: %w", target.dir, err)
 	}
 	if executionsFound {
@@ -101,7 +101,7 @@ func (s *Service) ImportCE(ctx context.Context, dryRun bool) (ImportCEReport, er
 // readImportExecutions reports found=false when CE recorded no
 // executions.json; a present file must parse.
 func readImportExecutions(dir string) ([]TaskExecution, bool, error) {
-	b, err := os.ReadFile(filepath.Join(dir, "executions.json")) //nolint:gosec // the path is CE's record under the resolved git common dir
+	b, err := os.ReadFile(filepath.Join(dir, "executions.json")) // #nosec G304 -- the path is CE's record under the resolved git common dir
 	if os.IsNotExist(err) {
 		return nil, false, nil
 	}
@@ -117,7 +117,7 @@ func readImportExecutions(dir string) ([]TaskExecution, bool, error) {
 
 // readImportReceipts reports found=false when CE recorded no receipts.jsonl.
 func readImportReceipts(dir string) (receipts map[string]TaskReceipt, found bool, err error) {
-	f, err := os.Open(filepath.Join(dir, "receipts.jsonl")) //nolint:gosec // the path is CE's record under the resolved git common dir
+	f, err := os.Open(filepath.Join(dir, "receipts.jsonl")) // #nosec G304 -- the path is CE's record under the resolved git common dir
 	if os.IsNotExist(err) {
 		return nil, false, nil
 	}
@@ -132,12 +132,12 @@ func readImportReceipts(dir string) (receipts map[string]TaskReceipt, found bool
 // copyFile copies bytes verbatim and fsyncs the result, so an imported
 // receipt log survives a crash the same way an appended one does.
 func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src) //nolint:gosec // the source is CE's record under the resolved git common dir
+	b, err := os.ReadFile(src) // #nosec G304 -- the source is CE's record under the resolved git common dir
 	if err != nil {
 		return fmt.Errorf("read %s: %w", src, err)
 	}
 	tmp := dst + ".import.tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil { //nolint:gosec // byte-for-byte import keeps CE's file mode parity
+	if err := os.WriteFile(tmp, b, 0o644); err != nil { // #nosec G306,G703 -- byte-for-byte import keeps CE's file mode parity
 		return fmt.Errorf("write %s: %w", tmp, err)
 	}
 	if err := syncFile(tmp); err != nil {

@@ -124,6 +124,7 @@ func writeDocTrees(target *cobra.Command, opts *genDocsOptions) error {
 	})
 
 	if opts.manDir != "" {
+		// #nosec G301 -- generated man pages must stay readable to other users of the install prefix.
 		if err := os.MkdirAll(opts.manDir, 0o755); err != nil {
 			return cliutil.NewExitError(2, fmt.Errorf("create man directory: %w", err))
 		}
@@ -137,6 +138,7 @@ func writeDocTrees(target *cobra.Command, opts *genDocsOptions) error {
 		}
 	}
 	if opts.markdownDir != "" {
+		// #nosec G301 -- generated reference pages must stay readable to other users of the install prefix.
 		if err := os.MkdirAll(opts.markdownDir, 0o755); err != nil {
 			return cliutil.NewExitError(2, fmt.Errorf("create markdown directory: %w", err))
 		}
@@ -165,6 +167,7 @@ func genMarkdownTree(c *cobra.Command, dir string) error {
 			return err
 		}
 	}
+	// #nosec G304 -- the directory is the operator's --markdown-dir and the name comes from the command tree.
 	f, err := os.Create(filepath.Join(dir, docName(c)+".md"))
 	if err != nil {
 		return err

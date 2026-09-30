@@ -66,7 +66,7 @@ func (e *Executor) Run(ctx context.Context, req CommandRequest) (CommandResult, 
 		return result, fmt.Errorf("resolve command %s path: %w", req.Command, err)
 	}
 	result.Executable = executable
-	cmd := exec.CommandContext(ctx, executable, req.Args...) //nolint:gosec // fixed tool name, caller-supplied argv only
+	cmd := exec.CommandContext(ctx, executable, req.Args...) // #nosec G204 -- fixed tool name, caller-supplied argv only
 	cmd.Dir, cmd.Env = req.WorkDir, os.Environ()
 	for key, value := range req.Env {
 		cmd.Env = append(cmd.Env, key+"="+value)
