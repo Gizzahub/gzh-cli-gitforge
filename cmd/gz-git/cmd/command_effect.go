@@ -33,9 +33,10 @@ import (
 //
 // arbitrary means gz-git itself launches a program chosen by configuration, a
 // flag, the environment or the repository (make targets, hooks in a gz-git
-// config, a readiness runner, $EDITOR). Hooks that git or Worktrunk run on
-// their own behalf are not counted: nearly every mutating command can trigger
-// one, so counting them would leave the target with nothing to distinguish.
+// config, a readiness runner, $EDITOR). Programs that git or Worktrunk run on
+// their own behalf (hooks, credential helpers, ssh, filters) are not counted:
+// nearly every mutating command can trigger one, so counting them would leave
+// the target with nothing to distinguish.
 
 const (
 	effectReadOnly   = "read-only"
@@ -56,7 +57,7 @@ const (
 	mutatesCredentials       = "credentials"        // OS keychain tokens
 	mutatesRunState          = "run-state"          // task run records
 	mutatesReadinessContract = "readiness-contract" // target-owned readiness contract
-	mutatesArbitrary         = "arbitrary"          // a user-supplied command runs
+	mutatesArbitrary         = "arbitrary"          // gz-git launches a caller- or repository-chosen program
 )
 
 var knownMutationTargets = map[string]bool{

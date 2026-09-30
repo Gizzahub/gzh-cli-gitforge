@@ -69,11 +69,13 @@ func TestEffectDeclarationsUseKnownTargets(t *testing.T) {
 	}
 }
 
-// These commands write .git/config on some path (a found done-review gap):
-// handoff end pushes with --set-upstream, switch and worktree add check out a
-// remote-only branch as a tracking branch, workspace sync adds remotes and
-// records access and integration-branch markers, and cleanup and integrate
-// run delete local branches together with their branch.<name>.* section.
+// These commands write git config on some path (a found done-review gap):
+// push and handoff end push with --set-upstream, switch and worktree add
+// check out a remote-only branch as a tracking branch, sync and workspace
+// sync add remotes and record access and integration-branch markers, cleanup
+// and integrate run delete local branches together with their
+// branch.<name>.* section, and config recommended --apply writes git
+// settings (global by default).
 func TestGitConfigWritersDeclareConfig(t *testing.T) {
 	for _, key := range []string{
 		"push", "switch", "handoff end", "sync", "workspace sync",
@@ -104,11 +106,11 @@ func TestGzGitConfigFileWritersDeclareConfig(t *testing.T) {
 
 // These commands launch a program that gz-git does not fix: exec runs the
 // caller's argv, observe runs the described ce, commit --edit runs $EDITOR,
-// the sync commands run configured hooks, and the integrate engine runs make
+// clone and the sync commands run configured hooks, and the integrate engine runs make
 // targets and the target's readiness runner.
 func TestProgramLaunchersDeclareArbitrary(t *testing.T) {
 	for _, key := range []string{
-		"exec", "observe", "commit", "sync", "workspace sync",
+		"exec", "observe", "commit", "clone", "sync", "workspace sync",
 		"integrate check", "integrate run", "run finish",
 	} {
 		if !slices.Contains(commandEffects[key], mutatesArbitrary) {
