@@ -78,6 +78,7 @@ func TestGitConfigWritersDeclareConfig(t *testing.T) {
 	for _, key := range []string{
 		"push", "switch", "handoff end", "sync", "workspace sync",
 		"worktree add", "cleanup branch", "cleanup wizard", "integrate run",
+		"config recommended",
 	} {
 		if !slices.Contains(commandEffects[key], mutatesConfig) {
 			t.Errorf("%q writes git config but does not declare %q: %v", key, mutatesConfig, commandEffects[key])
@@ -90,13 +91,38 @@ func TestGitConfigWritersDeclareConfig(t *testing.T) {
 // save its answers, which is still a path the command can take.
 func TestGzGitConfigFileWritersDeclareConfig(t *testing.T) {
 	for _, key := range []string{
-		"config init", "config recommended",
+		"config init",
 		"config profile create", "config profile delete", "config profile use",
 		"forge config generate", "forge setup",
 		"workspace add", "workspace init", "workspace generate-config", "workspace sync", "sync",
 	} {
 		if !slices.Contains(commandEffects[key], mutatesConfig) {
 			t.Errorf("%q writes a gz-git config file but does not declare %q: %v", key, mutatesConfig, commandEffects[key])
+		}
+	}
+}
+
+// These commands launch a program that gz-git does not fix: exec runs the
+// caller's argv, observe runs the described ce, commit --edit runs $EDITOR,
+// the sync commands run configured hooks, and the integrate engine runs make
+// targets and the target's readiness runner.
+func TestProgramLaunchersDeclareArbitrary(t *testing.T) {
+	for _, key := range []string{
+		"exec", "observe", "commit", "sync", "workspace sync",
+		"integrate check", "integrate run", "run finish",
+	} {
+		if !slices.Contains(commandEffects[key], mutatesArbitrary) {
+			t.Errorf("%q launches a caller- or repository-chosen program but does not declare %q: %v", key, mutatesArbitrary, commandEffects[key])
+		}
+	}
+}
+
+// integrate run starts with the same check, so it can change whatever
+// integrate check can, including the failure diagnostics check keeps.
+func TestIntegrateRunCoversIntegrateCheck(t *testing.T) {
+	for _, target := range commandEffects["integrate check"] {
+		if !slices.Contains(commandEffects["integrate run"], target) {
+			t.Errorf("integrate run performs integrate check but does not declare %q", target)
 		}
 	}
 }

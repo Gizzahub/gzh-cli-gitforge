@@ -19,8 +19,10 @@ import (
 // only when a flag is set is still declared mutating. Read-only means the
 // command changes no repository, remote, forge, config, credential or run
 // state. Printing, writing only a file the caller names (for example
-// --output), temporary directories that are always removed, and gz-git's own
-// empty config directories created on first use stay read-only. A fetch
+// --output), temporary files and directories that are always removed, and
+// gz-git's own empty config directories created on first use stay read-only.
+// A file gz-git keeps on its own initiative (history snapshots, failure
+// diagnostics under its state directory) is declared as filesystem. A fetch
 // updates remote-tracking refs and is declared (tracking-refs), so a consumer
 // allows it deliberately rather than by omission.
 //
@@ -28,6 +30,12 @@ import (
 // that can create a tracking branch or delete a local branch in an existing
 // repository declares config as well as refs. The config of a repository the
 // command itself creates is part of that new directory (filesystem).
+//
+// arbitrary means gz-git itself launches a program chosen by configuration, a
+// flag, the environment or the repository (make targets, hooks in a gz-git
+// config, a readiness runner, $EDITOR). Hooks that git or Worktrunk run on
+// their own behalf are not counted: nearly every mutating command can trigger
+// one, so counting them would leave the target with nothing to distinguish.
 
 const (
 	effectReadOnly   = "read-only"
@@ -43,7 +51,7 @@ const (
 	mutatesTrackingRefs      = "tracking-refs"      // remote-tracking refs only
 	mutatesRemote            = "remote"             // pushes to or deletes on a git remote
 	mutatesForge             = "forge"              // objects created or changed through a forge API
-	mutatesFilesystem        = "filesystem"         // directories created or removed (clones, git worktrees)
+	mutatesFilesystem        = "filesystem"         // directories or kept files created or removed (clones, git worktrees, diagnostics)
 	mutatesConfig            = "config"             // gz-git config, profiles, or git config
 	mutatesCredentials       = "credentials"        // OS keychain tokens
 	mutatesRunState          = "run-state"          // task run records
@@ -76,7 +84,7 @@ var commandEffects = map[string][]string{
 	"branch name": nil,
 	"clean":       {mutatesWorktree},
 	"clone":       {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesArbitrary},
-	"commit":      {mutatesWorktree, mutatesRefs},
+	"commit":      {mutatesWorktree, mutatesRefs, mutatesArbitrary},
 	"diff":        nil,
 	"doctor":      nil,
 	"exec":        {mutatesArbitrary},
@@ -128,7 +136,7 @@ var commandEffects = map[string][]string{
 	// fast-forwards a checked-out target and reclaims the task worktree and
 	// branch.
 	"integrate queue":                  {mutatesTrackingRefs},
-	"integrate check":                  {mutatesTrackingRefs, mutatesArbitrary},
+	"integrate check":                  {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
 	"integrate run":                    {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
 	"integrate bootstrap plan":         {mutatesTrackingRefs},
 	"integrate bootstrap apply":        {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
