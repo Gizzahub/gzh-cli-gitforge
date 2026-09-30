@@ -89,6 +89,9 @@ func printCommandRecursive(cmd *cobra.Command, level int) {
 		fmt.Printf("- **Path**: `%s`\n", c.CommandPath())
 		fmt.Printf("- **Purpose**: %s\n", c.Short)
 		fmt.Printf("- **Usage**: `%s`\n", c.UseLine())
+		if c.Runnable() {
+			fmt.Printf("- **Effect**: %s\n", effectSummary(c))
+		}
 
 		// Flags
 		hasLocalFlags := false
@@ -234,6 +237,9 @@ func init() {
 	// Local flags for root command
 	rootCmd.Flags().StringVar(&rootFormat, "format", "", "output format for help (supported: llm)")
 
+	// Help shows each command's declared effect (see command_effect.go).
+	cobra.AddTemplateFunc("commandEffect", effectSummary)
+
 	// Version template
 	rootCmd.SetVersionTemplate(`{{with .Name}}{{printf "%s " .}}{{end}}{{printf "version %s" .Version}}
 `)
@@ -248,7 +254,9 @@ func init() {
 // color values instead of freezing them at compile time.
 func buildUsageTemplate() string {
 	return `{{if .Runnable}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
-  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
+  {{.UseLine}}
+
+` + cliutil.ColorGreenBold + `Effect:` + cliutil.ColorReset + ` {{commandEffect .}}{{end}}{{if .HasAvailableSubCommands}}` + cliutil.ColorGreenBold + `Usage:` + cliutil.ColorReset + `
   {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
 
 Aliases:
