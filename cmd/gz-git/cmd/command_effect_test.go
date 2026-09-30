@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -64,6 +65,18 @@ func TestEffectDeclarationsUseKnownTargets(t *testing.T) {
 				t.Errorf("%q declares %q twice", key, target)
 			}
 			dup[target] = true
+		}
+	}
+}
+
+// These commands write .git/config on some path (a found done-review gap):
+// handoff end pushes with --set-upstream, switch checks out a remote-only
+// branch with --track, and workspace sync adds remotes and records access
+// and integration-branch markers.
+func TestGitConfigWritersDeclareConfig(t *testing.T) {
+	for _, key := range []string{"push", "switch", "handoff end", "sync", "workspace sync"} {
+		if !slices.Contains(commandEffects[key], mutatesConfig) {
+			t.Errorf("%q writes git config but does not declare %q: %v", key, mutatesConfig, commandEffects[key])
 		}
 	}
 }

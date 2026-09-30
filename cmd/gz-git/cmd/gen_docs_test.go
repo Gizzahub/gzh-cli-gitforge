@@ -93,9 +93,15 @@ func TestGenDocsWritesManAndMarkdownTrees(t *testing.T) {
 	if !strings.Contains(string(man), `.TH "GZ-GIT-INTEGRATE-BOOTSTRAP-APPLY" "1" "Jan 2026"`) {
 		t.Errorf("man header not titled per command with the pinned date:\n%s", strings.SplitN(string(man), "\n", 3)[1])
 	}
-	md, err := os.ReadFile(filepath.Join(mdDir, "gz-git_integrate_bootstrap_plan.md"))
+	md, err := os.ReadFile(filepath.Join(mdDir, "gz-git-integrate-bootstrap-plan.md"))
 	if err != nil {
 		t.Fatalf("read markdown page: %v", err)
+	}
+	if !strings.Contains(string(md), "(gz-git-integrate-bootstrap.md)") {
+		t.Errorf("markdown See Also does not link the hyphenated parent page:\n%s", md)
+	}
+	if names, _ := filepath.Glob(filepath.Join(mdDir, "*_*")); len(names) > 0 {
+		t.Errorf("markdown pages with underscore names: %v", names)
 	}
 	if !strings.Contains(string(md), "Effect: mutating (tracking-refs)") {
 		t.Errorf("markdown page missing effect:\n%s", md)

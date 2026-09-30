@@ -6,7 +6,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -138,11 +140,41 @@ func writeDocTrees(target *cobra.Command, opts *genDocsOptions) error {
 		if err := os.MkdirAll(opts.markdownDir, 0o755); err != nil {
 			return cliutil.NewExitError(2, fmt.Errorf("create markdown directory: %w", err))
 		}
-		if err := doc.GenMarkdownTree(target, opts.markdownDir); err != nil {
+		if err := genMarkdownTree(target, opts.markdownDir); err != nil {
 			return cliutil.NewExitError(1, fmt.Errorf("write markdown pages: %w", err))
 		}
 	}
 	return nil
+}
+
+// docName is the git-style page name shared by man and markdown pages:
+// "gz-git integrate bootstrap plan" becomes gz-git-integrate-bootstrap-plan.
+func docName(c *cobra.Command) string {
+	return strings.ReplaceAll(c.CommandPath(), " ", "-")
+}
+
+// genMarkdownTree mirrors doc.GenMarkdownTree but names pages like the man
+// pages; Cobra's own tree hard-codes underscore file names. Command names
+// never contain an underscore, so rewriting the See Also links is exact.
+func genMarkdownTree(c *cobra.Command, dir string) error {
+	for _, child := range c.Commands() {
+		if !child.IsAvailableCommand() || child.IsAdditionalHelpTopicCommand() {
+			continue
+		}
+		if err := genMarkdownTree(child, dir); err != nil {
+			return err
+		}
+	}
+	f, err := os.Create(filepath.Join(dir, docName(c)+".md"))
+	if err != nil {
+		return err
+	}
+	link := func(name string) string { return strings.ReplaceAll(name, "_", "-") }
+	if err := doc.GenMarkdownCustom(c, f, link); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 func init() {

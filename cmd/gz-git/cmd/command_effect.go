@@ -81,7 +81,7 @@ var commandEffects = map[string][]string{
 	"pull":        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
 	"push":        {mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 	"status":      {mutatesTrackingRefs},
-	"switch":      {mutatesWorktree, mutatesRefs},
+	"switch":      {mutatesWorktree, mutatesRefs, mutatesConfig},
 	"sync":        {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesArbitrary},
 	"update":      {mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
 	"watch":       nil,
@@ -111,7 +111,7 @@ var commandEffects = map[string][]string{
 
 	"handoff check": nil,
 	"handoff start": {mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
-	"handoff end":   {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote},
+	"handoff end":   {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 
 	"history blame":        nil,
 	"history contributors": nil,
@@ -159,7 +159,7 @@ var commandEffects = map[string][]string{
 	"workspace add":             {mutatesConfig},
 	"workspace init":            {mutatesConfig},
 	"workspace generate-config": {mutatesConfig},
-	"workspace sync":            {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesArbitrary},
+	"workspace sync":            {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesArbitrary},
 }
 
 // declaredEffect reports the effect and mutation targets for cmd. ok is false
