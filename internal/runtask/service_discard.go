@@ -344,9 +344,11 @@ func discardRemoteAbsentExit(cfg TaskRuntimeConfig) int {
 }
 
 func discardReceipt(execution TaskExecution, status, reason string, performedBy *TaskOwner, diagnostics []CommandDiagnostics, prefix string, createdAt time.Time) TaskReceipt {
-	return TaskReceipt{Task: execution.Task, Operation: "discard", Status: status, Owner: execution.Owner, PerformedBy: performedBy,
+	return TaskReceipt{
+		Task: execution.Task, Operation: "discard", Status: status, Owner: execution.Owner, PerformedBy: performedBy,
 		Branch: execution.Branch, Worktree: execution.Worktree, Reason: prefix + ": " + reason, CreatedAt: createdAt, Diagnostics: diagnostics,
-		ToolVersion: toolVersion(), ToolRevision: toolRevision()}
+		ToolVersion: toolVersion(), ToolRevision: toolRevision(),
+	}
 }
 
 func discardIdentityMatches(execution TaskExecution, receipt TaskReceipt) bool {

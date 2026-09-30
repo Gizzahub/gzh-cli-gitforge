@@ -88,10 +88,12 @@ func isPartialCleanupReceipt(execution TaskExecution, receipt TaskReceipt) bool 
 }
 
 func (s *Service) recoveryReceipt(ctx context.Context, execution TaskExecution, previous TaskReceipt, cfg TaskRuntimeConfig) (TaskReceipt, error) {
-	r := TaskReceipt{Task: execution.Task, Operation: "recover", Status: TaskExecutionStatusDone,
+	r := TaskReceipt{
+		Task: execution.Task, Operation: "recover", Status: TaskExecutionStatusDone,
 		Owner: execution.Owner, Branch: execution.Branch, Worktree: execution.Worktree,
 		CreatedAt: s.now().UTC(), SourceHeadBefore: previous.SourceHeadBefore, BaseHead: previous.BaseHead,
-		TaskHead: previous.TaskHead, ToolVersion: toolVersion(), ToolRevision: toolRevision()}
+		TaskHead: previous.TaskHead, ToolVersion: toolVersion(), ToolRevision: toolRevision(),
+	}
 	probe := func(args ...string) (CommandResult, error) {
 		result, err := s.command(ctx, s.root, "git", args...)
 		r.Diagnostics = append(r.Diagnostics, diagnostic(result))

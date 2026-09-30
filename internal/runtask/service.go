@@ -38,6 +38,7 @@ func NewService(root string, runner CommandRunner, engine integrateEngine) *Serv
 func response(status, task, reason, next string, actions ...string) TaskResponse {
 	return TaskResponse{SchemaVersion: 1, Status: status, Task: task, AllowedActions: actions, Reason: reason, NextAction: next}
 }
+
 func diagnostic(result CommandResult) CommandDiagnostics {
 	return CommandDiagnostics{Command: result.Command, Executable: result.Executable, Args: result.Args, Cwd: result.WorkDir, ExitCode: result.ExitCode, Stdout: result.Stdout, Stderr: result.Stderr, Error: result.Error, NotStarted: result.NotStarted}
 }
@@ -64,9 +65,11 @@ func identityNextAction(err error) string {
 	}
 	return "resolve the device and actor identity for this machine"
 }
+
 func (s *Service) command(ctx context.Context, dir, name string, args ...string) (CommandResult, error) {
 	return s.runner.Run(ctx, CommandRequest{Command: name, Args: args, WorkDir: dir})
 }
+
 func (s *Service) store(ctx context.Context) (stateStore, error) {
 	r, err := s.command(ctx, s.root, "git", "rev-parse", "--git-common-dir")
 	if err != nil {

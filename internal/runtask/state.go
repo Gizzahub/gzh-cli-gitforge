@@ -8,8 +8,10 @@ import (
 )
 
 func (s *Service) deriveState(ctx context.Context, execution TaskExecution, receipt TaskReceipt, inventory worktrunkInventory, locked bool) DerivedTaskState {
-	state := DerivedTaskState{Execution: execution, Status: TaskExecutionStatusActive,
-		AllowedActions: []string{"run-status", "run-abort"}, Reason: "task execution is active", NextAction: "continue in the task worktree"}
+	state := DerivedTaskState{
+		Execution: execution, Status: TaskExecutionStatusActive,
+		AllowedActions: []string{"run-status", "run-abort"}, Reason: "task execution is active", NextAction: "continue in the task worktree",
+	}
 	// A blocked record advertises run-abort because it is otherwise absorbing:
 	// every other verb refuses it, and listResponse rolls one blocked record up
 	// into a repository-wide failure. ADR-0006 deferred abort; ADR-0017 adds it
@@ -69,8 +71,12 @@ func (s *Service) deriveState(ctx context.Context, execution TaskExecution, rece
 	probes := []struct {
 		args []string
 		name string
-	}{{[]string{"branch", "--show-current"}, "branch identity"}, {[]string{"status", "--porcelain", "--untracked-files=all"}, "clean worktree"},
-		{[]string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"}, "upstream"}, {[]string{"rev-list", "--left-right", "--count", "@{u}...HEAD"}, "upstream parity"}}
+	}{
+		{[]string{"branch", "--show-current"}, "branch identity"},
+		{[]string{"status", "--porcelain", "--untracked-files=all"}, "clean worktree"},
+		{[]string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"}, "upstream"},
+		{[]string{"rev-list", "--left-right", "--count", "@{u}...HEAD"}, "upstream parity"},
+	}
 	for index, probe := range probes {
 		result, err := s.command(ctx, execution.Worktree, "git", probe.args...)
 		if err != nil {

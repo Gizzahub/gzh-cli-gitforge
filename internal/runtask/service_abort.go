@@ -63,9 +63,11 @@ func (s *Service) Abort(ctx context.Context, task, reason string) (resp TaskResp
 		appendIdentityDiagnostic(&res, err)
 		return res, 1
 	}
-	receipt := TaskReceipt{Task: task, Operation: "abort", Status: TaskExecutionStatusAborted,
+	receipt := TaskReceipt{
+		Task: task, Operation: "abort", Status: TaskExecutionStatusAborted,
 		Owner: execution.Owner, Branch: execution.Branch, Worktree: execution.Worktree,
-		Reason: abortReason(reason), CreatedAt: s.now().UTC()}
+		Reason: abortReason(reason), CreatedAt: s.now().UTC(),
+	}
 	_, statErr := os.Stat(execution.Worktree)
 	receipt.WorktreeRemoved = os.IsNotExist(statErr)
 	if err := store.appendReceipt(receipt); err != nil {

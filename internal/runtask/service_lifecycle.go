@@ -110,8 +110,10 @@ func (s *Service) listResponse(ctx context.Context, executions []TaskExecution, 
 func (s *Service) verifiedExecutionState(ctx context.Context, execution TaskExecution, receipt TaskReceipt, inventory worktrunkInventory, locked bool) DerivedTaskState {
 	if receipt.Status == TaskExecutionStatusDone {
 		if err := validateDoneReceipt(execution.Task, &execution, &receipt); err != nil {
-			return DerivedTaskState{Execution: execution, Status: TaskExecutionStatusBlocked, AllowedActions: []string{"run-status", "run-abort"},
-				Reason: "finish receipt does not prove this execution completed: " + err.Error(), NextAction: "inspect task runtime receipt evidence"}
+			return DerivedTaskState{
+				Execution: execution, Status: TaskExecutionStatusBlocked, AllowedActions: []string{"run-status", "run-abort"},
+				Reason: "finish receipt does not prove this execution completed: " + err.Error(), NextAction: "inspect task runtime receipt evidence",
+			}
 		}
 	}
 	return s.deriveState(ctx, execution, receipt, inventory, locked)

@@ -35,6 +35,7 @@ func (s stateStore) load() ([]TaskExecution, error) {
 	}
 	return out, nil
 }
+
 func (s stateStore) save(executions []TaskExecution) error {
 	if err := s.init(); err != nil {
 		return err
@@ -58,6 +59,7 @@ func (s stateStore) save(executions []TaskExecution) error {
 	syncDir(s.dir)
 	return nil
 }
+
 func (s stateStore) appendReceipt(receipt TaskReceipt) error {
 	if err := s.init(); err != nil {
 		return err
@@ -80,6 +82,7 @@ func (s stateStore) appendReceipt(receipt TaskReceipt) error {
 	}
 	return nil
 }
+
 func (s stateStore) latestReceipts() (map[string]TaskReceipt, error) {
 	f, err := os.Open(filepath.Join(s.dir, "receipts.jsonl"))
 	if os.IsNotExist(err) {
@@ -116,6 +119,7 @@ func parseReceipts(r io.Reader) (map[string]TaskReceipt, error) {
 		}
 	}
 }
+
 func (s stateStore) lock() (func(), error) {
 	if err := s.init(); err != nil {
 		return nil, err
