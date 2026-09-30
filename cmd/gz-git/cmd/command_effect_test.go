@@ -85,6 +85,22 @@ func TestGitConfigWritersDeclareConfig(t *testing.T) {
 	}
 }
 
+// These commands write a gz-git config file (workspace, profile or global
+// config) on some path. forge setup does so only when the wizard is asked to
+// save its answers, which is still a path the command can take.
+func TestGzGitConfigFileWritersDeclareConfig(t *testing.T) {
+	for _, key := range []string{
+		"config init", "config recommended",
+		"config profile create", "config profile delete", "config profile use",
+		"forge config generate", "forge setup",
+		"workspace add", "workspace init", "workspace generate-config", "workspace sync", "sync",
+	} {
+		if !slices.Contains(commandEffects[key], mutatesConfig) {
+			t.Errorf("%q writes a gz-git config file but does not declare %q: %v", key, mutatesConfig, commandEffects[key])
+		}
+	}
+}
+
 // run finish integrates through the same engine as integrate run, in-process,
 // so whatever integrate run can change, run finish can change too.
 func TestRunFinishCoversIntegrateRun(t *testing.T) {

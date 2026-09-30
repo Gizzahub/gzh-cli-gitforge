@@ -111,7 +111,7 @@ var commandEffects = map[string][]string{
 
 	"forge config generate": {mutatesConfig},
 	"forge from":            {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
-	"forge setup":           {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
+	"forge setup":           {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesConfig},
 	"forge status":          {mutatesTrackingRefs, mutatesFilesystem},
 
 	"handoff check": nil,
