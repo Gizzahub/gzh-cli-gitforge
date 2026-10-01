@@ -28,6 +28,13 @@ type ImportCEReport struct {
 // than adding a silent dual read to every command.
 const ceRuntimeStateDir = "ce"
 
+// ceRuntimeStateStore builds the store handle for CE's own records under the
+// resolved git common dir -- the directory CE writes, not the directory this
+// runtime keeps its state in.
+func ceRuntimeStateStore(commonDir string) stateStore {
+	return stateStore{dir: filepath.Join(commonDir, ceRuntimeStateDir, "task-runtime", "v1")}
+}
+
 // ImportCE copies in-flight CE task-runtime records into this runtime's
 // state directory, byte for byte. Executions and receipts are evidence: they
 // carry CE's tool stamps and CE's words, and rewriting them would falsify
@@ -40,12 +47,11 @@ const ceRuntimeStateDir = "ce"
 // before they are copied, so a corrupt CE file stops here instead of
 // surfacing later as an unreadable state.
 func (s *Service) ImportCE(ctx context.Context, dryRun bool) (ImportCEReport, error) {
-	r, err := s.command(ctx, s.root, "git", "rev-parse", "--git-common-dir")
-	if err != nil || r.ExitCode != 0 {
-		return ImportCEReport{}, fmt.Errorf("resolve git common dir: %s", firstLine(r.Stderr))
+	commonDir, err := s.resolveCommonDir(ctx)
+	if err != nil {
+		return ImportCEReport{}, err
 	}
-	commonDir := firstLine(r.Stdout)
-	source := newStateStore(filepath.Join(commonDir, ceRuntimeStateDir))
+	source := ceRuntimeStateStore(commonDir)
 	target := newStateStore(commonDir)
 	report := ImportCEReport{SchemaVersion: 1, DryRun: dryRun, SourceDir: source.dir, TargetDir: target.dir}
 
@@ -143,13 +149,4 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("place %s: %w", dst, err)
 	}
 	return nil
-}
-
-func firstLine(s string) string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			return s[:i]
-		}
-	}
-	return s
 }

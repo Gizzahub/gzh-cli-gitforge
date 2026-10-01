@@ -70,23 +70,31 @@ func (s *Service) command(ctx context.Context, dir, name string, args ...string)
 	return s.runner.Run(ctx, CommandRequest{Command: name, Args: args, WorkDir: dir})
 }
 
-func (s *Service) store(ctx context.Context) (stateStore, error) {
+// resolveCommonDir resolves the repository's git common directory the way
+// every state-store path is anchored: the command runs in the service root,
+// a relative answer is joined to the service root, and the result is made
+// absolute, so a caller never depends on where the process happens to run.
+func (s *Service) resolveCommonDir(ctx context.Context) (string, error) {
 	r, err := s.command(ctx, s.root, "git", "rev-parse", "--git-common-dir")
 	if err != nil {
-		return stateStore{}, err
+		return "", err
 	}
 	if r.ExitCode != 0 {
-		return stateStore{}, fmt.Errorf("resolve git common dir: %s", strings.TrimSpace(r.Stderr))
+		return "", fmt.Errorf("resolve git common dir: %s", strings.TrimSpace(r.Stderr))
 	}
 	path := strings.TrimSpace(r.Stdout)
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(s.root, path)
 	}
-	path, err = filepath.Abs(path)
+	return filepath.Abs(path)
+}
+
+func (s *Service) store(ctx context.Context) (stateStore, error) {
+	commonDir, err := s.resolveCommonDir(ctx)
 	if err != nil {
 		return stateStore{}, err
 	}
-	return newStateStore(path), nil
+	return newStateStore(commonDir), nil
 }
 
 func (s *Service) config() (TaskRuntimeConfig, error) {
