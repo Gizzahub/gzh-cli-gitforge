@@ -37,6 +37,24 @@ IMPOSTOR
 	chmod +x "$1/gz-git"
 }
 
+# mise 흉내. `which <bin>` 에는 정본 경로를 답하고(빈 경로면 실패로), 디스패처로 실행되면
+# mise 다운 자기 소개를 한다 — 'gz-git version' 이 아니므로 감사의 신원 확인은 통과하지 못한다.
+make_fake_mise() {
+	mkdir -p "$1"
+	{
+		printf '#!/bin/bash\n'
+		printf 'if [ "$1" = "which" ]; then\n'
+		if [ -n "$2" ]; then
+			printf 'echo %q\n' "$2"
+			printf 'exit 0\n'
+		fi
+		printf 'exit 1\n'
+		printf 'fi\n'
+		printf 'echo "mise 2026.9.15 fake"\n'
+	} >"$1/mise"
+	chmod +x "$1/mise"
+}
+
 check() {
 	name=$1 want_rc=$2 want_text=$3 got_rc=$4 got_out=$5
 	if [ "$got_rc" != "$want_rc" ]; then
@@ -122,6 +140,39 @@ off="$tmpdir/off path bin"
 make_fake "$off" 0.7.0
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$BASE_PATH" "$audit" gz-git "$off/gz-git" 2>&1)
 check off-path 0 "install-path-audit: SKIP" "$?" "$out"
+
+# 8) mise 정본 그림자 — mise 가 고른 설치본이 앞서 있으면 정본 실행으로 인정하고 통과한다.
+#    정본은 설치본과 **다른 버전**으로 둔다. 중복 판정이 이를 divergent 로 세면 같은 실패가
+#    나서 정본 인정이 무력화된다 — 종료코드가 그것을 잡는다(2번의 돌연변이 교훈을 적용).
+mise_bin="$tmpdir/mise bin"
+mise_install="$tmpdir/mise installs dir"
+make_fake "$mise_install" 0.8.0
+make_fake_mise "$mise_bin" "$mise_install/gz-git"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$mise_install:$good:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check mise-canonical-shadow 0 "mise 정본 설치본이 실행 중이다" "$?" "$out"
+
+# 9) mise 디스패처 그림자 — 심이 mise 바이너리 자체를 가리키는 표준 mise 배치. 실제로
+#    실행되는 것은 mise 의 선택이므로 정본 실행으로 인정하고, 심 자체는 중복 순회에서
+#    WARN 이 아니라 INFO 로 분류된다.
+shims="$tmpdir/shims dir"
+mkdir -p "$shims"
+ln -s "$mise_bin/mise" "$shims/gz-git"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$shims:$good:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check mise-dispatcher-shadow 0 "mise 정본 설치본이 실행 중이다" "$?" "$out"
+check mise-dispatcher-shim-info 0 "mise 디스패처 심이다" "$?" "$out"
+
+# 10) mise 가 이 이름을 관리하지 않으면 — 정본 인정 없이 기존 FAIL 을 유지한다(fail-closed).
+mise_unmanaged="$tmpdir/mise unmanaged bin"
+unmanaged_shadow="$tmpdir/unmanaged shadow bin"
+make_fake "$unmanaged_shadow" 0.5.0
+make_fake_mise "$mise_unmanaged" ""
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$unmanaged_shadow:$good:$mise_unmanaged:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check mise-unmanaged-shadow 1 "방금 설치한 파일이 실행되지 않는다" "$?" "$out"
+
+# 11) 그림자 없이(설치본이 실행되는 자리) mise 정본 사본이 다른 버전으로 뒤에 있어도
+#     divergent 가 아니다. mise 정본은 실패 근거가 되지 않는다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$mise_install:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check mise-canonical-duplicate 0 "mise 정본 설치본이다:" "$?" "$out"
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2

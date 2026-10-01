@@ -1,13 +1,18 @@
 #!/bin/bash
 # install-path-audit.sh: 설치본이 실제로 실행되는 바이너리인지 검사하고 PATH 상의 중복본을 보고/회수한다
-# 용도: `make install` 직후에 두 가지를 판정한다.
+# 용도: `make install` 직후에 세 가지를 판정한다.
 #         (1) 그림자 — 방금 설치한 파일과 셸이 실제로 고르는 파일이 다른가.
 #         (2) 중복 — PATH 어딘가에 다른 버전의 동명 바이너리가 있어, PATH 순서가 바뀌면 (1)이 되는가.
+#         (3) 정본 그림자 — (1)의 그림자가 mise 가 고른 설치본(`mise which` 와 일치)이면
+#             실패가 아니라 정본 실행이다. mise 가 설치 정본인 워크스테이션의 선언된 올바른
+#             상태다. mise 가 없거나 이 이름을 관리하지 않으면 판정하지 않고 (1)의 FAIL 을
+#             그대로 유지한다.
 #       두 판정 모두 이 셸이 수행한다. 설치된 바이너리에게 "네가 맞느냐"고 묻지 않으므로,
 #       낡은 바이너리가 자기 자신을 무죄로 판정하는 순환이 없다. 낡은 바이너리에게 요구하는
 #       협조는 `--version` 으로 자기 이름과 버전을 말하는 것뿐이고, 그것은 모든 버전이 이미 한다.
 # 사용법: install-path-audit.sh <binary-name> <installed-path>
-#         RECLAIM=1                  신원이 확인된 중복본을 삭제한다 (기본: 보고만)
+#         RECLAIM=1                  신원이 확인된 중복본을 삭제한다 (기본: 보고만).
+#                                    mise 정본 설치본과 mise 디스패처 심은 대상에서 제외한다.
 #         INSTALL_AUDIT_WARN_ONLY=1  판정을 보고만 하고 실패시키지 않는다
 
 set -u
@@ -81,6 +86,17 @@ if ! printf '%s' "$path_dirs" | grep -Fxq "$installed_dir"; then
 	exit 0
 fi
 
+# mise 정본 — 그림자가 mise 자신이 고른 설치본인지 mise 에게 묻는다. `mise which` 는 mise 가
+# 이 컨텍스트에서 내려는 실제 경로(심이 아닌 설치본)를 돌려준다. mise 가 없거나 이 이름을
+# 관리하지 않으면 빈 값이 남는다 — 판정 불가는 정본 인정이 아니라 기존 FAIL 경로로 간다.
+mise_bin_abs=""
+canonical_abs=""
+if command -v mise >/dev/null 2>&1; then
+	mise_bin_abs=$(resolve "$(command -v mise)")
+	_w=$(mise which "$BINARY" 2>/dev/null) || _w=""
+	[ -n "$_w" ] && canonical_abs=$(resolve "$_w")
+fi
+
 shadowed=0
 divergent=0
 
@@ -93,6 +109,11 @@ else
 	resolved_abs=$(resolve "$resolved")
 	if [ "$resolved_abs" = "$installed_abs" ]; then
 		echo "  OK: 셸이 고르는 '$BINARY' 가 방금 설치한 파일이다"
+	elif [ -n "$canonical_abs" ] && { [ "$resolved_abs" = "$canonical_abs" ] || [ "$resolved_abs" = "$mise_bin_abs" ]; }; then
+		# 그림자지만 mise 가 고른 정본이다. mise 디스패처 심이 해석된 경우(resolved 가 mise
+		# 바이너리 자체)에도 실제로 실행되는 것은 mise 의 선택인 canonical_abs 다.
+		echo "  OK: mise 정본 설치본이 실행 중이다 ($(identify "$canonical_abs" || echo '버전 확인 불가'))"
+		echo "        방금 설치한 $installed_abs 는 정본 아래의 잔여 사본이다. 삭제하거나, 갱신은 mise 로 한다."
 	else
 		shadowed=1
 		echo "  FAIL: 방금 설치한 파일이 실행되지 않는다"
@@ -112,6 +133,18 @@ while IFS= read -r dir; do
 	[ "$cand_abs" = "$installed_abs" ] && continue
 	case "$seen" in *"[$cand_abs]"*) continue ;; esac
 	seen="$seen[$cand_abs]"
+
+	# mise 디스패처 심 — 이름만 같은 파일이 mise 바이너리 자체를 가리키는 것은 mise 의
+	# 정상 구조다. 남의 파일이 아니므로 WARN 도 아니고 RECLAIM 대상도 아니다.
+	if [ -n "$mise_bin_abs" ] && [ "$cand_abs" = "$mise_bin_abs" ]; then
+		echo "  INFO: mise 디스패처 심이다 (삭제 대상이 아니다): $cand_abs"
+		continue
+	fi
+	# mise 정본 설치본 — 정본 그림자로 인정한 대상이 중복 판정의 실패 근거가 되어서는 안 된다.
+	if [ -n "$canonical_abs" ] && [ "$cand_abs" = "$canonical_abs" ]; then
+		echo "  INFO: mise 정본 설치본이다: $cand_abs ($(identify "$cand_abs" || echo '버전 확인 불가'))"
+		continue
+	fi
 
 	if cand_version=$(identify "$cand_abs"); then
 		if [ -n "$installed_version" ] && [ "$cand_version" = "$installed_version" ]; then
