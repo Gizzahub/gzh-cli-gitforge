@@ -27,6 +27,13 @@ FAKE
 	chmod +x "$1/gz-git"
 }
 
+# 같은 버전 문자열이라도 실제 내용이 다른 사본을 만든다. audit은 버전 비교가 아니라
+# command -v 결과를 설치 경로와 대조해야 이 그림자를 잡을 수 있다.
+make_changed_same_version_fake() {
+	make_fake "$1" "$2"
+	printf '# changed build marker\n' >>"$1/gz-git"
+}
+
 # 이름만 같고 자기를 밝히지 않는 남의 파일.
 make_impostor() {
 	mkdir -p "$1"
@@ -93,7 +100,7 @@ check clean 0 "install-path-audit: OK" "$?" "$out"
 #    앞선 파일의 버전을 설치본과 **같게** 둔다. 다르게 두면 중복 판정이 같은 실패를
 #    만들어내서 그림자 검사를 무력화해도 이 케이스가 통과해 버린다(돌연변이로 확인됨).
 same_ver_shadow="$tmpdir/same version shadow bin"
-make_fake "$same_ver_shadow" 0.7.0
+make_changed_same_version_fake "$same_ver_shadow" 0.7.0
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$same_ver_shadow:$good:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check shadow 1 "방금 설치한 파일이 실행되지 않는다" "$?" "$out"
 
@@ -119,14 +126,21 @@ if [ ! -f "$impostor/gz-git" ]; then
 	failures=$((failures + 1))
 fi
 
-# 6) 회수 — 신원이 확인된 중복만 삭제하고 통과로 돌아선다.
+# 6) 회수 — 신원이 확인된 여러 중복만 삭제하고 통과로 돌아선다. 한 개를 회수해도
+#    남은 실패를 잊지 않도록 audit은 divergent를 집계한다.
 reclaim="$tmpdir/reclaim bin"
+reclaim_second="$tmpdir/reclaim second bin"
 make_fake "$reclaim" 0.6.1
-out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$reclaim:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+make_fake "$reclaim_second" 0.5.2
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$reclaim:$reclaim_second:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 rc=$?
 check reclaim 0 "회수함: 삭제 완료" "$rc" "$out"
 if [ -f "$reclaim/gz-git" ]; then
 	echo "FAIL [reclaim] 중복본이 남아 있다" >&2
+	failures=$((failures + 1))
+fi
+if [ -f "$reclaim_second/gz-git" ]; then
+	echo "FAIL [reclaim] 두 번째 중복본이 남아 있다" >&2
 	failures=$((failures + 1))
 fi
 if [ ! -f "$ambient/gz-git" ]; then
@@ -141,25 +155,24 @@ make_fake "$off" 0.7.0
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$BASE_PATH" "$audit" gz-git "$off/gz-git" 2>&1)
 check off-path 0 "install-path-audit: SKIP" "$?" "$out"
 
-# 8) mise 정본 그림자 — mise 가 고른 설치본이 앞서 있으면 정본 실행으로 인정하고 통과한다.
-#    정본은 설치본과 **다른 버전**으로 둔다. 중복 판정이 이를 divergent 로 세면 같은 실패가
-#    나서 정본 인정이 무력화된다 — 종료코드가 그것을 잡는다(2번의 돌연변이 교훈을 적용).
+# 8) mise 설치본 그림자 — mise 가 고른 설치본도 방금 설치한 파일을 가리면 실패한다.
+#    mise 설치본 자체는 fallback으로 허용되며 RECLAIM 보호 대상이다.
 mise_bin="$tmpdir/mise bin"
 mise_install="$tmpdir/mise installs dir"
 make_fake "$mise_install" 0.8.0
 make_fake_mise "$mise_bin" "$mise_install/gz-git"
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$mise_install:$good:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
-check mise-canonical-shadow 0 "mise 정본 설치본이 실행 중이다" "$?" "$out"
+check mise-canonical-shadow 1 "mise 설치본이 앞서 있다" "$?" "$out"
 
-# 9) mise 디스패처 그림자 — 심이 mise 바이너리 자체를 가리키는 표준 mise 배치. 실제로
-#    실행되는 것은 mise 의 선택이므로 정본 실행으로 인정하고, 심 자체는 중복 순회에서
-#    WARN 이 아니라 INFO 로 분류된다.
+# 9) mise 디스패처 그림자 — 심이 mise 바이너리 자체를 가리키는 표준 mise 배치도 설치본을
+#    가리면 실패한다. 심 자체는 RECLAIM 보호 대상이며 INFO 로 분류된다.
 shims="$tmpdir/shims dir"
 mkdir -p "$shims"
 ln -s "$mise_bin/mise" "$shims/gz-git"
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$shims:$good:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
-check mise-dispatcher-shadow 0 "mise 정본 설치본이 실행 중이다" "$?" "$out"
-check mise-dispatcher-shim-info 0 "mise 디스패처 심이다" "$?" "$out"
+rc=$?
+check mise-dispatcher-shadow 1 "mise 디스패처 심이 앞서 있다" "$rc" "$out"
+check mise-dispatcher-shim-info 1 "mise 디스패처 심이다" "$rc" "$out"
 
 # 10) mise 가 이 이름을 관리하지 않으면 — 정본 인정 없이 기존 FAIL 을 유지한다(fail-closed).
 mise_unmanaged="$tmpdir/mise unmanaged bin"
@@ -169,8 +182,7 @@ make_fake_mise "$mise_unmanaged" ""
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$unmanaged_shadow:$good:$mise_unmanaged:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check mise-unmanaged-shadow 1 "방금 설치한 파일이 실행되지 않는다" "$?" "$out"
 
-# 11) 그림자 없이(설치본이 실행되는 자리) mise 정본 사본이 다른 버전으로 뒤에 있어도
-#     divergent 가 아니다. mise 정본은 실패 근거가 되지 않는다.
+# 11) 설치본이 먼저 선택되는 자리에서는 mise fallback 사본이 다른 버전이어도 공존 가능하다.
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$mise_install:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check mise-canonical-duplicate 0 "mise 정본 설치본이다:" "$?" "$out"
 

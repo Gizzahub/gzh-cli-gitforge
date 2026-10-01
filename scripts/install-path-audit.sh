@@ -3,10 +3,8 @@
 # 용도: `make install` 직후에 세 가지를 판정한다.
 #         (1) 그림자 — 방금 설치한 파일과 셸이 실제로 고르는 파일이 다른가.
 #         (2) 중복 — PATH 어딘가에 다른 버전의 동명 바이너리가 있어, PATH 순서가 바뀌면 (1)이 되는가.
-#         (3) 정본 그림자 — (1)의 그림자가 mise 가 고른 설치본(`mise which` 와 일치)이면
-#             실패가 아니라 정본 실행이다. mise 가 설치 정본인 워크스테이션의 선언된 올바른
-#             상태다. mise 가 없거나 이 이름을 관리하지 않으면 판정하지 않고 (1)의 FAIL 을
-#             그대로 유지한다.
+#         (3) mise 공존 — mise 가 고른 설치본은 보호된 fallback 사본이다. 다만 그 사본이
+#             방금 설치한 파일보다 먼저 선택되면 설치본 그림자이므로 반드시 실패한다.
 #       두 판정 모두 이 셸이 수행한다. 설치된 바이너리에게 "네가 맞느냐"고 묻지 않으므로,
 #       낡은 바이너리가 자기 자신을 무죄로 판정하는 순환이 없다. 낡은 바이너리에게 요구하는
 #       협조는 `--version` 으로 자기 이름과 버전을 말하는 것뿐이고, 그것은 모든 버전이 이미 한다.
@@ -86,9 +84,9 @@ if ! printf '%s' "$path_dirs" | grep -Fxq "$installed_dir"; then
 	exit 0
 fi
 
-# mise 정본 — 그림자가 mise 자신이 고른 설치본인지 mise 에게 묻는다. `mise which` 는 mise 가
-# 이 컨텍스트에서 내려는 실제 경로(심이 아닌 설치본)를 돌려준다. mise 가 없거나 이 이름을
-# 관리하지 않으면 빈 값이 남는다 — 판정 불가는 정본 인정이 아니라 기존 FAIL 경로로 간다.
+# mise 정본 — `mise which` 는 mise 가 이 컨텍스트에서 내려는 실제 경로(심이 아닌 설치본)를
+# 돌려준다. 이 경로와 mise 디스패처 심은 RECLAIM 대상에서 보호한다. 보호는 PATH 우선순위를
+# 승인하지 않는다. 설치본보다 먼저 선택되면 아래 그림자 판정은 항상 FAIL 이다.
 mise_bin_abs=""
 canonical_abs=""
 if command -v mise >/dev/null 2>&1; then
@@ -109,16 +107,16 @@ else
 	resolved_abs=$(resolve "$resolved")
 	if [ "$resolved_abs" = "$installed_abs" ]; then
 		echo "  OK: 셸이 고르는 '$BINARY' 가 방금 설치한 파일이다"
-	elif [ -n "$canonical_abs" ] && { [ "$resolved_abs" = "$canonical_abs" ] || [ "$resolved_abs" = "$mise_bin_abs" ]; }; then
-		# 그림자지만 mise 가 고른 정본이다. mise 디스패처 심이 해석된 경우(resolved 가 mise
-		# 바이너리 자체)에도 실제로 실행되는 것은 mise 의 선택인 canonical_abs 다.
-		echo "  OK: mise 정본 설치본이 실행 중이다 ($(identify "$canonical_abs" || echo '버전 확인 불가'))"
-		echo "        방금 설치한 $installed_abs 는 정본 아래의 잔여 사본이다. 삭제하거나, 갱신은 mise 로 한다."
 	else
 		shadowed=1
 		echo "  FAIL: 방금 설치한 파일이 실행되지 않는다"
 		echo "        설치함: $installed_abs"
 		echo "        실행됨: $resolved_abs ($(identify "$resolved_abs" || echo '버전 확인 불가'))"
+		if [ -n "$canonical_abs" ] && [ "$resolved_abs" = "$canonical_abs" ]; then
+			echo "        mise 설치본이 앞서 있다. $installed_dir 를 mise shim/설치 경로보다 PATH 앞에 둬라."
+		elif [ -n "$mise_bin_abs" ] && [ "$resolved_abs" = "$mise_bin_abs" ]; then
+			echo "        mise 디스패처 심이 앞서 있다. $installed_dir 를 mise shim 경로보다 PATH 앞에 둬라."
+		fi
 	fi
 fi
 
@@ -140,7 +138,7 @@ while IFS= read -r dir; do
 		echo "  INFO: mise 디스패처 심이다 (삭제 대상이 아니다): $cand_abs"
 		continue
 	fi
-	# mise 정본 설치본 — 정본 그림자로 인정한 대상이 중복 판정의 실패 근거가 되어서는 안 된다.
+	# mise 정본 설치본 — fallback 사본은 중복 판정과 RECLAIM 대상에서 제외한다.
 	if [ -n "$canonical_abs" ] && [ "$cand_abs" = "$canonical_abs" ]; then
 		echo "  INFO: mise 정본 설치본이다: $cand_abs ($(identify "$cand_abs" || echo '버전 확인 불가'))"
 		continue
@@ -151,13 +149,15 @@ while IFS= read -r dir; do
 			echo "  INFO: 같은 버전의 사본이 PATH 에 있다: $cand_abs ($cand_version)"
 			continue
 		fi
-		divergent=1
+		# 여러 다른 버전이 있을 수 있다. RECLAIM 이 하나를 지웠다고 나머지 실패를
+		# 잊지 않도록 개수로 집계한다.
+		divergent=$((divergent + 1))
 		echo "  FAIL: 다른 버전의 '$BINARY' 가 PATH 에 있다"
 		echo "        $cand_abs ($cand_version) — 설치본은 ${installed_version:-확인불가}"
 		if [ "$RECLAIM" = "1" ]; then
 			if rm -f "$cand_abs"; then
 				echo "        회수함: 삭제 완료"
-				divergent=0
+				divergent=$((divergent - 1))
 			else
 				echo "        회수 실패: 권한을 확인하라" >&2
 			fi
@@ -178,8 +178,8 @@ fi
 
 echo "install-path-audit: FAIL"
 echo "  해소 방법:"
-echo "    - 위에 표시된 경로를 직접 삭제하거나"
-echo "    - RECLAIM=1 make install  (신원이 확인된 것만 삭제한다)"
+echo "    - $installed_dir 를 mise shim 및 다른 '$BINARY' 경로보다 PATH 앞에 둬라"
+echo "    - RECLAIM=1 make install  (mise 보호 경로를 제외한 신원이 확인된 다른 버전만 회수한다)"
 echo "    - INSTALL_AUDIT_WARN_ONLY=1 로 이 판정을 보고만 받게 할 수 있다"
 
 [ "$WARN_ONLY" = "1" ] && exit 0
