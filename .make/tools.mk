@@ -12,6 +12,9 @@ GOIMPORTS_VERSION ?= v0.38.0
 GCI_VERSION ?= v0.14.0
 GOSEC_VERSION ?= v2.22.10
 GOVULNCHECK_VERSION ?= v1.1.4
+# golang.org/x/perf publishes no release tags. This pseudo-version is the
+# resolved latest on 2026-10-01; benchstat must not follow a moving @latest.
+BENCHSTAT_VERSION ?= v0.0.0-20260929162123-406019bb8b68
 MDFORMAT_VERSION ?= 0.7.22
 MDFORMAT_GFM_VERSION ?= 0.4.1
 MDFORMAT_TABLES_VERSION ?= 1.0.0
@@ -21,6 +24,7 @@ MDFORMAT_TABLES_VERSION ?= 1.0.0
 # ==============================================================================
 
 .PHONY: install-tools install-quality-tools install-format-tools install-analysis-tools install-goreleaser
+.PHONY: install-gofumpt install-goimports install-govulncheck
 .PHONY: install-golangci-lint install-pre-commit-tools install-docs-tools
 
 install-quality-tools: install-format-tools install-golangci-lint install-security-tools install-vuln-tools ## install the pinned tools required by quality-check
@@ -58,10 +62,51 @@ define ensure-go-tool
 	fi
 endef
 
-install-format-tools: ## install advanced formatting tools
+# format-check runs these two. Resolve them from bin/tools, the same way
+# golangci-lint and gosec are resolved, so a PATH hit cannot satisfy the gate.
+GOFUMPT_MODULE := mvdan.cc/gofumpt
+GOFUMPT_INSTALL ?= $(GOFUMPT_MODULE)@$(GOFUMPT_VERSION)
+GOFUMPT := $(CURDIR)/bin/tools/gofumpt$(shell go env GOEXE)
+GOFUMPT_VERSION_OK = go version -m "$(GOFUMPT)" 2>/dev/null | \
+	awk -v want="$$(go env GOVERSION)" 'NR == 1 { built = $$NF } $$1 == "mod" && $$2 == "$(GOFUMPT_MODULE)" && $$3 == "$(GOFUMPT_VERSION)" { found = 1 } END { exit !(found && built == want) }'
+
+GOIMPORTS_MODULE := golang.org/x/tools
+GOIMPORTS_INSTALL ?= $(GOIMPORTS_MODULE)/cmd/goimports@$(GOIMPORTS_VERSION)
+GOIMPORTS := $(CURDIR)/bin/tools/goimports$(shell go env GOEXE)
+GOIMPORTS_VERSION_OK = go version -m "$(GOIMPORTS)" 2>/dev/null | \
+	awk -v want="$$(go env GOVERSION)" 'NR == 1 { built = $$NF } $$1 == "mod" && $$2 == "$(GOIMPORTS_MODULE)" && $$3 == "$(GOIMPORTS_VERSION)" { found = 1 } END { exit !(found && built == want) }'
+
+install-gofumpt: ## install the pinned gofumpt into bin/tools
+	@echo -e "$(CYAN)Ensuring gofumpt $(GOFUMPT_VERSION)...$(RESET)"
+	@mkdir -p "$(dir $(GOFUMPT))"
+	@if ! $(GOFUMPT_VERSION_OK); then \
+		echo -e "$(YELLOW)Installing gofumpt $(GOFUMPT_VERSION) into $(dir $(GOFUMPT))$(RESET)"; \
+		rm -f "$(GOFUMPT)"; \
+		GOWORK=off GOBIN="$(dir $(GOFUMPT))" go install $(GOFUMPT_INSTALL); \
+	fi
+	@$(GOFUMPT_VERSION_OK) || { \
+		echo "gofumpt at $(GOFUMPT) is not $(GOFUMPT_MODULE) $(GOFUMPT_VERSION) built with $$(go env GOVERSION); refusing to format with an unpinned binary" >&2; \
+		exit 1; \
+	}
+
+install-goimports: ## install the pinned goimports into bin/tools
+	@echo -e "$(CYAN)Ensuring goimports $(GOIMPORTS_VERSION)...$(RESET)"
+	@mkdir -p "$(dir $(GOIMPORTS))"
+	@if ! $(GOIMPORTS_VERSION_OK); then \
+		echo -e "$(YELLOW)Installing goimports $(GOIMPORTS_VERSION) into $(dir $(GOIMPORTS))$(RESET)"; \
+		rm -f "$(GOIMPORTS)"; \
+		GOWORK=off GOBIN="$(dir $(GOIMPORTS))" go install $(GOIMPORTS_INSTALL); \
+	fi
+	@$(GOIMPORTS_VERSION_OK) || { \
+		echo "goimports at $(GOIMPORTS) is not $(GOIMPORTS_MODULE) $(GOIMPORTS_VERSION) built with $$(go env GOVERSION); refusing to format with an unpinned binary" >&2; \
+		exit 1; \
+	}
+
+# gci is not on the quality gate. format-check uses goimports. Only
+# format-strict calls gci, and that target is outside quality-check.
+# ensure-go-tool still refuses a version other than $(GCI_VERSION).
+install-format-tools: install-gofumpt install-goimports ## install advanced formatting tools
 	@echo -e "$(CYAN)Installing formatting tools...$(RESET)"
-	$(call ensure-go-tool,gofumpt,mvdan.cc/gofumpt,$(GOFUMPT_VERSION))
-	$(call ensure-go-tool,goimports,golang.org/x/tools/cmd/goimports,$(GOIMPORTS_VERSION))
 	$(call ensure-go-tool,gci,github.com/daixiang0/gci,$(GCI_VERSION))
 	@command -v uv >/dev/null 2>&1 || { echo "uv is required to install mdformat" >&2; exit 1; }
 	@command -v mdformat >/dev/null 2>&1 || (echo "Installing mdformat $(MDFORMAT_VERSION)..." && uv tool install --with mdformat-gfm==$(MDFORMAT_GFM_VERSION) --with mdformat-tables==$(MDFORMAT_TABLES_VERSION) mdformat==$(MDFORMAT_VERSION))
@@ -215,10 +260,11 @@ install-pre-commit-tools: ## install pre-commit and related tools
 
 .PHONY: install-docs-tools
 
+# golang.org/x/tools v0.38.0 no longer contains cmd/godoc, and no target
+# in this repository runs godoc. Do not install a floating @latest.
 install-docs-tools: ## install documentation tools
 	@echo -e "$(CYAN)Installing documentation tools...$(RESET)"
-	@go install golang.org/x/perf/cmd/benchstat@latest
-	@go install golang.org/x/tools/cmd/godoc@latest
+	@go install golang.org/x/perf/cmd/benchstat@$(BENCHSTAT_VERSION)
 	@which git-chglog >/dev/null 2>&1 || echo -e "$(YELLOW)Consider installing git-chglog for changelog generation$(RESET)"
 	@which mkdocs >/dev/null 2>&1 || echo -e "$(YELLOW)Consider installing mkdocs for documentation: pip install mkdocs mkdocs-material$(RESET)"
 	@echo -e "$(GREEN)✅ Documentation tools installed$(RESET)"
@@ -269,9 +315,28 @@ install-security-tools: install-gosec ## install security analysis tools
 
 .PHONY: install-vuln-tools
 
-install-vuln-tools: ## install vulnerability scanning tools
-	@echo -e "$(CYAN)Installing vulnerability scanning tools...$(RESET)"
-	@command -v govulncheck >/dev/null 2>&1 || { echo "Installing govulncheck $(GOVULNCHECK_VERSION)..." && go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION); }
+# security-deps runs this binary. PATH resolution had the same hole as gosec:
+# command -v only asks whether the name exists.
+GOVULNCHECK_MODULE := golang.org/x/vuln
+GOVULNCHECK_INSTALL ?= $(GOVULNCHECK_MODULE)/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+GOVULNCHECK := $(CURDIR)/bin/tools/govulncheck$(shell go env GOEXE)
+GOVULNCHECK_VERSION_OK = go version -m "$(GOVULNCHECK)" 2>/dev/null | \
+	awk -v want="$$(go env GOVERSION)" 'NR == 1 { built = $$NF } $$1 == "mod" && $$2 == "$(GOVULNCHECK_MODULE)" && $$3 == "$(GOVULNCHECK_VERSION)" { found = 1 } END { exit !(found && built == want) }'
+
+install-govulncheck: ## install the pinned govulncheck into bin/tools
+	@echo -e "$(CYAN)Ensuring govulncheck $(GOVULNCHECK_VERSION)...$(RESET)"
+	@mkdir -p "$(dir $(GOVULNCHECK))"
+	@if ! $(GOVULNCHECK_VERSION_OK); then \
+		echo -e "$(YELLOW)Installing govulncheck $(GOVULNCHECK_VERSION) into $(dir $(GOVULNCHECK))$(RESET)"; \
+		rm -f "$(GOVULNCHECK)"; \
+		GOWORK=off GOBIN="$(dir $(GOVULNCHECK))" go install $(GOVULNCHECK_INSTALL); \
+	fi
+	@$(GOVULNCHECK_VERSION_OK) || { \
+		echo "govulncheck at $(GOVULNCHECK) is not $(GOVULNCHECK_MODULE) $(GOVULNCHECK_VERSION) built with $$(go env GOVERSION); refusing to scan with an unpinned binary" >&2; \
+		exit 1; \
+	}
+
+install-vuln-tools: install-govulncheck ## install vulnerability scanning tools
 	@echo -e "$(GREEN)✅ Vulnerability tools ready!$(RESET)"
 
 # ==============================================================================

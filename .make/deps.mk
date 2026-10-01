@@ -130,10 +130,10 @@ deps-update-docker: ## check and show Docker base images that need updates
 # Security and Audit
 # ==============================================================================
 
-deps-security: ## run security audit on dependencies
+deps-security: install-govulncheck ## run security audit on dependencies
 	@echo -e "$(CYAN)Running security audit...$(RESET)"
 	@echo -e "$(YELLOW)Checking for known vulnerabilities...$(RESET)"
-	@go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@GOWORK=off "$(GOVULNCHECK)" ./...
 
 deps-audit: ## comprehensive dependency audit and report
 	@echo -e "$(CYAN)Comprehensive dependency audit...$(RESET)"

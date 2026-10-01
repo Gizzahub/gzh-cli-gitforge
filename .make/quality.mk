@@ -17,16 +17,14 @@ fmt: format-simplify
 
 # This target is deliberately source-non-mutating. It is the formatting leg of
 # the canonical quality gate; use format/format-simplify when files should change.
-format-check: ## check Go and changed Markdown formatting without modifying files
-	@command -v gofumpt >/dev/null 2>&1 || { echo "gofumpt is required (run: make install-format-tools)" >&2; exit 1; }
-	@command -v goimports >/dev/null 2>&1 || { echo "goimports is required (run: make install-format-tools)" >&2; exit 1; }
+format-check: install-gofumpt install-goimports ## check Go and changed Markdown formatting without modifying files
 	@command -v mdformat >/dev/null 2>&1 || { echo "mdformat is required (run: make install-format-tools)" >&2; exit 1; }
 	@echo -e "$(CYAN)Checking Go formatting...$(RESET)"
-	@GO_FILES=$$(gofumpt -l .); \
+	@GO_FILES=$$("$(GOFUMPT)" -l .); \
 	if [ -n "$$GO_FILES" ]; then \
 		echo "Go files requiring gofumpt:"; echo "$$GO_FILES"; exit 1; \
 	fi
-	@GOIMPORT_FILES=$$(goimports -l .); \
+	@GOIMPORT_FILES=$$("$(GOIMPORTS)" -l .); \
 	if [ -n "$$GOIMPORT_FILES" ]; then \
 		echo "Go files requiring import formatting:"; echo "$$GOIMPORT_FILES"; exit 1; \
 	fi
@@ -42,9 +40,9 @@ format-check: ## check Go and changed Markdown formatting without modifying file
 format-simplify: format-install-tools ## quick basic formatting with gofumpt, goimports, and mdformat
 	@echo -e "$(CYAN)🚀 Quick formatting...$(RESET)"
 	@echo "1. Running gofumpt (includes go fmt + simplification)..."
-	@gofumpt -w .
+	@"$(GOFUMPT)" -w .
 	@echo "2. Organizing imports..."
-	@goimports -w -local github.com/gizzahub/gzh-cli .
+	@"$(GOIMPORTS)" -w -local github.com/gizzahub/gzh-cli .
 	@echo "3. Formatting changed markdown files..."
 	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
 		BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
@@ -78,11 +76,11 @@ format-md-diff: ## format only changed markdown files
 format-strict: format-install-tools ## comprehensive formatting with all tools
 	@echo -e "$(CYAN)🔧 Strict formatting (all tools)...$(RESET)"
 	@echo "1. Running gofumpt (strict formatting + simplification)..."
-	@gofumpt -w -extra .
+	@"$(GOFUMPT)" -w -extra .
 	@echo "2. Running gci (import organization)..."
 	@gci write --skip-generated .
 	@echo "3. Organizing imports with goimports..."
-	@goimports -w -local github.com/gizzahub/gzh-cli .
+	@"$(GOIMPORTS)" -w -local github.com/gizzahub/gzh-cli .
 	@echo "4. Final gci (import grouping)..."
 	@gci write --skip-generated -s standard -s default -s "prefix(github.com/gizzahub/gzh-cli)" .
 	@echo -e "$(GREEN)✅ Strict formatting complete!$(RESET)"
@@ -110,7 +108,7 @@ format-diff: ## show formatting differences
 
 format-install-tools: install-format-tools ## install advanced formatting tools
 
-format-file: ## format specific files with gofumpt and goimports (usage: make format-file file1.go file2.go ...)
+format-file: install-gofumpt install-goimports ## format specific files with gofumpt and goimports (usage: make format-file file1.go file2.go ...)
 	@if [ -z "$(MAKECMDGOALS)" ] || [ "$(words $(MAKECMDGOALS))" -eq 1 ]; then \
 		echo -e "$(RED)❌ Error: At least one file must be specified$(RESET)"; \
 		echo -e "$(YELLOW)Usage: make format-file file1.go file2.go ...$(RESET)"; \
@@ -129,23 +127,23 @@ format-file: ## format specific files with gofumpt and goimports (usage: make fo
 			fi; \
 			echo -e "$(CYAN)📝 Formatting file: $$file$(RESET)"; \
 			echo "  1. Running gofumpt..."; \
-			gofumpt -w "$$file" || echo -e "$(RED)❌ gofumpt failed for $$file$(RESET)"; \
+			"$(GOFUMPT)" -w "$$file" || echo -e "$(RED)❌ gofumpt failed for $$file$(RESET)"; \
 			echo "  2. Running goimports..."; \
-			goimports -w -local github.com/gizzahub/gzh-cli "$$file" || echo -e "$(RED)❌ goimports failed for $$file$(RESET)"; \
+			"$(GOIMPORTS)" -w -local github.com/gizzahub/gzh-cli "$$file" || echo -e "$(RED)❌ goimports failed for $$file$(RESET)"; \
 			echo -e "$(GREEN)✅ File '$$file' formatted successfully!$(RESET)"; \
 		fi; \
 	done
 	@echo -e "$(GREEN)🎉 All files processed!$(RESET)"
 
-fmt-diff: ## format only changed files (fast, for pre-commit)
+fmt-diff: install-gofumpt install-goimports ## format only changed files (fast, for pre-commit)
 	@echo -e "$(CYAN)🚀 Formatting changed files only...$(RESET)"
 	@CHANGED_FILES=$$(git diff --name-only --diff-filter=d HEAD | grep '\.go$$' || true); \
 	if [ -n "$$CHANGED_FILES" ]; then \
 		echo "$$CHANGED_FILES" | while read file; do \
 			if [ -f "$$file" ]; then \
 				echo -e "$(CYAN)📝 Formatting: $$file$(RESET)"; \
-				gofumpt -w "$$file" || echo -e "$(RED)❌ gofumpt failed for $$file$(RESET)"; \
-				goimports -w -local github.com/gizzahub/gzh-cli "$$file" || echo -e "$(RED)❌ goimports failed for $$file$(RESET)"; \
+				"$(GOFUMPT)" -w "$$file" || echo -e "$(RED)❌ gofumpt failed for $$file$(RESET)"; \
+				"$(GOIMPORTS)" -w -local github.com/gizzahub/gzh-cli "$$file" || echo -e "$(RED)❌ goimports failed for $$file$(RESET)"; \
 			fi; \
 		done; \
 		echo -e "$(GREEN)✅ Changed files formatted!$(RESET)"; \
@@ -251,10 +249,10 @@ lint-json: install-golangci-lint ## export lint results to JSON for further anal
 security: security-deps security-code ## run all security checks
 	@echo -e "$(GREEN)✅ Security checks completed!$(RESET)"
 
-security-deps: ## check dependencies for vulnerabilities (read-only, fail-closed)
+security-deps: install-govulncheck ## check dependencies for vulnerabilities (read-only, fail-closed)
 	@echo -e "$(CYAN)Checking dependencies for vulnerabilities...$(RESET)"
-	@command -v govulncheck >/dev/null 2>&1 || { echo "govulncheck is required (run: make install-vuln-tools)" >&2; exit 1; }
-	@GOWORK=off govulncheck ./...
+	@test -x "$(GOVULNCHECK)" || { echo "govulncheck is required at $(GOVULNCHECK) (run: make install-vuln-tools)" >&2; exit 1; }
+	@GOWORK=off "$(GOVULNCHECK)" ./...
 
 security-code: ## run direct security code analysis (read-only, fail-closed)
 	@echo -e "$(CYAN)Running security code analysis with gosec...$(RESET)"
@@ -390,7 +388,7 @@ quality-check-validate: ## validate quality workflow delegation and fail-closed 
 		graph=$$($(MAKE) --no-print-directory -n "$$target"); \
 		printf '%s\n' "$$graph" | grep -Fq 'Canonical quality gate passed!'; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/gosec" ./...' || true)" -eq 1 ]; \
-		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=off govulncheck ./...' || true)" -eq 1 ]; \
+		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/govulncheck" ./...' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=auto go list -mod=readonly -m all >/dev/null' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short --cover' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short -count=1 -v ./tests/integration/...' || true)" -eq 1 ]; \

@@ -147,7 +147,7 @@ bench-mem: ## run memory benchmarks with profiling
 
 bench-compare: ## compare benchmarks (requires benchstat)
 	@echo -e "$(CYAN)Comparing benchmarks...$(RESET)"
-	@command -v benchstat >/dev/null 2>&1 || { echo "Installing benchstat..." && go install golang.org/x/perf/cmd/benchstat@latest; }
+	@command -v benchstat >/dev/null 2>&1 || { echo "Installing benchstat $(BENCHSTAT_VERSION)..." && go install golang.org/x/perf/cmd/benchstat@$(BENCHSTAT_VERSION); }
 	@go test -bench=. -count=5 ./... > new.bench
 	@echo -e "$(GREEN)✅ Benchmark comparison data generated: new.bench$(RESET)"
 	@echo -e "$(YELLOW)Run 'benchstat old.bench new.bench' to compare$(RESET)"
