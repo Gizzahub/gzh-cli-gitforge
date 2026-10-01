@@ -73,7 +73,7 @@ install-analysis-tools: ## install code analysis tools
 	@command -v ineffassign >/dev/null 2>&1 || { echo "Installing ineffassign v0.1.0..." && go install github.com/gordonklaus/ineffassign@v0.1.0; }
 	@command -v dupl >/dev/null 2>&1 || { echo "Installing dupl v0.3.0..." && go install github.com/mibk/dupl@v0.3.0; }
 	@command -v staticcheck >/dev/null 2>&1 || { echo "Installing staticcheck 2025.1.1..." && go install honnef.co/go/tools/cmd/staticcheck@2025.1.1; }
-	@command -v gosec >/dev/null 2>&1 || { echo "Installing gosec $(GOSEC_VERSION)..." && go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION); }
+	@$(MAKE) --no-print-directory install-gosec
 	@echo -e "$(GREEN)✅ All analysis tools installed!$(RESET)"
 
 # Pin to a v2 release. A v1 binary rejects this repo's version: "2" config with
@@ -227,11 +227,40 @@ install-docs-tools: ## install documentation tools
 # Security Tools
 # ==============================================================================
 
-.PHONY: install-security-tools
+# Same disease golangci-lint had below, same cure: `command -v gosec` only asks
+# whether a name resolves, so the GitHub runner's pre-installed gosec -- an
+# unpinned dev build -- satisfied the guard and the quality gates judged #nosec
+# annotations with whichever binary the image shipped that week (ISSUE-239:
+# 4 same-line annotations honored by one build, rejected by another). Resolve
+# the binary from the repository-owned bin/tools and check the module version
+# embedded in it instead; `go version -m` cannot be satisfied by a wrapper
+# script or a -version string.
+GOSEC_MODULE := github.com/securego/gosec/v2
+GOSEC_INSTALL ?= $(GOSEC_MODULE)/cmd/gosec@$(GOSEC_VERSION)
+GOSEC_DIR := $(CURDIR)/bin/tools
+GOSEC := $(GOSEC_DIR)/gosec$(shell go env GOEXE)
 
-install-security-tools: ## install security analysis tools
-	@echo -e "$(CYAN)Installing security tools...$(RESET)"
-	@command -v gosec >/dev/null 2>&1 || { echo "Installing gosec $(GOSEC_VERSION)..." && go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION); }
+# Exits 0 only when the binary really is the pinned module version and was
+# built with the Go toolchain that is active now.
+GOSEC_VERSION_OK = go version -m "$(GOSEC)" 2>/dev/null | \
+	awk -v want="$$(go env GOVERSION)" 'NR == 1 { built = $$NF } $$1 == "mod" && $$2 == "$(GOSEC_MODULE)" && $$3 == "$(GOSEC_VERSION)" { found = 1 } END { exit !(found && built == want) }'
+
+.PHONY: install-security-tools install-gosec
+
+install-gosec: ## install the pinned gosec into bin/tools
+	@echo -e "$(CYAN)Ensuring gosec $(GOSEC_VERSION)...$(RESET)"
+	@mkdir -p "$(GOSEC_DIR)"
+	@if ! $(GOSEC_VERSION_OK); then \
+		echo -e "$(YELLOW)Installing gosec $(GOSEC_VERSION) into $(GOSEC_DIR)$(RESET)"; \
+		rm -f "$(GOSEC)"; \
+		GOWORK=off GOBIN="$(GOSEC_DIR)" go install $(GOSEC_INSTALL); \
+	fi
+	@$(GOSEC_VERSION_OK) || { \
+		echo "gosec at $(GOSEC) is not $(GOSEC_MODULE) $(GOSEC_VERSION) built with $$(go env GOVERSION); refusing to scan with an unpinned binary" >&2; \
+		exit 1; \
+	}
+
+install-security-tools: install-gosec ## install security analysis tools
 	@echo -e "$(GREEN)✅ Security tools installed!$(RESET)"
 
 # ==============================================================================

@@ -258,16 +258,16 @@ security-deps: ## check dependencies for vulnerabilities (read-only, fail-closed
 
 security-code: ## run direct security code analysis (read-only, fail-closed)
 	@echo -e "$(CYAN)Running security code analysis with gosec...$(RESET)"
-	@command -v gosec >/dev/null 2>&1 || { echo "gosec is required (run: make install-security-tools)" >&2; exit 1; }
-	@GOWORK=off gosec ./...
+	@test -x "$(GOSEC)" || { echo "gosec is required at $(GOSEC) (run: make install-security-tools)" >&2; exit 1; }
+	@GOWORK=off "$(GOSEC)" ./...
 
 security-json: ## run security analysis and output JSON/SARIF report (fail-closed)
 	@echo -e "$(CYAN)Running security analysis with JSON/SARIF output...$(RESET)"
-	@command -v gosec >/dev/null 2>&1 || { echo "gosec is required (run: make install-security-tools)" >&2; exit 1; }
+	@test -x "$(GOSEC)" || { echo "gosec is required at $(GOSEC) (run: make install-security-tools)" >&2; exit 1; }
 	@if [ -f .gosec.yaml ]; then \
-		GOWORK=off gosec -fmt=sarif -out=gosec-report.json -config=.gosec.yaml ./...; \
+		GOWORK=off "$(GOSEC)" -fmt=sarif -out=gosec-report.json -config=.gosec.yaml ./...; \
 	else \
-		GOWORK=off gosec -fmt=sarif -out=gosec-report.json ./...; \
+		GOWORK=off "$(GOSEC)" -fmt=sarif -out=gosec-report.json ./...; \
 	fi
 	@echo -e "$(GREEN)✅ Security report generated: gosec-report.json$(RESET)"
 
@@ -389,7 +389,7 @@ quality-check-validate: ## validate quality workflow delegation and fail-closed 
 	for target in verify pr-check full ci-local; do \
 		graph=$$($(MAKE) --no-print-directory -n "$$target"); \
 		printf '%s\n' "$$graph" | grep -Fq 'Canonical quality gate passed!'; \
-		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=off gosec ./...' || true)" -eq 1 ]; \
+		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/gosec" ./...' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=off govulncheck ./...' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=auto go list -mod=readonly -m all >/dev/null' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short --cover' || true)" -eq 1 ]; \
