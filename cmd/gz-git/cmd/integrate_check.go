@@ -52,7 +52,7 @@ func init() {
 	integrateCheckCmd.Flags().StringVar(&integrateCheckTarget, "target", "", "integration target (required when none can be resolved)")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckDirectToDefault, "direct-to-default", false, "allow targeting the default branch when no integration branch exists")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckRelease, "release", false, "promote the integration branch onto the default branch")
-	integrateCheckCmd.Flags().BoolVar(&integrateCheckAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, and downgrade SKIPPED CHECK banners to warnings")
+	integrateCheckCmd.Flags().BoolVar(&integrateCheckAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "resolve the target from local tracking refs without fetching")
 }
