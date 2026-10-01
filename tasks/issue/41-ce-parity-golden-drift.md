@@ -9,8 +9,7 @@
 
 ## 증상과 원인
 
-parity 스위트는 PATH의 `ce`를 실행해 커밋된 골든(`pinnedCECommit =
-771c54cf`, 빌드 `404-g771c54cf`)과 diff한다. 호스트 ce-agent-kit이
+parity 스위트는 PATH의 `ce`를 실행해 커밋된 골든(`pinnedCECommit = 771c54cf`, 빌드 `404-g771c54cf`)과 diff한다. 호스트 ce-agent-kit이
 `475-g950650ef`로 올라가면서 run-status의 `nextAction` 문구가 길어지는 등
 출력이 바뀌어 TestCEParity 서브테스트 11개가 실패한다:
 
@@ -33,6 +32,6 @@ recover-requires-cleanup-failure, start-created-existing
 
 ## 후속 방향(제안)
 
-1) 호스트 ce를 골든 기준(771c54cf)으로 되돌리거나, 2) 메인테이너가
-`PARITY_RECORD=1`로 골든을 재녹화해 새 참조를 인정한다. 어느 쪽이든
-hosted CI의 parity 단계가 초록인 exact-SHA로 확인한다.
+1. 호스트 ce를 골든 기준(771c54cf)으로 되돌리거나, 2) 메인테이너가
+   `PARITY_RECORD=1`로 골든을 재녹화해 새 참조를 인정한다. 어느 쪽이든
+   hosted CI의 parity 단계가 초록인 exact-SHA로 확인한다.

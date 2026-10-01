@@ -9,8 +9,7 @@
 
 ## 증상과 원인
 
-legacy make 통합 게이트(`integrate check`)는 저장소마다 `make check`·`make
-lint`를 직렬로 돌린다. cwrapper-devbox 보드는 337개 바인딩을 직렬 실행해
+legacy make 통합 게이트(`integrate check`)는 저장소마다 `make check`·`make lint`를 직렬로 돌린다. cwrapper-devbox 보드는 337개 바인딩을 직렬 실행해
 측정 게이트 벽시간이 약 53분인데, 내장 `makeTargetTimeout`(15분)이 단일
 make 호출을 죽여 통합 검증이 실패했다. 예산이 하드코딩되어 있어 느린
 저장소가 자기 선언으로 상한을 올릴 방법이 없었다.
@@ -25,5 +24,5 @@ repo-root 전용 선언 `branch.makeTimeout`(Go duration 문자열)을 추가한
 
 예산은 legacy make 게이트(`checkLegacyMake`)에서 한 번 해석되어
 prepare·baseline·probe 체인 전체에 전달된다. `readiness` 러너 예산은 이
-변경 범위 밖이다. 검증은 `TestRepoRootMakeTimeout`(config), 
+변경 범위 밖이다. 검증은 `TestRepoRootMakeTimeout`(config),
 `TestMakeTargetBudget`(integrate)과 전체 `make quality-check`이다.
