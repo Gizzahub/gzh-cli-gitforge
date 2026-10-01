@@ -95,4 +95,10 @@ task-root.yaml
 # ??
 .claude/
 .ce-metrics/
+# `.ce/`는 CE 런타임 상태이므로 무시한다. 다만 루트의 task-runtime 선언은
+# `ce task run-*`가 읽는 저장소 계약이므로 추적한다. 디렉터리를 먼저
+# 되살리고 나머지 내용을 다시 제외한 다음 선언 파일만 예외로 둔다.
 .ce/
+!/.ce/
+/.ce/*
+!/.ce/task-runtime.yaml
