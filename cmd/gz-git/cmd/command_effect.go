@@ -132,7 +132,8 @@ var commandEffects = map[string][]string{
 	"history file":         nil,
 	"history stats":        nil,
 
-	// Plans fetch the target unconditionally; tracking refs are their whole
+	// Plans fetch the target unconditionally and pass --no-tags, so tag
+	// auto-follow cannot create local tags. Tracking refs are their whole
 	// footprint. Applies change the target-owned readiness contract. run also
 	// fast-forwards a checked-out target and reclaims the task worktree and
 	// branch.

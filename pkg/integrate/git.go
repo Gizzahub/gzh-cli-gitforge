@@ -107,12 +107,16 @@ func (g gitRepo) symbolicRef(ctx context.Context, name string) (ref string, ok b
 }
 
 func (g gitRepo) fetchPrune(ctx context.Context, remote string) error {
-	res, err := g.run(ctx, "fetch", remote, "--prune", "--quiet")
+	// --no-tags keeps the declared footprint honest. Without it, git's default
+	// tag auto-follow creates a local tag for any tag that points at history
+	// this fetch downloaded, which is a refs write the plan commands do not
+	// declare.
+	res, err := g.run(ctx, "fetch", remote, "--prune", "--quiet", "--no-tags")
 	if err != nil {
 		return err
 	}
 	if res.ExitCode != 0 {
-		return fmt.Errorf("git fetch %s --prune failed: %s", remote, strings.TrimSpace(res.Stderr))
+		return fmt.Errorf("git fetch %s --prune --no-tags failed: %s", remote, strings.TrimSpace(res.Stderr))
 	}
 	return nil
 }
