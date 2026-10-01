@@ -27,7 +27,7 @@ func TestPrepareLegacyTrees_TargetBeforeSourceAndNoRegistrationRemains(t *testin
 	bin := fakeGo(t, "root=$(dirname \"$PWD\"); b=$(basename \"$PWD\"); [ \"$b\" = target ] && [ ! -e \"$root/source\" ]; [ \"$b\" = source ] && [ ! -e \"$root/target\" ]; mkdir -p ent/generated; : > ent/generated/out")
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
-	p, err := prepareLegacyTrees(context.Background(), g, TargetPlan{BranchSHA: strings.TrimSpace(sha), TargetSHA: strings.TrimSpace(sha)}, &controllerBinding{PrepareProfile: familybookEntPrepareV1})
+	p, err := prepareLegacyTreesWithProfile(context.Background(), g, TargetPlan{BranchSHA: strings.TrimSpace(sha), TargetSHA: strings.TrimSpace(sha)}, nil, familybookEntPrepareV1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestPrepareLegacyTrees_TargetBeforeSourceAndNoRegistrationRemains(t *testin
 }
 
 func TestPreparedLegacyWithoutControllerDoesNotAnnotateProbe(t *testing.T) {
-	p, err := prepareLegacyTrees(context.Background(), gitRepo{dir: t.TempDir()}, TargetPlan{}, nil)
+	p, err := prepareLegacyTreesWithProfile(context.Background(), gitRepo{dir: t.TempDir()}, TargetPlan{}, nil, "", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestPrepareLegacyTreesReportsTargetAndSourcePreparationFailures(t *testing.
 			runGitInTest(t, fx.Worktree, "commit", "-m", "ent")
 			sha := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
 			t.Setenv("PATH", fakeGo(t, body)+":"+os.Getenv("PATH"))
-			_, err := prepareLegacyTrees(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), TargetPlan{BranchSHA: sha, TargetSHA: sha}, &controllerBinding{PrepareProfile: familybookEntPrepareV1})
+			_, err := prepareLegacyTreesWithProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), TargetPlan{BranchSHA: sha, TargetSHA: sha}, nil, familybookEntPrepareV1, 0)
 			if err == nil || !strings.Contains(err.Error(), "prepare "+name) {
 				t.Fatalf("err=%v", err)
 			}

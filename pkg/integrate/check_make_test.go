@@ -23,7 +23,7 @@ func TestRunMakeTarget_LintUsesIsolatedTemporaryCache(t *testing.T) {
 	inheritedCache := filepath.Join(dir, "inherited-lint-cache")
 	t.Setenv("GOLANGCI_LINT_CACHE", inheritedCache)
 
-	first := runMakeTarget(context.Background(), dir, "lint")
+	first := runMakeTarget(context.Background(), dir, "lint", 0)
 	if first.Err != nil {
 		t.Fatalf("first lint: %v\n%s", first.Err, first.Output)
 	}
@@ -38,7 +38,7 @@ func TestRunMakeTarget_LintUsesIsolatedTemporaryCache(t *testing.T) {
 		t.Fatalf("lint reused inherited cache %q", inheritedCache)
 	}
 
-	second := runMakeTarget(context.Background(), dir, "lint")
+	second := runMakeTarget(context.Background(), dir, "lint", 0)
 	if second.Err != nil {
 		t.Fatalf("second lint: %v\n%s", second.Err, second.Output)
 	}
@@ -54,7 +54,7 @@ func TestRunMakeTarget_LintUsesIsolatedTemporaryCache(t *testing.T) {
 	}
 
 	t.Setenv("GOLANGCI_LINT_CACHE", "")
-	check := runMakeTarget(context.Background(), dir, "check")
+	check := runMakeTarget(context.Background(), dir, "check", 0)
 	if check.Err != nil {
 		t.Fatalf("check must not receive lint cache: %v\n%s", check.Err, check.Output)
 	}
@@ -66,7 +66,7 @@ func TestRunMakeTarget_LintCleansCacheAfterFailure(t *testing.T) {
 	writeRepoFile(t, dir, "Makefile", "lint:\n\t@printf '%s' \"$$GOLANGCI_LINT_CACHE\" > \"$$CAPTURE_FILE\"\n\t@false\n")
 	t.Setenv("CAPTURE_FILE", capture)
 
-	probe := runMakeTarget(context.Background(), dir, "lint")
+	probe := runMakeTarget(context.Background(), dir, "lint", 0)
 	if probe.Err == nil {
 		t.Fatal("failing lint must return an error")
 	}
@@ -85,7 +85,7 @@ func TestRunMakeTarget_LintRetriesGlobalLock(t *testing.T) {
 	writeRepoFile(t, dir, "Makefile", "lint:\n\t@count=0; if test -f \"$$COUNT_FILE\"; then count=$$(cat \"$$COUNT_FILE\"); fi; count=$$((count + 1)); printf '%s' \"$$count\" > \"$$COUNT_FILE\"; if test \"$$count\" -lt 3; then printf '%s\\n' 'Error: parallel golangci-lint is running'; false; fi\n")
 	t.Setenv("COUNT_FILE", count)
 
-	probe := runMakeTarget(context.Background(), dir, "lint")
+	probe := runMakeTarget(context.Background(), dir, "lint", 0)
 	if probe.Err != nil {
 		t.Fatalf("lint must succeed after transient global lock: %v\n%s", probe.Err, probe.Output)
 	}
@@ -104,7 +104,7 @@ func TestRunMakeTarget_LintLockFailsAfterRetries(t *testing.T) {
 	writeRepoFile(t, dir, "Makefile", "lint:\n\t@printf x >> \"$$COUNT_FILE\"; printf '%s\\n' 'Error: parallel golangci-lint is running'; false\n")
 	t.Setenv("COUNT_FILE", count)
 
-	probe := runMakeTarget(context.Background(), dir, "lint")
+	probe := runMakeTarget(context.Background(), dir, "lint", 0)
 	if probe.Err == nil {
 		t.Fatal("locked lint must fail")
 	}
@@ -126,7 +126,7 @@ func TestRunMakeTarget_LintLockWithDiagnosticDoesNotRetryOrSkip(t *testing.T) {
 	writeRepoFile(t, dir, "Makefile", "lint:\n\t@printf x >> \"$$COUNT_FILE\"; printf '%s\\n' 'Error: parallel golangci-lint is running' 'main.go:12:3: actual diagnostic'; false\n")
 	t.Setenv("COUNT_FILE", count)
 
-	probe := runMakeTarget(context.Background(), dir, "lint")
+	probe := runMakeTarget(context.Background(), dir, "lint", 0)
 	if probe.Err == nil {
 		t.Fatalf("mixed lock and diagnostic must remain a failure: %+v", probe)
 	}
@@ -210,7 +210,7 @@ func TestRunMakeTarget_LintCancellationDuringFinalLockAttemptIsNotUnavailable(t 
 		}
 	}()
 
-	probe := runMakeTarget(ctx, dir, "lint")
+	probe := runMakeTarget(ctx, dir, "lint", 0)
 	if !errors.Is(probe.Err, context.Canceled) {
 		t.Fatalf("canceled final lock attempt error = %v, want context.Canceled", probe.Err)
 	}
@@ -504,7 +504,7 @@ func TestJudgeMake_ForeignBranchDiagnosticFailsDespiteSuccessfulExit(t *testing.
 		Target:  "lint",
 		Defined: true,
 		Output:  "../deleted-worktree/pkg/check.go:12: stale\n",
-	}, false)
+	}, false, 0)
 	if item.Status != checkFail || !strings.Contains(item.Detail, "branch diagnostics reference paths outside the repository") {
 		t.Fatalf("successful branch probe with foreign diagnostic = %+v", item)
 	}
@@ -515,7 +515,7 @@ func TestJudgeMake_CheckAllowsForeignDiagnosticOutput(t *testing.T) {
 		Target:  "check",
 		Defined: true,
 		Output:  "../other-worktree/pkg/check.go:12: diagnostic\n",
-	}, false)
+	}, false, 0)
 	if item.Status != checkPass {
 		t.Fatalf("check output must preserve existing behavior, got %+v", item)
 	}
@@ -527,7 +527,7 @@ func TestJudgeMake_MissingCDFailsEvenWhenSkippedChecksAreAllowed(t *testing.T) {
 			Target:    "lint",
 			Defined:   true,
 			MissingCD: "missing-component",
-		}, allowSkipped)
+		}, allowSkipped, 0)
 		if item.Status != checkFail || !strings.Contains(item.Detail, "not run") {
 			t.Fatalf("allowSkipped=%v missing cd = %+v", allowSkipped, item)
 		}
@@ -538,7 +538,7 @@ func TestJudgeMake_UnavailableFailsBeforeBaselineEvenWhenSkippedChecksAreAllowed
 	for _, allowSkipped := range []bool{false, true} {
 		item := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 			Target: "lint", Defined: true, Unavailable: "golangci-lint lock persisted after 3 attempts",
-		}, allowSkipped)
+		}, allowSkipped, 0)
 		if item.Status != checkFail || !strings.Contains(item.Detail, "measurement unavailable") {
 			t.Fatalf("allowSkipped=%v unavailable = %+v", allowSkipped, item)
 		}
@@ -550,7 +550,7 @@ func TestJudgeMakeAgainstProbeRejectsBaselineMissingCD(t *testing.T) {
 		Target: "lint", Defined: true, Err: errors.New("branch lint failed"), Code: 1,
 	}, false, makeProbe{
 		Target: "lint", Defined: true, Err: errors.New("baseline lint failed"), MissingCD: "ent/generated",
-	})
+	}, 0)
 	if item.Status != checkFail || !strings.Contains(item.Detail, "baseline make lint did not run") {
 		t.Fatalf("baseline missing cd = %+v", item)
 	}
@@ -670,9 +670,9 @@ func TestJudgeMake_CrashIsReportedAsToolFailureNotForeignDiagnostics(t *testing.
 		ToolCrash: toolCrashSignature(panicLintOutput),
 	}
 
-	legacy := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, probe, false)
+	legacy := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, probe, false, 0)
 	against := judgeMakeAgainstProbe(context.Background(), gitRepo{}, TargetPlan{}, probe, false,
-		makeProbe{Target: "lint", Defined: true})
+		makeProbe{Target: "lint", Defined: true}, 0)
 
 	for name, item := range map[string]CheckItem{"legacy": legacy, "against-probe": against} {
 		if item.Status != checkFail {
@@ -730,7 +730,7 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 			"# Prevent make from interpreting arguments as targets\n"+
 			"%:\n\t@touch "+marker+"\n")
 
-	check := runMakeTarget(context.Background(), dir, "check")
+	check := runMakeTarget(context.Background(), dir, "check", 0)
 	if check.Defined {
 		t.Fatalf("check is satisfied only by the catch-all pattern rule; Defined must be false (err=%v)\n%s", check.Err, check.Output)
 	}
@@ -740,7 +740,7 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 
 	// A declared target in the same Makefile stays declared: the detector must
 	// key on the pattern-rule stem, not on the presence of a catch-all.
-	lint := runMakeTarget(context.Background(), dir, "lint")
+	lint := runMakeTarget(context.Background(), dir, "lint", 0)
 	if !lint.Defined {
 		t.Fatalf("declared lint target must stay Defined (err=%v)\n%s", lint.Err, lint.Output)
 	}
@@ -749,7 +749,7 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 	// working — the new probe must not mask the "No rule to make target" path.
 	plain := t.TempDir()
 	writeRepoFile(t, plain, "Makefile", "lint:\n\t@:\n")
-	if bare := runMakeTarget(context.Background(), plain, "check"); bare.Defined {
+	if bare := runMakeTarget(context.Background(), plain, "check", 0); bare.Defined {
 		t.Fatalf("missing check target must not be Defined\n%s", bare.Output)
 	}
 }

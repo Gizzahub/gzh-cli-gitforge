@@ -60,18 +60,11 @@ func (p preparedLegacy) cleanup(ctx context.Context) error {
 
 // target is prepared and measured before it is removed; source is never alive
 // at the same time, so repository code cannot use the baseline worktree.
-func prepareLegacyTrees(ctx context.Context, g gitRepo, plan TargetPlan, c *controllerBinding) (preparedLegacy, error) {
-	profile := ""
-	if c != nil {
-		profile = c.PrepareProfile
-	}
-	return prepareLegacyTreesWithProfile(ctx, g, plan, c, profile)
-}
-
+//
 // prepareLegacyTreesWithProfile runs one closed preparation profile against
 // both immutable commits. profile has already been resolved from the commit
 // declarations by the caller; this executor never reads a worktree config.
-func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string) (preparedLegacy, error) {
+func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string, budget time.Duration) (preparedLegacy, error) {
 	// No profile means no preparation, and the branch is then measured where
 	// the repository already is: the live working directory, carrying deps/,
 	// node_modules/ and .venv from earlier runs. The baseline it will be
@@ -103,8 +96,8 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 	// probes ARE prepared alike; the stamp records that symmetry as evidence.
 	prepared := preparedLegacy{controllerPrepared: true, sourcePrepared: PrepareStateProfilePrepared, profile: profile, inputs: inputs}
 	baseline := map[string]makeProbe{
-		"check": prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "check")),
-		"lint":  prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "lint")),
+		"check": prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "check", budget)),
+		"lint":  prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "lint", budget)),
 	}
 	if err := removePreparedWorktree(ctx, g, target, ""); err != nil {
 		return preparedLegacy{}, fmt.Errorf("cleanup prepared target: %w", err)

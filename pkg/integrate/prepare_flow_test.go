@@ -56,7 +56,7 @@ func TestFlowTaskchainPrepareUsesPrimaryFromLinkedTaskWorktree(t *testing.T) {
 	runGitInTest(t, devbox, "worktree", "add", "-b", "dev/actor/feat/task", task)
 	g := newGitRepo(gitcmd.NewExecutor(), task)
 	sha := strings.TrimSpace(runGitInTest(t, task, "rev-parse", "HEAD"))
-	prepared, err := prepareLegacyTreesWithProfile(context.Background(), g, TargetPlan{BranchSHA: sha, TargetSHA: sha}, nil, flowTaskchainLocalSubprojectsV1)
+	prepared, err := prepareLegacyTreesWithProfile(context.Background(), g, TargetPlan{BranchSHA: sha, TargetSHA: sha}, nil, flowTaskchainLocalSubprojectsV1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

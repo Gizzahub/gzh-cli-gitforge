@@ -4,10 +4,13 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestLoadRepoRootTaskPattern_ThisRepoDeclaration guards this repository's own
@@ -53,4 +56,91 @@ func TestLoadRepoRootTaskPattern_ThisRepoDeclaration(t *testing.T) {
 			t.Errorf("%s must not match taskPattern %v", name, decl.Patterns)
 		}
 	}
+}
+
+// TestRepoRootMakeTimeout pins branch.makeTimeout parsing on the repo-root
+// declaration. Absent stays zero (the consumer's built-in default), a valid
+// duration parses, and an unparsable or non-positive value fails the load —
+// a repository that declares a budget its gate cannot meet must never
+// silently run under the default it meant to lift.
+func TestRepoRootMakeTimeout(t *testing.T) {
+	writeDecl := func(t *testing.T, body string) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, ".gz-git.yaml"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+
+	t.Run("absent key means zero and the default applies", func(t *testing.T) {
+		root := writeDecl(t, "branch:\n  integrationBranch: master\n")
+		decl, err := LoadRepoRootTaskPattern(root)
+		if err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		if decl.MakeTimeout != 0 {
+			t.Fatalf("absent makeTimeout = %s, want 0", decl.MakeTimeout)
+		}
+	})
+
+	t.Run("declared duration parses", func(t *testing.T) {
+		root := writeDecl(t, "branch:\n  integrationBranch: master\n  makeTimeout: 90m\n")
+		decl, err := LoadRepoRootTaskPattern(root)
+		if err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		if decl.MakeTimeout != 90*time.Minute {
+			t.Fatalf("makeTimeout = %s, want 90m", decl.MakeTimeout)
+		}
+	})
+
+	t.Run("whitespace survives the yaml round trip and fails the load", func(t *testing.T) {
+		root := writeDecl(t, "branch:\n  makeTimeout: \" 90m\"\n")
+		if _, err := LoadRepoRootTaskPattern(root); err == nil || !strings.Contains(err.Error(), "branch.makeTimeout") {
+			t.Fatalf("whitespace-padded makeTimeout err = %v, want branch.makeTimeout load error", err)
+		}
+	})
+
+	t.Run("unparsable duration fails the load", func(t *testing.T) {
+		root := writeDecl(t, "branch:\n  makeTimeout: banana\n")
+		if _, err := LoadRepoRootTaskPattern(root); err == nil || !strings.Contains(err.Error(), "branch.makeTimeout") {
+			t.Fatalf("unparsable makeTimeout err = %v, want branch.makeTimeout load error", err)
+		}
+	})
+
+	for _, raw := range []string{"0s", "-5m"} {
+		t.Run("non-positive "+raw+" fails the load", func(t *testing.T) {
+			root := writeDecl(t, "branch:\n  makeTimeout: "+raw+"\n")
+			if _, err := LoadRepoRootTaskPattern(root); err == nil || !strings.Contains(err.Error(), "must be positive") {
+				t.Fatalf("makeTimeout %q err = %v, want positive-duration load error", raw, err)
+			}
+		})
+	}
+
+	t.Run("json declaration parses", func(t *testing.T) {
+		root := t.TempDir()
+		body := `{"branch": {"integrationBranch": "master", "makeTimeout": "45m"}}`
+		if err := os.WriteFile(filepath.Join(root, ".gz-git.json"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		decl, err := LoadRepoRootTaskPattern(root)
+		if err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		if decl.MakeTimeout != 45*time.Minute {
+			t.Fatalf("json makeTimeout = %s, want 45m", decl.MakeTimeout)
+		}
+	})
+
+	t.Run("json numeric duration fails the load", func(t *testing.T) {
+		root := t.TempDir()
+		body := `{"branch": {"makeTimeout": 30}}`
+		if err := os.WriteFile(filepath.Join(root, ".gz-git.json"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadRepoRootTaskPattern(root); err == nil || !strings.Contains(err.Error(), "must be a string") {
+			t.Fatalf("numeric json makeTimeout err = %v, want string-type load error", err)
+		}
+	})
 }

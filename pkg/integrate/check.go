@@ -142,12 +142,18 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
 		return
 	}
+	decl, err := config.LoadRepoRootTaskPattern(g.dir)
+	if err != nil {
+		add(CheckItem{Name: "make budget", Status: checkFail, Detail: err.Error()})
+		return
+	}
+	budget := resolveMakeBudget(decl.MakeTimeout)
 	profile, err := resolvePrepareProfile(ctx, g, plan, controller)
 	if err != nil {
 		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
 		return
 	}
-	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile)
+	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile, budget)
 	if err != nil {
 		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
 		return
@@ -159,8 +165,8 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 	}
 	declared := 0
 	for _, target := range []string{"check", "lint"} {
-		probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target))
-		item := judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, prepared.baseline[target])
+		probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target, budget))
+		item := judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, prepared.baseline[target], budget)
 		item = saveLegacyMakeDiagnostic(item, probe)
 		if item.Status != checkSkip {
 			declared++

@@ -76,7 +76,18 @@ var allowedMakeTargets = map[string]struct{}{
 	"lint":  {},
 }
 
-func runMakeTarget(ctx context.Context, dir, target string) makeProbe {
+// resolveMakeBudget picks the budget for one make probe. The repo-root
+// declaration wins when it sets one — the repository is speaking about its
+// own gate — and the built-in ceiling applies when it does not, so a repo
+// without a declaration runs exactly as before.
+func resolveMakeBudget(configured time.Duration) time.Duration {
+	if configured > 0 {
+		return configured
+	}
+	return makeTargetTimeout
+}
+
+func runMakeTarget(ctx context.Context, dir, target string, budget time.Duration) makeProbe {
 	if _, ok := allowedMakeTargets[target]; !ok {
 		return makeProbe{Target: target, Err: fmt.Errorf("undeclared make target %q", target)}
 	}
@@ -86,7 +97,7 @@ func runMakeTarget(ctx context.Context, dir, target string) makeProbe {
 		return makeProbe{Target: target, WorkDir: dir}
 	}
 	for attempt := 1; ; attempt++ {
-		probe := runMakeTargetOnce(ctx, dir, target)
+		probe := runMakeTargetOnce(ctx, dir, target, budget)
 		if err := ctx.Err(); err != nil {
 			probe.Err = err
 			return probe
@@ -107,7 +118,12 @@ func runMakeTarget(ctx context.Context, dir, target string) makeProbe {
 	}
 }
 
-func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
+func runMakeTargetOnce(ctx context.Context, dir, target string, budget time.Duration) makeProbe {
+	// Resolve the default here, at the single point every probe funnels
+	// through, so a caller that has no declaration (and every test) gets the
+	// built-in ceiling instead of a zero-length budget that kills make
+	// instantly.
+	budget = resolveMakeBudget(budget)
 	var lintCache string
 	if target == "lint" {
 		var err error
@@ -123,7 +139,7 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 	// from how its path happens to end -- a guess that hard-blocks a branch
 	// when it is wrong. The markers cost two lines per sub-make and are
 	// consumed before location scanning, so they never reach a comparison.
-	runCtx, cancel := context.WithTimeout(ctx, makeTargetTimeout)
+	runCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
@@ -168,7 +184,7 @@ func runMakeTargetOnce(ctx context.Context, dir, target string) makeProbe {
 			Output:  out,
 			Defined: true,
 			Err: fmt.Errorf("make %s exceeded %s and was killed — this repository's gate likely shells out to a live/network-dependent check with no timeout of its own; last output:\n%s",
-				target, makeTargetTimeout, crashOutputTail(out, 12)),
+				target, budget, crashOutputTail(out, 12)),
 		}
 	}
 	probe := makeProbe{Target: target, WorkDir: dir, Output: out, Err: err}
@@ -484,7 +500,7 @@ func shellCDPrefix(prefix string) bool {
 
 // judgeMakeLegacy preserves the repository-owned baseline comparison used when
 // no controller has captured a prepared target probe.
-func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool) CheckItem {
+func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) CheckItem {
 	name := "make " + probe.Target
 	if !probe.Defined {
 		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}
@@ -524,7 +540,7 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
 	}
 
-	verdict, err := baselineAgainstTarget(ctx, g, plan, probe)
+	verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
 	if err != nil {
 		return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
 	}
@@ -533,9 +549,9 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 
 // judgeMakeAgainstProbe consumes a target measurement captured before source
 // code exists. Parser and baseline rules remain exactly the legacy rules.
-func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, base makeProbe) CheckItem {
+func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, base makeProbe, budget time.Duration) CheckItem {
 	if base.Target == "" {
-		return judgeMakeLegacy(ctx, g, plan, probe, allowSkipped)
+		return judgeMakeLegacy(ctx, g, plan, probe, allowSkipped, budget)
 	}
 	name := "make " + probe.Target
 	if !probe.Defined {
@@ -639,7 +655,7 @@ func baselineCheckItem(name string, verdict BaselineResult, allowSkipped bool) C
 	}
 }
 
-func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe) (BaselineResult, error) {
+func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, budget time.Duration) (BaselineResult, error) {
 	root, err := os.MkdirTemp("", "gz-git-integrate-base-")
 	if err != nil {
 		return BaselineResult{}, fmt.Errorf("temp dir: %w", err)
@@ -656,7 +672,7 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	// probe ran in the live working directory instead, so these two are not
 	// the same experiment; recording which tree each was is what lets the
 	// verdict say so rather than blame the target commit.
-	baseProbe := runMakeTarget(ctx, wt, probe.Target)
+	baseProbe := runMakeTarget(ctx, wt, probe.Target, budget)
 	baseProbe.Prepared = PrepareStatePristine
 	if baseProbe.Unavailable != "" {
 		return BaselineResult{}, fmt.Errorf("measurement unavailable: baseline make %s: %s", probe.Target, baseProbe.Unavailable)

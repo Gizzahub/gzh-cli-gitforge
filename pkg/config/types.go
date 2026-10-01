@@ -242,6 +242,16 @@ type BranchConfig struct {
 	// or merged from a parent, profile, workspace, or global configuration.
 	Readiness *Readiness `yaml:"readiness,omitempty" json:"readiness,omitempty"`
 
+	// MakeTimeout bounds one `make check`/`make lint` probe of the legacy
+	// integration gate, declared as a Go duration string ("90m", "1h30m").
+	// Like IntegrationBranch and TaskPattern it is read only from the
+	// repo-root file (LoadRepoRootTaskPattern) and never inherited or merged
+	// from a parent, profile, workspace, or global configuration: a budget
+	// declared in a shared layer would silently change every repository's
+	// gate. Empty means the built-in default; pkg/config rejects a value it
+	// cannot parse or a non-positive one when loading the declaration.
+	MakeTimeout string `yaml:"makeTimeout,omitempty" json:"makeTimeout,omitempty"`
+
 	// Naming templates the branch names that `gz-git branch name` builds, so a
 	// task branch is spelled the same way on every machine and by every agent.
 	Naming *branch.Naming `yaml:"naming,omitempty"`

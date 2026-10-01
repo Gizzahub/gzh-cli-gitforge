@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -18,15 +19,19 @@ import (
 
 const factNoDeclaration = "no declaration"
 
-// TaskPatternDecl is the repo-root taskPattern load result.
+// TaskPatternDecl is the repo-root declaration load result.
 //
 // Missing file → empty Patterns plus a reportable "no declaration" fact.
 // That is not "everything is reclaimable".
 type TaskPatternDecl struct {
 	Patterns          []string
 	IntegrationBranch BranchList
-	Source            string
-	Facts             []string
+	// MakeTimeout is the declared branch.makeTimeout, already parsed. Zero
+	// means the key is absent and the consumer applies its built-in default;
+	// a present-but-invalid value never gets here because the load fails.
+	MakeTimeout time.Duration
+	Source      string
+	Facts       []string
 }
 
 // LoadRepoRootTaskPattern stats only <repoRoot>/.gz-git.{yaml,yml,json}.
@@ -64,7 +69,7 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, nil
 	}
 
-	patterns, integration, err := readRootBranchDecl(fsRoot, filepath.Base(path))
+	patterns, integration, makeTimeout, err := readRootBranchDecl(fsRoot, filepath.Base(path))
 	if err != nil {
 		return decl, err
 	}
@@ -72,8 +77,14 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, err
 	}
 
+	budget, err := parseMakeTimeout(makeTimeout, path)
+	if err != nil {
+		return decl, err
+	}
+
 	decl.Patterns = append([]string(nil), patterns...)
 	decl.IntegrationBranch = append(BranchList(nil), integration...)
+	decl.MakeTimeout = budget
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
 		decl.Facts = append(decl.Facts, factNoDeclaration)
@@ -111,43 +122,90 @@ func statRepoRootConfig(root *safefs.Root, rootPath string) (string, error) {
 	return "", nil
 }
 
-func readRootBranchDecl(root *safefs.Root, path string) (patterns, integration []string, err error) {
+func readRootBranchDecl(root *safefs.Root, path string) (patterns, integration []string, makeTimeout string, err error) {
 	data, err := root.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, "", fmt.Errorf("read %s: %w", path, err)
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".json" {
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(data, &raw); err != nil {
-			return nil, nil, fmt.Errorf("parse %s: %w", path, err)
+			return nil, nil, "", fmt.Errorf("parse %s: %w", path, err)
 		}
 		if b, ok := raw["branch"]; ok {
-			patterns, integration = decodeJSONBranchFields(b)
+			patterns, integration, makeTimeout, err = decodeJSONBranchFields(b)
+			if err != nil {
+				return nil, nil, "", err
+			}
 		}
-		return patterns, integration, nil
+		return patterns, integration, makeTimeout, nil
 	}
 
 	var file struct {
 		Branch *BranchConfig `yaml:"branch"`
 	}
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return nil, nil, fmt.Errorf("parse %s: %w", path, err)
+		return nil, nil, "", fmt.Errorf("parse %s: %w", path, err)
 	}
 	if file.Branch != nil {
 		patterns = append([]string(nil), file.Branch.TaskPattern...)
 		integration = append([]string(nil), file.Branch.IntegrationBranch...)
+		makeTimeout = file.Branch.MakeTimeout
 	}
-	return patterns, integration, nil
+	return patterns, integration, makeTimeout, nil
 }
 
-func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string) {
+func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string, makeTimeout string, err error) {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, nil
+		return nil, nil, "", err
 	}
-	return coerceStringList(m["taskPattern"]), coerceStringList(m["integrationBranch"])
+	timeout, err := decodeJSONMakeTimeout(m["makeTimeout"])
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return coerceStringList(m["taskPattern"]), coerceStringList(m["integrationBranch"]), timeout, nil
+}
+
+// decodeJSONMakeTimeout reads the declared branch.makeTimeout from a decoded
+// JSON branch object. Absent means the default applies; anything present must
+// be a string, so a numeric duration cannot slip past the parser that the
+// YAML path would have rejected.
+func decodeJSONMakeTimeout(v any) (string, error) {
+	switch t := v.(type) {
+	case nil:
+		return "", nil
+	case string:
+		return t, nil
+	default:
+		return "", fmt.Errorf("branch.makeTimeout must be a string")
+	}
+}
+
+// parseMakeTimeout turns the declared branch.makeTimeout string into the
+// budget the integrate package consumes. Absent means zero — the caller
+// applies its built-in default — while anything present must be a positive
+// Go duration. A value that cannot be honored fails the load instead of
+// silently falling back to the default, because a repository that declares a
+// budget its gate cannot meet would otherwise run under the very ceiling the
+// declaration was written to lift.
+func parseMakeTimeout(raw, path string) (time.Duration, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	if strings.TrimSpace(raw) != raw {
+		return 0, fmt.Errorf("%s: branch.makeTimeout %q must not have surrounding whitespace", path, raw)
+	}
+	budget, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s: branch.makeTimeout %q: %w", path, raw, err)
+	}
+	if budget <= 0 {
+		return 0, fmt.Errorf("%s: branch.makeTimeout %q must be positive", path, raw)
+	}
+	return budget, nil
 }
 
 func coerceStringList(v any) []string {
@@ -241,7 +299,7 @@ func reportNonRootTaskPatternAt(root *safefs.Root, rootPath, rel string, decl *T
 		if filepath.Dir(entryPath) == rootPath {
 			continue
 		}
-		if patterns, _, err := readRootBranchDecl(root, entryRel); err == nil && len(patterns) > 0 {
+		if patterns, _, _, err := readRootBranchDecl(root, entryRel); err == nil && len(patterns) > 0 {
 			decl.Facts = append(decl.Facts, "ignored non-root taskPattern: "+entryPath)
 		}
 	}

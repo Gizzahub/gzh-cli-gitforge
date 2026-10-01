@@ -118,6 +118,13 @@ branch:
   integrationBranch: develop
   taskPattern: dev/*/*/*
 
+  # Ceiling for one make check/lint probe of the legacy integration gate.
+  # Type: string (Go duration, e.g. "45m", "90m", "1h30m")
+  # Default: 15m (built in). Repo-root only, like integrationBranch. Size it
+  # above the measured gate wall time; a value the gate cannot meet defeats
+  # itself.
+  makeTimeout: 90m
+
   # Target-owned integration gate. The runner is a tracked executable regular
   # file below .gz-git/readiness/ and receives only the fixed V1 arguments.
   readiness:
