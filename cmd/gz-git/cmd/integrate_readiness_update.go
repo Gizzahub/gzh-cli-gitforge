@@ -21,7 +21,7 @@ var (
 	integrateReadinessCmd           = &cobra.Command{Use: "readiness", Short: "Manage target-owned readiness contracts"}
 	integrateReadinessUpdateCmd     = &cobra.Command{Use: "update", Short: "Update a target-owned readiness contract"}
 	integrateReadinessUpdatePlanCmd = &cobra.Command{
-		Use: "plan", Short: "Create a read-only, expiring readiness-update plan", Args: cobra.NoArgs,
+		Use: "plan", Short: "Create an expiring readiness-update plan (fetches tracking refs only)", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, exec := cmdContext(cmd), gitcmd.NewExecutor()
 			issuer, err := resolveIssuer(ctx, exec, ".", readinessUpdateIssuer)

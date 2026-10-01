@@ -73,7 +73,7 @@ func TestHelpAllScopesToSubtree(t *testing.T) {
 			t.Errorf("subtree output leaked %q", line)
 		}
 	}
-	if !strings.Contains(out, "gz-git integrate bootstrap plan\n  Create a read-only, expiring bootstrap plan\n  Usage:  gz-git integrate bootstrap plan [flags]\n  Effect: mutating (tracking-refs)\n") {
+	if !strings.Contains(out, "gz-git integrate bootstrap plan\n  Create an expiring bootstrap plan (fetches tracking refs only)\n  Usage:  gz-git integrate bootstrap plan [flags]\n  Effect: mutating (tracking-refs)\n") {
 		t.Errorf("bootstrap plan block not rendered as expected:\n%s", out)
 	}
 }

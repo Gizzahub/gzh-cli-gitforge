@@ -21,7 +21,7 @@ var (
 var (
 	integrateBootstrapCmd     = &cobra.Command{Use: "bootstrap", Short: "Bootstrap a target-owned readiness contract"}
 	integrateBootstrapPlanCmd = &cobra.Command{
-		Use: "plan", Short: "Create a read-only, expiring bootstrap plan", Args: cobra.NoArgs,
+		Use: "plan", Short: "Create an expiring bootstrap plan (fetches tracking refs only)", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx, exec := cmdContext(cmd), gitcmd.NewExecutor()
 			issuer, err := resolveIssuer(ctx, exec, ".", bootstrapPlanIssuer)
