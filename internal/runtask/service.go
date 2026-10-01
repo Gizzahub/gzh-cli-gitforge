@@ -325,7 +325,8 @@ func (s *Service) sourceBranch(ctx context.Context) (string, error) {
 	// declared its target, the declaration is unreadable, and the caller is
 	// told it declared nothing.
 	declaration := filepath.Join(s.root, ".gz-git.yaml")
-	switch b, readErr := os.ReadFile(declaration); { // #nosec G304 -- the path is this repository's own declaration file
+	// #nosec G304 -- the path is this repository's own declaration file
+	switch b, readErr := os.ReadFile(declaration); {
 	case readErr == nil:
 		doc, parseErr := parseDeclaration(b)
 		if parseErr != nil {

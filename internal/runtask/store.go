@@ -45,7 +45,8 @@ func (s stateStore) save(executions []TaskExecution) error {
 		return err
 	}
 	tmp := filepath.Join(s.dir, fmt.Sprintf("executions.%d.tmp", time.Now().UnixNano()))
-	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil { // #nosec G306 -- CE-layout state file parity
+	// #nosec G306 -- CE-layout state file parity
+	if err := os.WriteFile(tmp, append(b, '\n'), 0o644); err != nil {
 		return err
 	}
 	if err := syncFile(tmp); err != nil {

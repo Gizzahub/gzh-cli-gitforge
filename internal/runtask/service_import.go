@@ -80,7 +80,8 @@ func (s *Service) ImportCE(ctx context.Context, dryRun bool) (ImportCEReport, er
 	if dryRun {
 		return report, nil
 	}
-	if err := os.MkdirAll(target.dir, 0o755); err != nil { // #nosec G301 -- CE-layout state directory parity
+	// #nosec G301 -- CE-layout state directory parity
+	if err := os.MkdirAll(target.dir, 0o755); err != nil {
 		return report, fmt.Errorf("create %s: %w", target.dir, err)
 	}
 	if executionsFound {
@@ -137,7 +138,8 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("read %s: %w", src, err)
 	}
 	tmp := dst + ".import.tmp"
-	if err := os.WriteFile(tmp, b, 0o644); err != nil { // #nosec G306,G703 -- byte-for-byte import keeps CE's file mode parity
+	// #nosec G306,G703 -- byte-for-byte import keeps CE's file mode parity
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", tmp, err)
 	}
 	if err := syncFile(tmp); err != nil {
