@@ -48,12 +48,13 @@ that local child HEADs are pinned by the root repository. When a required
 child is missing, dirty, or has an unexpected remote, the check fails with a
 preparation error instead of treating the baseline as measurable.
 
-`cargo-workspace-v1` runs its two steps with the same environment recipe the
-make probe uses — the inherited environment plus LC_ALL=C, CARGO_TERM_COLOR=never,
-and GIT_TERMINAL_PROMPT=0 — because a prepared tree only helps if the probe
-later resolves the same registry, toolchain, and target directory the
-preparation built against. Isolating CARGO_HOME would relocate every
-dependency source path and force the probe to recompile the graph the
+`cargo-workspace-v1` runs its two steps in the inherited environment plus
+LC_ALL=C, CARGO_TERM_COLOR=never, and GIT_TERMINAL_PROMPT=0 — the same
+inherited environment the make probe measures under (the probe itself adds
+only MAKELEVEL, MAKEFLAGS, and LC_ALL=C) — because a prepared tree only
+helps if the probe later resolves the same registry, toolchain, and target
+directory the preparation built against. Isolating CARGO_HOME would relocate
+every dependency source path and force the probe to recompile the graph the
 preparation was supposed to hand it. The 30-minute ceiling bounds fetch plus
 a cold full-workspace check combined; a timeout fails the preparation instead
 of producing a silent baseline.

@@ -41,15 +41,19 @@ func TestPrepareCargoWorkspaceRunsFetchThenCheckAndKeepsTargetArtifacts(t *testi
 	wt := cargoFixture(t)
 	// check only runs after fetch (marker under target/), writes its build
 	// artifact under target/, and never touches tracked paths. If the
-	// executor skipped fetch, ran the steps out of order, or rejected the
-	// target/ output, this script fails and so does the test.
+	// executor skipped fetch, ran the steps out of order, dropped the check
+	// step, or rejected the target/ output, this script fails and so does
+	// the test.
 	bin := fakeCargo(t, `mkdir -p target
 if [ "$1" = fetch ]; then : > target/.fetched; exit 0; fi
-if [ "$1" = check ]; then test -e target/.fetched; : > target/artifact; exit 0; fi
+if [ "$1" = check ] && [ "$2" = --workspace ]; then test -e target/.fetched; : > target/artifact; exit 0; fi
 exit 97`)
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, cargoWorkspacePrepareV1); err != nil {
 		t.Fatalf("cargo preparation failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(wt, "target", "artifact")); err != nil {
+		t.Fatalf("check step did not produce its build artifact: %v", err)
 	}
 }
 
