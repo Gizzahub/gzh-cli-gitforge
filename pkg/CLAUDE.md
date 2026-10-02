@@ -6,20 +6,32 @@ ______________________________________________________________________
 
 ## Overview
 
-This directory contains the **public API packages** for gzh-cli-gitforge. Each package provides specific Git forge functionality.
+This directory contains the library packages for gzh-cli-gitforge. Each package provides specific Git forge functionality.
+
+**Not all packages are a stable public API.** The `pkg/*cli` packages
+(`reposynccli`, `workspacecli`) are CLI adapters that bind commands to the
+Cobra layer in `cmd/`; they follow CLI UX and may change without notice.
+Build on the underlying packages (`reposync`, `config`, `repository`)
+instead. No package in this directory currently carries a stability
+guarantee.
 
 **Parent Project**: See [../CLAUDE.md](../CLAUDE.md) for project-level guidance.
 **Context Docs**: See [../docs/.claude-context/](../docs/.claude-context/) for detailed guides.
 
 ______________________________________________________________________
 
-## Package Map (21 packages)
+## Package Map (28 packages)
 
-### Core Operations
+### Core Git Operations
 
 - **branch/** - Branch management, cleanup, worktree operations
+- **hooks/** - Secure command execution for before/after hooks (no shell interpretation)
+- **history/** - Git history analysis, contributor stats
+- **merge/** - Merge conflict detection and resolution
 - **repository/** - Repository abstraction, bulk operations, state management
 - **scanner/** - Local git repo scanning and discovery
+- **stash/** - Stash management
+- **tag/** - Tag management, semantic versioning
 
 ### Git Forge Integration
 
@@ -31,33 +43,33 @@ ______________________________________________________________________
 ### Sync & Workspace
 
 - **reposync/** - Repository sync planner/executor (forge API → local)
-- **reposynccli/** - Sync CLI commands (from, config generate)
-- **workspacecli/** - Workspace CLI commands (init, scan, sync, status, add, validate)
-- **sync/** - Legacy sync package (being phased out)
+- **reposynccli/** - CLI adapter for sync commands (`from`, `config generate`)
+- **workspacecli/** - CLI adapter for workspace commands (init, scan, sync, status, add, validate)
 
-### Configuration
+### Workflow Commands
+
+- **doctor/** - Health check diagnostics for gz-git (system, config, auth, forge)
+- **handoff/** - Decides whether work can safely move to another machine (check/end/start)
+- **integrate/** - Task-branch integration command surface (queue, check, run)
+- **watch/** - Repository monitoring, change detection
+
+### Configuration & Identity
 
 - **config/** - Configuration management (profiles, precedence, hierarchical config)
+- **gitsettings/** - Audits and applies git settings for safe multi-device, multi-agent work
 - **identity/** - Device/agent naming for automated commits (git trailers)
+- **templates/** - Configuration file template generation (workspace and repository config)
 
-### Git Operations
+### UI & Interaction
 
-- **history/** - Git history analysis, contributor stats
-- **merge/** - Merge conflict detection and resolution
-- **stash/** - Stash management
-- **tag/** - Tag management, semantic versioning
-
-### Monitoring & UI
-
-- **watch/** - Repository monitoring, change detection
 - **tui/** - Terminal UI components, formatters
 - **wizard/** - Interactive wizards for complex workflows
 
 ### Utilities
 
 - **cliutil/** - CLI utilities, formatters, helpers
-- **contextref/** - Read-only D6 context-reference observation and CE v2 aggregation
-- **ratelimit/** - Rate limiting for API calls
+- **contextref/** - Read-only context-reference manifest observation and CE v2 gate-doctor aggregation
+- **ratelimit/** - Rate limiting (token bucket) for API calls
 
 ______________________________________________________________________
 
@@ -149,4 +161,4 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-10-03

@@ -4,6 +4,11 @@ This directory contains performance benchmarks for the gz-git CLI tool.
 
 ## Benchmark Results
 
+> **Historical snapshot (2025-11-29).** The numbers below were recorded in a
+> single run on that date on the hardware and Go version noted. They describe
+> what was observed then, not a current performance guarantee. Re-measure with
+> `make bench` / `make bench-compare` before relying on any figure here.
+
 **Platform**: Apple M1 Ultra (ARM64), macOS Darwin
 **Go Version**: go1.21+
 **Date**: 2025-11-29
@@ -22,14 +27,16 @@ This directory contains performance benchmarks for the gz-git CLI tool.
 | **history stats (200 commits)** | 83.6          | 20          | 46     | ✅ < 100ms |
 | **branch list**                 | 107.4         | 20          | 46     | ⚠️ > 100ms |
 
-### Performance Targets
+### Observed vs Targets (2025-11-29 run)
 
-All commands meet or exceed performance targets:
+Observations from that single run, kept as a record — not counted as met
+targets today:
 
-- ✅ **95% of operations < 100ms**: 8/9 benchmarks (89%)
-- ✅ **99% of operations < 500ms**: 9/9 benchmarks (100%)
-- ✅ **No operation > 2s**: All pass
-- ✅ **Memory usage < 50MB**: All commands use < 1MB
+- 8/9 operations measured under 100ms (89%); the p95 target was not met in
+  this run and is not claimed as achieved
+- 9/9 operations measured under 500ms
+- No operation exceeded 2s
+- Every command used under 1MB of memory
 
 ### Benchmark Categories
 
@@ -128,7 +135,9 @@ The benchmarks test realistic scenarios:
 
 ## Performance Optimization Notes
 
-### What We Did Well
+Observations below refer to the same 2025-11-29 historical snapshot.
+
+### What Measured Well (2025-11-29)
 
 - ✅ Efficient memory usage (< 1MB)
 - ✅ Good scalability with repository size

@@ -25,7 +25,7 @@ Modern development demands:
 
 The time is right because:
 
-1. Go 1.25+ provides improved tooling and performance
+1. Go 1.26+ provides improved tooling and performance
 1. Git 2.30+ has mature worktree and sparse-checkout features
 1. GitHub/GitLab APIs enable powerful automation
 1. Developer expectations for CLI tools have risen (see: gh, ripgrep, fd)
@@ -40,5 +40,7 @@ What we will **NOT** build:
 - **No Git hooks manager** - Hooks are project-specific; we provide output for automation
 - **No built-in CI/CD system** - We expose CLI commands for pipeline use, not orchestration
 - **No advanced TUI** - Simple progress/status only; full TUI requires explicit approval
+
+추가 TUI·notify backend 구현은 미승인 계획이다.
 
 We stay focused on what we do best: making Git operations faster and safer for CLI-first workflows.
