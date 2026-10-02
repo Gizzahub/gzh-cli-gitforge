@@ -7,11 +7,15 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 Everything in this document is pinned to **CE source `ce-agent-kit` master
-`771c54cf`** (installed binary `ce 0.8.4`, build `404-g771c54cf`; fixtures
+`950650ef`** (installed binary `ce 0.8.4`, build `475-g950650ef`; fixtures
 were first authored against `bb970b24` / `400-gbb970b24`, re-recorded across
-`f927ae5d` / `401-gf927ae5d`, and re-recorded again across the move to
-`771c54cf` / `404-g771c54cf` — both later moves changed the toolchain stamp
-only, verified by golden diff, which is the toolchain pin doing its job).
+`f927ae5d` / `401-gf927ae5d`, re-recorded again across the move to
+`771c54cf` / `404-g771c54cf` (stamp-only), and again across the move to
+`950650ef` / `475-g950650ef` — that last move changed the stamp plus captured
+wording only: the `nextAction` guidance grew a run-finish clause and the
+captured `gz-git integrate` `--help` output gained `Effect: mutating (...)`
+lines; schema, statuses and allowed actions were unchanged, verified by
+golden diff, which is the toolchain pin doing its job).
 The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
@@ -20,19 +24,19 @@ fixtures win.
 
 Reference toolchain used by the fixtures:
 
-| Component | Version | Role |
-|-----------|---------|------|
-| `ce`       | 0.8.4 (`771c54cf`) | system under test (reference) |
-| `wt` (Worktrunk) | 0.74.0 (hard-pinned by CE: `worktrunkVersion` const) | worktree create/remove/inventory |
-| `gz-git`   | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim) |
-| `git`      | system git | refs, worktree plumbing |
+| Component        | Version                                                    | Role                             |
+| ---------------- | ---------------------------------------------------------- | -------------------------------- |
+| `ce`             | 0.8.4 (`950650ef`)                                         | system under test (reference)    |
+| `wt` (Worktrunk) | 0.74.0 (hard-pinned by CE: `worktrunkVersion` const)       | worktree create/remove/inventory |
+| `gz-git`         | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim)   |
+| `git`            | system git                                                 | refs, worktree plumbing          |
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
 0026 (provider adapter boundary only), 0028 (finish owns DONE evidence),
 0049 (guarded discard), 0055 (ownership transfer to gz-git).
 
----
+______________________________________________________________________
 
 ## 1. Verb surface
 
@@ -40,19 +44,18 @@ Hand-rolled dispatcher (no cobra): `cmd/ce/handlers_task.go` registers eight
 verbs; parse errors print `Error: <msg>` to stderr and exit 1. `--help`/`-h`
 short-circuits to the usage line and exits 0.
 
-| Verb | Usage | Positional args | Flags |
-|------|-------|-----------------|-------|
-| `run-doctor` | `ce task run-doctor [--json]` | none | `--json` |
-| `run-start` | `ce task run-start <task> --type <feat\|fix\|refactor\|docs\|test\|chore\|perf> [--json]` | exactly 1 (`run-start accepts one task`) | `--type` (required value), `--json` |
-| `run-status` | `ce task run-status [task] [--json]` | 0 or 1 | `--json` |
-| `run-list` | `ce task run-list [--json]` | 0 (positional arg → `unexpected argument %s`) | `--json` |
-| `run-finish` | `ce task run-finish [task] [--json]` | 0 or 1 (`run-finish accepts at most one task`) | `--json` |
-| `run-recover` | `ce task run-recover <task> [--json]` | exactly 1 | `--json` |
-| `run-abort` | `ce task run-abort <task> [--reason R] [--json]` | exactly 1 | `--reason` (optional value), `--json` |
-| `run-discard` | `ce task run-discard <task> --reason R [--take-over-from actor/host] [--json]` | exactly 1 | `--reason` (required), `--take-over-from` (optional), `--json` |
+| Verb          | Usage                                                                                     | Positional args                                | Flags                                                          |
+| ------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| `run-doctor`  | `ce task run-doctor [--json]`                                                             | none                                           | `--json`                                                       |
+| `run-start`   | `ce task run-start <task> --type <feat\|fix\|refactor\|docs\|test\|chore\|perf> [--json]` | exactly 1 (`run-start accepts one task`)       | `--type` (required value), `--json`                            |
+| `run-status`  | `ce task run-status [task] [--json]`                                                      | 0 or 1                                         | `--json`                                                       |
+| `run-list`    | `ce task run-list [--json]`                                                               | 0 (positional arg → `unexpected argument %s`)  | `--json`                                                       |
+| `run-finish`  | `ce task run-finish [task] [--json]`                                                      | 0 or 1 (`run-finish accepts at most one task`) | `--json`                                                       |
+| `run-recover` | `ce task run-recover <task> [--json]`                                                     | exactly 1                                      | `--json`                                                       |
+| `run-abort`   | `ce task run-abort <task> [--reason R] [--json]`                                          | exactly 1                                      | `--reason` (optional value), `--json`                          |
+| `run-discard` | `ce task run-discard <task> --reason R [--take-over-from actor/host] [--json]`            | exactly 1                                      | `--reason` (required), `--take-over-from` (optional), `--json` |
 
-Flag-value parse errors: `--type requires a value`, `--reason requires a
-value`, `--take-over-from requires a value` (a value starting `--` is
+Flag-value parse errors: `--type requires a value`, `--reason requires a value`, `--take-over-from requires a value` (a value starting `--` is
 rejected); unknown flags: `unknown flag %s (valid: ...)`.
 
 ### gz-git verb mapping (ADR-0055 port)
@@ -63,17 +66,17 @@ the `task` namespace becomes the `run` command group, and the hyphenated
 documents (`allowedActions`) keep the CE-hyphenated spelling — they name
 capabilities, not CLI words.
 
-| CE verb | gz-git verb | Flags (identical semantics) | Notes |
-|---------|-------------|------------------------------|-------|
-| `ce task run-doctor` | `gz-git run doctor` | `--json` | |
-| `ce task run-start` | `gz-git run start` | `--type`, `--json` | |
-| `ce task run-status` | `gz-git run status` | `--json` | |
-| `ce task run-list` | `gz-git run list` | `--json` | |
-| `ce task run-finish` | `gz-git run finish` | `--json` | known-divergent: no-arg finish with one ACTIVE run exits 0 (ISSUE-069) |
-| `ce task run-recover` | `gz-git run recover` | `--json` | |
-| `ce task run-abort` | `gz-git run abort` | `--reason`, `--json` | |
-| `ce task run-discard` | `gz-git run discard` | `--reason`, `--take-over-from`, `--json` | |
-| — | `gz-git run import-ce` | `--dry-run`, `--json` | new: ADR-0055 one-shot carryover of in-flight CE records; no CE counterpart |
+| CE verb               | gz-git verb            | Flags (identical semantics)              | Notes                                                                       |
+| --------------------- | ---------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
+| `ce task run-doctor`  | `gz-git run doctor`    | `--json`                                 |                                                                             |
+| `ce task run-start`   | `gz-git run start`     | `--type`, `--json`                       |                                                                             |
+| `ce task run-status`  | `gz-git run status`    | `--json`                                 |                                                                             |
+| `ce task run-list`    | `gz-git run list`      | `--json`                                 |                                                                             |
+| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | known-divergent: no-arg finish with one ACTIVE run exits 0 (ISSUE-069)      |
+| `ce task run-recover` | `gz-git run recover`   | `--json`                                 |                                                                             |
+| `ce task run-abort`   | `gz-git run abort`     | `--reason`, `--json`                     |                                                                             |
+| `ce task run-discard` | `gz-git run discard`   | `--reason`, `--take-over-from`, `--json` |                                                                             |
+| —                     | `gz-git run import-ce` | `--dry-run`, `--json`                    | new: ADR-0055 one-shot carryover of in-flight CE records; no CE counterpart |
 
 Structural differences, all declared port divergences rather than behavior
 changes:
@@ -106,17 +109,17 @@ Carrier: stdout always carries the report first; on non-zero exit stderr
 additionally gets `Error: <reason>` (`RuntimeExitError` implements
 `ExitCode()`; `runOrFail` maps it to `os.Exit`).
 
-| Verb | exit 0 | exit 1 | exit 2 | exit 3 |
-|------|--------|--------|--------|--------|
-| `run-doctor` | ACTIVE | BLOCKED | — | — |
-| `run-start` | ACTIVE | BLOCKED (all failures, incl. parse→1) | — | — |
-| `run-status` / `run-list` | READY/ACTIVE answer | BLOCKED or UNKNOWN (e.g. `task execution was not found`) | — | — |
-| `run-finish` | DONE (incl. already-DONE) | refusals, owner mismatch, preconditions | provider `check`/`run` exit 1–2 propagated verbatim; out-of-range clamps to 2 | provider `run` exit 3 (`integration succeeded but task recovery cleanup failed`); also finish-side evidence/receipt-validation/persistence failures |
-| `run-recover` | DONE (incl. already-DONE) | everything else | — | — |
-| `run-abort` | ABORTED (incl. already-terminal no-op) | failures, unknown task | — | — |
-| `run-discard` | ABORTED (incl. idempotent re-discard) | all refusals | — | — |
+| Verb                      | exit 0                                 | exit 1                                                   | exit 2                                                                        | exit 3                                                                                                                                              |
+| ------------------------- | -------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run-doctor`              | ACTIVE                                 | BLOCKED                                                  | —                                                                             | —                                                                                                                                                   |
+| `run-start`               | ACTIVE                                 | BLOCKED (all failures, incl. parse→1)                    | —                                                                             | —                                                                                                                                                   |
+| `run-status` / `run-list` | READY/ACTIVE answer                    | BLOCKED or UNKNOWN (e.g. `task execution was not found`) | —                                                                             | —                                                                                                                                                   |
+| `run-finish`              | DONE (incl. already-DONE)              | refusals, owner mismatch, preconditions                  | provider `check`/`run` exit 1–2 propagated verbatim; out-of-range clamps to 2 | provider `run` exit 3 (`integration succeeded but task recovery cleanup failed`); also finish-side evidence/receipt-validation/persistence failures |
+| `run-recover`             | DONE (incl. already-DONE)              | everything else                                          | —                                                                             | —                                                                                                                                                   |
+| `run-abort`               | ABORTED (incl. already-terminal no-op) | failures, unknown task                                   | —                                                                             | —                                                                                                                                                   |
+| `run-discard`             | ABORTED (incl. idempotent re-discard)  | all refusals                                             | —                                                                             | —                                                                                                                                                   |
 
----
+______________________________________________________________________
 
 ## 2. JSON response envelope
 
@@ -174,40 +177,39 @@ then the run-list state listing (`executions: none`, per-record lines,
 `READY` is a **list-level token only** ("the runtime answered with these
 states"), never a per-record status.
 
----
+______________________________________________________________________
 
 ## 3. Storage layout
 
 All runtime state lives under the **git common dir**
 (`git rev-parse --git-common-dir`) + `ce/task-runtime/v1/`:
 
-| Path | Format | Writer |
-|------|--------|--------|
-| `executions.json` | pretty-printed JSON array of `TaskExecution`; atomic replace (temp+fsync+rename+dirsync); missing file reads as `[]` | start (rewrite), never append-only |
-| `receipts.jsonl` | append-only JSONL, one `TaskReceipt` per line; malformed line is a hard read error | start/finish/abort/discard/recover/reconcile |
-| `mutation.lock` | `O_EXCL`-created file, content `pid=<pid> created=<RFC3339>`; removed by the holder's unlock closure; **never auto-removed** | every mutating verb |
-| `board-recovery/` | preserved card copies | `ce task reconcile` (board verb, out of scope here) |
+| Path              | Format                                                                                                                       | Writer                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `executions.json` | pretty-printed JSON array of `TaskExecution`; atomic replace (temp+fsync+rename+dirsync); missing file reads as `[]`         | start (rewrite), never append-only                  |
+| `receipts.jsonl`  | append-only JSONL, one `TaskReceipt` per line; malformed line is a hard read error                                           | start/finish/abort/discard/recover/reconcile        |
+| `mutation.lock`   | `O_EXCL`-created file, content `pid=<pid> created=<RFC3339>`; removed by the holder's unlock closure; **never auto-removed** | every mutating verb                                 |
+| `board-recovery/` | preserved card copies                                                                                                        | `ce task reconcile` (board verb, out of scope here) |
 
 Locking: mutating verbs (start/finish/abort/discard/recover) hold the lock;
 doctor/status/list take none but *observe* it. Under a lock, derived state
 is BLOCKED (`repository task runtime mutation is in progress or stale`);
-doctor reports `stale or active mutation lock: <path>` with `next: inspect
-the lock owner; do not delete it automatically`.
+doctor reports `stale or active mutation lock: <path>` with `next: inspect the lock owner; do not delete it automatically`.
 
 Other state under `<common-dir>/ce/` (gate evidence, heartbeat, audit, card
 ID reservations) belongs to non-run verbs and is not part of this contract.
 
----
+______________________________________________________________________
 
 ## 4. Identity
 
 Resolution order (first hit wins), all values normalized (lowercase, trim,
 `[^a-z0-9]+` → `-`, trim `-`):
 
-| Field | Order |
-|-------|-------|
+| Field | Order                                                                                                                                                                                                                                                                            |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | actor | 1. env `CE_TASK_ACTOR` → kind `agent`; 2. env `GIT_WORK_ACTOR` → kind `human`; 3. `defaults.actor`(+`defaults.actor-kind`) in `${XDG_CONFIG_HOME:-$HOME/.config}/ce/identity.yaml`; 4. global git config `ce.workActor` → kind `human`; 5. error `task actor is not configured…` |
-| host | 1. env `GIT_WORK_HOST`; 2. conflict error if identity-file `defaults.host` ≠ global git `ce.workHost` (`device identity source conflict: …`); 3. `defaults.host`; 4. git `ce.workHost`; 5. error |
+| host  | 1. env `GIT_WORK_HOST`; 2. conflict error if identity-file `defaults.host` ≠ global git `ce.workHost` (`device identity source conflict: …`); 3. `defaults.host`; 4. git `ce.workHost`; 5. error                                                                                 |
 
 The run **owner** is the `TaskOwner{actor, host, kind}` stored with the
 execution. Owner equality compares actor+host (kind ignored when the stored
@@ -218,7 +220,7 @@ The local identity file is parsed with strict unknown-field rejection;
 `XDG_CONFIG_HOME` (and `HOME`) at sandbox dirs and setting
 `CE_TASK_ACTOR`/`GIT_WORK_HOST` explicitly.
 
----
+______________________________________________________________________
 
 ## 5. Naming and worktree rules
 
@@ -253,24 +255,21 @@ repository. Legacy singular `worktree-root` is a hard error.
 
 External command boundaries:
 
-- run-start → `wt --config-set "worktree-path = \"<path>\"" switch --create
-  --base <source> --no-cd --format=json dev/<actor>/<host>/<type>/<task>`
+- run-start → `wt --config-set "worktree-path = \"<path>\"" switch --create --base <source> --no-cd --format=json dev/<actor>/<host>/<type>/<task>`
   (cwd = repo root). The wt JSON answer's `action` is `created` or
   `existing` depending on whether the worktree/branch already existed;
   CE's own `reason` distinguishes `task execution started` vs
   `existing execution returned`, and only the created path carries the wt
   `diagnostics` block (fixture-evidenced).
-- inventory (doctor/status/list/finish) → `wt --config-set
-  "list.json-schema = 2" list --format=json`; a non-`{"schema":2,"items":…}`
+- inventory (doctor/status/list/finish) → `wt --config-set "list.json-schema = 2" list --format=json`; a non-`{"schema":2,"items":…}`
   answer is BLOCKED (`worktrunk list must return a schema 2 items envelope`).
 - run-finish → `gz-git integrate check` then `gz-git integrate run`
   (with `--no-fetch` appended under `integration-network-policy: no-fetch`,
   and only if the provider advertises the `integrate-no-fetch` capability).
-- run-discard removal → `wt remove --no-hooks --foreground --format=json
-  -y -D <recorded-worktree-path>`; never `-f`, never a path other than the
+- run-discard removal → `wt remove --no-hooks --foreground --format=json -y -D <recorded-worktree-path>`; never `-f`, never a path other than the
   recorded one.
 
----
+______________________________________________________________________
 
 ## 6. Verb semantics
 
@@ -315,8 +314,7 @@ task: UNKNOWN `task execution was not found`, exit 1.
 
 Derived `allowedActions`: ACTIVE `[run-status, run-abort]`; BLOCKED
 `[run-status, run-abort]` (+ `run-recover` when a partial-cleanup receipt
-is present); terminal DONE `[run-status, run-finish, run-abort,
-run-discard]`; ABORTED `[run-status]` (+ `run-discard` when the discard
+is present); terminal DONE `[run-status, run-finish, run-abort, run-discard]`; ABORTED `[run-status]` (+ `run-discard` when the discard
 intent can be retried).
 
 ### run-finish
@@ -329,8 +327,7 @@ preconditions: uncommitted changes — untracked files included, status stays
 ACTIVE (`task worktree has uncommitted changes`, next
 `commit or remove task-owned changes`; note this string differs from
 run-discard's `task worktree is dirty`) — no upstream
-(`task branch has no upstream`), unpushed (`task branch must be fully
-pushed`) → capture heads → provider `integrate check`, then `integrate run`
+(`task branch has no upstream`), unpushed (`task branch must be fully pushed`) → capture heads → provider `integrate check`, then `integrate run`
 → verify the provider evidence (source heads, push success, worktree/local/
 remote removal) → append `operation: finish, status: DONE` receipt → DONE,
 exit 0, reason `integration and recovery completed`. Incomplete/incorrect
@@ -365,19 +362,15 @@ task: exit 1.
 ### run-discard
 
 Guarded non-integration disposal (ADR-0049). Owner-only; a different actor
-on the **same host** may take over only with `--take-over-from
-<actor/host>` spelling the recorded owner exactly — the receipt keeps the
+on the **same host** may take over only with `--take-over-from <actor/host>` spelling the recorded owner exactly — the receipt keeps the
 original `owner` and records `performedBy`. `--reason` is mandatory.
 Refusals (all BLOCKED, exit 1, exact strings): DONE receipt
 (`run-discard refuses an execution with a DONE receipt`), recorded
 partial-cleanup receipt, `no-fetch` policy
-(`run-discard requires integration-network-policy allow because no-fetch
-cannot prove remote branch absence`), take-over mismatch
-(`only <actor/host> may discard this task; cross-actor takeover requires
-exact --take-over-from <actor/host> on host <host>`), worktree outside the
+(`run-discard requires integration-network-policy allow because no-fetch cannot prove remote branch absence`), take-over mismatch
+(`only <actor/host> may discard this task; cross-actor takeover requires exact --take-over-from <actor/host> on host <host>`), worktree outside the
 configured root, conflicting live execution on the same branch/path, caller
-inside the target worktree (`run-discard refuses to remove its current
-worktree`), Worktrunk inventory mismatch, dirty worktree
+inside the target worktree (`run-discard refuses to remove its current worktree`), Worktrunk inventory mismatch, dirty worktree
 (`task worktree is dirty`), branch mismatch, remote branch present
 (`task branch still exists on origin`). Sequence: append BLOCKED intent
 receipt → `wt remove … -y -D` (no `-f`) → re-verify path/local-branch/
@@ -400,8 +393,7 @@ head; source is pushed (`current source branch is not pushed`); residual
 worktree/branch/remote detection — **zero residuals is a failure**
 (`provider cleanup left no residual path or ref to recover`). Success:
 `operation: recover, status: DONE` receipt, exit 0, reason
-`integration confirmed after partial provider cleanup; residual <list>
-left untouched`. A recover DONE receipt only validates as terminal when at
+`integration confirmed after partial provider cleanup; residual <list> left untouched`. A recover DONE receipt only validates as terminal when at
 least one residual remains.
 
 ### Reconciliation (runs inside every read)
@@ -420,7 +412,7 @@ ABORTED. This is why an active run is judged from `states[].status`, not
 from the number of executions: an externally reclaimed run keeps its
 `executions[]` entry but reports a terminal state and `activeCount` drops.
 
----
+______________________________________________________________________
 
 ## 7. Fixture suite
 
