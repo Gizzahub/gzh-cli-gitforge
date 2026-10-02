@@ -1,6 +1,6 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: open (2026-10-01 기준선 기록; TASK-260과 무관)
+- status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
 - created_at: 2026-10-01
@@ -30,8 +30,20 @@ recover-requires-cleanup-failure, start-created-existing
   재녹화는 참조 ce를 새 버전으로 인정하는 의사결정이므로 메인테이너가
   한다. 본 카드는 재녹화하지 않았다.
 
-## 후속 방향(제안)
+## 해결 기록 (2026-10-02)
 
-1. 호스트 ce를 골든 기준(771c54cf)으로 되돌리거나, 2) 메인테이너가
-   `PARITY_RECORD=1`로 골든을 재녹화해 새 참조를 인정한다. 어느 쪽이든
-   hosted CI의 parity 단계가 초록인 exact-SHA로 확인한다.
+메인테이너 결정으로 제안 2)를 택해 골든을 `475-g950650ef` 기준으로
+재녹화했다 (`PARITY_RECORD=1 go test ./tests/parity/...`, 11개 시나리오).
+
+- 이동 성격: stamp-only가 아니었다. word-diff 검증 결과 변경은 ① 버전
+  스탬프(771c54cf/404-g → 950650ef/475-g), ② run-status `nextAction`
+  가이드 문구 확장, ③ 캡처된 `gz-git integrate --help` 출력의 신규
+  `Effect: mutating (...)` 라인 — 전부 캡처된 출력 문구며,
+  스키마/상태/allowedActions는 불변.
+- 수반 변경: `pinnedCECommit` 상수 → `950650ef`,
+  `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md` 핀·이력 갱신(파일 전체가
+  mdformat 정규화됨 — 변경 파일은 전체 검사 대상이라 필연).
+- 근거: 재녹화 후 로컬 `make quality` 전체 통과(parity 포함). hosted CI
+  parity 단계는 푸시/통합 시점에 확인한다.
+- 후속: ce 드리프트 시 스위트가 실패 전단계에서 재녹화 안내와 함께
+  실패하는 가드(parity-version-guard)를 별도 과제로 진행한다.
