@@ -65,6 +65,12 @@ func (c ForeignCommit) String() string {
 // trailer, so it reads as unknown and is not reported: the gate finds real
 // conflicts in a workflow that checkpoints through this tool, and finds nothing
 // in one that does not.
+//
+// A failed probe is an error, never silence. The probe itself cannot tell a
+// missing ref from a broken repository — git log exits 128 for both — so the
+// remote ref is verified first: only an answer that the ref does not resolve
+// counts as absence, and every other failure leaves what the remote holds
+// unknown, which the caller must refuse to guess at.
 func findForeignCommits(
 	ctx context.Context,
 	executor *gitcmd.Executor,
@@ -75,6 +81,24 @@ func findForeignCommits(
 		return nil, nil
 	}
 
+	// --verify --quiet exits 1 exactly for a ref that does not resolve; every
+	// other code is a repository or execution error. A ref verified absent
+	// means the remote branch does not exist yet — the push creates it, so
+	// there is nothing to discard and nothing to report.
+	verify, err := executor.Run(ctx, repoPath, "rev-parse", "--verify", "--quiet", remoteRef)
+	if err != nil {
+		return nil, fmt.Errorf("could not verify remote ref %s: %w", remoteRef, err)
+	}
+	switch verify.ExitCode {
+	case 0:
+		// The ref resolves, so the range below is meaningful.
+	case 1:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("could not verify remote ref %s (exit %d): %s",
+			remoteRef, verify.ExitCode, strings.TrimSpace(verify.Stderr))
+	}
+
 	// %x1f separates the fields of a record, %x1e the records, so a commit
 	// message containing blank lines stays in one piece.
 	result, err := executor.Run(ctx, repoPath, "log",
@@ -83,9 +107,10 @@ func findForeignCommits(
 		return nil, fmt.Errorf("failed to read %s..%s: %w", localRef, remoteRef, err)
 	}
 	if result.ExitCode != 0 {
-		// A ref that does not resolve is not a conflict — the remote branch may
-		// simply not exist yet, which the push itself handles.
-		return nil, nil
+		// The remote ref exists, so a read that fails means the commits a
+		// force push would discard are unknown — say so rather than guessing.
+		return nil, fmt.Errorf("could not read %s..%s (exit %d): %s",
+			localRef, remoteRef, result.ExitCode, strings.TrimSpace(result.Stderr))
 	}
 
 	var foreign []ForeignCommit

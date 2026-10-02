@@ -2335,8 +2335,18 @@ func (c *client) processPushRepository(ctx context.Context, rootDir, repoPath st
 	// A force push is the one operation that destroys work already on the
 	// remote, so check whose it is before running it — including under
 	// --dry-run, where finding this out first is the whole point.
+	//
+	// The check can only fail in block mode — allow mode returns before the
+	// probe runs — and a check that could not run has not passed. Refuse the
+	// push with the same rule rather than guess at what the remote holds.
 	if foreign, ferr := c.checkForeignWork(ctx, repoPath, info, opts); ferr != nil {
-		logger.Warn("could not check for foreign work", "path", result.RelativePath, "error", ferr)
+		result.Status = StatusBlocked
+		result.Message = fmt.Sprintf("could not check for foreign work: %v", ferr)
+		result.Error = fmt.Errorf("push blocked by policy (%s): %s", PushRuleForeignWork, result.Message)
+		result.Duration = time.Since(startTime)
+		logger.Warn("could not check for foreign work; refusing the force push",
+			"path", result.RelativePath, "error", ferr)
+		return result
 	} else if len(foreign) > 0 {
 		result.Status = StatusBlocked
 		result.Message = describeForeignWork(foreign)
