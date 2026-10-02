@@ -39,40 +39,16 @@ type FileSpecLoader struct {
 	DefaultRetries  int
 }
 
+// fileConfig is the reposync adapter's view of a flat repositories document:
+// the shared neutral schema plus the parent/profile references that drive
+// this loader's inheritance and stay outside the shared flat schema.
 type fileConfig struct {
-	// Meta information (optional but recommended)
-	Version  int               `yaml:"version,omitempty"`  // schema version (currently 1)
-	Kind     config.ConfigKind `yaml:"kind,omitempty"`     // "repositories" or "workspace"
-	Metadata *config.Metadata  `yaml:"metadata,omitempty"` // optional descriptive info
+	// Flat repositories schema, decoded by config.ParseFlatRepositories.
+	config.FlatRepositories `yaml:",inline"`
 
 	// Parent config reference (for inheritance)
 	Parent  string `yaml:"parent,omitempty"`  // path to parent config file
 	Profile string `yaml:"profile,omitempty"` // profile name to use
-
-	// Sync settings
-	Strategy             string      `yaml:"strategy"`
-	Parallel             int         `yaml:"parallel"`
-	MaxRetries           *int        `yaml:"maxRetries"`
-	Resume               bool        `yaml:"resume"`
-	DryRun               bool        `yaml:"dryRun"`
-	CleanupOrphans       bool        `yaml:"cleanupOrphans"`
-	StrictBranchCheckout bool        `yaml:"strictBranchCheckout"` // default: false (lenient)
-	Roots                []string    `yaml:"roots"`
-	Repositories         []repoEntry `yaml:"repositories"`
-}
-
-type repoEntry struct {
-	Name                 string            `yaml:"name"`
-	Description          string            `yaml:"description"` // optional: human-readable description
-	Provider             string            `yaml:"provider"`
-	URL                  string            `yaml:"url"`
-	AdditionalRemotes    map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
-	Path                 string            `yaml:"path"`
-	Branch               config.FlexBranch `yaml:"branch"`               // optional: branch to checkout after clone/update
-	StrictBranchCheckout *bool             `yaml:"strictBranchCheckout"` // optional: override global setting (nil = use global)
-	Strategy             string            `yaml:"strategy"`
-	Enabled              *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
-	AssumePresent        bool              `yaml:"assumePresent"` // if true, skip clone check (assume already exists)
 }
 
 type gzhYamlConfig struct {
@@ -171,10 +147,23 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		return l.loadGzhYaml(raw, configPath)
 	}
 
-	var cfg fileConfig
-	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+	// Shared flat-schema decode; URL presence for this document's entries is
+	// validated by the parser.
+	flat, err := config.ParseFlatRepositories(raw)
+	if err != nil {
+		return ConfigData{}, err
+	}
+
+	// Parent/profile references drive reposync-specific inheritance and are
+	// decoded separately from the shared flat schema.
+	var refs struct {
+		Parent  string `yaml:"parent"`
+		Profile string `yaml:"profile"`
+	}
+	if err := yaml.Unmarshal(raw, &refs); err != nil {
 		return ConfigData{}, fmt.Errorf("parse config: %w", err)
 	}
+	cfg := fileConfig{FlatRepositories: flat, Parent: refs.Parent, Profile: refs.Profile}
 
 	// Load and merge parent config if specified
 	if cfg.Parent != "" {
@@ -193,7 +182,7 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		return ConfigData{}, errors.New("config has no repositories")
 	}
 
-	if cfg.CleanupOrphans && len(cfg.Roots) == 0 {
+	if cfg.CleanupOrphans != nil && *cfg.CleanupOrphans && len(cfg.Roots) == 0 {
 		return ConfigData{}, errors.New("cleanupOrphans enabled but no roots provided")
 	}
 
@@ -226,7 +215,7 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		},
 		Options: reposync.PlanOptions{
 			DefaultStrategy: parsedStrategy,
-			CleanupOrphans:  cfg.CleanupOrphans,
+			CleanupOrphans:  cfg.CleanupOrphans != nil && *cfg.CleanupOrphans,
 			Roots:           cleanRoots(cfg.Roots),
 		},
 	}
@@ -234,7 +223,9 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 	seenTargets := make(map[string]struct{}, len(cfg.Repositories))
 
 	for i, repo := range cfg.Repositories {
-		// URL is always required
+		// URL is always required. The shared parser already validated this
+		// document's entries; the check also covers repositories merged in
+		// from a parent config, which bypass the shared parser.
 		if repo.URL == "" {
 			return ConfigData{}, fmt.Errorf("repository[%d]: missing URL", i)
 		}
@@ -291,10 +282,12 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 	}
 
 	run := reposync.RunOptions{
-		Parallel:   cfg.Parallel,
 		MaxRetries: defaultRetries,
 		Resume:     cfg.Resume,
 		DryRun:     cfg.DryRun,
+	}
+	if cfg.Parallel != nil {
+		run.Parallel = *cfg.Parallel
 	}
 	if cfg.MaxRetries != nil {
 		run.MaxRetries = *cfg.MaxRetries
@@ -1061,7 +1054,9 @@ func mergeFileConfigs(parent, child fileConfig) fileConfig {
 	if child.Strategy != "" {
 		result.Strategy = child.Strategy
 	}
-	if child.Parallel != 0 {
+	// An explicit child zero keeps the parent value, matching the legacy
+	// int semantics this merge was written against.
+	if child.Parallel != nil && *child.Parallel != 0 {
 		result.Parallel = child.Parallel
 	}
 	if child.MaxRetries != nil {
@@ -1073,7 +1068,7 @@ func mergeFileConfigs(parent, child fileConfig) fileConfig {
 	if child.DryRun {
 		result.DryRun = child.DryRun
 	}
-	if child.CleanupOrphans {
+	if child.CleanupOrphans != nil && *child.CleanupOrphans {
 		result.CleanupOrphans = child.CleanupOrphans
 	}
 	if child.StrictBranchCheckout {

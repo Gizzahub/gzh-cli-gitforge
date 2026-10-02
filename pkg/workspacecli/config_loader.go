@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
@@ -36,37 +34,10 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
-	var raw struct {
-		// Meta information
-		Version  int              `yaml:"version,omitempty"`
-		Kind     string           `yaml:"kind,omitempty"`
-		Metadata *config.Metadata `yaml:"metadata,omitempty"`
-
-		// Sync settings
-		Strategy       string            `yaml:"strategy"`
-		Parallel       int               `yaml:"parallel"`
-		MaxRetries     int               `yaml:"maxRetries"`
-		CleanupOrphans bool              `yaml:"cleanupOrphans"`
-		CloneProto     string            `yaml:"cloneProto"`
-		SSHPort        int               `yaml:"sshPort"`
-		Branch         config.FlexBranch `yaml:"branch"`
-		Roots          []string          `yaml:"roots"`
-		Repositories   []struct {
-			Name              string            `yaml:"name"`
-			Description       string            `yaml:"description"` // optional: human-readable description
-			URL               string            `yaml:"url"`
-			AdditionalRemotes map[string]string `yaml:"additionalRemotes"` // Additional git remotes (name: url)
-			Path              string            `yaml:"path"`
-			Strategy          string            `yaml:"strategy"`
-			CloneProto        string            `yaml:"cloneProto"`
-			Branch            config.FlexBranch `yaml:"branch"`
-			Enabled           *bool             `yaml:"enabled"`       // optional: if false, exclude from sync (default: true)
-			AssumePresent     bool              `yaml:"assumePresent"` // if true, skip clone check
-		} `yaml:"repositories"`
-	}
-
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse YAML: %w", err)
+	// Shared flat-schema decode; URL presence is validated by the parser.
+	raw, err := config.ParseFlatRepositories(data)
+	if err != nil {
+		return nil, err
 	}
 
 	// Parse default strategy
@@ -82,12 +53,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 	// Build repo specs
 	repos := make([]reposync.RepoSpec, 0, len(raw.Repositories))
 	for i, r := range raw.Repositories {
-		// URL is always required
-		if r.URL == "" {
-			return nil, fmt.Errorf("repository[%d]: missing URL", i)
-		}
-
-		// Extract name from URL if not specified
+		// Extract name from URL if not specified (URL presence is guaranteed by the parser)
 		repoName := r.Name
 		if repoName == "" {
 			extracted, err := repository.ExtractRepoNameFromURL(r.URL)
@@ -132,6 +98,16 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 		repos = append(repos, spec)
 	}
 
+	// Explicit values only; the legacy defaulting below cannot distinguish an
+	// explicit zero from an omitted value and keeps it that way.
+	run := reposync.RunOptions{}
+	if raw.Parallel != nil {
+		run.Parallel = *raw.Parallel
+	}
+	if raw.MaxRetries != nil {
+		run.MaxRetries = *raw.MaxRetries
+	}
+
 	// Build result
 	result := &ConfigData{
 		Plan: reposync.PlanRequest{
@@ -141,13 +117,10 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (*ConfigData, err
 			Options: reposync.PlanOptions{
 				Roots:           raw.Roots,
 				DefaultStrategy: defaultStrategy,
-				CleanupOrphans:  raw.CleanupOrphans,
+				CleanupOrphans:  raw.CleanupOrphans != nil && *raw.CleanupOrphans,
 			},
 		},
-		Run: reposync.RunOptions{
-			Parallel:   raw.Parallel,
-			MaxRetries: raw.MaxRetries,
-		},
+		Run: run,
 	}
 
 	// Set defaults
