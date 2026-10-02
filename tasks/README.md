@@ -38,7 +38,7 @@ ______________________________________________________________________
 | 38  | hosted-gosec-diagnostic-directory                                | 진단 디렉터리 `0700` 설정의 hosted G302 수정. exact-SHA `ece25ab` Quality gate 통과; 실행 카드: devbox TASK-239                                                                                                                       |
 | 39  | make-timeout-configurable                                        | repo-root 선언 `branch.makeTimeout`으로 legacy 게이트 make 예산을 저장소별로 상향. 기본 15분 보존, fail-closed 파싱. 실행 카드: devbox TASK-260                                                                                       |
 | 40  | gosec-go127-export-data                                          | go1.27.0으로 빌드한 gosec v2.22.10이 `package without types` 오류로 전면 실패. go1.26.7 빌드는 정상 — tools.mk 빌드 툴체인 고정 또는 핀 상향 필요                                                                                     |
-| 41  | ce-parity-golden-drift                                           | 호스트 ce `475-g950650ef` 드리프트로 parity 골든(기준 `771c54cf`) 검증 11개 서브테스트 실패. master에서 동일 — 골든 재녹화 또는 ce 되돌림은 메인테이너 결정                                                                           |
+| 41  | ce-parity-golden-drift                                           | 해결. 골든을 `475-g950650ef` 기준으로 재녹화하고 ce 빌드 불일치 시 재녹화 안내와 함께 조기 실패하는 가드를 추가했다(`791ac89`·`83cc876`). exact-SHA hosted CI 초록 확인                                                               |
 
 메인테이너는 다음 stable 버전을 v0.8.0으로 결정했고 `VERSION`과 릴리스 노트를 준비했다.
 실제 태그 발행은 아직 하지 않는다. 빈 `homebrew-tap` 기본 브랜치, 최소 권한
