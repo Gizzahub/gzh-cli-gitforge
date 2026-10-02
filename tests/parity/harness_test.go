@@ -72,6 +72,9 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	ceBin = found
+	if !*recordMode {
+		guardGoldenToolchain()
+	}
 	os.Exit(m.Run())
 }
 
