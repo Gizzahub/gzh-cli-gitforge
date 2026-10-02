@@ -5,11 +5,19 @@
 # Testing Configuration
 # ==============================================================================
 
+# Critical packages guarded by coverage-critical-check. Their floors live in
+# .ci/critical-coverage-floors.json and are enforced by cmd/coveragegate.
+CRITICAL_COVERAGE_PACKAGES := \
+	github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd \
+	github.com/gizzahub/gzh-cli-gitforge/pkg/repository \
+	github.com/gizzahub/gzh-cli-gitforge/pkg/reposync \
+	github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli
+
 # ==============================================================================
 # Testing Targets
 # ==============================================================================
 
-.PHONY: test test-unit test-unit-quality test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
+.PHONY: test test-unit test-unit-quality coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
 .PHONY: cover cover-html cover-report bench test-coverage test-docker
 
 test: clean build ## run all tests with coverage (requires binary for integration tests)
@@ -40,6 +48,26 @@ test-unit-quality: ## run unit tests without leaving a coverage artifact in the 
 		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)'); \
 	go tool cover -func="$$coverage_out" | sort -rnk3; \
 	echo -e "$(GREEN)✅ Unit tests completed$(RESET)"
+
+# coverage-critical-check measures exactly the critical packages into a
+# throwaway profile under tmp/ (gitignored) and fails when any package drops
+# below its recorded floor. The trap deletes only the temporary directory this
+# run created, on success, failure, and interrupt alike, and preserves the
+# checker's exit status. tmp/ itself is left in place: concurrent make runs
+# may hold their own temporary directories there.
+coverage-critical-check: ## fail when a critical package's coverage drops below its recorded floor
+	@set -eu; \
+	export GOWORK=off; \
+	mkdir -p tmp; \
+	critical_tmp=$$(mktemp -d tmp/coverage-critical.XXXXXX); \
+	trap 'rm -rf "$$critical_tmp"' EXIT HUP INT TERM; \
+	profile="$$critical_tmp/critical-coverage.out"; \
+	echo -e "$(CYAN)Measuring critical package coverage...$(RESET)"; \
+	GOWORK=off go test -short -count=1 -covermode=set -coverprofile="$$profile" \
+		$(CRITICAL_COVERAGE_PACKAGES); \
+	echo -e "$(CYAN)Checking critical coverage floors...$(RESET)"; \
+	go run ./cmd/coveragegate -manifest .ci/critical-coverage-floors.json -profile "$$profile"; \
+	echo -e "$(GREEN)✅ Critical coverage floors satisfied$(RESET)"
 
 # Keep the integration package self-contained for the canonical quality gate.
 # Its TestMain builds gz-git in a private temporary directory and each test
