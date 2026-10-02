@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Temporary no-regression guard for the four critical packages, not a product target. Each floor equals the larger of the card minimum (TASK-267) and the coverage measured at the recorded baseline commit, so quality-check fails when a package's statement coverage drops below what already existed. These floors do NOT declare the coverage goal achieved: the pkg >= 85% goal in PRODUCT.md stays unchanged and remains unmet. Never lower a floor to make this gate pass; add tests and raise coverage instead.",
+  "packages": [
+    {
+      "package": "github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd",
+      "minimumPercent": 59.1,
+      "baselineCoveredStatements": 139,
+      "baselineTotalStatements": 235,
+      "baselineCommit": "1a8b9988a50a4946aa37ee989035d04cd01ccf9a",
+      "measurementCommand": "GOWORK=off go test -short -count=1 -covermode=set -coverprofile=<profile> github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd github.com/gizzahub/gzh-cli-gitforge/pkg/repository github.com/gizzahub/gzh-cli-gitforge/pkg/reposync github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli"
+    },
+    {
+      "package": "github.com/gizzahub/gzh-cli-gitforge/pkg/repository",
+      "minimumPercent": 59.3,
+      "baselineCoveredStatements": 2517,
+      "baselineTotalStatements": 4242,
+      "baselineCommit": "1a8b9988a50a4946aa37ee989035d04cd01ccf9a",
+      "measurementCommand": "GOWORK=off go test -short -count=1 -covermode=set -coverprofile=<profile> github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd github.com/gizzahub/gzh-cli-gitforge/pkg/repository github.com/gizzahub/gzh-cli-gitforge/pkg/reposync github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli"
+    },
+    {
+      "package": "github.com/gizzahub/gzh-cli-gitforge/pkg/reposync",
+      "minimumPercent": 61.0,
+      "baselineCoveredStatements": 706,
+      "baselineTotalStatements": 1158,
+      "baselineCommit": "1a8b9988a50a4946aa37ee989035d04cd01ccf9a",
+      "measurementCommand": "GOWORK=off go test -short -count=1 -covermode=set -coverprofile=<profile> github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd github.com/gizzahub/gzh-cli-gitforge/pkg/repository github.com/gizzahub/gzh-cli-gitforge/pkg/reposync github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli"
+    },
+    {
+      "package": "github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli",
+      "minimumPercent": 63.9,
+      "baselineCoveredStatements": 1539,
+      "baselineTotalStatements": 2407,
+      "baselineCommit": "1a8b9988a50a4946aa37ee989035d04cd01ccf9a",
+      "measurementCommand": "GOWORK=off go test -short -count=1 -covermode=set -coverprofile=<profile> github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd github.com/gizzahub/gzh-cli-gitforge/pkg/repository github.com/gizzahub/gzh-cli-gitforge/pkg/reposync github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli"
+    }
+  ]
+}
