@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "sourceCommit": "81d3543",
+    "goVersion": "go1.26.7",
+    "gitVersion": "git version 2.50.0",
+    "os": "darwin",
+    "arch": "arm64",
+    "workload": "synthetic-example",
+    "observedAt": "2026-10-02T00:00:00Z",
+    "measurementCommand": "go test -bench=. -benchmem -count=3 ./benchmarks (synthetic fixture, not executed)",
+    "note": "synthetic example fixture for converter tests; not product performance evidence"
+  },
+  "samples": [
+    {
+      "name": "BenchmarkCLIBranchList-10",
+      "iterations": 950,
+      "nsPerOp": 10740000
+    },
+    {
+      "name": "BenchmarkCLIInfo-10",
+      "iterations": 2000,
+      "nsPerOp": 3860000
+    },
+    {
+      "name": "BenchmarkCLIInfo-10",
+      "iterations": 2200,
+      "nsPerOp": 4020000
+    },
+    {
+      "name": "BenchmarkCLIStatus-10",
+      "iterations": 1000,
+      "nsPerOp": 2420000
+    },
+    {
+      "name": "BenchmarkCLIStatus-10",
+      "iterations": 1500,
+      "nsPerOp": 2510000
+    },
+    {
+      "name": "BenchmarkCLIStatus-10",
+      "iterations": 750,
+      "nsPerOp": 2480000
+    }
+  ],
+  "summary": [
+    {
+      "name": "BenchmarkCLIBranchList-10",
+      "sampleCount": 1,
+      "minMeanNsPerOp": 10740000,
+      "medianMeanNsPerOp": 10740000,
+      "maxMeanNsPerOp": 10740000
+    },
+    {
+      "name": "BenchmarkCLIInfo-10",
+      "sampleCount": 2,
+      "minMeanNsPerOp": 3860000,
+      "medianMeanNsPerOp": 3940000,
+      "maxMeanNsPerOp": 4020000
+    },
+    {
+      "name": "BenchmarkCLIStatus-10",
+      "sampleCount": 3,
+      "minMeanNsPerOp": 2420000,
+      "medianMeanNsPerOp": 2480000,
+      "maxMeanNsPerOp": 2510000
+    }
+  ]
+}

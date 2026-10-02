@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "81d3543",
+  "goVersion": "go1.26.7",
+  "gitVersion": "git version 2.50.0",
+  "os": "darwin",
+  "arch": "arm64",
+  "workload": "synthetic-example",
+  "observedAt": "2026-10-02T00:00:00Z",
+  "measurementCommand": "go test -bench=. -benchmem -count=3 ./benchmarks (synthetic fixture, not executed)",
+  "note": "synthetic example fixture for converter tests; not product performance evidence"
+}
