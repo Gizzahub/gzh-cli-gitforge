@@ -120,6 +120,44 @@ func TestBulkFormatStatusUsed(t *testing.T) {
 	}
 }
 
+func TestBulkNoUpstreamHintOverride(t *testing.T) {
+	in := BulkRenderInput{
+		TotalScanned:   1,
+		TotalProcessed: 1,
+		Summary:        map[string]int{"no-upstream": 1},
+		Rows: []BulkRenderRow{
+			{Path: "repo-new", Branch: "master", Status: "no-upstream", Remote: "origin"},
+		},
+	}
+	base := BulkRenderConfig{
+		Verb:          "Pushed",
+		Format:        "default",
+		IssueStatuses: issueStatusSet("no-upstream"),
+	}
+
+	// push sets the override: its own -u flag is the fix, so the manual git
+	// command is replaced rather than shown beside it.
+	var buf bytes.Buffer
+	override := base
+	override.NoUpstreamHint = FormatPushUpstreamFixHint()
+	RenderBulkResults(&buf, override, in)
+	out := buf.String()
+	if !strings.Contains(out, "gz-git push -u") {
+		t.Errorf("override hint should be shown, got:\n%s", out)
+	}
+	if strings.Contains(out, "--set-upstream-to") {
+		t.Errorf("manual git hint should be replaced, got:\n%s", out)
+	}
+
+	// status/fetch/pull set no override and keep the per-repo git command.
+	buf.Reset()
+	RenderBulkResults(&buf, base, in)
+	out = buf.String()
+	if !strings.Contains(out, "git branch --set-upstream-to=origin/master master") {
+		t.Errorf("default should keep the manual git hint, got:\n%s", out)
+	}
+}
+
 func TestBulkRepoResultInterfaceMethods(t *testing.T) {
 	// Compile-time / runtime check lives in repository package tests;
 	// here we ensure render path accepts rows built from interface fields.

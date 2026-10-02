@@ -48,6 +48,11 @@ type BulkRenderConfig struct {
 	SuccessMessage  string
 	// ShowFooters enables dirty-warning + auth-required footers (fetch/pull/push).
 	ShowFooters bool
+	// NoUpstreamHint replaces the manual git hint printed under no-upstream
+	// rows. A command whose own invocation is the fix — push -u re-runs as
+	// push-and-set-upstream — sets it; empty keeps the per-repo
+	// git branch --set-upstream-to hint.
+	NoUpstreamHint string
 }
 
 // bulkJSONEnvelope is the unified JSON schema for bulk commands.
@@ -242,7 +247,11 @@ func renderBulkRow(w io.Writer, cfg BulkRenderConfig, row BulkRenderRow) {
 	fmt.Fprintln(w, line)
 
 	if row.Status == "no-upstream" {
-		fmt.Fprint(w, FormatUpstreamFixHint(row.Branch, row.Remote))
+		hint := cfg.NoUpstreamHint
+		if hint == "" {
+			hint = FormatUpstreamFixHint(row.Branch, row.Remote)
+		}
+		fmt.Fprint(w, hint)
 	}
 
 	if row.Err != nil {

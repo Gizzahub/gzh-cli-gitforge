@@ -58,6 +58,13 @@ func TestFormatUpstreamFixHint(t *testing.T) {
 	}
 }
 
+func TestFormatPushUpstreamFixHint(t *testing.T) {
+	want := "    → Fix: gz-git push -u (push and set upstream in one step)\n"
+	if got := FormatPushUpstreamFixHint(); got != want {
+		t.Errorf("FormatPushUpstreamFixHint() = %q, want %q", got, want)
+	}
+}
+
 func TestGetBulkStatusIcon(t *testing.T) {
 	tests := []struct {
 		name         string

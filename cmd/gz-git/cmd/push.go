@@ -211,6 +211,15 @@ func executePush(ctx context.Context, client repository.Client, opts repository.
 	return nil
 }
 
+// FormatPushUpstreamFixHint is the no-upstream fix shown with push results.
+// The caller was already pushing, so the built-in --set-upstream (-u) flag is
+// the one-step repair: it pushes and sets the missing upstream in the same
+// pass, and only for branches that have none — bulk push never overrides
+// existing tracking.
+func FormatPushUpstreamFixHint() string {
+	return "    → Fix: gz-git push -u (push and set upstream in one step)\n"
+}
+
 func displayPushResults(result *repository.BulkPushResult) {
 	rows := make([]BulkRenderRow, 0, len(result.Repositories))
 	for _, repo := range result.Repositories {
@@ -252,6 +261,10 @@ func displayPushResults(result *repository.BulkPushResult) {
 		},
 		SuccessMessage: "✓ All repositories pushed successfully",
 		ShowFooters:    true,
+		// push is the one command whose no-upstream fix is itself: rerunning
+		// with -u repairs every flagged repository, so offer that instead of
+		// only the per-repo manual git command.
+		NoUpstreamHint: FormatPushUpstreamFixHint(),
 	}, BulkRenderInput{
 		TotalScanned:   result.TotalScanned,
 		TotalProcessed: result.TotalProcessed,
