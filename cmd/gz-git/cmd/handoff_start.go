@@ -85,7 +85,10 @@ func (r *handoffStartReport) Ready() bool {
 }
 
 func runHandoffStart(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	// An arrival mutates repositories, so it stops on both the command's own
+	// cancellation and a SIGINT/SIGTERM, reporting partial results.
+	ctx, cancel := withInterruptCancel(commandContext(cmd))
+	defer cancel()
 
 	directory, err := validateBulkDirectory(args)
 	if err != nil {

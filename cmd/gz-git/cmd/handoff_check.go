@@ -53,7 +53,7 @@ func init() {
 }
 
 func runHandoffCheck(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := commandContext(cmd)
 
 	directory, err := validateBulkDirectory(args)
 	if err != nil {
@@ -85,6 +85,18 @@ func runHandoffCheck(cmd *cobra.Command, args []string) error {
 	// The rendered report above already says what is outstanding; this error
 	// exists to carry exit code 1, so it stays to the verdict alone.
 	return cliutil.NewExitError(1, fmt.Errorf("handoff verdict: %s", assessment.Verdict))
+}
+
+// commandContext returns the context the command is running under, so a
+// cancellation of the surrounding process reaches the git operations below.
+// ExecuteContext installs the caller's context and Execute falls back to
+// context.Background(); a RunE invoked directly (tests, library embedding) sees
+// nil, which the context helpers and exec.CommandContext refuse.
+func commandContext(cmd *cobra.Command) context.Context {
+	if ctx := cmd.Context(); ctx != nil {
+		return ctx
+	}
+	return context.Background()
 }
 
 // assessHandoff scans directory and classifies every repository found.

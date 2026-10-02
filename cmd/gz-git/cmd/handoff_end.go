@@ -112,7 +112,11 @@ type handoffEndReport struct {
 }
 
 func runHandoffEnd(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	// A departure mutates and pushes repositories, so it stops on both the
+	// command's own cancellation and a SIGINT/SIGTERM. Stopping before the
+	// checkpoint means no partial commit is left behind.
+	ctx, cancel := withInterruptCancel(commandContext(cmd))
+	defer cancel()
 
 	directory, err := validateBulkDirectory(args)
 	if err != nil {
