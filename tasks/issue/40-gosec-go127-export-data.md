@@ -86,15 +86,22 @@ v2.22.10 `h1:ntbBqdWXnu46DUOXn+R2SvPo3PiJCDugTCgTW2g4tQg=`. 측정 증거(실행
 - `scripts/test-gosec-toolchain-contract.sh` 신규: 기본 모드는 bin/tools 핀
   일치, 두 고정 컴파일러로 재빌드한 identity, `pkg/gitsettings` 최소 스캔
   4셀(빌드 × 스캔 go)을 검증하고 `--full-security-no-regression`는 기준 핀과
-  전체 비교해 아래 마커 안에 실행 영수증을 남긴다. 고정 컴파일러가 없으면
-  skip 성공 없이 실패한다.
+  전체 비교한다. 두 모드 모두 추적 파일을 변경하지 않으며 영수증은 stdout에
+  출력하고 `--write-receipt`를 줄 때만 아래 마커 안에 기록한다. 고정
+  컴파일러가 없으면 skip 성공 없이 실패한다.
 
 해결 커밋: `test(tools): pin gosec for the Go 1.27 export-data contract`
-(branch `dev/claude/mst/test/task-270` HEAD).
+(f3c7b45). 후속 수정: `fix(tools): keep gosec contract verify runs
+read-only` — verify 재실행이 영수증의 HEAD SHA를 다시 써서 작업 트리를
+더럽히던 결함을 고쳤다. 영수증 기록은 `--write-receipt` 옵트인으로 분리했고
+기록 시 source는 스캔 시점 HEAD(영수증 이전 커밋)로 적어 영수증 커밋 후에도
+참으로 남는다.
 
 <!-- TASK-270 receipt:start -->
 mode: --full-security-no-regression (scripts/test-gosec-toolchain-contract.sh)
-source: 5f05178079f466c6606a5a5fef441e7d5e4f018d (dev/claude/mst/test/task-270)
+source: f3c7b45cccdfaee5e07b412890e9027649fb0b68 (dev/claude/mst/test/task-270) — pre-receipt commit
+source note: git HEAD when the scan ran; this receipt was recorded after
+  that scan, so the commit carrying this receipt cannot make the SHA false
 scan compiler: go1.26.7 at /Users/archmagece/.local/share/mise/installs/go/1.26.7
 baseline pin: v2.22.10 (h1:ntbBqdWXnu46DUOXn+R2SvPo3PiJCDugTCgTW2g4tQg=)
 current pin: v2.29.0 (h1:pF2HSLcnY5voqpxQumEe0O5YAAbvF4Syu4qeIewpLyc=)
@@ -102,5 +109,6 @@ make security-code exits: baseline=0 current=0
 gosec -fmt=json ./... exits: baseline=0 current=0
 findings (rule_id/file/line/code): baseline=0 current=0 new=0 resolved-by-current=0
 verdict: PASS — no new findings; no scanner/runtime/export-data errors
+receipt: printed to stdout on every run; recorded into the issue card only with --write-receipt
 private builds/scans ran in an isolated mktemp dir, removed on exit in all outcomes
 <!-- TASK-270 receipt:end -->
