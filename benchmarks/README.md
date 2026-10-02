@@ -117,6 +117,73 @@ go test -bench=. -memprofile=mem.prof
 go tool pprof mem.prof
 ```
 
+## Converting Captured Output to a Report (offline)
+
+Collecting and converting are separate steps:
+
+- **Collection** runs the benchmarks and captures raw text:
+  `make bench` (or `go test -bench=. -benchmem -count=5 | tee bench.txt`).
+  Use a higher `-count` so each benchmark name has several samples to
+  aggregate.
+
+- **Conversion** turns one already-captured text file plus a metadata sidecar
+  into a machine-readable JSON report — no benchmarks run, no network, no
+  telemetry:
+
+  ```bash
+  make benchmark-report \
+    INPUT=bench.txt \
+    METADATA=run-metadata.json \
+    OUTPUT=report.json
+  ```
+
+  `INPUT`, `METADATA` and `OUTPUT` are all required. The converter refuses to
+  overwrite an existing `OUTPUT` file, so re-running with the same path fails
+  fast instead of silently replacing earlier evidence.
+
+The metadata sidecar is a small JSON object recording how the input was
+produced — `sourceCommit`, `goVersion`, `gitVersion`, `os`, `arch`,
+`workload`, `observedAt`, `measurementCommand` (all required, non-empty;
+`note` optional). The converter embeds it verbatim, so a report always states
+which commit, toolchain, and command produced its numbers.
+
+The output is a `schemaVersion: 1` document with three parts:
+
+- `metadata` — the sidecar, unchanged;
+- `samples` — one entry per benchmark result line (`name`, `iterations`,
+  `nsPerOp`), sorted by name; entries sharing a name keep input order;
+- `summary` — per name: `sampleCount`, `minMeanNsPerOp`,
+  `medianMeanNsPerOp`, `maxMeanNsPerOp`, sorted by name.
+
+### What ns/op means — and what this report does not measure
+
+`ns/op` is the **mean** nanoseconds per operation across that sample's `b.N`
+iterations, as printed by `go test -bench`. Each sample line is one mean;
+`summary` statistics describe the distribution of those sample means. They
+are **not** per-operation latencies, so no p95 or any other per-operation
+percentile is computed or emitted — a mean of means cannot recover the
+operation-level distribution. Benchmark names keep the `-N` GOMAXPROCS suffix
+Go prints (for example `BenchmarkCLIStatus-10`), because samples taken at
+different `GOMAXPROCS` values are different configurations and must not be
+merged. For an even number of samples the median is the arithmetic mean of
+the two central values; for an odd count it is the middle value.
+
+Adoption, reliability, and real-world workload coverage remain unmeasured by
+this converter. There are no CI performance thresholds: a report is recorded
+evidence, not a gate.
+
+### Synthetic fixture
+
+`testdata/report.input.txt`, `testdata/report.metadata.json`, and
+`testdata/report.expected.json` are a **synthetic** example used by the
+converter contract tests (`internal/benchmarkreport`). The metadata marks it
+(`workload: "synthetic-example"` and a note), and its numbers are invented to
+exercise parsing and aggregation — including repeated samples for one name
+with both even and odd counts. It is not product performance evidence and
+must not be quoted as current gz-git performance. Real measurement
+collection is a separate task; until it runs, no non-synthetic report
+exists.
+
 ## Benchmark Implementation
 
 Each benchmark:

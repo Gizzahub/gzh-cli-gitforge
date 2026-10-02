@@ -1,0 +1,12 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gizzahub/gzh-cli-gitforge/benchmarks
+cpu: Synthetic CPU (fixture)
+BenchmarkCLIStatus-10    	  1000	  2420000 ns/op	 20624 B/op	     46 allocs/op
+BenchmarkCLIStatus-10    	  1500	  2510000 ns/op	 21088 B/op	     47 allocs/op
+BenchmarkCLIStatus-10    	  750	  2480000 ns/op	 20864 B/op	     46 allocs/op
+BenchmarkCLIInfo-10      	  2000	  3860000 ns/op
+BenchmarkCLIInfo-10      	  2200	  4020000 ns/op
+BenchmarkCLIBranchList-10	  950	 10740000 ns/op
+PASS
+ok  	github.com/gizzahub/gzh-cli-gitforge/benchmarks	8.672s

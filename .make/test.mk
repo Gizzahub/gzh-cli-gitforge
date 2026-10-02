@@ -152,6 +152,16 @@ bench-compare: ## compare benchmarks (requires benchstat)
 	@echo -e "$(GREEN)✅ Benchmark comparison data generated: new.bench$(RESET)"
 	@echo -e "$(YELLOW)Run 'benchstat old.bench new.bench' to compare$(RESET)"
 
+.PHONY: benchmark-report
+benchmark-report: ## convert captured benchmark text to a schema v1 JSON report (INPUT=... METADATA=... OUTPUT=...)
+	@if [ -z "$(INPUT)" ] || [ -z "$(METADATA)" ] || [ -z "$(OUTPUT)" ]; then \
+		echo "benchmark-report requires INPUT=<bench text> METADATA=<metadata json> OUTPUT=<report json>" >&2; \
+		exit 2; \
+	fi
+	@echo -e "$(CYAN)Converting benchmark report...$(RESET)"
+	@GOWORK=off go run ./cmd/benchmark-report --input "$(INPUT)" --metadata "$(METADATA)" --output "$(OUTPUT)"
+	@echo -e "$(GREEN)✅ Benchmark report written to $(OUTPUT)$(RESET)"
+
 # ==============================================================================
 # Test Utilities
 # ==============================================================================
@@ -203,6 +213,7 @@ test-info: ## show testing information and available targets
 	@echo -e "  • $(CYAN)bench-cpu$(RESET)           CPU benchmarks with profiling"
 	@echo -e "  • $(CYAN)bench-mem$(RESET)           Memory benchmarks with profiling"
 	@echo -e "  • $(CYAN)bench-compare$(RESET)       Compare benchmark results"
+	@echo -e "  • $(CYAN)benchmark-report$(RESET)    Convert captured results to a JSON report"
 	@echo ""
 	@echo -e "$(GREEN)🔧 Test Utilities:$(RESET)"
 	@echo -e "  • $(CYAN)test-race$(RESET)           Run with race detection"
