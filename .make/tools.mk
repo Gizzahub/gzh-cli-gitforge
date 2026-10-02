@@ -10,7 +10,7 @@
 GOFUMPT_VERSION ?= v0.10.0
 GOIMPORTS_VERSION ?= v0.38.0
 GCI_VERSION ?= v0.14.0
-GOSEC_VERSION ?= v2.22.10
+GOSEC_VERSION ?= v2.29.0
 GOVULNCHECK_VERSION ?= v1.1.4
 # golang.org/x/perf publishes no release tags. This pseudo-version is the
 # resolved latest on 2026-10-01; benchstat must not follow a moving @latest.
@@ -281,6 +281,21 @@ install-docs-tools: ## install documentation tools
 # the binary from the repository-owned bin/tools and check the module version
 # embedded in it instead; `go version -m` cannot be satisfied by a wrapper
 # script or a -version string.
+#
+# The pin is v2.29.0 because v2.22.10 cannot read export data produced by the
+# go1.27 toolchain: scanning any package while the `go` loading it is 1.27 dies
+# with `internal error: package "..." without types was imported from
+# "command-line-arguments"` — exit 1 and no JSON at all — regardless of which
+# compiler built gosec itself. Re-measured for TASK-270 (2026-10-02, library
+# issue 40): the failure follows the scan-time `go`, not the build toolchain,
+# so the identity check below cannot catch it — a 1.27-built v2.22.10 passed
+# identity and still died at scan time. v2.29.0 is the first release whose
+# notes claim "Add support for go version 1.27.0" (PR #1726, 2026-08-26) and
+# its go.mod keeps the floor at `go 1.25.0`, so both installed product
+# toolchains (go1.26.7, go1.27.0) can still build it. The runtime half of the
+# contract — rebuild the pin with both compilers, scan pkg/gitsettings with
+# each, and reject new findings against v2.22.10 — lives in
+# scripts/test-gosec-toolchain-contract.sh.
 GOSEC_MODULE := github.com/securego/gosec/v2
 GOSEC_INSTALL ?= $(GOSEC_MODULE)/cmd/gosec@$(GOSEC_VERSION)
 GOSEC_DIR := $(CURDIR)/bin/tools
