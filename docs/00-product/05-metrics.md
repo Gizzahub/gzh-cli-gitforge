@@ -4,6 +4,10 @@
 
 How we know gzh-cli-gitforge is successful:
 
+**Note**: `TBD` means 미측정 — no measurement exists yet. `TBD` must not be
+read as met. These tables state targets; none of the targets below is
+currently claimed as achieved.
+
 ### M1: Performance - 30% Faster Git Operations
 
 | Metric                 | Target  | Current | Status |
@@ -50,11 +54,20 @@ How we know gzh-cli-gitforge is successful:
 
 ### M6: Quality - Test Coverage Targets
 
-| Package     | Target | Current        | Status |
-| ----------- | ------ | -------------- | ------ |
-| internal/\* | ≥ 80%  | 93.6% (gitcmd) | ✅     |
-| pkg/\*      | ≥ 85%  | Mixed          | 🔄     |
-| cmd/\*      | ≥ 70%  | TBD            | 🔄     |
+| Package     | Target | Current | Status |
+| ----------- | ------ | ------- | ------ |
+| internal/\* | ≥ 80%  | 미측정  | 🔄     |
+| pkg/\*      | ≥ 85%  | 미측정  | 🔄     |
+| cmd/\*      | ≥ 70%  | 미측정  | 🔄     |
+
+**Reference observation — unit coverage (not a tracked metric)**: measured
+2026-10-03 with `GOWORK=off go test -short -count=1 -coverprofile` over
+`./...` at source SHA `627dc346de70ebf85b671dedc8550c85f98f5a9e` (master tip
+at measurement time): **61.2%** of statements, repository-wide total. Scope:
+`-short` tests only. The same run hit the known `tests/parity` baseline
+failure (TASK-256); the total aggregates the packages that ran. This is a
+single reference observation — the ≥ 85% `pkg/` target is **not** met and is
+not claimed.
 
 ## Measurement Plan
 
@@ -69,8 +82,8 @@ How we know gzh-cli-gitforge is successful:
 **Benchmark commands**:
 
 ```bash
-make benchmark          # Run all benchmarks
-make benchmark-report   # Generate report
+make bench           # Run all benchmarks (go test -bench=. -benchmem ./...)
+make bench-compare   # Generate comparison data for benchstat
 ```
 
 ### Consistency Measurement
@@ -110,6 +123,5 @@ make benchmark-report   # Generate report
 **Coverage commands**:
 
 ```bash
-make test-coverage      # Generate coverage report
-make coverage-report    # View detailed report
+make test-coverage   # Generate coverage report
 ```

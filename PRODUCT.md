@@ -3,7 +3,7 @@
 **Project**: gzh-cli-gitforge
 **Doc Type**: Goals + Constraints + Quality Gates
 **Status**: Active
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-10-03
 
 ______________________________________________________________________
 
@@ -83,7 +83,7 @@ ______________________________________________________________________
 
 **Compatibility**
 
-- Go 1.25+ (align with `go.mod`)
+- Go 1.26+ (align with `go.mod`)
 - Git 2.30+ on Linux/macOS/Windows (amd64/arm64)
 
 **Safety**
@@ -100,6 +100,10 @@ ______________________________________________________________________
 ______________________________________________________________________
 
 ## 5) Quality Gates (Release Readiness)
+
+These gates are requirements for a release, not statements of current
+achievement. Measured status is tracked in
+[Metrics](docs/00-product/05-metrics.md).
 
 **Build and Lint**
 
