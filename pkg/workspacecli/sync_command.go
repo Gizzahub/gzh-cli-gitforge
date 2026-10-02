@@ -175,8 +175,10 @@ Config File Structure (Reference):
 
 			if recursiveCfg != nil {
 				// Auto-create child configs if missing
-				// This handles bootstrapping where child directories don't exist yet
-				if err := ensureChildConfigs(planOut, recursiveCfg); err != nil {
+				// This handles bootstrapping where child directories don't exist yet.
+				// In dry-run the plan stays read-only: the would-be writes are
+				// previewed as messages instead.
+				if err := ensureChildConfigsWithDryRun(planOut, recursiveCfg, dryRun); err != nil {
 					if planSpinnerProgram != nil {
 						planSpinnerProgram.Send(planDoneMsg{})
 						planSpinnerProgram.Wait()
@@ -187,7 +189,7 @@ Config File Structure (Reference):
 				// Discover workspaces (Hybrid mode)
 				if err := config.LoadWorkspaces(configDir, recursiveCfg, config.HybridMode); err == nil {
 					// Get forge actions
-					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, planOut, strategy, fullOutput)
+					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, planOut, strategy, fullOutput, dryRun)
 					if err != nil {
 						if planSpinnerProgram != nil {
 							planSpinnerProgram.Send(planDoneMsg{})
@@ -198,7 +200,7 @@ Config File Structure (Reference):
 					allActions = append(allActions, forgeActions...)
 
 					// Get git workspace actions (type=git with URL)
-					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy)
+					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy, dryRun)
 					if err != nil {
 						if planSpinnerProgram != nil {
 							planSpinnerProgram.Send(planDoneMsg{})
@@ -209,7 +211,7 @@ Config File Structure (Reference):
 					allActions = append(allActions, gitActions...)
 
 					// Get config workspace actions (type=config with sync.recursive=true)
-					cfgWsActions, err := planConfigWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy)
+					cfgWsActions, err := planConfigWorkspacesWithDryRun(ctx, recursiveCfg, configDir, planOut, strategy, dryRun)
 					if err != nil {
 						if planSpinnerProgram != nil {
 							planSpinnerProgram.Send(planDoneMsg{})
@@ -887,7 +889,7 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 }
 
 // planForgeWorkspaces generates actions from recursive config workspaces.
-func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // forge workspace planning requires handling many config combinations
+func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // forge workspace planning requires handling many config combinations
 	workspaces := config.GetForgeWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -936,14 +938,20 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 
 		// Execute before hooks
 		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
-			// Ensure parent directory exists for before hooks
-			if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
-				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
-			}
+			if dryRun {
+				// Hooks are arbitrary commands: a read-only preview neither runs
+				// them nor creates their working directory.
+				fmt.Fprintf(out, "  → [dry-run] Would run %d before hooks for workspace '%s'\n", len(mergedHooks.Before), name)
+			} else {
+				// Ensure parent directory exists for before hooks
+				if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
+					return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
+				}
 
-			fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
-			if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
-				return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
+				fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
+				if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
+					return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
+				}
 			}
 		}
 
@@ -1058,13 +1066,19 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		// Handle config: either create symlink (configLink) or write child config
 		if ws.ConfigLink != "" {
 			// Create symlink instead of writing config
-			fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
-			if err := config.CreateConfigSymlink(ws.ConfigLink, wsPath, configDir); err != nil {
-				return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+			if dryRun {
+				fmt.Fprintf(out, "  → [dry-run] Would create config symlink: %s → %s\n", filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
+			} else {
+				fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", filepath.Join(wsPath, ".gz-git.yaml"), ws.ConfigLink)
+				if err := config.CreateConfigSymlink(ws.ConfigLink, wsPath, configDir); err != nil {
+					return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+				}
 			}
 		} else {
 			// Write child config with repository list
-			if err := writeChildForgeConfig(out, cfg, ws, wsPath, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
+			if dryRun {
+				fmt.Fprintf(out, "  → [dry-run] Would update child config for workspace '%s'\n", name)
+			} else if err := writeChildForgeConfig(out, cfg, ws, wsPath, plan.Actions, cloneProto, sshPort, fullOutput); err != nil {
 				return nil, fmt.Errorf("failed to write child config for '%s': %w", name, err)
 			}
 		}
@@ -1073,7 +1087,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		// Note: Ideally these should run after the sync completes, but the current
 		// architecture separates planning from execution. For now, we run them
 		// after the workspace is prepared (directory created, config set up).
-		if mergedHooks != nil && len(mergedHooks.After) > 0 {
+		if mergedHooks != nil && len(mergedHooks.After) > 0 && !dryRun {
 			fmt.Fprintf(out, "  → Running after hooks for workspace '%s'...\n", name)
 			if err := hooks.Execute(ctx, mergedHooks, "after", wsPath, nil); err != nil {
 				return nil, fmt.Errorf("after hooks failed for workspace '%s': %w", name, err)
@@ -1105,7 +1119,7 @@ func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) (
 }
 
 // planGitWorkspaces generates actions from git workspaces (type=git with URL).
-func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // git workspace planning requires handling hooks, branches, strategies, and config inheritance
+func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // git workspace planning requires handling hooks, branches, strategies, and config inheritance
 	workspaces := config.GetGitWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -1148,20 +1162,27 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 
 		// Execute before hooks
 		if mergedHooks != nil && len(mergedHooks.Before) > 0 {
-			// Ensure parent directory exists for before hooks
-			if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
-				return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
-			}
+			if dryRun {
+				// Hooks are arbitrary commands: a read-only preview neither runs
+				// them nor creates their working directory.
+				fmt.Fprintf(out, "  → [dry-run] Would run %d before hooks for workspace '%s'\n", len(mergedHooks.Before), name)
+			} else {
+				// Ensure parent directory exists for before hooks
+				if err := os.MkdirAll(filepath.Dir(wsPath), 0o750); err != nil {
+					return nil, fmt.Errorf("failed to create directory for workspace '%s' before hooks: %w", name, err)
+				}
 
-			fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
-			if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
-				return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
+				fmt.Fprintf(out, "  → Running before hooks for workspace '%s'...\n", name)
+				if err := hooks.Execute(ctx, mergedHooks, "before", filepath.Dir(wsPath), nil); err != nil {
+					return nil, fmt.Errorf("before hooks failed for workspace '%s': %w", name, err)
+				}
 			}
 		}
 
 		// Create configLink symlink if specified.
 		// configLink 명시 = 사용자의 명시적 의도이므로, 기존 파일이 user-maintained여도
 		// 경고만 출력하고 symlink로 교체한다 (CreateConfigSymlinkForce 사용).
+		// dry-run에서는 교체하지 않고 예정된 링크만 미리보기로 알린다.
 		if ws.ConfigLink != "" {
 			childCfgFile := filepath.Join(wsPath, ".gz-git.yaml")
 			isSymlink, symlinkErr := config.IsConfigSymlink(childCfgFile)
@@ -1173,9 +1194,13 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 					fmt.Fprintf(out, "  ⚠ workspace '%s': replacing existing config with configLink symlink: %s\n", name, childCfgFile)
 				}
 			}
-			fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", childCfgFile, ws.ConfigLink)
-			if err := config.CreateConfigSymlinkForce(ws.ConfigLink, wsPath, configDir); err != nil {
-				return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+			if dryRun {
+				fmt.Fprintf(out, "  → [dry-run] Would create config symlink: %s → %s\n", childCfgFile, ws.ConfigLink)
+			} else {
+				fmt.Fprintf(out, "  → Creating config symlink: %s → %s\n", childCfgFile, ws.ConfigLink)
+				if err := config.CreateConfigSymlinkForce(ws.ConfigLink, wsPath, configDir); err != nil {
+					return nil, fmt.Errorf("failed to create config symlink for '%s': %w", name, err)
+				}
 			}
 		}
 
@@ -1214,14 +1239,20 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 
 		// Execute after hooks
 		if mergedHooks != nil && len(mergedHooks.After) > 0 {
-			// Ensure workspace directory exists for after hooks
-			if err := os.MkdirAll(wsPath, 0o750); err != nil {
-				return nil, fmt.Errorf("failed to create workspace directory '%s' for after hooks: %w", name, err)
-			}
+			if dryRun {
+				// Hooks are arbitrary commands: a read-only preview neither runs
+				// them nor creates their working directory.
+				fmt.Fprintf(out, "  → [dry-run] Would run %d after hooks for workspace '%s'\n", len(mergedHooks.After), name)
+			} else {
+				// Ensure workspace directory exists for after hooks
+				if err := os.MkdirAll(wsPath, 0o750); err != nil {
+					return nil, fmt.Errorf("failed to create workspace directory '%s' for after hooks: %w", name, err)
+				}
 
-			fmt.Fprintf(out, "  → Running after hooks for workspace '%s'...\n", name)
-			if err := hooks.Execute(ctx, mergedHooks, "after", wsPath, nil); err != nil {
-				return nil, fmt.Errorf("after hooks failed for workspace '%s': %w", name, err)
+				fmt.Fprintf(out, "  → Running after hooks for workspace '%s'...\n", name)
+				if err := hooks.Execute(ctx, mergedHooks, "after", wsPath, nil); err != nil {
+					return nil, fmt.Errorf("after hooks failed for workspace '%s': %w", name, err)
+				}
 			}
 		}
 	}
@@ -1255,7 +1286,14 @@ func workspaceSyncStrategy(ws *config.Workspace, cfg *config.Config, override re
 
 // planConfigWorkspaces loads child configs from type=config workspaces with sync.recursive=true
 // and returns their repository actions for inclusion in the parent's execution plan.
-func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) { //nolint:gocognit // config workspace planning requires loading and recursing into child configs
+func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string) ([]reposync.Action, error) {
+	return planConfigWorkspacesWithDryRun(ctx, cfg, configDir, out, strategyOverrideStr, false)
+}
+
+// planConfigWorkspacesWithDryRun is the dry-run-aware core of
+// planConfigWorkspaces: with dryRun set, the nested forge/git planners stay
+// read-only instead of writing child configs.
+func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit // config workspace planning requires loading and recursing into child configs
 	workspaces := config.GetConfigWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -1331,7 +1369,7 @@ func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir str
 
 		if childRecursiveCfg != nil {
 			if err := config.LoadWorkspaces(wsPath, childRecursiveCfg, config.HybridMode); err == nil {
-				forgeActions, fErr := planForgeWorkspaces(ctx, childRecursiveCfg, out, strategyOverrideStr, false)
+				forgeActions, fErr := planForgeWorkspaces(ctx, childRecursiveCfg, out, strategyOverrideStr, false, dryRun)
 				if fErr != nil {
 					return nil, fmt.Errorf("failed to plan forge workspaces in '%s': %w", name, fErr)
 				}
@@ -1340,7 +1378,7 @@ func planConfigWorkspaces(ctx context.Context, cfg *config.Config, configDir str
 				}
 				allActions = append(allActions, forgeActions...)
 
-				gitActions, gErr := planGitWorkspaces(ctx, childRecursiveCfg, wsPath, out, strategyOverrideStr)
+				gitActions, gErr := planGitWorkspaces(ctx, childRecursiveCfg, wsPath, out, strategyOverrideStr, dryRun)
 				if gErr != nil {
 					return nil, fmt.Errorf("failed to plan git workspaces in '%s': %w", name, gErr)
 				}
@@ -1578,7 +1616,15 @@ func (p *consoleProgress) OnComplete(result reposync.ActionResult) {
 }
 
 // ensureChildConfigs checks explicit workspaces and creates .gz-git.yaml if missing.
-func ensureChildConfigs(out io.Writer, cfg *config.Config) error { //nolint:gocognit // workspace bootstrapping requires checking multiple config modes, symlinks, and file states
+func ensureChildConfigs(out io.Writer, cfg *config.Config) error {
+	return ensureChildConfigsWithDryRun(out, cfg, false)
+}
+
+// ensureChildConfigsWithDryRun is the plan-phase core of ensureChildConfigs.
+// With dryRun set, every child-config mutation (configLink symlink replacement,
+// directory creation, bootstrap config write) is previewed as a message
+// instead of being performed, so `sync --dry-run` never touches the tree.
+func ensureChildConfigsWithDryRun(out io.Writer, cfg *config.Config, dryRun bool) error { //nolint:gocognit // workspace bootstrapping requires checking multiple config modes, symlinks, and file states
 	if cfg == nil || len(cfg.Workspaces) == 0 {
 		return nil
 	}
@@ -1620,6 +1666,7 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error { //nolint:goco
 		// If configLink is set, create symlink instead of bootstrap config.
 		// configLink 명시 = 사용자의 명시적 의도이므로, 기존 파일이 user-maintained여도
 		// 에러로 중단하지 않고 경고만 출력한 뒤 symlink로 교체한다.
+		// dry-run에서는 교체하지 않고 예정된 링크만 미리보기로 알린다.
 		if ws.ConfigLink != "" {
 			childConfigFile := filepath.Join(wsPath, ".gz-git.yaml")
 			isSymlink, symlinkErr := config.IsConfigSymlink(childConfigFile)
@@ -1634,6 +1681,10 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error { //nolint:goco
 						name, childConfigFile)
 				}
 			}
+			if dryRun {
+				fmt.Fprintf(out, "→ [dry-run] Would link workspace '%s': %s → %s\n", name, childConfigFile, ws.ConfigLink)
+				continue
+			}
 			fmt.Fprintf(out, "→ Linking workspace '%s': %s → %s\n", name, childConfigFile, ws.ConfigLink)
 			if err := config.CreateConfigSymlinkForce(ws.ConfigLink, wsPath, configDir); err != nil {
 				return fmt.Errorf("failed to create config symlink for workspace '%s': %w", name, err)
@@ -1645,6 +1696,10 @@ func ensureChildConfigs(out io.Writer, cfg *config.Config) error { //nolint:goco
 		childConfigFile := filepath.Join(wsPath, ".gz-git.yaml")
 		if _, err := os.Stat(childConfigFile); os.IsNotExist(err) {
 			// Missing! Create it.
+			if dryRun {
+				fmt.Fprintf(out, "→ [dry-run] Would bootstrap workspace '%s': creating %s\n", name, childConfigFile)
+				continue
+			}
 			fmt.Fprintf(out, "→ Bootstrapping workspace '%s': creating %s\n", name, childConfigFile)
 
 			if err := os.MkdirAll(wsPath, 0o750); err != nil {
@@ -2451,14 +2506,16 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 
 	if recursiveCfg != nil {
 		if err := config.LoadWorkspaces(childDir, recursiveCfg, config.HybridMode); err == nil {
-			forgeActions, fErr := planForgeWorkspaces(ctx, recursiveCfg, opts.Out, opts.Strategy, false)
+			// This is the post-execution recursion: child syncs always run for
+			// real here, so the planners keep writing child configs.
+			forgeActions, fErr := planForgeWorkspaces(ctx, recursiveCfg, opts.Out, opts.Strategy, false, false)
 			if fErr != nil {
 				fmt.Fprintf(opts.Out, "  ⚠️  Failed to plan forge workspaces: %v\n", fErr)
 			} else {
 				allActions = append(allActions, forgeActions...)
 			}
 
-			gitActions, gErr := planGitWorkspaces(ctx, recursiveCfg, childDir, opts.Out, opts.Strategy)
+			gitActions, gErr := planGitWorkspaces(ctx, recursiveCfg, childDir, opts.Out, opts.Strategy, false)
 			if gErr != nil {
 				fmt.Fprintf(opts.Out, "  ⚠️  Failed to plan git workspaces: %v\n", gErr)
 			} else {
