@@ -190,6 +190,67 @@ benchmark-report: ## convert captured benchmark text to a schema v1 JSON report 
 	@GOWORK=off go run ./cmd/benchmark-report --input "$(INPUT)" --metadata "$(METADATA)" --output "$(OUTPUT)"
 	@echo -e "$(GREEN)✅ Benchmark report written to $(OUTPUT)$(RESET)"
 
+# benchmark-record measures the current source into OUTPUT_DIR. It refuses a
+# dirty tree before building or writing anything (git status
+# --porcelain --untracked-files=normal must be empty; ignored paths such as
+# tmp/ and bin/ never appear there), so the metadata's sourceCommit always
+# names the exact tree the samples came from. OUTPUT_DIR must be new or an
+# empty directory. The benchmark builds its own private gz-git into a
+# temporary directory (benchmarks buildPrivateBinary); the repository-root and
+# PATH gz-git are never used or replaced. On any measurement failure the raw
+# output is echoed and no report is written; the intermediate work directory
+# is removed on success, failure, and interrupt alike.
+.PHONY: benchmark-record
+benchmark-record: ## record BenchmarkCLIStatus with metadata into OUTPUT_DIR=<new or empty dir> (requires a clean tree)
+	@if [ -z "$(OUTPUT_DIR)" ]; then \
+		echo "benchmark-record requires OUTPUT_DIR=<new or empty directory>" >&2; \
+		exit 2; \
+	fi
+	@set -eu; \
+	work_dir=$$(mktemp -d "$${TMPDIR:-/tmp}/gz-git-benchmark-record.XXXXXX"); \
+	trap 'rm -rf "$$work_dir"' EXIT HUP INT TERM; \
+	dirty=$$(git status --porcelain --untracked-files=normal); \
+	if [ -n "$$dirty" ]; then \
+		echo "benchmark-record refuses a dirty source tree:" >&2; \
+		printf '%s\n' "$$dirty" >&2; \
+		echo "Commit or clean the tree, then re-run. Ignored paths (tmp/, bin/) do not count." >&2; \
+		exit 1; \
+	fi; \
+	out_dir="$(OUTPUT_DIR)"; \
+	if [ -e "$$out_dir" ] && [ ! -d "$$out_dir" ]; then \
+		echo "OUTPUT_DIR $$out_dir exists and is not a directory" >&2; \
+		exit 1; \
+	fi; \
+	if [ -d "$$out_dir" ] && [ -n "$$(ls -A "$$out_dir")" ]; then \
+		echo "OUTPUT_DIR $$out_dir exists and is not empty" >&2; \
+		exit 1; \
+	fi; \
+	source_commit=$$(git rev-parse HEAD); \
+	go_version=$$(go version); \
+	git_version=$$(git --version); \
+	go_os=$$(go env GOOS); \
+	go_arch=$$(go env GOARCH); \
+	observed_at=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
+	measurement_command='go test -run=^$$ -bench=^BenchmarkCLIStatus$$ -count=3 -benchtime=100ms -benchmem ./benchmarks'; \
+	printf '{"sourceCommit":"%s","goVersion":"%s","gitVersion":"%s","os":"%s","arch":"%s","workload":"%s","observedAt":"%s","measurementCommand":"%s","note":"%s"}\n' \
+		"$$source_commit" "$$go_version" "$$git_version" "$$go_os" "$$go_arch" \
+		"gz-git status on a single-commit temporary repository (BenchmarkCLIStatus)" \
+		"$$observed_at" "$$measurement_command" \
+		"recorded by make benchmark-record; mean ns/op over 3 samples, not per-operation p95" \
+		> "$$work_dir/metadata.json"; \
+	echo -e "$(CYAN)Recording BenchmarkCLIStatus (3 samples) from $$source_commit...$(RESET)"; \
+	if ! GOWORK=off go test -run='^$$' -bench='^BenchmarkCLIStatus$$' -count=3 -benchtime=100ms -benchmem ./benchmarks \
+		> "$$work_dir/bench.txt" 2>&1; then \
+		echo "benchmark measurement failed; no report was written. Raw output:" >&2; \
+		cat "$$work_dir/bench.txt" >&2; \
+		exit 1; \
+	fi; \
+	mkdir -p "$$out_dir"; \
+	cp "$$work_dir/bench.txt" "$$out_dir/bench.txt"; \
+	cp "$$work_dir/metadata.json" "$$out_dir/metadata.json"; \
+	GOWORK=off go run ./cmd/benchmark-report --input "$$work_dir/bench.txt" --metadata "$$work_dir/metadata.json" --output "$$out_dir/report.json"; \
+	echo -e "$(GREEN)✅ Recorded benchmarks into $$out_dir (bench.txt, metadata.json, report.json)$(RESET)"
+
 # ==============================================================================
 # Test Utilities
 # ==============================================================================

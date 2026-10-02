@@ -74,3 +74,35 @@ func writeFile(b *testing.B, path, content string) {
 		b.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }
+
+// buildPrivateBinary builds gz-git from this repository's current source into
+// a private TempDir via `make build BINARY=<absolute path>` and returns the
+// binary's path. Benchmarks must measure this binary and nothing else:
+// building into the repository root would leave an artifact in the checkout
+// and replace whatever the operator keeps there, and a gz-git found on PATH
+// could be any revision from any install.
+func buildPrivateBinary(tb testing.TB) string {
+	tb.Helper()
+
+	root, err := filepath.Abs("..")
+	if err != nil {
+		tb.Fatalf("Failed to resolve repository root: %v", err)
+	}
+	binPath := filepath.Join(tb.TempDir(), "gz-git")
+
+	cmd := exec.CommandContext(tb.Context(), "make", "build", "BINARY="+binPath)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		tb.Fatalf("Private build of %s failed: %v\nOutput: %s", binPath, err, output)
+	}
+
+	info, err := os.Stat(binPath)
+	if err != nil {
+		tb.Fatalf("Built binary %s is missing: %v", binPath, err)
+	}
+	if info.Mode()&0o111 == 0 {
+		tb.Fatalf("Built binary %s is not executable: %v", binPath, info.Mode())
+	}
+	return binPath
+}

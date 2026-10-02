@@ -180,9 +180,65 @@ converter contract tests (`internal/benchmarkreport`). The metadata marks it
 (`workload: "synthetic-example"` and a note), and its numbers are invented to
 exercise parsing and aggregation — including repeated samples for one name
 with both even and odd counts. It is not product performance evidence and
-must not be quoted as current gz-git performance. Real measurement
-collection is a separate task; until it runs, no non-synthetic report
-exists.
+must not be quoted as current gz-git performance. For real measurement,
+collect a fresh report with `make benchmark-record` (next section) instead of
+checking one in.
+
+## Recording a Real Measurement (`make benchmark-record`)
+
+One command collects a fresh report for the **current source tree** and links
+it to the exact commit that produced it:
+
+```bash
+make benchmark-record OUTPUT_DIR=/absolute/path/to/new-or-empty-dir
+```
+
+The target, in order:
+
+1. **Refuses a dirty tree** — `git status --porcelain --untracked-files=normal` must be empty (ignored paths such as `tmp/` and
+   `bin/` never appear there). The check runs before any build or write, so a
+   report's `metadata.sourceCommit` always names the tree the samples came
+   from.
+1. **Validates `OUTPUT_DIR`** — it must not exist yet, or must be an empty
+   directory. An existing non-directory or non-empty directory is refused
+   before the benchmarks run.
+1. **Builds a private gz-git** — the benchmark suite builds the binary from
+   the current source into a private temporary directory via
+   `make build BINARY=<temp path>` (`buildPrivateBinary` in
+   `helpers_test.go`). The repository-root `gz-git` and any `gz-git` on
+   `PATH` are never used or replaced.
+1. **Measures only `BenchmarkCLIStatus`** — `go test -run='^$' -bench='^BenchmarkCLIStatus$' -count=3 -benchtime=100ms -benchmem ./benchmarks` (3 samples).
+1. **Writes three artifacts into `OUTPUT_DIR`** — `bench.txt` (the raw
+   `go test` output), `metadata.json` (real `git rev-parse HEAD`, `go version`, `git --version`, os, arch, workload, the exact measurement
+   command, and the UTC `observedAt` timestamp), and `report.json` (the
+   schema v1 report produced by the TASK-269 converter).
+
+On any measurement failure the target exits non-zero, echoes the raw output,
+and writes **no report**; the raw text and metadata stay in a temporary work
+directory that the target's trap removes on success, failure, and interrupt
+alike. Re-running collection always targets a new `OUTPUT_DIR` — the
+converter refuses to overwrite an existing `report.json`, so earlier evidence
+is never silently replaced.
+
+### What this workload measures — and what it does not
+
+The recorded workload is **one repository** (a synthetic temp repo with a
+single commit) running **one command** (`gz-git status`), so a report from it
+is a narrow smoke measurement of CLI startup plus status on a trivial tree:
+
+- It does **not** exercise multi-repo sync, forges, network, or push — the
+  benchmarks are offline by construction.
+- `nsPerOp` is a **mean** across each sample's `b.N` iterations, and the
+  report's summary statistics describe the distribution of **3 sample
+  means** — never per-operation p95/p99. Nothing here supports (or measures
+  progress toward) the product's operation-level p95/p99 sync targets.
+- Numbers are machine- and load-dependent: they are comparable only to other
+  reports whose `metadata` shows the same `sourceCommit`, toolchain, os/arch,
+  and measurement command, taken on quiet hardware. Do not use them to judge
+  an improvement or regression across different machines or concurrent
+  sessions.
+- A report is recorded evidence, not a gate; there are no CI performance
+  thresholds.
 
 ## Benchmark Implementation
 

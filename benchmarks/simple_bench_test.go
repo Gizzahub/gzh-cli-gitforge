@@ -203,21 +203,11 @@ func BenchmarkCLIHistoryStatsLargeRepo(b *testing.B) {
 	}
 }
 
-// findOrBuildBinary locates the gz-git binary or builds it.
+// findOrBuildBinary builds gz-git from the current source into a private
+// temporary directory and returns its path. It never builds into the
+// repository root and never uses a gz-git from PATH, so measured samples
+// always describe this exact source tree.
 func findOrBuildBinary(b *testing.B) string {
 	b.Helper()
-
-	// Build binary to project root
-	binaryPath := filepath.Join("..", "gz-git")
-	absPath, _ := filepath.Abs(binaryPath)
-
-	// Build if needed
-	b.Logf("Building gz-git binary to %s...", absPath)
-	cmd := exec.CommandContext(b.Context(), "go", "build", "-o", absPath, "./cmd/gz-git")
-	cmd.Dir = ".."
-	if output, err := cmd.CombinedOutput(); err != nil {
-		b.Fatalf("Failed to build binary: %v\nOutput: %s", err, output)
-	}
-
-	return absPath
+	return buildPrivateBinary(b)
 }
