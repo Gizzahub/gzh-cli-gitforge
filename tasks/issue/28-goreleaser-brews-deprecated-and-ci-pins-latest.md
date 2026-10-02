@@ -1,6 +1,8 @@
 # 28. `.goreleaser.yaml`의 `brews`가 폐기 예정인데 CI는 `version: latest`를 쓴다
 
-> 상태: 진행 중 — 저장소 코드·CI 완료, 최초 stable release/tap bootstrap 검증 대기
+> 상태: 진행 중 — 저장소 코드·CI 완료. v0.8.0·v0.9.0 stable 태그의 release workflow가
+> `HOMEBREW_TAP_TOKEN` 401로 Cask 게시 단계에서 실패했다(아래 실행 증거). tap
+> bootstrap과 토큰 설정이 대기 중이다.
 > 발견: 2026-08-25, 릴리스 드라이런 중
 > 관련: 이동 `snapshot` 태그는 있지만 stable `v*` 태그와 실제 릴리스 이력은 없다
 
@@ -37,6 +39,19 @@ Formula 사용자를 전제한 migration은 필요하지 않다. 최초 stable r
 
 이 검증 전에는 이슈를 완료 처리하지 않는다. Linux 사용자는 Cask 지원을 약속하지 않고
 `go install` 또는 바이너리 다운로드 경로를 사용한다.
+
+## stable 태그 릴리스 실행 증거 (2026-10-02)
+
+v0.8.0(2026-10-01)과 v0.9.0(2026-10-02) 두 stable 태그의 release workflow가 같은
+지점에서 실패했다 — 위 수용 기준 2·4번이 아직 채워지지 않았다는 실행 근거다.
+
+- run `36799916342`(v0.8.0), `36965840662`(v0.9.0): GoReleaser publish 단계에서
+  `GET https://api.github.com/repos/gizzahub/homebrew-tap: 401 Bad credentials` —
+  `HOMEBREW_TAP_TOKEN`이 설정되지 않았거나 만료됐다.
+- GitHub Release 자체는 매번 게시된다(v0.9.0이 Latest로 게시됨). 깨지는 것은 Cask
+  게시 단계뿐이라, 태그만 보면 배포가 끝난 것처럼 보인다 — 그래서 이 증거를
+  카드에 남긴다.
+- 시크릿 교체는 저장소 설정 작업이라 유지보수자만 수행할 수 있다.
 
 ## 발견 당시 증상
 
