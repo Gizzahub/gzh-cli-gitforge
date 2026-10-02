@@ -115,7 +115,11 @@ Config File Structure (Reference):
 					return fmt.Errorf("no config file specified and auto-detection failed: %w", err)
 				}
 				configPath = detected
-				fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
+				// The discovery notice is human-facing. Machine formats must keep
+				// stdout parseable, so it is suppressed there entirely.
+				if !cliutil.IsMachineFormat(format) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Using config: %s\n", configPath)
+				}
 			}
 
 			// Get config directory for path resolution
@@ -241,7 +245,22 @@ Config File Structure (Reference):
 			}
 
 			if len(allActions) == 0 {
-				fmt.Println("No repositories found to sync.")
+				// Empty/no-op runs still honor the machine output contract: route
+				// the zero result through the same renderer so machine stdout
+				// carries exactly one result document, never a plain sentence.
+				out := cmd.OutOrStdout()
+				switch format {
+				case "json":
+					if err := displaySyncResultsJSON(out, reposync.ExecutionResult{}, 0, verbose); err != nil {
+						return fmt.Errorf("failed to display JSON output: %w", err)
+					}
+				case "llm":
+					if err := displaySyncResultsLLM(out, reposync.ExecutionResult{}, 0); err != nil {
+						return fmt.Errorf("failed to display LLM output: %w", err)
+					}
+				default:
+					fmt.Println("No repositories found to sync.")
+				}
 				return nil
 			}
 
