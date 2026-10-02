@@ -48,6 +48,9 @@ func snapshotPrepareInputs(ctx context.Context, selected gitRepo, profile string
 	if profile == familybookEntPrepareV1 {
 		return nil, nil
 	}
+	if profile == cargoWorkspacePrepareV1 {
+		return nil, nil
+	}
 	if profile != flowTaskchainLocalSubprojectsV1 {
 		return nil, fmt.Errorf("unsupported preparation profile %q", profile)
 	}

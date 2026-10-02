@@ -21,6 +21,8 @@ func TestParsePrepareProfileDocument(t *testing.T) {
 	}{
 		{name: "yaml familybook", doc: "branch:\n  prepareProfile: familybook-ent-v1\n", want: PrepareProfileFamilybookEntV1, present: true},
 		{name: "yaml flow", doc: "branch:\n  prepareProfile: flow-taskchain-local-subprojects-v1\n", want: PrepareProfileFlowTaskchainLocalSubprojectsV1, present: true},
+		{name: "yaml cargo", doc: "branch:\n  prepareProfile: cargo-workspace-v1\n", want: PrepareProfileCargoWorkspaceV1, present: true},
+		{name: "json cargo", doc: `{"branch":{"prepareProfile":"cargo-workspace-v1"}}`, isJSON: true, want: PrepareProfileCargoWorkspaceV1, present: true},
 		{name: "json", doc: `{"branch":{"prepareProfile":"familybook-ent-v1"}}`, isJSON: true, want: PrepareProfileFamilybookEntV1, present: true},
 		{name: "absent", doc: "branch:\n  defaultBranch: main\n"},
 		{name: "legacy yaml branch shorthand", doc: "branch: main\n"},

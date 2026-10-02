@@ -16,11 +16,15 @@ const (
 	PrepareProfileFamilybookEntV1 = "familybook-ent-v1"
 	// PrepareProfileFlowTaskchainLocalSubprojectsV1 prepares local taskchain subprojects.
 	PrepareProfileFlowTaskchainLocalSubprojectsV1 = "flow-taskchain-local-subprojects-v1"
+	// PrepareProfileCargoWorkspaceV1 fetches and compiles a Rust workspace
+	// dependency graph before the readiness probes run.
+	PrepareProfileCargoWorkspaceV1 = "cargo-workspace-v1"
 )
 
 var validPrepareProfiles = map[string]struct{}{
 	PrepareProfileFamilybookEntV1:                 {},
 	PrepareProfileFlowTaskchainLocalSubprojectsV1: {},
+	PrepareProfileCargoWorkspaceV1:                {},
 }
 
 // ValidatePrepareProfile validates the closed set of repository preparation

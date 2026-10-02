@@ -155,6 +155,9 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	if profile == flowTaskchainLocalSubprojectsV1 {
 		return prepareFlowTaskchainLocalSubprojects(parent, dir, inputs)
 	}
+	if profile == cargoWorkspacePrepareV1 {
+		return prepareCargoWorkspace(parent, g, dir)
+	}
 	if profile != familybookEntPrepareV1 {
 		return fmt.Errorf("unsupported preparation profile %q", profile)
 	}
@@ -195,7 +198,7 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
 		return fmt.Errorf("preparation changed git refs")
 	}
-	return validatePreparedStatus(ctx, dir)
+	return validatePreparedStatus(ctx, dir, "ent/generated/")
 }
 
 func rejectEntSymlinkChain(dir string) error {
@@ -211,7 +214,13 @@ func rejectEntSymlinkChain(dir string) error {
 	return nil
 }
 
-func validatePreparedStatus(ctx context.Context, dir string) error {
+// validatePreparedStatus rejects any tree change the preparation introduced
+// outside the profile's declared output directory. Ignored ("!!") entries
+// under ignoredOutputPrefix are that output directory — a build tool's
+// artifacts land there by design — and everything else, untracked included,
+// is a forbidden path: the profile must not silently introduce new files.
+// An empty prefix allows no ignored entry at all.
+func validatePreparedStatus(ctx context.Context, dir, ignoredOutputPrefix string) error {
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching")
 	cmd.Dir = dir
 	raw, err := cmd.Output()
@@ -226,9 +235,7 @@ func validatePreparedStatus(ctx context.Context, dir string) error {
 			return fmt.Errorf("invalid preparation status")
 		}
 		state, path := string(record[:2]), string(record[3:])
-		// Familybook Ent output is intentionally ignored. Untracked output is
-		// rejected too: the profile must not silently introduce new files.
-		if state != "!!" || !strings.HasPrefix(path, "ent/generated/") {
+		if state != "!!" || !strings.HasPrefix(path, ignoredOutputPrefix) {
 			return fmt.Errorf("preparation changed forbidden path: %s", path)
 		}
 	}
