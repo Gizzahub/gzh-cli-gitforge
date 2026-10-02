@@ -30,82 +30,26 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
-### Added
-
-- `gz-git observe` reports the D6 four-state `.gz-git-context.yaml` matrix
-  and aggregates CE v2 `ce.task.gate-doctor/v2` (origin tag `v0.8.3` /
-  `ac744597`) without an apply surface. Probe:
-  `gz-git capability context-reference-observe-v1`.
-- `gz-git capability integrate-readiness-v1` now provides a fail-closed machine
-  probe for wrappers and hooks that must reject clients which would ignore the
-  target-owned readiness contract.
-- `integrate check` can now use a target-owned `branch.readiness` V1 contract
-  instead of executing a task branch's Makefile. The contract binds an executable
-  runner tree to both checked commits, runs it in detached worktrees with bounded
-  output and time, and makes `integrate run` revalidate the target SHA and push it
-  with an exact lease before reclaiming anything.
-- `gz-git cleanup branch --non-canonical` retires trunk branches that duplicate the
-  canonical branch a repository declares in `.gz-git.yaml`. It refuses to act on an
-  undeclared repository, scopes remote deletion to the declared remote, and re-measures
-  the canonical tip at delete time rather than trusting a cached one — the flag exists
-  for repositories carrying a second trunk nobody deletes because deleting it by hand
-  is unnerving, so being wrong once is worse than not shipping.
-- The `--non-canonical` preview says what it is proposing and what it turned down.
-  Each candidate carries the ref that authorized it (`→ contained in <ref> @ <sha>`),
-  which since the local→remote fallback can be another machine's branch as of the last
-  fetch; each trunk the gate examined and declined is reported with its reason on
-  stderr, ungated by `--quiet`. "Nothing to clean up" and "checked, and refused" are
-  different facts for an operator deciding whether to pass `--force`.
-- `gz-git integrate check` and `integrate run` accept `--no-fetch`: the target
-  resolves from local tracking refs without fetching, a missing tracking ref
-  fails instead of falling back to a stale local branch, and a failed leased
-  remote delete during reclaim reports incomplete instead of claiming
-  "already-deleted" on the basis of a network probe the flag forbids. See
-  `docs/commands/integrate-no-fetch.md`.
-
-### Fixed
-
-- `gz-git push` now reports a repository with no commits as `no-commits` instead of
-  failing it. Under `--refspec HEAD:master` an empty repository previously produced
-  "source branch 'HEAD' does not exist", which is textually true and diagnostically
-  wrong: it reads as a refspec typo when the fact is that nothing has been committed
-  yet — a state no refspec can fix. Refspec *format* validation still runs first,
-  because a malformed refspec is the caller's error in every repository alike and must
-  not be masked by the state of whichever one happened to be scanned first.
-
-### Documentation
-
-- Planned the gated retirement of `gz-git integrate`: it owns one repository's
-  integration lifecycle even though gz-git is bulk-first, while external shell gates
-  duplicate its correctness decisions. [devenv TD-100](https://gitlab.polypia.net/archmagece/ce-devenv/-/blob/master/docs/70-tech-debt/TD-100.md)
-  moves strategy to `ce` and the engine to Worktrunk; [ce-agent-kit PLAN-001](https://gitlab.polypia.net/archmagece/ce-agent-kit/-/blob/master/tasks/plan/001-taskruntime-owns-strategy-worktrunk-engine.md)
-  must complete its `run-finish` rewrite before migration and removal proceed.
-- Documented which `.gz-git.yaml` declarations actually narrow an ad-hoc bulk push, on
-  two separate axes: `defaults.scan.exclude` (removed at scan time) and
-  `access: read-only` (scanned, but refused at write time). Also recorded the two keys
-  that read as scope and are not — `sync.strategy` belongs to `workspace sync`, and
-  `discovery.mode` is validated by the schema but consulted by no command at all. A key
-  that validates and is never read is worse than an absent one, because the validator's
-  silence reads as confirmation.
+No changes yet.
 
 ______________________________________________________________________
 
 ## Source-version milestones
 
-Earlier 0.x files record source-version milestones; the current remote has no matching
-stable tags or GitHub Releases. v0.8.0 is intended to be the first stable published tag.
-A row marked `publication pending` is release preparation, not evidence that a tag or
-artifact exists. This file carries only unreleased changes.
+Earlier 0.x files record source-version milestones. v0.8.0 (2026-10-01) was the first
+stable published tag, and 0.9.0 (2026-10-02) continues the stable line. This file
+carries only unreleased changes.
 
-| Line                           | Milestones                                       |
-| ------------------------------ | ------------------------------------------------ |
-| [0.8.x](docs/changelog/0.8.md) | 0.8.0 (prepared 2026-08-25; publication pending) |
-| [0.7.x](docs/changelog/0.7.md) | 0.7.0 (2026-07-02)                               |
-| [0.6.x](docs/changelog/0.6.md) | 0.6.1 (2026-01-25), 0.6.0 (2026-01-21)           |
-| [0.4.x](docs/changelog/0.4.md) | 0.4.0 (2026-01-02)                               |
-| [0.3.x](docs/changelog/0.3.md) | 0.3.1 (2025-12-02), 0.3.0 (2025-12-01)           |
-| [0.2.x](docs/changelog/0.2.md) | 0.2.0 (2025-12-01)                               |
-| [0.1.x](docs/changelog/0.1.md) | 0.1.0-alpha (2025-12-01)                         |
+| Line                           | Milestones                             |
+| ------------------------------ | -------------------------------------- |
+| [0.9.x](docs/changelog/0.9.md) | 0.9.0 (2026-10-02)                     |
+| [0.8.x](docs/changelog/0.8.md) | 0.8.0 (2026-10-01)                     |
+| [0.7.x](docs/changelog/0.7.md) | 0.7.0 (2026-07-02)                     |
+| [0.6.x](docs/changelog/0.6.md) | 0.6.1 (2026-01-25), 0.6.0 (2026-01-21) |
+| [0.4.x](docs/changelog/0.4.md) | 0.4.0 (2026-01-02)                     |
+| [0.3.x](docs/changelog/0.3.md) | 0.3.1 (2025-12-02), 0.3.0 (2025-12-01) |
+| [0.2.x](docs/changelog/0.2.md) | 0.2.0 (2025-12-01)                     |
+| [0.1.x](docs/changelog/0.1.md) | 0.1.0-alpha (2025-12-01)               |
 
 The mechanical per-commit list is not copied here; `.goreleaser.yaml`
 (`changelog.use: github`) generates it into the GitHub Release notes.
