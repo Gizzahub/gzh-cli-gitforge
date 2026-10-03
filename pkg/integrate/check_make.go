@@ -38,6 +38,10 @@ type makeProbe struct {
 	Err         error
 	Code        int
 	Unavailable string
+	// TimedOut marks a probe killed by its budget. Such a make never exited,
+	// so Code stays 0 and Output stops wherever the kill landed; neither may
+	// be compared with another measurement as if the run had finished.
+	TimedOut bool
 	// ToolCrash holds the line proving the tool died instead of reporting
 	// findings. It is separate from Err because a crash and a rule violation
 	// are the same non-zero exit; only the output distinguishes them.
@@ -179,10 +183,11 @@ func runMakeTargetOnce(ctx context.Context, dir, target string, budget time.Dura
 	out := buf.String()
 	if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
 		return makeProbe{
-			Target:  target,
-			WorkDir: dir,
-			Output:  out,
-			Defined: true,
+			Target:   target,
+			WorkDir:  dir,
+			Output:   out,
+			Defined:  true,
+			TimedOut: true,
 			Err: fmt.Errorf("make %s exceeded %s and was killed — this repository's gate likely shells out to a live/network-dependent check with no timeout of its own; last output:\n%s",
 				target, budget, crashOutputTail(out, 12)),
 		}
@@ -539,6 +544,9 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 		}
 		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
 	}
+	if probe.TimedOut {
+		return timedOutCheckItem(name, probe)
+	}
 
 	verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
 	if err != nil {
@@ -580,6 +588,9 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 		}
 		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
 	}
+	if probe.TimedOut {
+		return timedOutCheckItem(name, probe)
+	}
 	if base.Unavailable != "" {
 		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: baseline make " + probe.Target + ": " + base.Unavailable}
 	}
@@ -591,8 +602,11 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
 		}
 	}
+	if base.TimedOut {
+		return baselineCheckItem(name, timedOutBaseline(base), allowSkipped)
+	}
 	if base.Err == nil {
-		return CheckItem{Name: name, Status: checkFail, Detail: fmt.Sprintf("failed here (rc=%d) but target tip passes", probe.Code)}
+		return CheckItem{Name: name, Status: checkFail, Detail: branchFailsTargetPasses(probe)}
 	}
 	branchTracked, err := g.lsTreeNames(ctx, plan.BranchSHA)
 	if err != nil {
@@ -615,6 +629,31 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 		BaseMeasurement: baseMeasurement(base, baseTracked),
 	})
 	return baselineCheckItem(name, verdict, allowSkipped)
+}
+
+// timedOutCheckItem fails a branch probe killed by its budget. It is decided
+// before any baseline comparison: the killed make has no exit code and an
+// output cut wherever the kill landed, so a comparison could only report a
+// fabricated "rc=0" or count a truncated run. It is not a skipped check
+// either, so --allow-skipped-checks does not downgrade it.
+func timedOutCheckItem(name string, probe makeProbe) CheckItem {
+	return CheckItem{Name: name, Status: checkFail, Detail: "did not finish: " + probe.Err.Error()}
+}
+
+// timedOutBaseline reports a baseline killed by its budget as unmeasured: the
+// target tip neither passed nor produced a complete set of diagnostics.
+func timedOutBaseline(base makeProbe) BaselineResult {
+	return BaselineResult{Status: BaselineUnmeasurable, Reason: "target tip did not finish: " + base.Err.Error()}
+}
+
+// branchFailsTargetPasses names how the branch failed: its exit code when make
+// produced one, otherwise the error, so a failure without an exit status is
+// never rendered as rc=0.
+func branchFailsTargetPasses(probe makeProbe) string {
+	if probe.Code != 0 {
+		return fmt.Sprintf("failed here (rc=%d) but target tip passes", probe.Code)
+	}
+	return fmt.Sprintf("failed here (%v) but target tip passes", probe.Err)
 }
 
 // baselineCheckItem renders a baseline verdict. BaselineUnmeasurable is not a
@@ -689,8 +728,11 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 			return BaselineResult{}, err
 		}
 	}
+	if baseProbe.TimedOut {
+		return timedOutBaseline(baseProbe), nil
+	}
 	if baseProbe.Err == nil {
-		return BaselineResult{Status: BaselineFail, Reason: fmt.Sprintf("failed here (rc=%d) but target tip passes", probe.Code)}, nil
+		return BaselineResult{Status: BaselineFail, Reason: branchFailsTargetPasses(probe)}, nil
 	}
 
 	branchTracked, err := g.lsTreeNames(ctx, plan.BranchSHA)

@@ -404,3 +404,55 @@ func writeRepoFile(t *testing.T, dir, name, body string) {
 		t.Fatalf("write %s: %v", name, err)
 	}
 }
+
+// TestCheck_MakeTimeoutReportsBudgetNotRC0 reproduces the observed gate
+// failure end to end: a repository declares its make budget, one side of the
+// comparison outlives it, and the verdict must name the budget instead of an
+// exit code the killed make never produced (ce-devenv ISSUE-012).
+func TestCheck_MakeTimeoutReportsBudgetNotRC0(t *testing.T) {
+	cases := []struct {
+		name, base, branch, want string
+	}{
+		{"branch exceeds the budget while the target passes", "@true", "@sleep 30", "exceeded 2s"},
+		{"baseline exceeds the budget while the branch fails", "@sleep 30", "@exit 1", "baseline unmeasurable"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("XDG_STATE_HOME", t.TempDir())
+			fx := makeTimeoutFixture(t, tc.base, tc.branch)
+			report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+				RepoPath: fx.Worktree,
+				Branch:   "dev/actor/feat/task",
+			})
+			if err != nil {
+				t.Fatalf("Check: %v", err)
+			}
+			if report.Ready {
+				t.Fatalf("a timed-out gate must not be READY\n%s", FormatCheck(report))
+			}
+			if !hasCheckDetail(report, "make check", checkFail, tc.want) || !hasCheckDetail(report, "make check", checkFail, "exceeded 2s") {
+				t.Fatalf("make check must fail naming %q and the 2s budget\n%s", tc.want, FormatCheck(report))
+			}
+			if hasCheckDetail(report, "make check", checkFail, "rc=0") {
+				t.Fatalf("timeout rendered as rc=0\n%s", FormatCheck(report))
+			}
+		})
+	}
+}
+
+func makeTimeoutFixture(t *testing.T, baseRecipe, branchRecipe string) *testutil.WorktreeOrigin {
+	t.Helper()
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t"+baseRecipe+"\n")
+	runGit(t, fx.Clone, "add", "Makefile")
+	runGit(t, fx.Clone, "commit", "-m", "baseline gate")
+	runGit(t, fx.Clone, "branch", "develop")
+	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
+	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t"+branchRecipe+"\n")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: 2s\n")
+	runGit(t, fx.Worktree, "add", "Makefile", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "task gate")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	return fx
+}
