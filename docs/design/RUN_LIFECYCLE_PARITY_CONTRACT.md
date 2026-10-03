@@ -19,13 +19,16 @@ captured behaviour, not only stamps: CE `b09a605e` accepts the Worktrunk 0.80
 line, and CE `f540f972` reads the run source from the remote-tracking ref — it
 verifies `refs/remotes/origin/<integration>` (and `refs/heads/<integration>`)
 with `git show-ref --verify`, creates the task worktree from that ref's SHA
-instead of the local branch name, and passes `--target origin/<integration>`
-to `gz-git integrate check/run` instead of `<integration>` /
+instead of the local branch name, passes an explicit
+`--target origin/<integration>` to `gz-git integrate check/run` (previously
+no `--target`), and its pushed-source probe counts
+`refs/remotes/origin/<integration>..refs/heads/<integration>` instead of
 `origin/<integration>..<integration>`. The sandbox therefore fetches its
 origin once, as a real clone would. Schema, statuses and allowed actions were
 unchanged, verified by golden diff. The gz-git port does not follow either
-change yet; that is a port decision tracked outside the fixtures, not a
-known-divergent scenario).
+change yet; that is a port decision tracked in
+`tasks/issue/42-runtask-port-follow-ce-f540f972.md`, not a known-divergent
+scenario).
 The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
