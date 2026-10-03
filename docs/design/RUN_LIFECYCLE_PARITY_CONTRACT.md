@@ -7,15 +7,25 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 Everything in this document is pinned to **CE source `ce-agent-kit` master
-`950650ef`** (installed binary `ce 0.8.4`, build `475-g950650ef`; fixtures
-were first authored against `bb970b24` / `400-gbb970b24`, re-recorded across
-`f927ae5d` / `401-gf927ae5d`, re-recorded again across the move to
-`771c54cf` / `404-g771c54cf` (stamp-only), and again across the move to
-`950650ef` / `475-g950650ef` — that last move changed the stamp plus captured
-wording only: the `nextAction` guidance grew a run-finish clause and the
-captured `gz-git integrate` `--help` output gained `Effect: mutating (...)`
-lines; schema, statuses and allowed actions were unchanged, verified by
-golden diff, which is the toolchain pin doing its job).
+`f540f972`** (installed binary `ce 0.8.4`, build `498-gf540f972`, with
+Worktrunk 0.80.0; fixtures were first authored against `bb970b24` /
+`400-gbb970b24`, re-recorded across `f927ae5d` / `401-gf927ae5d`, re-recorded
+again across the move to `771c54cf` / `404-g771c54cf` (stamp-only), again
+across the move to `950650ef` / `475-g950650ef` (stamp plus captured wording:
+the `nextAction` guidance grew a run-finish clause and the captured
+`gz-git integrate` `--help` output gained `Effect: mutating (...)` lines), and
+again across the move to `f540f972` / `498-gf540f972`. That last move changed
+captured behaviour, not only stamps: CE `b09a605e` accepts the Worktrunk 0.80
+line, and CE `f540f972` reads the run source from the remote-tracking ref — it
+verifies `refs/remotes/origin/<integration>` (and `refs/heads/<integration>`)
+with `git show-ref --verify`, creates the task worktree from that ref's SHA
+instead of the local branch name, and passes `--target origin/<integration>`
+to `gz-git integrate check/run` instead of `<integration>` /
+`origin/<integration>..<integration>`. The sandbox therefore fetches its
+origin once, as a real clone would. Schema, statuses and allowed actions were
+unchanged, verified by golden diff. The gz-git port does not follow either
+change yet; that is a port decision tracked outside the fixtures, not a
+known-divergent scenario).
 The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
@@ -26,8 +36,8 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                    | Role                             |
 | ---------------- | ---------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.8.4 (`950650ef`)                                         | system under test (reference)    |
-| `wt` (Worktrunk) | 0.74.0 (hard-pinned by CE: `worktrunkVersion` const)       | worktree create/remove/inventory |
+| `ce`             | 0.8.4 (`f540f972`)                                         | system under test (reference)    |
+| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
 | `gz-git`         | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim)   |
 | `git`            | system git                                                 | refs, worktree plumbing          |
 
@@ -281,7 +291,7 @@ probe (`gz-git --version` must match `^gz-git version [0-9]…` from an
 absolute path; `integrate --help` must declare `check` and `run`;
 per-op `--help` must declare `--no-fetch`, recorded as capability but
 non-blocking) → lock presence → receipt parseability → Worktrunk version
-`0.74.0` (`Worktrunk 0.74.0 is required`) → schema-2 inventory. ACTIVE
+on the accepted minor line (`0.80.x` since CE `b09a605e`) → schema-2 inventory. ACTIVE
 reason: `task runtime dependencies are ready`; next:
 `ce task run-start <task> --type <type>`; allowed
 `[run-start, run-status, run-list]`. Staged-gate/hook-payload checks are a

@@ -28,7 +28,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "950650ef"
+	pinnedCECommit = "f540f972"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -271,6 +271,10 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	// way it would against a real remote.
 	sb.git("", "clone", "-q", "--bare", "repo", "origin.git")
 	sb.git("repo", "remote", "add", "origin", filepath.Join(root, "origin.git"))
+	// A real clone carries refs/remotes/origin/<integration>; CE reads the
+	// run source from that remote-tracking ref (ce-agent-kit f540f972), so
+	// the sandbox fetches once to match a cloned primary checkout.
+	sb.git("repo", "fetch", "-q", "origin")
 	return sb
 }
 
