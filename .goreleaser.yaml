@@ -144,7 +144,8 @@ homebrew_casks:
   - name: gz-git
     ids:
       - default
-    binary: gz-git
+    binaries:
+      - gz-git
     directory: Casks
     repository:
       owner: gizzahub

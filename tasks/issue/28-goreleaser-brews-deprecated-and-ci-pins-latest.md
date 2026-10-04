@@ -21,6 +21,9 @@
 - `5cbd428`: 저장소의 이동 `snapshot` 태그를 버전 탐색에서 제외하고, 생성된
   `dist/homebrew/Casks/gz-git.rb`를 `ruby -c`로 검사한 뒤에만 artifact를 게시하도록
   게이트를 보강했다.
+- 2026-10-04: v2.10.2의 cask 템플릿이 `name` 스탠자와 URL의 `#{version}` 치환을 내보내지
+  않아 strict audit가 실패했다(중앙 ISSUE-245). GoReleaser를 v2.18.2로 고정하고
+  비권장 `binary`를 `binaries`로 옮겨 해소했다.
 
 검증은 `goreleaser check`, 로컬 `goreleaser release --snapshot --clean`, 생성된 Cask의
 Ruby 구문 검사, `GOWORK=off make quality-check`, 통합 시 `make check`·`make lint`로
