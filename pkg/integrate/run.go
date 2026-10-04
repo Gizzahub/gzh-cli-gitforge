@@ -74,6 +74,15 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if err != nil {
 		return report, err
 	}
+	if opts.ExpectSource != "" {
+		expect, err := NormalizeExpectSource(opts.ExpectSource)
+		if err != nil {
+			return report, err
+		}
+		if sourceSHA != expect {
+			return report, fmt.Errorf("%w: source %s is %s, expected %s", ErrSourceMismatch, check.Plan.Branch, sourceSHA, expect)
+		}
+	}
 
 	anc, err := g.isAncestor(ctx, targetSHA, sourceSHA)
 	if err != nil {

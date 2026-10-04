@@ -1,6 +1,6 @@
 # ISSUE: `integrate check/run --release`가 기대 source SHA를 받지 않아 승인 범위를 프로세스 안에서 고정할 수 없다
 
-- status: open
+- status: done
 - priority: P2
 - category: feature/integrate
 - created_at: 2026-10-04
@@ -59,3 +59,16 @@ exit 3을 내지만, 그때는 이미 push된 뒤다.
 플래그가 배포되면 ce-agent-kit에서 `integrate-expect-source` capability를 탐지해
 `run-release`가 `--expect-source <source-sha>`를 넘기게 하고, `34-release-promotion.md`의
 잔여 race 단락을 지운다.
+
+## 해결
+
+브랜치 `dev/claude/mst/fix/integrate-release-remote-source`에서 구현했다.
+
+- `--expect-source`를 `check`/`run` 양쪽에 추가했다. 40·64자리 hex만 받고 대문자는 소문자로
+  정규화한다. 그 밖의 형식은 `ErrInvalidExpectSource`로 exit 2다.
+- source 해석을 `planFetchDefault` 뒤로 옮겼다. 비교한 SHA가 곧 `Plan.BranchSHA`다.
+- 불일치는 `ErrSourceMismatch` sentinel이고 전용 exit 4(`cliutil.ExitSourceMismatch`)다.
+- `run`은 `revalidateCheckedRefs` 뒤 같은 기대값과 다시 비교한다.
+- 테스트: `pkg/integrate/release_remote_test.go`(불일치·fetch 전진·일치 통합·정규화),
+  `cmd/gz-git/cmd/integrate_expect_source_test.go`(help 선언).
+- 문서: `docs/commands/integrate-expect-source.md`.

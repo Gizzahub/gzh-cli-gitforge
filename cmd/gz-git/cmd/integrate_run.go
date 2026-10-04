@@ -23,6 +23,7 @@ var (
 	integrateRunAllowSkipped     bool
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
+	integrateRunExpectSource     string
 )
 
 var integrateRunCmd = &cobra.Command{
@@ -45,7 +46,8 @@ Exit Codes:
   0  integrated (reclaim finished or intentionally skipped)
   1  not ready, or the integrate itself failed
   2  usage or execution error
-  3  integrated, but reclaim did not finish`),
+  3  integrated, but reclaim did not finish
+  4  --expect-source: the source is not that commit; nothing was pushed`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateRun,
 }
@@ -58,6 +60,7 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
+	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
@@ -81,6 +84,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			AllowSkippedChecks: integrateRunAllowSkipped,
 			ControllerConfig:   integrateRunControllerConfig,
 			NoFetch:            integrateRunNoFetch,
+			ExpectSource:       integrateRunExpectSource,
 		},
 	})
 	if report != nil && !quiet {
@@ -88,6 +92,9 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	}
 	if err != nil {
 		msg := err.Error()
+		if errors.Is(err, integrate.ErrSourceMismatch) {
+			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
+		}
 		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "not ready") || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
 			return cliutil.NewExitError(1, err)
 		}

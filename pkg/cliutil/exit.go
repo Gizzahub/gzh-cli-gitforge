@@ -21,6 +21,10 @@ import (
 //
 //	3  integrate succeeded, reclaim did not finish
 //
+// Integrate with --expect-source:
+//
+//	4  the source is not the expected commit; nothing was pushed
+//
 // Diagnostic commands follow the grep convention instead (e.g.
 // `conflict detect`): 0 = nothing found, 1 = findings, 2 = execution error.
 const (
@@ -28,6 +32,7 @@ const (
 	ExitToolError         = 1
 	ExitPartialFailed     = 2
 	ExitReclaimIncomplete = 3
+	ExitSourceMismatch    = 4
 )
 
 // ExitError carries a process exit code alongside an error so a command's RunE

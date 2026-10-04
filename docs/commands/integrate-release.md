@@ -9,11 +9,11 @@ which stays on the default branch, and names the remote-tracking ref
 That source is the remote's state by definition. It is never checked out and
 has no upstream, so the task-branch rows are judged differently:
 
-| Row            | Task branch or local `develop` source  | Remote-tracking release source               |
-| -------------- | -------------------------------------- | -------------------------------------------- |
-| `working-tree` | HEAD must be the branch, tree clean    | HEAD is not compared; the checkout stays clean |
-| `push`         | upstream must equal the branch         | PASS: the source is the remote ref           |
-| legacy `make`  | measured where HEAD is                 | measured in a detached worktree at the source SHA |
+| Row            | Task branch or local `develop` source | Remote-tracking release source                    |
+| -------------- | ------------------------------------- | ------------------------------------------------- |
+| `working-tree` | HEAD must be the branch, tree clean   | HEAD is not compared; the checkout stays clean    |
+| `push`         | upstream must equal the branch        | PASS: the source is the remote ref                |
+| legacy `make`  | measured where HEAD is                | measured in a detached worktree at the source SHA |
 
 The checkout must still be clean because `run` fast-forwards the local
 default-branch worktree after the push. A local `develop` source keeps the

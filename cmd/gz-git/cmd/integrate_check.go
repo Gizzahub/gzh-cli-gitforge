@@ -23,6 +23,7 @@ var (
 	integrateCheckAllowSkipped     bool
 	integrateCheckControllerConfig string
 	integrateCheckNoFetch          bool
+	integrateCheckExpectSource     string
 )
 
 var integrateCheckCmd = &cobra.Command{
@@ -42,7 +43,8 @@ Engine: gz-git-integrate (Go)
 Exit Codes:
   0  READY
   1  NOT READY, or --target required
-  2  the check itself could not run`),
+  2  the check itself could not run
+  4  --expect-source: the source is not that commit`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateCheck,
 }
@@ -55,6 +57,7 @@ func init() {
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "resolve the target from local tracking refs without fetching")
+	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
 }
 
 func runIntegrateCheck(cmd *cobra.Command, args []string) error {
@@ -77,9 +80,16 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		AllowSkippedChecks: integrateCheckAllowSkipped,
 		ControllerConfig:   integrateCheckControllerConfig,
 		NoFetch:            integrateCheckNoFetch,
+		ExpectSource:       integrateCheckExpectSource,
 	})
 	if err != nil {
 		msg := err.Error()
+		if errors.Is(err, integrate.ErrSourceMismatch) {
+			if !quiet {
+				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)
+			}
+			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
+		}
 		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
 			if !quiet {
 				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)

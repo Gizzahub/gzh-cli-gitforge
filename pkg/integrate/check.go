@@ -37,6 +37,10 @@ type CheckOptions struct {
 	// ref is absent the check fails instead of falling back to a stale
 	// local integration branch.
 	NoFetch bool
+	// ExpectSource is the full commit the caller approved. When set, the
+	// source is read after the fetch and must be exactly this commit, so the
+	// SHA compared is the SHA every readiness row measures.
+	ExpectSource string
 }
 
 // CheckItem is one readiness row.
@@ -73,6 +77,13 @@ type CheckReport struct {
 func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*CheckReport, error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
+	}
+	if opts.ExpectSource != "" {
+		expect, err := NormalizeExpectSource(opts.ExpectSource)
+		if err != nil {
+			return nil, err
+		}
+		opts.ExpectSource = expect
 	}
 	dir := strings.TrimSpace(opts.RepoPath)
 	if dir == "" {

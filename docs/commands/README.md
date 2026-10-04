@@ -28,6 +28,9 @@ repository-root fixed profiles and symmetric target/source preparation.
 [Release promotion](integrate-release.md) explains how `--release` judges a
 remote-tracking integration ref as the source.
 
+[Pin the approved source commit](integrate-expect-source.md) documents
+`--expect-source` and its dedicated exit code 4.
+
 ## Global Flags
 
 | Flag        | Short | Description               |

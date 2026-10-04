@@ -16,6 +16,31 @@ import (
 // resolved target branch. Callers should retry from a task-branch worktree.
 var ErrImplicitSourceIsTarget = errors.New("implicit source branch is the integration target")
 
+// ErrSourceMismatch reports a source that is not the caller's expected
+// commit. Nothing has been measured or pushed for it.
+var ErrSourceMismatch = errors.New("source is not the expected commit")
+
+// ErrInvalidExpectSource reports an --expect-source value that is not a full
+// object ID.
+var ErrInvalidExpectSource = errors.New("--expect-source must be a full 40- or 64-digit hex commit")
+
+// NormalizeExpectSource accepts a full SHA-1 or SHA-256 object ID and returns
+// it lowercased, the spelling git rev-parse prints. Abbreviations are
+// rejected: an approval names one commit, not a prefix that may later match
+// two.
+func NormalizeExpectSource(raw string) (string, error) {
+	sha := strings.ToLower(strings.TrimSpace(raw))
+	if len(sha) != 40 && len(sha) != 64 {
+		return "", fmt.Errorf("%w: %q", ErrInvalidExpectSource, raw)
+	}
+	for _, r := range sha {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return "", fmt.Errorf("%w: %q", ErrInvalidExpectSource, raw)
+		}
+	}
+	return sha, nil
+}
+
 // TargetPlan is the resolved check/run destination.
 type TargetPlan struct {
 	Branch      string
@@ -58,15 +83,6 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	plan.Branch = branch
 
-	sha, ok, err := g.revParse(ctx, branch)
-	if err != nil {
-		return plan, err
-	}
-	if !ok {
-		return plan, fmt.Errorf("branch not found: %s", branch)
-	}
-	plan.BranchSHA = sha
-
 	head, err := g.headSHA(ctx)
 	if err != nil {
 		return plan, err
@@ -82,6 +98,14 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	if err := planFetchDefault(ctx, g, remote, &plan, opts.NoFetch); err != nil {
 		return plan, err
 	}
+
+	// The source is read after the fetch, so a remote-tracking source is the
+	// commit the fetch just saw and the expectation compares that same SHA.
+	sha, err := resolveSource(ctx, g, branch, opts.ExpectSource)
+	if err != nil {
+		return plan, err
+	}
+	plan.BranchSHA = sha
 
 	integ, err := ResolveIntegrationBranch(ctx, exec, g.dir, opts.IntegrationConfig)
 	if err != nil {
@@ -116,7 +140,46 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	plan.Target = target
 	plan.TargetSHA = tsha
 	plan.Release = opts.Release
+	if err := requireRemoteReleaseRef(ctx, g, plan); err != nil {
+		return plan, err
+	}
 	return plan, nil
+}
+
+// resolveSource reads the source commit and holds it to the caller's
+// expectation, if any.
+func resolveSource(ctx context.Context, g gitRepo, branch, expect string) (string, error) {
+	sha, ok, err := g.revParse(ctx, branch)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("branch not found: %s", branch)
+	}
+	if expect != "" && sha != expect {
+		return "", fmt.Errorf("%w: source %s is %s, expected %s", ErrSourceMismatch, branch, sha, expect)
+	}
+	return sha, nil
+}
+
+// requireRemoteReleaseRef holds a remote release source to the
+// remote-tracking ref it claims to be.
+func requireRemoteReleaseRef(ctx context.Context, g gitRepo, plan TargetPlan) error {
+	if !plan.releasesRemoteRef() {
+		return nil
+	}
+	// A remote release source skips the HEAD and upstream rows, so it must
+	// really be the remote-tracking ref: a local branch spelled
+	// "origin/develop" would shadow it in rev-parse and be promoted
+	// without ever having been pushed.
+	remoteSHA, ok, err := g.revParse(ctx, "refs/remotes/"+plan.Branch)
+	if err != nil {
+		return err
+	}
+	if !ok || remoteSHA != plan.BranchSHA {
+		return fmt.Errorf("release source %s does not resolve to refs/remotes/%s; a local branch with that name shadows it", plan.Branch, plan.Branch)
+	}
+	return nil
 }
 
 func resolveDefaultTarget(ctx context.Context, g gitRepo, opts CheckOptions, integ Resolution, remote string) (string, error) {

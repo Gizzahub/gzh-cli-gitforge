@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -99,6 +100,17 @@ func TestCheck_ReleaseFromLocalBranchStillRequiresHead(t *testing.T) {
 	if report.Ready {
 		t.Fatalf("local release source off HEAD must not be READY:\n%s", FormatCheck(report))
 	}
+	// The relaxation is for the remote ref only: a local source still fails
+	// the HEAD row, not merely some other row.
+	for _, item := range report.Items {
+		if item.Name == "working-tree" {
+			if item.Status != checkFail {
+				t.Fatalf("working-tree = %+v, want FAIL for a local source off HEAD", item)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing working-tree row:\n%s", FormatCheck(report))
 }
 
 func TestRun_ReleaseFromRemoteRefFastForwardsDefaultAndKeepsIntegration(t *testing.T) {
@@ -120,5 +132,104 @@ func TestRun_ReleaseFromRemoteRefFastForwardsDefaultAndKeepsIntegration(t *testi
 	}
 	if !strings.Contains(report.Reclaim.Skipped, "integration/default") {
 		t.Fatalf("release must not reclaim the integration ref: %+v", report.Reclaim)
+	}
+}
+
+func TestCheck_ExpectSourceMismatchStopsBeforeMeasurement(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if !errors.Is(err, ErrSourceMismatch) {
+		t.Fatalf("err = %v, want ErrSourceMismatch (report %+v)", err, report)
+	}
+}
+
+func TestRun_ExpectSourceMismatchPushesNothing(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	before := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = before
+	_, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
+	if !errors.Is(err, ErrSourceMismatch) {
+		t.Fatalf("err = %v, want ErrSourceMismatch", err)
+	}
+	runGit(t, fx.Clone, "fetch", fx.Remote)
+	if got := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main")); got != before {
+		t.Fatalf("remote main moved to %s on a mismatch", got)
+	}
+}
+
+// The comparison happens after the fetch: a stale local tracking ref that
+// the fetch advances to the expected commit passes, and readiness measures
+// that same commit.
+func TestCheck_ExpectSourceComparesTheFetchedCommit(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	runGit(t, fx.Worktree, "checkout", "-B", "develop", fx.Remote+"/develop")
+	writeRepoFile(t, fx.Worktree, "later.txt", "later\n")
+	runGit(t, fx.Worktree, "add", "later.txt")
+	runGit(t, fx.Worktree, "commit", "-m", "later develop work")
+	runGit(t, fx.Worktree, "push", fx.Remote, "develop")
+	advanced := strings.TrimSpace(gitOutput(t, fx.Worktree, "rev-parse", "HEAD"))
+	runGit(t, fx.Worktree, "checkout", "--detach")
+	runGit(t, fx.Worktree, "branch", "-D", "develop")
+
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = strings.ToUpper(advanced)
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if report.Plan.BranchSHA != advanced {
+		t.Fatalf("measured %s, want the fetched %s", report.Plan.BranchSHA, advanced)
+	}
+	if !report.Ready {
+		t.Fatalf("want READY, got\n%s", FormatCheck(report))
+	}
+}
+
+func TestRun_ExpectSourceMatchIntegrates(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/develop"))
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
+	if err != nil {
+		t.Fatalf("Run: %v\n%s", err, FormatRun(report))
+	}
+	if !report.Integrated || report.SHA != opts.ExpectSource {
+		t.Fatalf("report = %+v, want integrated %s", report, opts.ExpectSource)
+	}
+}
+
+func TestNormalizeExpectSource(t *testing.T) {
+	sha1 := strings.Repeat("a", 40)
+	for raw, want := range map[string]string{
+		sha1:                    sha1,
+		strings.ToUpper(sha1):   sha1,
+		strings.Repeat("0", 64): strings.Repeat("0", 64),
+		"abc1234":               "",
+		strings.Repeat("g", 40): "",
+		strings.Repeat("a", 41): "",
+		"":                      "",
+	} {
+		got, err := NormalizeExpectSource(raw)
+		if want == "" {
+			if !errors.Is(err, ErrInvalidExpectSource) {
+				t.Errorf("NormalizeExpectSource(%q) err = %v, want ErrInvalidExpectSource", raw, err)
+			}
+			continue
+		}
+		if err != nil || got != want {
+			t.Errorf("NormalizeExpectSource(%q) = %q, %v; want %q", raw, got, err, want)
+		}
+	}
+}
+
+func TestCheck_ReleaseRejectsLocalBranchShadowingRemoteRef(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	runGit(t, fx.Clone, "branch", fx.Remote+"/develop", "HEAD")
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), releaseRemoteOptions(fx))
+	if err == nil || !strings.Contains(err.Error(), "shadows") {
+		t.Fatalf("err = %v, want the shadowing refusal", err)
 	}
 }

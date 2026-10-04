@@ -38,12 +38,20 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   by construction; CE `run-release` was unusable. Push now passes for that
   source, the checkout only has to be clean, and make measures a detached
   worktree at the source SHA ([docs](docs/commands/integrate-release.md)).
+  A local branch spelled like the remote ref is refused instead of being
+  promoted under the relaxed rows.
 
 ### Added
 
 - `pnpm-frozen-lockfile-v1` preparation profile, so a pnpm repository's gate
   measures a fresh worktree with its locked dependencies installed instead of
-  failing on an empty `node_modules/`.
+  failing on an empty `node_modules/`. The install runs in its own process
+  group with a bounded wait, so a lifecycle script's leftover child cannot hang
+  `integrate check` past the timeout.
+- `integrate check|run --expect-source <sha>` refuses a source that is not the
+  approved commit and exits 4. CE `run-release` can now pin a release record's
+  `source-sha` inside gz-git instead of trusting that nothing fetched between
+  its own check and the push ([docs](docs/commands/integrate-expect-source.md)).
 
 ______________________________________________________________________
 
