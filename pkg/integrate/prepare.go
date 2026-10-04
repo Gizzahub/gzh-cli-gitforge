@@ -72,7 +72,14 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 	// asymmetry is not fixed here — it is recorded, so the verdict can name it
 	// instead of reporting an unmeasurable baseline as a fact about the target
 	// commit.
+	//
+	// A remote release source is the exception: the working directory is the
+	// target checkout, not the source, so the source is measured in a
+	// pristine detached worktree at the checked SHA.
 	if profile == "" {
+		if plan.releasesRemoteRef() && plan.HeadSHA != plan.BranchSHA {
+			return preparePristineSource(ctx, g, plan)
+		}
 		return preparedLegacy{source: g.dir, sourcePrepared: PrepareStateWorkingDir}, nil
 	}
 	inputs, err := snapshotPrepareInputs(ctx, g, profile)
@@ -112,6 +119,19 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
 	return preparedLegacy{source: source, root: root, baseline: baseline, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g}, nil
+}
+
+func preparePristineSource(ctx context.Context, g gitRepo, plan TargetPlan) (preparedLegacy, error) {
+	root, err := os.MkdirTemp("", "gz-git-integrate-prepare-")
+	if err != nil {
+		return preparedLegacy{}, err
+	}
+	source := filepath.Join(root, "source")
+	if err := g.worktreeAddDetach(ctx, source, plan.BranchSHA); err != nil {
+		_ = os.RemoveAll(root)
+		return preparedLegacy{}, fmt.Errorf("prepare source worktree: %w", err)
+	}
+	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStatePristine, g: g}, nil
 }
 
 func removePreparedWorktree(parent context.Context, g gitRepo, wt, root string) error {
@@ -157,6 +177,9 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	}
 	if profile == cargoWorkspacePrepareV1 {
 		return prepareCargoWorkspace(parent, g, dir)
+	}
+	if profile == pnpmFrozenLockfilePrepareV1 {
+		return preparePnpmFrozenLockfile(parent, g, dir)
 	}
 	if profile != familybookEntPrepareV1 {
 		return fmt.Errorf("unsupported preparation profile %q", profile)
@@ -221,6 +244,15 @@ func rejectEntSymlinkChain(dir string) error {
 // is a forbidden path: the profile must not silently introduce new files.
 // An empty prefix allows no ignored entry at all.
 func validatePreparedStatus(ctx context.Context, dir, ignoredOutputPrefix string) error {
+	return validatePreparedStatusAllowing(ctx, dir, func(path string) bool {
+		return strings.HasPrefix(path, ignoredOutputPrefix)
+	})
+}
+
+// validatePreparedStatusAllowing is validatePreparedStatus for a profile
+// whose output is not one directory; allowed decides which ignored paths
+// are that output.
+func validatePreparedStatusAllowing(ctx context.Context, dir string, allowed func(path string) bool) error {
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching")
 	cmd.Dir = dir
 	raw, err := cmd.Output()
@@ -235,7 +267,7 @@ func validatePreparedStatus(ctx context.Context, dir, ignoredOutputPrefix string
 			return fmt.Errorf("invalid preparation status")
 		}
 		state, path := string(record[:2]), string(record[3:])
-		if state != "!!" || !strings.HasPrefix(path, ignoredOutputPrefix) {
+		if state != "!!" || !allowed(path) {
 			return fmt.Errorf("preparation changed forbidden path: %s", path)
 		}
 	}

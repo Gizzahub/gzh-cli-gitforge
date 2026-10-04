@@ -59,5 +59,12 @@ preparation was supposed to hand it. The 30-minute ceiling bounds fetch plus
 a cold full-workspace check combined; a timeout fails the preparation instead
 of producing a silent baseline.
 
+`pnpm-frozen-lockfile-v1` runs `pnpm install --frozen-lockfile` with the pnpm
+on `PATH`, in the inherited environment plus CI=true, LC_ALL=C, and
+GIT_TERMINAL_PROMPT=0, so the probe later resolves the same pnpm and store. A
+lockfile that disagrees with `package.json` fails the preparation instead of
+re-resolving. Its only allowed output is ignored `node_modules/` directories,
+one per workspace package. The 10-minute ceiling is for a cold store.
+
 `familybook-ent-v1` remains the fixed Ent generation profile. Details and its
 controller example are in [controller-config integration](integrate-controller-config.md).

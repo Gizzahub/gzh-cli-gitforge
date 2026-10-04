@@ -30,7 +30,20 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+
+- `integrate check|run <remote>/<integration> --release` no longer fails every
+  promotion from a default-branch checkout. The remote-tracking source has no
+  upstream and is never HEAD, so `working-tree`, `push`, and legacy `make` failed
+  by construction; CE `run-release` was unusable. Push now passes for that
+  source, the checkout only has to be clean, and make measures a detached
+  worktree at the source SHA ([docs](docs/commands/integrate-release.md)).
+
+### Added
+
+- `pnpm-frozen-lockfile-v1` preparation profile, so a pnpm repository's gate
+  measures a fresh worktree with its locked dependencies installed instead of
+  failing on an empty `node_modules/`.
 
 ______________________________________________________________________
 

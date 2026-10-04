@@ -138,7 +138,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 }
 
 func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped bool, report *CheckReport, add func(CheckItem)) {
-	if plan.HeadSHA != plan.BranchSHA {
+	if plan.HeadSHA != plan.BranchSHA && !plan.releasesRemoteRef() {
 		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
 		return
 	}
@@ -304,7 +304,9 @@ func checkOtherBranches(ctx context.Context, g gitRepo, plan TargetPlan) []Check
 }
 
 func checkWorkingTree(ctx context.Context, g gitRepo, plan TargetPlan) CheckItem {
-	if plan.HeadSHA != plan.BranchSHA {
+	// A remote release source is never checked out, but the checkout still
+	// has to be clean: run fast-forwards the target worktree after the push.
+	if plan.HeadSHA != plan.BranchSHA && !plan.releasesRemoteRef() {
 		return CheckItem{Name: "working-tree", Status: checkFail, Detail: "HEAD is not the branch"}
 	}
 	out, err := g.porcelain(ctx)
@@ -318,6 +320,9 @@ func checkWorkingTree(ctx context.Context, g gitRepo, plan TargetPlan) CheckItem
 }
 
 func checkPushed(ctx context.Context, g gitRepo, plan TargetPlan) CheckItem {
+	if plan.releasesRemoteRef() {
+		return CheckItem{Name: "push", Status: checkPass, Detail: plan.Branch + " is the remote ref"}
+	}
 	upstream, hasUpstream, err := g.upstreamName(ctx, plan.Branch)
 	if err != nil {
 		return CheckItem{Name: "upstream", Status: checkFail, Detail: err.Error()}

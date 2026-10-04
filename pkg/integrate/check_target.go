@@ -26,6 +26,16 @@ type TargetPlan struct {
 	DefaultRef  string
 	Integration Resolution
 	HeadSHA     string
+	Release     bool
+}
+
+// releasesRemoteRef reports a release whose source is the remote-tracking
+// integration ref (origin/develop). That ref is the remote's state by
+// definition: it has no upstream, it is never checked out, and HEAD says
+// nothing about it, so the task-branch working-tree and push rows do not
+// apply and its tree is measured in a detached worktree instead.
+func (p TargetPlan) releasesRemoteRef() bool {
+	return p.Release && p.Remote != "" && p.Integration.Name != "" && p.Branch == p.Remote+"/"+p.Integration.Name
 }
 
 func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts CheckOptions) (TargetPlan, error) {
@@ -105,6 +115,7 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	plan.Target = target
 	plan.TargetSHA = tsha
+	plan.Release = opts.Release
 	return plan, nil
 }
 

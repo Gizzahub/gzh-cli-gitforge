@@ -48,7 +48,8 @@ func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts re
 	}
 	if opts.Branch == opts.TargetBranch ||
 		(opts.DefaultName != "" && opts.Branch == opts.DefaultName) ||
-		(opts.Integration != "" && opts.Branch == opts.Integration) {
+		(opts.Integration != "" && opts.Branch == opts.Integration) ||
+		(opts.Integration != "" && opts.Remote != "" && opts.Branch == opts.Remote+"/"+opts.Integration) {
 		out.Skipped = fmt.Sprintf("%s is the integration/default branch", opts.Branch)
 		return out
 	}

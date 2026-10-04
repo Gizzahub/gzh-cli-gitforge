@@ -19,12 +19,16 @@ const (
 	// PrepareProfileCargoWorkspaceV1 fetches and compiles a Rust workspace
 	// dependency graph before the readiness probes run.
 	PrepareProfileCargoWorkspaceV1 = "cargo-workspace-v1"
+	// PrepareProfilePnpmFrozenLockfileV1 installs a pnpm project's locked
+	// dependencies before the readiness probes run.
+	PrepareProfilePnpmFrozenLockfileV1 = "pnpm-frozen-lockfile-v1"
 )
 
 var validPrepareProfiles = map[string]struct{}{
 	PrepareProfileFamilybookEntV1:                 {},
 	PrepareProfileFlowTaskchainLocalSubprojectsV1: {},
 	PrepareProfileCargoWorkspaceV1:                {},
+	PrepareProfilePnpmFrozenLockfileV1:            {},
 }
 
 // ValidatePrepareProfile validates the closed set of repository preparation

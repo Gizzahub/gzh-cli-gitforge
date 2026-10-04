@@ -25,6 +25,9 @@ repository-root fixed profiles and symmetric target/source preparation.
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
 
+[Release promotion](integrate-release.md) explains how `--release` judges a
+remote-tracking integration ref as the source.
+
 ## Global Flags
 
 | Flag        | Short | Description               |
