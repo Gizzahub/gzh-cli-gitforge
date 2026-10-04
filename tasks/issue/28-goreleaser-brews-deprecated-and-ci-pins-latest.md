@@ -1,8 +1,10 @@
 # 28. `.goreleaser.yaml`의 `brews`가 폐기 예정인데 CI는 `version: latest`를 쓴다
 
-> 상태: 진행 중 — 저장소 코드·CI 완료. v0.8.0·v0.9.0 stable 태그의 release workflow가
-> `HOMEBREW_TAP_TOKEN` 401로 Cask 게시 단계에서 실패했다(아래 실행 증거). tap
-> bootstrap과 토큰 설정이 대기 중이다.
+> 상태: resolved — 2026-10-04. 메인테이너가 `HOMEBREW_TAP_TOKEN`을 교체한 뒤 v0.8.0
+> release run `36799916342` attempt 6이 success로 cask를 tap에 게시했다. 그 cask는 GoReleaser
+> v2.10.2 템플릿이라 strict audit에 실패해, 핀을 v2.18.2로 올리고(`abb9051`) v0.8.0 cask를
+> 승인 하에 tap `c708971`로 재게시했다. strict audit · macOS 설치 증거는
+> [`docs/releases/0.8.0-evidence.json`](../../docs/releases/0.8.0-evidence.json).
 > 발견: 2026-08-25, 릴리스 드라이런 중
 > 관련: 이동 `snapshot` 태그는 있지만 stable `v*` 태그와 실제 릴리스 이력은 없다
 
