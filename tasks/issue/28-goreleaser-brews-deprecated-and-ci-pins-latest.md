@@ -2,7 +2,8 @@
 
 > 상태: resolved — 2026-10-04. 메인테이너가 `HOMEBREW_TAP_TOKEN`을 교체한 뒤 v0.8.0
 > release run `36799916342` attempt 6이 success로 cask를 tap에 게시했다. 그 cask는 GoReleaser
-> v2.10.2 템플릿이라 strict audit에 실패해, 핀을 v2.18.2로 올리고(`abb9051`) v0.8.0 cask를
+> v2.10.2 템플릿이라 strict audit에 실패해, 핀을 v2.18.2로 올리고(`f96052d` release.yml ·
+> `eb46bb5` snapshot.yml · `abb9051` `.make/tools.mk`) v0.8.0 cask를
 > 승인 하에 tap `c708971`로 재게시했다. strict audit · macOS 설치 증거는
 > [`docs/releases/0.8.0-evidence.json`](../../docs/releases/0.8.0-evidence.json).
 > 발견: 2026-08-25, 릴리스 드라이런 중
@@ -33,6 +34,9 @@ Ruby 구문 검사, `GOWORK=off make quality-check`, 통합 시 `make check`·`m
 
 ## 남은 수용 기준
 
+> 2026-10-04 완료: 아래 기준은 모두 충족됐다(strict audit exit 0 · macOS 설치 `gz-git 0.8.0`).
+> 근거는 [`docs/releases/0.8.0-evidence.json`](../../docs/releases/0.8.0-evidence.json). 이하 본문은 당시 기록이다.
+
 2026-08-25 기준 외부 `gizzahub/homebrew-tap`은 ref가 없는 빈 저장소다. 기존 Formula나
 Formula 사용자를 전제한 migration은 필요하지 않다. 최초 stable release 전에 다음
 **릴리스 운영 선행조건**을 실제 외부 경로에서 검증한다.
@@ -46,6 +50,8 @@ Formula 사용자를 전제한 migration은 필요하지 않다. 최초 stable r
 `go install` 또는 바이너리 다운로드 경로를 사용한다.
 
 ## stable 태그 릴리스 실행 증거 (2026-10-02)
+
+> 2026-10-04: 아래 401은 토큰 교체로 해소됐다(상단 상태 참조). 이하는 당시 기록이다.
 
 v0.8.0(2026-10-01)과 v0.9.0(2026-10-02) 두 stable 태그의 release workflow가 같은
 지점에서 실패했다 — 위 수용 기준 2·4번이 아직 채워지지 않았다는 실행 근거다.
