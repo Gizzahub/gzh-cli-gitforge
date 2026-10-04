@@ -70,18 +70,15 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		return report, err
 	}
 
+	// A source that moved while readiness ran is, under --expect-source, a
+	// mismatch with the approval, not a generic revalidation failure: compare
+	// it first so the caller gets ErrSourceMismatch (exit 4) for it too.
+	if err := requireExpectedSource(ctx, g, check.Plan.Branch, opts.ExpectSource); err != nil {
+		return report, err
+	}
 	sourceSHA, targetSHA, targetName, err := revalidateCheckedRefs(ctx, g, check, opts.NoFetch)
 	if err != nil {
 		return report, err
-	}
-	if opts.ExpectSource != "" {
-		expect, err := NormalizeExpectSource(opts.ExpectSource)
-		if err != nil {
-			return report, err
-		}
-		if sourceSHA != expect {
-			return report, fmt.Errorf("%w: source %s is %s, expected %s", ErrSourceMismatch, check.Plan.Branch, sourceSHA, expect)
-		}
 	}
 
 	anc, err := g.isAncestor(ctx, targetSHA, sourceSHA)
@@ -262,4 +259,17 @@ func FormatRun(r *RunReport) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+// requireExpectedSource re-reads the source and holds it to --expect-source.
+func requireExpectedSource(ctx context.Context, g gitRepo, branch, raw string) error {
+	if raw == "" {
+		return nil
+	}
+	expect, err := NormalizeExpectSource(raw)
+	if err != nil {
+		return err
+	}
+	_, err = resolveSource(ctx, g, branch, expect)
+	return err
 }

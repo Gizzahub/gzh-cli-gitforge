@@ -233,3 +233,20 @@ func TestCheck_ReleaseRejectsLocalBranchShadowingRemoteRef(t *testing.T) {
 		t.Fatalf("err = %v, want the shadowing refusal", err)
 	}
 }
+
+// A fetch that moves the source while run's readiness is measuring is still
+// reported as a source mismatch, not as a generic revalidation error.
+func TestRun_ExpectSourceMovedDuringReadinessIsAMismatch(t *testing.T) {
+	fx := releaseRemoteFixture(t)
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/develop"))
+	check, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err != nil || !check.Ready {
+		t.Fatalf("Check: %v", err)
+	}
+	runGit(t, fx.Clone, "update-ref", "refs/remotes/"+fx.Remote+"/develop", fx.Remote+"/main")
+	_, err = runChecked(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts}, check)
+	if !errors.Is(err, ErrSourceMismatch) {
+		t.Fatalf("err = %v, want ErrSourceMismatch", err)
+	}
+}

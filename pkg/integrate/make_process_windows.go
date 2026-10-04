@@ -49,8 +49,9 @@ func newMakeProcessTree() (*makeProcessTree, error) {
 // no make recipe descendant can exist before attach assigns cmd.exe to the Job
 // Object. Every process make creates after release then inherits that job.
 func (p *makeProcessTree) configure(cmd *exec.Cmd) error {
-	if len(cmd.Args) != 3 || cmd.Args[0] != "make" || cmd.Args[1] != "-w" {
-		return fmt.Errorf("unexpected make command %q", cmd.Args)
+	launch, err := gatedLaunchLine(cmd)
+	if err != nil {
+		return err
 	}
 	gateDir, err := os.MkdirTemp("", "gz-git-integrate-make-gate-")
 	if err != nil {
@@ -69,8 +70,7 @@ func (p *makeProcessTree) configure(cmd *exec.Cmd) error {
 		}
 	}
 	contents := "@echo off\r\nsetlocal DisableDelayedExpansion\r\n:wait\r\nif not exist \"" +
-		escapeBatchPath(p.releasePath) + "\" goto wait\r\nmake -C \"" +
-		escapeBatchPath(targetDir) + "\" -w " + cmd.Args[2] + "\r\n"
+		escapeBatchPath(p.releasePath) + "\" goto wait\r\n" + launch(escapeBatchPath(targetDir)) + "\r\n"
 	if err := os.WriteFile(script, []byte(contents), 0o600); err != nil {
 		_ = os.RemoveAll(gateDir)
 		p.gateDir, p.releasePath = "", ""
@@ -86,6 +86,33 @@ func (p *makeProcessTree) configure(cmd *exec.Cmd) error {
 	cmd.Args = []string{comspec, "/d", "/v:off", "/s", "/c", "call run.cmd"}
 	cmd.Dir = gateDir
 	return nil
+}
+
+// gatedLaunchLine returns the batch line that runs cmd from its directory once
+// the gate opens. `make -w <target>` keeps its historical `make -C` line; any
+// other command (a preparation profile's fixed argv, e.g. pnpm install) is
+// called by its resolved path after changing into the directory. Arguments
+// are closed-set constants, so a quote or percent in one is refused rather
+// than escaped.
+func gatedLaunchLine(cmd *exec.Cmd) (func(dir string) string, error) {
+	if len(cmd.Args) == 3 && cmd.Args[0] == "make" && cmd.Args[1] == "-w" {
+		target := cmd.Args[2]
+		return func(dir string) string { return "make -C \"" + dir + "\" -w " + target }, nil
+	}
+	if len(cmd.Args) == 0 || cmd.Path == "" {
+		return nil, fmt.Errorf("unexpected gated command %q", cmd.Args)
+	}
+	for _, arg := range cmd.Args[1:] {
+		if arg == "" || strings.ContainsAny(arg, "\"%!^&|<> \t\r\n") {
+			return nil, fmt.Errorf("unexpected gated command argument %q", arg)
+		}
+	}
+	path := escapeBatchPath(cmd.Path)
+	args := strings.Join(cmd.Args[1:], " ")
+	return func(dir string) string {
+		// call: the resolved command may itself be a .cmd shim (pnpm.cmd).
+		return "cd /d \"" + dir + "\" || exit /b 1\r\ncall \"" + path + "\" " + args
+	}, nil
 }
 
 // escapeBatchPath writes a literal path inside a double-quoted batch operand.
