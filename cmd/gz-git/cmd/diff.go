@@ -3,10 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -62,22 +59,8 @@ func init() {
 }
 
 func runDiff(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	// Setup signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := withInterruptCancel(commandContext(cmd))
 	defer cancel()
-
-	go func() {
-		<-sigChan
-		if !quiet {
-			fmt.Println("\nInterrupted, canceling...")
-		}
-		cancel()
-	}()
 
 	// Validate and parse directory
 	directory, err := validateBulkDirectory(args)

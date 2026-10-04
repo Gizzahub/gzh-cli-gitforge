@@ -506,10 +506,13 @@ func withInterruptCancel(ctx context.Context) (context.Context, context.CancelFu
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	quietAtStart := quiet
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		select {
 		case <-sigChan:
-			if !quiet {
+			if !quietAtStart {
 				fmt.Fprintln(os.Stderr, "\nInterrupted, canceling...")
 			}
 			cancel()
@@ -518,7 +521,10 @@ func withInterruptCancel(ctx context.Context) (context.Context, context.CancelFu
 		signal.Stop(sigChan)
 	}()
 
-	return ctx, cancel
+	return ctx, func() {
+		cancel()
+		<-done
+	}
 }
 
 // stdinIsInteractive reports whether stdin is a terminal we can prompt on. The
