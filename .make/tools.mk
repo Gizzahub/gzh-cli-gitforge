@@ -186,7 +186,7 @@ install-golangci-lint: ## install the pinned golangci-lint v2 into bin/tools
 
 install-goreleaser: ## install goreleaser
 	@echo -e "$(CYAN)Installing goreleaser...$(RESET)"
-	@go install github.com/goreleaser/goreleaser/v2@v2.10.2
+	@go install github.com/goreleaser/goreleaser/v2@v2.18.2
 	@echo -e "$(GREEN)✅ goreleaser installed$(RESET)"
 
 # ==============================================================================
