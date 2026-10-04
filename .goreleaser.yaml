@@ -165,13 +165,16 @@ homebrew_casks:
     description: "Git repository management CLI tool with multi-forge support"
     license: "MIT"
 
-    # Release binaries are not notarized, so remove macOS quarantine metadata.
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/gz-git"]
-          end
+    # Preserve quarantine removal with Homebrew's declarative flight API.
+    # GoReleaser v2.18.2 hooks still emit deprecated Ruby postflight blocks;
+    # custom_block passes this stanza through. Escape the Homebrew runtime
+    # staged_path token so GoReleaser's final template pass preserves it.
+    custom_block: |
+      postflight_steps do
+        on_macos do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ "{{staged_path}}" }}/gz-git"]
+        end
+      end
 
     # Optional: dependencies
     # dependencies:
