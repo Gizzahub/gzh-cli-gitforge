@@ -313,6 +313,22 @@ repositories:
 		}
 	})
 
+	t.Run("explicit child parallel zero retains parent parallel", func(t *testing.T) {
+		dir := t.TempDir()
+		parent := filepath.Join(dir, "parent.yaml")
+		if err := os.WriteFile(parent, []byte("parallel: 2\nmaxRetries: 4\nrepositories: []\n"), 0o600); err != nil {
+			t.Fatalf("write parent: %v", err)
+		}
+		child := writeFlatParityConfig(t, "child.yaml", "parent: "+parent+"\nparallel: 0\nmaxRetries: 0\nrepositories:\n  - url: https://github.com/team/child.git\n")
+		result := loadFlatParity(t, FileSpecLoader{}, child)
+		if result.Run.Parallel != 2 {
+			t.Errorf("parallel = %d, want inherited 2", result.Run.Parallel)
+		}
+		if result.Run.MaxRetries != 0 {
+			t.Errorf("maxRetries = %d, want explicit child zero", result.Run.MaxRetries)
+		}
+	})
+
 	t.Run("parent inheritance child override uses absolute parent path", func(t *testing.T) {
 		dir := t.TempDir()
 		parent := filepath.Join(dir, "parent.yaml")

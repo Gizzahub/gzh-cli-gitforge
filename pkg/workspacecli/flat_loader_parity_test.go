@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
@@ -237,4 +238,37 @@ repositories:
 				deduped[0].Repo.Name, deduped[1].Repo.Name)
 		}
 	})
+}
+
+// TestFlatLoaderDecodeContract pins the common-schema contract introduced by
+// TASK-265, including validation of fields this workspace adapter does not apply.
+func TestFlatLoaderDecodeContract(t *testing.T) {
+	const validRepo = "repositories:\n  - url: https://github.com/team/repo.git\n"
+	tests := []struct {
+		name      string
+		yaml      string
+		wantError string
+	}{
+		{"resume type", "resume: notabool\n" + validRepo, "parse flat repositories YAML:"},
+		{"dryRun type", "dryRun: notabool\n" + validRepo, "parse flat repositories YAML:"},
+		{"repository strict checkout type", validRepo + "    strictBranchCheckout: notabool\n", "parse flat repositories YAML:"},
+		{"repository provider type", validRepo + "    provider: [oops]\n", "parse flat repositories YAML:"},
+		{"valid unapplied fields", "resume: true\ndryRun: true\n" + validRepo + "    provider: gitlab\n    strictBranchCheckout: true\n", ""},
+		{"unknown sshPort ignored", "sshPort: [oops]\n" + validRepo, ""},
+		{"unknown cloneProto ignored", "cloneProto: [ssh]\n" + validRepo, ""},
+		{"malformed YAML prefix", "repositories: [", "parse flat repositories YAML:"},
+		{"URL validated before strategy", "strategy: bogus\nrepositories:\n  - name: missing\n", "repository[0]: missing URL"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (FileSpecLoader{}).Load(context.Background(), writeFlatParityConfig(t, tt.yaml))
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("load: %v", err)
+				}
+			} else if err == nil || !strings.HasPrefix(err.Error(), tt.wantError) {
+				t.Fatalf("error = %v, want prefix %q", err, tt.wantError)
+			}
+		})
+	}
 }

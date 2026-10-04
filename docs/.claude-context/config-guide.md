@@ -250,12 +250,34 @@ repositories:
     path: subdir/discourse
 ```
 
-| Field    | Required | Description                        |
-| -------- | -------- | ---------------------------------- |
-| `url`    | Yes      | Git clone URL (HTTPS, SSH, git@)   |
-| `name`   | No       | Directory name (auto from URL)     |
-| `path`   | No       | Target path (defaults to name)     |
-| `branch` | No       | Branch to checkout                 |
+| Field    | Required | Description                      |
+| -------- | -------- | -------------------------------- |
+| `url`    | Yes      | Git clone URL (HTTPS, SSH, git@) |
+| `name`   | No       | Directory name (auto from URL)   |
+| `path`   | No       | Target path (defaults to name)   |
+| `branch` | No       | Branch to checkout               |
+
+#### Flat 로더의 입력 검증 계약
+
+workspace와 reposync의 flat 로더는 TASK-265부터 같은 스키마로 YAML을 해석한다.
+이 공통 입력 검증을 유지한다. 각 로더가 실행에 적용하는 필드와 입력 타입 검증은 별개다.
+workspace에서 실행에 적용하지 않는 `resume`, `dryRun`, repo의 `strictBranchCheckout`도
+boolean 타입이어야 하며 repo의 `provider`는 문자열이어야 한다. `notabool`이나
+`provider: [oops]`는 거부한다. 이전 workspace 로더가 이 값을 무시하던 관용성은
+공통 스키마 도입으로 변경되었으므로 올바른 타입으로 바꾸거나 사용하지 않는 키를 제거한다.
+
+공통 flat 스키마에 없는 키는 무시한다. `sshPort: [oops]`, `cloneProto: [ssh]`도
+flat 문서에서는 로드되지만 실행에 적용되지 않는다. flat URL의 SSH 포트는 위 예시처럼
+URL에 지정한다. 계층형 설정의 키를 flat 설정에 옮겨도 적용된다고 가정하지 않는다.
+이 두 키를 과거 workspace 로더가 타입 검사하던 동작은 유지하지 않는다.
+
+검증 순서는 YAML 해석 → 각 repository의 URL 존재 → 로더별 strategy 등 의미 검증이다.
+따라서 `strategy: bogus`와 URL 누락이 동시에 있으면 `repository[0]: missing URL`을
+먼저 보고한다. YAML 문법·타입 오류 접두사는 `parse flat repositories YAML:`이다.
+이는 예전 workspace의 `parse YAML:` 접두사를 대체한다.
+
+reposync의 parent 병합에서 child의 `parallel: 0`은 parent의 parallel 값을 유지한다.
+반면 child의 명시적인 `maxRetries: 0`은 parent 값을 0으로 덮어쓴다.
 
 ### Hierarchical Format (`workspaces` map)
 
@@ -285,12 +307,12 @@ workspaces:
 
 ### Format Selection
 
-| Scenario                    | Recommended Format         |
-| --------------------------- | -------------------------- |
-| Simple repo list            | Simple (`repositories`)    |
-| Forge org sync              | Hierarchical (`workspaces`)|
-| Multiple profiles           | Hierarchical (`workspaces`)|
-| Quick setup                 | Simple (`repositories`)    |
+| Scenario          | Recommended Format          |
+| ----------------- | --------------------------- |
+| Simple repo list  | Simple (`repositories`)     |
+| Forge org sync    | Hierarchical (`workspaces`) |
+| Multiple profiles | Hierarchical (`workspaces`) |
+| Quick setup       | Simple (`repositories`)     |
 
 ### Child Config Generation Mode
 
@@ -303,8 +325,8 @@ childConfigMode: repositories  # Default - flat array format
 ### Format Detection (Content-Based)
 
 1. **Explicit `kind:` field** (highest priority)
-2. **Content inspection**: `workspaces`/`profiles` → hierarchical; `repositories` → simple
-3. **Default**: Falls back to `repositories` format
+1. **Content inspection**: `workspaces`/`profiles` → hierarchical; `repositories` → simple
+1. **Default**: Falls back to `repositories` format
 
 ______________________________________________________________________
 
@@ -321,11 +343,11 @@ push:
     foreignWork: block
 ```
 
-| Key | Meaning |
-| --- | ------- |
-| `protected` | Branch names and trailing-`*` patterns that may not be pushed to. Empty by default. The **destination** decides, so `--refspec develop:main` is refused. |
-| `forceMode` | `lease-only` (default) allows `--force`, which pushes with `--force-with-lease`, and refuses a `+` refspec, which has no lease. `allow` permits both. `deny` permits neither. |
-| `foreignWork` | `block` (default) refuses a force push that would discard remote commits signed by a different device or agent. `allow` permits it. |
+| Key           | Meaning                                                                                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `protected`   | Branch names and trailing-`*` patterns that may not be pushed to. Empty by default. The **destination** decides, so `--refspec develop:main` is refused.                      |
+| `forceMode`   | `lease-only` (default) allows `--force`, which pushes with `--force-with-lease`, and refuses a `+` refspec, which has no lease. `allow` permits both. `deny` permits neither. |
+| `foreignWork` | `block` (default) refuses a force push that would discard remote commits signed by a different device or agent. `allow` permits it.                                           |
 
 `--force-mode` and `--foreign-work` override their keys for one invocation. A
 refused repository is reported as `blocked`, the rest of the batch still runs,
@@ -368,8 +390,7 @@ ______________________________________________________________________
 
 ## Identity
 
-`identity` names the machine and the agent behind an automated commit. `handoff
-end` writes them as git trailers on the checkpoint commit:
+`identity` names the machine and the agent behind an automated commit. `handoff end` writes them as git trailers on the checkpoint commit:
 
 ```
 chore(wip): handoff checkpoint
@@ -385,10 +406,10 @@ identity:
   agent: hermes-01
 ```
 
-| Key | Meaning |
-| --- | ------- |
+| Key      | Meaning                                                                                |
+| -------- | -------------------------------------------------------------------------------------- |
 | `device` | This machine. Defaults to the hostname, so a checkpoint is signed even with no config. |
-| `agent` | The automation driving this machine. Empty means a person is, so nothing is recorded. |
+| `agent`  | The automation driving this machine. Empty means a person is, so nothing is recorded.  |
 
 `GZ_GIT_DEVICE` and `GZ_GIT_AGENT` override the config — an agent process knows
 its own name at launch, while a config file is written once and shared by every
@@ -400,8 +421,7 @@ profiles are machine-local, which is what the value describes.
 
 `gz-git handoff end --no-trailers` omits them for one run.
 
-The trailers are what the [`foreignWork` push rule](#push-policy) and `handoff
-start`'s shared-branch note read back, so a workspace that never sets an
+The trailers are what the [`foreignWork` push rule](#push-policy) and `handoff start`'s shared-branch note read back, so a workspace that never sets an
 identity gets a working checkpoint but no cross-machine safety from either.
 
 [`branch naming`](#branch-naming) reads the same two values, but off the
@@ -442,11 +462,11 @@ The command prints a name and creates nothing — creation stays with
 adds is the part plain git cannot work out: the writer segment, taken from the
 resolved [identity](#identity).
 
-| Placeholder | Source |
-| ----------- | ------ |
-| `{task}` | The command's argument |
-| `{device}` | `identity.device` or `GZ_GIT_DEVICE` |
-| `{agent}` | `identity.agent` or `GZ_GIT_AGENT` |
+| Placeholder | Source                               |
+| ----------- | ------------------------------------ |
+| `{task}`    | The command's argument               |
+| `{device}`  | `identity.device` or `GZ_GIT_DEVICE` |
+| `{agent}`   | `identity.agent` or `GZ_GIT_AGENT`   |
 
 Two rules follow from that:
 
