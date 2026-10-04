@@ -1,6 +1,6 @@
 # Tasks — gzh-cli-gitforge
 
-> Last Updated: 2026-10-03
+> Last Updated: 2026-10-04
 
 ## 구조
 
@@ -38,8 +38,9 @@ ______________________________________________________________________
 | 38  | hosted-gosec-diagnostic-directory                                | 진단 디렉터리 `0700` 설정의 hosted G302 수정. exact-SHA `ece25ab` Quality gate 통과; 실행 카드: devbox TASK-239                                                                                                                       |
 | 39  | make-timeout-configurable                                        | repo-root 선언 `branch.makeTimeout`으로 legacy 게이트 make 예산을 저장소별로 상향. 기본 15분 보존, fail-closed 파싱. 실행 카드: devbox TASK-260                                                                                       |
 | 40  | gosec-go127-export-data                                          | go1.27.0으로 빌드한 gosec v2.22.10이 `package without types` 오류로 전면 실패. go1.26.7 빌드는 정상 — tools.mk 빌드 툴체인 고정 또는 핀 상향 필요                                                                                     |
-| 42  | runtask-port-follow-ce-f540f972 | 포트가 CE f540f972(원격 추적 ref 기준 source · SHA base · `--target origin/<branch>`)와 b09a605e(Worktrunk 0.80 라인)를 따르지 않아 parity 포트 모드 11개 실패. 재녹화 전에도 전부 실패(악화 아님). 분리 출처: devbox TASK-256 |
+| 42  | runtask-port-follow-ce-f540f972                                  | 포트가 CE f540f972(원격 추적 ref 기준 source · SHA base · `--target origin/<branch>`)와 b09a605e(Worktrunk 0.80 라인)를 따르지 않아 parity 포트 모드 11개 실패. 재녹화 전에도 전부 실패(악화 아님). 분리 출처: devbox TASK-256        |
 | 41  | ce-parity-golden-drift                                           | 해결. 골든을 `475-g950650ef` 기준으로 재녹화하고 ce 빌드 불일치 시 재녹화 안내와 함께 조기 실패하는 가드를 추가했다(`791ac89`·`83cc876`). exact-SHA hosted CI 초록 확인                                                               |
+| 43  | integrate-release-expected-source-sha                            | `integrate check/run`에 `--expect-source <sha>`가 없어 호출자(CE `run-release`)가 승인한 develop 커밋을 프로세스 안에서 고정할 수 없다. 외부 fetch가 끼면 승인 안 된 후손이 승격될 수 있다. 요청처: ce-agent-kit `f6493563`           |
 
 `v0.8.0`은 준비된 `VERSION`과 릴리스 노트 기준으로 2026-10-01 `9d7041c`에 발행됐다.
 발행 당시 보류 조건이던 탭 bootstrap·최초 Cask 게시·macOS 설치 검증은 이슈 28이 계속
