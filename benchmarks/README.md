@@ -207,18 +207,18 @@ The target, in order:
    `make build BINARY=<temp path>` (`buildPrivateBinary` in
    `helpers_test.go`). The repository-root `gz-git` and any `gz-git` on
    `PATH` are never used or replaced.
-1. **Measures only `BenchmarkCLIStatus`** — `go test -run='^$' -bench='^BenchmarkCLIStatus$' -count=3 -benchtime=100ms -benchmem ./benchmarks` (3 samples).
-1. **Writes three artifacts into `OUTPUT_DIR`** — `bench.txt` (the raw
-   `go test` output), `metadata.json` (real `git rev-parse HEAD`, `go version`, `git --version`, os, arch, workload, the exact measurement
-   command, and the UTC `observedAt` timestamp), and `report.json` (the
-   schema v1 report produced by the TASK-269 converter).
+1. **Measures only `BenchmarkCLIStatus`** — `GOWORK=off go test -run='^$' -bench='^BenchmarkCLIStatus$' -count=3 -benchtime=100ms -benchmem ./benchmarks` (3 samples).
+1. **변환 후 네 파일을 게시한다** — `bench.txt`는 benchmark stdout만 담고,
+   `bench.stderr.txt`는 모듈 다운로드 등 stderr 진단을 별도로 보관한다.
+   `metadata.json`은 실제 commit, Go/Git 버전, OS/arch, workload, UTC timestamp와
+   `GOWORK=off`를 포함한 실행 명령을 JSON 인코더로 기록한다. `report.json`은
+   TASK-269 변환기의 schema v1 결과다.
 
-On any measurement failure the target exits non-zero, echoes the raw output,
-and writes **no report**; the raw text and metadata stay in a temporary work
-directory that the target's trap removes on success, failure, and interrupt
-alike. Re-running collection always targets a new `OUTPUT_DIR` — the
-converter refuses to overwrite an existing `report.json`, so earlier evidence
-is never silently replaced.
+측정이나 변환 실패 시 exit non-zero이며 `OUTPUT_DIR`에 부분 결과를 게시하지 않는다.
+측정 실패는 stdout과 stderr를 함께 진단 출력한다. 변환은 임시 디렉토리에서 완료한 뒤
+게시하며, 파일 복사 등 게시 단계가 실패하면 `recording.failed` 표식이 남는다.
+그 표식이 있는 결과는 사용하지 않는다. 임시 파일은 성공·실패·interrupt 시 정리된다.
+재실행은 새 디렉토리 또는 비어 있는 디렉토리를 사용해야 한다.
 
 ### What this workload measures — and what it does not
 

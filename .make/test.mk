@@ -198,7 +198,8 @@ benchmark-report: ## convert captured benchmark text to a schema v1 JSON report 
 # empty directory. The benchmark builds its own private gz-git into a
 # temporary directory (benchmarks buildPrivateBinary); the repository-root and
 # PATH gz-git are never used or replaced. On any measurement failure the raw
-# output is echoed and no report is written; the intermediate work directory
+# output is echoed and no report is written; conversion finishes before publication.
+# A publication failure leaves recording.failed beside any partial files; the intermediate work directory
 # is removed on success, failure, and interrupt alike.
 .PHONY: benchmark-record
 benchmark-record: ## record BenchmarkCLIStatus with metadata into OUTPUT_DIR=<new or empty dir> (requires a clean tree)
@@ -231,8 +232,8 @@ benchmark-record: ## record BenchmarkCLIStatus with metadata into OUTPUT_DIR=<ne
 	go_os=$$(go env GOOS); \
 	go_arch=$$(go env GOARCH); \
 	observed_at=$$(date -u +%Y-%m-%dT%H:%M:%SZ); \
-	measurement_command='go test -run=^$$ -bench=^BenchmarkCLIStatus$$ -count=3 -benchtime=100ms -benchmem ./benchmarks'; \
-	printf '{"sourceCommit":"%s","goVersion":"%s","gitVersion":"%s","os":"%s","arch":"%s","workload":"%s","observedAt":"%s","measurementCommand":"%s","note":"%s"}\n' \
+	measurement_command="GOWORK=off go test -run='^\$$' -bench='^BenchmarkCLIStatus\$$' -count=3 -benchtime=100ms -benchmem ./benchmarks"; \
+	GOWORK=off go run ./cmd/benchmark-metadata \
 		"$$source_commit" "$$go_version" "$$git_version" "$$go_os" "$$go_arch" \
 		"gz-git status on a single-commit temporary repository (BenchmarkCLIStatus)" \
 		"$$observed_at" "$$measurement_command" \
@@ -240,16 +241,17 @@ benchmark-record: ## record BenchmarkCLIStatus with metadata into OUTPUT_DIR=<ne
 		> "$$work_dir/metadata.json"; \
 	echo -e "$(CYAN)Recording BenchmarkCLIStatus (3 samples) from $$source_commit...$(RESET)"; \
 	if ! GOWORK=off go test -run='^$$' -bench='^BenchmarkCLIStatus$$' -count=3 -benchtime=100ms -benchmem ./benchmarks \
-		> "$$work_dir/bench.txt" 2>&1; then \
+		> "$$work_dir/bench.txt" 2> "$$work_dir/bench.stderr.txt"; then \
 		echo "benchmark measurement failed; no report was written. Raw output:" >&2; \
-		cat "$$work_dir/bench.txt" >&2; \
+		cat "$$work_dir/bench.txt" "$$work_dir/bench.stderr.txt" >&2; \
 		exit 1; \
 	fi; \
+	GOWORK=off go run ./cmd/benchmark-report --input "$$work_dir/bench.txt" --metadata "$$work_dir/metadata.json" --output "$$work_dir/report.json"; \
 	mkdir -p "$$out_dir"; \
-	cp "$$work_dir/bench.txt" "$$out_dir/bench.txt"; \
-	cp "$$work_dir/metadata.json" "$$out_dir/metadata.json"; \
-	GOWORK=off go run ./cmd/benchmark-report --input "$$work_dir/bench.txt" --metadata "$$work_dir/metadata.json" --output "$$out_dir/report.json"; \
-	echo -e "$(GREEN)✅ Recorded benchmarks into $$out_dir (bench.txt, metadata.json, report.json)$(RESET)"
+	printf '%s\n' 'publication incomplete; do not use these results' > "$$out_dir/recording.failed"; \
+	cp "$$work_dir/bench.txt" "$$work_dir/bench.stderr.txt" "$$work_dir/metadata.json" "$$work_dir/report.json" "$$out_dir/"; \
+	rm "$$out_dir/recording.failed"; \
+	echo -e "$(GREEN)✅ Recorded benchmarks into $$out_dir (bench.txt, bench.stderr.txt, metadata.json, report.json)$(RESET)"
 
 # ==============================================================================
 # Test Utilities
