@@ -134,6 +134,12 @@ const maxNewLocationsListed = 10
 // differed — a set-diff makes the gate unpassable. Only two signals are
 // stable: diagnostics on paths this branch changed, and a count increase.
 func EvaluateBaseline(in BaselineInput) BaselineResult {
+	return evaluateBaselineWithOutcome(in, nil)
+}
+
+// Only the internal, validated protocol path can supply extra evidence.
+// Keep the exported legacy input and its behavior unchanged.
+func evaluateBaselineWithOutcome(in BaselineInput, outcomeComparison *BaselineResult) BaselineResult {
 	branch := uniqueSorted(in.BranchLocations)
 	base := uniqueSorted(in.BaseLocations)
 	changed := make(map[string]struct{}, len(in.ChangedPaths))
@@ -208,13 +214,16 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 	// Rule (a) stays above this either way — a diagnostic on a path this
 	// branch changed is evidence of harm whether or not the baseline could be
 	// measured.
-	if len(base) == 0 && in.BaseMeasurement != BaseMeasured {
+	if outcomeComparison != nil && outcomeComparison.Status != BaselinePass {
+		return *outcomeComparison
+	}
+	if len(base) == 0 && in.BaseMeasurement != BaseMeasured && outcomeComparison == nil {
 		return BaselineResult{
 			Status: BaselineUnmeasurable,
 			Reason: unmeasurableReason(len(branch), in.BranchPrepared, in.BasePrepared),
 		}
 	}
-	if len(branch) == 0 {
+	if len(branch) == 0 && outcomeComparison == nil {
 		return BaselineResult{
 			Status: BaselineFail,
 			Reason: fmt.Sprintf("no file:line diagnostics to judge non-worsening (base had %d)", len(base)),
@@ -246,6 +255,9 @@ func EvaluateBaseline(in BaselineInput) BaselineResult {
 			Status: BaselineFail,
 			Reason: reason,
 		}
+	}
+	if outcomeComparison != nil {
+		return *outcomeComparison
 	}
 	return BaselineResult{
 		Status: BaselinePass,

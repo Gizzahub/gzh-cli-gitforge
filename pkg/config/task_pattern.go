@@ -26,6 +26,10 @@ const factNoDeclaration = "no declaration"
 type TaskPatternDecl struct {
 	Patterns          []string
 	IntegrationBranch BranchList
+	// MakeOutcomeReport is the strictly parsed repo-root declaration. Nil
+	// means the key is absent; consumers must not discover it through merged
+	// configuration.
+	MakeOutcomeReport *MakeOutcomeReport
 	// MakeTimeout is the declared branch.makeTimeout, already parsed. Zero
 	// means the key is absent and the consumer applies its built-in default;
 	// a present-but-invalid value never gets here because the load fails.
@@ -69,7 +73,7 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, nil
 	}
 
-	patterns, integration, makeTimeout, err := readRootBranchDecl(fsRoot, filepath.Base(path))
+	patterns, integration, makeTimeout, outcomeReport, err := readRootBranchDecl(fsRoot, filepath.Base(path))
 	if err != nil {
 		return decl, err
 	}
@@ -85,6 +89,7 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 	decl.Patterns = append([]string(nil), patterns...)
 	decl.IntegrationBranch = append(BranchList(nil), integration...)
 	decl.MakeTimeout = budget
+	decl.MakeOutcomeReport = outcomeReport
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
 		decl.Facts = append(decl.Facts, factNoDeclaration)
@@ -122,39 +127,43 @@ func statRepoRootConfig(root *safefs.Root, rootPath string) (string, error) {
 	return "", nil
 }
 
-func readRootBranchDecl(root *safefs.Root, path string) (patterns, integration []string, makeTimeout string, err error) {
+func readRootBranchDecl(root *safefs.Root, path string) (patterns, integration []string, makeTimeout string, outcomeReport *MakeOutcomeReport, err error) {
 	data, err := root.ReadFile(path)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, "", nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	parsedOutcome, err := ParseMakeOutcomeReportDocument(data, ext == ".json")
+	if err != nil {
+		return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
+	}
 	if ext == ".json" {
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(data, &raw); err != nil {
-			return nil, nil, "", fmt.Errorf("parse %s: %w", path, err)
+			return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
 		}
 		if b, ok := raw["branch"]; ok {
 			patterns, integration, makeTimeout, err = decodeJSONBranchFields(b)
 			if err != nil {
-				return nil, nil, "", err
+				return nil, nil, "", nil, err
 			}
 		}
-		return patterns, integration, makeTimeout, nil
+		return patterns, integration, makeTimeout, parsedOutcome, nil
 	}
 
 	var file struct {
 		Branch *BranchConfig `yaml:"branch"`
 	}
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return nil, nil, "", fmt.Errorf("parse %s: %w", path, err)
+		return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if file.Branch != nil {
 		patterns = append([]string(nil), file.Branch.TaskPattern...)
 		integration = append([]string(nil), file.Branch.IntegrationBranch...)
 		makeTimeout = file.Branch.MakeTimeout
 	}
-	return patterns, integration, makeTimeout, nil
+	return patterns, integration, makeTimeout, parsedOutcome, nil
 }
 
 func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string, makeTimeout string, err error) {
@@ -299,7 +308,7 @@ func reportNonRootTaskPatternAt(root *safefs.Root, rootPath, rel string, decl *T
 		if filepath.Dir(entryPath) == rootPath {
 			continue
 		}
-		if patterns, _, _, err := readRootBranchDecl(root, entryRel); err == nil && len(patterns) > 0 {
+		if patterns, _, _, _, err := readRootBranchDecl(root, entryRel); err == nil && len(patterns) > 0 {
 			decl.Facts = append(decl.Facts, "ignored non-root taskPattern: "+entryPath)
 		}
 	}

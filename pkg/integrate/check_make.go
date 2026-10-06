@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -45,7 +46,10 @@ type makeProbe struct {
 	// ToolCrash holds the line proving the tool died instead of reporting
 	// findings. It is separate from Err because a crash and a rule violation
 	// are the same non-zero exit; only the output distinguishes them.
-	ToolCrash string
+	ToolCrash          string
+	OutcomeDeclared    bool
+	OutcomesComparable bool
+	Outcomes           *makeOutcomeReport
 }
 
 const (
@@ -92,16 +96,20 @@ func resolveMakeBudget(configured time.Duration) time.Duration {
 }
 
 func runMakeTarget(ctx context.Context, dir, target string, budget time.Duration) makeProbe {
+	return runMakeTargetWithOutcomes(ctx, dir, target, budget, false)
+}
+
+func runMakeTargetWithOutcomes(ctx context.Context, dir, target string, budget time.Duration, outcomes bool) makeProbe {
 	if _, ok := allowedMakeTargets[target]; !ok {
 		return makeProbe{Target: target, Err: fmt.Errorf("undeclared make target %q", target)}
 	}
 	// Ask before running. A target reached through a pattern rule is not
 	// declared, and running it only produces the exit status that hides that.
 	if matched, ok := makeTargetMatchedByPatternRule(ctx, dir, target); ok && matched {
-		return makeProbe{Target: target, WorkDir: dir}
+		return makeProbe{Target: target, WorkDir: dir, OutcomeDeclared: outcomes}
 	}
 	for attempt := 1; ; attempt++ {
-		probe := runMakeTargetOnce(ctx, dir, target, budget)
+		probe := runMakeTargetOnceWithOutcomes(ctx, dir, target, budget, outcomes)
 		if err := ctx.Err(); err != nil {
 			probe.Err = err
 			return probe
@@ -122,12 +130,30 @@ func runMakeTarget(ctx context.Context, dir, target string, budget time.Duration
 	}
 }
 
-func runMakeTargetOnce(ctx context.Context, dir, target string, budget time.Duration) makeProbe {
+func runMakeTargetOnceWithOutcomes(ctx context.Context, dir, target string, budget time.Duration, outcomes bool) (probe makeProbe) {
 	// Resolve the default here, at the single point every probe funnels
 	// through, so a caller that has no declaration (and every test) gets the
 	// built-in ceiling instead of a zero-length budget that kills make
 	// instantly.
 	budget = resolveMakeBudget(budget)
+	if outcomes {
+		root, err := os.MkdirTemp("", "gz-git-make-outcome-")
+		if err != nil {
+			return makeProbe{Target: target, WorkDir: dir, Defined: true, Unavailable: "create make outcome report: " + err.Error()}
+		}
+		defer func() {
+			if err := os.RemoveAll(root); err != nil {
+				probe.Unavailable = "cleanup make outcome report: " + err.Error()
+			}
+		}()
+		reportPath := filepath.Join(root, "outcome.json")
+		defer func() { captureMakeOutcomeReport(&probe, reportPath) }()
+		return runMakeTargetWithReportPath(ctx, dir, target, budget, reportPath)
+	}
+	return runMakeTargetWithReportPath(ctx, dir, target, budget, "")
+}
+
+func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget time.Duration, reportPath string) makeProbe {
 	var lintCache string
 	if target == "lint" {
 		var err error
@@ -148,6 +174,10 @@ func runMakeTargetOnce(ctx context.Context, dir, target string, budget time.Dura
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	cmd.Env = withoutEnv(cmd.Env, makeOutcomeReportEnv)
+	if reportPath != "" {
+		cmd.Env = append(cmd.Env, makeOutcomeReportEnv+"="+reportPath)
+	}
 	// `make` recipes fork shell-script trees of unknown depth. On Unix, put
 	// the invocation in its own process group and kill that group on
 	// cancellation. Windows puts make in a Job Object and terminates that
@@ -350,10 +380,15 @@ func waitForRetry(ctx context.Context, delay time.Duration) error {
 }
 
 func withoutEnv(env []string, key string) []string {
-	prefix := key + "="
+	return withoutEnvCase(env, key, runtime.GOOS == "windows")
+}
+
+func withoutEnvCase(env []string, key string, insensitive bool) []string {
 	out := make([]string, 0, len(env))
 	for _, item := range env {
-		if !strings.HasPrefix(item, prefix) {
+		name, _, hasValue := strings.Cut(item, "=")
+		matches := name == key || (insensitive && strings.EqualFold(name, key))
+		if !hasValue || !matches {
 			out = append(out, item)
 		}
 	}
@@ -508,6 +543,9 @@ func shellCDPrefix(prefix string) bool {
 func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) CheckItem {
 	name := "make " + probe.Target
 	if !probe.Defined {
+		if probe.OutcomeDeclared {
+			return CheckItem{Name: name, Status: checkFail, Detail: "declared make outcome target is undefined"}
+		}
 		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}
 	}
 	if probe.Unavailable != "" {
@@ -535,6 +573,16 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 			Detail: fmt.Sprintf("not run — %q missing in this tree", probe.MissingCD),
 		}
 	}
+	if probe.TimedOut {
+		return timedOutCheckItem(name, probe)
+	}
+	if probe.OutcomesComparable {
+		verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
+		if err != nil {
+			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
+		}
+		return baselineCheckItem(name, verdict, allowSkipped)
+	}
 	if probe.Err == nil {
 		if probe.Skipped && !allowSkipped {
 			return CheckItem{Name: name, Status: checkFail, Detail: "SKIPPED CHECK (not a pass); pass --allow-skipped-checks to downgrade"}
@@ -544,10 +592,6 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 		}
 		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
 	}
-	if probe.TimedOut {
-		return timedOutCheckItem(name, probe)
-	}
-
 	verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
 	if err != nil {
 		return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
@@ -563,6 +607,9 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	}
 	name := "make " + probe.Target
 	if !probe.Defined {
+		if probe.OutcomeDeclared {
+			return CheckItem{Name: name, Status: checkFail, Detail: "declared make outcome target is undefined"}
+		}
 		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}
 	}
 	if probe.Unavailable != "" {
@@ -579,6 +626,16 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	if probe.MissingCD != "" {
 		return CheckItem{Name: name, Status: checkFail, Detail: fmt.Sprintf("not run — %q missing in this tree", probe.MissingCD)}
 	}
+	if probe.TimedOut {
+		return timedOutCheckItem(name, probe)
+	}
+	if probe.OutcomesComparable {
+		verdict, err := evaluateMakeOutcomeProbes(ctx, g, plan, probe, base)
+		if err != nil {
+			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
+		}
+		return baselineCheckItem(name, verdict, allowSkipped)
+	}
 	if probe.Err == nil {
 		if probe.Skipped && !allowSkipped {
 			return CheckItem{Name: name, Status: checkFail, Detail: "SKIPPED CHECK (not a pass); pass --allow-skipped-checks to downgrade"}
@@ -587,9 +644,6 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 			return CheckItem{Name: name, Status: checkWarn, Detail: "SKIPPED CHECK downgraded by --allow-skipped-checks"}
 		}
 		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
-	}
-	if probe.TimedOut {
-		return timedOutCheckItem(name, probe)
 	}
 	if base.Unavailable != "" {
 		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: baseline make " + probe.Target + ": " + base.Unavailable}
@@ -711,7 +765,7 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	// probe ran in the live working directory instead, so these two are not
 	// the same experiment; recording which tree each was is what lets the
 	// verdict say so rather than blame the target commit.
-	baseProbe := runMakeTarget(ctx, wt, probe.Target, budget)
+	baseProbe := runMakeTargetWithOutcomes(ctx, wt, probe.Target, budget, probe.OutcomesComparable)
 	baseProbe.Prepared = PrepareStatePristine
 	if baseProbe.Unavailable != "" {
 		return BaselineResult{}, fmt.Errorf("measurement unavailable: baseline make %s: %s", probe.Target, baseProbe.Unavailable)
@@ -727,6 +781,9 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 		if err := foreignDiagnosticErrorForProbe("baseline", baseProbe); err != nil {
 			return BaselineResult{}, err
 		}
+	}
+	if probe.OutcomesComparable {
+		return evaluateMakeOutcomeProbes(ctx, g, plan, probe, baseProbe)
 	}
 	if baseProbe.TimedOut {
 		return timedOutBaseline(baseProbe), nil

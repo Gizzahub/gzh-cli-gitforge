@@ -242,6 +242,12 @@ type BranchConfig struct {
 	// or merged from a parent, profile, workspace, or global configuration.
 	Readiness *Readiness `yaml:"readiness,omitempty" json:"readiness,omitempty"`
 
+	// MakeOutcomeReport declares the closed V1 outcome-report targets a
+	// repository allows its legacy Make gate to produce. It is preserved for
+	// repository-root project-config round trips, but is read only from the
+	// repo-root declaration and never inherited or merged from shared config.
+	MakeOutcomeReport *MakeOutcomeReport `yaml:"makeOutcomeReport,omitempty" json:"makeOutcomeReport,omitempty"`
+
 	// MakeTimeout bounds one `make check`/`make lint` probe of the legacy
 	// integration gate, declared as a Go duration string ("90m", "1h30m").
 	// Like IntegrationBranch and TaskPattern it is read only from the

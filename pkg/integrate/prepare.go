@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 type preparedLegacy struct {
@@ -64,7 +66,7 @@ func (p preparedLegacy) cleanup(ctx context.Context) error {
 // prepareLegacyTreesWithProfile runs one closed preparation profile against
 // both immutable commits. profile has already been resolved from the commit
 // declarations by the caller; this executor never reads a worktree config.
-func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string, budget time.Duration) (preparedLegacy, error) {
+func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string, budget time.Duration, outcomeDeclarations ...*config.MakeOutcomeReport) (preparedLegacy, error) {
 	// No profile means no preparation, and the branch is then measured where
 	// the repository already is: the live working directory, carrying deps/,
 	// node_modules/ and .venv from earlier runs. The baseline it will be
@@ -102,9 +104,13 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 	// Both sides get a fresh worktree and the same profile, so these two
 	// probes ARE prepared alike; the stamp records that symmetry as evidence.
 	prepared := preparedLegacy{controllerPrepared: true, sourcePrepared: PrepareStateProfilePrepared, profile: profile, inputs: inputs}
+	var outcomes *config.MakeOutcomeReport
+	if len(outcomeDeclarations) > 0 {
+		outcomes = outcomeDeclarations[0]
+	}
 	baseline := map[string]makeProbe{
-		"check": prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "check", budget)),
-		"lint":  prepared.annotateProbe(ctx, runMakeTarget(ctx, target, "lint", budget)),
+		"check": prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, "check", budget, outcomes.Includes("check"))),
+		"lint":  prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, "lint", budget, outcomes.Includes("lint"))),
 	}
 	if err := removePreparedWorktree(ctx, g, target, ""); err != nil {
 		return preparedLegacy{}, fmt.Errorf("cleanup prepared target: %w", err)

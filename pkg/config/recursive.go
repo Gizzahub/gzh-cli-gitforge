@@ -385,6 +385,10 @@ func mergeParentConfig(child, parent *Config) {
 	if child.Branch == nil && parent.Branch != nil {
 		child.Branch = &BranchConfig{}
 		*child.Branch = *parent.Branch
+		// Target-owned declarations are accepted only from a repository-root
+		// project config. Do not let a raw parent document propagate them even
+		// when a caller bypassed validation.
+		child.Branch.MakeOutcomeReport = nil
 	} else if child.Branch != nil && parent.Branch != nil {
 		mergeParentBranchConfig(child.Branch, parent.Branch)
 	}

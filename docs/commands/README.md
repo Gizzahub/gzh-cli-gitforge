@@ -22,6 +22,9 @@ readiness contract.
 [Integration preparation profiles](integrate-prepare-profile.md) describe
 repository-root fixed profiles and symmetric target/source preparation.
 
+[Per-check Make outcomes](integrate-make-outcome-report.md) describes the opt-in
+V1 comparison for failures without file:line diagnostics.
+
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
 

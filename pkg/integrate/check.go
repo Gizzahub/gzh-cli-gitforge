@@ -159,12 +159,17 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 		return
 	}
 	budget := resolveMakeBudget(decl.MakeTimeout)
+	outcomes, err := resolveMakeOutcomePolicy(ctx, g, plan)
+	if err != nil {
+		add(CheckItem{Name: "make outcome declaration", Status: checkFail, Detail: err.Error()})
+		return
+	}
 	profile, err := resolvePrepareProfile(ctx, g, plan, controller)
 	if err != nil {
 		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
 		return
 	}
-	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile, budget)
+	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile, budget, outcomes.target)
 	if err != nil {
 		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
 		return
@@ -176,7 +181,8 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 	}
 	declared := 0
 	for _, target := range []string{"check", "lint"} {
-		probe := prepared.annotateProbe(ctx, runMakeTarget(ctx, prepared.source, target, budget))
+		probe := prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, prepared.source, target, budget, outcomes.source.Includes(target)))
+		probe.OutcomesComparable = outcomes.target.Includes(target)
 		item := judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, prepared.baseline[target], budget)
 		item = saveLegacyMakeDiagnostic(item, probe)
 		if item.Status != checkSkip {
