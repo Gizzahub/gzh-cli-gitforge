@@ -282,16 +282,17 @@ out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p17/bin
 check brew-absent-fail-closed 1 "회수 보류: Homebrew 경로로 보이나" "$?" "$out"
 expect_file brew-absent-fail-closed "$p17/Caskroom/gz-git/0.9.0/gz-git"
 
-# 18) 다른 prefix — brew 가 답한 prefix 와 다른 Homebrew 의 Caskroom 도 지우지 않는다.
+# 18) 다른 prefix — brew 가 답한 prefix 와 다른 Homebrew 의 Cellar(formula) 사본도 지우지
+#     않는다. 17 이 Caskroom 을 재므로 보류 패턴의 두 갈래가 모두 고정된다.
 p18a="$tmpdir/brew18 answered prefix"
 p18b="$tmpdir/brew18 other prefix"
 b18="$tmpdir/brew18 cmd"
 mkdir -p "$p18a"
-make_brew_prefix "$p18b" 0.9.0 caskroom
+make_brew_prefix "$p18b" 0.9.0 cellar
 make_fake_brew "$b18" "$p18a"
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p18b/bin:$b18:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check brew-other-prefix-kept 1 "회수 보류: Homebrew 경로로 보이나" "$?" "$out"
-expect_file brew-other-prefix-kept "$p18b/Caskroom/gz-git/0.9.0/gz-git"
+expect_file brew-other-prefix-kept "$p18b/Cellar/gz-git/0.9.0/bin/gz-git"
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2
