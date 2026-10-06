@@ -181,12 +181,22 @@ while IFS= read -r dir; do
 		echo "  FAIL: 다른 버전의 '$BINARY' 가 PATH 에 있다"
 		echo "        $cand_abs ($cand_version) — 설치본은 ${installed_version:-확인불가}"
 		if [ "$RECLAIM" = "1" ]; then
-			if rm -f "$cand_abs"; then
-				echo "        회수함: 삭제 완료"
-				divergent=$((divergent - 1))
-			else
-				echo "        회수 실패: 권한을 확인하라" >&2
-			fi
+			case $cand_abs in
+			# brew 가 소유를 확인하지 못한 Homebrew 모양 경로(다른 prefix, brew 부재, --prefix
+			# 실패). 판정은 FAIL 그대로 두되 지우지는 않는다 — 경로 모양은 삭제를 보류하는
+			# 데에만 쓰고 통과시키는 데에는 쓰지 않는다.
+			*/Caskroom/* | */Cellar/*)
+				echo "        회수 보류: Homebrew 경로로 보이나 brew 가 확인하지 않았다 — brew uninstall 로 정리하라"
+				;;
+			*)
+				if rm -f "$cand_abs"; then
+					echo "        회수함: 삭제 완료"
+					divergent=$((divergent - 1))
+				else
+					echo "        회수 실패: 권한을 확인하라" >&2
+				fi
+				;;
+			esac
 		fi
 	else
 		# 이름은 같지만 자기를 '$BINARY' 라고 밝히지 않았다. 남의 파일일 수 있으므로

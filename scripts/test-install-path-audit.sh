@@ -197,30 +197,101 @@ check mise-unmanaged-shadow 1 "방금 설치한 파일이 실행되지 않는다
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$mise_install:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check mise-canonical-duplicate 0 "mise 정본 설치본이다:" "$?" "$out"
 
-# 12) Homebrew 관리본 — cask 가 bin 에 건 심링크가 Caskroom 의 다른 버전을 가리켜도 중복
-#     FAIL 이 아니고, RECLAIM 이 켜져 있어도 삭제하지 않는다. brew 소유 파일을 지우면 brew 의
-#     설치 기록과 실제 파일이 어긋난다.
-brew_prefix="$tmpdir/brew prefix"
-brew_cmd="$tmpdir/brew cmd bin"
-make_fake "$brew_prefix/Caskroom/gz-git/0.9.0" 0.9.0
-mkdir -p "$brew_prefix/bin"
-ln -s "../Caskroom/gz-git/0.9.0/gz-git" "$brew_prefix/bin/gz-git"
-make_fake_brew "$brew_cmd" "$brew_prefix"
-out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$brew_prefix/bin:$brew_cmd:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+# Homebrew 흉내 prefix. 케이스마다 새로 만들어, 한 케이스가 파일을 지워도 다음 케이스의
+# 실패 원인이 흐려지지 않게 한다. $3 이 caskroom 이면 cask 배치(bin -> Caskroom),
+# cellar 면 formula 배치(bin -> Cellar), plain 이면 bin 에 직접 놓인 파일이다.
+make_brew_prefix() {
+	_pfx=$1 _ver=$2 _kind=$3
+	mkdir -p "$_pfx/bin"
+	case $_kind in
+	caskroom)
+		make_fake "$_pfx/Caskroom/gz-git/$_ver" "$_ver"
+		ln -s "../Caskroom/gz-git/$_ver/gz-git" "$_pfx/bin/gz-git"
+		;;
+	cellar)
+		make_fake "$_pfx/Cellar/gz-git/$_ver/bin" "$_ver"
+		ln -s "../Cellar/gz-git/$_ver/bin/gz-git" "$_pfx/bin/gz-git"
+		;;
+	plain) make_fake "$_pfx/bin" "$_ver" ;;
+	esac
+}
+expect_file() {
+	if [ ! -f "$2" ]; then
+		echo "FAIL [$1] 파일이 삭제됐다: $2" >&2
+		failures=$((failures + 1))
+	fi
+}
+
+# 12) Homebrew cask 관리본 — 다른 버전이어도 중복 FAIL 이 아니고 RECLAIM 으로도 지우지 않는다.
+#     brew 소유 파일을 지우면 brew 의 설치 기록과 실제 파일이 어긋난다.
+p12="$tmpdir/brew12 prefix"
+b12="$tmpdir/brew12 cmd"
+make_brew_prefix "$p12" 0.9.0 caskroom
+make_fake_brew "$b12" "$p12"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p12/bin:$b12:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check brew-owned-duplicate 0 "Homebrew 관리본이다" "$?" "$out"
-if [ ! -f "$brew_prefix/Caskroom/gz-git/0.9.0/gz-git" ]; then
-	echo "FAIL [brew-owned-duplicate] Homebrew 관리본이 삭제됐다" >&2
+expect_file brew-owned-duplicate "$p12/Caskroom/gz-git/0.9.0/gz-git"
+
+# 13) Homebrew formula 관리본(Cellar)도 같은 규칙이다.
+p13="$tmpdir/brew13 prefix"
+b13="$tmpdir/brew13 cmd"
+make_brew_prefix "$p13" 0.9.0 cellar
+make_fake_brew "$b13" "$p13"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p13/bin:$b13:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-cellar-duplicate 0 "Homebrew 관리본이다" "$?" "$out"
+expect_file brew-cellar-duplicate "$p13/Cellar/gz-git/0.9.0/bin/gz-git"
+
+# 14) 보호 경계 — prefix 아래라도 Caskroom/Cellar 밖(bin 에 직접 놓인 파일)은 brew 소유가 아니다.
+#     다른 버전 중복이고 RECLAIM 이 회수한다.
+p14="$tmpdir/brew14 prefix"
+b14="$tmpdir/brew14 cmd"
+make_brew_prefix "$p14" 0.9.0 plain
+make_fake_brew "$b14" "$p14"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p14/bin:$b14:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-prefix-plain-reclaimed 0 "회수함: 삭제 완료" "$?" "$out"
+if [ -f "$p14/bin/gz-git" ]; then
+	echo "FAIL [brew-prefix-plain-reclaimed] prefix/bin 의 비관리 사본이 남아 있다" >&2
 	failures=$((failures + 1))
 fi
 
-# 13) Homebrew 관리본 그림자 — 보호는 PATH 우선순위를 승인하지 않는다.
-out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$brew_prefix/bin:$good:$brew_cmd:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+# 15) symlink prefix — brew 가 심링크 경로로 prefix 를 답해도 물리 경로로 맞춰 보호한다.
+#     TMPDIR 이 물리 경로인 CI 에서도 이 분기를 잴 수 있도록 심링크를 명시적으로 만든다.
+p15="$tmpdir/brew15 real prefix"
+l15="$tmpdir/brew15 link prefix"
+b15="$tmpdir/brew15 cmd"
+make_brew_prefix "$p15" 0.9.0 caskroom
+ln -s "$p15" "$l15"
+make_fake_brew "$b15" "$l15"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$l15/bin:$b15:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-symlinked-prefix 0 "Homebrew 관리본이다" "$?" "$out"
+expect_file brew-symlinked-prefix "$p15/Caskroom/gz-git/0.9.0/gz-git"
+
+# 16) Homebrew 관리본 그림자 — 보호는 PATH 우선순위를 승인하지 않는다.
+p16="$tmpdir/brew16 prefix"
+b16="$tmpdir/brew16 cmd"
+make_brew_prefix "$p16" 0.9.0 caskroom
+make_fake_brew "$b16" "$p16"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$p16/bin:$good:$b16:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check brew-owned-shadow 1 "Homebrew 설치본이 앞서 있다" "$?" "$out"
 
-# 14) brew 가 없으면 경로 모양만으로 보호하지 않는다(fail-closed) — 같은 Caskroom 사본이
-#     다른 버전 중복으로 판정된다.
-out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$brew_prefix/bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
-check brew-absent-fail-closed 1 "다른 버전의 'gz-git' 가 PATH 에 있다" "$?" "$out"
+# 17) brew 가 없으면 경로 모양만으로 통과시키지 않는다(fail-closed). RECLAIM 이 켜져 있어도
+#     Homebrew 모양 경로는 지우지 않고 FAIL 로 남긴다 — 다른 prefix 나 --prefix 실패도 같은 길이다.
+p17="$tmpdir/brew17 prefix"
+make_brew_prefix "$p17" 0.9.0 caskroom
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p17/bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-absent-fail-closed 1 "회수 보류: Homebrew 경로로 보이나" "$?" "$out"
+expect_file brew-absent-fail-closed "$p17/Caskroom/gz-git/0.9.0/gz-git"
+
+# 18) 다른 prefix — brew 가 답한 prefix 와 다른 Homebrew 의 Caskroom 도 지우지 않는다.
+p18a="$tmpdir/brew18 answered prefix"
+p18b="$tmpdir/brew18 other prefix"
+b18="$tmpdir/brew18 cmd"
+mkdir -p "$p18a"
+make_brew_prefix "$p18b" 0.9.0 caskroom
+make_fake_brew "$b18" "$p18a"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p18b/bin:$b18:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-other-prefix-kept 1 "회수 보류: Homebrew 경로로 보이나" "$?" "$out"
+expect_file brew-other-prefix-kept "$p18b/Caskroom/gz-git/0.9.0/gz-git"
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2
