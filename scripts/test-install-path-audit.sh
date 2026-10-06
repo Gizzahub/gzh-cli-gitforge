@@ -62,6 +62,17 @@ make_fake_mise() {
 	chmod +x "$1/mise"
 }
 
+# brew 흉내. `brew --prefix` 에 접두사를 답한다.
+make_fake_brew() {
+	mkdir -p "$1"
+	{
+		printf '#!/bin/bash\n'
+		printf 'if [ "$1" = "--prefix" ]; then echo %q; exit 0; fi\n' "$2"
+		printf 'exit 1\n'
+	} >"$1/brew"
+	chmod +x "$1/brew"
+}
+
 check() {
 	name=$1 want_rc=$2 want_text=$3 got_rc=$4 got_out=$5
 	if [ "$got_rc" != "$want_rc" ]; then
@@ -185,6 +196,31 @@ check mise-unmanaged-shadow 1 "방금 설치한 파일이 실행되지 않는다
 # 11) 설치본이 먼저 선택되는 자리에서는 mise fallback 사본이 다른 버전이어도 공존 가능하다.
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$mise_install:$mise_bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check mise-canonical-duplicate 0 "mise 정본 설치본이다:" "$?" "$out"
+
+# 12) Homebrew 관리본 — cask 가 bin 에 건 심링크가 Caskroom 의 다른 버전을 가리켜도 중복
+#     FAIL 이 아니고, RECLAIM 이 켜져 있어도 삭제하지 않는다. brew 소유 파일을 지우면 brew 의
+#     설치 기록과 실제 파일이 어긋난다.
+brew_prefix="$tmpdir/brew prefix"
+brew_cmd="$tmpdir/brew cmd bin"
+make_fake "$brew_prefix/Caskroom/gz-git/0.9.0" 0.9.0
+mkdir -p "$brew_prefix/bin"
+ln -s "../Caskroom/gz-git/0.9.0/gz-git" "$brew_prefix/bin/gz-git"
+make_fake_brew "$brew_cmd" "$brew_prefix"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$brew_prefix/bin:$brew_cmd:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-owned-duplicate 0 "Homebrew 관리본이다" "$?" "$out"
+if [ ! -f "$brew_prefix/Caskroom/gz-git/0.9.0/gz-git" ]; then
+	echo "FAIL [brew-owned-duplicate] Homebrew 관리본이 삭제됐다" >&2
+	failures=$((failures + 1))
+fi
+
+# 13) Homebrew 관리본 그림자 — 보호는 PATH 우선순위를 승인하지 않는다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$brew_prefix/bin:$good:$brew_cmd:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-owned-shadow 1 "Homebrew 설치본이 앞서 있다" "$?" "$out"
+
+# 14) brew 가 없으면 경로 모양만으로 보호하지 않는다(fail-closed) — 같은 Caskroom 사본이
+#     다른 버전 중복으로 판정된다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$good:$brew_prefix/bin:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+check brew-absent-fail-closed 1 "다른 버전의 'gz-git' 가 PATH 에 있다" "$?" "$out"
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2

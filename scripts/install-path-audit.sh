@@ -5,12 +5,14 @@
 #         (2) 중복 — PATH 어딘가에 다른 버전의 동명 바이너리가 있어, PATH 순서가 바뀌면 (1)이 되는가.
 #         (3) mise 공존 — mise 가 고른 설치본은 보호된 fallback 사본이다. 다만 그 사본이
 #             방금 설치한 파일보다 먼저 선택되면 설치본 그림자이므로 반드시 실패한다.
+#             Homebrew 관리본(Caskroom/Cellar)도 같은 규칙으로 다룬다.
 #       두 판정 모두 이 셸이 수행한다. 설치된 바이너리에게 "네가 맞느냐"고 묻지 않으므로,
 #       낡은 바이너리가 자기 자신을 무죄로 판정하는 순환이 없다. 낡은 바이너리에게 요구하는
 #       협조는 `--version` 으로 자기 이름과 버전을 말하는 것뿐이고, 그것은 모든 버전이 이미 한다.
 # 사용법: install-path-audit.sh <binary-name> <installed-path>
 #         RECLAIM=1                  신원이 확인된 중복본을 삭제한다 (기본: 보고만).
-#                                    mise 정본 설치본과 mise 디스패처 심은 대상에서 제외한다.
+#                                    mise 정본 설치본, mise 디스패처 심, Homebrew 관리본은
+#                                    대상에서 제외한다.
 #         INSTALL_AUDIT_WARN_ONLY=1  판정을 보고만 하고 실패시키지 않는다
 
 set -u
@@ -95,6 +97,23 @@ if command -v mise >/dev/null 2>&1; then
 	[ -n "$_w" ] && canonical_abs=$(resolve "$_w")
 fi
 
+# Homebrew 관리본 — 릴리즈 채널(formula/cask)이 설치한 파일은 brew 가 소유한다. mise 정본과
+# 같은 규칙을 적용한다: 중복 판정과 RECLAIM 대상에서 제외하고, 그림자 판정은 그대로 둔다.
+# 여기서 지우면 brew 의 설치 기록과 실제 파일이 어긋난다. 접두사는 `brew --prefix` 가
+# 답한 것만 믿는다. 경로 모양만으로 추정하지 않으므로 brew 가 없으면 보호도 없다.
+brew_prefix_abs=""
+if command -v brew >/dev/null 2>&1; then
+	_bp=$(brew --prefix 2>/dev/null) || _bp=""
+	[ -n "$_bp" ] && brew_prefix_abs=$(cd "$_bp" 2>/dev/null && pwd -P)
+fi
+brew_owned() {
+	[ -n "$brew_prefix_abs" ] || return 1
+	case $1 in
+	"$brew_prefix_abs/Caskroom/"* | "$brew_prefix_abs/Cellar/"*) return 0 ;;
+	esac
+	return 1
+}
+
 shadowed=0
 divergent=0
 
@@ -116,6 +135,8 @@ else
 			echo "        mise 설치본이 앞서 있다. $installed_dir 를 mise shim/설치 경로보다 PATH 앞에 둬라."
 		elif [ -n "$mise_bin_abs" ] && [ "$resolved_abs" = "$mise_bin_abs" ]; then
 			echo "        mise 디스패처 심이 앞서 있다. $installed_dir 를 mise shim 경로보다 PATH 앞에 둬라."
+		elif brew_owned "$resolved_abs"; then
+			echo "        Homebrew 설치본이 앞서 있다. $installed_dir 를 Homebrew bin 경로보다 PATH 앞에 둬라."
 		fi
 	fi
 fi
@@ -141,6 +162,11 @@ while IFS= read -r dir; do
 	# mise 정본 설치본 — fallback 사본은 중복 판정과 RECLAIM 대상에서 제외한다.
 	if [ -n "$canonical_abs" ] && [ "$cand_abs" = "$canonical_abs" ]; then
 		echo "  INFO: mise 정본 설치본이다: $cand_abs ($(identify "$cand_abs" || echo '버전 확인 불가'))"
+		continue
+	fi
+	# Homebrew 관리본 — 릴리즈 채널 사본은 중복 판정과 RECLAIM 대상에서 제외한다.
+	if brew_owned "$cand_abs"; then
+		echo "  INFO: Homebrew 관리본이다 (삭제 대상이 아니다): $cand_abs ($(identify "$cand_abs" || echo '버전 확인 불가'))"
 		continue
 	fi
 
@@ -179,7 +205,7 @@ fi
 echo "install-path-audit: FAIL"
 echo "  해소 방법:"
 echo "    - $installed_dir 를 mise shim 및 다른 '$BINARY' 경로보다 PATH 앞에 둬라"
-echo "    - RECLAIM=1 make install  (mise 보호 경로를 제외한 신원이 확인된 다른 버전만 회수한다)"
+echo "    - RECLAIM=1 make install  (mise·Homebrew 보호 경로를 제외한 신원이 확인된 다른 버전만 회수한다)"
 echo "    - INSTALL_AUDIT_WARN_ONLY=1 로 이 판정을 보고만 받게 할 수 있다"
 
 [ "$WARN_ONLY" = "1" ] && exit 0
