@@ -41,7 +41,7 @@ ______________________________________________________________________
 | 42  | runtask-port-follow-ce-f540f972                                  | 포트가 CE f540f972(원격 추적 ref 기준 source · SHA base · `--target origin/<branch>`)와 b09a605e(Worktrunk 0.80 라인)를 따르지 않아 parity 포트 모드 11개 실패. 재녹화 전에도 전부 실패(악화 아님). 분리 출처: devbox TASK-256        |
 | 41  | ce-parity-golden-drift                                           | 해결. 골든을 `475-g950650ef` 기준으로 재녹화하고 ce 빌드 불일치 시 재녹화 안내와 함께 조기 실패하는 가드를 추가했다(`791ac89`·`83cc876`). exact-SHA hosted CI 초록 확인                                                               |
 | 43  | integrate-release-expected-source-sha                            | `integrate check/run`에 `--expect-source <sha>`가 없어 호출자(CE `run-release`)가 승인한 develop 커밋을 프로세스 안에서 고정할 수 없다. 외부 fetch가 끼면 승인 안 된 후손이 승격될 수 있다. 요청처: ce-agent-kit `f6493563`           |
-| 45  | human-approval-review-queue                                      | 설계 제안. bootstrap·readiness update apply가 사람 전용이라, 매번 저장소별 명령과 일회용 반복문을 손으로 조립하고 15분 plan TTL·오타·동일 runner 중복 검토를 겪는다. 에이전트용 `approval request`(사전 조건 검사 포함)와 사람 TTY 전용 `approval review` 분리를 제안. 묶음 확인 허용 여부가 미결 |
+| 45  | human-approval-review-queue                                      | 설계 확정·착수 대기. 사람 전용 apply 앞의 수작업 명령 조립을 줄인다: 읽기 전용 `bootstrap check`·`approval list`(에이전트 허용)와 TTY 전용 `approval review`(저장소별 확인 기본, `--group-confirm` 옵션). 요청 파일 없이 스캔. 훅·launcher는 ce-devenv 이슈 013 |
 
 `v0.8.0`은 준비된 `VERSION`과 릴리스 노트 기준으로 2026-10-01 `9d7041c`에 발행됐다.
 발행 당시 보류 조건이던 탭 bootstrap·최초 Cask 게시·macOS 설치 검증은 이슈 28이 계속
