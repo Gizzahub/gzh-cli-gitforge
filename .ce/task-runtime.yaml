@@ -1,8 +1,0 @@
-# CE task runtime — gzh-cli-gitforge의 저장소 신원 선언.
-schema-version: 2
-repository-id: gzh-cli-gitforge
-worktree-roots:
-  mbp: /Users/archmagece/worktrees/gzh-cli/gzh-cli-gitforge
-  mst: /Users/archmagece/worktrees/gzh-cli/gzh-cli-gitforge
-integration-provider: gz-git
-integration-network-policy: allow

@@ -102,3 +102,6 @@ task-root.yaml
 !/.ce/
 /.ce/*
 !/.ce/task-runtime.yaml
+
+# CE machine-local task runtime
+.ce/
