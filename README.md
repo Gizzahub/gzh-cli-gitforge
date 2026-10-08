@@ -3,7 +3,7 @@
 > Bulk-first Git operations CLI (`gz-git`) + Go library
 
 [![Go Version](https://img.shields.io/badge/go-1.26%2B-blue)](https://go.dev)
-[![Release](https://img.shields.io/badge/release-v0.9.0-blue)](docs/changelog/0.9.md)
+[![Release](https://img.shields.io/badge/release-v0.9.1-blue)](docs/changelog/0.9.md)
 [![CI](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml/badge.svg)](https://github.com/gizzahub/gzh-cli-gitforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![GoDoc](https://pkg.go.dev/badge/github.com/gizzahub/gzh-cli-gitforge.svg)](https://pkg.go.dev/github.com/gizzahub/gzh-cli-gitforge)

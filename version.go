@@ -34,7 +34,7 @@ var (
 // Defaults the linker overwrites. They are named so the build-info fallback can
 // tell "nobody set this" apart from "the build deliberately said this".
 const (
-	defaultVersion = "0.9.0"
+	defaultVersion = "0.9.1"
 	defaultUnknown = "unknown"
 )
 

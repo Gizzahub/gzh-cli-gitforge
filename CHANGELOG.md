@@ -30,40 +30,17 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
-### Fixed
-
-- `integrate check|run <remote>/<integration> --release` no longer fails every
-  promotion from a default-branch checkout. The remote-tracking source has no
-  upstream and is never HEAD, so `working-tree`, `push`, and legacy `make` failed
-  by construction; CE `run-release` was unusable. Push now passes for that
-  source, the checkout only has to be clean, and make measures a detached
-  worktree at the source SHA ([docs](docs/commands/integrate-release.md)).
-  A local branch spelled like the remote ref is refused instead of being
-  promoted under the relaxed rows.
-
-### Added
-
-- `pnpm-frozen-lockfile-v1` preparation profile, so a pnpm repository's gate
-  measures a fresh worktree with its locked dependencies installed instead of
-  failing on an empty `node_modules/`. The install runs in its own process
-  group with a bounded wait, so a lifecycle script's leftover child cannot hang
-  `integrate check` past the timeout.
-- `integrate check|run --expect-source <sha>` refuses a source that is not the
-  approved commit and exits 4. CE `run-release` can now pin a release record's
-  `source-sha` inside gz-git instead of trusting that nothing fetched between
-  its own check and the push ([docs](docs/commands/integrate-expect-source.md)).
-
 ______________________________________________________________________
 
 ## Source-version milestones
 
 Earlier 0.x files record source-version milestones. v0.8.0 (2026-10-01) was the first
-stable published tag, and 0.9.0 (2026-10-02) continues the stable line. This file
+stable published tag, and 0.9.0 (2026-10-02) and 0.9.1 (2026-10-08) continue the stable line. This file
 carries only unreleased changes.
 
 | Line                           | Milestones                             |
 | ------------------------------ | -------------------------------------- |
-| [0.9.x](docs/changelog/0.9.md) | 0.9.0 (2026-10-02)                     |
+| [0.9.x](docs/changelog/0.9.md) | 0.9.1 (2026-10-08), 0.9.0 (2026-10-02) |
 | [0.8.x](docs/changelog/0.8.md) | 0.8.0 (2026-10-01)                     |
 | [0.7.x](docs/changelog/0.7.md) | 0.7.0 (2026-07-02)                     |
 | [0.6.x](docs/changelog/0.6.md) | 0.6.1 (2026-01-25), 0.6.0 (2026-01-21) |
