@@ -1,4 +1,4 @@
-# CLAUDE.md — gzh-cli-gitforge
+# gzh-cli-gitforge
 
 LLM-optimized guidance for gzh-cli-gitforge.
 
@@ -20,27 +20,6 @@ LLM-optimized guidance for gzh-cli-gitforge.
 **DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `make quality-check` before every commit · Sanitize all git inputs · 80%+ test coverage for core logic
 
 **DON'T**: Use `sh -c` (command injection) · Concatenate user input into commands · Log credentials · Commit without security tests
-
-## Directory Structure
-
-```
-cmd/gz-git/          # CLI commands (AGENTS.md inside)
-internal/
-  gitcmd/            # Git command executor
-  porcelain/         # git status --porcelain -z parser
-  config/            # Internal config helpers
-  testutil/          # Git test helpers
-pkg/
-  repository/        # Repository abstraction + bulk ops
-  config/            # Configuration management
-  provider/          # Forge providers (github/gitlab/gitea)
-  reposync/          # Repo sync planner/executor
-  reposynccli/       # Sync CLI commands
-  workspacecli/      # Workspace CLI commands
-  scanner/           # Local git repo scanner
-  branch/            # Branch utilities + cleanup
-docs/.claude-context/ # Context docs
-```
 
 ## Main Commands
 
@@ -154,113 +133,20 @@ gz-git forge status -c sync.yaml --verbose
 
 ## Retiring a Non-Canonical Branch
 
-`--refspec develop:master` moves one ref and stops there, so a repository that
-has been "synced" that way keeps a full duplicate of its trunk: `origin/master`
-at the same commit as `origin/develop`, a stale local `master`, and an
-`origin/HEAD` still pointing at the old name. Nothing in the merged/stale/gone
-vocabulary reaches it — `master` is on the built-in protected list, so cleanup
-reported it as protected and deleted nothing, forever.
+`cleanup branch --non-canonical -r` removes the duplicate trunk a `--refspec develop:master`
+sync leaves behind. It needs `branch.integrationBranch` in `.gz-git.yaml` and fails closed.
+Authorization rules and examples →
+[common-tasks.md](docs/.claude-context/common-tasks.md#retiring-a-non-canonical-branch)
 
-```bash
-gz-git cleanup branch --non-canonical -r            # preview
-gz-git cleanup branch --non-canonical -r --force --yes
-gz-git cleanup branch --non-canonical -r --force --yes .   # bulk, across a tree
-```
+## Push Policy, Identity, Branch Naming
 
-`--non-canonical` is the only classification allowed past the built-in
-protected-name list, so it earns that with a declaration rather than a name
-guess. Every one of these must hold, and the check runs twice — once to
-classify, once again to authorize the delete:
+- `push.policy` (`protected` · `forceMode` · `foreignWork`) gates `push` and `handoff end`; it is
+  separate from `branch.protectedBranches`, which only guards deletion. `--refspec develop:master`
+  is judged by its destination; `+develop:master` is refused unless `forceMode: allow`.
+- `identity` (device/agent) is global config only — a project's `.gz-git.yaml` is committed and shared.
+- `branch name` prints a task's branch name and creates nothing.
 
-1. `.gz-git.yaml` declares `branch.integrationBranch`. Without it the command
-   refuses (exit 1) instead of guessing which branch is canonical.
-1. The branch is not that canonical branch, under any spelling.
-1. The branch does not match a `--protect` pattern. The built-in list is what
-   this path overrides; an explicit operator instruction is not.
-1. The branch does not match a declared `branch.taskPattern`. Task branches have
-   their own lifecycle.
-1. `git merge-base --is-ancestor` says the branch holds no commit the canonical
-   branch lacks. This is what makes the deletion lossless, and it is asked of
-   git rather than inferred. Any git error fails closed.
-
-A remote branch that is still the remote's default is refused by the remote
-itself; repoint the default branch first, then re-run.
-
-## Push with Refspec
-
-```bash
-gz-git push --refspec develop:master         # local:remote
-gz-git push --refspec +develop:master        # raw force — refused unless forceMode: allow
-```
-
-## Push Policy
-
-`push.policy` gates `push` and `handoff end`. Separate from
-`branch.protectedBranches`, which only guards deletion.
-
-```yaml
-push:
-  policy:
-    protected: [main, master]   # never push here; the destination decides
-    forceMode: lease-only       # lease-only (default) | allow | deny
-    foreignWork: block          # block (default) | allow
-```
-
-`lease-only` allows `--force` (which uses `--force-with-lease`) and refuses a
-`+` refspec, which has none — it applies even with no config file, so the two
-force paths behave the same. `--force-mode` overrides it per invocation.
-Refused repositories are reported as `blocked`; the rest of the batch runs.
-
-`foreignWork: block` refuses a force push that would discard remote commits
-whose trailers name a different device or agent, listing the commits at stake.
-It catches what `--force-with-lease` cannot: a lease is satisfied by any fetch,
-and a multi-device workflow fetches on arrival. `--foreign-work allow` overrides
-it. Only commits signed by `handoff end` can be attributed — a commit made by
-hand elsewhere has no trailer and is never counted as foreign.
-
-## Identity
-
-`handoff end` signs its checkpoint commit with git trailers, since the author
-line is the same on every machine one person owns. The `foreignWork` rule and
-`handoff start`'s shared-branch note both read them back.
-
-```yaml
-# global config only — a project's .gz-git.yaml is committed and shared
-identity:
-  device: dave-office   # default: hostname
-  agent: hermes-01      # default: none (a person is driving)
-```
-
-`GZ_GIT_DEVICE` / `GZ_GIT_AGENT` override the config. `--no-trailers` omits
-them for one run. A machine that names nothing skips the foreign-work check
-entirely: it cannot tell its own commits from anyone else's.
-
-## Branch Naming
-
-`branch name` builds the branch name a task should have here, from a template
-and the resolved identity. It prints the name and creates nothing — creation
-stays with `switch --create` and plain git.
-
-```bash
-gz-git branch name task-001-product-unit                 # feat/task-001-product-unit
-gz-git branch name task-001-product-unit --kind device   # feat/task-001-product-unit/dave-office
-gz-git branch name task-001-product-unit --kind agent    # agent/task-001-product-unit/hermes-01
-
-gz-git switch "$(gz-git branch name task-001 --kind device)" --create
-```
-
-```yaml
-branch:
-  naming:                          # defaults shown; override one, keep the rest
-    work: feat/{task}
-    device: feat/{task}/{device}
-    agent: agent/{task}/{agent}
-```
-
-Every substituted value is slugified, since the default device name is the
-hostname and `Daves-MacBook.local` is not a legal branch name. A `device` or
-`agent` branch whose segment is unnamed is refused: it would be the shared
-branch again under a longer name.
+Keys, defaults and rationale → [config-guide.md](docs/.claude-context/config-guide.md#push-policy)
 
 ## Security (CRITICAL)
 
@@ -305,8 +191,6 @@ import (
 
 ```
 {type}({scope}): {description}
-Model: claude-{model}
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 **Types**: feat, fix, docs, refactor, test, chore | **Scope**: REQUIRED

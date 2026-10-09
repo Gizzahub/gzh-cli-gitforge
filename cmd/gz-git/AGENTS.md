@@ -14,28 +14,6 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## File Structure
-
-```
-cmd/gz-git/
-├── CLAUDE.md       # This file
-├── main.go         # Entry point (calls Execute())
-└── cmd/            # All commands here
-    ├── root.go         # Root command and subcommand registration
-    ├── version.go      # Version information
-    ├── clone.go        # Clone command
-    ├── status.go       # Status command
-    ├── forge.go        # Git forge commands
-    ├── workspace.go    # Workspace commands
-    ├── config.go       # Config commands
-    ├── branch.go       # Branch commands
-    ├── commit.go       # Commit commands
-    ├── doctor.go       # Health diagnostics
-    └── ...             # Other git commands
-```
-
-______________________________________________________________________
-
 ## Command Structure
 
 ### Root Command (`root.go`)

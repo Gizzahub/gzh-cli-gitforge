@@ -498,3 +498,37 @@ func TestWorkspaceInit(t *testing.T) {
     assert.FileExists(t, configPath)
 }
 ```
+
+## Retiring a Non-Canonical Branch
+
+`--refspec develop:master` moves one ref and stops there, so a repository that
+has been "synced" that way keeps a full duplicate of its trunk: `origin/master`
+at the same commit as `origin/develop`, a stale local `master`, and an
+`origin/HEAD` still pointing at the old name. Nothing in the merged/stale/gone
+vocabulary reaches it — `master` is on the built-in protected list, so cleanup
+reported it as protected and deleted nothing, forever.
+
+```bash
+gz-git cleanup branch --non-canonical -r            # preview
+gz-git cleanup branch --non-canonical -r --force --yes
+gz-git cleanup branch --non-canonical -r --force --yes .   # bulk, across a tree
+```
+
+`--non-canonical` is the only classification allowed past the built-in
+protected-name list, so it earns that with a declaration rather than a name
+guess. Every one of these must hold, and the check runs twice — once to
+classify, once again to authorize the delete:
+
+1. `.gz-git.yaml` declares `branch.integrationBranch`. Without it the command
+   refuses (exit 1) instead of guessing which branch is canonical.
+1. The branch is not that canonical branch, under any spelling.
+1. The branch does not match a `--protect` pattern. The built-in list is what
+   this path overrides; an explicit operator instruction is not.
+1. The branch does not match a declared `branch.taskPattern`. Task branches have
+   their own lifecycle.
+1. `git merge-base --is-ancestor` says the branch holds no commit the canonical
+   branch lacks. This is what makes the deletion lossless, and it is asked of
+   git rather than inferred. Any git error fails closed.
+
+A remote branch that is still the remote's default is refused by the remote
+itself; repoint the default branch first, then re-run.
