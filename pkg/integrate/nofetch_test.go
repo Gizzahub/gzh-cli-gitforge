@@ -104,6 +104,55 @@ func TestRun_NoFetchStaleTargetRefusesLease(t *testing.T) {
 	}
 }
 
+// TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor proves the other side of
+// the cached-ref lease: the remote integration branch is moved back to an
+// ancestor after the local tracking ref has recorded a later tip. A plain
+// fast-forward push would recreate that later tip. --no-fetch must refuse on
+// the lease instead, and leave the remote at the ancestor.
+func TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor(t *testing.T) {
+	fx := runFixture(t, "dev/*")
+	ancestor := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop")
+
+	other := t.TempDir()
+	runGit(t, other, "clone", fx.Origin, ".")
+	runGit(t, other, "config", "user.email", "other@test.com")
+	runGit(t, other, "config", "user.name", "Other")
+	runGit(t, other, "checkout", "-B", "develop", "origin/develop")
+	writeFile(t, other, "advance.txt", "advance\n")
+	runGit(t, other, "add", "advance.txt")
+	runGit(t, other, "commit", "-m", "advance")
+	runGit(t, other, "push", "origin", "develop")
+	advanced := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop")
+	if advanced == ancestor {
+		t.Fatal("fixture setup: develop did not advance")
+	}
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	if got := gitOutput(t, fx.Worktree, "rev-parse", "refs/remotes/"+fx.Remote+"/develop"); got != advanced {
+		t.Fatalf("precondition: tracking ref = %s, want %s", got, advanced)
+	}
+	runGit(t, fx.Origin, "update-ref", "refs/heads/develop", ancestor)
+
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
+		CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree,
+			Branch:   "dev/actor/feat/task",
+			NoFetch:  true,
+		},
+	})
+	if err == nil {
+		t.Fatalf("rewound target must fail closed under no-fetch:\n%s", FormatRun(report))
+	}
+	if report != nil && report.Integrated {
+		t.Fatalf("integration must not complete when the lease target was rewound:\n%s", FormatRun(report))
+	}
+	if got := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != ancestor {
+		t.Fatalf("origin develop = %s, want still rewound to %s", got, ancestor)
+	}
+	if !refExists(t, fx.Origin, "refs/heads/dev/actor/feat/task") {
+		t.Fatal("remote task branch must still exist")
+	}
+}
+
 // TestReclaimRemoteBranch_NoFetchUnverifiableFailsClosed proves the no-fetch
 // reclaim contract: when the leased remote delete fails, the result must fail
 // closed instead of claiming "already-deleted" on the basis of an ls-remote
