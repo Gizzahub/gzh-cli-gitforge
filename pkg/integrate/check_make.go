@@ -538,32 +538,38 @@ func shellCDPrefix(prefix string) bool {
 	return strings.HasSuffix(shell, "sh")
 }
 
-// judgeMakeLegacy preserves the repository-owned baseline comparison used when
-// no controller has captured a prepared target probe.
-func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) CheckItem {
+// judgeMakeWithoutBaseline returns the verdict a branch probe reaches on its
+// own, and false when that verdict needs the target baseline. It is the one
+// definition of "this make target needs a baseline": the prepared path
+// measures the target only for the targets it returns false for, and both
+// judges below call it first, so a target judged without a baseline is
+// exactly a target nobody measured one for.
+//
+// A source that passed needs no baseline: the baseline is the non-worsening
+// verdict for a failed make target. A declared outcome report is the
+// exception — its append-only contract blocks a passing branch that removed
+// a check ID the target still reports, and only the target's report knows
+// those IDs.
+func judgeMakeWithoutBaseline(probe makeProbe, allowSkipped bool) (CheckItem, bool) {
 	name := "make " + probe.Target
 	if !probe.Defined {
 		if probe.OutcomeDeclared {
-			return CheckItem{Name: name, Status: checkFail, Detail: "declared make outcome target is undefined"}
+			return CheckItem{Name: name, Status: checkFail, Detail: "declared make outcome target is undefined"}, true
 		}
-		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}
+		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}, true
 	}
 	if probe.Unavailable != "" {
-		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: " + probe.Unavailable}
+		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: " + probe.Unavailable}, true
 	}
 	// The crash verdict must precede the foreign-diagnostic classifier: a panic
 	// stack is made entirely of path:line tokens, so whichever runs first owns
 	// the report.
 	if probe.ToolCrash != "" {
-		return CheckItem{Name: name, Status: checkFail, Detail: toolCrashDetail(probe)}
+		return CheckItem{Name: name, Status: checkFail, Detail: toolCrashDetail(probe)}, true
 	}
 	if probe.Target == "lint" {
 		if err := foreignDiagnosticErrorForProbe("branch", probe); err != nil {
-			return CheckItem{
-				Name:   name,
-				Status: checkFail,
-				Detail: err.Error(),
-			}
+			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}, true
 		}
 	}
 	if probe.MissingCD != "" {
@@ -571,27 +577,33 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 			Name:   name,
 			Status: checkFail,
 			Detail: fmt.Sprintf("not run — %q missing in this tree", probe.MissingCD),
-		}
+		}, true
 	}
 	if probe.TimedOut {
-		return timedOutCheckItem(name, probe)
+		return timedOutCheckItem(name, probe), true
 	}
 	if probe.OutcomesComparable {
-		verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
-		if err != nil {
-			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
-		}
-		return baselineCheckItem(name, verdict, allowSkipped)
+		return CheckItem{}, false
 	}
 	if probe.Err == nil {
 		if probe.Skipped && !allowSkipped {
-			return CheckItem{Name: name, Status: checkFail, Detail: "SKIPPED CHECK (not a pass); pass --allow-skipped-checks to downgrade"}
+			return CheckItem{Name: name, Status: checkFail, Detail: "SKIPPED CHECK (not a pass); pass --allow-skipped-checks to downgrade"}, true
 		}
 		if probe.Skipped {
-			return CheckItem{Name: name, Status: checkWarn, Detail: "SKIPPED CHECK downgraded by --allow-skipped-checks"}
+			return CheckItem{Name: name, Status: checkWarn, Detail: "SKIPPED CHECK downgraded by --allow-skipped-checks"}, true
 		}
-		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
+		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}, true
 	}
+	return CheckItem{}, false
+}
+
+// judgeMakeLegacy preserves the repository-owned baseline comparison used when
+// no controller has captured a prepared target probe.
+func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) CheckItem {
+	if item, decided := judgeMakeWithoutBaseline(probe, allowSkipped); decided {
+		return item
+	}
+	name := "make " + probe.Target
 	verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
 	if err != nil {
 		return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
@@ -605,45 +617,16 @@ func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	if base.Target == "" {
 		return judgeMakeLegacy(ctx, g, plan, probe, allowSkipped, budget)
 	}
+	if item, decided := judgeMakeWithoutBaseline(probe, allowSkipped); decided {
+		return item
+	}
 	name := "make " + probe.Target
-	if !probe.Defined {
-		if probe.OutcomeDeclared {
-			return CheckItem{Name: name, Status: checkFail, Detail: "declared make outcome target is undefined"}
-		}
-		return CheckItem{Name: name, Status: checkSkip, Detail: "undefined"}
-	}
-	if probe.Unavailable != "" {
-		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: " + probe.Unavailable}
-	}
-	if probe.ToolCrash != "" {
-		return CheckItem{Name: name, Status: checkFail, Detail: toolCrashDetail(probe)}
-	}
-	if probe.Target == "lint" {
-		if err := foreignDiagnosticErrorForProbe("branch", probe); err != nil {
-			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
-		}
-	}
-	if probe.MissingCD != "" {
-		return CheckItem{Name: name, Status: checkFail, Detail: fmt.Sprintf("not run — %q missing in this tree", probe.MissingCD)}
-	}
-	if probe.TimedOut {
-		return timedOutCheckItem(name, probe)
-	}
 	if probe.OutcomesComparable {
 		verdict, err := evaluateMakeOutcomeProbes(ctx, g, plan, probe, base)
 		if err != nil {
 			return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
 		}
 		return baselineCheckItem(name, verdict, allowSkipped)
-	}
-	if probe.Err == nil {
-		if probe.Skipped && !allowSkipped {
-			return CheckItem{Name: name, Status: checkFail, Detail: "SKIPPED CHECK (not a pass); pass --allow-skipped-checks to downgrade"}
-		}
-		if probe.Skipped {
-			return CheckItem{Name: name, Status: checkWarn, Detail: "SKIPPED CHECK downgraded by --allow-skipped-checks"}
-		}
-		return CheckItem{Name: name, Status: checkPass, Detail: "ok"}
 	}
 	if base.Unavailable != "" {
 		return CheckItem{Name: name, Status: checkFail, Detail: "measurement unavailable: baseline make " + probe.Target + ": " + base.Unavailable}

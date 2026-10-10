@@ -30,6 +30,14 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
+### Changed
+
+- `gz-git integrate check` measures a prepared target baseline only for a make target the source
+  failed. A passing source never needed the baseline for its verdict, yet a prepare profile
+  prepared and ran both trees every time, which doubled the slowest step of every green check.
+  The two worktrees are no longer alive together, and the report now says per make target whether
+  the baseline was measured or skipped. A target that declares a make outcome report is still measured.
+
 ______________________________________________________________________
 
 ## Source-version milestones

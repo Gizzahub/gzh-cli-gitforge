@@ -19,7 +19,6 @@ import (
 
 type preparedLegacy struct {
 	source, root string
-	baseline     map[string]makeProbe
 	profile      string
 	inputs       []prepareInput
 	// sourcePrepared is the kind of tree source is. It is stamped onto every
@@ -39,7 +38,9 @@ func (p preparedLegacy) annotateProbe(ctx context.Context, probe makeProbe) make
 }
 
 // evidence is a stable, human-readable record of the closed profile and the
-// immutable subproject commits extracted into both probes.
+// immutable subproject commits extracted into every prepared tree. The
+// source always gets them; the target gets the same ones only when a
+// baseline is measured, which the per-target baseline record states.
 func (p preparedLegacy) evidence() string {
 	if p.profile == "" {
 		return ""
@@ -57,16 +58,21 @@ func (p preparedLegacy) cleanup(ctx context.Context) error {
 	if p.root == "" {
 		return nil
 	}
+	if p.source == "" {
+		return removePrepareRoot(ctx, p.g, p.root)
+	}
 	return removePreparedWorktree(ctx, p.g, p.source, p.root)
 }
 
-// target is prepared and measured before it is removed; source is never alive
-// at the same time, so repository code cannot use the baseline worktree.
+// prepareLegacySource prepares the tree the source probes run in. With a
+// closed preparation profile that is a fresh worktree at the source commit;
+// the target is not prepared here at all. Its baseline is read only as the
+// non-worsening verdict for a source that failed, so it is measured later,
+// by measureBaseline, and only for the make targets that need it.
 //
-// prepareLegacyTreesWithProfile runs one closed preparation profile against
-// both immutable commits. profile has already been resolved from the commit
-// declarations by the caller; this executor never reads a worktree config.
-func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPlan, _ *controllerBinding, profile string, budget time.Duration, outcomeDeclarations ...*config.MakeOutcomeReport) (preparedLegacy, error) {
+// profile has already been resolved from the commit declarations by the
+// caller; this executor never reads a worktree config.
+func prepareLegacySource(ctx context.Context, g gitRepo, plan TargetPlan, profile string) (preparedLegacy, error) {
 	// No profile means no preparation, and the branch is then measured where
 	// the repository already is: the live working directory, carrying deps/,
 	// node_modules/ and .venv from earlier runs. The baseline it will be
@@ -92,29 +98,6 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 	if err != nil {
 		return preparedLegacy{}, err
 	}
-	target := filepath.Join(root, "target")
-	if err := g.worktreeAddDetach(ctx, target, plan.TargetSHA); err != nil {
-		_ = os.RemoveAll(root)
-		return preparedLegacy{}, fmt.Errorf("prepare target worktree: %w", err)
-	}
-	if err := runPrepareProfileWithInputs(ctx, g, target, profile, inputs); err != nil {
-		cleanupErr := removePreparedWorktree(ctx, g, target, root)
-		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare target: %w", err), cleanupErr)
-	}
-	// Both sides get a fresh worktree and the same profile, so these two
-	// probes ARE prepared alike; the stamp records that symmetry as evidence.
-	prepared := preparedLegacy{controllerPrepared: true, sourcePrepared: PrepareStateProfilePrepared, profile: profile, inputs: inputs}
-	var outcomes *config.MakeOutcomeReport
-	if len(outcomeDeclarations) > 0 {
-		outcomes = outcomeDeclarations[0]
-	}
-	baseline := map[string]makeProbe{
-		"check": prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, "check", budget, outcomes.Includes("check"))),
-		"lint":  prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, "lint", budget, outcomes.Includes("lint"))),
-	}
-	if err := removePreparedWorktree(ctx, g, target, ""); err != nil {
-		return preparedLegacy{}, fmt.Errorf("cleanup prepared target: %w", err)
-	}
 	source := filepath.Join(root, "source")
 	if err := g.worktreeAddDetach(ctx, source, plan.BranchSHA); err != nil {
 		_ = os.RemoveAll(root)
@@ -124,7 +107,45 @@ func prepareLegacyTreesWithProfile(ctx context.Context, g gitRepo, plan TargetPl
 		cleanupErr := removePreparedWorktree(ctx, g, source, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
-	return preparedLegacy{source: source, root: root, baseline: baseline, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g}, nil
+	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g}, nil
+}
+
+// measureBaseline measures the target commit for exactly the named make
+// targets, with the profile and input snapshot the source was prepared from.
+// Both sides get a fresh worktree and the same profile, so these probes ARE
+// prepared alike; the stamp records that symmetry as evidence.
+//
+// The source worktree is removed first and the target is removed before
+// this returns, so the two trees are never alive at the same time and
+// repository code in one cannot use the other. Every source probe must
+// therefore already have been measured. Without a profile there is nothing
+// to measure here: the legacy judge measures its own pristine baseline.
+func (p *preparedLegacy) measureBaseline(ctx context.Context, plan TargetPlan, targets []string, budget time.Duration, outcomes *config.MakeOutcomeReport) (map[string]makeProbe, error) {
+	if p.profile == "" || len(targets) == 0 {
+		return nil, nil //nolint:nilnil // nothing was asked to be measured
+	}
+	if p.source != "" {
+		if err := removePreparedWorktree(ctx, p.g, p.source, ""); err != nil {
+			return nil, fmt.Errorf("cleanup prepared source: %w", err)
+		}
+		p.source = ""
+	}
+	target := filepath.Join(p.root, "target")
+	if err := p.g.worktreeAddDetach(ctx, target, plan.TargetSHA); err != nil {
+		return nil, fmt.Errorf("prepare target worktree: %w", err)
+	}
+	if err := runPrepareProfileWithInputs(ctx, p.g, target, p.profile, p.inputs); err != nil {
+		cleanupErr := removePreparedWorktree(ctx, p.g, target, "")
+		return nil, errors.Join(fmt.Errorf("prepare target: %w", err), cleanupErr)
+	}
+	baseline := make(map[string]makeProbe, len(targets))
+	for _, name := range targets {
+		baseline[name] = p.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, name, budget, outcomes.Includes(name)))
+	}
+	if err := removePreparedWorktree(ctx, p.g, target, ""); err != nil {
+		return nil, fmt.Errorf("cleanup prepared target: %w", err)
+	}
+	return baseline, nil
 }
 
 func preparePristineSource(ctx context.Context, g gitRepo, plan TargetPlan) (preparedLegacy, error) {
@@ -154,17 +175,30 @@ func removePreparedWorktree(parent context.Context, g gitRepo, wt, root string) 
 		if tree.Path == wt {
 			return fmt.Errorf("worktree remains registered: %s", wt)
 		}
-		if root != "" {
-			rel, relErr := filepath.Rel(root, tree.Path)
-			if relErr == nil && (rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))) {
-				return fmt.Errorf("worktree remains registered below prepare root: %s", tree.Path)
-			}
-		}
 	}
 	if root != "" {
-		return os.RemoveAll(root)
+		return removePrepareRoot(ctx, g, root)
 	}
 	return nil
+}
+
+// removePrepareRoot deletes a prepare root only when git registers no
+// worktree below it, so a tree that survived its removal is reported instead
+// of being deleted out from under its registration.
+func removePrepareRoot(parent context.Context, g gitRepo, root string) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 30*time.Second)
+	defer cancel()
+	trees, err := g.listWorktrees(ctx)
+	if err != nil {
+		return err
+	}
+	for _, tree := range trees {
+		rel, relErr := filepath.Rel(root, tree.Path)
+		if relErr == nil && (rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))) {
+			return fmt.Errorf("worktree remains registered below prepare root: %s", tree.Path)
+		}
+	}
+	return os.RemoveAll(root)
 }
 
 // This is process isolation, not a security sandbox. As with legacy Make,

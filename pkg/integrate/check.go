@@ -70,7 +70,47 @@ type CheckReport struct {
 	ReadinessDuration time.Duration
 	PrepareProfile    string
 	PrepareInputs     string
-	Controller        *controllerBinding
+	// Baselines records, for each legacy make target, whether the target
+	// baseline was measured and why. A source that passed is not compared
+	// with anything, so its record says the baseline was not measured
+	// instead of leaving the absence unexplained.
+	Baselines  []BaselineRecord
+	Controller *controllerBinding
+}
+
+// BaselineRecord states whether one make target's baseline was measured.
+type BaselineRecord struct {
+	Target   string
+	Measured bool
+	Reason   string
+}
+
+const (
+	baselineSkippedSourcePassed = "not measured: source passed"
+	baselineSkippedUndefined    = "not measured: make target undefined"
+	baselineSkippedSourceAlone  = "not measured: the source verdict compares nothing"
+	baselineMeasuredSourceFail  = "measured: source failed"
+	baselineMeasuredOutcomes    = "measured: outcome report declared"
+)
+
+// baselineRecordFor names why the baseline was or was not measured for
+// probe. needed is the negation of judgeMakeWithoutBaseline's decision, so
+// the record cannot disagree with what was actually run.
+func baselineRecordFor(probe makeProbe, needed bool) BaselineRecord {
+	record := BaselineRecord{Target: probe.Target, Measured: needed}
+	switch {
+	case needed && probe.Err == nil:
+		record.Reason = baselineMeasuredOutcomes
+	case needed:
+		record.Reason = baselineMeasuredSourceFail
+	case !probe.Defined:
+		record.Reason = baselineSkippedUndefined
+	case probe.Err == nil && !probe.Skipped && !probe.TimedOut && probe.Unavailable == "" && probe.ToolCrash == "" && probe.MissingCD == "":
+		record.Reason = baselineSkippedSourcePassed
+	default:
+		record.Reason = baselineSkippedSourceAlone
+	}
+	return record
 }
 
 // Check answers whether the branch can land on the target.
@@ -169,7 +209,7 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
 		return
 	}
-	prepared, err := prepareLegacyTreesWithProfile(ctx, g, plan, controller, profile, budget, outcomes.target)
+	prepared, err := prepareLegacySource(ctx, g, plan, profile)
 	if err != nil {
 		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
 		return
@@ -179,19 +219,45 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 		report.PrepareInputs = prepared.evidence()
 		add(CheckItem{Name: "prepare profile", Status: checkPass, Detail: report.PrepareInputs})
 	}
-	declared := 0
-	for _, target := range []string{"check", "lint"} {
+	// The source is measured first, for every target. The target baseline is
+	// then measured only for the make targets whose verdict reads it, so a
+	// source that passes never prepares the target at all.
+	targets := []string{"check", "lint"}
+	probes := make(map[string]makeProbe, len(targets))
+	var needed []string
+	for _, target := range targets {
 		probe := prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, prepared.source, target, budget, outcomes.source.Includes(target)))
 		probe.OutcomesComparable = outcomes.target.Includes(target)
-		item := judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, prepared.baseline[target], budget)
+		probes[target] = probe
+		_, decided := judgeMakeWithoutBaseline(probe, allowSkipped)
+		if !decided {
+			needed = append(needed, target)
+		}
+		report.Baselines = append(report.Baselines, baselineRecordFor(probe, !decided))
+	}
+	baseline, baselineErr := prepared.measureBaseline(ctx, plan, needed, budget, outcomes.target)
+	cleanupErr := prepared.cleanup(ctx)
+	declared := 0
+	for _, target := range targets {
+		probe := probes[target]
+		item, decided := judgeMakeWithoutBaseline(probe, allowSkipped)
+		switch {
+		case decided:
+		case baselineErr != nil:
+			// A baseline that could not even be prepared is not a verdict
+			// about the target commit, and never a pass for the source.
+			item = CheckItem{Name: "make " + target, Status: checkFail, Detail: "prepare baseline: " + baselineErr.Error()}
+		default:
+			item = judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, baseline[target], budget)
+		}
 		item = saveLegacyMakeDiagnostic(item, probe)
 		if item.Status != checkSkip {
 			declared++
 			add(item)
 		}
 	}
-	if err := prepared.cleanup(ctx); err != nil {
-		add(CheckItem{Name: "prepare cleanup", Status: checkFail, Detail: err.Error()})
+	if cleanupErr != nil {
+		add(CheckItem{Name: "prepare cleanup", Status: checkFail, Detail: cleanupErr.Error()})
 	}
 	if declared == 0 {
 		status := checkFail
@@ -404,6 +470,9 @@ func FormatCheck(r *CheckReport) string {
 	b.WriteString(")\n\n")
 	for _, item := range r.Items {
 		fmt.Fprintf(&b, "  %s  %s — %s\n", item.Status, item.Name, item.Detail)
+	}
+	for _, record := range r.Baselines {
+		fmt.Fprintf(&b, "  INFO  baseline make %s — %s\n", record.Target, record.Reason)
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)

@@ -14,7 +14,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
-func TestPrepareLegacyTrees_TargetBeforeSourceAndNoRegistrationRemains(t *testing.T) {
+func TestPrepareLegacyTrees_SourceBeforeTargetAndNoRegistrationRemains(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, "ent"), 0o755); err != nil {
 		t.Fatal(err)
@@ -27,14 +27,22 @@ func TestPrepareLegacyTrees_TargetBeforeSourceAndNoRegistrationRemains(t *testin
 	bin := fakeGo(t, "root=$(dirname \"$PWD\"); b=$(basename \"$PWD\"); [ \"$b\" = target ] && [ ! -e \"$root/source\" ]; [ \"$b\" = source ] && [ ! -e \"$root/target\" ]; mkdir -p ent/generated; : > ent/generated/out")
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
-	p, err := prepareLegacyTreesWithProfile(context.Background(), g, TargetPlan{BranchSHA: strings.TrimSpace(sha), TargetSHA: strings.TrimSpace(sha)}, nil, familybookEntPrepareV1, 0)
+	plan := TargetPlan{BranchSHA: strings.TrimSpace(sha), TargetSHA: strings.TrimSpace(sha)}
+	p, err := prepareLegacySource(context.Background(), g, plan, familybookEntPrepareV1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.baseline["check"].Target != "check" || p.baseline["lint"].Target != "lint" {
-		t.Fatalf("baseline probes not captured: %#v", p.baseline)
+	if _, err := os.Stat(filepath.Join(p.root, "target")); !os.IsNotExist(err) {
+		t.Fatalf("target prepared before any source probe asked for it: %v", err)
 	}
-	if !p.controllerPrepared || !p.baseline["lint"].ControllerPrepared {
+	baseline, err := p.measureBaseline(context.Background(), plan, []string{"check", "lint"}, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline["check"].Target != "check" || baseline["lint"].Target != "lint" {
+		t.Fatalf("baseline probes not captured: %#v", baseline)
+	}
+	if !p.controllerPrepared || !baseline["lint"].ControllerPrepared {
 		t.Fatalf("controller prepared evidence was not retained: %#v", p)
 	}
 	root := p.root
@@ -47,7 +55,7 @@ func TestPrepareLegacyTrees_TargetBeforeSourceAndNoRegistrationRemains(t *testin
 }
 
 func TestPreparedLegacyWithoutControllerDoesNotAnnotateProbe(t *testing.T) {
-	p, err := prepareLegacyTreesWithProfile(context.Background(), gitRepo{dir: t.TempDir()}, TargetPlan{}, nil, "", 0)
+	p, err := prepareLegacySource(context.Background(), gitRepo{dir: t.TempDir()}, TargetPlan{}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +112,18 @@ func TestPrepareLegacyTreesReportsTargetAndSourcePreparationFailures(t *testing.
 			runGitInTest(t, fx.Worktree, "commit", "-m", "ent")
 			sha := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
 			t.Setenv("PATH", fakeGo(t, body)+":"+os.Getenv("PATH"))
-			_, err := prepareLegacyTreesWithProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), TargetPlan{BranchSHA: sha, TargetSHA: sha}, nil, familybookEntPrepareV1, 0)
+			plan := TargetPlan{BranchSHA: sha, TargetSHA: sha}
+			p, err := prepareLegacySource(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), plan, familybookEntPrepareV1)
+			if name == "target" {
+				// The target is prepared only when a baseline is measured.
+				if err != nil {
+					t.Fatalf("source preparation failed: %v", err)
+				}
+				_, err = p.measureBaseline(context.Background(), plan, []string{"check"}, 0, nil)
+				if cleanupErr := p.cleanup(context.Background()); cleanupErr != nil {
+					t.Fatalf("cleanup after failed target preparation: %v", cleanupErr)
+				}
+			}
 			if err == nil || !strings.Contains(err.Error(), "prepare "+name) {
 				t.Fatalf("err=%v", err)
 			}

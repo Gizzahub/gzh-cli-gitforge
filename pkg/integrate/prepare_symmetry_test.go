@@ -36,7 +36,7 @@ func TestPrepareSymmetry(t *testing.T) {
 		// c == nil returns before any git or filesystem work, so a bare
 		// temp dir is enough and this stays a unit test.
 		g := newGitRepo(gitcmd.NewExecutor(), t.TempDir())
-		prepared, err := prepareLegacyTreesWithProfile(context.Background(), g, TargetPlan{}, nil, "", 0)
+		prepared, err := prepareLegacySource(context.Background(), g, TargetPlan{}, "")
 		if err != nil {
 			t.Fatalf("prepareLegacyTrees: %v", err)
 		}
