@@ -444,6 +444,48 @@ func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
 	}
 }
 
+// A symlink entry that reuses the name of a regular harness file must not
+// replace it, and the failed extraction must not leave a partial tree. Two
+// guards cover this: the alias check rejects a link whose target is itself a
+// link, and when the target is regular the already-extracted file refuses the
+// symlink.
+func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
+	for name, tc := range map[string]struct {
+		archive []byte
+		check   func(error) bool
+	}{
+		"target is an alias": {
+			archive: tarArchiveEntries(t,
+				tarEntry{name: "AGENTS.md", body: "instructions\n"},
+				tarEntry{name: "CLAUDE.md", link: "AGENTS.md", kind: tar.TypeSymlink},
+				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
+			),
+			check: func(err error) bool {
+				return err != nil && strings.Contains(err.Error(), `unsupported entry "AGENTS.md"`)
+			},
+		},
+		"target is regular": {
+			archive: tarArchiveEntries(t,
+				tarEntry{name: "AGENTS.md", body: "instructions\n"},
+				tarEntry{name: "CLAUDE.md", body: "other\n"},
+				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
+			),
+			check: func(err error) bool { return errors.Is(err, os.ErrExist) },
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			destination := filepath.Join(t.TempDir(), "child")
+			err := extractGitArchive(context.Background(), destination, tc.archive)
+			if !tc.check(err) {
+				t.Fatalf("archive redefining AGENTS.md as a symlink: err = %v", err)
+			}
+			if _, statErr := os.Lstat(destination); !os.IsNotExist(statErr) {
+				t.Fatalf("failed extraction left destination: %v", statErr)
+			}
+		})
+	}
+}
+
 func TestExtractGitArchiveCancelsAndCleansDestination(t *testing.T) {
 	destination := filepath.Join(t.TempDir(), "child")
 	ctx, cancel := context.WithCancel(context.Background())
