@@ -22,7 +22,7 @@ import (
 // the repository, so a test can state exactly which side was prepared and
 // which make targets were measured where.
 type lazyBaselineFixture struct {
-	repo, prepareLog, makeLog string
+	repo, logs, prepareLog, makeLog string
 }
 
 // newLazyBaselineFixture commits config, as .gz-git.yaml, and targetMake on
@@ -38,8 +38,11 @@ func newLazyBaselineFixture(t *testing.T, config, targetMake, branchMake string)
 	t.Setenv("TMPDIR", physicalTmp)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	logs := t.TempDir()
-	fx := lazyBaselineFixture{prepareLog: filepath.Join(logs, "prepare.log"), makeLog: filepath.Join(logs, "make.log")}
-	t.Setenv("PATH", fakeGo(t, fmt.Sprintf("basename \"$PWD\" >> '%s'; mkdir -p ent/generated; : > ent/generated/out", fx.prepareLog))+":"+os.Getenv("PATH"))
+	fx := lazyBaselineFixture{logs: logs, prepareLog: filepath.Join(logs, "prepare.log"), makeLog: filepath.Join(logs, "make.log")}
+	// A tree fails its preparation when the marker fail-<tree> exists. The
+	// profile runs with a scrubbed environment, so a variable cannot say so.
+	prepare := fmt.Sprintf("basename \"$PWD\" >> '%[1]s'; if [ -e '%[2]s/fail-'\"$(basename \"$PWD\")\" ]; then echo 'generate broke' >&2; exit 3; fi; mkdir -p ent/generated; : > ent/generated/out", fx.prepareLog, logs)
+	t.Setenv("PATH", fakeGo(t, prepare)+":"+os.Getenv("PATH"))
 
 	repo := testutil.TempWorktreeWithBareOrigin(t)
 	for _, dir := range []string{"ent", "pkg"} {
@@ -232,5 +235,40 @@ func TestLazyBaseline_DeclaredOutcomeReportMeasuresPassingSource(t *testing.T) {
 				t.Fatalf("lint baseline record = %+v", record)
 			}
 		})
+	}
+}
+
+// A baseline that cannot be prepared says nothing about the target commit,
+// so a failing source must stay failed rather than be judged against nothing.
+func TestLazyBaselineFailing_BaselinePrepareErrorFailsClosed(t *testing.T) {
+	fx := newLazyBaselineFixture(t, lazyConfig, lazyPass, lazyCheckFails)
+	writeFile(t, fx.logs, "fail-target", "")
+	report := fx.check(t)
+	if report.Ready {
+		t.Fatalf("an unprepared baseline must not make a failing source ready:\n%s", FormatCheck(report))
+	}
+	var check, lint *CheckItem
+	for i := range report.Items {
+		switch report.Items[i].Name {
+		case "make check":
+			check = &report.Items[i]
+		case "make lint":
+			lint = &report.Items[i]
+		}
+	}
+	if check == nil || check.Status != checkFail || !strings.HasPrefix(check.Detail, "prepare baseline:") {
+		t.Fatalf("make check = %+v, want FAIL prepare baseline:\n%s", check, FormatCheck(report))
+	}
+	// The source verdict of a target that needed no baseline is kept.
+	if lint == nil || lint.Status != checkPass {
+		t.Fatalf("make lint = %+v, want the source's own PASS:\n%s", lint, FormatCheck(report))
+	}
+	if got := lazyBaselineLog(t, fx.prepareLog); strings.Join(got, ",") != "source,target" {
+		t.Fatalf("prepared trees = %v, want the target preparation attempted", got)
+	}
+	for _, run := range lazyBaselineLog(t, fx.makeLog) {
+		if strings.HasPrefix(run, "target ") {
+			t.Fatalf("make ran on an unprepared target: %q", run)
+		}
 	}
 }

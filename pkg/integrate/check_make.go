@@ -611,8 +611,12 @@ func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe make
 	return baselineCheckItem(name, verdict, allowSkipped)
 }
 
-// judgeMakeAgainstProbe consumes a target measurement captured before source
-// code exists. Parser and baseline rules remain exactly the legacy rules.
+// judgeMakeAgainstProbe consumes a target measurement captured after the
+// source run, and only for a make target the source failed or that declares
+// an outcome report. State the two runs share outside their worktrees, such
+// as ports, /tmp or a shared target directory, can leak from the source run
+// into the target run. Parser and baseline rules remain exactly the legacy
+// rules.
 func judgeMakeAgainstProbe(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, base makeProbe, budget time.Duration) CheckItem {
 	if base.Target == "" {
 		return judgeMakeLegacy(ctx, g, plan, probe, allowSkipped, budget)
