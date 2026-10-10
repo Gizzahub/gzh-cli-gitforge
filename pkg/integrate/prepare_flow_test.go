@@ -448,7 +448,7 @@ func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
 // replace it, and the failed extraction must not leave a partial tree. Two
 // guards cover this: the alias check rejects a link whose target is itself a
 // link, and when the target is regular the already-extracted file refuses the
-// symlink.
+// symlink. A regular file arriving after the alias must not write through it.
 func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 	for name, tc := range map[string]struct {
 		archive []byte
@@ -471,6 +471,19 @@ func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
 			),
 			check: func(err error) bool { return errors.Is(err, os.ErrExist) },
+		},
+		"regular file after the alias": {
+			archive: tarArchiveEntries(t,
+				tarEntry{name: "CLAUDE.md", body: "other\n"},
+				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
+				tarEntry{name: "AGENTS.md", body: "instructions\n"},
+			),
+			// O_EXCL refuses the existing link instead of writing through it
+			// into CLAUDE.md.
+			check: func(err error) bool {
+				var pathErr *os.PathError
+				return errors.Is(err, os.ErrExist) && errors.As(err, &pathErr) && filepath.Base(pathErr.Path) == "AGENTS.md"
+			},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
