@@ -34,6 +34,9 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
 	}
+	// The measurement lock Check takes stays held through the push.
+	ctx, lock := withMeasurementLockSlot(ctx)
+	defer lock.release()
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
 		return nil, err

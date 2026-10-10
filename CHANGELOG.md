@@ -30,6 +30,14 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
+### Added
+
+- `gz-git integrate check|run` take one host-wide OS file lock (`host-slots/integrate.lock` under
+  `$XDG_STATE_HOME`, ce-devenv ADR-0001) before fetching and measuring, and `run` holds it through
+  the push. Concurrent integrations on one host had driven the load past 190 and expired the make
+  budget twice, and each landing voided the others' freshness. Waiting names the holder, is not
+  charged to `makeTimeout`, and `--lock-wait` bounds it; an expired wait exits non-zero and measures nothing.
+
 ### Changed
 
 - `gz-git integrate check` measures a prepared target baseline only for a make target the source

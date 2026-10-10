@@ -6,6 +6,7 @@ package integrate
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -41,6 +42,12 @@ type CheckOptions struct {
 	// source is read after the fetch and must be exactly this commit, so the
 	// SHA compared is the SHA every readiness row measures.
 	ExpectSource string
+	// LockWait bounds the wait for the host measurement lock; zero waits
+	// without bound. On expiry the check fails and measures nothing.
+	LockWait time.Duration
+	// LockNotice receives the periodic holder notice while waiting; nil
+	// means os.Stderr.
+	LockNotice io.Writer
 }
 
 // CheckItem is one readiness row.
@@ -150,6 +157,12 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 		}
 		opts.IntegrationConfig = decl.IntegrationBranch
 	}
+
+	releaseLock, err := holdMeasurementLock(ctx, g, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseLock()
 
 	plan, err := resolveTarget(ctx, g, exec, opts)
 	if err != nil {

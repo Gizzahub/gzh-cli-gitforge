@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +25,7 @@ var (
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
 	integrateRunExpectSource     string
+	integrateRunLockWait         time.Duration
 )
 
 var integrateRunCmd = &cobra.Command{
@@ -60,6 +62,7 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
+	integrateRunCmd.Flags().DurationVar(&integrateRunLockWait, "lock-wait", 0, "give up, exit non-zero, and measure nothing if the host measurement lock is not free within this duration (default: wait without bound)")
 	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
 }
 
@@ -85,6 +88,8 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			ControllerConfig:   integrateRunControllerConfig,
 			NoFetch:            integrateRunNoFetch,
 			ExpectSource:       integrateRunExpectSource,
+			LockWait:           integrateRunLockWait,
+			LockNotice:         cmd.ErrOrStderr(),
 		},
 	})
 	if report != nil && !quiet {
