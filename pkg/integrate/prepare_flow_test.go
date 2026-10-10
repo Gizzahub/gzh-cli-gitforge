@@ -394,12 +394,47 @@ func TestExtractGitArchiveAllowsOnlyRootClaudeAliases(t *testing.T) {
 	}
 }
 
+// The harness campaign made AGENTS.md the regular file, with CLAUDE.md and
+// GEMINI.md as symlinks to it; flow-taskchain-engine and -mcp ship that layout.
+func TestExtractGitArchiveAllowsRootAgentsCanonicalAliases(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "child")
+	archive := tarArchiveEntries(
+		t,
+		tarEntry{name: "AGENTS.md", body: "instructions\n"},
+		tarEntry{name: "CLAUDE.md", link: "AGENTS.md", kind: tar.TypeSymlink},
+		tarEntry{name: "GEMINI.md", link: "AGENTS.md", kind: tar.TypeSymlink},
+	)
+	if err := extractGitArchive(context.Background(), destination, archive); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"CLAUDE.md", "GEMINI.md"} {
+		info, err := os.Lstat(filepath.Join(destination, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("%s is not a symlink", name)
+		}
+		data, err := os.ReadFile(filepath.Join(destination, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(data) != "instructions\n" {
+			t.Fatalf("%s content = %q", name, data)
+		}
+	}
+}
+
 func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
 	for name, archive := range map[string][]byte{
 		"missing Claude target": tarArchiveEntries(t, tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}),
 		"nested alias":          tarArchiveEntries(t, tarEntry{name: "nested/AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
 		"wrong target":          tarArchiveEntries(t, tarEntry{name: "AGENTS.md", link: "nested/CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
 		"other root link":       tarArchiveEntries(t, tarEntry{name: "OTHER.md", link: "CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
+		"missing Agents target": tarArchiveEntries(t, tarEntry{name: "CLAUDE.md", link: "AGENTS.md", kind: tar.TypeSymlink}),
+		"alias loop":            tarArchiveEntries(t, tarEntry{name: "CLAUDE.md", link: "AGENTS.md", kind: tar.TypeSymlink}, tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}),
+		"self alias":            tarArchiveEntries(t, tarEntry{name: "AGENTS.md", body: "instructions\n"}, tarEntry{name: "CLAUDE.md", link: "CLAUDE.md", kind: tar.TypeSymlink}),
+		"alias to non-harness":  tarArchiveEntries(t, tarEntry{name: "CLAUDE.md", link: "README.md", kind: tar.TypeSymlink}, tarEntry{name: "README.md", body: "instructions\n"}),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := extractGitArchive(context.Background(), filepath.Join(t.TempDir(), "child"), archive); err == nil {

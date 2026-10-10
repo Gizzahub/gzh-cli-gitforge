@@ -466,7 +466,7 @@ func extractGitArchive(ctx context.Context, destination string, data []byte) (er
 	}()
 
 	reader := tar.NewReader(bytes.NewReader(data))
-	allowRootClaudeAlias := archiveContainsRegularRootClaude(data)
+	rootHarness := archiveRegularRootHarness(data)
 	entries := 0
 	for {
 		if err := ctx.Err(); err != nil {
@@ -488,29 +488,35 @@ func extractGitArchive(ctx context.Context, destination string, data []byte) (er
 		if header.Typeflag == tar.TypeXGlobalHeader || header.Typeflag == tar.TypeXHeader {
 			continue
 		}
-		if err := extractArchiveEntry(ctx, destination, reader, header, allowRootClaudeAlias); err != nil {
+		if err := extractArchiveEntry(ctx, destination, reader, header, rootHarness); err != nil {
 			return err
 		}
 	}
 }
 
-func archiveContainsRegularRootClaude(data []byte) bool {
+// rootHarnessFiles are the root instruction files a repository keeps as one
+// regular file plus symlink aliases to it. Either file may be the regular one:
+// older repositories alias AGENTS.md and GEMINI.md to CLAUDE.md, while the
+// harness campaign flipped them so CLAUDE.md and GEMINI.md alias AGENTS.md.
+var rootHarnessFiles = map[string]bool{"AGENTS.md": true, "CLAUDE.md": true, "GEMINI.md": true}
+
+// archiveRegularRootHarness returns the root harness files the archive holds
+// as regular files, the only targets a harness alias may point at.
+func archiveRegularRootHarness(data []byte) map[string]bool {
+	regular := map[string]bool{}
 	reader := tar.NewReader(bytes.NewReader(data))
 	for {
 		header, err := reader.Next()
-		if errors.Is(err, io.EOF) {
-			return false
-		}
 		if err != nil {
-			return false
+			return regular
 		}
-		if header.Typeflag == tar.TypeReg && header.Name == "CLAUDE.md" {
-			return true
+		if header.Typeflag == tar.TypeReg && rootHarnessFiles[header.Name] {
+			regular[header.Name] = true
 		}
 	}
 }
 
-func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Reader, header *tar.Header, allowRootClaudeAlias bool) error {
+func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Reader, header *tar.Header, rootHarness map[string]bool) error {
 	rel, err := safeArchivePath(header.Name, header.Typeflag == tar.TypeDir)
 	if err != nil {
 		return err
@@ -522,7 +528,7 @@ func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Re
 	if header.Typeflag == tar.TypeDir {
 		return createArchiveDirectory(name, header.Name)
 	}
-	if header.Typeflag == tar.TypeSymlink && allowRootClaudeAlias && isRootClaudeAlias(header) {
+	if header.Typeflag == tar.TypeSymlink && isRootHarnessAlias(header, rootHarness) {
 		return os.Symlink(header.Linkname, name)
 	}
 	if header.Typeflag != tar.TypeReg {
@@ -531,8 +537,8 @@ func extractArchiveEntry(ctx context.Context, destination string, reader *tar.Re
 	return extractArchiveFile(ctx, name, header, reader)
 }
 
-func isRootClaudeAlias(header *tar.Header) bool {
-	return (header.Name == "AGENTS.md" || header.Name == "GEMINI.md") && header.Linkname == "CLAUDE.md"
+func isRootHarnessAlias(header *tar.Header, rootHarness map[string]bool) bool {
+	return rootHarnessFiles[header.Name] && header.Linkname != header.Name && rootHarness[header.Linkname]
 }
 
 func createArchiveDirectory(name, archiveName string) error {
