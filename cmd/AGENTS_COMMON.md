@@ -148,9 +148,6 @@ ______________________________________________________________________
 {type}({scope}): {imperative verb} {description}
 
 {optional body}
-
-Model: claude-{model}
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ### Types
