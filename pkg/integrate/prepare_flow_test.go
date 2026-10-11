@@ -50,6 +50,40 @@ func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *test
 	}
 }
 
+func TestFlowTaskchainPrepareRejectsMovedRefGuard(t *testing.T) {
+	// The flow profile extracts archives, so no tool can move a ref from
+	// inside it; the guard is instead armed so that verification must fail
+	// at the same point a moved ref or HEAD would.
+	devbox := flowTaskchainFixture(t)
+	inputs, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]struct {
+		guard func(head string) preparedRefGuard
+		want  string
+	}{
+		"head moved":       {guard: func(string) preparedRefGuard { return preparedRefGuard{head: strings.Repeat("a", 40)} }, want: "prepared worktree HEAD"},
+		"head re-attached": {guard: func(head string) preparedRefGuard { return preparedRefGuard{head: head, detached: true} }, want: "re-attached"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			prepared := t.TempDir()
+			runGitInTest(t, prepared, "init")
+			setFlowFixtureGitIdentity(t, prepared)
+			writeFile(t, prepared, "tracked", "base\n")
+			runGitInTest(t, prepared, "add", "tracked")
+			runGitInTest(t, prepared, "commit", "-m", "base")
+			head := runGitInTest(t, prepared, "rev-parse", "HEAD")
+			g := newGitRepo(gitcmd.NewExecutor(), prepared)
+			err := prepareFlowTaskchainLocalSubprojects(context.Background(), g, prepared, inputs, tc.guard(head))
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want it to contain %q", err, tc.want)
+			}
+		})
+	}
+}
+
 func TestFlowTaskchainPrepareUsesPrimaryFromLinkedTaskWorktree(t *testing.T) {
 	devbox := flowTaskchainFixture(t)
 	task := filepath.Join(t.TempDir(), "task")

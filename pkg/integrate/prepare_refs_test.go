@@ -21,8 +21,9 @@ func headGuard(t *testing.T, dir string) preparedRefGuard {
 }
 
 // refGuardFixture is a repository whose bound refs are all present: source
-// "src", target "tgt" and its remote-tracking ref origin/tgt, plus a
-// bystander branch and remote-tracking ref that no plan binds. The worktree
+// "src" and the remote-tracking target origin/tgt, plus a local branch tgt of
+// the same name, a bystander branch and a bystander remote-tracking ref that
+// the plan does not bind. The worktree
 // is detached at the common commit, as a prepared worktree is.
 type refGuardFixture struct {
 	dir   string
@@ -134,9 +135,8 @@ func TestPrepareProfilesRejectMovedBoundRefsAndHead(t *testing.T) {
 		want   string
 	}{
 		"source moved":        {refsNewCommit + "\ngit update-ref refs/heads/src \"$new\"", "refs/heads/src"},
-		"target moved":        {refsNewCommit + "\ngit update-ref refs/heads/tgt \"$new\"", "refs/heads/tgt"},
 		"remote target moved": {refsNewCommit + "\ngit update-ref refs/remotes/origin/tgt \"$new\"", "refs/remotes/origin/tgt"},
-		"target deleted":      {"git branch -D tgt", "refs/heads/tgt"},
+		"head reattached":     {"git checkout -q -B attached HEAD", "re-attached"},
 		"remote target gone":  {"git update-ref -d refs/remotes/origin/tgt", "refs/remotes/origin/tgt"},
 		"head moved":          {refsNewCommit + "\ngit update-ref --no-deref HEAD \"$new\"", "prepared worktree HEAD"},
 	}
@@ -154,6 +154,20 @@ func TestPrepareProfilesRejectMovedBoundRefsAndHead(t *testing.T) {
 	}
 }
 
+func TestPrepareProfilesTolerateLocalBranchOfRemoteTargetName(t *testing.T) {
+	// The plan's target is origin/tgt; a local tgt moving is not the target
+	// moving and must not fail preparation.
+	for _, p := range refGuardProfiles() {
+		t.Run(p.name, func(t *testing.T) {
+			fx := newRefGuardFixture(t, p.files)
+			p.install(t, refsNewCommit+"\ngit update-ref refs/heads/tgt \"$new\"")
+			if err := runPrepareProfile(context.Background(), fx.g, fx.dir, p.profile, fx.guard); err != nil {
+				t.Fatalf("unbound local branch moving failed preparation: %v", err)
+			}
+		})
+	}
+}
+
 func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
 	// A names-only snapshot cannot see this: every ref name is still there.
 	// This also stands in for the flow profile, which shares snapshot/verify.
@@ -167,8 +181,8 @@ func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
 		t.Fatalf("unchanged refs failed verification: %v", err)
 	}
 	other := runGitInTest(t, fx.dir, "commit-tree", "-p", "HEAD", "-m", "moved", "HEAD^{tree}")
-	runGitInTest(t, fx.dir, "update-ref", "refs/heads/tgt", other)
-	if err := snap.verify(ctx, fx.g, fx.dir); err == nil || !strings.Contains(err.Error(), "refs/heads/tgt") {
+	runGitInTest(t, fx.dir, "update-ref", "refs/heads/src", other)
+	if err := snap.verify(ctx, fx.g, fx.dir); err == nil || !strings.Contains(err.Error(), "refs/heads/src") {
 		t.Fatalf("moved target not detected: %v", err)
 	}
 }
@@ -176,19 +190,28 @@ func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
 func TestNewPreparedRefGuardBindsOnlyPlanRefs(t *testing.T) {
 	fx := newRefGuardFixture(t, map[string]string{"f": "x\n"})
 	ctx := context.Background()
-	want := []string{"refs/heads/src", "refs/heads/tgt", "refs/remotes/origin/tgt"}
-	if strings.Join(fx.guard.refs, " ") != strings.Join(want, " ") {
-		t.Fatalf("bound refs = %v, want %v", fx.guard.refs, want)
+	// A remote-tracking target binds only that ref, even though a local
+	// branch of the same name exists.
+	want := []string{"refs/heads/src", "refs/remotes/origin/tgt"}
+	if strings.Join(fx.guard.refs, " ") != strings.Join(want, " ") || !fx.guard.detached {
+		t.Fatalf("bound refs = %v detached=%v, want %v detached", fx.guard.refs, fx.guard.detached, want)
 	}
-	// A target without a local branch binds only its remote-tracking ref, so
-	// a local branch another session creates later is not a change.
-	runGitInTest(t, fx.dir, "branch", "-D", "tgt")
-	plan := TargetPlan{Branch: "src", Remote: "origin", Target: "origin/tgt"}
+	// A local target binds the local branch.
+	plan := TargetPlan{Branch: "src", Remote: "origin", Target: "tgt"}
 	guard, err := newPreparedRefGuard(ctx, fx.g, plan, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(guard.refs, " ") != "refs/heads/src refs/remotes/origin/tgt" {
+	if strings.Join(guard.refs, " ") != "refs/heads/src refs/heads/tgt" {
+		t.Fatalf("bound refs = %v", guard.refs)
+	}
+	// A target that resolves to no ref binds nothing.
+	plan = TargetPlan{Branch: "src", Remote: "origin", Target: "origin/missing"}
+	guard, err = newPreparedRefGuard(ctx, fx.g, plan, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(guard.refs, " ") != "refs/heads/src" {
 		t.Fatalf("bound refs = %v", guard.refs)
 	}
 	// A remote release source is bound as the remote-tracking ref.

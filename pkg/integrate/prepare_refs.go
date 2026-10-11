@@ -14,23 +14,32 @@ import (
 // preparation may not move the refs the verdict is measured against, nor the
 // commit of the worktree it prepares.
 //
-// The bound refs are the source, the target, and the target's remote-tracking
-// ref, compared by name AND commit. Refs outside that set are deliberately
-// not bound: another session creating or deleting an unrelated branch, or a
+// The bound refs are the source and the target, each as the exact ref it
+// resolves to (a remote-tracking target binds only that ref, not a local branch
+// of the same name), compared by name AND commit. Refs outside that set are
+// deliberately not bound: another session creating or deleting an unrelated branch, or a
 // fetch --prune, while a long preparation runs says nothing about the
 // preparation, and a names-only snapshot of every ref would fail it. The
 // reverse blind spot is closed by comparing commits: a bound ref that moved
 // to a different commit under the same name is a change.
+//
+// Accepted trade-off: a ref outside the bound set that preparation itself
+// creates, moves or deletes is no longer detected. The prepared tree is
+// still validated for changed files, and the refs the verdict reads are held.
 type preparedRefGuard struct {
 	refs []string
 	// head is the commit the prepared worktree must still be detached at.
 	// Empty skips the check.
 	head string
+	// detached additionally requires HEAD to still be detached, so a
+	// re-attach to a branch at the same commit is a change too.
+	detached bool
 }
 
-// newPreparedRefGuard binds the refs of plan. The target's local branch is
-// bound only when it exists: a repository that never had one must not fail
-// because another session created it.
+// newPreparedRefGuard binds the refs of plan. The target is bound as the exact
+// ref it resolves to, so a remote-tracking target never also binds a local
+// branch of the same name that another session may legitimately create. A
+// target that resolves to no ref (a bare commit) binds nothing.
 func newPreparedRefGuard(ctx context.Context, g gitRepo, plan TargetPlan, head string) (preparedRefGuard, error) {
 	var refs []string
 	switch {
@@ -40,17 +49,15 @@ func newPreparedRefGuard(ctx context.Context, g gitRepo, plan TargetPlan, head s
 	default:
 		refs = append(refs, "refs/heads/"+plan.Branch)
 	}
-	if name := targetBranchName(plan.Target, plan.Remote); name != "" {
-		local := "refs/heads/" + name
-		_, ok, err := g.revParse(ctx, local)
+	if plan.Target != "" {
+		res, err := g.run(ctx, "rev-parse", "--symbolic-full-name", plan.Target)
 		if err != nil {
 			return preparedRefGuard{}, err
 		}
-		if ok {
-			refs = append(refs, local)
-		}
-		if plan.Remote != "" {
-			refs = append(refs, "refs/remotes/"+plan.Remote+"/"+name)
+		if res.ExitCode == 0 {
+			if full := strings.TrimSpace(res.Stdout); strings.HasPrefix(full, "refs/") {
+				refs = append(refs, full)
+			}
 		}
 	}
 	sort.Strings(refs)
@@ -60,7 +67,7 @@ func newPreparedRefGuard(ctx context.Context, g gitRepo, plan TargetPlan, head s
 			unique = append(unique, ref)
 		}
 	}
-	return preparedRefGuard{refs: unique, head: head}, nil
+	return preparedRefGuard{refs: unique, head: head, detached: head != ""}, nil
 }
 
 // refStates maps each named ref to its commit; a missing ref maps to "".
@@ -107,10 +114,19 @@ func (s preparedRefSnapshot) verify(ctx context.Context, g gitRepo, dir string) 
 		}
 	}
 	if len(moved) > 0 {
-		return fmt.Errorf("preparation changed git refs: %s", strings.Join(moved, ", "))
+		return fmt.Errorf("bound ref moved during preparation (possibly by another session): %s", strings.Join(moved, ", "))
 	}
 	if s.guard.head == "" {
 		return nil
+	}
+	if s.guard.detached {
+		attached, err := newGitRepo(g.exec, dir).run(ctx, "symbolic-ref", "-q", "HEAD")
+		if err != nil {
+			return err
+		}
+		if attached.ExitCode == 0 {
+			return fmt.Errorf("preparation re-attached the prepared worktree HEAD to %s", strings.TrimSpace(attached.Stdout))
+		}
 	}
 	head, err := newGitRepo(g.exec, dir).headSHA(ctx)
 	if err != nil {
