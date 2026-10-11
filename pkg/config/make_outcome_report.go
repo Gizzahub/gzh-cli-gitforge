@@ -253,8 +253,16 @@ func rejectMakeOutcomeReportYAMLAliases(node *yaml.Node) error {
 // branch or makeOutcomeReport could otherwise be accepted by the permissive
 // project decoder without passing this parser's closed-contract checks.
 func yamlRootMergeSuppliesMakeOutcomeReport(root *yaml.Node) (bool, error) {
+	return yamlRootMergeSuppliesNestedBranchKey(root, "makeOutcomeReport")
+}
+
+func yamlRootMergeSuppliesLockWait(root *yaml.Node) (bool, error) {
+	return yamlRootMergeSuppliesNestedBranchKey(root, "lockWait")
+}
+
+func yamlRootMergeSuppliesNestedBranchKey(root *yaml.Node, key string) (bool, error) {
 	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
-	return state.rootMergeSuppliesMakeOutcomeReport(root)
+	return state.rootMergeSuppliesNestedKey(root, "branch", key)
 }
 
 func yamlNodeSuppliesKey(node *yaml.Node, key string) (bool, error) {
@@ -272,7 +280,7 @@ type yamlKeyTraversal struct {
 	visited  int
 }
 
-func (s *yamlKeyTraversal) rootMergeSuppliesMakeOutcomeReport(root *yaml.Node) (bool, error) {
+func (s *yamlKeyTraversal) rootMergeSuppliesNestedKey(root *yaml.Node, outer, inner string) (bool, error) {
 	if root == nil || root.Kind != yaml.MappingNode {
 		return false, nil
 	}
@@ -280,7 +288,7 @@ func (s *yamlKeyTraversal) rootMergeSuppliesMakeOutcomeReport(root *yaml.Node) (
 		if !isYAMLMergeKey(root.Content[i]) {
 			continue
 		}
-		hidden, err := s.mergeValueSuppliesNestedKey(root.Content[i+1], "branch", "makeOutcomeReport")
+		hidden, err := s.mergeValueSuppliesNestedKey(root.Content[i+1], outer, inner)
 		if err != nil || hidden {
 			return hidden, err
 		}

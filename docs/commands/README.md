@@ -28,6 +28,9 @@ V1 comparison for failures without file:line diagnostics.
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
 
+[Host integration-lock waiting](integrate-lock-wait.md) documents the 60-minute
+per-acquisition default and repository override.
+
 [Release promotion](integrate-release.md) explains how `--release` judges a
 remote-tracking integration ref as the source.
 

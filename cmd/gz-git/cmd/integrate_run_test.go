@@ -17,7 +17,7 @@ import (
 
 func TestIntegrateRunHelp(t *testing.T) {
 	cmd := findCommand(t, rootCmd, "integrate", "run")
-	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config"} {
+	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config", "lock-wait"} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("integrate run missing --%s", name)
 		}
@@ -95,6 +95,8 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	origSkip := integrateRunAllowSkipped
 	origController := integrateRunControllerConfig
 	origNoFetch := integrateRunNoFetch
+	origLockWait := integrateRunLockWait
+	origLockWaitChanged := integrateRunCmd.Flags().Changed("lock-wait")
 	origQuiet := quiet
 	integrateRunTarget = ""
 	integrateRunDirectToDefault = false
@@ -102,6 +104,9 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	integrateRunAllowSkipped = false
 	integrateRunControllerConfig = ""
 	integrateRunNoFetch = false
+	integrateRunLockWait = 0
+	_ = integrateRunCmd.Flags().Set("lock-wait", "0")
+	integrateRunCmd.Flags().Lookup("lock-wait").Changed = false
 	quiet = false
 	return func() {
 		integrateRunTarget = origTarget
@@ -110,6 +115,9 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 		integrateRunAllowSkipped = origSkip
 		integrateRunControllerConfig = origController
 		integrateRunNoFetch = origNoFetch
+		integrateRunLockWait = origLockWait
+		_ = integrateRunCmd.Flags().Set("lock-wait", origLockWait.String())
+		integrateRunCmd.Flags().Lookup("lock-wait").Changed = origLockWaitChanged
 		quiet = origQuiet
 	}
 }

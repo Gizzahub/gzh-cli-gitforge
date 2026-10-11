@@ -38,6 +38,10 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   budget twice, and each landing voided the others' freshness. Waiting names the holder, is not
   charged to `makeTimeout`, and `--lock-wait` bounds it; an expired wait exits non-zero and measures nothing.
 
+- Host-lock waits now default to 60 minutes per acquisition. Set repo-root `branch.lockWait` to a
+  non-negative duration (or `unbounded`) for one repository, or pass `--lock-wait` to override it;
+  `--lock-wait 0` remains an explicit unbounded operator choice. Expiry reports the effective source.
+
 ### Changed
 
 - `gz-git integrate check` measures a prepared target baseline only for a make target the source

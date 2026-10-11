@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // The host measurement lock follows ce-devenv ADR-0001 phase 1: one
@@ -27,6 +29,8 @@ const (
 	hostLockCommandCheck = "check"
 	hostLockCommandRun   = "run"
 )
+
+var defaultHostLockWait = time.Hour
 
 // ErrHostLockWait reports that --lock-wait expired before the host
 // measurement lock was free. Nothing was measured.
@@ -78,6 +82,10 @@ func hostSlotsDir() (string, error) {
 // holder on notice at once and then every hostLockNoticeInterval. It never
 // returns without the lock unless it returns an error.
 func acquireHostLock(ctx context.Context, holder hostLockHolder, wait time.Duration, notice io.Writer) (*hostLock, error) {
+	return acquireHostLockWithSource(ctx, holder, wait, "explicit", notice)
+}
+
+func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait time.Duration, waitSource string, notice io.Writer) (*hostLock, error) {
 	dir, err := hostSlotsDir()
 	if err != nil {
 		return nil, err
@@ -111,7 +119,7 @@ func acquireHostLock(ctx context.Context, holder hostLockHolder, wait time.Durat
 		now := time.Now()
 		if wait > 0 && now.Sub(start) >= wait {
 			_ = f.Close()
-			return nil, fmt.Errorf("%w after %s; %s holds %s; no make target ran", ErrHostLockWait, wait, describeHostLockHolder(sidecar), path)
+			return nil, fmt.Errorf("%w after %s (%s; per acquisition); %s holds %s; no gate measured", ErrHostLockWait, wait, waitSource, describeHostLockHolder(sidecar), path)
 		}
 		if lastNotice.IsZero() || now.Sub(lastNotice) >= hostLockNoticeInterval {
 			lastNotice = now
@@ -253,7 +261,11 @@ func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (fun
 			holder.Branch = branch
 		}
 	}
-	lock, err := acquireHostLock(ctx, holder, opts.LockWait, opts.LockNotice)
+	wait, source, err := effectiveLockWait(opts, g.dir)
+	if err != nil {
+		return nil, err
+	}
+	lock, err := acquireHostLockWithSource(ctx, holder, wait, source, opts.LockNotice)
 	if err != nil {
 		return nil, err
 	}
@@ -262,4 +274,21 @@ func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (fun
 		return func() {}, nil
 	}
 	return lock.release, nil
+}
+
+func effectiveLockWait(opts CheckOptions, repoRoot string) (time.Duration, string, error) {
+	if opts.LockWaitSet || opts.LockWait != 0 {
+		if opts.LockWait < 0 {
+			return 0, "", fmt.Errorf("--lock-wait must not be negative")
+		}
+		return opts.LockWait, "flag", nil
+	}
+	decl, err := config.LoadRepoRootTaskPattern(repoRoot)
+	if err != nil {
+		return 0, "", err
+	}
+	if decl.LockWaitSet {
+		return decl.LockWait, "repository config", nil
+	}
+	return defaultHostLockWait, "default", nil
 }

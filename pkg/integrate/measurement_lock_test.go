@@ -96,6 +96,14 @@ func measurementLockFixture(t *testing.T, recipe, budget string) *testutil.Workt
 	return fx
 }
 
+func setMeasurementLockWait(t *testing.T, fx *testutil.WorktreeOrigin, wait string) {
+	t.Helper()
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  lockWait: "+wait+"\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "configure lock wait")
+	runGit(t, fx.Worktree, "push")
+}
+
 // holdHostLockInProcess takes the lock as a stand-in holder. flock belongs
 // to the open file description, so Check's own open conflicts with it just
 // as another process's would.
@@ -345,7 +353,7 @@ func TestMeasurementLockWait(t *testing.T) {
 		if !errors.Is(err, ErrHostLockWait) {
 			t.Fatalf("%s err = %v, want ErrHostLockWait", name, err)
 		}
-		for _, want := range []string{"pid " + strconv.Itoa(os.Getpid()), "repository /holder/repo", "branch dev/holder/branch", "300ms"} {
+		for _, want := range []string{"pid " + strconv.Itoa(os.Getpid()), "repository /holder/repo", "branch dev/holder/branch", "300ms", "flag; per acquisition"} {
 			if !strings.Contains(err.Error(), want) {
 				t.Fatalf("%s err %q does not name %q", name, err, want)
 			}
@@ -356,5 +364,105 @@ func TestMeasurementLockWait(t *testing.T) {
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a make target ran without the lock (stat %s: %v)", ran, err)
+	}
+}
+
+func TestMeasurementLockConfiguredWait(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := measurementLockFixture(t, "@true", "1m")
+	setMeasurementLockWait(t, fx, "50ms")
+	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
+	})
+	if !errors.Is(err, ErrHostLockWait) {
+		t.Fatalf("Check err = %v, want ErrHostLockWait", err)
+	}
+	if !strings.Contains(err.Error(), "repository config; per acquisition") {
+		t.Fatalf("config expiry did not name its source: %v", err)
+	}
+}
+
+func TestMeasurementLockUnbounded(t *testing.T) {
+	fastHostLockPolling(t)
+	old := defaultHostLockWait
+	defaultHostLockWait = 50 * time.Millisecond
+	t.Cleanup(func() { defaultHostLockWait = old })
+
+	fx := measurementLockFixture(t, "@true", "1m")
+	setMeasurementLockWait(t, fx, "10ms")
+	lock := holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
+	released := make(chan struct{})
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		lock.release()
+		close(released)
+	}()
+	defer func() { <-released }()
+
+	start := time.Now()
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockWaitSet: true, LockNotice: io.Discard,
+	})
+	if err != nil {
+		t.Fatalf("explicit unbounded Check: %v", err)
+	}
+	if !report.Ready || time.Since(start) < 100*time.Millisecond {
+		t.Fatalf("explicit unbounded wait did not outlast the default: ready=%t elapsed=%s", report.Ready, time.Since(start))
+	}
+}
+
+func TestMeasurementLockDefaultWait(t *testing.T) {
+	fastHostLockPolling(t)
+	old := defaultHostLockWait
+	defaultHostLockWait = 50 * time.Millisecond
+	t.Cleanup(func() { defaultHostLockWait = old })
+
+	ran := filepath.Join(t.TempDir(), "ran")
+	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
+	})
+	if !errors.Is(err, ErrHostLockWait) {
+		t.Fatalf("Check err = %v, want ErrHostLockWait", err)
+	}
+	for _, want := range []string{"50ms", "default; per acquisition", "repository /holder/repo", "no gate measured"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q does not contain %q", err, want)
+		}
+	}
+	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("a gate ran after default wait expired: %v", statErr)
+	}
+}
+
+func TestLockWaitPrecedence(t *testing.T) {
+	fx := measurementLockFixture(t, "@true", "1m")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  lockWait: 20m\n")
+
+	for _, tt := range []struct {
+		name       string
+		opts       CheckOptions
+		wantWait   time.Duration
+		wantSource string
+	}{
+		{"repository config", CheckOptions{}, 20 * time.Minute, "repository config"},
+		{"flag wins", CheckOptions{LockWait: 10 * time.Minute, LockWaitSet: true}, 10 * time.Minute, "flag"},
+		{"explicit unbounded flag wins", CheckOptions{LockWaitSet: true}, 0, "flag"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, source, err := effectiveLockWait(tt.opts, fx.Worktree)
+			if err != nil {
+				t.Fatalf("effectiveLockWait: %v", err)
+			}
+			if got != tt.wantWait || source != tt.wantSource {
+				t.Fatalf("effectiveLockWait = (%s, %q), want (%s, %q)", got, source, tt.wantWait, tt.wantSource)
+			}
+		})
+	}
+
+	if _, _, err := effectiveLockWait(CheckOptions{LockWait: -time.Second, LockWaitSet: true}, fx.Worktree); err == nil {
+		t.Fatal("negative explicit lock wait succeeded")
 	}
 }

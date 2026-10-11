@@ -42,9 +42,12 @@ type CheckOptions struct {
 	// source is read after the fetch and must be exactly this commit, so the
 	// SHA compared is the SHA every readiness row measures.
 	ExpectSource string
-	// LockWait bounds the wait for the host measurement lock; zero waits
-	// without bound. On expiry the check fails and measures nothing.
-	LockWait time.Duration
+	// LockWait bounds one acquisition of the host measurement lock. When
+	// LockWaitSet is false, a repo-root branch.lockWait or the 60m default
+	// applies. Set LockWaitSet with LockWait zero to wait without bound.
+	// On expiry the check fails and measures nothing.
+	LockWait    time.Duration
+	LockWaitSet bool
 	// LockNotice receives the periodic holder notice while waiting; nil
 	// means os.Stderr.
 	LockNotice io.Writer

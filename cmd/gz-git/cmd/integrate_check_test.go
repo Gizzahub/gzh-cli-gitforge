@@ -15,7 +15,7 @@ import (
 
 func TestIntegrateCheckHelp(t *testing.T) {
 	cmd := findCommand(t, rootCmd, "integrate", "check")
-	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config"} {
+	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config", "lock-wait"} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("integrate check missing --%s", name)
 		}
@@ -75,6 +75,8 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	origSkip := integrateCheckAllowSkipped
 	origController := integrateCheckControllerConfig
 	origNoFetch := integrateCheckNoFetch
+	origLockWait := integrateCheckLockWait
+	origLockWaitChanged := integrateCheckCmd.Flags().Changed("lock-wait")
 	origQuiet := quiet
 	integrateCheckTarget = ""
 	integrateCheckDirectToDefault = false
@@ -82,6 +84,9 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	integrateCheckAllowSkipped = false
 	integrateCheckControllerConfig = ""
 	integrateCheckNoFetch = false
+	integrateCheckLockWait = 0
+	_ = integrateCheckCmd.Flags().Set("lock-wait", "0")
+	integrateCheckCmd.Flags().Lookup("lock-wait").Changed = false
 	quiet = false
 	return func() {
 		integrateCheckTarget = origTarget
@@ -90,6 +95,9 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 		integrateCheckAllowSkipped = origSkip
 		integrateCheckControllerConfig = origController
 		integrateCheckNoFetch = origNoFetch
+		integrateCheckLockWait = origLockWait
+		_ = integrateCheckCmd.Flags().Set("lock-wait", origLockWait.String())
+		integrateCheckCmd.Flags().Lookup("lock-wait").Changed = origLockWaitChanged
 		quiet = origQuiet
 	}
 }

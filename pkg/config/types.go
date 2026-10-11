@@ -258,6 +258,12 @@ type BranchConfig struct {
 	// cannot parse or a non-positive one when loading the declaration.
 	MakeTimeout string `yaml:"makeTimeout,omitempty" json:"makeTimeout,omitempty"`
 
+	// LockWait bounds one acquisition of the host integration measurement
+	// lock. It is a repository-root declaration only, like MakeTimeout. It
+	// accepts a non-negative Go duration or "unbounded"; an empty value uses
+	// the built-in default.
+	LockWait string `yaml:"lockWait,omitempty" json:"lockWait,omitempty"`
+
 	// Naming templates the branch names that `gz-git branch name` builds, so a
 	// task branch is spelled the same way on every machine and by every agent.
 	Naming *branch.Naming `yaml:"naming,omitempty"`

@@ -170,25 +170,24 @@ func Execute(version string) {
 	}
 }
 
-// executeCommand prevents scan-depth state from leaking when the package's
-// Cobra tree is reused. Cobra retains parsed values and Changed bits after every
-// exit path, including parse, help, and Args errors, so cleanup belongs around
-// Execute rather than inside an individual RunE. The help bit is reset too so a
-// help-path regression test can reach the following invocation.
+// executeCommand prevents parsed flag state from leaking when the package's
+// Cobra tree is reused. Cobra retains values and Changed bits after every exit
+// path, including parse, help, and Args errors, so cleanup belongs around
+// Execute rather than inside an individual RunE.
 func executeCommand(command *cobra.Command) error {
-	defer resetScanDepthFlags(command)
+	defer resetReusableFlags(command)
 	return command.Execute()
 }
 
-func resetScanDepthFlags(command *cobra.Command) {
-	for _, name := range []string{"scan-depth", "help"} {
+func resetReusableFlags(command *cobra.Command) {
+	for _, name := range []string{"scan-depth", "help", "lock-wait"} {
 		if flag := command.LocalNonPersistentFlags().Lookup(name); flag != nil {
 			_ = flag.Value.Set(flag.DefValue)
 			flag.Changed = false
 		}
 	}
 	for _, child := range command.Commands() {
-		resetScanDepthFlags(child)
+		resetReusableFlags(child)
 	}
 }
 
