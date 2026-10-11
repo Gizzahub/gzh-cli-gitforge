@@ -187,6 +187,26 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 			},
 			want: "has initialized submodules",
 		},
+		"repository at an uninitialized submodule path": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				src := testutil.TempGitRepoWithCommit(t)
+				sha := runGitInTest(t, src, "rev-parse", "HEAD")
+				writeFile(t, clone, ".gitmodules", "[submodule \"sub\"]\n\tpath = sub\n\turl = "+src+"\n")
+				runGit(t, clone, "update-index", "--add", "--cacheinfo", "160000,"+sha+",sub")
+				runGit(t, clone, "add", ".gitmodules")
+				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "-m", "declare submodule")
+				runGit(t, clone, "update-ref", "refs/remotes/origin/pushed", "HEAD")
+				// Hand-clone into the declared, uninitialized path and keep a local
+				// commit on a branch, detached at the recorded commit.
+				runGit(t, clone, "clone", src, "sub")
+				sub := filepath.Join(clone, "sub")
+				runGit(t, sub, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "sub local only")
+				runGit(t, sub, "checkout", "--detach", "HEAD~1")
+			},
+			want: "uninitialized submodule path",
+		},
 		"linked worktree": {
 			workspaces: declaredWsA,
 			mutate: func(t *testing.T, clone string) {
@@ -281,6 +301,25 @@ func TestRun_ReclaimDeletesIgnoredNonRepoFilesWithTheClone(t *testing.T) {
 	}
 	if _, err := os.Stat(clone); err == nil {
 		t.Fatal("clone with an ignored .env should be removed")
+	}
+}
+
+func TestRun_ReclaimAcceptsUninitializedSubmodulePathWithoutRepository(t *testing.T) {
+	fx, clone := cloneReclaimFixture(t, declaredWsA)
+	src := testutil.TempGitRepoWithCommit(t)
+	sha := runGitInTest(t, src, "rev-parse", "HEAD")
+	writeFile(t, clone, ".gitmodules", "[submodule \"sub\"]\n\tpath = sub\n\turl = "+src+"\n")
+	runGit(t, clone, "update-index", "--add", "--cacheinfo", "160000,"+sha+",sub")
+	runGit(t, clone, "add", ".gitmodules")
+	runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "-m", "declare submodule")
+	runGit(t, clone, "update-ref", "refs/remotes/origin/pushed", "HEAD")
+	// An uninitialized submodule leaves an empty directory at its path.
+	if err := os.Mkdir(filepath.Join(clone, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	report := runCloneReclaim(t, fx)
+	if report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim incomplete: %+v", report.Reclaim)
 	}
 }
 

@@ -150,13 +150,24 @@ func entangledRepos(ctx context.Context, g gitRepo, dir string) []string {
 	} else if err != nil && !os.IsNotExist(err) {
 		failed = append(failed, "submodule directory unreadable")
 	}
-	// A line starting with "-" is a declared but uninitialized submodule: it
-	// has no checkout and no .git/modules data, so there is nothing to lose
-	// and it is not counted. Initialized ones with data are also caught above.
+	// A line starting with "-" is a declared but uninitialized submodule: no
+	// .git/config entry and no .git/modules data. It is harmless only while its
+	// path holds no repository of its own; a hand-made clone there keeps
+	// branches that the clone's own refs and status never see.
 	if status, err := g.output(ctx, "submodule", "status", "--recursive"); err != nil {
 		failed = append(failed, "submodule status unreadable")
-	} else if hasInitializedSubmodule(status) && !containsString(failed, "has initialized submodules") {
-		failed = append(failed, "has initialized submodules")
+	} else {
+		initialized, uninitialized := parseSubmoduleStatus(status)
+		if initialized && !containsString(failed, "has initialized submodules") {
+			failed = append(failed, "has initialized submodules")
+		}
+		for _, sub := range uninitialized {
+			if _, err := os.Lstat(filepath.Join(dir, filepath.FromSlash(sub), ".git")); err == nil {
+				failed = append(failed, "has a repository at uninitialized submodule path "+sub)
+			} else if !os.IsNotExist(err) {
+				failed = append(failed, "submodule path "+sub+" unreadable")
+			}
+		}
 	}
 	if list, err := g.output(ctx, "worktree", "list", "--porcelain"); err != nil {
 		failed = append(failed, "worktree list unreadable")
@@ -166,13 +177,19 @@ func entangledRepos(ctx context.Context, g gitRepo, dir string) []string {
 	return failed
 }
 
-func hasInitializedSubmodule(status string) bool {
+// parseSubmoduleStatus splits `git submodule status` lines into whether any
+// submodule is initialized and the paths of the uninitialized ones ("-sha path").
+func parseSubmoduleStatus(status string) (initialized bool, uninitialized []string) {
 	for _, line := range splitNonEmpty(status) {
 		if !strings.HasPrefix(line, "-") {
-			return true
+			initialized = true
+			continue
+		}
+		if _, path, ok := strings.Cut(line, " "); ok {
+			uninitialized = append(uninitialized, path)
 		}
 	}
-	return false
+	return initialized, uninitialized
 }
 
 func countWorktrees(porcelain string) int {

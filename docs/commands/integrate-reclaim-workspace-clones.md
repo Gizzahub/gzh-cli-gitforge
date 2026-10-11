@@ -22,7 +22,9 @@ and the failed condition, and leaves the worktree and branches in place.
   `git submodule status --recursive` prints nothing) and no linked worktree
   (`git worktree list` shows one entry). A submodule's commits live outside
   the clone's own refs, and deleting the clone would orphan a linked worktree,
-  so both are refused rather than inspected.
+  so both are refused rather than inspected. A declared but uninitialized
+  submodule (a `-` line in `git submodule status`) is ignored only while its
+  path holds no `.git`; a repository placed there by hand is refused.
 - No ignored entry inside the clone contains another git repo, at any depth.
 - Every commit reachable from any ref (branches, tags, detached HEAD) is also
   reachable from a remote-tracking ref (`git rev-list --all --not --remotes`
