@@ -129,8 +129,9 @@ func removeTaskWorktree(ctx context.Context, sg gitRepo, taskWT string, out *Rec
 		return true
 	}
 	if nested := nestedIgnoredRepos(ctx, sg, taskWT); len(nested) > 0 {
-		out.Failed = append(out.Failed, "ignored nested git repo in worktree: "+strings.Join(nested, " "))
-		return false
+		if !reclaimDeclaredClones(ctx, sg, taskWT, nested, out) {
+			return false
+		}
 	}
 	res, err := sg.run(ctx, "worktree", "remove", taskWT)
 	if err != nil || (res != nil && res.ExitCode != 0) {
