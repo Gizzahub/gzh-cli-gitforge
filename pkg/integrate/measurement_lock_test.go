@@ -88,7 +88,7 @@ func measurementLockFixture(t *testing.T, recipe, budget string) *testutil.Workt
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "fetch", fx.Remote)
 	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", fx.Remote+"/develop")
-	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: "+budget+"\n")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: "+budget+"\n  resourceHighLoad: true\n")
 	writeRepoFile(t, fx.Worktree, "task.txt", "task\n")
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "task.txt")
 	runGit(t, fx.Worktree, "commit", "-m", "task")
@@ -205,6 +205,9 @@ func TestMeasurementLockBudget(t *testing.T) {
 	if !report.Ready {
 		t.Fatalf("waiting %s for the lock was charged to the 1s make budget\n%s", hold, FormatCheck(report))
 	}
+	if report.ResourceWaitDuration < time.Second {
+		t.Fatalf("resource wait = %s, want a separately reported held-slot delay", report.ResourceWaitDuration)
+	}
 }
 
 // TestMeasurementLockCrashHolderProcess is not a test of its own: it is the
@@ -313,15 +316,14 @@ func TestMeasurementLockFetch(t *testing.T) {
 	runGit(t, fx.Clone, "add", "moved.txt")
 	runGit(t, fx.Clone, "commit", "-m", "target moves during the wait")
 	runGit(t, fx.Clone, "push", fx.Remote, "develop")
-	tip := gitOutput(t, fx.Clone, "rev-parse", "HEAD")
 	lock.release()
 
 	r := <-done
 	if r.err != nil {
 		t.Fatalf("Check: %v", r.err)
 	}
-	if r.report.Plan.TargetSHA != tip {
-		t.Fatalf("measured target %s, want the tip after the wait %s", r.report.Plan.TargetSHA, tip)
+	if r.report.Ready || !hasCheckDetail(r.report, "post-gate freshness", checkFail, "target branch changed") {
+		t.Fatalf("target movement during a resource wait must require revalidation:\n%s", FormatCheck(r.report))
 	}
 }
 
@@ -341,18 +343,11 @@ func TestMeasurementLockWait(t *testing.T) {
 
 	checkReport, checkErr := Check(context.Background(), gitcmd.NewExecutor(), opts)
 	runReport, runErr := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
-	for name, err := range map[string]error{"check": checkErr, "run": runErr} {
-		if !errors.Is(err, ErrHostLockWait) {
-			t.Fatalf("%s err = %v, want ErrHostLockWait", name, err)
-		}
-		for _, want := range []string{"pid " + strconv.Itoa(os.Getpid()), "repository /holder/repo", "branch dev/holder/branch", "300ms"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Fatalf("%s err %q does not name %q", name, err, want)
-			}
-		}
+	if checkErr != nil || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
+		t.Fatalf("check = %#v, %v; want a not-ready resource-slot report", checkReport, checkErr)
 	}
-	if checkReport != nil || runReport != nil {
-		t.Fatalf("expired wait returned a report: check=%v run=%v", checkReport, runReport)
+	if runErr == nil || runReport == nil || runReport.Check == nil || runReport.Check.Ready {
+		t.Fatalf("run = %#v, %v; want not-ready after resource wait", runReport, runErr)
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a make target ran without the lock (stat %s: %v)", ran, err)

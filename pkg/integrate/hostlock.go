@@ -205,43 +205,35 @@ func describeHostLockHolder(sidecar string) string {
 	return "held by " + strings.Join(parts, ", ")
 }
 
-// measurementLockSlot carries the lock from the Check that acquired it to
-// the Run that must keep holding it through the push.
-type measurementLockSlot struct{ lock *hostLock }
+// resourceScope marks gate subprocesses that explicitly opted into host
+// capacity. It is request-scoped; no process environment is mutated.
+type resourceScope struct {
+	g    gitRepo
+	opts CheckOptions
+}
+type resourceScopeKey struct{}
 
-type measurementLockSlotKey struct{}
-
-// withMeasurementLockSlot marks ctx so that Check hands its lock to the
-// caller instead of releasing it on return. The caller releases the slot.
-func withMeasurementLockSlot(ctx context.Context) (context.Context, *measurementLockSlot) {
-	slot := &measurementLockSlot{}
-	return context.WithValue(ctx, measurementLockSlotKey{}, slot), slot
+func withResourceScope(ctx context.Context, g gitRepo, opts CheckOptions) context.Context {
+	return context.WithValue(ctx, resourceScopeKey{}, resourceScope{g: g, opts: opts})
 }
 
-func (s *measurementLockSlot) release() {
-	if s != nil {
-		s.lock.release()
-		s.lock = nil
-	}
-}
-
-// holdMeasurementLock takes the host measurement lock for Check, right before
-// the target is fetched and resolved, so waiting precedes both the fetch and
-// every make budget. Under Run it parks the lock in Run's slot and returns a
-// no-op release.
-func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (func(), error) {
-	var slot *measurementLockSlot
-	if s, ok := ctx.Value(measurementLockSlotKey{}).(*measurementLockSlot); ok {
-		slot = s
-	}
-	if slot != nil && slot.lock != nil {
+func holdScopedMeasurementLock(ctx context.Context) (func(), error) {
+	scope, ok := ctx.Value(resourceScopeKey{}).(resourceScope)
+	if !ok {
 		return func() {}, nil
 	}
-	command := hostLockCommandCheck
-	if slot != nil {
-		command = hostLockCommandRun
+	started := time.Now()
+	release, err := holdMeasurementLock(ctx, scope.g, scope.opts)
+	if scope.opts.resourceWait != nil {
+		*scope.opts.resourceWait += time.Since(started)
 	}
-	holder := hostLockHolder{Worktree: g.dir, Repository: g.dir, Branch: opts.Branch, Command: command}
+	return release, err
+}
+
+// holdMeasurementLock acquires one host measurement slot for a declared
+// high-load gate. Callers release it before Git cleanup, push, or reclaim.
+func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (func(), error) {
+	holder := hostLockHolder{Worktree: g.dir, Repository: g.dir, Branch: opts.Branch, Command: hostLockCommandCheck}
 	if common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir"); err == nil && common != "" {
 		if filepath.Base(common) == ".git" {
 			common = filepath.Dir(common)
@@ -256,10 +248,6 @@ func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (fun
 	lock, err := acquireHostLock(ctx, holder, opts.LockWait, opts.LockNotice)
 	if err != nil {
 		return nil, err
-	}
-	if slot != nil {
-		slot.lock = lock
-		return func() {}, nil
 	}
 	return lock.release, nil
 }

@@ -34,8 +34,9 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
 	}
-	// The measurement lock Check takes stays held through the push.
-	ctx, lock := withMeasurementLockSlot(ctx)
+	// Target ownership survives readiness through the exact lease push and
+	// reclaim. Resource slots are acquired only around declared high-load gates.
+	ctx, lock := withTargetLockSlot(ctx)
 	defer lock.release()
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
@@ -102,28 +103,29 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if err := pushFastForward(ctx, g, pushRemote, sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
 		return report, err
 	}
-	if err := ffTargetWorktrees(ctx, exec, g, targetName, sourceSHA); err != nil {
-		return report, err
-	}
-
 	report.Integrated = true
 	report.SHA = sourceSHA
 	report.Printed = append(report.Printed, fmt.Sprintf("INTEGRATED %s (%s) -> %s/%s", check.Plan.Branch, sourceSHA, check.Plan.Remote, targetName))
+	if err := ffTargetWorktrees(ctx, exec, g, targetName, sourceSHA); err != nil {
+		report.Reclaim.Failed = append(report.Reclaim.Failed, "fast-forward local target worktree: "+err.Error())
+		report.Printed = append(report.Printed, "RECLAIM incomplete: "+strings.Join(report.Reclaim.Failed, "; "))
+		return report, err
+	}
 	return finishRunReclaim(ctx, exec, g, root, targetName, report, opts.NoFetch)
 }
 
 func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, noFetch bool) (sourceSHA, targetSHA, targetName string, err error) {
+	if check.Plan.Remote != "" && !noFetch {
+		if err := g.fetchPrune(ctx, check.Plan.Remote); err != nil {
+			return "", "", "", err
+		}
+	}
 	sourceSHA, ok, err := g.revParse(ctx, check.Plan.Branch)
 	if err != nil {
 		return "", "", "", err
 	}
 	if !ok || sourceSHA != check.Plan.BranchSHA {
 		return "", "", "", fmt.Errorf("source branch changed during readiness; re-run check")
-	}
-	if check.Plan.Remote != "" && !noFetch {
-		if err := g.fetchPrune(ctx, check.Plan.Remote); err != nil {
-			return "", "", "", err
-		}
 	}
 	targetName = targetBranchName(check.Plan.Target, check.Plan.Remote)
 	targetRef := check.Plan.Target

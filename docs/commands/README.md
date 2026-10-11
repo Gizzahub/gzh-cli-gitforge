@@ -38,6 +38,9 @@ remote-tracking integration ref as the source.
 explains when `integrate run` may delete clones that `make prepare` left in
 the task worktree.
 
+[Integration resource scope](integrate-resources.md) documents target ownership
+and the explicit high-load resource declaration.
+
 ## Global Flags
 
 | Flag        | Short | Description               |

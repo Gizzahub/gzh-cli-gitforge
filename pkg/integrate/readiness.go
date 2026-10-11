@@ -109,6 +109,10 @@ func sameReadinessContract(a, b readinessContract) bool {
 }
 
 func checkReadinessContract(ctx context.Context, g gitRepo, plan TargetPlan, report *CheckReport) CheckItem {
+	return checkReadinessContractWithResource(ctx, g, plan, report, false, CheckOptions{})
+}
+
+func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, report *CheckReport, resourceHighLoad bool, opts CheckOptions) CheckItem {
 	target, targetPresent, err := loadReadinessContract(ctx, g, plan.TargetSHA)
 	if err != nil {
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: err.Error()}
@@ -135,7 +139,7 @@ func checkReadinessContract(ctx context.Context, g gitRepo, plan TargetPlan, rep
 	}
 	report.GateMode, report.ManifestPath, report.ContractDigest, report.ManifestOID = "contract-v1", target.ManifestPath, target.Digest, target.ManifestOID
 	report.RunnerPath, report.RunnerOID, report.ReadinessTreeOID = target.Decl.Runner, target.RunnerOID, target.TreeOID
-	result, duration, err := runContract(ctx, g, plan, target)
+	result, duration, err := runContractWithResource(ctx, g, plan, target, resourceHighLoad, opts)
 	report.ReadinessStatus, report.ReadinessDuration = result.Status, duration
 	if err != nil {
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail("measurement unavailable: "+err.Error(), result.stderr)}
@@ -160,11 +164,15 @@ func readinessFailureDetail(detail string, stderr []byte) string {
 	return detail + "; diagnostic: " + path
 }
 
-func runContract(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract) (result readinessResult, duration time.Duration, err error) {
-	return runContractWithTimeout(ctx, g, plan, contract, readinessTimeout)
+func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration) (result readinessResult, duration time.Duration, err error) {
+	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, false, CheckOptions{})
 }
 
-func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration) (result readinessResult, duration time.Duration, err error) {
+func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, resourceHighLoad bool, opts CheckOptions) (readinessResult, time.Duration, error) {
+	return runContractWithTimeoutResource(ctx, g, plan, contract, readinessTimeout, resourceHighLoad, opts)
+}
+
+func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {
 	root, err := os.MkdirTemp("", "gz-git-readiness-")
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("create isolated worktrees: %w", err)
@@ -189,6 +197,19 @@ func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, con
 	}
 	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
 	runner := filepath.Join(targetDir, filepath.FromSlash(contract.Decl.Runner))
+	if resourceHighLoad {
+		waitStarted := time.Now()
+		releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)
+		if opts.resourceWait != nil {
+			*opts.resourceWait += time.Since(waitStarted)
+		}
+		if acquireErr != nil {
+			return readinessResult{Status: "unavailable"}, 0, acquireErr
+		}
+		// Registered after the worktree cleanup defers, so it runs first: Git
+		// cleanup remains outside the machine resource slot.
+		defer releaseSlot()
+	}
 	started := time.Now()
 	result, err = executeReadinessWithTimeout(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout)
 	return result, time.Since(started), err

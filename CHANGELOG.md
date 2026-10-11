@@ -40,6 +40,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Integration now locks each local repository and destination branch separately. Only gates
+  explicitly classified by committed `branch.resourceHighLoad: true` acquire the host resource
+  slot, releasing it after each gate so unrelated light integrations can finish during heavy
+  validation. A successful push remains recorded when local fast-forward or reclaim fails.
+
 - `gz-git integrate check` measures a prepared target baseline only for a make target the source
   failed. A passing source never needed the baseline for its verdict, yet a prepare profile
   prepared and ran both trees every time, which doubled the slowest step of every green check.

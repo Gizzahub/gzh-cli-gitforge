@@ -258,6 +258,13 @@ type BranchConfig struct {
 	// cannot parse or a non-positive one when loading the declaration.
 	MakeTimeout string `yaml:"makeTimeout,omitempty" json:"makeTimeout,omitempty"`
 
+	// ResourceHighLoad opts this repository's integration verification into the
+	// host-wide high-load resource slot. It is deliberately false by default:
+	// an unclassified gate still runs, but it must not consume machine capacity.
+	// Like the other integration declarations it is read only from the
+	// repository-root project config.
+	ResourceHighLoad bool `yaml:"resourceHighLoad,omitempty" json:"resourceHighLoad,omitempty"`
+
 	// Naming templates the branch names that `gz-git branch name` builds, so a
 	// task branch is spelled the same way on every machine and by every agent.
 	Naming *branch.Naming `yaml:"naming,omitempty"`

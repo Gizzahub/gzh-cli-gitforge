@@ -144,3 +144,65 @@ func TestRepoRootMakeTimeout(t *testing.T) {
 		}
 	})
 }
+
+func TestRepoRootResourceHighLoad(t *testing.T) {
+	writeDecl := func(t *testing.T, name, body string) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	t.Run("absent is light", func(t *testing.T) {
+		decl, err := LoadRepoRootTaskPattern(writeDecl(t, ".gz-git.yaml", "branch:\n  integrationBranch: master\n"))
+		if err != nil || decl.ResourceHighLoad {
+			t.Fatalf("load = %+v, %v; want explicit false", decl, err)
+		}
+	})
+	t.Run("yaml true opts in", func(t *testing.T) {
+		decl, err := LoadRepoRootTaskPattern(writeDecl(t, ".gz-git.yaml", "branch:\n  resourceHighLoad: true\n"))
+		if err != nil || !decl.ResourceHighLoad {
+			t.Fatalf("load = %+v, %v; want explicit true", decl, err)
+		}
+	})
+	for _, spelling := range []string{"True", "TRUE", "False", "FALSE"} {
+		t.Run("yaml "+spelling, func(t *testing.T) {
+			body := "branch:\n  resourceHighLoad: " + spelling + "\n"
+			decl, err := LoadRepoRootTaskPattern(writeDecl(t, ".gz-git.yaml", body))
+			want := strings.EqualFold(spelling, "true")
+			if err != nil || decl.ResourceHighLoad != want {
+				t.Fatalf("load = %+v, %v; want high load %v", decl, err, want)
+			}
+		})
+	}
+	t.Run("json only accepts boolean", func(t *testing.T) {
+		root := writeDecl(t, ".gz-git.json", `{"branch":{"resourceHighLoad":true}}`)
+		decl, err := LoadRepoRootTaskPattern(root)
+		if err != nil || !decl.ResourceHighLoad {
+			t.Fatalf("load = %+v, %v; want explicit true", decl, err)
+		}
+		root = writeDecl(t, ".gz-git.json", `{"branch":{"resourceHighLoad":"true"}}`)
+		if _, err := LoadRepoRootTaskPattern(root); err == nil || !strings.Contains(err.Error(), "resourceHighLoad") {
+			t.Fatalf("string resourceHighLoad error = %v", err)
+		}
+	})
+	for name, body := range map[string]string{
+		"json null":      `{"branch":{"resourceHighLoad":null}}`,
+		"json duplicate": `{"branch":{"resourceHighLoad":false,"resourceHighLoad":true}}`,
+		"yaml null":      "branch:\n  resourceHighLoad: null\n",
+		"yaml duplicate": "branch:\n  resourceHighLoad: false\n  resourceHighLoad: true\n",
+		"yaml alias":     "saved: &branch\n  resourceHighLoad: true\nbranch: *branch\n",
+		"yaml merge":     "saved: &branch\n  resourceHighLoad: true\nbranch:\n  <<: *branch\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			filename := ".gz-git.yaml"
+			if strings.HasPrefix(name, "json") {
+				filename = ".gz-git.json"
+			}
+			if _, err := LoadRepoRootTaskPattern(writeDecl(t, filename, body)); err == nil || !strings.Contains(err.Error(), "resourceHighLoad") && !strings.Contains(err.Error(), "duplicate") {
+				t.Fatalf("malformed resource declaration error = %v", err)
+			}
+		})
+	}
+}

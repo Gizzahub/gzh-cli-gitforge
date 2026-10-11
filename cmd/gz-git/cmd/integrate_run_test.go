@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -84,6 +85,45 @@ func TestIntegrateRunNotRepoExitsTwo(t *testing.T) {
 	err := runIntegrateRun(integrateRunCmd, nil)
 	if got := cliutil.ExitCodeForError(err); got != 2 {
 		t.Fatalf("not-a-repo exit = %d, want 2; err=%v", got, err)
+	}
+}
+
+func TestIntegrateRunPushSucceededLocalTargetFailedExitsThree(t *testing.T) {
+	restore := setIntegrateRunGlobals(t)
+	defer restore()
+
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	runGit(t, fx.Clone, "checkout", "-b", "develop")
+	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
+	before := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", "HEAD")
+	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
+	writeFile(t, fx.Worktree, "task.txt", "committed task\n")
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\n")
+	writeFile(t, fx.Worktree, "Makefile", "check:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "task")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	approved := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	// A user's untracked file makes the local target fast-forward refuse
+	// after the remote push. Preserve both that file and the pushed result.
+	writeFile(t, fx.Clone, "task.txt", "user work\n")
+	t.Chdir(fx.Worktree)
+	quiet = true
+	err := runIntegrateRun(integrateRunCmd, []string{"dev/actor/feat/task"})
+	if got := cliutil.ExitCodeForError(err); got != cliutil.ExitReclaimIncomplete {
+		t.Fatalf("successful push with local target failure exit = %d, want 3 (%v)", got, err)
+	}
+	if got := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != approved {
+		t.Fatalf("remote target = %s, want pushed commit %s", got, approved)
+	}
+	if got := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", "HEAD"); got != before {
+		t.Fatalf("local target moved despite refusal: %s, want %s", got, before)
+	}
+	if data, readErr := os.ReadFile(filepath.Join(fx.Clone, "task.txt")); readErr != nil || string(data) != "user work\n" {
+		t.Fatalf("user work changed: %q (%v)", data, readErr)
+	}
+	if got := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/dev/actor/feat/task"); got != approved {
+		t.Fatalf("task was reclaimed after local target failure: %s", got)
 	}
 }
 

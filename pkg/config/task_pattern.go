@@ -34,8 +34,19 @@ type TaskPatternDecl struct {
 	// means the key is absent and the consumer applies its built-in default;
 	// a present-but-invalid value never gets here because the load fails.
 	MakeTimeout time.Duration
-	Source      string
-	Facts       []string
+	// ResourceHighLoad is true only when the repository-root declaration
+	// explicitly opts its integration verification into the shared host slot.
+	ResourceHighLoad bool
+	Source           string
+	Facts            []string
+}
+
+type rootBranchDecl struct {
+	patterns         []string
+	integration      []string
+	makeTimeout      string
+	resourceHighLoad bool
+	outcomeReport    *MakeOutcomeReport
 }
 
 // LoadRepoRootTaskPattern stats only <repoRoot>/.gz-git.{yaml,yml,json}.
@@ -73,23 +84,24 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, nil
 	}
 
-	patterns, integration, makeTimeout, outcomeReport, err := readRootBranchDecl(fsRoot, filepath.Base(path))
+	rootDecl, err := readRootBranchDecl(fsRoot, filepath.Base(path))
 	if err != nil {
 		return decl, err
 	}
-	if err := rejectLiteralProtected(patterns, path); err != nil {
+	if err := rejectLiteralProtected(rootDecl.patterns, path); err != nil {
 		return decl, err
 	}
 
-	budget, err := parseMakeTimeout(makeTimeout, path)
+	budget, err := parseMakeTimeout(rootDecl.makeTimeout, path)
 	if err != nil {
 		return decl, err
 	}
 
-	decl.Patterns = append([]string(nil), patterns...)
-	decl.IntegrationBranch = append(BranchList(nil), integration...)
+	decl.Patterns = append([]string(nil), rootDecl.patterns...)
+	decl.IntegrationBranch = append(BranchList(nil), rootDecl.integration...)
 	decl.MakeTimeout = budget
-	decl.MakeOutcomeReport = outcomeReport
+	decl.ResourceHighLoad = rootDecl.resourceHighLoad
+	decl.MakeOutcomeReport = rootDecl.outcomeReport
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
 		decl.Facts = append(decl.Facts, factNoDeclaration)
@@ -127,55 +139,209 @@ func statRepoRootConfig(root *safefs.Root, rootPath string) (string, error) {
 	return "", nil
 }
 
-func readRootBranchDecl(root *safefs.Root, path string) (patterns, integration []string, makeTimeout string, outcomeReport *MakeOutcomeReport, err error) {
+func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) {
+	var decl rootBranchDecl
 	data, err := root.ReadFile(path)
 	if err != nil {
-		return nil, nil, "", nil, fmt.Errorf("read %s: %w", path, err)
+		return decl, fmt.Errorf("read %s: %w", path, err)
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	decl.resourceHighLoad, err = ParseResourceHighLoadDocument(data, ext == ".json")
+	if err != nil {
+		return decl, fmt.Errorf("parse %s: %w", path, err)
+	}
 	parsedOutcome, err := ParseMakeOutcomeReportDocument(data, ext == ".json")
 	if err != nil {
-		return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
+		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if ext == ".json" {
 		var raw map[string]json.RawMessage
 		if err := json.Unmarshal(data, &raw); err != nil {
-			return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
+			return decl, fmt.Errorf("parse %s: %w", path, err)
 		}
 		if b, ok := raw["branch"]; ok {
-			patterns, integration, makeTimeout, err = decodeJSONBranchFields(b)
+			decl.patterns, decl.integration, decl.makeTimeout, _, err = decodeJSONBranchFields(b)
 			if err != nil {
-				return nil, nil, "", nil, err
+				return decl, err
 			}
 		}
-		return patterns, integration, makeTimeout, parsedOutcome, nil
+		decl.outcomeReport = parsedOutcome
+		return decl, nil
 	}
 
 	var file struct {
 		Branch *BranchConfig `yaml:"branch"`
 	}
 	if err := yaml.Unmarshal(data, &file); err != nil {
-		return nil, nil, "", nil, fmt.Errorf("parse %s: %w", path, err)
+		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if file.Branch != nil {
-		patterns = append([]string(nil), file.Branch.TaskPattern...)
-		integration = append([]string(nil), file.Branch.IntegrationBranch...)
-		makeTimeout = file.Branch.MakeTimeout
+		decl.patterns = append([]string(nil), file.Branch.TaskPattern...)
+		decl.integration = append([]string(nil), file.Branch.IntegrationBranch...)
+		decl.makeTimeout = file.Branch.MakeTimeout
 	}
-	return patterns, integration, makeTimeout, parsedOutcome, nil
+	decl.outcomeReport = parsedOutcome
+	return decl, nil
 }
 
-func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string, makeTimeout string, err error) {
-	var m map[string]any
+func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string, makeTimeout string, resourceHighLoad bool, err error) {
+	var m map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", false, err
 	}
-	timeout, err := decodeJSONMakeTimeout(m["makeTimeout"])
+	var timeoutValue, patternsValue, integrationValue any
+	if field, ok := m["makeTimeout"]; ok {
+		if err := json.Unmarshal(field, &timeoutValue); err != nil {
+			return nil, nil, "", false, err
+		}
+	}
+	if field, ok := m["taskPattern"]; ok {
+		if err := json.Unmarshal(field, &patternsValue); err != nil {
+			return nil, nil, "", false, err
+		}
+	}
+	if field, ok := m["integrationBranch"]; ok {
+		if err := json.Unmarshal(field, &integrationValue); err != nil {
+			return nil, nil, "", false, err
+		}
+	}
+	timeout, err := decodeJSONMakeTimeout(timeoutValue)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", false, err
 	}
-	return coerceStringList(m["taskPattern"]), coerceStringList(m["integrationBranch"]), timeout, nil
+	highLoad, err := decodeJSONResourceHighLoad(m["resourceHighLoad"], m["resourceHighLoad"] != nil)
+	if err != nil {
+		return nil, nil, "", false, err
+	}
+	return coerceStringList(patternsValue), coerceStringList(integrationValue), timeout, highLoad, nil
+}
+
+func decodeJSONResourceHighLoad(raw json.RawMessage, present bool) (bool, error) {
+	if !present {
+		return false, nil
+	}
+	if strings.TrimSpace(string(raw)) == "null" {
+		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
+	}
+	var value bool
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
+	}
+	return value, nil
+}
+
+// ParseResourceHighLoadDocument reads the repository-owned resource
+// classification from one committed .gz-git document. An absent declaration
+// is deliberately light. A present declaration must be a boolean so a dirty
+// or malformed config cannot silently opt a gate out of capacity control.
+func ParseResourceHighLoadDocument(data []byte, isJSON bool) (bool, error) {
+	if isJSON {
+		return parseJSONResourceHighLoad(data)
+	}
+	return parseYAMLResourceHighLoad(data)
+}
+
+func parseJSONResourceHighLoad(data []byte) (bool, error) {
+	root, rootCounts, err := parseJSONObjectCounts(data)
+	if err != nil {
+		return false, err
+	}
+	if rootCounts["branch"] > 1 {
+		return false, fmt.Errorf("duplicate JSON key %q", "branch")
+	}
+	branch, ok := root["branch"]
+	if !ok {
+		return false, nil
+	}
+	fields, counts, err := parseJSONObjectCounts(branch)
+	if err != nil {
+		return false, fmt.Errorf("parse branch: %w", err)
+	}
+	if counts["resourceHighLoad"] > 1 {
+		return false, fmt.Errorf("duplicate JSON key %q", "resourceHighLoad")
+	}
+	return decodeJSONResourceHighLoad(fields["resourceHighLoad"], fields["resourceHighLoad"] != nil)
+}
+
+func parseYAMLResourceHighLoad(data []byte) (bool, error) {
+	if err := RejectMultiDocumentYAML(data); err != nil {
+		return false, err
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return false, err
+	}
+	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
+		return false, nil
+	}
+	config := root.Content[0]
+	if mappingKeyCount(config, "branch") > 1 {
+		return false, fmt.Errorf("duplicate YAML key %q", "branch")
+	}
+	if err := rejectRootResourceHighLoadMerge(config); err != nil {
+		return false, err
+	}
+	branch := mappingValue(config, "branch")
+	if branch == nil {
+		return false, nil
+	}
+	if branch.Kind == yaml.AliasNode {
+		return rejectAliasedResourceHighLoad(branch)
+	}
+	if branch.Kind != yaml.MappingNode {
+		return false, nil
+	}
+	if mappingKeyCount(branch, "resourceHighLoad") > 1 {
+		return false, fmt.Errorf("duplicate YAML key %q", "resourceHighLoad")
+	}
+	hidden, err := yamlMergeSuppliesKey(branch, "resourceHighLoad")
+	if err != nil {
+		return false, err
+	}
+	if hidden {
+		return false, fmt.Errorf("branch.resourceHighLoad does not allow a YAML merge that supplies resourceHighLoad")
+	}
+	node := mappingValue(branch, "resourceHighLoad")
+	if node == nil {
+		return false, nil
+	}
+	if node.Kind != yaml.ScalarNode || node.Tag != "!!bool" {
+		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
+	}
+	var value bool
+	if err := node.Decode(&value); err != nil {
+		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean: %w", err)
+	}
+	return value, nil
+}
+
+func rejectRootResourceHighLoadMerge(config *yaml.Node) error {
+	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
+	for i := 0; i+1 < len(config.Content); i += 2 {
+		if !isYAMLMergeKey(config.Content[i]) {
+			continue
+		}
+		hidden, err := state.mergeValueSuppliesNestedKey(config.Content[i+1], "branch", "resourceHighLoad")
+		if err != nil {
+			return err
+		}
+		if hidden {
+			return fmt.Errorf("branch.resourceHighLoad does not allow a root YAML merge that supplies resourceHighLoad")
+		}
+	}
+	return nil
+}
+
+func rejectAliasedResourceHighLoad(branch *yaml.Node) (bool, error) {
+	hidden, err := yamlNodeSuppliesKey(branch, "resourceHighLoad")
+	if err != nil {
+		return false, err
+	}
+	if hidden {
+		return false, fmt.Errorf("branch.resourceHighLoad does not allow an aliased branch declaration")
+	}
+	return false, nil
 }
 
 // decodeJSONMakeTimeout reads the declared branch.makeTimeout from a decoded
@@ -308,7 +474,7 @@ func reportNonRootTaskPatternAt(root *safefs.Root, rootPath, rel string, decl *T
 		if filepath.Dir(entryPath) == rootPath {
 			continue
 		}
-		if patterns, _, _, _, err := readRootBranchDecl(root, entryRel); err == nil && len(patterns) > 0 {
+		if nested, err := readRootBranchDecl(root, entryRel); err == nil && len(nested.patterns) > 0 {
 			decl.Facts = append(decl.Facts, "ignored non-root taskPattern: "+entryPath)
 		}
 	}

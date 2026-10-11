@@ -105,11 +105,22 @@ func runMakeTargetWithOutcomes(ctx context.Context, dir, target string, budget t
 	}
 	// Ask before running. A target reached through a pattern rule is not
 	// declared, and running it only produces the exit status that hides that.
-	if matched, ok := makeTargetMatchedByPatternRule(ctx, dir, target); ok && matched {
+	releaseProbe, err := holdScopedMeasurementLock(ctx)
+	if err != nil {
+		return makeProbe{Target: target, WorkDir: dir, Defined: true, Err: err, Unavailable: "resource slot unavailable: " + err.Error()}
+	}
+	matched, ok := makeTargetMatchedByPatternRule(ctx, dir, target)
+	releaseProbe()
+	if ok && matched {
 		return makeProbe{Target: target, WorkDir: dir, OutcomeDeclared: outcomes}
 	}
 	for attempt := 1; ; attempt++ {
+		releaseSlot, err := holdScopedMeasurementLock(ctx)
+		if err != nil {
+			return makeProbe{Target: target, WorkDir: dir, Defined: true, Err: err, Unavailable: "resource slot unavailable: " + err.Error()}
+		}
 		probe := runMakeTargetOnceWithOutcomes(ctx, dir, target, budget, outcomes)
+		releaseSlot()
 		if err := ctx.Err(); err != nil {
 			probe.Err = err
 			return probe

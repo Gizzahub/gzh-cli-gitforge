@@ -47,7 +47,8 @@ type CheckOptions struct {
 	LockWait time.Duration
 	// LockNotice receives the periodic holder notice while waiting; nil
 	// means os.Stderr.
-	LockNotice io.Writer
+	LockNotice   io.Writer
+	resourceWait *time.Duration
 }
 
 // CheckItem is one readiness row.
@@ -66,17 +67,18 @@ type CheckReport struct {
 	Warnings  int
 	RootFacts []string
 	// Gate provenance is recorded so run can repeat the exact checked state.
-	GateMode          string
-	ManifestPath      string
-	ContractDigest    string
-	ManifestOID       string
-	RunnerPath        string
-	RunnerOID         string
-	ReadinessTreeOID  string
-	ReadinessStatus   string
-	ReadinessDuration time.Duration
-	PrepareProfile    string
-	PrepareInputs     string
+	GateMode             string
+	ManifestPath         string
+	ContractDigest       string
+	ManifestOID          string
+	RunnerPath           string
+	RunnerOID            string
+	ReadinessTreeOID     string
+	ReadinessStatus      string
+	ReadinessDuration    time.Duration
+	ResourceWaitDuration time.Duration
+	PrepareProfile       string
+	PrepareInputs        string
 	// Baselines records, for each legacy make target, whether the target
 	// baseline was measured and why. A source that passed is not compared
 	// with anything, so its record says the baseline was not measured
@@ -150,26 +152,38 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if err != nil {
 		return nil, err
 	}
-	if len(opts.IntegrationConfig) == 0 {
-		decl, err := config.LoadRepoRootTaskPattern(root)
-		if err != nil {
-			return nil, err
-		}
-		opts.IntegrationConfig = decl.IntegrationBranch
-	}
-
-	releaseLock, err := holdMeasurementLock(ctx, g, opts)
+	decl, err := config.LoadRepoRootTaskPattern(root)
 	if err != nil {
 		return nil, err
 	}
-	defer releaseLock()
+	if len(opts.IntegrationConfig) == 0 {
+		opts.IntegrationConfig = decl.IntegrationBranch
+	}
+
+	preflight, err := preflightTargetRef(ctx, g, exec, opts, controller)
+	if err != nil {
+		return nil, err
+	}
+	releaseTarget, err := holdTargetLock(ctx, g, preflight.targetRef, opts.LockNotice)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseTarget()
 
 	plan, err := resolveTarget(ctx, g, exec, opts)
 	if err != nil {
 		return nil, err
 	}
+	if actual := "refs/heads/" + targetBranchName(plan.Target, plan.Remote); actual != preflight.targetRef || plan.Branch != preflight.branch || plan.Remote != preflight.remote {
+		return nil, fmt.Errorf("integration source or target changed while acquiring ownership; re-run check")
+	}
+	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
+	if err != nil {
+		return nil, err
+	}
 
 	report := &CheckReport{Plan: plan, Controller: controller}
+	opts.resourceWait = &report.ResourceWaitDuration
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -189,19 +203,27 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	add(checkWorkingTree(ctx, g, plan))
 	add(checkPushed(ctx, g, plan))
 
-	contractItem := checkReadinessContract(ctx, g, plan, report)
+	contractItem := checkReadinessContractWithResource(ctx, g, plan, report, resourceHighLoad, opts)
 	add(contractItem)
 	switch report.GateMode {
 	case "contract-v1":
 		// The contract runner deliberately replaces every head-owned Makefile.
 	case "legacy-make":
-		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, report, add)
+		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, resourceHighLoad, opts, report, add)
+	}
+	// A high-load gate may run long enough for either ref to move. The target
+	// lock protects local ownership, not a remote writer, so fetch and compare
+	// again before reporting READY. Run repeats this check before its lease push.
+	if _, _, _, err := revalidateCheckedRefs(ctx, g, report, opts.NoFetch); err != nil {
+		add(CheckItem{Name: "post-gate freshness", Status: checkFail, Detail: err.Error()})
+	} else {
+		add(CheckItem{Name: "post-gate freshness", Status: checkPass, Detail: "source and target unchanged"})
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
 }
 
-func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped bool, report *CheckReport, add func(CheckItem)) {
+func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped, resourceHighLoad bool, opts CheckOptions, report *CheckReport, add func(CheckItem)) {
 	if plan.HeadSHA != plan.BranchSHA && !plan.releasesRemoteRef() {
 		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
 		return
@@ -221,6 +243,9 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 	if err != nil {
 		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
 		return
+	}
+	if resourceHighLoad {
+		ctx = withResourceScope(ctx, g, opts)
 	}
 	prepared, err := prepareLegacySource(ctx, g, plan, profile)
 	if err != nil {

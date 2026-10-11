@@ -96,6 +96,9 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 		fmt.Fprint(cmd.OutOrStdout(), integrate.FormatRun(report))
 	}
 	if err != nil {
+		if report != nil && report.Integrated {
+			return cliutil.NewExitError(cliutil.ExitReclaimIncomplete, err)
+		}
 		msg := err.Error()
 		if errors.Is(err, integrate.ErrSourceMismatch) {
 			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
