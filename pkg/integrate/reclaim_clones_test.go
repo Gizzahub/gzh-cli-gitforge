@@ -172,6 +172,26 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 			},
 			want: "contains a git repo",
 		},
+		"submodule with an unpushed commit": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				sub := testutil.TempGitRepoWithCommit(t)
+				runGit(t, clone, "-c", "protocol.file.allow=always", "submodule", "add", sub, "sub")
+				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "-m", "add submodule")
+				runGit(t, filepath.Join(clone, "sub"), "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "sub local only")
+				runGit(t, clone, "update-ref", "refs/remotes/origin/pushed", "HEAD")
+			},
+			want: "has initialized submodules",
+		},
+		"linked worktree": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				runGit(t, clone, "worktree", "add", "--detach", filepath.Join(t.TempDir(), "linked"))
+			},
+			want: "has linked worktrees",
+		},
 		"gitfile instead of a git directory": {
 			workspaces: declaredWsA,
 			mutate: func(t *testing.T, clone string) {

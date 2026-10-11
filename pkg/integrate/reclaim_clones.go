@@ -28,7 +28,8 @@ import (
 //     history elsewhere, so deleting the directory proves nothing);
 //   - its origin URL is the declared URL;
 //   - its working tree is clean, untracked files included;
-//   - it holds no stash entries;
+//   - it holds no stash entries, no initialized submodule and no linked
+//     worktree (their history lives outside the checks below);
 //   - no ignored entry inside it contains another git repo, at any depth;
 //   - every commit reachable from any ref is also reachable from a
 //     remote-tracking ref (`rev-list --all --not --remotes` is empty), and
@@ -118,6 +119,7 @@ func verifyDeclaredClone(ctx context.Context, sg gitRepo, dir, wantURL string) [
 	}
 	g := newGitRepo(sg.exec, dir)
 	var failed []string
+	failed = append(failed, entangledRepos(ctx, g, dir)...)
 	if got, err := g.output(ctx, "config", "--get", "remote.origin.url"); err != nil {
 		failed = append(failed, "origin url unreadable")
 	} else if normalizeCloneURL(got) != normalizeCloneURL(wantURL) {
@@ -135,6 +137,30 @@ func verifyDeclaredClone(ctx context.Context, sg gitRepo, dir, wantURL string) [
 		failed = append(failed, "stash entries")
 	}
 	return append(failed, unpushedWork(ctx, g)...)
+}
+
+// entangledRepos reports other repositories whose history lives in or points
+// at this clone: initialized submodules (their commits sit in
+// `.git/modules`, outside every check below) and linked worktrees (deleting
+// the clone would orphan them). Both are refused rather than inspected.
+func entangledRepos(ctx context.Context, g gitRepo, dir string) []string {
+	var failed []string
+	if entries, err := os.ReadDir(filepath.Join(dir, ".git", "modules")); err == nil && len(entries) > 0 {
+		failed = append(failed, "has initialized submodules")
+	} else if err != nil && !os.IsNotExist(err) {
+		failed = append(failed, "submodule directory unreadable")
+	}
+	if status, err := g.output(ctx, "submodule", "status", "--recursive"); err != nil {
+		failed = append(failed, "submodule status unreadable")
+	} else if status != "" && !containsString(failed, "has initialized submodules") {
+		failed = append(failed, "has initialized submodules")
+	}
+	if list, err := g.output(ctx, "worktree", "list", "--porcelain"); err != nil {
+		failed = append(failed, "worktree list unreadable")
+	} else if strings.Count(list, "worktree ") > 1 {
+		failed = append(failed, "has linked worktrees")
+	}
+	return failed
 }
 
 // ignoredNestedRepos reports ignored entries of the clone that are, or contain
