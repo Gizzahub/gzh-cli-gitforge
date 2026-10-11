@@ -385,7 +385,11 @@ func isFlowRuntimeArtifactPath(name string) bool {
 	return false
 }
 
-func prepareFlowTaskchainLocalSubprojects(ctx context.Context, dir string, inputs []prepareInput) error {
+func prepareFlowTaskchainLocalSubprojects(ctx context.Context, g gitRepo, dir string, inputs []prepareInput, guard preparedRefGuard) error {
+	before, err := guard.snapshot(ctx, g)
+	if err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(ctx, prepareProfileTimeout)
 	defer cancel()
 	if len(inputs) != len(flowTaskchainSubprojects) {
@@ -402,6 +406,9 @@ func prepareFlowTaskchainLocalSubprojects(ctx context.Context, dir string, input
 		if err := extractGitArchive(ctx, filepath.Join(dir, spec.name), input.data); err != nil {
 			return fmt.Errorf("extract %s@%s: %w", input.Name, input.OID, err)
 		}
+	}
+	if err := before.verify(ctx, g, dir); err != nil {
+		return err
 	}
 	return validateFlowTaskchainPreparedStatus(ctx, dir)
 }

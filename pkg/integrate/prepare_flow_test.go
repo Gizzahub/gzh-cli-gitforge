@@ -38,7 +38,7 @@ func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *test
 	writeFile(t, prepared, "tracked", "base\n")
 	runGitInTest(t, prepared, "add", "tracked")
 	runGitInTest(t, prepared, "commit", "-m", "base")
-	if err := prepareFlowTaskchainLocalSubprojects(context.Background(), prepared, inputs); err != nil {
+	if err := prepareFlowTaskchainLocalSubprojects(context.Background(), newGitRepo(gitcmd.NewExecutor(), prepared), prepared, inputs, preparedRefGuard{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(prepared, "flow-taskchain-engine", "snapshot.txt"))
@@ -455,7 +455,8 @@ func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 		check   func(error) bool
 	}{
 		"target is an alias": {
-			archive: tarArchiveEntries(t,
+			archive: tarArchiveEntries(
+				t,
 				tarEntry{name: "AGENTS.md", body: "instructions\n"},
 				tarEntry{name: "CLAUDE.md", link: "AGENTS.md", kind: tar.TypeSymlink},
 				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
@@ -465,7 +466,8 @@ func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 			},
 		},
 		"target is regular": {
-			archive: tarArchiveEntries(t,
+			archive: tarArchiveEntries(
+				t,
 				tarEntry{name: "AGENTS.md", body: "instructions\n"},
 				tarEntry{name: "CLAUDE.md", body: "other\n"},
 				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
@@ -473,7 +475,8 @@ func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 			check: func(err error) bool { return errors.Is(err, os.ErrExist) },
 		},
 		"regular file after the alias": {
-			archive: tarArchiveEntries(t,
+			archive: tarArchiveEntries(
+				t,
 				tarEntry{name: "CLAUDE.md", body: "other\n"},
 				tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink},
 				tarEntry{name: "AGENTS.md", body: "instructions\n"},

@@ -82,7 +82,7 @@ func TestRunPrepareProfileRejectsFailuresAndForbiddenOutput(t *testing.T) {
 			runGitInTest(t, fx.Worktree, "add", ".")
 			runGitInTest(t, fx.Worktree, "commit", "-m", "fixture")
 			t.Setenv("PATH", fakeGo(t, body)+":"+os.Getenv("PATH"))
-			if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), fx.Worktree, familybookEntPrepareV1); err == nil {
+			if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), fx.Worktree, familybookEntPrepareV1, headGuard(t, fx.Worktree)); err == nil {
 				t.Fatal("preparation unexpectedly passed")
 			}
 		})
@@ -95,7 +95,7 @@ func TestRunPrepareProfileRejectsEntSymlink(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(fx.Worktree, "ent")); err != nil {
 		t.Fatal(err)
 	}
-	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), fx.Worktree, familybookEntPrepareV1); err == nil || !strings.Contains(err.Error(), "symlink") {
+	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), fx.Worktree, familybookEntPrepareV1, headGuard(t, fx.Worktree)); err == nil || !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("err=%v", err)
 	}
 }

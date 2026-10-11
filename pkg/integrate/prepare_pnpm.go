@@ -40,20 +40,16 @@ const pnpmPrepareWaitDelay = 10 * time.Second
 // the selected revision is trusted to execute repository-owned code:
 // dependency lifecycle scripts the project allows run here exactly as they
 // run in its own install.
-func preparePnpmFrozenLockfile(ctx context.Context, g gitRepo, dir string) error {
-	before, err := g.refNames(ctx)
+func preparePnpmFrozenLockfile(ctx context.Context, g gitRepo, dir string, guard preparedRefGuard) error {
+	before, err := guard.snapshot(ctx, g)
 	if err != nil {
 		return err
 	}
 	if err := runPnpmFrozenInstall(ctx, dir, pnpmPrepareTimeout); err != nil {
 		return err
 	}
-	after, err := g.refNames(ctx)
-	if err != nil {
+	if err := before.verify(ctx, g, dir); err != nil {
 		return err
-	}
-	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
-		return fmt.Errorf("preparation changed git refs")
 	}
 	// A workspace links one node_modules per package, so the output is every
 	// ignored node_modules directory, not one prefix.

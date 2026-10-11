@@ -49,7 +49,7 @@ if [ "$1" = fetch ]; then : > target/.fetched; exit 0; fi
 if [ "$1" = check ] && [ "$2" = --workspace ]; then test -e target/.fetched; : > target/artifact; exit 0; fi
 exit 97`)
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, cargoWorkspacePrepareV1); err != nil {
+	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, cargoWorkspacePrepareV1, headGuard(t, wt)); err != nil {
 		t.Fatalf("cargo preparation failed: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(wt, "target", "artifact")); err != nil {
@@ -67,7 +67,7 @@ func TestPrepareCargoWorkspaceRejectsFailuresAndForbiddenOutput(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			wt := cargoFixture(t)
 			t.Setenv("PATH", fakeCargo(t, body)+":"+os.Getenv("PATH"))
-			err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, cargoWorkspacePrepareV1)
+			err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, cargoWorkspacePrepareV1, headGuard(t, wt))
 			if err == nil {
 				t.Fatal("preparation unexpectedly passed")
 			}

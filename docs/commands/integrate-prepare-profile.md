@@ -48,6 +48,8 @@ that local child HEADs are pinned by the root repository. When a required
 child is missing, dirty, or has an unexpected remote, the check fails with a
 preparation error instead of treating the baseline as measurable.
 
+Every profile is held to one ref invariant: preparation must not move the source ref, the target ref, the target's remote-tracking ref, or the prepared worktree's detached HEAD, compared by name and commit; other branches created or deleted meanwhile (by another session or a fetch --prune) are not a preparation change.
+
 `cargo-workspace-v1` runs its two steps in the inherited environment plus
 LC_ALL=C, CARGO_TERM_COLOR=never, and GIT_TERMINAL_PROMPT=0 — the same
 inherited environment the make probe measures under (the probe itself adds

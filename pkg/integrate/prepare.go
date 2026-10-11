@@ -103,7 +103,11 @@ func prepareLegacySource(ctx context.Context, g gitRepo, plan TargetPlan, profil
 		_ = os.RemoveAll(root)
 		return preparedLegacy{}, fmt.Errorf("prepare source worktree: %w", err)
 	}
-	if err := runPrepareProfileWithInputs(ctx, g, source, profile, inputs); err != nil {
+	guard, err := newPreparedRefGuard(ctx, g, plan, plan.BranchSHA)
+	if err == nil {
+		err = runPrepareProfileWithInputs(ctx, g, source, profile, inputs, guard)
+	}
+	if err != nil {
 		cleanupErr := removePreparedWorktree(ctx, g, source, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
@@ -134,7 +138,11 @@ func (p *preparedLegacy) measureBaseline(ctx context.Context, plan TargetPlan, t
 	if err := p.g.worktreeAddDetach(ctx, target, plan.TargetSHA); err != nil {
 		return nil, fmt.Errorf("prepare target worktree: %w", err)
 	}
-	if err := runPrepareProfileWithInputs(ctx, p.g, target, p.profile, p.inputs); err != nil {
+	guard, err := newPreparedRefGuard(ctx, p.g, plan, plan.TargetSHA)
+	if err == nil {
+		err = runPrepareProfileWithInputs(ctx, p.g, target, p.profile, p.inputs, guard)
+	}
+	if err != nil {
 		cleanupErr := removePreparedWorktree(ctx, p.g, target, "")
 		return nil, errors.Join(fmt.Errorf("prepare target: %w", err), cleanupErr)
 	}
@@ -203,23 +211,23 @@ func removePrepareRoot(parent context.Context, g gitRepo, root string) error {
 
 // This is process isolation, not a security sandbox. As with legacy Make,
 // the selected task revision is trusted to execute repository-owned code.
-func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string) error {
+func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string, guard preparedRefGuard) error {
 	inputs, err := snapshotPrepareInputs(parent, g, profile)
 	if err != nil {
 		return err
 	}
-	return runPrepareProfileWithInputs(parent, g, dir, profile, inputs)
+	return runPrepareProfileWithInputs(parent, g, dir, profile, inputs, guard)
 }
 
-func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile string, inputs []prepareInput) error {
+func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile string, inputs []prepareInput, guard preparedRefGuard) error {
 	if profile == flowTaskchainLocalSubprojectsV1 {
-		return prepareFlowTaskchainLocalSubprojects(parent, dir, inputs)
+		return prepareFlowTaskchainLocalSubprojects(parent, g, dir, inputs, guard)
 	}
 	if profile == cargoWorkspacePrepareV1 {
-		return prepareCargoWorkspace(parent, g, dir)
+		return prepareCargoWorkspace(parent, g, dir, guard)
 	}
 	if profile == pnpmFrozenLockfilePrepareV1 {
-		return preparePnpmFrozenLockfile(parent, g, dir)
+		return preparePnpmFrozenLockfile(parent, g, dir, guard)
 	}
 	if profile != familybookEntPrepareV1 {
 		return fmt.Errorf("unsupported preparation profile %q", profile)
@@ -227,7 +235,7 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	if err := rejectEntSymlinkChain(dir); err != nil {
 		return err
 	}
-	before, err := g.refNames(parent)
+	before, err := guard.snapshot(parent, g)
 	if err != nil {
 		return err
 	}
@@ -254,12 +262,8 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	if ctx.Err() != nil {
 		return fmt.Errorf("preparation timed out")
 	}
-	after, err := g.refNames(parent)
-	if err != nil {
+	if err := before.verify(parent, g, dir); err != nil {
 		return err
-	}
-	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
-		return fmt.Errorf("preparation changed git refs")
 	}
 	return validatePreparedStatus(ctx, dir, "ent/generated/")
 }

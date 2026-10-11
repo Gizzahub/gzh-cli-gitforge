@@ -37,7 +37,7 @@ mkdir -p node_modules/.pnpm packages/a/node_modules
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, pnpmFrozenLockfilePrepareV1); err != nil {
+	if err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, pnpmFrozenLockfilePrepareV1, headGuard(t, wt)); err != nil {
 		t.Fatalf("pnpm preparation failed: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(wt, "node_modules", ".pnpm", "lock.yaml")); err != nil {
@@ -58,7 +58,7 @@ func TestPreparePnpmFrozenLockfileRejectsFailuresAndForbiddenOutput(t *testing.T
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-			err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, pnpmFrozenLockfilePrepareV1)
+			err := runPrepareProfile(context.Background(), newGitRepo(gitcmd.NewExecutor(), wt), wt, pnpmFrozenLockfilePrepareV1, headGuard(t, wt))
 			if err == nil {
 				t.Fatal("preparation unexpectedly passed")
 			}

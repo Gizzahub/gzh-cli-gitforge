@@ -41,8 +41,8 @@ const cargoPrepareTimeout = 30 * time.Minute
 // the selected task revision is trusted to execute repository-owned code:
 // build scripts run during cargo check, exactly as they run during the
 // probe itself.
-func prepareCargoWorkspace(ctx context.Context, g gitRepo, dir string) error {
-	before, err := g.refNames(ctx)
+func prepareCargoWorkspace(ctx context.Context, g gitRepo, dir string, guard preparedRefGuard) error {
+	before, err := guard.snapshot(ctx, g)
 	if err != nil {
 		return err
 	}
@@ -65,12 +65,8 @@ func prepareCargoWorkspace(ctx context.Context, g gitRepo, dir string) error {
 	if runCtx.Err() != nil {
 		return fmt.Errorf("preparation timed out")
 	}
-	after, err := g.refNames(ctx)
-	if err != nil {
+	if err := before.verify(ctx, g, dir); err != nil {
 		return err
-	}
-	if strings.Join(before, "\x00") != strings.Join(after, "\x00") {
-		return fmt.Errorf("preparation changed git refs")
 	}
 	return validatePreparedStatus(ctx, dir, "target/")
 }
