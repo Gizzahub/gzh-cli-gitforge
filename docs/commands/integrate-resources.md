@@ -35,6 +35,17 @@ this key does not classify it yet. Capacity remains one per host.
 wait prints its common-directory and destination-ref ownership reason to the
 configured command error writer.
 
-This release uses the existing OS slot lock for capacity. It does **not** yet
-provide FIFO ticket admission, inherited cooperative claims, or crash-recovery
-queue semantics, so it is not the rollout point for fairness guarantees.
+Declared high-load gates receive FIFO admission tickets before trying the existing
+OS slot lock. Sequence allocation and ticket publication are serialized and use
+atomic replacement. A cancelled request removes its own ticket; recovery removes
+a ticket only when its process is positively proven dead. Ambiguous state fails
+closed. FIFO admission and the final OS lock share one acquisition wait budget.
+
+The OS slot lock remains the capacity authority, including alongside older
+callers. FIFO ordering applies to participating callers; older processes finish
+through their original path. Windows builds support process liveness and lock
+release, but directory fsync is unavailable and native Windows crash-durability
+has not been verified.
+
+Inherited cooperative claims and classification of high-load preparation
+profiles remain separate prerequisites for the complete policy rollout.

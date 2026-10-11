@@ -72,6 +72,7 @@ func TestLightGateDoesNotWaitForHighLoadSlot(t *testing.T) {
 }
 
 func TestTargetLockBlocksSameDestinationBeforeFetchOrGate(t *testing.T) {
+	fastHostLockPolling(t)
 	fx := readyTaskFixture(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	lock, err := acquireTargetLock(context.Background(), g, "refs/heads/develop", io.Discard)
@@ -80,7 +81,10 @@ func TestTargetLockBlocksSameDestinationBeforeFetchOrGate(t *testing.T) {
 	}
 	t.Cleanup(lock.release)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	// Preflight reads repository configuration before it reaches the target
+	// lock. Give that local setup room under a race run; the short polling
+	// interval above still makes the locked acquisition observable promptly.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = Check(ctx, gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
 	if err == nil || !strings.Contains(err.Error(), "wait for target lock") {

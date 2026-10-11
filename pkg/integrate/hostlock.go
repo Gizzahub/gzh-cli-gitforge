@@ -78,12 +78,24 @@ func hostSlotsDir() (string, error) {
 // holder on notice at once and then every hostLockNoticeInterval. It never
 // returns without the lock unless it returns an error.
 func acquireHostLock(ctx context.Context, holder hostLockHolder, wait time.Duration, notice io.Writer) (*hostLock, error) {
+	started := time.Now()
 	dir, err := hostSlotsDir()
 	if err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- shared host-slot convention; the lock file holds no data
 		return nil, fmt.Errorf("create host measurement lock directory: %w", err)
+	}
+	releaseTicket, err := acquireAdmission(ctx, dir, wait, notice)
+	if err != nil {
+		return nil, fmt.Errorf("acquire FIFO resource admission: %w", err)
+	}
+	defer releaseTicket()
+	if wait > 0 {
+		wait -= time.Since(started)
+		if wait <= 0 {
+			return nil, fmt.Errorf("%w; admission consumed the acquisition budget", ErrHostLockWait)
+		}
 	}
 	path := filepath.Join(dir, integrateLockName)
 	// Never O_EXCL and never removed: the file is a stable inode to lock, not

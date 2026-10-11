@@ -40,6 +40,10 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Declared high-load integration gates now enter FIFO resource admission before the host OS
+  lock. Cancellation removes only the caller's ticket, positively dead waiters can be recovered,
+  and queue plus OS-lock waiting share one budget. Older callers still use the same capacity lock.
+
 - Integration now locks each local repository and destination branch separately. Only gates
   explicitly classified by committed `branch.resourceHighLoad: true` acquire the host resource
   slot, releasing it after each gate so unrelated light integrations can finish during heavy

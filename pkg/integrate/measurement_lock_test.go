@@ -32,7 +32,7 @@ const hostLockChildEnv = "GZ_GIT_TEST_HOST_LOCK_CHILD"
 // TestMain points the host measurement lock at a private directory, so no
 // test in this package ever takes, or waits on, this host's real lock.
 func TestMain(m *testing.M) {
-	if os.Getenv(hostLockChildEnv) != "" {
+	if os.Getenv(hostLockChildEnv) != "" || os.Getenv(admissionChildEnv) != "" {
 		os.Exit(m.Run())
 	}
 	state, err := os.MkdirTemp("", "gz-git-integrate-state-")
