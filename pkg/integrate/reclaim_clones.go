@@ -150,17 +150,39 @@ func entangledRepos(ctx context.Context, g gitRepo, dir string) []string {
 	} else if err != nil && !os.IsNotExist(err) {
 		failed = append(failed, "submodule directory unreadable")
 	}
+	// A line starting with "-" is a declared but uninitialized submodule: it
+	// has no checkout and no .git/modules data, so there is nothing to lose
+	// and it is not counted. Initialized ones with data are also caught above.
 	if status, err := g.output(ctx, "submodule", "status", "--recursive"); err != nil {
 		failed = append(failed, "submodule status unreadable")
-	} else if status != "" && !containsString(failed, "has initialized submodules") {
+	} else if hasInitializedSubmodule(status) && !containsString(failed, "has initialized submodules") {
 		failed = append(failed, "has initialized submodules")
 	}
 	if list, err := g.output(ctx, "worktree", "list", "--porcelain"); err != nil {
 		failed = append(failed, "worktree list unreadable")
-	} else if strings.Count(list, "worktree ") > 1 {
+	} else if countWorktrees(list) > 1 {
 		failed = append(failed, "has linked worktrees")
 	}
 	return failed
+}
+
+func hasInitializedSubmodule(status string) bool {
+	for _, line := range splitNonEmpty(status) {
+		if !strings.HasPrefix(line, "-") {
+			return true
+		}
+	}
+	return false
+}
+
+func countWorktrees(porcelain string) int {
+	n := 0
+	for _, line := range strings.Split(porcelain, "\n") {
+		if strings.HasPrefix(line, "worktree ") {
+			n++
+		}
+	}
+	return n
 }
 
 // ignoredNestedRepos reports ignored entries of the clone that are, or contain

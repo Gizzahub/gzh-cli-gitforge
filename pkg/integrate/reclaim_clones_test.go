@@ -180,6 +180,9 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 				runGit(t, clone, "-c", "protocol.file.allow=always", "submodule", "add", sub, "sub")
 				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "-m", "add submodule")
 				runGit(t, filepath.Join(clone, "sub"), "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "sub local only")
+				// Detach the sub at the recorded commit so the super's status is
+				// clean; the local commit stays on the sub's branch.
+				runGit(t, filepath.Join(clone, "sub"), "checkout", "--detach", "HEAD~1")
 				runGit(t, clone, "update-ref", "refs/remotes/origin/pushed", "HEAD")
 			},
 			want: "has initialized submodules",
