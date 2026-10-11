@@ -28,7 +28,7 @@ func cloneReclaimFixture(t *testing.T, workspaces string) (fx *testutil.Worktree
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "checkout", "-B", cloneTaskBranch, "develop")
 	writeFile(t, fx.Worktree, "task.txt", "task\n")
-	writeFile(t, fx.Worktree, ".gitignore", "ws-a/\n")
+	writeFile(t, fx.Worktree, ".gitignore", "ws-*/\n")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\nworkspaces:\n"+strings.ReplaceAll(workspaces, "%URL%", upstream))
 	writeGateMakefile(t, fx.Worktree)
 	runGit(t, fx.Worktree, "add", ".")
@@ -97,7 +97,6 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 			workspaces: declaredWsA,
 			mutate: func(t *testing.T, clone string) {
 				t.Helper()
-				t.Helper()
 				writeFile(t, clone, "scratch.txt", "x\n")
 			},
 			want: "uncommitted or untracked changes",
@@ -105,7 +104,6 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 		"modified file": {
 			workspaces: declaredWsA,
 			mutate: func(t *testing.T, clone string) {
-				t.Helper()
 				t.Helper()
 				writeFile(t, clone, "README.md", "changed\n")
 			},
@@ -117,15 +115,74 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 				t.Helper()
 				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "local only")
 			},
-			want: "is ahead of its upstream",
+			want: "commits not on any remote-tracking ref",
 		},
-		"branch without upstream": {
+		"local-only branch with a commit": {
 			workspaces: declaredWsA,
 			mutate: func(t *testing.T, clone string) {
 				t.Helper()
-				runGit(t, clone, "branch", "local-only")
+				runGit(t, clone, "checkout", "-b", "local-only")
+				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "local only")
+				runGit(t, clone, "checkout", "-")
 			},
-			want: "has no upstream",
+			want: "commits not on any remote-tracking ref",
+		},
+		"unreachable annotated tag after reset": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "tagged only")
+				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "tag", "-a", "-m", "keep", "keep")
+				runGit(t, clone, "reset", "--hard", "@{u}")
+			},
+			want: "commits not on any remote-tracking ref",
+		},
+		"mutually local upstream loop": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				runGit(t, clone, "branch", "loop-a")
+				runGit(t, clone, "branch", "loop-b")
+				runGit(t, clone, "branch", "--set-upstream-to=loop-b", "loop-a")
+				runGit(t, clone, "branch", "--set-upstream-to=loop-a", "loop-b")
+			},
+			want: "tracks a non-remote ref",
+		},
+		"ignored nested repo inside the clone": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				excludeInClone(t, clone, "vendor/")
+				runGit(t, clone, "init", filepath.Join(clone, "vendor", "deep", "inner"))
+			},
+			want: "contains a git repo",
+		},
+		"ignored nested gitfile inside the clone": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				excludeInClone(t, clone, "vendor/")
+				if err := os.MkdirAll(filepath.Join(clone, "vendor", "sub"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				// git lists an ignored directory only when it holds a file
+				// besides the .git entry, as a real checkout does.
+				writeFile(t, filepath.Join(clone, "vendor", "sub"), "src.txt", "x\n")
+				writeFile(t, filepath.Join(clone, "vendor", "sub"), ".git", "gitdir: /elsewhere\n")
+			},
+			want: "contains a git repo",
+		},
+		"gitfile instead of a git directory": {
+			workspaces: declaredWsA,
+			mutate: func(t *testing.T, clone string) {
+				t.Helper()
+				moved := filepath.Join(t.TempDir(), "gitdir")
+				if err := os.Rename(filepath.Join(clone, ".git"), moved); err != nil {
+					t.Fatal(err)
+				}
+				writeFile(t, clone, ".git", "gitdir: "+moved+"\n")
+			},
+			want: ".git is not a directory",
 		},
 		"stash entry": {
 			workspaces: declaredWsA,
@@ -143,7 +200,7 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 				runGit(t, clone, "checkout", "--detach")
 				runGit(t, clone, "-c", "user.name=a", "-c", "user.email=a@b", "commit", "--allow-empty", "-m", "detached")
 			},
-			want: "detached HEAD",
+			want: "commits not on any remote-tracking ref",
 		},
 	}
 	for name, tc := range cases {
@@ -169,6 +226,97 @@ func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
 			assertRef(t, fx.Clone, "refs/heads/"+cloneTaskBranch)
 			assertRef(t, fx.Origin, "refs/heads/"+cloneTaskBranch)
 		})
+	}
+}
+
+// excludeInClone ignores pattern in the clone without touching its tree, so
+// the clone stays clean while holding an ignored entry.
+func excludeInClone(t *testing.T, clone, pattern string) {
+	t.Helper()
+	exclude := filepath.Join(clone, ".git", "info", "exclude")
+	f, err := os.OpenFile(exclude, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(pattern + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRun_ReclaimDeletesIgnoredNonRepoFilesWithTheClone(t *testing.T) {
+	// Policy: ignored files that are not repos go with the clone, as
+	// `git worktree remove` already does for the parent's ignored files.
+	fx, clone := cloneReclaimFixture(t, declaredWsA)
+	excludeInClone(t, clone, ".env")
+	writeFile(t, clone, ".env", "SECRET=1\n")
+	report := runCloneReclaim(t, fx)
+	if report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim incomplete: %+v", report.Reclaim)
+	}
+	if _, err := os.Stat(clone); err == nil {
+		t.Fatal("clone with an ignored .env should be removed")
+	}
+}
+
+func TestRun_ReclaimAcceptsLocalBranchAtPushedCommit(t *testing.T) {
+	// No upstream is fine when every commit is already on a remote.
+	fx, clone := cloneReclaimFixture(t, declaredWsA)
+	runGit(t, clone, "branch", "no-upstream")
+	report := runCloneReclaim(t, fx)
+	if report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim incomplete: %+v", report.Reclaim)
+	}
+}
+
+func TestRun_ReclaimVerificationIsAllOrNothing(t *testing.T) {
+	fx, cloneA := cloneReclaimFixture(t, declaredWsA+"  ws-b:\n    url: %URL%\n    type: git\n")
+	url := runGitInTest(t, cloneA, "config", "--get", "remote.origin.url")
+	cloneB := filepath.Join(fx.Worktree, "ws-b")
+	runGit(t, fx.Worktree, "clone", url, cloneB)
+	writeFile(t, cloneB, "scratch.txt", "dirty\n")
+	report := runCloneReclaim(t, fx)
+	if !report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim must be incomplete: %+v", report.Reclaim)
+	}
+	for _, c := range []string{cloneA, cloneB} {
+		if _, err := os.Stat(c); err != nil {
+			t.Fatalf("%s must survive when another clone fails verification: %v", c, err)
+		}
+	}
+}
+
+func TestRemoveVerifiedCloneRefusesSymlinkedParent(t *testing.T) {
+	taskWT := t.TempDir()
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outside, "ws-a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(outside, "ws-a"), "keep.txt", "precious\n")
+	if err := os.Symlink(outside, filepath.Join(taskWT, "link")); err != nil {
+		t.Fatal(err)
+	}
+	err := removeVerifiedClone(taskWT, "link/ws-a", filepath.Join(taskWT, "link", "ws-a"))
+	if err == nil {
+		t.Fatal("deletion through a symlinked parent must be refused")
+	}
+	if _, statErr := os.Stat(filepath.Join(outside, "ws-a", "keep.txt")); statErr != nil {
+		t.Fatalf("file outside the worktree was touched: %v", statErr)
+	}
+}
+
+func TestRemoveVerifiedCloneRemovesPlainPath(t *testing.T) {
+	taskWT := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(taskWT, "ws-a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeVerifiedClone(taskWT, "ws-a", filepath.Join(taskWT, "ws-a")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(taskWT, "ws-a")); err == nil {
+		t.Fatal("plain path should be removed")
 	}
 }
 

@@ -34,6 +34,10 @@ remote-tracking integration ref as the source.
 [Pin the approved source commit](integrate-expect-source.md) documents
 `--expect-source` and its dedicated exit code 4.
 
+[Reclaiming declared workspace clones](integrate-reclaim-workspace-clones.md)
+explains when `integrate run` may delete clones that `make prepare` left in
+the task worktree.
+
 ## Global Flags
 
 | Flag        | Short | Description               |
