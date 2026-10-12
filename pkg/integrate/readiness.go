@@ -199,7 +199,7 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 	runner := filepath.Join(targetDir, filepath.FromSlash(contract.Decl.Runner))
 	if resourceHighLoad {
 		waitStarted := time.Now()
-		releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)
+		runnerCtx, releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)
 		if opts.resourceWait != nil {
 			*opts.resourceWait += time.Since(waitStarted)
 		}
@@ -209,6 +209,7 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 		// Registered after the worktree cleanup defers, so it runs first: Git
 		// cleanup remains outside the machine resource slot.
 		defer releaseSlot()
+		ctx = runnerCtx
 	}
 	started := time.Now()
 	result, err = executeReadinessWithTimeout(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout)
@@ -232,6 +233,7 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 	cmd := exec.CommandContext(ctx, runner, "--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "json-v1") // #nosec G204 -- runner is target-owned, validated Git blob
 	cmd.Dir = targetDir
 	cmd.Env = readinessEnv(os.Environ())
+	cmd.Env = hostSlotsHeldForChild(parent, cmd.Env)
 	configureReadinessProcess(cmd)
 	cmd.Cancel = func() error { return killReadinessProcess(cmd.Process) }
 	cmd.WaitDelay = readinessWaitDelay

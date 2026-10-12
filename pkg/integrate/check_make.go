@@ -105,21 +105,21 @@ func runMakeTargetWithOutcomes(ctx context.Context, dir, target string, budget t
 	}
 	// Ask before running. A target reached through a pattern rule is not
 	// declared, and running it only produces the exit status that hides that.
-	releaseProbe, err := holdScopedMeasurementLock(ctx)
+	probeCtx, releaseProbe, err := holdScopedMeasurementLock(ctx)
 	if err != nil {
 		return makeProbe{Target: target, WorkDir: dir, Defined: true, Err: err, Unavailable: "resource slot unavailable: " + err.Error()}
 	}
-	matched, ok := makeTargetMatchedByPatternRule(ctx, dir, target)
+	matched, ok := makeTargetMatchedByPatternRule(probeCtx, dir, target)
 	releaseProbe()
 	if ok && matched {
 		return makeProbe{Target: target, WorkDir: dir, OutcomeDeclared: outcomes}
 	}
 	for attempt := 1; ; attempt++ {
-		releaseSlot, err := holdScopedMeasurementLock(ctx)
+		attemptCtx, releaseSlot, err := holdScopedMeasurementLock(ctx)
 		if err != nil {
 			return makeProbe{Target: target, WorkDir: dir, Defined: true, Err: err, Unavailable: "resource slot unavailable: " + err.Error()}
 		}
-		probe := runMakeTargetOnceWithOutcomes(ctx, dir, target, budget, outcomes)
+		probe := runMakeTargetOnceWithOutcomes(attemptCtx, dir, target, budget, outcomes)
 		releaseSlot()
 		if err := ctx.Err(); err != nil {
 			probe.Err = err
@@ -185,6 +185,7 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	cmd.Env = hostSlotsHeldForChild(ctx, cmd.Env)
 	cmd.Env = withoutEnv(cmd.Env, makeOutcomeReportEnv)
 	if reportPath != "" {
 		cmd.Env = append(cmd.Env, makeOutcomeReportEnv+"="+reportPath)
@@ -440,6 +441,7 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 	cmd := exec.CommandContext(ctx, "make", "-pn", target) // #nosec G204 -- validated against allowedMakeTargets by the caller
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	cmd.Env = hostSlotsHeldForChild(ctx, cmd.Env)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf

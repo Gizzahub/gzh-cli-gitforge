@@ -56,5 +56,19 @@ through their original path. Windows builds support process liveness and lock
 release, but directory fsync is unavailable and native Windows crash-durability
 has not been verified.
 
-Inherited cooperative claims and classification of high-load preparation
-profiles remain separate prerequisites for the complete policy rollout.
+A gate process holding the host slot exports `HOST_SLOTS_HELD` to its children.
+The value is a cooperative comma-separated list; existing names are preserved
+and `integrate` is added once. An inherited `integrate` claim lets a nested
+high-load gate run under its parent's slot without publishing a child FIFO ticket,
+while leaving the parent's OS lock and holder sidecar untouched. The child receives a notice that its
+measurement uses the parent's lock. This claim is a cooperative participant
+contract; gz-git does not authenticate it.
+
+Git target locks still apply to each child. Nested checks of another repository
+have a distinct common-directory/target key. A child targeting the same local
+repository and branch waits for that target owner; host-slot inheritance does
+not grant Git mutation ownership.
+
+Preparation profiles currently execute outside the acquired gate slot, so they
+receive no newly manufactured held-slot claim. Independent high-load preparation
+classification and real high-load declarations remain rollout prerequisites.

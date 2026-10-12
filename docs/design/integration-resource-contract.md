@@ -33,7 +33,10 @@ duplicate, numeric, null, or negative root declarations fail closed.
 
 ## Current boundaries
 
-Resource claims are not inherited by child processes. Preparation profiles do
-not yet have an independent high-load classifier. Windows supports lock release
+Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.
+An inherited `integrate` entry reuses the parent's host resource ownership,
+without publishing a new ticket or changing the holder sidecar. Git target
+ownership remains per repository and ref. Preparation profiles do not yet have
+an independent high-load classifier and execute outside the acquired gate slot. Windows supports lock release
 and process-liveness checks, but directory fsync is unavailable and native crash
 durability has not been verified.

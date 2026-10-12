@@ -30,6 +30,8 @@ const (
 	hostLockWorkClass    = "integration"
 	hostLockCommandCheck = "check"
 	hostLockCommandRun   = "run"
+	hostSlotsHeldEnv     = "HOST_SLOTS_HELD"
+	hostSlotName         = "integrate"
 )
 
 // ErrHostLockWait reports that --lock-wait expired before the host
@@ -86,6 +88,12 @@ func acquireHostLock(ctx context.Context, holder hostLockHolder, wait time.Durat
 }
 
 func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait time.Duration, waitSource string, notice io.Writer) (*hostLock, error) {
+	if hostSlotIsInherited() {
+		if notice != nil {
+			fmt.Fprintln(notice, "integrate: using inherited parent host resource slot integrate")
+		}
+		return &hostLock{}, nil
+	}
 	limit := wait
 	started := time.Now()
 	dir, err := hostSlotsDir()
@@ -232,28 +240,84 @@ type resourceScope struct {
 	g    gitRepo
 	opts CheckOptions
 }
-type resourceScopeKey struct{}
+type (
+	resourceScopeKey struct{}
+	heldHostSlotKey  struct{}
+)
 
 func withResourceScope(ctx context.Context, g gitRepo, opts CheckOptions) context.Context {
 	return context.WithValue(ctx, resourceScopeKey{}, resourceScope{g: g, opts: opts})
 }
 
-func holdScopedMeasurementLock(ctx context.Context) (func(), error) {
+func holdScopedMeasurementLock(ctx context.Context) (context.Context, func(), error) {
 	scope, ok := ctx.Value(resourceScopeKey{}).(resourceScope)
 	if !ok {
-		return func() {}, nil
+		return ctx, func() {}, nil
 	}
 	started := time.Now()
-	release, err := holdMeasurementLock(ctx, scope.g, scope.opts)
+	heldCtx, release, err := holdMeasurementLock(ctx, scope.g, scope.opts)
 	if scope.opts.resourceWait != nil {
 		*scope.opts.resourceWait += time.Since(started)
 	}
-	return release, err
+	if err != nil {
+		return ctx, nil, err
+	}
+	return heldCtx, release, nil
+}
+
+func withHeldHostSlot(ctx context.Context) context.Context {
+	return context.WithValue(ctx, heldHostSlotKey{}, true)
+}
+
+func hostSlotIsInherited() bool {
+	for _, slot := range strings.Split(os.Getenv(hostSlotsHeldEnv), ",") {
+		if strings.TrimSpace(slot) == hostSlotName {
+			return true
+		}
+	}
+	return false
+}
+
+func hostSlotsHeldForChild(ctx context.Context, env []string) []string {
+	held, ok := ctx.Value(heldHostSlotKey{}).(bool)
+	if !ok || !held {
+		return env
+	}
+	seen := make(map[string]bool)
+	var slots []string
+	for _, item := range env {
+		if !strings.HasPrefix(item, hostSlotsHeldEnv+"=") {
+			continue
+		}
+		for _, slot := range strings.Split(strings.TrimPrefix(item, hostSlotsHeldEnv+"="), ",") {
+			slot = strings.TrimSpace(slot)
+			if slot != "" && !seen[slot] {
+				seen[slot] = true
+				slots = append(slots, slot)
+			}
+		}
+	}
+	if !seen[hostSlotName] {
+		slots = append(slots, hostSlotName)
+	}
+	out := make([]string, 0, len(env)+1)
+	for _, item := range env {
+		if !strings.HasPrefix(item, hostSlotsHeldEnv+"=") {
+			out = append(out, item)
+		}
+	}
+	return append(out, hostSlotsHeldEnv+"="+strings.Join(slots, ","))
 }
 
 // holdMeasurementLock acquires one host measurement slot for a declared
 // high-load gate. Callers release it before Git cleanup, push, or reclaim.
-func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (func(), error) {
+func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (context.Context, func(), error) {
+	if hostSlotIsInherited() {
+		if opts.LockNotice != nil {
+			fmt.Fprintln(opts.LockNotice, "integrate: using inherited parent host resource slot integrate")
+		}
+		return withHeldHostSlot(ctx), func() {}, nil
+	}
 	holder := hostLockHolder{Worktree: g.dir, Repository: g.dir, Branch: opts.Branch, Command: hostLockCommandCheck}
 	if common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir"); err == nil && common != "" {
 		if filepath.Base(common) == ".git" {
@@ -268,13 +332,13 @@ func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (fun
 	}
 	wait, source, err := effectiveLockWait(opts, g.dir)
 	if err != nil {
-		return nil, err
+		return ctx, nil, err
 	}
 	lock, err := acquireHostLockWithSource(ctx, holder, wait, source, opts.LockNotice)
 	if err != nil {
-		return nil, err
+		return ctx, nil, err
 	}
-	return lock.release, nil
+	return withHeldHostSlot(ctx), lock.release, nil
 }
 
 func effectiveLockWait(opts CheckOptions, repoRoot string) (time.Duration, string, error) {

@@ -24,7 +24,12 @@ var integrateCmd = &cobra.Command{
 
 integrate answers a different question than branch list. queue lists
 unfinished task branches, check is the readiness gate, and run
-fast-forwards then reclaims.`),
+fast-forwards then reclaims.
+
+A held host resource slot is exported to gate children through
+HOST_SLOTS_HELD, a cooperative comma-separated list. A child that inherits
+integrate runs under its parent's slot and keeps the parent's holder record.
+Each repository and target ref retains its own Git target lock.`),
 	Args: cobra.NoArgs,
 }
 

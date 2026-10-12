@@ -40,6 +40,9 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Nested high-load gate children reuse their parent’s host slot through `HOST_SLOTS_HELD`,
+  preserving FIFO capacity and holder records while Git target locks remain independent.
+
 - High-load slot acquisition now defaults to a 60 minute wait, so a stuck resource holder
   cannot stall a new integration forever. Explicit `--lock-wait` overrides repository-root
   `branch.lockWait`; zero remains unbounded. FIFO and OS waiting share the original limit,

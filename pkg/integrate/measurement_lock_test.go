@@ -27,13 +27,23 @@ import (
 // hostLockChildEnv marks the re-executed test binary that holds the lock in
 // TestMeasurementLockCrash. TestMain leaves XDG_STATE_HOME alone in that
 // child so it locks the parent's directory.
-const hostLockChildEnv = "GZ_GIT_TEST_HOST_LOCK_CHILD"
+const (
+	hostLockChildEnv          = "GZ_GIT_TEST_HOST_LOCK_CHILD"
+	inheritedResourceChildEnv = "GZ_GIT_TEST_INHERITED_RESOURCE_CHILD"
+)
 
 // TestMain points the host measurement lock at a private directory, so no
 // test in this package ever takes, or waits on, this host's real lock.
 func TestMain(m *testing.M) {
-	if os.Getenv(hostLockChildEnv) != "" || os.Getenv(admissionChildEnv) != "" {
+	if os.Getenv(hostLockChildEnv) != "" || os.Getenv(admissionChildEnv) != "" || os.Getenv(inheritedResourceChildEnv) != "" {
 		os.Exit(m.Run())
+	}
+	// A caller may itself inherit a real host slot. Package tests must never
+	// borrow it accidentally: each test owns an isolated state root and opts
+	// into inheritance only in its dedicated child-process fixtures.
+	if err := os.Unsetenv(hostSlotsHeldEnv); err != nil {
+		fmt.Fprintln(os.Stderr, "clear inherited host slots for tests:", err)
+		os.Exit(1)
 	}
 	state, err := os.MkdirTemp("", "gz-git-integrate-state-")
 	if err != nil {
@@ -47,6 +57,46 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	_ = os.RemoveAll(state)
 	os.Exit(code)
+}
+
+func TestInheritedResourceChild(t *testing.T) {
+	if os.Getenv(inheritedResourceChildEnv) == "" {
+		t.Skip("inherited resource child")
+	}
+	repo := os.Getenv("GZ_GIT_TEST_INHERITED_RESOURCE_REPO")
+	marker := os.Getenv("GZ_GIT_TEST_INHERITED_RESOURCE_MARKER")
+	record := os.Getenv("GZ_GIT_TEST_INHERITED_RESOURCE_RECORD")
+	dir, err := hostSlotsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sidecar := filepath.Join(dir, integrateLockName+".json")
+	beforeSidecar, err := os.ReadFile(sidecar)
+	if err != nil {
+		t.Fatalf("read parent slot sidecar: %v", err)
+	}
+	beforeTickets, err := liveAdmissionTickets(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: repo, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
+	if err != nil || report == nil || !report.Ready {
+		t.Fatalf("inherited child Check = %#v, %v", report, err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("child gate marker: %v", err)
+	}
+	afterSidecar, err := os.ReadFile(sidecar)
+	if err != nil || !bytes.Equal(afterSidecar, beforeSidecar) {
+		t.Fatalf("child changed parent slot sidecar: before=%q after=%q err=%v", beforeSidecar, afterSidecar, err)
+	}
+	afterTickets, err := liveAdmissionTickets(dir)
+	if err != nil || len(afterTickets) != len(beforeTickets) {
+		t.Fatalf("child changed admission tickets: before=%#v after=%#v err=%v", beforeTickets, afterTickets, err)
+	}
+	if err := os.WriteFile(record, []byte(os.Getenv(hostSlotsHeldEnv)), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // lockedBuffer collects the waiting notice while the test reads it.
@@ -102,6 +152,66 @@ func setMeasurementLockWait(t *testing.T, fx *testutil.WorktreeOrigin, wait stri
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
 	runGit(t, fx.Worktree, "commit", "-m", "configure lock wait")
 	runGit(t, fx.Worktree, "push")
+}
+
+func TestInheritedHostSlotPassesFromMakeToChildCheck(t *testing.T) {
+	fastHostLockPolling(t)
+	state := t.TempDir()
+	childMarker := filepath.Join(state, "child-ran")
+	record := filepath.Join(state, "held-slots")
+	child := measurementLockFixture(t, "@touch "+strconv.Quote(childMarker), "1m")
+	t.Setenv(inheritedResourceChildEnv, "1")
+	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_REPO", child.Worktree)
+	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_MARKER", childMarker)
+	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_RECORD", record)
+	// Existing names are retained once and the parent adds only the slot it
+	// actually holds for the make subprocess.
+	t.Setenv(hostSlotsHeldEnv, "alpha, alpha")
+	parentRecipe := "@" + strconv.Quote(os.Args[0]) + " -test.run=^TestInheritedResourceChild$"
+	parent := measurementLockFixture(t, parentRecipe, "1m")
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: parent.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
+	if err != nil || report == nil || !report.Ready {
+		t.Fatalf("parent Check = %#v, %v", report, err)
+	}
+	data, err := os.ReadFile(record)
+	if err != nil || string(data) != "alpha,integrate" {
+		t.Fatalf("child %s = %q, %v", hostSlotsHeldEnv, data, err)
+	}
+	if got := os.Getenv(hostSlotsHeldEnv); got != "alpha, alpha" {
+		t.Fatalf("parent environment mutated: %q", got)
+	}
+	dir, err := hostSlotsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tickets, err := liveAdmissionTickets(dir)
+	if err != nil || len(tickets) != 0 {
+		t.Fatalf("tickets after parent/child Check = %#v, %v", tickets, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, integrateLockName+".json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("slot sidecar remained after parent/child Check: %v", err)
+	}
+}
+
+func TestReadinessRunnerReceivesHeldHostSlot(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
+	record := filepath.Join(t.TempDir(), "held-slots")
+	fx := readinessFixture(t)
+	manifest := "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n"
+	runner := "#!/bin/sh\nprintf '%s' \"$" + hostSlotsHeldEnv + "\" > " + strconv.Quote(record) + "\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
+	advanceReadinessTarget(t, fx, manifest, runner, "declare high-load readiness")
+	t.Setenv(hostSlotsHeldEnv, "alpha,alpha")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
+	if err != nil || report == nil || !report.Ready {
+		t.Fatalf("readiness Check = %#v, %v", report, err)
+	}
+	data, err := os.ReadFile(record)
+	if err != nil || string(data) != "alpha,integrate" {
+		t.Fatalf("readiness %s = %q, %v", hostSlotsHeldEnv, data, err)
+	}
 }
 
 // holdHostLockInProcess takes the lock as a stand-in holder. flock belongs
@@ -354,7 +464,7 @@ func TestMeasurementLockWait(t *testing.T) {
 	if checkErr != nil || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
 		t.Fatalf("check = %#v, %v; want a not-ready resource-slot report", checkReport, checkErr)
 	}
-	if !hasCheckDetail(checkReport, "make check", checkFail, "after 300ms (flag; per acquisition)") || !hasCheckDetail(checkReport, "make check", checkFail, "no gate measured") {
+	if !hasCheckDetailParts(checkReport, "make check", checkFail, "300ms", "flag", "per acquisition", "no gate measured") {
 		t.Fatalf("check lock-wait diagnostic:\n%s", FormatCheck(checkReport))
 	}
 	if runErr == nil || runReport == nil || runReport.Check == nil || runReport.Check.Ready {
@@ -392,7 +502,7 @@ func TestMeasurementLockConfiguredWait(t *testing.T) {
 	setMeasurementLockWait(t, fx, "50ms")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if err != nil || report == nil || report.Ready || !hasCheckDetail(report, "make check", checkFail, "after 50ms (repository config; per acquisition)") {
+	if err != nil || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "repository config", "per acquisition", "no gate measured") {
 		t.Fatalf("configured Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
@@ -409,12 +519,31 @@ func TestMeasurementLockDefaultWait(t *testing.T) {
 	fx := measurementLockFixture(t, "@touch "+ran, "1m")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if err != nil || report == nil || report.Ready || !hasCheckDetail(report, "make check", checkFail, "after 50ms (default; per acquisition)") || !hasCheckDetail(report, "make check", checkFail, "no gate measured") {
+	if err != nil || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "default", "per acquisition", "no gate measured") {
 		t.Fatalf("default Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("default wait ran gate: %v", statErr)
 	}
+}
+
+func hasCheckDetailParts(report *CheckReport, name, status string, want ...string) bool {
+	for _, item := range report.Items {
+		if item.Name != name || item.Status != status {
+			continue
+		}
+		matched := true
+		for _, part := range want {
+			if !strings.Contains(item.Detail, part) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func TestMeasurementLockExplicitZeroOutlivesConfigAndDefault(t *testing.T) {
