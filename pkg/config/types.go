@@ -237,6 +237,10 @@ type BranchConfig struct {
 	// inherited or merged from a parent, profile, or workspace configuration.
 	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
 
+	// SiblingProvision declares local sibling snapshots required by relative
+	// path dependencies. It is root-only and never inherited from a profile.
+	SiblingProvision *SiblingProvision `yaml:"siblingProvision,omitempty" json:"siblingProvision,omitempty"`
+
 	// Readiness is a target-owned integration gate. Like TaskPattern, it is
 	// preserved here for project-config round trips but must never be inherited
 	// or merged from a parent, profile, workspace, or global configuration.

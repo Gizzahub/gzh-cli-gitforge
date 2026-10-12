@@ -124,6 +124,9 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		if p.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
 		}
+		if p.Branch.SiblingProvision != nil {
+			return fmt.Errorf("branch.siblingProvision is allowed only in a repository-root project config")
+		}
 	}
 
 	return nil
@@ -192,6 +195,11 @@ func (v *Validator) ValidateProjectConfig(p *ProjectConfig) error {
 	if p.Branch != nil && p.Branch.PrepareProfile != "" {
 		if err := ValidatePrepareProfile(p.Branch.PrepareProfile); err != nil {
 			return fmt.Errorf("invalid preparation profile: %w", err)
+		}
+	}
+	if p.Branch != nil && p.Branch.SiblingProvision != nil {
+		if err := ValidateSiblingProvision(*p.Branch.SiblingProvision); err != nil {
+			return fmt.Errorf("invalid sibling provision config: %w", err)
 		}
 	}
 

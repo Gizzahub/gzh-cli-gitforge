@@ -176,6 +176,11 @@ func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, co
 }
 
 func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {
+	targetSiblings, sourceSiblings, hasSiblings, err := resolveSiblingContractPair(ctx, g, plan)
+	if err != nil {
+		return readinessResult{Status: "unavailable"}, 0, err
+	}
+
 	root, err := os.MkdirTemp("", "gz-git-readiness-")
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("create isolated worktrees: %w", err)
@@ -191,6 +196,17 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 		}
 	}()
 	targetDir, sourceDir := filepath.Join(root, "target"), filepath.Join(root, "source")
+	if hasSiblings {
+		// Each probe has its own parent so ../dependency cannot alias the other
+		// probe's snapshot or collide with its worktree directory.
+		targetDir = filepath.Join(root, "target-side", "target")
+		sourceDir = filepath.Join(root, "source-side", "source")
+		for _, dir := range []string{filepath.Dir(targetDir), filepath.Dir(sourceDir)} {
+			if err := os.Mkdir(dir, 0o700); err != nil {
+				return readinessResult{Status: "unavailable"}, 0, err
+			}
+		}
+	}
 	if err := g.worktreeAddDetach(ctx, targetDir, plan.TargetSHA); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
@@ -199,6 +215,15 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
 	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
+	var siblingEvidence string
+	if hasSiblings {
+		leases, evidence, prepareErr := prepareReadinessSiblings(ctx, g, targetSiblings, sourceSiblings, targetDir, sourceDir)
+		if prepareErr != nil {
+			return readinessResult{Status: "unavailable"}, 0, prepareErr
+		}
+		defer func() { err = errors.Join(err, releaseReadinessSiblings(leases)) }()
+		siblingEvidence = evidence
+	}
 	runner := filepath.Join(targetDir, filepath.FromSlash(contract.Decl.Runner))
 	if resourceHighLoad {
 		waitStarted := time.Now()
@@ -216,6 +241,9 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 	}
 	started := time.Now()
 	result, err = executeReadinessWithTimeout(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout)
+	if siblingEvidence != "" && err == nil {
+		result.Summary += "; siblings " + siblingEvidence
+	}
 	return result, time.Since(started), err
 }
 

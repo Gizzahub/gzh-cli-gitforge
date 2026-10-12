@@ -99,7 +99,7 @@ func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts re
 		return out
 	}
 	sg := newGitRepo(exec, stand)
-	if !removeTaskWorktree(ctx, sg, taskWT, &out) {
+	if !releaseAndRemoveTask(ctx, sg, stand, taskWT, &out) {
 		return out
 	}
 	if !deleteLocalTaskBranch(ctx, sg, opts.Branch, &out) {
@@ -111,6 +111,16 @@ func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts re
 	}
 	reclaimEmptyParent(taskWT, &out)
 	return out
+}
+
+func releaseAndRemoveTask(ctx context.Context, g gitRepo, stand, taskWT string, out *ReclaimResult) bool {
+	if taskWT != "" {
+		if err := ReleasePersistedSiblings(ctx, stand, taskWT); err != nil {
+			out.Failed = append(out.Failed, "release provisioned siblings: "+err.Error())
+			return false
+		}
+	}
+	return removeTaskWorktree(ctx, g, taskWT, out)
 }
 
 func gitCmdDetail(res *gitcmd.Result, err error) string {

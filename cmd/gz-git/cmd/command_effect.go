@@ -137,13 +137,16 @@ var commandEffects = map[string][]string{
 	// footprint. Applies change the target-owned readiness contract. run also
 	// fast-forwards a checked-out target and reclaims the task worktree and
 	// branch.
-	"integrate queue":                  {mutatesTrackingRefs},
-	"integrate check":                  {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
-	"integrate run":                    {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
-	"integrate bootstrap plan":         {mutatesTrackingRefs},
-	"integrate bootstrap apply":        {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
-	"integrate readiness update plan":  {mutatesTrackingRefs},
-	"integrate readiness update apply": {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
+	"integrate queue":                      {mutatesTrackingRefs},
+	"integrate provision siblings acquire": {mutatesFilesystem},
+	"integrate provision siblings inspect": nil,
+	"integrate provision siblings release": {mutatesFilesystem},
+	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
+	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
+	"integrate bootstrap plan":             {mutatesTrackingRefs},
+	"integrate bootstrap apply":            {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
+	"integrate readiness update plan":      {mutatesTrackingRefs},
+	"integrate readiness update apply":     {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
 
 	"pr create": {mutatesForge},
 
