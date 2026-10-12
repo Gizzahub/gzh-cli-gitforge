@@ -20,6 +20,11 @@ type ReclaimResult struct {
 	Skipped string
 	Done    []string
 	Failed  []string
+	// Structured removal facts mirrored from Done, consumed by the durable
+	// receipt so cleanup retry never parses prose.
+	RemovedWorktree     bool
+	RemovedLocalBranch  bool
+	RemovedRemoteBranch bool
 }
 
 // Incomplete reports a successful integrate whose reclaim did not finish.
@@ -149,6 +154,7 @@ func removeTaskWorktree(ctx context.Context, sg gitRepo, taskWT string, out *Rec
 		return false
 	}
 	out.Done = append(out.Done, "worktree("+taskWT+")")
+	out.RemovedWorktree = true
 	return true
 }
 
@@ -159,6 +165,7 @@ func deleteLocalTaskBranch(ctx context.Context, sg gitRepo, branch string, out *
 		return false
 	}
 	out.Done = append(out.Done, "local-branch")
+	out.RemovedLocalBranch = true
 	return true
 }
 
@@ -216,6 +223,7 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	del, err := sg.run(ctx, "push", lease, pushRemote, ":"+ref)
 	if err == nil && (del == nil || del.ExitCode == 0) {
 		out.Done = append(out.Done, "remote-branch")
+		out.RemovedRemoteBranch = true
 		return true
 	}
 	if opts.NoFetch {
@@ -239,6 +247,7 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 		return false
 	}
 	out.Done = append(out.Done, "remote-branch(already-deleted)")
+	out.RemovedRemoteBranch = true
 	return true
 }
 
