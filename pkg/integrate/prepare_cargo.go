@@ -54,11 +54,11 @@ func prepareCargoWorkspace(ctx context.Context, g gitRepo, dir string, guard pre
 	} {
 		cmd := exec.CommandContext(runCtx, "cargo", strings.Fields(step.args)...) // #nosec G204 -- fixed closed profile.
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "LC_ALL=C", "CARGO_TERM_COLOR=never", "GIT_TERMINAL_PROMPT=0")
+		cmd.Env = hostSlotsHeldForChild(ctx, append(os.Environ(), "LC_ALL=C", "CARGO_TERM_COLOR=never", "GIT_TERMINAL_PROMPT=0"))
 		var out bytes.Buffer
 		cmd.Stdout = &limitedWriter{w: &out, n: 128 << 10}
 		cmd.Stderr = cmd.Stdout
-		if err := cmd.Run(); err != nil {
+		if err := runPrepareCommand(cmd); err != nil {
 			return fmt.Errorf("%s failed: %w: %s", step.name, err, strings.TrimSpace(out.String()))
 		}
 	}

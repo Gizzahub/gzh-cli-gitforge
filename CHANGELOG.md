@@ -32,6 +32,12 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Added
 
+- Committed `branch.prepareHighLoad` puts confirmed heavy preparation profiles
+  under FIFO host capacity independently of verification gates, allowing light
+  integrations to proceed during a cold build. On cancellation, Go and Cargo
+  preparation stop their process trees before returning capacity; expired target probes preserve
+  the resource-wait diagnostic instead of fabricating target movement.
+
 - `gz-git integrate check|run` take one host-wide OS file lock (`host-slots/integrate.lock` under
   `$XDG_STATE_HOME`, ce-devenv ADR-0001) before fetching and measuring, and `run` holds it through
   the push. Concurrent integrations on one host had driven the load past 190 and expired the make

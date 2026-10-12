@@ -27,6 +27,8 @@ type preparedLegacy struct {
 	sourcePrepared     PrepareState
 	controllerPrepared bool
 	g                  gitRepo
+	prepareHighLoad    bool
+	opts               CheckOptions
 }
 
 func (p preparedLegacy) annotateProbe(ctx context.Context, probe makeProbe) makeProbe {
@@ -73,6 +75,10 @@ func (p preparedLegacy) cleanup(ctx context.Context) error {
 // profile has already been resolved from the commit declarations by the
 // caller; this executor never reads a worktree config.
 func prepareLegacySource(ctx context.Context, g gitRepo, plan TargetPlan, profile string) (preparedLegacy, error) {
+	return prepareLegacySourceWithResource(ctx, g, plan, profile, false, CheckOptions{})
+}
+
+func prepareLegacySourceWithResource(ctx context.Context, g gitRepo, plan TargetPlan, profile string, prepareHighLoad bool, opts CheckOptions) (preparedLegacy, error) {
 	// No profile means no preparation, and the branch is then measured where
 	// the repository already is: the live working directory, carrying deps/,
 	// node_modules/ and .venv from earlier runs. The baseline it will be
@@ -105,13 +111,13 @@ func prepareLegacySource(ctx context.Context, g gitRepo, plan TargetPlan, profil
 	}
 	guard, err := newPreparedRefGuard(ctx, g, plan, plan.BranchSHA)
 	if err == nil {
-		err = runPrepareProfileWithInputs(ctx, g, source, profile, inputs, guard)
+		err = runPrepareProfileWithResource(ctx, g, source, profile, inputs, guard, prepareHighLoad, opts)
 	}
 	if err != nil {
 		cleanupErr := removePreparedWorktree(ctx, g, source, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
-	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g}, nil
+	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g, prepareHighLoad: prepareHighLoad, opts: opts}, nil
 }
 
 // measureBaseline measures the target commit for exactly the named make
@@ -140,7 +146,7 @@ func (p *preparedLegacy) measureBaseline(ctx context.Context, plan TargetPlan, t
 	}
 	guard, err := newPreparedRefGuard(ctx, p.g, plan, plan.TargetSHA)
 	if err == nil {
-		err = runPrepareProfileWithInputs(ctx, p.g, target, p.profile, p.inputs, guard)
+		err = runPrepareProfileWithResource(ctx, p.g, target, p.profile, p.inputs, guard, p.prepareHighLoad, p.opts)
 	}
 	if err != nil {
 		cleanupErr := removePreparedWorktree(ctx, p.g, target, "")
@@ -219,6 +225,22 @@ func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string, g
 	return runPrepareProfileWithInputs(parent, g, dir, profile, inputs, guard)
 }
 
+func runPrepareProfileWithResource(ctx context.Context, g gitRepo, dir, profile string, inputs []prepareInput, guard preparedRefGuard, highLoad bool, opts CheckOptions) error {
+	if !highLoad {
+		return runPrepareProfileWithInputs(ctx, g, dir, profile, inputs, guard)
+	}
+	started := time.Now()
+	heldCtx, release, err := holdMeasurementLock(ctx, g, opts)
+	if opts.resourceWait != nil {
+		*opts.resourceWait += time.Since(started)
+	}
+	if err != nil {
+		return err
+	}
+	defer release()
+	return runPrepareProfileWithInputs(heldCtx, g, dir, profile, inputs, guard)
+}
+
 func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile string, inputs []prepareInput, guard preparedRefGuard) error {
 	if profile == flowTaskchainLocalSubprojectsV1 {
 		return prepareFlowTaskchainLocalSubprojects(parent, g, dir, inputs, guard)
@@ -252,11 +274,15 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	}
 	cmd := exec.CommandContext(ctx, "go", "generate", "./ent") // #nosec G204 -- fixed closed profile.
 	cmd.Dir = dir
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "XDG_CONFIG_HOME=" + filepath.Join(isolated, "xdg-config"), "XDG_CACHE_HOME=" + filepath.Join(isolated, "xdg-cache"), "GOCACHE=" + filepath.Join(isolated, "go-cache"), "GOMODCACHE=" + filepath.Join(isolated, "go-mod"), "GOWORK=off", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_TERMINAL_PROMPT=0", "LC_ALL=C"}
+	env := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + home, "XDG_CONFIG_HOME=" + filepath.Join(isolated, "xdg-config"), "XDG_CACHE_HOME=" + filepath.Join(isolated, "xdg-cache"), "GOCACHE=" + filepath.Join(isolated, "go-cache"), "GOMODCACHE=" + filepath.Join(isolated, "go-mod"), "GOWORK=off", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_TERMINAL_PROMPT=0", "LC_ALL=C"}
+	if held := os.Getenv(hostSlotsHeldEnv); held != "" {
+		env = append(env, hostSlotsHeldEnv+"="+held)
+	}
+	cmd.Env = hostSlotsHeldForChild(ctx, env)
 	var out bytes.Buffer
 	cmd.Stdout = &limitedWriter{w: &out, n: 128 << 10}
 	cmd.Stderr = cmd.Stdout
-	if err := cmd.Run(); err != nil {
+	if err := runPrepareCommand(cmd); err != nil {
 		return fmt.Errorf("go generate ./ent failed: %w: %s", err, strings.TrimSpace(out.String()))
 	}
 	if ctx.Err() != nil {
@@ -266,6 +292,29 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 		return err
 	}
 	return validatePreparedStatus(ctx, dir, "ent/generated/")
+}
+
+func runPrepareCommand(cmd *exec.Cmd) error {
+	processTree, err := newMakeProcessTree()
+	if err != nil {
+		return fmt.Errorf("create preparation process tree: %w", err)
+	}
+	defer processTree.close()
+	if err := processTree.configure(cmd); err != nil {
+		return fmt.Errorf("configure preparation process tree: %w", err)
+	}
+	cmd.Cancel = processTree.cancel
+	cmd.WaitDelay = makeTargetWaitDelay
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	if err := processTree.attach(cmd.Process); err != nil {
+		return makeProcessAttachFailure(cmd, processTree, err)
+	}
+	if err := processTree.release(); err != nil {
+		return makeProcessAttachFailure(cmd, processTree, err)
+	}
+	return cmd.Wait()
 }
 
 func rejectEntSymlinkChain(dir string) error {

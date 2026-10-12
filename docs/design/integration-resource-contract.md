@@ -11,8 +11,7 @@ not rebase or resolve conflicts automatically.
 Host capacity is opt-in through repository-root `branch.resourceHighLoad: true`.
 An omitted or false declaration leaves mandatory verification running without a
 host slot. A high-load source or target declaration uses the shared slot only for
-the gate subprocesses; fetch, Git inspection, preparation materialization,
-cleanup, push, and reclaim remain outside it.
+the gate subprocesses; fetch, Git inspection, snapshotting and prepared-worktree creation/removal, push, and reclaim remain outside it.
 
 Capacity is one. Participating high-load calls receive monotonic FIFO tickets
 before attempting the existing OS lock. Ticket writes are atomic, cancellation
@@ -42,7 +41,13 @@ cancellation and the remaining resource wait budget.
 Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.
 An inherited `integrate` entry reuses the parent's host resource ownership,
 without publishing a new ticket or changing the holder sidecar. Git target
-ownership remains per repository and ref. Preparation profiles do not yet have
-an independent high-load classifier and execute outside the acquired gate slot. Windows supports lock release
+ownership remains per repository and ref. Repository-root
+`branch.prepareHighLoad: true` independently classifies the resolved preparation
+profile. Source and target declarations are ORed. Each actual source or lazy
+baseline executor acquires and releases capacity separately, including its short
+integrity checks, while snapshotting and worktree creation/removal stay outside.
+This uses the existing admission and wait reporting, and preserves child claims.
+Absent profiles and readiness contracts do not acquire a preparation slot;
+malformed declarations still fail closed. Windows supports lock release
 and process-liveness checks, but directory fsync is unavailable and native crash
 durability has not been verified.

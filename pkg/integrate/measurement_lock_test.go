@@ -820,3 +820,36 @@ func TestMeasurementLockExplicitZeroOutlivesConfigAndDefault(t *testing.T) {
 		t.Fatalf("explicit zero did not run gate: %v", statErr)
 	}
 }
+
+// A killed Git probe returns a nonzero Result, which must not become a
+// fabricated target deletion when the observer's admission budget expires.
+func TestTargetWaitObserverDeadlinePreservesResourceWaitDiagnostic(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := measurementLockFixture(t, "@true", "1m")
+	runner := gitcmd.NewExecutor()
+	plan, err := resolveTarget(context.Background(), newGitRepo(runner, fx.Worktree), runner, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	holder := holdHostLockInProcess(t, "/holder", "holder")
+	defer holder.release()
+	for _, stage := range []string{"ls-remote", "fetch", "rev-parse"} {
+		t.Run(stage, func(t *testing.T) {
+			wrapper := filepath.Join(t.TempDir(), "git")
+			script := "#!/bin/sh\nif [ \"$1\" = " + prepareScopeQuote(stage) + " ]; then exec sleep 2; fi\nexec " + prepareScopeQuote(realGit) + " \"$@\"\n"
+			if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			observer := targetWaitObserver(newGitRepo(gitcmd.NewExecutor(gitcmd.WithGitBinary(wrapper)), fx.Worktree), plan, false, io.Discard)
+			ctx := withResourceWaitObserver(context.Background(), observer)
+			_, err := acquireHostLockWithSource(ctx, hostLockHolder{Branch: "waiter"}, 150*time.Millisecond, "flag", io.Discard)
+			if !errors.Is(err, ErrHostLockWait) || errors.Is(err, errTargetMovedWhileWaiting) || !strings.Contains(err.Error(), "150ms (flag; per acquisition); no gate measured") {
+				t.Fatalf("%s deadline error = %v, want original resource wait diagnostic", stage, err)
+			}
+		})
+	}
+}

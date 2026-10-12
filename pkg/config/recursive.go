@@ -389,6 +389,7 @@ func mergeParentConfig(child, parent *Config) {
 		// project config. Do not let a raw parent document propagate them even
 		// when a caller bypassed validation.
 		child.Branch.MakeOutcomeReport = nil
+		child.Branch.PrepareHighLoad = false
 	} else if child.Branch != nil && parent.Branch != nil {
 		mergeParentBranchConfig(child.Branch, parent.Branch)
 	}

@@ -69,7 +69,7 @@ func runPnpmFrozenInstall(ctx context.Context, dir string, budget time.Duration)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, "pnpm", "install", "--frozen-lockfile") // #nosec G204 -- fixed closed profile.
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "CI=true", "LC_ALL=C", "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = hostSlotsHeldForChild(ctx, append(os.Environ(), "CI=true", "LC_ALL=C", "GIT_TERMINAL_PROMPT=0"))
 	processTree, err := newMakeProcessTree()
 	if err != nil {
 		return fmt.Errorf("create pnpm process tree: %w", err)

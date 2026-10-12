@@ -121,6 +121,9 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		if p.Branch.PrepareProfile != "" {
 			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
 		}
+		if p.Branch.PrepareHighLoad {
+			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
+		}
 	}
 
 	return nil
@@ -414,6 +417,9 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		if c.Branch.PrepareProfile != "" {
 			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
 		}
+		if c.Branch.PrepareHighLoad {
+			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
+		}
 	}
 
 	// Validate parent path if specified
@@ -587,6 +593,9 @@ func validateWorkspaceReadinessScope(ws *Workspace) error {
 		}
 		if ws.Branch.PrepareProfile != "" {
 			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
+		}
+		if ws.Branch.PrepareHighLoad {
+			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
 		}
 	}
 	return nil

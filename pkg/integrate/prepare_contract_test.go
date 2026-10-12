@@ -16,6 +16,9 @@ func TestResolvePrepareProfileCommitOwnership(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
+	if got, err := prepareHighLoadForPlan(context.Background(), g, TargetPlan{TargetSHA: base, BranchSHA: base}); err != nil || got {
+		t.Fatalf("absent declarations = %v, %v", got, err)
+	}
 	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  prepareProfile: flow-taskchain-local-subprojects-v1\n")
 	runGitInTest(t, fx.Worktree, "add", ".gz-git.yaml")
 	runGitInTest(t, fx.Worktree, "commit", "-m", "declare profile")
@@ -67,5 +70,43 @@ func TestLoadCommitPrepareProfilePreservesLargeLegacyManifest(t *testing.T) {
 	declaredSHA := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
 	if _, _, err := loadCommitPrepareProfile(context.Background(), g, declaredSHA); err == nil || !strings.Contains(err.Error(), "size limit") {
 		t.Fatalf("large declared config err=%v", err)
+	}
+}
+
+func TestPrepareHighLoadForPlanUsesEitherCommittedDeclaration(t *testing.T) {
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  prepareHighLoad: true\n")
+	runGitInTest(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGitInTest(t, fx.Worktree, "commit", "-m", "declare heavy preparation")
+	heavy := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
+	for _, tc := range []struct{ target, source string }{{base, heavy}, {heavy, base}, {heavy, heavy}} {
+		got, err := prepareHighLoadForPlan(context.Background(), g, TargetPlan{TargetSHA: tc.target, BranchSHA: tc.source})
+		if err != nil || !got {
+			t.Fatalf("prepareHighLoadForPlan(%s,%s) = %v, %v", tc.target, tc.source, got, err)
+		}
+	}
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  prepareHighLoad: null\n")
+	runGitInTest(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGitInTest(t, fx.Worktree, "commit", "-m", "malformed preparation declaration")
+	bad := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
+	if _, err := prepareHighLoadForPlan(context.Background(), g, TargetPlan{TargetSHA: base, BranchSHA: bad}); err == nil {
+		t.Fatal("malformed committed source declaration did not fail closed")
+	}
+}
+
+func TestPrepareHighLoadDeclarationSizeLimit(t *testing.T) {
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	padding := strings.Repeat("# padding\n", 8000)
+	for _, declaration := range []string{"prepareHighLoad: true", "prepareProfile: cargo-workspace-v1\n  prepareHighLoad: false"} {
+		writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  "+declaration+"\n"+padding)
+		runGitInTest(t, fx.Worktree, "add", ".gz-git.yaml")
+		runGitInTest(t, fx.Worktree, "commit", "-m", "oversized preparation declaration")
+		sha := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
+		if _, err := loadCommitPrepareHighLoad(context.Background(), g, sha); err == nil || !strings.Contains(err.Error(), "size limit") {
+			t.Fatalf("declaration %q error = %v", declaration, err)
+		}
 	}
 }

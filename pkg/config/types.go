@@ -265,6 +265,9 @@ type BranchConfig struct {
 	// repository-root project config.
 	ResourceHighLoad bool `yaml:"resourceHighLoad,omitempty" json:"resourceHighLoad,omitempty"`
 
+	// PrepareHighLoad opts only declared preparation subprocesses into the host resource slot.
+	PrepareHighLoad bool `yaml:"prepareHighLoad,omitempty" json:"prepareHighLoad,omitempty"`
+
 	// LockWait bounds a single high-load host-slot acquisition. It is read
 	// only from the repository-root declaration; "0" and "unbounded" mean
 	// unbounded, while an omitted key uses the command default.

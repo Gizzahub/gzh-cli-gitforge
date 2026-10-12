@@ -493,6 +493,134 @@ func rejectAliasedResourceHighLoad(branch *yaml.Node) (bool, error) {
 	return false, nil
 }
 
+// decodeJSONPrepareHighLoad validates a present JSON boolean declaration.
+func decodeJSONPrepareHighLoad(raw json.RawMessage, present bool) (bool, error) {
+	if !present {
+		return false, nil
+	}
+	if strings.TrimSpace(string(raw)) == "null" {
+		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
+	}
+	var value bool
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
+	}
+	return value, nil
+}
+
+// ParsePrepareHighLoadDocument reads the repository-owned resource
+// classification from one committed .gz-git document. An absent declaration
+// is deliberately light. A present declaration must be a boolean so a dirty
+// or malformed config cannot silently opt a gate out of capacity control.
+func ParsePrepareHighLoadDocument(data []byte, isJSON bool) (bool, error) {
+	if isJSON {
+		return parseJSONPrepareHighLoad(data)
+	}
+	return parseYAMLPrepareHighLoad(data)
+}
+
+func parseJSONPrepareHighLoad(data []byte) (bool, error) {
+	root, rootCounts, err := parseJSONObjectCounts(data)
+	if err != nil {
+		return false, err
+	}
+	if rootCounts["branch"] > 1 {
+		return false, fmt.Errorf("duplicate JSON key %q", "branch")
+	}
+	branch, ok := root["branch"]
+	if !ok {
+		return false, nil
+	}
+	fields, counts, err := parseJSONObjectCounts(branch)
+	if err != nil {
+		return false, fmt.Errorf("parse branch: %w", err)
+	}
+	if counts["prepareHighLoad"] > 1 {
+		return false, fmt.Errorf("duplicate JSON key %q", "prepareHighLoad")
+	}
+	return decodeJSONPrepareHighLoad(fields["prepareHighLoad"], fields["prepareHighLoad"] != nil)
+}
+
+func parseYAMLPrepareHighLoad(data []byte) (bool, error) {
+	if err := RejectMultiDocumentYAML(data); err != nil {
+		return false, err
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return false, err
+	}
+	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
+		return false, nil
+	}
+	config := root.Content[0]
+	if mappingKeyCount(config, "branch") > 1 {
+		return false, fmt.Errorf("duplicate YAML key %q", "branch")
+	}
+	if err := rejectRootPrepareHighLoadMerge(config); err != nil {
+		return false, err
+	}
+	branch := mappingValue(config, "branch")
+	if branch == nil {
+		return false, nil
+	}
+	if branch.Kind == yaml.AliasNode {
+		return rejectAliasedPrepareHighLoad(branch)
+	}
+	if branch.Kind != yaml.MappingNode {
+		return false, nil
+	}
+	if mappingKeyCount(branch, "prepareHighLoad") > 1 {
+		return false, fmt.Errorf("duplicate YAML key %q", "prepareHighLoad")
+	}
+	hidden, err := yamlMergeSuppliesKey(branch, "prepareHighLoad")
+	if err != nil {
+		return false, err
+	}
+	if hidden {
+		return false, fmt.Errorf("branch.prepareHighLoad does not allow a YAML merge that supplies prepareHighLoad")
+	}
+	node := mappingValue(branch, "prepareHighLoad")
+	if node == nil {
+		return false, nil
+	}
+	if node.Kind != yaml.ScalarNode || node.Tag != "!!bool" {
+		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
+	}
+	var value bool
+	if err := node.Decode(&value); err != nil {
+		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean: %w", err)
+	}
+	return value, nil
+}
+
+func rejectRootPrepareHighLoadMerge(config *yaml.Node) error {
+	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
+	for i := 0; i+1 < len(config.Content); i += 2 {
+		if !isYAMLMergeKey(config.Content[i]) {
+			continue
+		}
+		hidden, err := state.mergeValueSuppliesNestedKey(config.Content[i+1], "branch", "prepareHighLoad")
+		if err != nil {
+			return err
+		}
+		if hidden {
+			return fmt.Errorf("branch.prepareHighLoad does not allow a root YAML merge that supplies prepareHighLoad")
+		}
+	}
+	return nil
+}
+
+func rejectAliasedPrepareHighLoad(branch *yaml.Node) (bool, error) {
+	hidden, err := yamlNodeSuppliesKey(branch, "prepareHighLoad")
+	if err != nil {
+		return false, err
+	}
+	if hidden {
+		return false, fmt.Errorf("branch.prepareHighLoad does not allow an aliased branch declaration")
+	}
+	return false, nil
+}
+
 // decodeJSONMakeTimeout reads the declared branch.makeTimeout from a decoded
 // JSON branch object. Absent means the default applies; anything present must
 // be a string, so a numeric duration cannot slip past the parser that the

@@ -186,7 +186,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if actual := "refs/heads/" + targetBranchName(plan.Target, plan.Remote); actual != preflight.targetRef || plan.Branch != preflight.branch || plan.Remote != preflight.remote {
 		return nil, fmt.Errorf("integration source or target changed while acquiring ownership; re-run check")
 	}
-	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
+	resourceHighLoad, prepareHighLoad, err := resourceDeclarationsForPlan(ctx, g, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	case "contract-v1":
 		// The contract runner deliberately replaces every head-owned Makefile.
 	case "legacy-make":
-		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, resourceHighLoad, opts, report, add)
+		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, resourceHighLoad, prepareHighLoad, opts, report, add)
 	}
 	// A high-load gate may run long enough for either ref to move. The target
 	// lock protects local ownership, not a remote writer, so fetch and compare
@@ -236,7 +236,19 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	return report, nil
 }
 
-func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped, resourceHighLoad bool, opts CheckOptions, report *CheckReport, add func(CheckItem)) {
+func resourceDeclarationsForPlan(ctx context.Context, g gitRepo, plan TargetPlan) (gate, prepare bool, err error) {
+	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
+	if err != nil {
+		return false, false, err
+	}
+	prepareHighLoad, err := prepareHighLoadForPlan(ctx, g, plan)
+	if err != nil {
+		return false, false, err
+	}
+	return resourceHighLoad, prepareHighLoad, nil
+}
+
+func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped, resourceHighLoad, prepareHighLoad bool, opts CheckOptions, report *CheckReport, add func(CheckItem)) {
 	if plan.HeadSHA != plan.BranchSHA && !plan.releasesRemoteRef() {
 		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
 		return
@@ -260,7 +272,7 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 	if resourceHighLoad {
 		ctx = withResourceScope(ctx, g, opts)
 	}
-	prepared, err := prepareLegacySource(ctx, g, plan, profile)
+	prepared, err := prepareLegacySourceWithResource(ctx, g, plan, profile, prepareHighLoad, opts)
 	if err != nil {
 		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
 		return
@@ -328,18 +340,13 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 func targetWaitObserver(g gitRepo, plan TargetPlan, noFetch bool, notice io.Writer) func(context.Context) error {
 	var fetchWarned bool
 	return func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if plan.Remote != "" && !noFetch {
-			branch := targetBranchName(plan.Target, plan.Remote)
-			exists, existsErr := g.remoteBranchExists(ctx, plan.Remote, branch)
-			if existsErr == nil && !exists {
-				return errTargetMovedWhileWaiting
-			}
-			if err := g.fetchTargetRef(ctx, plan.Remote, plan.Target); err != nil {
-				if !fetchWarned && notice != nil {
-					fmt.Fprintf(notice, "integrate: warning: refresh target while waiting for resource slot: %v\n", err)
-				}
-				fetchWarned = true
-				return nil
+			refreshed, err := refreshWaitingTarget(ctx, g, plan, notice, &fetchWarned)
+			if err != nil || !refreshed {
+				return err
 			}
 		}
 		targetRef := plan.Target
@@ -347,6 +354,9 @@ func targetWaitObserver(g gitRepo, plan TargetPlan, noFetch bool, notice io.Writ
 			targetRef = plan.Remote + "/" + targetBranchName(plan.Target, plan.Remote)
 		}
 		sha, ok, err := g.revParse(ctx, targetRef)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
 			return err
 		}
@@ -355,6 +365,31 @@ func targetWaitObserver(g gitRepo, plan TargetPlan, noFetch bool, notice io.Writ
 		}
 		return nil
 	}
+}
+
+// refreshWaitingTarget distinguishes a canceled probe from a missing target.
+// A transient refresh failure leaves the request waiting for the next interval.
+func refreshWaitingTarget(ctx context.Context, g gitRepo, plan TargetPlan, notice io.Writer, fetchWarned *bool) (bool, error) {
+	branch := targetBranchName(plan.Target, plan.Remote)
+	exists, existsErr := g.remoteBranchExists(ctx, plan.Remote, branch)
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if existsErr == nil && !exists {
+		return false, errTargetMovedWhileWaiting
+	}
+	fetchErr := g.fetchTargetRef(ctx, plan.Remote, plan.Target)
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if fetchErr != nil {
+		if !*fetchWarned && notice != nil {
+			fmt.Fprintf(notice, "integrate: warning: refresh target while waiting for resource slot: %v\n", fetchErr)
+		}
+		*fetchWarned = true
+		return false, nil
+	}
+	return true, nil
 }
 
 func resourceWaitFailureDetail(err error) string {

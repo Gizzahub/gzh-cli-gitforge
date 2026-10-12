@@ -11,8 +11,18 @@ branch:
 `branch.prepareProfile` accepts only built-in profile IDs. It does not accept
 commands, paths, environment variables, or network endpoints. A profile from
 the source commit is compared with the target commit before either side runs.
-When a profile is declared, its root config file must be at most 64 KiB;
-configs without this declaration keep their existing size behavior.
+When a profile is declared or `branch.prepareHighLoad: true` is set, its root config file must
+be at most 64 KiB; configs without either declaration keep existing size behavior.
+
+For a confirmed heavy profile, set repository-root `branch.prepareHighLoad: true`.
+This strict boolean is independent of `branch.resourceHighLoad`, which classifies
+verification gates. Either committed source or target opting in uses the host
+slot for each actual profile executor and its integrity checks. Worktree
+materialization and cleanup remain outside; the slot is released before Make.
+Absent or false leaves preparation light. A true declaration without a resolved
+profile does not acquire capacity, and readiness contracts do not execute legacy
+profiles. Controller-only profiles honor the repository declaration too. See
+[integration resource scope](integrate-resources.md) for inheritance and waits.
 
 | Target declaration | Source declaration | Result                                                       |
 | ------------------ | ------------------ | ------------------------------------------------------------ |

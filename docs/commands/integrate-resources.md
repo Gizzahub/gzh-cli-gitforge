@@ -25,10 +25,8 @@ uses the slot. A working-tree edit cannot disable that protection.
 
 For a high-load legacy gate, each actual source or baseline `make check`/`make lint` subprocess holds the slot and releases it before the next probe. For a
 readiness contract it covers the runner process only. Fetching, Git
-inspection, preparation materialization and cleanup, push, and reclaim are
-outside the slot. A preparation profile that itself becomes a confirmed
-high-load executable needs a separate narrow declaration before rollout;
-this key does not classify it yet. Capacity remains one per host.
+inspection, snapshotting and prepared-worktree creation/removal, push, and reclaim are
+outside the slot. Capacity remains one per host.
 
 `CheckReport.ResourceWaitDuration` records slot admission time separately from
 `ReadinessDuration`; waiting does not consume a runner timeout. A target-lock
@@ -76,6 +74,21 @@ have a distinct common-directory/target key. A child targeting the same local
 repository and branch waits for that target owner; host-slot inheritance does
 not grant Git mutation ownership.
 
-Preparation profiles currently execute outside the acquired gate slot, so they
-receive no newly manufactured held-slot claim. Independent high-load preparation
-classification and real high-load declarations remain rollout prerequisites.
+A repository can independently classify its resolved preparation profile with
+committed repository-root `branch.prepareHighLoad: true`. Either source or target
+being true acquires the same slot separately for each actual source or lazy
+baseline profile execution, then releases it before Make verification. The slot
+covers the executor and its integrity checks; snapshotting, worktree creation,
+and worktree cleanup remain outside. This declaration does not make Make gates
+high load. It also applies to an existing controller-only profile, but does not
+create a profile when none is resolved. Readiness runners do not execute legacy
+preparation and therefore do not acquire a preparation slot.
+
+The key must be a strict boolean and is not inherited from profiles, parents, or
+workspace configuration. Malformed committed declarations fail closed even when
+no preparation executes. A manifest declaring a profile or `prepareHighLoad: true` is limited to
+64 KiB. Profile children receive the same preserved
+`HOST_SLOTS_HELD` list as gate children. Preparation admission uses the existing
+FIFO, cancellation, target-movement detection, and per-acquisition wait budget;
+its waiting contributes to `ResourceWaitDuration`. Confirmed heavy paths must
+commit their appropriate declaration before rollout.
