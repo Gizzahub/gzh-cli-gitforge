@@ -309,7 +309,7 @@ func TestAdmissionProcessBudgetIncludesFIFOAndOSWait(t *testing.T) {
 	head.releaseAndWait(t)
 	// The waiter now leaves FIFO admission but the legacy lock consumes its
 	// remaining budget. It must fail instead of restarting a second timeout.
-	if got := waiter.line(t); !strings.HasPrefix(got, "error ") || !strings.Contains(got, ErrHostLockWait.Error()) {
+	if got := waiter.line(t); !strings.HasPrefix(got, "error ") || !strings.Contains(got, ErrHostLockWait.Error()) || !strings.Contains(got, "after 1s (explicit; per acquisition)") || !strings.Contains(got, "no gate measured") {
 		t.Fatalf("budget waiter = %q", got)
 	}
 	elapsed := time.Since(started)

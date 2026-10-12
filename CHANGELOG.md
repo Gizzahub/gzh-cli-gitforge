@@ -40,6 +40,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- High-load slot acquisition now defaults to a 60 minute wait, so a stuck resource holder
+  cannot stall a new integration forever. Explicit `--lock-wait` overrides repository-root
+  `branch.lockWait`; zero remains unbounded. FIFO and OS waiting share the original limit,
+  and expiry reports its source separately from gate execution.
+
 - Declared high-load integration gates now enter FIFO resource admission before the host OS
   lock. Cancellation removes only the caller's ticket, positively dead waiters can be recovered,
   and queue plus OS-lock waiting share one budget. Older callers still use the same capacity lock.

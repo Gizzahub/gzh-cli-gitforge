@@ -265,6 +265,11 @@ type BranchConfig struct {
 	// repository-root project config.
 	ResourceHighLoad bool `yaml:"resourceHighLoad,omitempty" json:"resourceHighLoad,omitempty"`
 
+	// LockWait bounds a single high-load host-slot acquisition. It is read
+	// only from the repository-root declaration; "0" and "unbounded" mean
+	// unbounded, while an omitted key uses the command default.
+	LockWait string `yaml:"lockWait,omitempty" json:"lockWait,omitempty"`
+
 	// Naming templates the branch names that `gz-git branch name` builds, so a
 	// task branch is spelled the same way on every machine and by every agent.
 	Naming *branch.Naming `yaml:"naming,omitempty"`

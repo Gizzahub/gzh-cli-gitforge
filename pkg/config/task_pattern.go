@@ -4,6 +4,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -37,8 +38,12 @@ type TaskPatternDecl struct {
 	// ResourceHighLoad is true only when the repository-root declaration
 	// explicitly opts its integration verification into the shared host slot.
 	ResourceHighLoad bool
-	Source           string
-	Facts            []string
+	// LockWait is the declared branch.lockWait. LockWaitSet distinguishes an
+	// omitted declaration from an explicit unbounded value.
+	LockWait    time.Duration
+	LockWaitSet bool
+	Source      string
+	Facts       []string
 }
 
 type rootBranchDecl struct {
@@ -46,6 +51,7 @@ type rootBranchDecl struct {
 	integration      []string
 	makeTimeout      string
 	resourceHighLoad bool
+	lockWait         string
 	outcomeReport    *MakeOutcomeReport
 }
 
@@ -96,11 +102,17 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 	if err != nil {
 		return decl, err
 	}
+	lockWait, lockWaitSet, err := parseLockWait(rootDecl.lockWait, path)
+	if err != nil {
+		return decl, err
+	}
 
 	decl.Patterns = append([]string(nil), rootDecl.patterns...)
 	decl.IntegrationBranch = append(BranchList(nil), rootDecl.integration...)
 	decl.MakeTimeout = budget
 	decl.ResourceHighLoad = rootDecl.resourceHighLoad
+	decl.LockWait = lockWait
+	decl.LockWaitSet = lockWaitSet
 	decl.MakeOutcomeReport = rootDecl.outcomeReport
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
@@ -151,6 +163,10 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 	if err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
+	decl.lockWait, err = parseRepoRootLockWaitDocument(data, ext == ".json")
+	if err != nil {
+		return decl, fmt.Errorf("parse %s: %w", path, err)
+	}
 	parsedOutcome, err := ParseMakeOutcomeReportDocument(data, ext == ".json")
 	if err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
@@ -161,7 +177,15 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 			return decl, fmt.Errorf("parse %s: %w", path, err)
 		}
 		if b, ok := raw["branch"]; ok {
-			decl.patterns, decl.integration, decl.makeTimeout, _, err = decodeJSONBranchFields(b)
+			fields, decodeErr := decodeJSONBranchFields(b)
+			if decodeErr != nil {
+				err = decodeErr
+			} else {
+				decl.patterns = fields.patterns
+				decl.integration = fields.integration
+				decl.makeTimeout = fields.makeTimeout
+				decl.lockWait = fields.lockWait
+			}
 			if err != nil {
 				return decl, err
 			}
@@ -180,41 +204,166 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 		decl.patterns = append([]string(nil), file.Branch.TaskPattern...)
 		decl.integration = append([]string(nil), file.Branch.IntegrationBranch...)
 		decl.makeTimeout = file.Branch.MakeTimeout
+		decl.lockWait = file.Branch.LockWait
 	}
 	decl.outcomeReport = parsedOutcome
 	return decl, nil
 }
 
-func decodeJSONBranchFields(raw json.RawMessage) (patterns, integration []string, makeTimeout string, resourceHighLoad bool, err error) {
+type jsonBranchFields struct {
+	patterns, integration []string
+	makeTimeout, lockWait string
+}
+
+func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil, nil, "", false, err
+		return jsonBranchFields{}, err
 	}
 	var timeoutValue, patternsValue, integrationValue any
 	if field, ok := m["makeTimeout"]; ok {
 		if err := json.Unmarshal(field, &timeoutValue); err != nil {
-			return nil, nil, "", false, err
+			return jsonBranchFields{}, err
 		}
 	}
 	if field, ok := m["taskPattern"]; ok {
 		if err := json.Unmarshal(field, &patternsValue); err != nil {
-			return nil, nil, "", false, err
+			return jsonBranchFields{}, err
 		}
 	}
 	if field, ok := m["integrationBranch"]; ok {
 		if err := json.Unmarshal(field, &integrationValue); err != nil {
-			return nil, nil, "", false, err
+			return jsonBranchFields{}, err
 		}
 	}
 	timeout, err := decodeJSONMakeTimeout(timeoutValue)
 	if err != nil {
-		return nil, nil, "", false, err
+		return jsonBranchFields{}, err
 	}
-	highLoad, err := decodeJSONResourceHighLoad(m["resourceHighLoad"], m["resourceHighLoad"] != nil)
+	wait, err := decodeJSONLockWait(m["lockWait"], m["lockWait"] != nil)
 	if err != nil {
-		return nil, nil, "", false, err
+		return jsonBranchFields{}, err
 	}
-	return coerceStringList(patternsValue), coerceStringList(integrationValue), timeout, highLoad, nil
+	return jsonBranchFields{patterns: coerceStringList(patternsValue), integration: coerceStringList(integrationValue), makeTimeout: timeout, lockWait: wait}, nil
+}
+
+func decodeJSONLockWait(raw json.RawMessage, present bool) (string, error) {
+	if !present || string(bytes.TrimSpace(raw)) == "null" {
+		if present {
+			return "", fmt.Errorf("branch.lockWait must be a non-empty string")
+		}
+		return "", nil
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil || value == "" {
+		return "", fmt.Errorf("branch.lockWait must be a non-empty string")
+	}
+	return value, nil
+}
+
+// parseRepoRootLockWaitDocument reads only the authority-bearing repository
+// root declaration, rejecting duplicate, alias, and merge forms that a normal
+// compatibility decoder could otherwise obscure.
+func parseRepoRootLockWaitDocument(data []byte, isJSON bool) (string, error) {
+	if isJSON {
+		return parseRepoRootLockWaitJSON(data)
+	}
+	return parseRepoRootLockWaitYAML(data)
+}
+
+func parseRepoRootLockWaitJSON(data []byte) (string, error) {
+	root, rootCounts, err := parseJSONObjectCounts(data)
+	if err != nil {
+		return "", err
+	}
+	if rootCounts["branch"] > 1 {
+		return "", fmt.Errorf("duplicate JSON key %q", "branch")
+	}
+	branch, ok := root["branch"]
+	if !ok || len(bytes.TrimSpace(branch)) == 0 || bytes.TrimSpace(branch)[0] != '{' {
+		return "", nil
+	}
+	fields, counts, err := parseJSONObjectCounts(branch)
+	if err != nil {
+		return "", fmt.Errorf("parse branch: %w", err)
+	}
+	if counts["lockWait"] > 1 {
+		return "", fmt.Errorf("duplicate JSON key %q", "lockWait")
+	}
+	return decodeJSONLockWait(fields["lockWait"], fields["lockWait"] != nil)
+}
+
+func parseRepoRootLockWaitYAML(data []byte) (string, error) {
+	if err := RejectMultiDocumentYAML(data); err != nil {
+		return "", err
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return "", err
+	}
+	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
+		return "", nil
+	}
+	config := root.Content[0]
+	if mappingKeyCount(config, "branch") > 1 {
+		return "", fmt.Errorf("duplicate YAML key %q", "branch")
+	}
+	hidden, err := yamlRootMergeSuppliesLockWait(config)
+	if err != nil {
+		return "", err
+	}
+	if hidden {
+		return "", fmt.Errorf("branch.lockWait does not allow a root YAML merge that supplies lockWait")
+	}
+	branch := mappingValue(config, "branch")
+	if branch == nil {
+		return "", nil
+	}
+	if branch.Kind == yaml.AliasNode {
+		hidden, err := yamlNodeSuppliesKey(branch, "lockWait")
+		if err != nil {
+			return "", err
+		}
+		if hidden {
+			return "", fmt.Errorf("branch.lockWait does not allow an aliased branch declaration")
+		}
+		return "", nil
+	}
+	if branch.Kind != yaml.MappingNode {
+		return "", nil
+	}
+	if mappingKeyCount(branch, "lockWait") > 1 {
+		return "", fmt.Errorf("duplicate YAML key %q", "lockWait")
+	}
+	hidden, err = yamlMergeSuppliesKey(branch, "lockWait")
+	if err != nil {
+		return "", err
+	}
+	if hidden {
+		return "", fmt.Errorf("branch.lockWait does not allow a YAML merge that supplies lockWait")
+	}
+	node := mappingValue(branch, "lockWait")
+	if node == nil {
+		return "", nil
+	}
+	if node.Kind != yaml.ScalarNode || node.Tag != "!!str" || node.Value == "" {
+		return "", fmt.Errorf("branch.lockWait must be a non-empty string")
+	}
+	return node.Value, nil
+}
+
+func yamlRootMergeSuppliesLockWait(root *yaml.Node) (bool, error) {
+	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		if !isYAMLMergeKey(root.Content[i]) {
+			continue
+		}
+		hidden, err := state.mergeValueSuppliesNestedKey(root.Content[i+1], "branch", "lockWait")
+		if err != nil || hidden {
+			return hidden, err
+		}
+	}
+	return false, nil
 }
 
 func decodeJSONResourceHighLoad(raw json.RawMessage, present bool) (bool, error) {
@@ -381,6 +530,28 @@ func parseMakeTimeout(raw, path string) (time.Duration, error) {
 		return 0, fmt.Errorf("%s: branch.makeTimeout %q must be positive", path, raw)
 	}
 	return budget, nil
+}
+
+// parseLockWait accepts "0" and "unbounded" as explicit unbounded waits.
+// The boolean keeps that choice distinct from an omitted declaration.
+func parseLockWait(raw, path string) (time.Duration, bool, error) {
+	if raw == "" {
+		return 0, false, nil
+	}
+	if strings.TrimSpace(raw) != raw {
+		return 0, false, fmt.Errorf("%s: branch.lockWait %q must not have surrounding whitespace", path, raw)
+	}
+	if raw == "unbounded" {
+		return 0, true, nil
+	}
+	wait, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, false, fmt.Errorf("%s: branch.lockWait %q: %w", path, raw, err)
+	}
+	if wait < 0 {
+		return 0, false, fmt.Errorf("%s: branch.lockWait %q must not be negative", path, raw)
+	}
+	return wait, true, nil
 }
 
 func coerceStringList(v any) []string {

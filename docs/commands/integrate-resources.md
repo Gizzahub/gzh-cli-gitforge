@@ -35,6 +35,15 @@ this key does not classify it yet. Capacity remains one per host.
 wait prints its common-directory and destination-ref ownership reason to the
 configured command error writer.
 
+Each high-load admission and final OS-slot attempt shares one wait budget.
+`--lock-wait` has highest precedence, followed by the repository-root
+`branch.lockWait`, then the 60 minute default. The flag or declaration accepts
+Go duration strings; an explicit `0` flag, `"0"` declaration, or
+`unbounded` declaration waits without a limit. `branch.lockWait` is strict:
+it is a non-empty string in the repository-root document only, and duplicate,
+alias, merge, null, numeric, or negative forms fail closed. It is never
+inherited from a profile, parent directory, or workspace configuration.
+
 Declared high-load gates receive FIFO admission tickets before trying the existing
 OS slot lock. Sequence allocation and ticket publication are serialized and use
 atomic replacement. A cancelled request removes its own ticket; recovery removes

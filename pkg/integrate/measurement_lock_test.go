@@ -96,6 +96,14 @@ func measurementLockFixture(t *testing.T, recipe, budget string) *testutil.Workt
 	return fx
 }
 
+func setMeasurementLockWait(t *testing.T, fx *testutil.WorktreeOrigin, wait string) {
+	t.Helper()
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: 1m\n  resourceHighLoad: true\n  lockWait: "+wait+"\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "configure lock wait")
+	runGit(t, fx.Worktree, "push")
+}
+
 // holdHostLockInProcess takes the lock as a stand-in holder. flock belongs
 // to the open file description, so Check's own open conflicts with it just
 // as another process's would.
@@ -346,10 +354,91 @@ func TestMeasurementLockWait(t *testing.T) {
 	if checkErr != nil || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
 		t.Fatalf("check = %#v, %v; want a not-ready resource-slot report", checkReport, checkErr)
 	}
+	if !hasCheckDetail(checkReport, "make check", checkFail, "after 300ms (flag; per acquisition)") || !hasCheckDetail(checkReport, "make check", checkFail, "no gate measured") {
+		t.Fatalf("check lock-wait diagnostic:\n%s", FormatCheck(checkReport))
+	}
 	if runErr == nil || runReport == nil || runReport.Check == nil || runReport.Check.Ready {
 		t.Fatalf("run = %#v, %v; want not-ready after resource wait", runReport, runErr)
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a make target ran without the lock (stat %s: %v)", ran, err)
+	}
+}
+
+func TestEffectiveLockWaitPrecedence(t *testing.T) {
+	root := t.TempDir()
+	writeRepoFile(t, root, ".gz-git.yaml", "branch:\n  lockWait: 45m\n")
+	if wait, source, err := effectiveLockWait(CheckOptions{}, root); err != nil || wait != 45*time.Minute || source != "repository config" {
+		t.Fatalf("repository lock wait = (%s, %q, %v)", wait, source, err)
+	}
+	if wait, source, err := effectiveLockWait(CheckOptions{LockWaitSet: true}, root); err != nil || wait != 0 || source != "flag" {
+		t.Fatalf("explicit unbounded flag = (%s, %q, %v)", wait, source, err)
+	}
+	if wait, source, err := effectiveLockWait(CheckOptions{LockWait: time.Minute}, root); err != nil || wait != time.Minute || source != "flag" {
+		t.Fatalf("flag wait = (%s, %q, %v)", wait, source, err)
+	}
+	if wait, source, err := effectiveLockWait(CheckOptions{}, t.TempDir()); err != nil || wait != defaultHostLockWait || source != "default" {
+		t.Fatalf("default lock wait = (%s, %q, %v)", wait, source, err)
+	}
+	if _, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: root, LockWait: -time.Second}); err == nil || err.Error() != "--lock-wait must not be negative" {
+		t.Fatalf("negative lock wait error = %v", err)
+	}
+}
+
+func TestMeasurementLockConfiguredWait(t *testing.T) {
+	fastHostLockPolling(t)
+	ran := filepath.Join(t.TempDir(), "ran")
+	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	setMeasurementLockWait(t, fx, "50ms")
+	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
+	if err != nil || report == nil || report.Ready || !hasCheckDetail(report, "make check", checkFail, "after 50ms (repository config; per acquisition)") {
+		t.Fatalf("configured Check = %#v, %v", report, err)
+	}
+	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("configured wait ran gate: %v", statErr)
+	}
+}
+
+func TestMeasurementLockDefaultWait(t *testing.T) {
+	fastHostLockPolling(t)
+	oldDefault := defaultHostLockWait
+	defaultHostLockWait = 50 * time.Millisecond
+	t.Cleanup(func() { defaultHostLockWait = oldDefault })
+	ran := filepath.Join(t.TempDir(), "ran")
+	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
+	if err != nil || report == nil || report.Ready || !hasCheckDetail(report, "make check", checkFail, "after 50ms (default; per acquisition)") || !hasCheckDetail(report, "make check", checkFail, "no gate measured") {
+		t.Fatalf("default Check = %#v, %v", report, err)
+	}
+	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("default wait ran gate: %v", statErr)
+	}
+}
+
+func TestMeasurementLockExplicitZeroOutlivesConfigAndDefault(t *testing.T) {
+	fastHostLockPolling(t)
+	oldDefault := defaultHostLockWait
+	defaultHostLockWait = 20 * time.Millisecond
+	t.Cleanup(func() { defaultHostLockWait = oldDefault })
+	ran := filepath.Join(t.TempDir(), "ran")
+	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	setMeasurementLockWait(t, fx, "10ms")
+	lock := holdHostLockInProcess(t, "/holder", "holder")
+	released := make(chan struct{})
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		lock.release()
+		close(released)
+	}()
+	started := time.Now()
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockWaitSet: true, LockNotice: io.Discard})
+	<-released
+	if err != nil || report == nil || !report.Ready || time.Since(started) < 60*time.Millisecond {
+		t.Fatalf("explicit zero Check = %#v, %v after %s", report, err, time.Since(started))
+	}
+	if _, statErr := os.Stat(ran); statErr != nil {
+		t.Fatalf("explicit zero did not run gate: %v", statErr)
 	}
 }

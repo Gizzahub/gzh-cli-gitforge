@@ -42,9 +42,10 @@ type CheckOptions struct {
 	// source is read after the fetch and must be exactly this commit, so the
 	// SHA compared is the SHA every readiness row measures.
 	ExpectSource string
-	// LockWait bounds the wait for the host measurement lock; zero waits
-	// without bound. On expiry the check fails and measures nothing.
-	LockWait time.Duration
+	// LockWait bounds one high-load host-slot acquisition. LockWaitSet keeps
+	// an explicit zero (unbounded) distinct from an omitted flag.
+	LockWait    time.Duration
+	LockWaitSet bool
 	// LockNotice receives the periodic holder notice while waiting; nil
 	// means os.Stderr.
 	LockNotice   io.Writer
@@ -126,6 +127,9 @@ func baselineRecordFor(probe makeProbe, needed bool) BaselineRecord {
 func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*CheckReport, error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
+	}
+	if opts.LockWait < 0 {
+		return nil, fmt.Errorf("--lock-wait must not be negative")
 	}
 	if opts.ExpectSource != "" {
 		expect, err := NormalizeExpectSource(opts.ExpectSource)

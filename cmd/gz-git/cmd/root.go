@@ -181,7 +181,7 @@ func executeCommand(command *cobra.Command) error {
 }
 
 func resetScanDepthFlags(command *cobra.Command) {
-	for _, name := range []string{"scan-depth", "help"} {
+	for _, name := range []string{"scan-depth", "help", "lock-wait"} {
 		if flag := command.LocalNonPersistentFlags().Lookup(name); flag != nil {
 			_ = flag.Value.Set(flag.DefValue)
 			flag.Changed = false
