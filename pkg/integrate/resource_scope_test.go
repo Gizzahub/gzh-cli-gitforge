@@ -39,7 +39,7 @@ func TestLightGateDoesNotWaitForHighLoadSlot(t *testing.T) {
 		case <-time.After(10 * time.Second):
 		}
 	})
-	waitForText(t, "heavy gate", 10*time.Second, func() string {
+	waitForText(t, "heavy gate", func() string {
 		if _, err := os.Stat(started); err == nil {
 			return "started"
 		}

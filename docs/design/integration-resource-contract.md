@@ -31,6 +31,12 @@ declarations are ignored and are not inherited. Malformed, merged, aliased,
 duplicate, numeric, null, or negative root declarations fail closed.
 `CheckReport` records resource waiting separately from verification duration.
 
+While waiting for FIFO admission or the OS slot, a request periodically refreshes
+its captured remote target ref. Target movement ends the wait as NOT READY and
+requires another check; no gate is started or source rewritten. A transient fetch
+failure produces one warning and does not abandon admission. Refreshing respects
+cancellation and the remaining resource wait budget.
+
 ## Current boundaries
 
 Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.

@@ -40,6 +40,10 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- High-load resource waiters refresh their captured target ref and stop for a new check
+  when it moves, so stale work does not spend the full wait budget before learning that
+  verification must restart. Transient fetch failures warn once and preserve the wait.
+
 - Nested high-load gate children reuse their parent’s host slot through `HOST_SLOTS_HELD`,
   preserving FIFO capacity and holder records while Git target locks remain independent.
 

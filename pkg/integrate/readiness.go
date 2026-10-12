@@ -142,6 +142,9 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 	result, duration, err := runContractWithResource(ctx, g, plan, target, resourceHighLoad, opts)
 	report.ReadinessStatus, report.ReadinessDuration = result.Status, duration
 	if err != nil {
+		if errors.Is(err, errTargetMovedWhileWaiting) {
+			return CheckItem{Name: "readiness contract", Status: checkFail, Detail: err.Error()}
+		}
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail("measurement unavailable: "+err.Error(), result.stderr)}
 	}
 	if result.Status == "ready" {

@@ -5,14 +5,18 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
+
+var errTargetMovedWhileWaiting = errors.New("target branch changed while waiting for resource slot; re-run check")
 
 const (
 	checkPass = "PASS"
@@ -48,8 +52,9 @@ type CheckOptions struct {
 	LockWaitSet bool
 	// LockNotice receives the periodic holder notice while waiting; nil
 	// means os.Stderr.
-	LockNotice   io.Writer
-	resourceWait *time.Duration
+	LockNotice           io.Writer
+	resourceWait         *time.Duration
+	resourceWaitObserver func(context.Context) error
 }
 
 // CheckItem is one readiness row.
@@ -188,6 +193,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 
 	report := &CheckReport{Plan: plan, Controller: controller}
 	opts.resourceWait = &report.ResourceWaitDuration
+	if opts.LockNotice == nil {
+		opts.LockNotice = os.Stderr
+	}
+	opts.resourceWaitObserver = targetWaitObserver(g, plan, opts.NoFetch, opts.LockNotice)
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -310,6 +319,53 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 		}
 		add(CheckItem{Name: "make check/lint", Status: status, Detail: detail})
 	}
+}
+
+// targetWaitObserver refreshes only the resolved destination while a declared
+// high-load gate is waiting for capacity. A transient fetch failure is a
+// warning because the next interval can still establish the target; an actual
+// moved target stops before any gate subprocess begins.
+func targetWaitObserver(g gitRepo, plan TargetPlan, noFetch bool, notice io.Writer) func(context.Context) error {
+	var fetchWarned bool
+	return func(ctx context.Context) error {
+		if plan.Remote != "" && !noFetch {
+			branch := targetBranchName(plan.Target, plan.Remote)
+			exists, existsErr := g.remoteBranchExists(ctx, plan.Remote, branch)
+			if existsErr == nil && !exists {
+				return errTargetMovedWhileWaiting
+			}
+			if err := g.fetchTargetRef(ctx, plan.Remote, plan.Target); err != nil {
+				if !fetchWarned && notice != nil {
+					fmt.Fprintf(notice, "integrate: warning: refresh target while waiting for resource slot: %v\n", err)
+				}
+				fetchWarned = true
+				return nil
+			}
+		}
+		targetRef := plan.Target
+		if plan.Remote != "" {
+			targetRef = plan.Remote + "/" + targetBranchName(plan.Target, plan.Remote)
+		}
+		sha, ok, err := g.revParse(ctx, targetRef)
+		if err != nil {
+			return err
+		}
+		if !ok || sha != plan.TargetSHA {
+			return errTargetMovedWhileWaiting
+		}
+		return nil
+	}
+}
+
+func resourceWaitFailureDetail(err error) string {
+	if errors.Is(err, errTargetMovedWhileWaiting) {
+		return err.Error()
+	}
+	return "resource slot unavailable: " + err.Error()
+}
+
+func targetMovedWhileWaiting(err error) bool {
+	return errors.Is(err, errTargetMovedWhileWaiting)
 }
 
 // saveLegacyMakeDiagnostic preserves branch Make output after the prepared
@@ -515,6 +571,9 @@ func FormatCheck(r *CheckReport) string {
 	}
 	for _, record := range r.Baselines {
 		fmt.Fprintf(&b, "  INFO  baseline make %s — %s\n", record.Target, record.Reason)
+	}
+	if r.ResourceWaitDuration > 0 {
+		fmt.Fprintf(&b, "  INFO  resource wait — Duration=%s\n", r.ResourceWaitDuration.Round(time.Millisecond))
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)

@@ -30,6 +30,7 @@ import (
 const (
 	hostLockChildEnv          = "GZ_GIT_TEST_HOST_LOCK_CHILD"
 	inheritedResourceChildEnv = "GZ_GIT_TEST_INHERITED_RESOURCE_CHILD"
+	testWaitTimeout           = 10 * time.Second
 )
 
 // TestMain points the host measurement lock at a private directory, so no
@@ -214,6 +215,88 @@ func TestReadinessRunnerReceivesHeldHostSlot(t *testing.T) {
 	}
 }
 
+func TestReadinessRunnerDoesNotStartWhenTargetMovesDuringResourceWait(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
+	fastHostLockPolling(t)
+	ran := filepath.Join(t.TempDir(), "runner-ran")
+	fx := readinessFixture(t)
+	manifest := "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n"
+	runner := "#!/bin/sh\ntouch " + strconv.Quote(ran) + "\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
+	advanceReadinessTarget(t, fx, manifest, runner, "declare high-load readiness")
+	lock := holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
+
+	notice := &lockedBuffer{}
+	done := make(chan checkResult, 1)
+	go func() {
+		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice,
+		})
+		done <- checkResult{report, err}
+	}()
+	waitForText(t, "readiness waiting notice", notice.String, "waiting")
+	moveMeasurementTarget(t, fx, "moved-readiness.txt")
+	select {
+	case r := <-done:
+		if r.err != nil {
+			t.Fatalf("Check: %v", r.err)
+		}
+		if r.report.Ready || !hasCheckDetail(r.report, "readiness contract", checkFail, "target branch changed while waiting") {
+			t.Fatalf("target movement must stop readiness before the runner:\n%s", FormatCheck(r.report))
+		}
+		if r.report.ResourceWaitDuration <= 0 {
+			t.Fatalf("target movement lost resource wait duration: %s", r.report.ResourceWaitDuration)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("readiness Check did not stop after target movement")
+	}
+	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("readiness runner started after target movement: %v", err)
+	}
+	lock.release()
+}
+
+func TestReadinessRunnerDoesNotStartWhenResourceWaitIsCanceled(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
+	fastHostLockPolling(t)
+	ran := filepath.Join(t.TempDir(), "runner-ran")
+	fx := readinessFixture(t)
+	manifest := "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n"
+	runner := "#!/bin/sh\ntouch " + strconv.Quote(ran) + "\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
+	advanceReadinessTarget(t, fx, manifest, runner, "declare high-load readiness")
+	holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	notice := &lockedBuffer{}
+	done := make(chan checkResult, 1)
+	go func() {
+		report, err := Check(ctx, gitcmd.NewExecutor(), CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice,
+		})
+		done <- checkResult{report, err}
+	}()
+	waitForText(t, "readiness waiting notice", notice.String, "waiting")
+	cancel()
+	select {
+	case r := <-done:
+		if r.err != nil {
+			t.Fatalf("Check: %v", r.err)
+		}
+		if r.report.Ready || !hasCheckDetail(r.report, "readiness contract", checkFail, "context canceled") {
+			t.Fatalf("canceled resource wait must fail readiness before runner:\n%s", FormatCheck(r.report))
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("readiness Check did not stop after cancellation")
+	}
+	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("readiness runner started after cancellation: %v", err)
+	}
+}
+
 // holdHostLockInProcess takes the lock as a stand-in holder. flock belongs
 // to the open file description, so Check's own open conflicts with it just
 // as another process's would.
@@ -227,12 +310,12 @@ func holdHostLockInProcess(t *testing.T, repository, branch string) *hostLock {
 	return lock
 }
 
-func waitForText(t *testing.T, what string, timeout time.Duration, read func() string, want string) {
+func waitForText(t *testing.T, what string, read func() string, want string) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(testWaitTimeout)
 	for !strings.Contains(read(), want) {
 		if time.Now().After(deadline) {
-			t.Fatalf("%s never contained %q within %s; got:\n%s", what, want, timeout, read())
+			t.Fatalf("%s never contained %q within %s; got:\n%s", what, want, testWaitTimeout, read())
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -326,6 +409,9 @@ func TestMeasurementLockBudget(t *testing.T) {
 	if report.ResourceWaitDuration < time.Second {
 		t.Fatalf("resource wait = %s, want a separately reported held-slot delay", report.ResourceWaitDuration)
 	}
+	if !strings.Contains(FormatCheck(report), "INFO  resource wait — Duration=") {
+		t.Fatalf("formatted report omitted separate resource wait:\n%s", FormatCheck(report))
+	}
 }
 
 // TestMeasurementLockCrashHolderProcess is not a test of its own: it is the
@@ -381,7 +467,7 @@ func TestMeasurementLockCrash(t *testing.T) {
 		done <- checkResult{report, err}
 	}()
 	childPID := "pid " + strconv.Itoa(child.Process.Pid)
-	waitForText(t, "waiting notice", 10*time.Second, notice.String, childPID)
+	waitForText(t, "waiting notice", notice.String, childPID)
 	if !strings.Contains(notice.String(), "branch dev/crashed") {
 		t.Fatalf("waiting notice does not name the holder's branch:\n%s", notice.String())
 	}
@@ -409,12 +495,23 @@ func TestMeasurementLockCrash(t *testing.T) {
 	}
 }
 
-// TestMeasurementLockFetch moves the target while the check waits for the
-// lock. The measured target must be the tip after the wait, so the fetch and
-// target resolution happen after the lock is acquired.
-func TestMeasurementLockFetch(t *testing.T) {
+func moveMeasurementTarget(t *testing.T, fx *testutil.WorktreeOrigin, name string) {
+	t.Helper()
+	runGit(t, fx.Clone, "checkout", "develop")
+	writeRepoFile(t, fx.Clone, name, "moved\n")
+	runGit(t, fx.Clone, "add", name)
+	runGit(t, fx.Clone, "commit", "-m", "target moves during resource wait")
+	runGit(t, fx.Clone, "push", fx.Remote, "develop")
+}
+
+// TestMeasurementLockStopsWhenTargetMovesDuringOSWait detects a remote
+// destination advance before the held OS slot is released. No gate command
+// can start because the Check returns while the unrelated holder still owns
+// capacity.
+func TestMeasurementLockStopsWhenTargetMovesDuringOSWait(t *testing.T) {
 	fastHostLockPolling(t)
-	fx := measurementLockFixture(t, "@true", "1m")
+	ran := filepath.Join(t.TempDir(), "gate-ran")
+	fx := measurementLockFixture(t, "@touch "+strconv.Quote(ran), "1m")
 	lock := holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
 
 	notice := &lockedBuffer{}
@@ -427,21 +524,173 @@ func TestMeasurementLockFetch(t *testing.T) {
 		})
 		done <- checkResult{report, err}
 	}()
-	waitForText(t, "waiting notice", 10*time.Second, notice.String, "waiting")
-
-	runGit(t, fx.Clone, "checkout", "develop")
-	writeRepoFile(t, fx.Clone, "moved.txt", "moved\n")
-	runGit(t, fx.Clone, "add", "moved.txt")
-	runGit(t, fx.Clone, "commit", "-m", "target moves during the wait")
-	runGit(t, fx.Clone, "push", fx.Remote, "develop")
-	lock.release()
-
-	r := <-done
+	waitForText(t, "waiting notice", notice.String, "waiting")
+	moveMeasurementTarget(t, fx, "moved-os.txt")
+	var r checkResult
+	select {
+	case r = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Check did not stop after target movement during OS wait")
+	}
 	if r.err != nil {
 		t.Fatalf("Check: %v", r.err)
 	}
-	if r.report.Ready || !hasCheckDetail(r.report, "post-gate freshness", checkFail, "target branch changed") {
+	if r.report.Ready || !hasCheckDetail(r.report, "make check", checkFail, "target branch changed while waiting") {
 		t.Fatalf("target movement during a resource wait must require revalidation:\n%s", FormatCheck(r.report))
+	}
+	if r.report.ResourceWaitDuration <= 0 {
+		t.Fatalf("target movement lost resource wait duration: %s", r.report.ResourceWaitDuration)
+	}
+	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("make gate started after target movement: %v", err)
+	}
+	lock.release()
+}
+
+// TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission exercises the
+// same check path before it reaches the OS lock. The first admission ticket
+// deliberately stays live, so the check must observe the moved target from
+// the FIFO wait loop and remove its own ticket.
+func TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission(t *testing.T) {
+	fastHostLockPolling(t)
+	ran := filepath.Join(t.TempDir(), "gate-ran")
+	fx := measurementLockFixture(t, "@touch "+strconv.Quote(ran), "1m")
+	dir, err := hostSlotsDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := acquireAdmission(context.Background(), dir, 0, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(release)
+
+	done := make(chan checkResult, 1)
+	go func() {
+		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+			RepoPath:   fx.Worktree,
+			Branch:     "dev/actor/feat/task",
+			LockNotice: io.Discard,
+		})
+		done <- checkResult{report, err}
+	}()
+	waitAdmissionTickets(t, 2)
+	moveMeasurementTarget(t, fx, "moved-fifo.txt")
+	select {
+	case r := <-done:
+		if r.err != nil {
+			t.Fatalf("Check: %v", r.err)
+		}
+		if r.report.Ready || !hasCheckDetail(r.report, "make check", checkFail, "target branch changed while waiting") {
+			t.Fatalf("target movement during FIFO admission must require revalidation:\n%s", FormatCheck(r.report))
+		}
+		if r.report.ResourceWaitDuration <= 0 {
+			t.Fatalf("target movement lost resource wait duration: %s", r.report.ResourceWaitDuration)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Check did not stop after target movement during FIFO admission")
+	}
+	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("make gate started after target movement: %v", err)
+	}
+	tickets, err := liveAdmissionTickets(dir)
+	if err != nil || len(tickets) != 1 {
+		t.Fatalf("moved FIFO waiter ticket was not removed: %#v, %v", tickets, err)
+	}
+}
+
+func TestTargetWaitObserverTreatsDeletedTargetAsMovement(t *testing.T) {
+	fx := measurementLockFixture(t, "@true", "1m")
+	gitExecutor := gitcmd.NewExecutor()
+	g := newGitRepo(gitExecutor, fx.Worktree)
+	plan, err := resolveTarget(context.Background(), g, gitExecutor, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Remote == "" {
+		t.Fatalf("test requires remote target plan: %#v", plan)
+	}
+	runGit(t, fx.Clone, "push", fx.Remote, ":develop")
+	if err := targetWaitObserver(g, plan, false, io.Discard)(context.Background()); !errors.Is(err, errTargetMovedWhileWaiting) {
+		t.Fatalf("deleted target observer error = %v, want target movement", err)
+	}
+}
+
+func TestTargetWaitObserverContinuesAfterOneFetchFailure(t *testing.T) {
+	fx := measurementLockFixture(t, "@true", "1m")
+	runner := gitcmd.NewExecutor()
+	g := newGitRepo(runner, fx.Worktree)
+	plan, err := resolveTarget(context.Background(), g, runner, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(t.TempDir(), "first-fetch-failed")
+	args := filepath.Join(t.TempDir(), "fetch-args")
+	wrapper := filepath.Join(t.TempDir(), "git")
+	script := "#!/bin/sh\nif [ \"$1\" = fetch ]; then\n  printf '%s\\n' \"$*\" > " + strconv.Quote(args) + "\n  case \"$*\" in *--prune*) echo unexpected-prune >&2; exit 2;; esac\n  if [ ! -e " + strconv.Quote(state) + " ]; then\n    : > " + strconv.Quote(state) + "\n    echo transient-fetch >&2\n    exit 1\n  fi\nfi\nexec " + strconv.Quote(gitPath) + " \"$@\"\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	notice := &lockedBuffer{}
+	observer := targetWaitObserver(newGitRepo(gitcmd.NewExecutor(gitcmd.WithGitBinary(wrapper)), fx.Worktree), plan, false, notice)
+	if err := observer(context.Background()); err != nil {
+		t.Fatalf("first observer call: %v", err)
+	}
+	if err := observer(context.Background()); err != nil {
+		t.Fatalf("observer did not continue after transient fetch failure: %v", err)
+	}
+	if got := strings.Count(notice.String(), "refresh target while waiting"); got != 1 {
+		t.Fatalf("transient fetch warning count = %d, want 1; notice:\n%s", got, notice.String())
+	}
+	data, err := os.ReadFile(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(data), "+refs/heads/develop:refs/remotes/origin/develop"; !strings.Contains(got, want) {
+		t.Fatalf("wait refresh = %q, want only captured target refspec %q", got, want)
+	}
+}
+
+func TestTargetWaitObserverTreatsNonFastForwardTargetAsMovement(t *testing.T) {
+	fx := measurementLockFixture(t, "@true", "1m")
+	gitExecutor := gitcmd.NewExecutor()
+	g := newGitRepo(gitExecutor, fx.Worktree)
+	plan, err := resolveTarget(context.Background(), g, gitExecutor, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Remote == "" {
+		t.Fatalf("test requires remote target plan: %#v", plan)
+	}
+	runGit(t, fx.Clone, "checkout", "--orphan", "force-target")
+	writeRepoFile(t, fx.Clone, "replacement.txt", "replacement\n")
+	runGit(t, fx.Clone, "add", "replacement.txt")
+	runGit(t, fx.Clone, "commit", "-m", "replace target history")
+	runGit(t, fx.Clone, "push", "--force", fx.Remote, "HEAD:develop")
+	if err := targetWaitObserver(g, plan, false, io.Discard)(context.Background()); !errors.Is(err, errTargetMovedWhileWaiting) {
+		t.Fatalf("non-fast-forward target observer error = %v, want target movement", err)
+	}
+}
+
+func TestResourceWaitObserverCannotExtendFiniteAcquisitionBudget(t *testing.T) {
+	fastHostLockPolling(t)
+	holder := holdHostLockInProcess(t, "/holder", "holder")
+	defer holder.release()
+	ctx := withResourceWaitObserver(context.Background(), func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	started := time.Now()
+	_, err := acquireHostLockWithSource(ctx, hostLockHolder{Branch: "waiter"}, 75*time.Millisecond, "flag", io.Discard)
+	if !errors.Is(err, ErrHostLockWait) || !strings.Contains(err.Error(), "flag; per acquisition") {
+		t.Fatalf("finite wait error = %v, want source-labeled acquisition timeout", err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("observer extended finite acquisition budget to %s", elapsed)
 	}
 }
 

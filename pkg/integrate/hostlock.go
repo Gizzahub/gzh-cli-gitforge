@@ -138,7 +138,7 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 			break
 		}
 		now := time.Now()
-		if wait > 0 && now.Sub(start) >= wait {
+		if hostLockWaitExpired(start, wait) {
 			_ = f.Close()
 			return nil, fmt.Errorf("%w after %s (%s; per acquisition); %s holds %s; no gate measured", ErrHostLockWait, limit, waitSource, describeHostLockHolder(sidecar), path)
 		}
@@ -146,6 +146,10 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 			lastNotice = now
 			fmt.Fprintf(notice, "integrate: waiting %s for the host measurement lock %s; %s\n",
 				now.Sub(start).Round(time.Second), path, describeHostLockHolder(sidecar))
+			if err := observeHostLockWait(ctx, start, wait, limit, waitSource); err != nil {
+				_ = f.Close()
+				return nil, err
+			}
 		}
 		timer := time.NewTimer(hostLockPollInterval)
 		select {
@@ -164,6 +168,18 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 		fmt.Fprintf(notice, "integrate: warning: write host measurement lock holder %s: %v\n", sidecar, err)
 	}
 	return &hostLock{file: f, sidecar: sidecar}, nil
+}
+
+func hostLockWaitExpired(start time.Time, wait time.Duration) bool {
+	return wait > 0 && time.Since(start) >= wait
+}
+
+func observeHostLockWait(ctx context.Context, start time.Time, wait, limit time.Duration, waitSource string) error {
+	err := observeResourceWait(ctx, wait-time.Since(start), wait > 0)
+	if hostLockWaitExpired(start, wait) && !targetMovedWhileWaiting(err) {
+		return fmt.Errorf("%w after %s (%s; per acquisition); no gate measured", ErrHostLockWait, limit, waitSource)
+	}
+	return err
 }
 
 // release drops the sidecar while the lock still excludes everyone else, so
@@ -241,9 +257,31 @@ type resourceScope struct {
 	opts CheckOptions
 }
 type (
-	resourceScopeKey struct{}
-	heldHostSlotKey  struct{}
+	resourceScopeKey        struct{}
+	heldHostSlotKey         struct{}
+	resourceWaitObserverKey struct{}
 )
+
+func withResourceWaitObserver(ctx context.Context, observer func(context.Context) error) context.Context {
+	return context.WithValue(ctx, resourceWaitObserverKey{}, observer)
+}
+
+func observeResourceWait(ctx context.Context, remaining time.Duration, bounded bool) error {
+	observer, ok := ctx.Value(resourceWaitObserverKey{}).(func(context.Context) error)
+	if !ok || observer == nil {
+		return nil
+	}
+	if bounded && remaining <= 0 {
+		return ErrHostLockWait
+	}
+	limit := 5 * time.Second
+	if remaining > 0 && remaining < limit {
+		limit = remaining
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	return observer(probeCtx)
+}
 
 func withResourceScope(ctx context.Context, g gitRepo, opts CheckOptions) context.Context {
 	return context.WithValue(ctx, resourceScopeKey{}, resourceScope{g: g, opts: opts})
@@ -312,6 +350,7 @@ func hostSlotsHeldForChild(ctx context.Context, env []string) []string {
 // holdMeasurementLock acquires one host measurement slot for a declared
 // high-load gate. Callers release it before Git cleanup, push, or reclaim.
 func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (context.Context, func(), error) {
+	ctx = withResourceWaitObserver(ctx, opts.resourceWaitObserver)
 	if hostSlotIsInherited() {
 		if opts.LockNotice != nil {
 			fmt.Fprintln(opts.LockNotice, "integrate: using inherited parent host resource slot integrate")

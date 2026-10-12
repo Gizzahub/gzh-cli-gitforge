@@ -44,6 +44,13 @@ it is a non-empty string in the repository-root document only, and duplicate,
 alias, merge, null, numeric, or negative forms fail closed. It is never
 inherited from a profile, parent directory, or workspace configuration.
 
+While a high-load request waits in FIFO admission or for the OS slot, it
+refreshes the captured remote target ref at the holder-notice interval. If the
+target moves, the request returns NOT READY with a re-run-check message and
+elapsed resource wait, before starting verification. It does not rebase or
+change the measured source commit. A transient fetch failure is reported once
+and the wait continues within its original wait budget and cancellation context.
+
 Declared high-load gates receive FIFO admission tickets before trying the existing
 OS slot lock. Sequence allocation and ticket publication are serialized and use
 atomic replacement. A cancelled request removes its own ticket; recovery removes

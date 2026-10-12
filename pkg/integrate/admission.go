@@ -63,7 +63,7 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if wait > 0 && time.Since(start) >= wait {
+		if admissionWaitExpired(start, wait) {
 			return nil, fmt.Errorf("%w after %s; admission ticket canceled", ErrHostLockWait, wait)
 		}
 		first, err := admissionTurn(lockFile, dir, &ticketPath)
@@ -73,7 +73,7 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if wait > 0 && time.Since(start) >= wait {
+		if admissionWaitExpired(start, wait) {
 			return nil, fmt.Errorf("%w after %s; admission ticket canceled", ErrHostLockWait, wait)
 		}
 		if first {
@@ -84,6 +84,9 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		if lastNotice.IsZero() || now.Sub(lastNotice) >= hostLockNoticeInterval {
 			lastNotice = now
 			fmt.Fprintf(notice, "integrate: waiting for FIFO resource admission\n")
+			if err := observeAdmissionWait(ctx, start, wait); err != nil {
+				return nil, err
+			}
 		}
 		t := time.NewTimer(hostLockPollInterval)
 		select {
@@ -93,6 +96,22 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		case <-t.C:
 		}
 	}
+}
+
+func admissionWaitExpired(start time.Time, wait time.Duration) bool {
+	return wait > 0 && time.Since(start) >= wait
+}
+
+func observeAdmissionWait(ctx context.Context, start time.Time, wait time.Duration) error {
+	remaining := time.Duration(0)
+	if wait > 0 {
+		remaining = wait - time.Since(start)
+	}
+	err := observeResourceWait(ctx, remaining, wait > 0)
+	if admissionWaitExpired(start, wait) && !targetMovedWhileWaiting(err) {
+		return fmt.Errorf("%w after %s; admission ticket canceled", ErrHostLockWait, wait)
+	}
+	return err
 }
 
 func admissionTurn(lockFile *os.File, dir string, ticketPath *string) (first bool, err error) {

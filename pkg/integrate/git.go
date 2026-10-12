@@ -121,6 +121,37 @@ func (g gitRepo) fetchPrune(ctx context.Context, remote string) error {
 	return nil
 }
 
+// fetchTargetRef refreshes only the target ref captured in a Check plan. A
+// resource wait must not update unrelated remote-tracking refs or prune them.
+func (g gitRepo) fetchTargetRef(ctx context.Context, remote, target string) error {
+	branch := targetBranchName(target, remote)
+	refspec := "+refs/heads/" + branch + ":refs/remotes/" + remote + "/" + branch
+	res, err := g.run(ctx, "fetch", remote, "--quiet", "--no-tags", refspec)
+	if err != nil {
+		return err
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("git fetch %s %s failed: %s", remote, refspec, strings.TrimSpace(res.Stderr))
+	}
+	return nil
+}
+
+// remoteBranchExists distinguishes a deleted captured target from a transient
+// fetch failure without asking Git for any unrelated ref.
+func (g gitRepo) remoteBranchExists(ctx context.Context, remote, branch string) (bool, error) {
+	res, err := g.run(ctx, "ls-remote", "--exit-code", remote, "refs/heads/"+branch)
+	if err != nil {
+		return false, err
+	}
+	if res.ExitCode == 0 {
+		return true, nil
+	}
+	if res.ExitCode == 2 {
+		return false, nil
+	}
+	return false, fmt.Errorf("git ls-remote %s refs/heads/%s failed: %s", remote, branch, strings.TrimSpace(res.Stderr))
+}
+
 func (g gitRepo) aheadBehind(ctx context.Context, left, right string) (ahead, behind int, err error) {
 	out, err := g.output(ctx, "rev-list", "--left-right", "--count", left+"..."+right)
 	if err != nil {
