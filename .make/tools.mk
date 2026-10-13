@@ -127,9 +127,9 @@ install-analysis-tools: ## install code analysis tools
 #
 # The binary is resolved from a repository-owned bin/tools and never from PATH.
 # Asking PATH made the answer depend on how the command was reached: under make,
-# mise's shims directory came first and the pin applied (2.12.2); from a plain
-# shell, mise's installs directory came first and a different release won
-# (2.13.2). Same tree, same `make lint`, two linters -- and the old
+# mise's shims directory came first and the then-active 2.12.2 pin applied;
+# from a plain shell, mise's installs directory came first and 2.13.2 won.
+# Same tree, same `make lint`, two linters -- and the old
 # `command -v golangci-lint` guard passed for both, because it only asks whether
 # a name resolves. Measured on 2026-09-04: one path reported 0 issues, the other
 # 195, all of them replayed from a shared cache for worktrees that no longer
@@ -145,18 +145,23 @@ install-analysis-tools: ## install code analysis tools
 # by an older Go reads a stdlib its go/types cannot parse and dies mid-analysis
 # instead of reporting findings.
 #
-# The pin is v2.13.1, not the v2.12.2 this repo carried before. Fixing the
-# resolution above exposed the second half of the same measurement: 2.12.2
-# replays cached findings for files that no longer exist. Re-measured
+# The active pin is v2.14.0. It follows the v2.13.1 resolution below; the
+# repository-owned binary remains required even when mise selects the same
+# release, because the gate verifies both the module version and the active Go
+# toolchain embedded in that binary. (ISSUE-295)
+#
+# The v2.13.1 pin replaced the v2.12.2 this repository carried before. Fixing
+# the resolution above exposed the second half of the same measurement:
+# v2.12.2 replays cached findings for files that no longer exist. Re-measured
 # 2026-09-04 after the resolution fix landed -- `make lint` still reported the
 # same 195 issues, and all 195 pointed at reclaimed worktrees under
 # ~/worktrees/... , with 391 accompanying "no such file or directory" warnings
-# from the linter itself. Running 2.13.1 against that same unmodified shared
+# from the linter itself. Running v2.13.1 against that same unmodified shared
 # cache reported 0 issues and named no worktree path, so the pin moved instead
 # of the cache being wiped: a wipe is machine-wide, one-shot, and the ghosts
 # return with the next reclaimed worktree. gzh-cli, gzh-cli-quality and
-# gzh-cli-package-manager already pin v2.13.1. (TASK-162)
-GOLANGCI_LINT_VERSION ?= v2.13.1
+# gzh-cli-package-manager already pinned v2.13.1 at that time. (TASK-162)
+GOLANGCI_LINT_VERSION ?= v2.14.0
 GOLANGCI_LINT_MODULE := github.com/golangci/golangci-lint/v2
 GOLANGCI_LINT_INSTALL ?= $(GOLANGCI_LINT_MODULE)/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOLANGCI_LINT_DIR := $(CURDIR)/bin/tools
@@ -291,8 +296,9 @@ install-docs-tools: ## install documentation tools
 # so the identity check below cannot catch it — a 1.27-built v2.22.10 passed
 # identity and still died at scan time. v2.29.0 is the first release whose
 # notes claim "Add support for go version 1.27.0" (PR #1726, 2026-08-26) and
-# its go.mod keeps the floor at `go 1.25.0`, so both installed product
-# toolchains (go1.26.7, go1.27.0) can still build it. The runtime half of the
+# its go.mod keeps the floor at `go 1.25.0`, so both historical product
+# toolchains (go1.26.7, go1.27.0) can still build it; go1.27.1 is the current
+# repository build toolchain. The runtime half of the
 # contract — rebuild the pin with both compilers, scan pkg/gitsettings with
 # each, and reject new findings against v2.22.10 — lives in
 # scripts/test-gosec-toolchain-contract.sh.
