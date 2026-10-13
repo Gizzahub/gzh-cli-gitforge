@@ -28,3 +28,17 @@ gz-git integrate run   origin/develop --target origin/master --release --no-fetc
 
 Capability detection: the flag appears in the `Flags:` section of
 `integrate check --help` and `integrate run --help`, as `--no-fetch` does.
+
+## Freshness before expensive validation
+
+An approved source SHA may still be behind the fetched integration target.
+`--expect-source` pins source identity; it does not make that source current.
+When freshness fails, `check` returns NOT READY and `run` exits 1 without
+running readiness, preparation, or Make gates, pushing, or reclaiming anything.
+The report contains the freshness failure; unexecuted gate rows are absent,
+not passing evidence. There is no automatic rebase or retry.
+
+Refresh the candidate through the repository's adopted lifecycle, review the
+new input, and then invoke native integration once. Fresh candidates still run
+their required gates and post-gate source/target revalidation. This early return
+does not cache results, combine branches into a batch, or bypass final gates.

@@ -46,6 +46,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Integration candidates that fail freshness now return NOT READY before invoking
+  readiness runners, preparation profiles, or Make gates. TASK-285 had spent
+  25 minutes validating an already-stale candidate; fresh candidates retain all
+  required checks, target revalidation, push leases, and reclaim protections.
+
 - High-load resource waiters refresh their captured target ref and stop for a new check
   when it moves, so stale work does not spend the full wait budget before learning that
   verification must restart. Transient fetch failures warn once and preserve the wait.
