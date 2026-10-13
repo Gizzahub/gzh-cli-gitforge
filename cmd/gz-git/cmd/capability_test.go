@@ -19,6 +19,7 @@ func TestCapabilityCommandReportsSupportedCapability(t *testing.T) {
 		integrateQueueControllerV1Capability,
 		integrateQueueBaseMissingV1Capability,
 		contextReferenceObserveV1Capability,
+		integrateRunContextV1Capability,
 	} {
 		t.Run(capability, func(t *testing.T) {
 			cmd := newCapabilityCommand()

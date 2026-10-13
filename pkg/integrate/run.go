@@ -15,6 +15,10 @@ import (
 // RunOptions configures a fast-forward integrate and reclaim.
 type RunOptions struct {
 	CheckOptions
+	// Execution is the optional durable-evidence context (TASK-302). Absent
+	// keeps the legacy run behavior; present, it must be complete and valid,
+	// and the run records a receipt before it pushes.
+	Execution *ExecutionContext
 }
 
 // RunReport is the result of integrate run.
@@ -26,6 +30,9 @@ type RunReport struct {
 	Reclaim    ReclaimResult
 	Printed    []string
 	Integrated bool
+	// Receipt is the durable evidence recorded for an execution-context run;
+	// nil for a legacy run.
+	Receipt *Receipt
 }
 
 // Run fast-forwards the target and reclaims the task branch.
@@ -33,6 +40,14 @@ type RunReport struct {
 func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunReport, error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
+	}
+	// A malformed or partial execution context is rejected before any check
+	// or mutation: evidence identity is all-or-nothing.
+	if err := opts.Execution.Validate(); err != nil {
+		return nil, err
+	}
+	if opts.Execution != nil {
+		opts.ExpectSource = opts.Execution.ExpectSource
 	}
 	// Target ownership survives readiness through the exact lease push and
 	// reclaim. Resource slots are acquired only around declared high-load gates.
@@ -100,8 +115,29 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if check.Controller != nil {
 		pushRemote = check.Controller.RemoteURL
 	}
+	common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil || common == "" {
+		if err == nil {
+			err = fmt.Errorf("git common directory is empty")
+		}
+		return report, err
+	}
+	// Intent is durable before the push: a crash past this point leaves
+	// evidence cleanup can reconcile against the remote, never folklore.
+	if opts.Execution != nil {
+		receipt, err := beginRunEvidence(ctx, exec, g, common, opts, check, sourceSHA, targetName)
+		if err != nil {
+			return report, err
+		}
+		report.Receipt = receipt
+	}
 	if err := pushFastForward(ctx, g, pushRemote, sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
 		return report, err
+	}
+	if report.Receipt != nil {
+		if err := markEvidencePushed(ctx, common, report.Receipt); err != nil {
+			return report, err
+		}
 	}
 	report.Integrated = true
 	report.SHA = sourceSHA
@@ -111,7 +147,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		report.Printed = append(report.Printed, "RECLAIM incomplete: "+strings.Join(report.Reclaim.Failed, "; "))
 		return report, err
 	}
-	return finishRunReclaim(ctx, exec, g, root, targetName, report, opts.NoFetch)
+	return finishRunReclaim(ctx, exec, g, root, common, targetName, report, opts.NoFetch)
 }
 
 func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, noFetch bool) (sourceSHA, targetSHA, targetName string, err error) {
@@ -203,7 +239,7 @@ func ffTargetWorktrees(ctx context.Context, exec *gitcmd.Executor, g gitRepo, ta
 	return nil
 }
 
-func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, root, targetName string, report *RunReport, noFetch bool) (*RunReport, error) {
+func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, root, common, targetName string, report *RunReport, noFetch bool) (*RunReport, error) {
 	if err := revalidateController(ctx, g, report.Check); err != nil {
 		return report, err
 	}
@@ -237,6 +273,13 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 		}
 		if report.Reclaim.Incomplete() {
 			report.Printed = append(report.Printed, "RECLAIM incomplete: "+strings.Join(report.Reclaim.Failed, "; "))
+		}
+	}
+	// The reclaim results are durable even when incomplete: a crashed
+	// reclaim is exactly what cleanup retry resumes from.
+	if report.Receipt != nil {
+		if err := recordEvidenceReclaim(ctx, common, report.Receipt, report.Reclaim); err != nil {
+			return report, err
 		}
 	}
 	return report, nil

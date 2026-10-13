@@ -11,6 +11,7 @@ const (
 	integrateQueueControllerV1Capability  = "integrate-queue-controller-v1"
 	integrateQueueBaseMissingV1Capability = "integrate-queue-base-missing-v1"
 	contextReferenceObserveV1Capability   = "context-reference-observe-v1"
+	integrateRunContextV1Capability       = "integrate-run-context-v1"
 )
 
 func newCapabilityCommand() *cobra.Command {
@@ -32,7 +33,7 @@ func newCapabilityCommand() *cobra.Command {
 
 func supportsCapability(name string) bool {
 	switch name {
-	case integrateReadinessV1Capability, integrateQueueControllerV1Capability, integrateQueueBaseMissingV1Capability, contextReferenceObserveV1Capability:
+	case integrateReadinessV1Capability, integrateQueueControllerV1Capability, integrateQueueBaseMissingV1Capability, contextReferenceObserveV1Capability, integrateRunContextV1Capability:
 		return true
 	default:
 		return false

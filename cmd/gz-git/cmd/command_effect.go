@@ -143,6 +143,8 @@ var commandEffects = map[string][]string{
 	"integrate provision siblings release": {mutatesFilesystem},
 	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
 	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
+	"integrate cleanup":                    {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
+	"integrate receipt":                    nil,
 	"integrate bootstrap plan":             {mutatesTrackingRefs},
 	"integrate bootstrap apply":            {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
 	"integrate readiness update plan":      {mutatesTrackingRefs},

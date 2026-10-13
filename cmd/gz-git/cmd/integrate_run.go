@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -26,6 +27,12 @@ var (
 	integrateRunNoFetch          bool
 	integrateRunExpectSource     string
 	integrateRunLockWait         time.Duration
+	integrateRunExecutionID      string
+	integrateRunGeneration       string
+	integrateRunOwnerActor       string
+	integrateRunOwnerHost        string
+	integrateRunOwnerKind        string
+	integrateRunJSON             bool
 )
 
 var integrateRunCmd = &cobra.Command{
@@ -37,10 +44,26 @@ var integrateRunCmd = &cobra.Command{
   # Required when no integration branch can be resolved
   gz-git integrate run --target origin/main --direct-to-default
 
+  # Durable evidence for an external task runtime (TASK-302): all context
+  # flags together, --expect-source included, or none of them
+  gz-git integrate run --execution-id run-42 --generation g7 \
+    --owner-actor claude --owner-host mbp --owner-kind agent \
+    --expect-source <full-sha> --json
+
 Reclaim only runs for names matching the repo-root taskPattern.
 No declaration means reclaim nothing. Remote branch delete uses
 --force-with-lease against the commit that just landed.
 Run a bare integrate from a task-branch worktree, not from the target checkout.
+
+Execution context (--execution-id, --generation, --owner-actor, --owner-host,
+--owner-kind, plus --expect-source) records a durable receipt under the Git
+common dir (gz-integrate/v1) before the push: intent, then pushed, then the
+reclaim results. The identity is immutable — reusing an execution-id with a
+different generation/owner/repo/task/target fails before pushing. With
+--json, run prints the machine protocol document (schema_version 1,
+snake_case: execution_id, generation, owner{actor,host,kind}, task_sha,
+target_ref, source_pushed, receipt_phase, worktree_removed,
+local_branch_removed, remote_branch_removed, reclaim_*, exit_code, error).
 
 Engine: gz-git-integrate (Go)
 
@@ -64,6 +87,35 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
 	integrateRunCmd.Flags().DurationVar(&integrateRunLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
 	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
+	integrateRunCmd.Flags().StringVar(&integrateRunExecutionID, "execution-id", "", "durable-evidence execution id; supply together with --generation, --owner-actor, --owner-host, --owner-kind and --expect-source, or not at all")
+	integrateRunCmd.Flags().StringVar(&integrateRunGeneration, "generation", "", "exact runtime generation of this execution; opaque, compared exactly by receipt and cleanup")
+	integrateRunCmd.Flags().StringVar(&integrateRunOwnerActor, "owner-actor", "", "logical actor executing the run (e.g. claude, celee)")
+	integrateRunCmd.Flags().StringVar(&integrateRunOwnerHost, "owner-host", "", "logical device name (GIT_WORK_HOST / ce.workHost); never a hostname")
+	integrateRunCmd.Flags().StringVar(&integrateRunOwnerKind, "owner-kind", "", "owner kind: agent or human")
+	integrateRunCmd.Flags().BoolVar(&integrateRunJSON, "json", false, "print the machine JSON protocol document instead of the human report")
+}
+
+// executionContextFromFlags enforces the all-or-nothing rule: any context
+// flag means every context flag, --expect-source included. A partial context
+// is rejected before any check or mutation. The absent case is a zero value
+// with supplied=false, never a nil pointer dressed as success.
+func executionContextFromFlags() (execution integrate.ExecutionContext, supplied bool, err error) {
+	supplied = integrateRunExecutionID != "" || integrateRunGeneration != "" ||
+		integrateRunOwnerActor != "" || integrateRunOwnerHost != "" || integrateRunOwnerKind != ""
+	if !supplied {
+		return integrate.ExecutionContext{}, false, nil
+	}
+	if integrateRunExecutionID == "" || integrateRunGeneration == "" || integrateRunOwnerActor == "" ||
+		integrateRunOwnerHost == "" || integrateRunOwnerKind == "" || integrateRunExpectSource == "" {
+		return integrate.ExecutionContext{}, false, fmt.Errorf("--execution-id, --generation, --owner-actor, --owner-host, --owner-kind and --expect-source are supplied together or not at all")
+	}
+	execution = integrate.ExecutionContext{
+		ExecutionID:  integrateRunExecutionID,
+		Generation:   integrateRunGeneration,
+		Owner:        integrate.OwnerIdentity{Actor: integrateRunOwnerActor, Host: integrateRunOwnerHost, Kind: integrateRunOwnerKind},
+		ExpectSource: integrateRunExpectSource,
+	}
+	return execution, true, nil
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
@@ -75,6 +127,14 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	branch := ""
 	if len(args) == 1 {
 		branch = args[0]
+	}
+	execution, executionSupplied, err := executionContextFromFlags()
+	if err != nil {
+		return cliutil.NewExitError(2, err)
+	}
+	var executionContext *integrate.ExecutionContext
+	if executionSupplied {
+		executionContext = &execution
 	}
 
 	report, err := integrate.Run(ctx, gitcmd.NewExecutor(), integrate.RunOptions{
@@ -92,25 +152,35 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			LockWaitSet:        cmd.Flags().Changed("lock-wait"),
 			LockNotice:         cmd.ErrOrStderr(),
 		},
+		Execution: executionContext,
 	})
-	if report != nil && !quiet {
-		fmt.Fprint(cmd.OutOrStdout(), integrate.FormatRun(report))
-	}
+	exit := 0
 	if err != nil {
-		if report != nil && report.Integrated {
-			return cliutil.NewExitError(cliutil.ExitReclaimIncomplete, err)
+		switch {
+		case report != nil && report.Integrated:
+			exit = cliutil.ExitReclaimIncomplete
+		case errors.Is(err, integrate.ErrSourceMismatch):
+			exit = cliutil.ExitSourceMismatch
+		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
+			exit = 1
+		default:
+			exit = 2
 		}
-		msg := err.Error()
-		if errors.Is(err, integrate.ErrSourceMismatch) {
-			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
-		}
-		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "not ready") || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
-			return cliutil.NewExitError(1, err)
-		}
-		return cliutil.NewExitError(2, err)
+	} else if report != nil && report.Integrated && report.Reclaim.Incomplete() {
+		err = fmt.Errorf("reclaim incomplete")
+		exit = cliutil.ExitReclaimIncomplete
 	}
-	if report != nil && report.Integrated && report.Reclaim.Incomplete() {
-		return cliutil.NewExitError(cliutil.ExitReclaimIncomplete, fmt.Errorf("reclaim incomplete"))
+	if !quiet {
+		if integrateRunJSON {
+			proto := integrate.BuildRunProtocol(report, err, exit)
+			data, marshalErr := json.Marshal(proto)
+			if marshalErr != nil {
+				return cliutil.NewExitError(2, marshalErr)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		} else if report != nil {
+			fmt.Fprint(cmd.OutOrStdout(), integrate.FormatRun(report))
+		}
 	}
-	return nil
+	return cliutil.NewExitError(exit, err)
 }

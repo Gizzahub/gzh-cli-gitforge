@@ -33,6 +33,7 @@ ______________________________________________________________________
   - `forge from` (GitHub/GitLab/Gitea org/group/user)
   - `forge config generate` → then `workspace sync` (YAML config workflow)
 - Maintenance: `cleanup branch` (dry-run by default)
+- Task integration evidence: `integrate run --execution-id --generation --owner-actor --owner-host --owner-kind --expect-source [--json]` writes a durable receipt under `<git-common-dir>/gz-integrate/v1/receipts/` (intent before push, pushed after, complete after reclaim); `integrate receipt --execution-id --generation [--json]` queries it without creating anything; `integrate cleanup --execution-id --generation [--json]` finishes the reclaim half of a crashed run without re-running checks, merge, or push — exit 0 complete, 3 partial (durable), 2 refusal. Receipt JSON is `schema_version 1`, snake_case; see each command's `--help` for the full field list.
 - Monitoring: `watch` (default/compact/json/llm)
 - Insights: `history` (stats/contributors/file/blame), `info`, `conflict detect`
 - Diagnostics: `doctor` (system, config, auth, forge health checks)
