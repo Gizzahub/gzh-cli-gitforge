@@ -1,6 +1,6 @@
 # ISSUE: go1.27 툴체인으로 빌드한 gosec가 export data를 읽지 못한다
 
-- status: resolved (2026-10-02 TASK-270; 2026-10-14 Go 1.27.2 추가 호환 수선)
+- status: TASK-270의 기존 수선은 resolved; Go 1.27.2 호환 gosec 후속 채택은 blocked (2026-10-14 비안정 도구 선택 대기)
 - priority: P1
 - category: quality/ci
 - created_at: 2026-10-01
@@ -47,12 +47,12 @@ source SHA `5f05178`(origin/master)에서 v2.22.10을 두 고정 컴파일러로
 재빌드해 `./pkg/gitsettings` 최소 스캔을 2×2(gosec 빌드 툴체인 × 스캔 시점
 go)로 측정했다.
 
-| gosec 빌드 | 스캔 시점 go | exit | 결과 |
-|---|---|---|---|
-| go1.26.7 | go1.26.7 | 0 | 정상(JSON 유효, findings 0) |
-| go1.26.7 | go1.27.0 | 1 | `internal error: package "context" without types ...`, stdout에 JSON 없음 |
-| go1.27.0 | go1.26.7 | 0 | 정상 |
-| go1.27.0 | go1.27.0 | 1 | 동일 오류 |
+| gosec 빌드 | 스캔 시점 go | exit | 결과                                                                      |
+| ---------- | ------------ | ---- | ------------------------------------------------------------------------- |
+| go1.26.7   | go1.26.7     | 0    | 정상(JSON 유효, findings 0)                                               |
+| go1.26.7   | go1.27.0     | 1    | `internal error: package "context" without types ...`, stdout에 JSON 없음 |
+| go1.27.0   | go1.26.7     | 0    | 정상                                                                      |
+| go1.27.0   | go1.27.0     | 1    | 동일 오류                                                                 |
 
 2026-10-01 기록의 "go1.27.0으로 빌드하면 실패"는 상관 관계일 뿐 인과가 아니다.
 **실패는 gosec을 빌드한 컴파일러가 아니라 패키지를 적재하는 스캔 시점 `go`를
@@ -68,8 +68,7 @@ v2.22.10 `h1:ntbBqdWXnu46DUOXn+R2SvPo3PiJCDugTCgTW2g4tQg=`. 측정 증거(실행
 
 **v2.29.0** — `.make/tools.mk` `GOSEC_VERSION ?= v2.29.0`.
 
-- 공식 근거: gosec v2.29.0 릴리스(2026-08-26) 변경로그 `"Add support for go
-  version 1.27.0 and update to version 1.25.14 and 1…"` (#1726). v2.23.0 ~
+- 공식 근거: gosec v2.29.0 릴리스(2026-08-26) 변경로그 `"Add support for go version 1.27.0 and update to version 1.25.14 and 1…"` (#1726). v2.23.0 ~
   v2.28.0 릴리스 노트에는 Go 1.27 지원 언급이 없다.
 - 의존성: v2.29.0 go.mod는 `golang.org/x/tools` v0.48.0 → v0.49.0으로
   올라가고 floor는 `go 1.25.0`이라 설치된 두 고정 컴파일러(1.26.7, 1.27.0)
@@ -93,17 +92,17 @@ v2.22.10 `h1:ntbBqdWXnu46DUOXn+R2SvPo3PiJCDugTCgTW2g4tQg=`. 측정 증거(실행
   컴파일러가 없으면 skip 성공 없이 실패한다.
 
 해결 커밋: `test(tools): pin gosec for the Go 1.27 export-data contract`
-(f3c7b45). 후속 수정: `fix(tools): keep gosec contract verify runs
-read-only` — verify 재실행이 영수증의 HEAD SHA를 다시 써서 작업 트리를
+(f3c7b45). 후속 수정: `fix(tools): keep gosec contract verify runs read-only` — verify 재실행이 영수증의 HEAD SHA를 다시 써서 작업 트리를
 더럽히던 결함을 고쳤다. 영수증 기록은 `--write-receipt` 옵트인으로 분리했고
 기록 시 source는 스캔 시점 HEAD(영수증 이전 커밋)로 적어 영수증 커밋 후에도
 참으로 남는다.
 
 <!-- TASK-270 receipt:start -->
+
 mode: --full-security-no-regression (scripts/test-gosec-toolchain-contract.sh)
 source: f3c7b45cccdfaee5e07b412890e9027649fb0b68 (dev/claude/mst/test/task-270) — pre-receipt commit
 source note: git HEAD when the scan ran; this receipt was recorded after
-  that scan, so the commit carrying this receipt cannot make the SHA false
+that scan, so the commit carrying this receipt cannot make the SHA false
 scan compiler: go1.26.7 at /Users/archmagece/.local/share/mise/installs/go/1.26.7
 baseline pin: v2.22.10 (h1:ntbBqdWXnu46DUOXn+R2SvPo3PiJCDugTCgTW2g4tQg=)
 current pin: v2.29.0 (h1:pF2HSLcnY5voqpxQumEe0O5YAAbvF4Syu4qeIewpLyc=)
@@ -113,4 +112,5 @@ findings (rule_id/file/line/code): baseline=0 current=0 new=0 resolved-by-curren
 verdict: PASS — no new findings; no scanner/runtime/export-data errors
 receipt: printed to stdout on every run; recorded into the issue card only with --write-receipt
 private builds/scans ran in an isolated mktemp dir, removed on exit in all outcomes
+
 <!-- TASK-270 receipt:end -->

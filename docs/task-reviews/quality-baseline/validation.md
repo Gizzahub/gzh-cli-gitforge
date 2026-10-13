@@ -1,11 +1,25 @@
 # Quality baseline repair
 
 This task follows sibling-provision source delivery `45935984` and is rebased on
-`f012c9f8599f3d5de9ff3ab6b2dce799ad541cba`. It records the clean installed CE
+`14f6d890294bb180b9dddc408cd4cd04d82e969b`. It records the clean installed CE
 reference `cd0e1d19c3211b85a514ac03383ae6166a614f07`. Concurrent source adoption
 `3547349` advanced Go to 1.27.1 and lint to 2.14.0. The lint declaration is retained;
 Go advances to the reported fixed patch 1.27.2 after managed-runtime verification.
 No workstation pin is rolled back and no product version is raised.
+
+## Adoption blocker (2026-10-14)
+
+The updated user policy requires explicit selection before adopting an unreleased
+development tool. The tested gosec pseudo-version below is a candidate only:
+this task has not been integrated or installed. Independent technical review is
+compatibility evidence, not authorization for that policy exception.
+
+The latest official stable remains [v2.29.0](https://github.com/securego/gosec/releases/tag/v2.29.0).
+Its [x/tools v0.49.0 declaration](https://raw.githubusercontent.com/securego/gosec/v2.29.0/go.mod)
+matches the reproduced Go 1.27.2 export-format failure. Integration and the
+dependent EE native sibling-adoption proof wait for either an explicit choice of
+`v2.29.1-0.20261009120814-7b1b5cebe007` or a compatible official stable release.
+Existing successful candidate checks do not establish delivery completion.
 
 ## Behavioral scope
 
@@ -13,8 +27,9 @@ No workstation pin is rolled back and no product version is raised.
   candidates fail closed. Experiments and foreign executions cannot be selected.
 - Status/list preserve externally reclaimed ACTIVE history as BLOCKED without
   rewriting execution records or start receipts (CE ADR-0073).
-- Stable Worktrunk versions from 0.80 onward are accepted while the inventory
-  schema remains separately checked. Malformed/prerelease reports are rejected.
+- The concurrent owning-source contract accepts exactly the installed Worktrunk
+  0.80.0 report, while the inventory schema remains separately checked.
+  Later releases require separate compatibility evidence before adoption.
 - Golden provenance requires a clean, full CE revision from Go build metadata.
   Twelve fixtures were captured from the reference executable; semantic guards
   cover single/ambiguous bare finish and observational reclaimed history.
@@ -75,10 +90,10 @@ Rebuilding stable gosec v2.29.0 under Go 1.27.2 still fails: its x/tools v0.49.0
 decoder cannot read export format 5. The official upstream compatibility commit
 `7b1b5cebe007d62fb58eacb90fc571112939ec30` resolves to immutable module version
 `v2.29.1-0.20261009120814-7b1b5cebe007` and supports Go 1.27.2 via x/tools v0.51.0.
-Independent review approved this bounded pin after verifying official source and
+Independent review validated this candidate after verifying official source and
 CI; it is 32 upstream commits beyond stable v2.29.0, not a stable release or a
 local fork. Its actual full repository scan has zero findings and type errors.
-The pin stays exact; a future stable successor must be verified separately.
+The candidate pin stays exact; a future stable successor must be verified separately.
 Govulncheck v1.1.4 rebuilt under Go 1.27.2 reports zero called vulnerabilities.
 Current Go 1.27.2 runtask/parity also pass (0.973s / 51.008s). The final canonical
 `make quality-check` completed with exit zero under Go 1.27.2 and CE cd0e1d19
@@ -105,5 +120,16 @@ summary; missing JSON, type errors, unrelated Make failures, and masked findings
 still fail. These fixture compilers test the repository's declared language floor;
 the installed default stays Go 1.27.2. No issue receipt was rewritten automatically.
 Installation and real consumer adoption are separate from source validation.
+The first integration attempt after this verification stopped on source freshness:
+14f6d89 added the exact Worktrunk contract and tests, lease classification, and
+the already-generated workspace checksum. Rebase conflicts were limited to the
+Worktrunk declaration and doctor comparison. Independent review chose to retain
+the upstream exact gate and remove the task's now-redundant version-floor helper;
+upstream diagnostics and real installed-Worktrunk lifecycle tests are preserved.
+Rebased source validation passed: the non-short runtask suite (20.944s) includes
+the real Worktrunk fixture, and parity passed in 54.762s. The current canonical
+`make quality-check` exited zero (`quality-rebased-14f6.log`); pkg/integrate passed
+in 1009.570s with coverage 78.0%, and every critical coverage floor is unchanged.
+The earlier full gate is not reused as a verdict for this changed source graph.
 Full target-mode port parity (purpose, resume, provider capabilities and receipt
 fields) remains tracked by ISSUE-42; passing CE-reference goldens does not close it.
