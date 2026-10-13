@@ -7,14 +7,16 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 Everything in this document is pinned to **CE source `ce-agent-kit` master
-`f540f972`** (installed binary `ce 0.8.4`, build `498-gf540f972`, with
-Worktrunk 0.80.0; fixtures were first authored against `bb970b24` /
-`400-gbb970b24`, re-recorded across `f927ae5d` / `401-gf927ae5d`, re-recorded
-again across the move to `771c54cf` / `404-g771c54cf` (stamp-only), again
-across the move to `950650ef` / `475-g950650ef` (stamp plus captured wording:
-the `nextAction` guidance grew a run-finish clause and the captured
-`gz-git integrate` `--help` output gained `Effect: mutating (...)` lines), and
-again across the move to `f540f972` / `498-gf540f972`. That last move changed
+`612f6bf80d76563c60464e33802ef7c299940299`** (installed binary `ce 0.10.1`,
+build `142-g612f6bf8`, with Worktrunk 0.80.0; fixtures were first authored
+against `bb970b24` / `400-gbb970b24`, re-recorded across `f927ae5d` /
+`401-gf927ae5d`, re-recorded again across the move to `771c54cf` /
+`404-g771c54cf` (stamp-only), again across the move to `950650ef` /
+`475-g950650ef` (stamp plus captured wording: the `nextAction` guidance grew
+a run-finish clause and the captured `gz-git integrate` `--help` output
+gained `Effect: mutating (...)` lines), again across the move to `f540f972` /
+`498-gf540f972`, and re-recorded from actual CE execution for the current pin
+(`612f6bf8` / `142-g612f6bf8`). The `f540f972` move changed
 captured behaviour, not only stamps: CE `b09a605e` accepts the Worktrunk 0.80
 line, and CE `f540f972` reads the run source from the remote-tracking ref — it
 verifies `refs/remotes/origin/<integration>` (and `refs/heads/<integration>`)
@@ -33,16 +35,29 @@ The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
 describes the same surface at the source level; when the two disagree, the
-fixtures win.
+fixtures win. `tests/parity/golden_guard_test.go`
+(`TestParityReferencePinsAreCoherent`) holds the harness pins, all 11
+goldens, the scenario catalog, the installed `ce` binary, and this document
+to the one CE identity above.
 
 Reference toolchain used by the fixtures:
 
-| Component        | Version                                                    | Role                             |
-| ---------------- | ---------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.8.4 (`f540f972`)                                         | system under test (reference)    |
-| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
-| `gz-git`         | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim)   |
-| `git`            | system git                                                 | refs, worktree plumbing          |
+| Component        | Version                                                                                 | Role                             |
+| ---------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
+| `ce`             | 0.10.1 (`612f6bf80d76563c60464e33802ef7c299940299`, `142-g612f6bf8`)                    | system under test (reference)    |
+| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)                                | worktree create/remove/inventory |
+| `gz-git`         | 0.9.1 ambient install, captured as-is (`integrate check/run` + `--no-fetch` capability) | integration provider (reclaim)   |
+| `git`            | system git                                                                              | refs, worktree plumbing          |
+
+The ambient installed `gz-git` participates in captures as fixture context,
+never as the pin — the CE identity is the pin. In **both** modes the ambient
+gz-git *version identity token* folds to the declared placeholder
+(`gz-git version <GZ_GIT_VERSION>`; target mode additionally folds
+`<TOOL_VERSION>`/`<TOOL_REVISION>` build stamps in records). The fold replaces
+only the version token: probe stdout/stderr bodies, help text, error and
+state wording around it are captured verbatim, so distinct errors never
+collide. The ambient `ce` is never isolated, substituted, or
+placeholder-folded — CE is the reference under judgment.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
@@ -176,10 +191,14 @@ TaskReceipt          {task, operation, status, owner, performedBy?, branch, work
 ```
 
 Receipt `operation` values: `start`, `finish`, `abort`, `discard`,
-`recover`. Receipt `status` values: `ACTIVE`, `BLOCKED`, `DONE`, `ABORTED`
-(`READY` never appears in receipts). Note the snake_case outliers
-`tool_version`/`tool_revision` inside an otherwise camelCase record.
-`performedBy` is discard-only: the actor who actually executed a discard.
+`recover`. Receipt `status` values: `ACTIVE`, `BLOCKED`, `DONE`, `ABORTED`,
+plus the intermediate `FINISHING` (CE `612f6bf8` appends it while the
+provider runs; `READY` never appears in receipts). CE `612f6bf8` records
+additionally carry `purpose` (e.g. `delivery`) on executions and receipts,
+and finish diagnostics record the provider `processId`. Note the
+snake_case outliers `tool_version`/`tool_revision` inside an otherwise
+camelCase record. `performedBy` is discard-only: the actor who actually
+executed a discard.
 
 Human (non-`--json`) output: first line `<STATUS>[ <task>]: <reason>`, then
 `branch:`/`worktree:`/`owner:` lines when a single execution is present,
@@ -348,20 +367,25 @@ evidence keeps the run BLOCKED (never promoted to DONE). A stale base
 (source tip moved past the branch base) exits 1 with the rebase-directed
 reason.
 
-**No-arg path — KNOWN DIVERGENCE (ISSUE-069).** With no task argument, the
-internal status call returns the *list* answer, and the nil-execution guard
-returns exit 1. Fixture-pinned CE behavior with exactly one active run:
-the JSON envelope is the full list answer — `status READY`,
-`activeCount 1`, `executions[]` and `states[]` both present,
-`allowedActions [run-list, run-status]`, reason
-`task execution states returned`, next `select a task` — yet the process
-exits **1** (stderr `Error: task execution states returned`).
+**No-arg path — re-evaluated against CE `612f6bf8` (ISSUE-069).** The
+fixture `finish-noarg-single-active` now drives the real lifecycle before
+asking the question: start, edit, commit, push the task branch upstream,
+run-status proving the single run ACTIVE and `finishReady`. With exactly one
+finish-ready active run, no-arg `run-finish` **performs the finish**: the
+answer is `status DONE`, exit **0**, reason `integration and recovery completed`, receipt `operation: finish, status: DONE` with
+`sourcePushed`, `worktreeRemoved`, `localBranchRemoved`,
+`remoteBranchRemoved` all true; an intermediate
+`operation: finish, status: FINISHING` receipt is appended while the
+provider runs. (Pre-`612f6bf8` CE answered the READY list document with
+exit 1 — the original ISSUE-069 bug; that shape is gone.)
 
-> Port contract (this is the divergence the port must fix): with exactly
-> one active run, no-arg `run-finish` answers **READY with exit 0**. The
-> fixture `finish-noarg-single-active` pins the CE-actual behavior as
-> `referenceBehavior` and the port requirement as `portContract`; the port
-> must flip it, not copy it.
+> Port contract, mode-split. CE completes the finish — DONE, exit 0,
+> source pushed, full reclaim — and a CE-mode regression to a list answer
+> or a non-zero exit stays forbidden. The native target port diverges
+> intentionally: its no-arg finish answers the READY list document
+> (exit 0, task `""`, no receipt) and keeps the run active with
+> `refs/heads/dev/claude/mbp/chore/noarg` retained in both the repo and
+> origin; the port is never coerced toward CE's completion.
 
 ### run-abort
 
@@ -409,21 +433,29 @@ worktree/branch/remote detection — **zero residuals is a failure**
 `integration confirmed after partial provider cleanup; residual <list> left untouched`. A recover DONE receipt only validates as terminal when at
 least one residual remains.
 
-### Reconciliation (runs inside every read)
+### Reconciliation (runs inside every read) — CE `612f6bf8` reference
 
-When a record's worktree is gone (`os.Stat` fails), the read path attempts
-reconciliation under the mutation lock: if landing evidence proves the task
-landed in source (surviving local/remote tip contained in source, or all
-refs gone and — under `allow` policy — `ls-remote` confirms remote
-absence), an `operation: abort, status: ABORTED` receipt with
-`worktreeRemoved: true` and the evidence reason
-(`execution <task> closed by CE reconciliation: …`) is appended and the
-state becomes ABORTED. Without evidence the state stays BLOCKED
-(`Worktrunk inventory does not match execution metadata` /
-`execution metadata points to an unavailable worktree`) — never silently
-ABORTED. This is why an active run is judged from `states[].status`, not
-from the number of executions: an externally reclaimed run keeps its
-`executions[]` entry but reports a terminal state and `activeCount` drops.
+For the externally reclaimed shape the fixtures pin (worktree **and**
+branch removed behind the lifecycle's back), CE `612f6bf8` answers
+**BLOCKED with exit 1** on both read verbs: run-list reports
+`one or more task executions are blocked` with the `executions[]` history
+entry retained and `states[].status BLOCKED`; run-status answers
+`Worktrunk inventory does not match execution metadata`, exit 1. No
+reconciliation abort receipt is auto-appended for this shape in the
+pinned build. A run is still judged from `states[].status`, never from
+`len(executions)`: the history entry stays while the derived state and
+`activeCount` carry the verdict.
+
+> Declared native-port divergence: the gz-git port's own reconciliation
+> answer for the same shape stays authoritative and is asserted
+> semantically in target mode (`assertPortReclaimedNative`): the recorded
+> execution must stay in `executions[]`, the reclaimed run must not stay
+> active, and the terminal-or-blocked state must match its own exit code.
+> If the port refuses setup outright (for example its Worktrunk gate under
+> an ambient line it does not accept), that unavailability is surfaced
+> distinctly and is never accepted as the reconciliation answer. The CE
+> golden is reference only — it is never forced onto the port, and no
+> port-source change is implied by these fixtures.
 
 ______________________________________________________________________
 
@@ -453,14 +485,38 @@ fixed sequence of `ce` invocations with a fully pinned environment
 leakage), captures per-step stdout/stderr/exit plus git and record state,
 normalizes volatile fields (sandbox paths incl. `~/`-abbreviated forms,
 40-hex SHAs by first appearance, timestamps, pids), and diffs the result
-against `testdata/golden/<scenario>.json`.
+against `testdata/golden/<scenario>.json`. JSON envelopes in captured
+stdout get the same structured pass as record files, so the technical-only
+folds apply there too: the provider `processId` and the integrate
+validation wall-clock `Duration=` — nothing else. State, error, and exit
+semantics are never folded: statuses, reasons, exit codes, and CE wording
+stay literal in every golden. The ambient gz-git *version identity token*
+(`gz-git version <x>`) folds to `gz-git version <GZ_GIT_VERSION>` in both
+modes; probe stdout/stderr bodies, help text, and error wording are
+captured verbatim. A `ce` that fails its identity probe fails closed
+(`CE_BIN` pointing at a non-existent or non-CE binary aborts the run; the
+guard never treats a failed probe as a pass).
 
 Golden files are machine-captured reference behavior of the pinned CE
-toolchain. Toolchain upgrades (ce/wt/gz-git) intentionally require
-re-recording — that is the pin doing its job. Known-divergent scenarios
-carry `knownDivergent: true` plus a `portContract` block in the golden
-itself, and the suite asserts the divergence semantically
-(`assertContract`): if a later CE build fixes ISSUE-069 or breaks the
-reconciliation contract, the marker goes stale and the suite fails with
-instructions to re-evaluate — the fix requirement is metadata, never an
-edit to captured bytes.
+toolchain. Toolchain upgrades (ce/wt) intentionally require re-recording —
+that is the pin doing its job. Known-divergent scenarios
+(`finish-noarg-single-active`, `reclaimed-run-reconciliation`) carry
+`knownDivergent: true` plus a `portContract` block in the golden itself;
+the suite asserts each side semantically (`assertContract` for the CE
+reference, `assertPortContract`/`assertPortReclaimedNative` for the port):
+if a later CE build changes the pinned answers, the marker goes stale and
+the suite fails with instructions to re-evaluate — the fix requirement is
+metadata, never an edit to captured bytes, and never coercion of the port
+toward a CE answer.
+
+Three guarded tests pin the harness itself:
+`TestParityReferencePinsAreCoherent` (harness constants, all 11 goldens,
+the scenario catalog, the installed `ce`, and this document name the one
+CE identity; blind re-pins fail with the site named),
+`TestParityFinishNoArgHasPushedUpstream` (the finish-noarg lifecycle
+end-to-end with real fixture assertions: edit landed in the lifecycle's
+worktree, branch truly on origin before the finish; CE DONE receipt with
+full reclaim after, native target READY with retained refs), and `TestParityTargetCaptureUsesCheckoutBinary` (target
+capture builds and executes this checkout's binary with exactly one
+`GOWORK=off`, never the ambient install; the ambient version participates
+only through the declared placeholder fold).
