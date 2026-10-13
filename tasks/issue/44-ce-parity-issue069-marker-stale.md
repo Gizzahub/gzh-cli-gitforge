@@ -5,7 +5,7 @@
 - category: quality/parity
 - created_at: 2026-10-04
 - owner: `gzh-cli-gitforge/tests/parity`
-- work-card: quality-baseline — CE 7d2bebec 기준 정합화; 전체 포트 추종은 ISSUE-42에서 계속
+- work-card: quality-baseline — CE cd0e1d19 기준 정합화; 전체 포트 추종은 ISSUE-42에서 계속
 
 ## 증상
 
@@ -34,6 +34,6 @@
 사전조건을 적용하도록 다시 녹화했다. upstream이 없는 이 fixture는
 task-scoped ACTIVE/no-upstream 거부를 유지한다. 두 ACTIVE 실행에서는
 owner-scoped BLOCKED 거부를 검증하는 `finish-noarg-ambiguous-active` 회귀 시나리오를
-추가했다. CE 7d2bebec 실행 파일의 Go build metadata를 golden provenance로
+추가했다. CE cd0e1d19 실행 파일의 Go build metadata를 golden provenance로
 기록했으며, 오래된 known-divergent/portContract 표식은 더 이상 사용하지
 않는다. 외부 회수 후 조회는 CE ADR-0073대로 BLOCKED 기록을 유지하고 기존 start receipt를 변경하지 않는다는 semantic assertion으로 검증한다. 전체 target-mode parity는 purpose・resume・provider capability・receipt 차이 때문에 완료로 선언하지 않는다. 최신 참조와 의미 계약을 고친 결과는 검증 증거와 함께 기록한다.

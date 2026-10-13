@@ -378,17 +378,33 @@ func TestMeasurementLockBudget(t *testing.T) {
 	fx := measurementLockFixture(t, "@true", "1s")
 	lock := holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
 	const hold = 2500 * time.Millisecond
+	notice := &lockedBuffer{}
+	stop := make(chan struct{})
 	released := make(chan struct{})
 	go func() {
 		defer close(released)
-		time.Sleep(hold)
+		// Start the held-slot delay only once Check reaches the lock. Git
+		// preparation can take longer under a loaded host and is not resource wait.
+		for !strings.Contains(notice.String(), "waiting") {
+			select {
+			case <-stop:
+				lock.release()
+				return
+			case <-time.After(10 * time.Millisecond):
+			}
+		}
+		select {
+		case <-stop:
+		case <-time.After(hold):
+		}
 		lock.release()
 	}()
-	defer func() { <-released }()
+	defer func() { close(stop); <-released }()
 
-	notice := &lockedBuffer{}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	start := time.Now()
-	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+	report, err := Check(ctx, gitcmd.NewExecutor(), CheckOptions{
 		RepoPath:   fx.Worktree,
 		Branch:     "dev/actor/feat/task",
 		LockNotice: notice,

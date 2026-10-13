@@ -1,8 +1,8 @@
 {
   "scenario": "finish-noarg-ambiguous-active",
-  "reference": "ce-agent-kit master 7d2bebecf95a8f7bbe5bc21112c21868173c4a23",
+  "reference": "ce-agent-kit master cd0e1d19c3211b85a514ac03383ae6166a614f07",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.1\nBuild:    unknown (built without build stamps; use make build or make install_cli)\nRevision: 7d2bebecf95a8f7bbe5bc21112c21868173c4a23",
+    "ce": "ce-agent-kit version 0.10.2\nRelease:  v0.10.0\nBuild:    167-gcd0e1d19\nCommit:   cd0e1d19c3211b85a514ac03383ae6166a614f07\nDirty:    false\nRevision: cd0e1d19c3211b85a514ac03383ae6166a614f07",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version 0.9.1"
   },

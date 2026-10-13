@@ -1,9 +1,9 @@
 #!/bin/bash
 # test-gosec-toolchain-contract.sh: gosec 핀의 Go 툴체인 계약을 검증한다
 # 용도: (기본 모드) .make/tools.mk 의 GOSEC 핀과 bin/tools 바이너리의 module pin
-#       일치, 설치된 고정 컴파일러(go1.26.7, go1.27.0) 각각으로 재빌드한 identity,
+#       일치, 설치된 고정 컴파일러(go1.26.9, go1.27.2) 각각으로 재빌드한 identity,
 #       pkg/gitsettings 최소 스캔을 검증한다. (--full-security-no-regression 모드)
-#       현재 핀과 기준 핀 v2.22.10 을 go1.26.7 로 각각 private tmp 에 빌드해 같은
+#       현재 핀과 기준 핀 v2.22.10 을 go1.26.9 로 각각 private tmp 에 빌드해 같은
 #       소스에서 make security-code GOSEC=<binary> 와 gosec -fmt=json ./... 를
 #       실행하고 JSON Issues 의 rule_id/file/line/code 집합을 비교한다. 새 finding,
 #       scanner/runtime/export-data 오류, finding 외 원인의 exit 1, JSON 누락은
@@ -23,8 +23,8 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repo"
 
-GO_FLOOR_VER="1.26.7"
-GO_NEXT_VER="1.27.0"
+GO_FLOOR_VER="1.26.9"
+GO_NEXT_VER="1.27.2"
 BASELINE_PIN="v2.22.10"
 ISSUE_CARD="tasks/issue/40-gosec-go127-export-data.md"
 RECEIPT_START="<!-- TASK-270 receipt:start -->"
@@ -41,7 +41,13 @@ info() {
 
 # 공통 전제: 검증 대상 makefile 과 최소 스캔 대상 패키지가 있어야 한다.
 [ -f .make/tools.mk ] || fail ".make/tools.mk not found under $repo (run from the repository root)"
+[ -f go.mod ] || fail "go.mod not found under $repo (run from the repository root)"
 [ -d pkg/gitsettings ] || fail "pkg/gitsettings not found under $repo (run from the repository root)"
+
+declared_toolchain="$(sed -n 's/^toolchain //p' go.mod | head -1)"
+actual_go="$(go env GOVERSION)"
+[ "$actual_go" = "$declared_toolchain" ] || fail "effective Go is $actual_go, repository declares $declared_toolchain"
+info "active compiler contract: $actual_go ($(command -v go)); fixture floor $(sed -n 's/^go //p' go.mod | head -1)"
 
 pin="$(sed -n 's/^GOSEC_VERSION ?= //p' .make/tools.mk | head -1)"
 if [ -z "$pin" ] || ! printf '%s' "$pin" | grep -q '^v[0-9]'; then
@@ -69,13 +75,22 @@ resolve_go() { # $1: Go 버전 -> GO_BIN/GO_ROOT 설정, 실제 버전 검증
 	local ver="$1" got
 	GO_BIN="$(find_go "$ver")" || fail "fixed compiler go${ver} is not installed (mise install go@${ver}); 이 계약은 컴파일러 누락 시 skip 성공을 허용하지 않는다"
 	GO_ROOT="$(cd "$(dirname "$GO_BIN")/.." && pwd -P)"
-	got="$("$GO_BIN" version | awk '{print $3}')"
+	got="$(GOTOOLCHAIN=local "$GO_BIN" version | awk '{print $3}')"
 	[ "$got" = "go${ver}" ] || fail "go binary at $GO_BIN reports $got, expected go${ver}"
 	info "compiler go${ver}: $GO_BIN"
 }
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/gosec-contract.XXXXXX")"
-trap 'rm -rf "$tmp"' EXIT
+cleanup() {
+	local status=$?
+	if [ -d "$tmp" ]; then
+		info "cleaning owned temporary files:"
+		find "$tmp" -mindepth 1 -maxdepth 1 -print >&2 || true
+		rm -rf -- "$tmp" || { echo "FAIL: unable to remove $tmp" >&2; [ "$status" -eq 0 ] && status=1; }
+	fi
+	return "$status"
+}
+trap cleanup EXIT
 
 resolve_go "$GO_FLOOR_VER"
 GO_FLOOR_BIN="$GO_BIN"
@@ -83,11 +98,11 @@ GO_FLOOR_ROOT="$GO_ROOT"
 GOEXE="$("$GO_FLOOR_BIN" env GOEXE)"
 
 module_pin_of() { # $1: 바이너리 -> go version -m 의 module pin (빌드 툴체인은 보지 않는다)
-	"$GO_FLOOR_BIN" version -m "$1" 2>/dev/null | awk -v m="$gosec_module" '$1 == "mod" && $2 == m {print $3; exit}'
+	go version -m "$1" 2>/dev/null | awk -v m="$gosec_module" '$1 == "mod" && $2 == m {print $3; exit}'
 }
 
 check_identity() { # $1: 바이너리  $2: 기대 컴파일러(1.26.7 등)  $3: 기대 핀
-	"$GO_FLOOR_BIN" version -m "$1" 2>/dev/null | awk -v want="go$2" -v m="$gosec_module" -v v="$3" '
+	go version -m "$1" 2>/dev/null | awk -v want="go$2" -v m="$gosec_module" -v v="$3" '
 		NR == 1 { built = $NF }
 		$1 == "mod" && $2 == m && $3 == v { found = 1 }
 		END { exit !(found && built == want) }' \
@@ -127,8 +142,11 @@ validate_scan() { # $1: cell 이름  $2: exit  $3: json 파일  $4: stderr 파�
 		fail "$cell: go/types internal error in stderr"
 	fi
 	bytes="$(wc -c <"$jsonf" 2>/dev/null | tr -d ' ')"
-	if ! jq -e . "$jsonf" >/dev/null 2>&1; then
-		fail "$cell: exit=$rc but gosec produced no valid JSON (${bytes:-0} bytes)"
+	if ! jq -e '.Stats | type == "object" and (.files | type == "number" and . > 0) and (.lines | type == "number" and . > 0) and (.nosec | type == "number" and . >= 0) and (.found | type == "number" and . >= 0)' "$jsonf" >/dev/null 2>&1; then
+		fail "$cell: exit=$rc but gosec produced invalid or incomplete JSON (${bytes:-0} bytes)"
+	fi
+	if ! jq -e 'has("Issues") and (.Issues == null or (.Issues | type == "array")) and has("Golang errors") and (."Golang errors" == null or (."Golang errors" | type == "object"))' "$jsonf" >/dev/null 2>&1; then
+		fail "$cell: invalid Issues/Golang errors schema"
 	fi
 	gerr="$(jq -r '.["Golang errors"] | length' "$jsonf")"
 	[ "$gerr" = "0" ] || fail "$cell: gosec reported $gerr Golang error group(s) — type/load errors are not findings"
@@ -183,26 +201,26 @@ if [ "$mode" = "default" ]; then
 	check_identity "$b127" "$GO_NEXT_VER" "$pin"
 
 	run_minimal "$b126" "$GO_FLOOR_ROOT" "$tmp/min-126-126"
-	validate_scan "minimal: gosec(1.26.7-built) x scan-go(1.26.7)" "$RC_" "$tmp/min-126-126.json" "$tmp/min-126-126.stderr"
+	validate_scan "minimal: gosec(1.26.9-built) x scan-go(1.26.9)" "$RC_" "$tmp/min-126-126.json" "$tmp/min-126-126.stderr"
 	run_minimal "$b126" "$GO_NEXT_ROOT" "$tmp/min-126-127"
-	validate_scan "minimal: gosec(1.26.7-built) x scan-go(1.27.0)" "$RC_" "$tmp/min-126-127.json" "$tmp/min-126-127.stderr"
+	validate_scan "minimal: gosec(1.26.9-built) x scan-go(1.27.2)" "$RC_" "$tmp/min-126-127.json" "$tmp/min-126-127.stderr"
 	run_minimal "$b127" "$GO_FLOOR_ROOT" "$tmp/min-127-126"
-	validate_scan "minimal: gosec(1.27.0-built) x scan-go(1.26.7)" "$RC_" "$tmp/min-127-126.json" "$tmp/min-127-126.stderr"
+	validate_scan "minimal: gosec(1.27.2-built) x scan-go(1.26.9)" "$RC_" "$tmp/min-127-126.json" "$tmp/min-127-126.stderr"
 	run_minimal "$b127" "$GO_NEXT_ROOT" "$tmp/min-127-127"
-	validate_scan "minimal: gosec(1.27.0-built) x scan-go(1.27.0)" "$RC_" "$tmp/min-127-127.json" "$tmp/min-127-127.stderr"
+	validate_scan "minimal: gosec(1.27.2-built) x scan-go(1.27.2)" "$RC_" "$tmp/min-127-127.json" "$tmp/min-127-127.stderr"
 
-	info "summary: pin=$gosec_module $pin; bin/tools pin OK; identities OK (go1.26.7, go1.27.0); 4 minimal scan cells OK"
+	info "summary: pin=$gosec_module $pin; bin/tools pin OK; identities OK (go1.26.9, go1.27.2); 4 minimal scan cells OK"
 	info "PASS: default mode"
 	exit 0
 fi
 
 if [ "$mode" = "--full-security-no-regression" ]; then
-	# --- full 모드: 기준 핀과의 전체 security-code 무회귀 비교 (native go1.26.7) ---
+	# --- full 모드: 기준 핀과의 전체 security-code 무회귀 비교 (native go1.26.9) ---
 	command -v jq >/dev/null 2>&1 || fail "jq is required for --full-security-no-regression"
 	command -v make >/dev/null 2>&1 || fail "make is required for --full-security-no-regression"
 	[ "$pin" != "$BASELINE_PIN" ] || info "note: current pin equals baseline pin $BASELINE_PIN"
 
-	info "mode: --full-security-no-regression (scan compiler go1.26.7; baseline $BASELINE_PIN vs current $pin)"
+	info "mode: --full-security-no-regression (scan compiler go1.26.9; baseline $BASELINE_PIN vs current $pin)"
 
 	b_base="$(build_gosec "$GO_FLOOR_BIN" "$GO_FLOOR_ROOT" "$tmp/full-baseline" "$BASELINE_PIN")"
 	b_curr="$(build_gosec "$GO_FLOOR_BIN" "$GO_FLOOR_ROOT" "$tmp/full-current" "$pin")"
@@ -211,12 +229,17 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 
 	src_sha="$(git -C "$repo" rev-parse HEAD)"
 	src_branch="$(git -C "$repo" branch --show-current)"
+	if [ -z "$(git -C "$repo" status --porcelain=v1 --untracked-files=all)" ]; then
+		source_state="clean"
+	else
+		source_state="dirty at scan time (pre-receipt source state)"
+	fi
 
 	scan_with() { # $1: label  $2: gosec 바이너리; MAKE_RC_/JSON_RC_ 전역 설정
 		local label="$1" bin="$2"
 		MAKE_RC_=0
 		env GOWORK=off GOTOOLCHAIN=local GOROOT="$GO_FLOOR_ROOT" PATH="$GO_FLOOR_ROOT/bin:$PATH" \
-			make security-code "GOSEC=$bin" >"$tmp/$label.make.log" 2>&1 || MAKE_RC_=$?
+			make security-code "GOSEC=$bin" "GOSEC_VERSION=$(module_pin_of "$bin")" "GOSEC_DIR=$(dirname "$bin")" >"$tmp/$label.make.log" 2>&1 || MAKE_RC_=$?
 		JSON_RC_=0
 		env GOWORK=off GOTOOLCHAIN=local GOROOT="$GO_FLOOR_ROOT" PATH="$GO_FLOOR_ROOT/bin:$PATH" \
 			"$bin" -fmt=json ./... >"$tmp/$label.json" 2>"$tmp/$label.stderr" || JSON_RC_=$?
@@ -224,8 +247,16 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 		if grep -q 'without types was imported\|internal error: package' "$tmp/$label.make.log"; then
 			fail "full $label: make security-code hit the export-data/type-error signature (see $tmp/$label.make.log)"
 		fi
-		[ "$MAKE_RC_" -eq 0 ] || [ "$MAKE_RC_" -eq 1 ] || fail "full $label: make security-code exit=$MAKE_RC_ (expected 0 or findings-1)"
 		validate_scan "full $label: gosec -fmt=json ./..." "$JSON_RC_" "$tmp/$label.json" "$tmp/$label.stderr"
+		make_issues="$(sed -n 's/.*Issues : \([0-9][0-9]*\).*/\1/p' "$tmp/$label.make.log" | tail -1)"
+		[ -n "$make_issues" ] || fail "full $label: make output has no gosec Issues summary (see $tmp/$label.make.log)"
+		json_issues="$(jq -r '.Issues | length' "$tmp/$label.json")"
+		[ "$make_issues" -eq "$json_issues" ] || fail "full $label: make reported $make_issues issues but JSON reported $json_issues"
+		case "$MAKE_RC_" in
+			0) [ "$JSON_RC_" -eq 0 ] && [ "$json_issues" -eq 0 ] || fail "full $label: successful make masked scanner findings" ;;
+			1|2) [ "$JSON_RC_" -eq 1 ] && [ "$json_issues" -gt 0 ] || fail "full $label: make exit=$MAKE_RC_ was not paired with JSON findings exit=1" ;;
+			*) fail "full $label: make security-code exit=$MAKE_RC_ (not a validated finding result)" ;;
+		esac
 		jq -r '.Issues[]? | [.rule_id, .file, .line, .code] | @tsv' "$tmp/$label.json" | LC_ALL=C sort >"$tmp/$label.findings"
 		info "full $label: make exit=$MAKE_RC_ json exit=$JSON_RC_ findings=$(wc -l <"$tmp/$label.findings" | tr -d ' ')"
 	}
@@ -253,10 +284,10 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 	# 재실행(리뷰·통합 후)이 추적 파일을 변경하면 안 되기 때문이다.
 	# source SHA 는 스캔 시점 HEAD(영수증 이전 커밋)로 한 번만 적는다. 영수증
 	# 커밋 자신의 SHA 를 적으면 커밋 직후 거짓이 되어 매 실행이 다시 쓴다.
-	h1_of() { "$GO_FLOOR_BIN" version -m "$1" | awk -v m="$gosec_module" '$1 == "mod" && $2 == m {print $4; exit}'; }
+	h1_of() { go version -m "$1" | awk -v m="$gosec_module" '$1 == "mod" && $2 == m {print $4; exit}'; }
 	{
 		printf 'mode: --full-security-no-regression (scripts/test-gosec-toolchain-contract.sh)\n'
-		printf 'source: %s (%s) — pre-receipt commit\n' "$src_sha" "$src_branch"
+		printf 'source: %s (%s) — %s\n' "$src_sha" "$src_branch" "$source_state"
 		printf 'source note: git HEAD when the scan ran; this receipt was recorded after\n'
 		printf '  that scan, so the commit carrying this receipt cannot make the SHA false\n'
 		printf 'scan compiler: go%s at %s\n' "$GO_FLOOR_VER" "$GO_FLOOR_ROOT"

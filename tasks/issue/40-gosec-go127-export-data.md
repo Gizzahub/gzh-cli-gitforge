@@ -1,11 +1,13 @@
 # ISSUE: go1.27 툴체인으로 빌드한 gosec가 export data를 읽지 못한다
 
-- status: resolved (2026-10-02, 중앙 보드 TASK-270으로 핀 v2.29.0 해결)
+- status: resolved (2026-10-02 TASK-270; 2026-10-14 Go 1.27.2 추가 호환 수선)
 - priority: P1
 - category: quality/ci
 - created_at: 2026-10-01
 - owner: `gzh-cli-gitforge/.make/tools.mk`
 - work-card: 중앙 보드 카드 TASK-270 (devbox `tasks/todo/270-gitforge-gosec-go127-compatibility.md`)
+
+현재 핀과 Go 1.27.2 검증 기록은 [quality baseline 검증](../../docs/task-reviews/quality-baseline/validation.md)을 참조한다. 아래 TASK-270 및 영수증은 당시 실행 기록으로 보존한다.
 
 ## 증상과 원인
 

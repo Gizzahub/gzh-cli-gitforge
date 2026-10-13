@@ -10,7 +10,10 @@
 GOFUMPT_VERSION ?= v0.10.0
 GOIMPORTS_VERSION ?= v0.38.0
 GCI_VERSION ?= v0.14.0
-GOSEC_VERSION ?= v2.29.0
+# Official upstream Go 1.27.2 compatibility commit; v2.29.0 cannot decode its
+# export data. Keep this immutable module version until a compatible stable
+# release is independently verified (never follow master/latest implicitly).
+GOSEC_VERSION ?= v2.29.1-0.20261009120814-7b1b5cebe007
 GOVULNCHECK_VERSION ?= v1.1.4
 # golang.org/x/perf publishes no release tags. This pseudo-version is the
 # resolved latest on 2026-10-01; benchstat must not follow a moving @latest.
@@ -287,7 +290,7 @@ install-docs-tools: ## install documentation tools
 # embedded in it instead; `go version -m` cannot be satisfied by a wrapper
 # script or a -version string.
 #
-# The pin is v2.29.0 because v2.22.10 cannot read export data produced by the
+# v2.29.0 replaced v2.22.10, which could not read export data produced by the
 # go1.27 toolchain: scanning any package while the `go` loading it is 1.27 dies
 # with `internal error: package "..." without types was imported from
 # "command-line-arguments"` — exit 1 and no JSON at all — regardless of which
@@ -297,10 +300,13 @@ install-docs-tools: ## install documentation tools
 # identity and still died at scan time. v2.29.0 is the first release whose
 # notes claim "Add support for go version 1.27.0" (PR #1726, 2026-08-26) and
 # its go.mod keeps the floor at `go 1.25.0`, so both historical product
-# toolchains (go1.26.7, go1.27.0) can still build it; go1.27.1 is the current
-# repository build toolchain. The runtime half of the
-# contract — rebuild the pin with both compilers, scan pkg/gitsettings with
-# each, and reject new findings against v2.22.10 — lives in
+# toolchains (go1.26.7, go1.27.0) could build it. Go 1.27.2 export data needs the
+# official compatibility commit 7b1b5cebe007d62fb58eacb90fc571112939ec30, whose
+# module retains a Go 1.26.0 floor and whose x/tools v0.51.0 supports that format.
+# This is an untagged upstream commit, not a stable release or local fork.
+# The installed build/scan toolchain is Go 1.27.2. The runtime contract verifies
+# the active compiler, the Go 1.26.9/1.27.2 build-and-scan fixture matrix, and
+# the explicit full-scan comparison against the historical baseline in
 # scripts/test-gosec-toolchain-contract.sh.
 GOSEC_MODULE := github.com/securego/gosec/v2
 GOSEC_INSTALL ?= $(GOSEC_MODULE)/cmd/gosec@$(GOSEC_VERSION)

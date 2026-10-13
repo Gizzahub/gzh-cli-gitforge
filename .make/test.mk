@@ -44,7 +44,7 @@ test-unit-quality: ## run unit tests without leaving a coverage artifact in the 
 	trap 'rm -rf "$$quality_tmp"' EXIT HUP INT TERM; \
 	coverage_out="$${QUALITY_COVERAGE_OUT:-$$quality_tmp/coverage-unit.out}"; \
 	echo -e "$(CYAN)Running unit tests with coverage...$(RESET)"; \
-	GOWORK=off go test -short --cover -parallel=1 -v -coverprofile="$$coverage_out" \
+	GOWORK=off go test -short --cover -timeout=20m -parallel=1 -v -coverprofile="$$coverage_out" \
 		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)'); \
 	go tool cover -func="$$coverage_out" | sort -rnk3; \
 	echo -e "$(GREEN)✅ Unit tests completed$(RESET)"

@@ -7,8 +7,8 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`7d2bebecf95a8f7bbe5bc21112c21868173c4a23`**, installed as CE 0.10.1 with
-`vcs.modified=false`. Its own build stamps are absent, so the suite verifies
+`cd0e1d19c3211b85a514ac03383ae6166a614f07`**, installed as CE 0.10.2 with
+`vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
 
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.1 (`7d2bebec`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.2 (`cd0e1d19`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | 0.9.1 (`145799b`, installed provider during capture)     | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |

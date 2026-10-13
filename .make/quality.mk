@@ -254,12 +254,12 @@ security-deps: install-govulncheck ## check dependencies for vulnerabilities (re
 	@test -x "$(GOVULNCHECK)" || { echo "govulncheck is required at $(GOVULNCHECK) (run: make install-vuln-tools)" >&2; exit 1; }
 	@GOWORK=off "$(GOVULNCHECK)" ./...
 
-security-code: ## run direct security code analysis (read-only, fail-closed)
+security-code: install-gosec ## run direct security code analysis (read-only, fail-closed)
 	@echo -e "$(CYAN)Running security code analysis with gosec...$(RESET)"
 	@test -x "$(GOSEC)" || { echo "gosec is required at $(GOSEC) (run: make install-security-tools)" >&2; exit 1; }
 	@GOWORK=off "$(GOSEC)" ./...
 
-security-json: ## run security analysis and output JSON/SARIF report (fail-closed)
+security-json: install-gosec ## run security analysis and output JSON/SARIF report (fail-closed)
 	@echo -e "$(CYAN)Running security analysis with JSON/SARIF output...$(RESET)"
 	@test -x "$(GOSEC)" || { echo "gosec is required at $(GOSEC) (run: make install-security-tools)" >&2; exit 1; }
 	@if [ -f .gosec.yaml ]; then \
