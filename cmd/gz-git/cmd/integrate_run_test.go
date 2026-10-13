@@ -88,6 +88,22 @@ func TestIntegrateRunNotRepoExitsTwo(t *testing.T) {
 	}
 }
 
+func TestIntegrateRunExplicitEmptyExpectedTargetExitsTwoBeforeEngine(t *testing.T) {
+	restore := setIntegrateRunGlobals(t)
+	defer restore()
+	if err := integrateRunCmd.ParseFlags([]string{"--expect-target="}); err != nil {
+		t.Fatalf("ParseFlags(--expect-target=) = %v", err)
+	}
+	t.Chdir(t.TempDir())
+	err := runIntegrateRun(integrateRunCmd, nil)
+	if got := cliutil.ExitCodeForError(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2; err=%v", got, err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "--expect-target must not be empty") {
+		t.Fatalf("error = %v, want explicit empty-target usage rejection", err)
+	}
+}
+
 func TestIntegrateRunPushSucceededLocalTargetFailedExitsThree(t *testing.T) {
 	restore := setIntegrateRunGlobals(t)
 	defer restore()
@@ -135,6 +151,9 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	origSkip := integrateRunAllowSkipped
 	origController := integrateRunControllerConfig
 	origNoFetch := integrateRunNoFetch
+	origExpectSource := integrateRunExpectSource
+	origExpectTarget := integrateRunExpectTarget
+	origExpectTargetChanged := integrateRunCmd.Flags().Lookup("expect-target").Changed
 	origQuiet := quiet
 	integrateRunTarget = ""
 	integrateRunDirectToDefault = false
@@ -142,6 +161,9 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	integrateRunAllowSkipped = false
 	integrateRunControllerConfig = ""
 	integrateRunNoFetch = false
+	integrateRunExpectSource = ""
+	integrateRunExpectTarget = ""
+	integrateRunCmd.Flags().Lookup("expect-target").Changed = false
 	quiet = false
 	return func() {
 		integrateRunTarget = origTarget
@@ -150,6 +172,9 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 		integrateRunAllowSkipped = origSkip
 		integrateRunControllerConfig = origController
 		integrateRunNoFetch = origNoFetch
+		integrateRunExpectSource = origExpectSource
+		integrateRunExpectTarget = origExpectTarget
+		integrateRunCmd.Flags().Lookup("expect-target").Changed = origExpectTargetChanged
 		quiet = origQuiet
 	}
 }

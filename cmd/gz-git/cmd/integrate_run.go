@@ -26,6 +26,7 @@ var (
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
 	integrateRunExpectSource     string
+	integrateRunExpectTarget     string
 	integrateRunLockWait         time.Duration
 	integrateRunExecutionID      string
 	integrateRunGeneration       string
@@ -75,7 +76,7 @@ Exit Codes:
   1  not ready, or the integrate itself failed
   2  usage or execution error
   3  integrated, but reclaim did not finish
-  4  --expect-source: the source is not that commit; nothing was pushed`),
+  4  --expect-source/--expect-target: the approved commit pair changed; nothing was pushed`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateRun,
 }
@@ -90,6 +91,7 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
 	integrateRunCmd.Flags().DurationVar(&integrateRunLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
 	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
+	integrateRunCmd.Flags().StringVar(&integrateRunExpectTarget, "expect-target", "", "fail with exit 4, before any measurement or push, unless the target is this full commit SHA")
 	integrateRunCmd.Flags().StringVar(&integrateRunExecutionID, "execution-id", "", "durable-evidence execution id; supply together with --generation, --owner-actor, --owner-host, --owner-kind and --expect-source, or not at all")
 	integrateRunCmd.Flags().StringVar(&integrateRunGeneration, "generation", "", "exact runtime generation of this execution; opaque, compared exactly by receipt and cleanup")
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerActor, "owner-actor", "", "logical actor executing the run (e.g. claude, celee)")
@@ -122,6 +124,10 @@ func executionContextFromFlags() (execution integrate.ExecutionContext, supplied
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
+	expectTarget, err := expectedTargetFromFlag(cmd, integrateRunExpectTarget)
+	if err != nil {
+		return cliutil.NewExitError(2, err)
+	}
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
 	if err != nil {
@@ -151,6 +157,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			ControllerConfig:   integrateRunControllerConfig,
 			NoFetch:            integrateRunNoFetch,
 			ExpectSource:       integrateRunExpectSource,
+			ExpectTarget:       expectTarget,
 			LockWait:           integrateRunLockWait,
 			LockWaitSet:        cmd.Flags().Changed("lock-wait"),
 			LockNotice:         cmd.ErrOrStderr(),
@@ -162,7 +169,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 		switch {
 		case report != nil && report.Integrated:
 			exit = cliutil.ExitReclaimIncomplete
-		case errors.Is(err, integrate.ErrSourceMismatch):
+		case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
 			exit = cliutil.ExitSourceMismatch
 		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
 			exit = 1
