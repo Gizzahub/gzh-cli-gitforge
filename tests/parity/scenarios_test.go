@@ -105,23 +105,24 @@ func parityScenarios() []scenario {
 			// first drives the real lifecycle — start, edit the task
 			// worktree, commit, push the task branch upstream, and assert
 			// via run-status that the single active run is finish-ready.
-			// No-arg run-finish then performs the finish itself: DONE,
-			// exit 0, source pushed, worktree and local/remote branches
-			// reclaimed. (Pre-612f6bf8 CE answered the READY list document
-			// with exit 1 — the original ISSUE-069 bug.) The golden records
-			// CE's actual behavior; the port contract requires the port to
-			// complete the finish the same way, never to regress to a
-			// list answer.
+			// No-arg run-finish then performs the finish itself in CE:
+			// DONE, exit 0, source pushed, worktree and local/remote
+			// branches reclaimed. (Pre-612f6bf8 CE answered the READY list
+			// document with exit 1 — the original ISSUE-069 bug.) The
+			// golden records CE's actual behavior; the native target port
+			// instead answers its own READY list document and keeps the
+			// run active with its refs — an intentional declared
+			// divergence, never coerced toward CE's completion.
 			name:           "finish-noarg-single-active",
 			knownDivergent: true,
 			contract: &portContract{
 				Issue: "ISSUE-069",
 				Note: "The single active run is made genuinely finishable first (edit + commit + upstream push + run-status finishReady), " +
 					"then no-arg run-finish runs. CE 612f6bf8 completes the finish: DONE, exit 0, sourcePushed/worktreeRemoved/" +
-					"localBranchRemoved/remoteBranchRemoved all true. The port must complete the finish identically; a list answer " +
-					"or a non-zero exit is the regression this contract forbids. (Target-mode status today: the port gates run-start " +
-					"on its required Worktrunk minor line and is BLOCKED under the ambient 0.80.0 before the lifecycle can start, " +
-					"so the scenario cannot yet reach its finish there — the contract above stays the requirement.)",
+					"localBranchRemoved/remoteBranchRemoved all true, refs reclaimed. Intentional divergence: the native target " +
+					"port answers the READY list document instead — exit 0, task empty, no receipt — and keeps the run active " +
+					"with refs/heads/dev/claude/mbp/chore/noarg retained in both the repo and origin; the port is never coerced " +
+					"toward CE's completion.",
 				Status:   "DONE",
 				ExitCode: 0,
 			},
@@ -213,10 +214,11 @@ func scenarioByName(t *testing.T, name string) scenario {
 // semantics the golden can only show as bytes: the edit really lands in
 // the task worktree, the task branch really reaches origin (upstream
 // push, not a local-only ref), run-status proves the single active run is
-// finish-ready, and the no-arg finish then completes the run — CE
+// finish-ready, and the no-arg finish answer is then judged per mode — CE
 // 612f6bf8 performs the finish itself (DONE, exit 0, source pushed,
 // worktree and local/remote branches reclaimed; ISSUE-069 re-evaluated),
-// and the port contract requires the same completion. Never skips: in CE
+// while the native target port answers READY, keeps the run active, and
+// retains the task refs (intentional divergence). Never skips: in CE
 // mode TestMain has already required ce; in target mode the port binary
 // is built from this checkout.
 func TestParityFinishNoArgHasPushedUpstream(t *testing.T) {
@@ -272,15 +274,23 @@ func TestParityFinishNoArgHasPushedUpstream(t *testing.T) {
 		t.Errorf("run-status after upstream push = task %q status %q finishReady %v (want noarg/ACTIVE/true)\n%s", ready.Task, ready.Status, ready.FinishReady, statusStdout)
 	}
 
-	// Fixture assertion 4: completion reclaimed everything — after the
-	// performed finish neither the local repo nor the bare origin still
-	// carries the task branch. Each for-each-ref probe must first prove
-	// itself healthy (exit 0, silent stderr) before its output counts as
-	// evidence: a failed probe's empty stdout is probe failure, never
-	// branch absence.
+	// Fixture assertion 4, mode-split. CE: completion reclaimed everything —
+	// after the performed finish neither the local repo nor the bare origin
+	// still carries the task branch. Target: the native READY answer keeps
+	// the run active, so the exact task ref must still be present in both.
+	// Each for-each-ref probe must first prove itself healthy (exit 0,
+	// silent stderr) before its output counts as evidence: a failed probe's
+	// empty stdout is probe failure, never branch evidence.
 	for _, dir := range []string{"repo", "origin.git"} {
 		stdout, stderr, code := sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname)", "refs/heads/"}, dir: dir})
-		if err := checkBranchAbsence(probeResult{dir: dir, exitCode: code, stdout: stdout, stderr: stderr}, taskRef); err != nil {
+		pr := probeResult{dir: dir, exitCode: code, stdout: stdout, stderr: stderr}
+		if targetMode {
+			if err := checkBranchPresence(pr, taskRef); err != nil {
+				t.Error(err)
+			}
+			continue
+		}
+		if err := checkBranchAbsence(pr, taskRef); err != nil {
 			t.Error(err)
 		}
 	}
@@ -321,11 +331,31 @@ func checkBranchAbsence(pr probeResult, taskRef string) error {
 	return nil
 }
 
-// assertFinishNoArgAnswer pins the ISSUE-069 (re-evaluated) answer: the
-// no-arg finish with exactly one finish-ready active run completes the
-// run — DONE, exit 0, receipt proving source push and full reclaim. The
-// CE reference and the port contract agree on completion; a list answer
-// or a non-zero exit is the regression this forbids.
+// checkBranchPresence is checkBranchAbsence's target-mode counterpart: it
+// accepts a probe as evidence only under the same health rules (exit 0,
+// silent stderr) and then requires the exact task ref to still be listed —
+// the native READY answer keeps the run active, so absence is the error.
+func checkBranchPresence(pr probeResult, taskRef string) error {
+	if pr.exitCode != 0 {
+		return fmt.Errorf("%s for-each-ref probe exited %d — output is probe failure, not ref evidence (stdout:\n%s\nstderr:\n%s)", pr.dir, pr.exitCode, pr.stdout, pr.stderr)
+	}
+	if pr.stderr != "" {
+		return fmt.Errorf("%s for-each-ref probe emitted stderr despite exit 0: %s", pr.dir, pr.stderr)
+	}
+	for _, line := range strings.Split(pr.stdout, "\n") {
+		if strings.TrimSpace(line) == taskRef {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s no longer carries the active task branch %s after the native READY answer:\n%s", pr.dir, taskRef, pr.stdout)
+}
+
+// assertFinishNoArgAnswer pins the ISSUE-069 (re-evaluated) answer, split
+// by mode. CE: the no-arg finish with exactly one finish-ready active run
+// completes the run — DONE, exit 0, receipt proving source push and full
+// reclaim. Target: the native port answers its READY list document —
+// exit 0, task "", no receipt — and keeps the run active; that divergence
+// is declared intentional by the scenario contract.
 func assertFinishNoArgAnswer(t *testing.T, code int, stdout, stderr string) {
 	t.Helper()
 	var doc struct {
@@ -342,6 +372,16 @@ func assertFinishNoArgAnswer(t *testing.T, code int, stdout, stderr string) {
 	}
 	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
 		t.Fatalf("no-arg finish answer is not JSON: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+	}
+	if targetMode {
+		if doc.Status != "READY" || doc.Task != "" || doc.Receipt != nil {
+			t.Errorf("target no-arg finish answer = status %q task %q receipt %+v (want the native READY list answer: task empty, no receipt)\nstdout: %s", doc.Status, doc.Task, doc.Receipt, stdout)
+			return
+		}
+		if code != 0 {
+			t.Errorf("target no-arg finish exited %d (want 0 — the native READY list answer is a healthy answer)\nstdout: %s", code, stdout)
+		}
+		return
 	}
 	if doc.Status != "DONE" || doc.Task != "noarg" || doc.Receipt == nil ||
 		doc.Receipt.Operation != "finish" || doc.Receipt.Status != "DONE" ||

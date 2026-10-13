@@ -9,7 +9,7 @@
   "knownDivergent": true,
   "portContract": {
     "issue": "ISSUE-069",
-    "note": "The single active run is made genuinely finishable first (edit + commit + upstream push + run-status finishReady), then no-arg run-finish runs. CE 612f6bf8 completes the finish: DONE, exit 0, sourcePushed/worktreeRemoved/localBranchRemoved/remoteBranchRemoved all true. The port must complete the finish identically; a list answer or a non-zero exit is the regression this contract forbids. (Target-mode status today: the port gates run-start on its required Worktrunk minor line and is BLOCKED under the ambient 0.80.0 before the lifecycle can start, so the scenario cannot yet reach its finish there — the contract above stays the requirement.)",
+    "note": "The single active run is made genuinely finishable first (edit + commit + upstream push + run-status finishReady), then no-arg run-finish runs. CE 612f6bf8 completes the finish: DONE, exit 0, sourcePushed/worktreeRemoved/localBranchRemoved/remoteBranchRemoved all true, refs reclaimed. Intentional divergence: the native target port answers the READY list document instead — exit 0, task empty, no receipt — and keeps the run active with refs/heads/dev/claude/mbp/chore/noarg retained in both the repo and origin; the port is never coerced toward CE's completion.",
     "status": "DONE",
     "exitCode": 0
   },

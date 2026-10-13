@@ -380,13 +380,13 @@ completed`, receipt `operation: finish, status: DONE` with
 provider runs. (Pre-`612f6bf8` CE answered the READY list document with
 exit 1 — the original ISSUE-069 bug; that shape is gone.)
 
-> Port contract: with exactly one finish-ready active run, no-arg finish
-> completes the run exactly as CE does — DONE, exit 0, source pushed, full
-> reclaim. A list answer or a non-zero exit is the forbidden regression.
-> Target-mode status today: the port gates run-start on its required
-> Worktrunk minor line and is BLOCKED under the ambient 0.80.0 before the
-> lifecycle can start, so the scenario cannot yet reach its finish there;
-> the contract above stays the requirement.
+> Port contract, mode-split. CE completes the finish — DONE, exit 0,
+> source pushed, full reclaim — and a CE-mode regression to a list answer
+> or a non-zero exit stays forbidden. The native target port diverges
+> intentionally: its no-arg finish answers the READY list document
+> (exit 0, task `""`, no receipt) and keeps the run active with
+> `refs/heads/dev/claude/mbp/chore/noarg` retained in both the repo and
+> origin; the port is never coerced toward CE's completion.
 
 ### run-abort
 
@@ -516,8 +516,8 @@ the scenario catalog, the installed `ce`, and this document name the one
 CE identity; blind re-pins fail with the site named),
 `TestParityFinishNoArgHasPushedUpstream` (the finish-noarg lifecycle
 end-to-end with real fixture assertions: edit landed in the lifecycle's
-worktree, branch truly on origin before the finish, DONE receipt with full
-reclaim after), and `TestParityTargetCaptureUsesCheckoutBinary` (target
+worktree, branch truly on origin before the finish; CE DONE receipt with
+full reclaim after, native target READY with retained refs), and `TestParityTargetCaptureUsesCheckoutBinary` (target
 capture builds and executes this checkout's binary with exactly one
 `GOWORK=off`, never the ambient install; the ambient version participates
 only through the declared placeholder fold).
