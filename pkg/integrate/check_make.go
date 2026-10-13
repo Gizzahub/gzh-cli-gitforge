@@ -119,6 +119,11 @@ func runMakeTargetWithOutcomes(ctx context.Context, dir, target string, budget t
 		if err != nil {
 			return makeProbe{Target: target, WorkDir: dir, Defined: true, Err: err, Unavailable: resourceWaitFailureDetail(err)}
 		}
+		// Validation time is measured inside the run, around the make
+		// process itself; slot admission is ResourceWaitDuration and the
+		// retry wait between lock attempts is neither. Source and baseline
+		// probes both flow through here, so each started run accumulates
+		// onto Check's validation total.
 		probe := runMakeTargetOnceWithOutcomes(attemptCtx, dir, target, budget, outcomes)
 		releaseSlot()
 		if err := ctx.Err(); err != nil {
@@ -212,6 +217,7 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
+	started := time.Now()
 	err = cmd.Start()
 	if err == nil {
 		if attachErr := processTree.attach(cmd.Process); attachErr != nil {
@@ -221,6 +227,11 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 		} else {
 			err = cmd.Wait()
 		}
+		// Validation time is the successfully started make process alone,
+		// recorded immediately after Wait (or the attached-failure handling)
+		// and before output capture, cache cleanup, or outcome reports. A
+		// Start failure never launched a process and adds exactly zero.
+		accumulateValidation(ctx, time.Since(started))
 	}
 	out := buf.String()
 	if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {

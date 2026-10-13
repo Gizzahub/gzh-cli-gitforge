@@ -34,8 +34,14 @@ type RunProtocol struct {
 	ReclaimSkipped      string         `json:"reclaim_skipped"`
 	ReclaimDone         []string       `json:"reclaim_done"`
 	ReclaimFailed       []string       `json:"reclaim_failed"`
-	ExitCode            int            `json:"exit_code"`
-	Error               string         `json:"error,omitempty"`
+	// ResourceWaitDurationMS and ValidationDurationMS separate the check's
+	// slot-admission wait from its gate runtime as explicit integer
+	// milliseconds; both render even when zero, so an absent gate is
+	// distinguishable from a missing field.
+	ResourceWaitDurationMS int    `json:"resource_wait_duration_ms"`
+	ValidationDurationMS   int    `json:"validation_duration_ms"`
+	ExitCode               int    `json:"exit_code"`
+	Error                  string `json:"error,omitempty"`
 }
 
 // BuildRunProtocol renders a run result. A nil report with an error is still
@@ -54,6 +60,8 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 		p.ReclaimFailed = report.Reclaim.Failed
 		if report.Check != nil {
 			p.TargetRef = "refs/heads/" + targetBranchName(report.Check.Plan.Target, report.Check.Plan.Remote)
+			p.ResourceWaitDurationMS = int(report.Check.ResourceWaitDuration.Milliseconds())
+			p.ValidationDurationMS = int(report.Check.ValidationDuration.Milliseconds())
 		}
 		if report.Receipt != nil {
 			p.ExecutionID = report.Receipt.ExecutionID

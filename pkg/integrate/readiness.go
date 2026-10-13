@@ -241,10 +241,14 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 	}
 	started := time.Now()
 	result, err = executeReadinessWithTimeout(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout)
+	duration = time.Since(started)
+	// ReadinessDuration keeps reporting the whole runner-execution span,
+	// while validation time accumulates inside it around the started process
+	// alone.
 	if siblingEvidence != "" && err == nil {
 		result.Summary += "; siblings " + siblingEvidence
 	}
-	return result, time.Since(started), err
+	return result, duration, err
 }
 
 func mergeCleanupError(parent context.Context, current error, g gitRepo, dir string) error {
@@ -271,7 +275,16 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 	var stdout, stderr limitedBuffer
 	stdout.limit, stderr.limit = readinessMaxIO, readinessMaxIO
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	runErr := cmd.Run()
+	started := time.Now()
+	runErr := cmd.Start()
+	if runErr == nil {
+		runErr = cmd.Wait()
+		// Validation time is the successfully started runner process alone,
+		// recorded immediately after Wait and before the output-limit checks
+		// and JSON decode. A Start failure never launched a process and
+		// adds exactly zero.
+		accumulateValidation(parent, time.Since(started))
+	}
 	if ctx.Err() == context.DeadlineExceeded {
 		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner timed out")
 	}

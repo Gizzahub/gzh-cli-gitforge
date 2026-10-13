@@ -57,6 +57,25 @@ type CheckOptions struct {
 	resourceWaitObserver func(context.Context) error
 }
 
+// validationDurationKey carries Check's validation-time accumulator. Unlike
+// the resource wait, gate runtime is measured on paths that never see
+// CheckOptions (baseline make probes), so the accumulator travels on the
+// context every gate already receives.
+type validationDurationKey struct{}
+
+// withValidationDuration installs the accumulator Check owns for one report.
+func withValidationDuration(ctx context.Context, elapsed *time.Duration) context.Context {
+	return context.WithValue(ctx, validationDurationKey{}, elapsed)
+}
+
+// accumulateValidation adds one measured gate run to Check's accumulator.
+// A context without one (direct runner unit tests) records nothing.
+func accumulateValidation(ctx context.Context, elapsed time.Duration) {
+	if acc, ok := ctx.Value(validationDurationKey{}).(*time.Duration); ok && acc != nil {
+		*acc += elapsed
+	}
+}
+
 // CheckItem is one readiness row.
 type CheckItem struct {
 	Name   string
@@ -83,8 +102,14 @@ type CheckReport struct {
 	ReadinessStatus      string
 	ReadinessDuration    time.Duration
 	ResourceWaitDuration time.Duration
-	PrepareProfile       string
-	PrepareInputs        string
+	// ValidationDuration records the time actually spent inside gate
+	// subprocesses — contract runner executions and each legacy
+	// make check/lint invocation — separately from the time spent waiting
+	// for a declared high-load resource slot. Gate preparation, Git
+	// inspection, cleanup, push, and reclaim are outside it.
+	ValidationDuration time.Duration
+	PrepareProfile     string
+	PrepareInputs      string
 	// Baselines records, for each legacy make target, whether the target
 	// baseline was measured and why. A source that passed is not compared
 	// with anything, so its record says the baseline was not measured
@@ -192,6 +217,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	}
 
 	report := &CheckReport{Plan: plan, Controller: controller}
+	// The accumulator is unconditional: every gate mode records its runtime,
+	// so a report always distinguishes "waited for the slot" from "ran the
+	// gate", including a zero for a gate that never launched a subprocess.
+	ctx = withValidationDuration(ctx, &report.ValidationDuration)
 	opts.resourceWait = &report.ResourceWaitDuration
 	if opts.LockNotice == nil {
 		opts.LockNotice = os.Stderr
@@ -609,6 +638,9 @@ func FormatCheck(r *CheckReport) string {
 	}
 	if r.ResourceWaitDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  resource wait — Duration=%s\n", r.ResourceWaitDuration.Round(time.Millisecond))
+	}
+	if r.ValidationDuration > 0 {
+		fmt.Fprintf(&b, "  INFO  validation — Duration=%s\n", r.ValidationDuration.Round(time.Millisecond))
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
