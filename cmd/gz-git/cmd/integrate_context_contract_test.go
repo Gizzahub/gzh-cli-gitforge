@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -36,7 +37,8 @@ func TestIntegrateRunContextSourceMismatchPrintsProtocolAndExitFour(t *testing.T
 	defer restore()
 
 	fx := testutil.TempWorktreeWithBareOrigin(t)
-	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: master\n  taskPattern: feature/*\n")
+	target := gitOutputForIntegrateRun(t, fx.Clone, "branch", "--show-current")
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n")
 	writeFile(t, fx.Worktree, "Makefile", "check:\n\t@true\n")
 	runGit(t, fx.Worktree, "add", ".")
 	runGit(t, fx.Worktree, "commit", "-m", "declare integration")
@@ -74,6 +76,48 @@ func TestIntegrateRunContextSourceMismatchPrintsProtocolAndExitFour(t *testing.T
 	}
 }
 
+func TestIntegrateRunContextTargetMismatchPrintsProtocolAndExitFour(t *testing.T) {
+	restore := setIntegrateRunContextGlobals(t)
+	defer restore()
+
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	target := gitOutputForIntegrateRun(t, fx.Clone, "branch", "--show-current")
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n")
+	writeFile(t, fx.Worktree, "Makefile", "check:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "declare integration")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+
+	integrateRunExecutionID = "run-43"
+	integrateRunGeneration = "generation-7"
+	integrateRunOwnerActor = "codex"
+	integrateRunOwnerHost = "mbp"
+	integrateRunOwnerKind = "agent"
+	integrateRunExpectSource = gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	integrateRunExpectTarget = strings.Repeat("0", 40)
+	integrateRunJSON = true
+	quiet = false
+	var stdout bytes.Buffer
+	integrateRunCmd.SetOut(&stdout)
+	t.Cleanup(func() { integrateRunCmd.SetOut(nil) })
+	t.Chdir(fx.Worktree)
+
+	err := runIntegrateRun(integrateRunCmd, []string{"feature/worktree"})
+	if got := cliutil.ExitCodeForError(err); got != cliutil.ExitSourceMismatch {
+		t.Fatalf("exit code = %d, want %d; err=%v", got, cliutil.ExitSourceMismatch, err)
+	}
+	if !errors.Is(err, integrate.ErrTargetMismatch) {
+		t.Fatalf("runIntegrateRun() error = %v, want target mismatch", err)
+	}
+	var protocol integrate.RunProtocol
+	if unmarshalErr := json.Unmarshal(stdout.Bytes(), &protocol); unmarshalErr != nil {
+		t.Fatalf("run protocol JSON = %q: %v", stdout.String(), unmarshalErr)
+	}
+	if protocol.SchemaVersion != 1 || protocol.Command != "integrate-run" || protocol.ExitCode != cliutil.ExitSourceMismatch {
+		t.Fatalf("protocol = %+v, want schema=1 command=integrate-run exit=%d", protocol, cliutil.ExitSourceMismatch)
+	}
+}
+
 func setIntegrateRunContextGlobals(t *testing.T) func() {
 	t.Helper()
 	origExecutionID := integrateRunExecutionID
@@ -82,6 +126,7 @@ func setIntegrateRunContextGlobals(t *testing.T) func() {
 	origOwnerHost := integrateRunOwnerHost
 	origOwnerKind := integrateRunOwnerKind
 	origExpectSource := integrateRunExpectSource
+	origExpectTarget := integrateRunExpectTarget
 	origJSON := integrateRunJSON
 	origQuiet := quiet
 	integrateRunExecutionID = ""
@@ -90,6 +135,7 @@ func setIntegrateRunContextGlobals(t *testing.T) func() {
 	integrateRunOwnerHost = ""
 	integrateRunOwnerKind = ""
 	integrateRunExpectSource = ""
+	integrateRunExpectTarget = ""
 	integrateRunJSON = false
 	quiet = false
 	return func() {
@@ -99,6 +145,7 @@ func setIntegrateRunContextGlobals(t *testing.T) func() {
 		integrateRunOwnerHost = origOwnerHost
 		integrateRunOwnerKind = origOwnerKind
 		integrateRunExpectSource = origExpectSource
+		integrateRunExpectTarget = origExpectTarget
 		integrateRunJSON = origJSON
 		quiet = origQuiet
 	}

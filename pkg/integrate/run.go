@@ -95,7 +95,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if err := requireExpectedSource(ctx, g, check.Plan.Branch, opts.ExpectSource); err != nil {
 		return report, err
 	}
-	sourceSHA, targetSHA, targetName, err := revalidateCheckedRefs(ctx, g, check, opts.NoFetch)
+	sourceSHA, targetSHA, targetName, err := revalidateCheckedRefsForExpectedTarget(ctx, g, check, opts.NoFetch, opts.ExpectTarget)
 	if err != nil {
 		return report, err
 	}
@@ -131,7 +131,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		}
 		report.Receipt = receipt
 	}
-	if err := pushFastForward(ctx, g, pushRemote, sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
+	if err := pushFastForwardWithExpectedTarget(ctx, g, pushRemote, check.Plan.Remote, opts.ExpectTarget != "", sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
 		return report, err
 	}
 	if report.Receipt != nil {
@@ -151,6 +151,10 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 }
 
 func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, noFetch bool) (sourceSHA, targetSHA, targetName string, err error) {
+	return revalidateCheckedRefsForExpectedTarget(ctx, g, check, noFetch, "")
+}
+
+func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, check *CheckReport, noFetch bool, expectTarget string) (sourceSHA, targetSHA, targetName string, err error) {
 	if check.Plan.Remote != "" && !noFetch {
 		if err := g.fetchPrune(ctx, check.Plan.Remote); err != nil {
 			return "", "", "", err
@@ -182,7 +186,10 @@ func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, n
 		}
 	}
 	if targetSHA != check.Plan.TargetSHA {
-		return "", "", "", fmt.Errorf("target branch changed during readiness; re-run check")
+		if expectTarget == "" {
+			return "", "", "", fmt.Errorf("target branch changed during readiness; re-run check")
+		}
+		return "", "", "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, targetRef, targetSHA, check.Plan.TargetSHA)
 	}
 	if check.GateMode != "contract-v1" {
 		return sourceSHA, targetSHA, targetName, nil
@@ -198,19 +205,99 @@ func revalidateCheckedRefs(ctx context.Context, g gitRepo, check *CheckReport, n
 }
 
 func pushFastForward(ctx context.Context, g gitRepo, remote, sourceSHA, targetName, checkedTargetSHA string) error {
+	return pushFastForwardWithExpectedTarget(ctx, g, remote, remote, false, sourceSHA, targetName, checkedTargetSHA)
+}
+
+func pushFastForwardWithExpectedTarget(ctx context.Context, g gitRepo, remote, remoteName string, expectTarget bool, sourceSHA, targetName, checkedTargetSHA string) error {
 	if remote == "" {
 		return fmt.Errorf("no remote; cannot push the fast-forward")
 	}
+	if expectTarget {
+		if err := requireSoleRefPush(ctx, g, remoteName); err != nil {
+			return err
+		}
+	}
 	refspec := sourceSHA + ":refs/heads/" + targetName
 	lease := "--force-with-lease=refs/heads/" + targetName + ":" + checkedTargetSHA
-	push, err := g.run(ctx, "push", lease, remote, refspec)
+	args := []string{"push"}
+	if expectTarget {
+		// An approved source/target pair may update only the leased branch.
+		// Explicitly suppress push.followTags so a stale-lease result cannot
+		// conceal an accepted tag update behind a retryable target mismatch.
+		args = append(args, "--no-follow-tags")
+	}
+	args = append(args, lease, remote, refspec)
+	push, err := g.run(ctx, args...)
 	if err != nil {
 		return err
 	}
 	if push.ExitCode != 0 {
+		// Git's lease rejection text is transport-specific. Re-read precisely
+		// the destination that was leased before assigning the retryable exit
+		// code; an authentication or policy rejection must keep its own error.
+		if expectTarget && isExplicitLeaseRejection(push) {
+			moved, refreshErr := targetMovedAtPushEndpoint(ctx, g, remote, remoteName, targetName, checkedTargetSHA, sourceSHA)
+			if refreshErr == nil && moved {
+				return fmt.Errorf("%w: target %s moved after readiness", ErrTargetMismatch, targetName)
+			}
+		}
 		return fmt.Errorf("git push %s %s failed: %s", remote, refspec, strings.TrimSpace(push.Stderr))
 	}
 	return nil
+}
+
+// requireSoleRefPush rejects mirror remotes before an immutable request runs.
+// --mirror can expand a refspec into a repository-wide update, which violates
+// the approved pair even when the target lease itself later rejects.
+func requireSoleRefPush(ctx context.Context, g gitRepo, remote string) error {
+	if remote == "" {
+		return fmt.Errorf("no remote name for immutable target push")
+	}
+	res, err := g.run(ctx, "config", "--bool", "--get", "remote."+remote+".mirror")
+	if err != nil {
+		return err
+	}
+	if res.ExitCode == 0 && strings.EqualFold(strings.TrimSpace(res.Stdout), "true") {
+		return fmt.Errorf("remote %s is mirror-configured; immutable target push requires one explicit ref", remote)
+	}
+	return nil
+}
+
+// isExplicitLeaseRejection recognizes Git's rejected-update record rather
+// than treating every failed push followed by a changed remote as a safe
+// retry. In particular, an interrupted transport can leave an ambiguous push
+// outcome and must retain its original failure classification.
+func isExplicitLeaseRejection(push *gitcmd.Result) bool {
+	if push == nil {
+		return false
+	}
+	out := strings.ToLower(push.Stdout + "\n" + push.Stderr)
+	return strings.Contains(out, "[rejected]") && strings.Contains(out, "stale info")
+}
+
+// targetMovedAtPushEndpoint proves movement at the exact destination passed to
+// git push. Tracking refs may have a different fetch URL, and a remote can
+// have multiple push URLs, so either ambiguity deliberately keeps the generic
+// push error instead of claiming the request is safely retryable.
+func targetMovedAtPushEndpoint(ctx context.Context, g gitRepo, pushRemote, remoteName, targetName, expected, source string) (bool, error) {
+	endpoint, err := pushEndpoint(ctx, g, remoteName)
+	if err != nil {
+		return false, err
+	}
+	if pushRemote != remoteName {
+		actualPush, err := canonicalPushEndpoint(pushRemote)
+		if err != nil || actualPush != endpoint {
+			return false, fmt.Errorf("push destination differs from verified remote endpoint")
+		}
+	}
+	actual, err := exactRemoteSHA(ctx, g, endpoint, "refs/heads/"+targetName)
+	if err != nil {
+		return false, err
+	}
+	// A target equal to the source proves this push (or a concurrent equivalent
+	// push) may already have landed. Preserve the generic failure and intent
+	// receipt for cleanup/reconciliation; it is not safe to request a rerun.
+	return actual != expected && actual != source, nil
 }
 
 func ffTargetWorktrees(ctx context.Context, exec *gitcmd.Executor, g gitRepo, targetName, sourceSHA string) error {

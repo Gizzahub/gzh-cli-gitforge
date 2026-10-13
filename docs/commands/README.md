@@ -31,8 +31,8 @@ V1 comparison for failures without file:line diagnostics.
 [Release promotion](integrate-release.md) explains how `--release` judges a
 remote-tracking integration ref as the source.
 
-[Pin the approved source commit](integrate-expect-source.md) documents
-`--expect-source` and its dedicated exit code 4.
+[Pin the approved source and target commits](integrate-expect-source.md) documents
+`--expect-source`, `--expect-target`, and their dedicated exit code 4.
 
 [Reclaiming declared workspace clones](integrate-reclaim-workspace-clones.md)
 explains when `integrate run` may delete clones that `make prepare` left in

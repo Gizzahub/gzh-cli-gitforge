@@ -1,4 +1,4 @@
-# Pin the approved source commit
+# Pin the approved source and target commits
 
 `gz-git integrate check --expect-source <sha>` and
 `gz-git integrate run --expect-source <sha>` refuse to measure or integrate a
@@ -7,9 +7,14 @@ commit — CE `ce task run-release` holding a release record's `source-sha` —
 passes it so the promotion cannot widen to a descendant that a concurrent fetch
 (an IDE auto-fetch, another shell) moved the tracking ref to.
 
+`--expect-target <sha>` independently pins the integration target. It prevents
+an immutable request from silently adopting a target tip that moved after the
+request was created. The source and target values use the same full-SHA syntax
+but name different sides of the integration.
+
 ```sh
-gz-git integrate check origin/develop --target origin/master --release --expect-source <40-hex>
-gz-git integrate run   origin/develop --target origin/master --release --no-fetch --expect-source <40-hex>
+gz-git integrate check origin/develop --target origin/master --release --expect-source <40-hex> --expect-target <40-hex>
+gz-git integrate run   origin/develop --target origin/master --release --no-fetch --expect-source <40-hex> --expect-target <40-hex>
 ```
 
 ## Rules
@@ -25,6 +30,10 @@ gz-git integrate run   origin/develop --target origin/master --release --no-fetc
   pushes nothing. Callers distinguish it from NOT READY (1) by the code alone
   (`integrate.ErrSourceMismatch` in Go).
 - The flag is not tied to `--release`; it means the same on a task branch.
+- The target is compared after fetch and before any gate or intent receipt.
+  `run` compares it again after the gate; a confirmed lease rejection caused
+  by target movement exits **4**, while authentication, policy, and unrelated
+  push failures retain their own error classification.
 
 Capability detection: the flag appears in the `Flags:` section of
 `integrate check --help` and `integrate run --help`, as `--no-fetch` does.

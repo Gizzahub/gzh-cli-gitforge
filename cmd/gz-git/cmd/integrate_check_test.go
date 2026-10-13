@@ -67,6 +67,22 @@ func TestIntegrateCheckNotRepoExitsTwo(t *testing.T) {
 	}
 }
 
+func TestIntegrateCheckExplicitEmptyExpectedTargetExitsTwoBeforeEngine(t *testing.T) {
+	restore := setIntegrateCheckGlobals(t)
+	defer restore()
+	if err := integrateCheckCmd.ParseFlags([]string{"--expect-target="}); err != nil {
+		t.Fatalf("ParseFlags(--expect-target=) = %v", err)
+	}
+	t.Chdir(t.TempDir())
+	err := runIntegrateCheck(integrateCheckCmd, nil)
+	if got := cliutil.ExitCodeForError(err); got != 2 {
+		t.Fatalf("exit code = %d, want 2; err=%v", got, err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "--expect-target must not be empty") {
+		t.Fatalf("error = %v, want explicit empty-target usage rejection", err)
+	}
+}
+
 func setIntegrateCheckGlobals(t *testing.T) func() {
 	t.Helper()
 	origTarget := integrateCheckTarget
@@ -75,6 +91,9 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	origSkip := integrateCheckAllowSkipped
 	origController := integrateCheckControllerConfig
 	origNoFetch := integrateCheckNoFetch
+	origExpectSource := integrateCheckExpectSource
+	origExpectTarget := integrateCheckExpectTarget
+	origExpectTargetChanged := integrateCheckCmd.Flags().Lookup("expect-target").Changed
 	origQuiet := quiet
 	integrateCheckTarget = ""
 	integrateCheckDirectToDefault = false
@@ -82,6 +101,9 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	integrateCheckAllowSkipped = false
 	integrateCheckControllerConfig = ""
 	integrateCheckNoFetch = false
+	integrateCheckExpectSource = ""
+	integrateCheckExpectTarget = ""
+	integrateCheckCmd.Flags().Lookup("expect-target").Changed = false
 	quiet = false
 	return func() {
 		integrateCheckTarget = origTarget
@@ -90,6 +112,9 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 		integrateCheckAllowSkipped = origSkip
 		integrateCheckControllerConfig = origController
 		integrateCheckNoFetch = origNoFetch
+		integrateCheckExpectSource = origExpectSource
+		integrateCheckExpectTarget = origExpectTarget
+		integrateCheckCmd.Flags().Lookup("expect-target").Changed = origExpectTargetChanged
 		quiet = origQuiet
 	}
 }

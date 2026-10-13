@@ -20,22 +20,41 @@ var ErrImplicitSourceIsTarget = errors.New("implicit source branch is the integr
 // commit. Nothing has been measured or pushed for it.
 var ErrSourceMismatch = errors.New("source is not the expected commit")
 
+// ErrTargetMismatch reports a destination that is not the caller's approved
+// target tip. It is safe for callers to retry only after revalidation.
+var ErrTargetMismatch = errors.New("target is not the expected commit")
+
 // ErrInvalidExpectSource reports an --expect-source value that is not a full
 // object ID.
 var ErrInvalidExpectSource = errors.New("--expect-source must be a full 40- or 64-digit hex commit")
+
+// ErrInvalidExpectTarget reports an --expect-target value that is not a full
+// object ID.
+var ErrInvalidExpectTarget = errors.New("--expect-target must be a full 40- or 64-digit hex commit")
 
 // NormalizeExpectSource accepts a full SHA-1 or SHA-256 object ID and returns
 // it lowercased, the spelling git rev-parse prints. Abbreviations are
 // rejected: an approval names one commit, not a prefix that may later match
 // two.
 func NormalizeExpectSource(raw string) (string, error) {
+	return normalizeExpectedSHA(raw, ErrInvalidExpectSource)
+}
+
+// NormalizeExpectTarget accepts the same full object-ID syntax as
+// NormalizeExpectSource, but keeps target approval errors distinct for callers
+// and machine protocols.
+func NormalizeExpectTarget(raw string) (string, error) {
+	return normalizeExpectedSHA(raw, ErrInvalidExpectTarget)
+}
+
+func normalizeExpectedSHA(raw string, invalid error) (string, error) {
 	sha := strings.ToLower(strings.TrimSpace(raw))
 	if len(sha) != 40 && len(sha) != 64 {
-		return "", fmt.Errorf("%w: %q", ErrInvalidExpectSource, raw)
+		return "", fmt.Errorf("%w: %q", invalid, raw)
 	}
 	for _, r := range sha {
 		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
-			return "", fmt.Errorf("%w: %q", ErrInvalidExpectSource, raw)
+			return "", fmt.Errorf("%w: %q", invalid, raw)
 		}
 	}
 	return sha, nil
@@ -136,6 +155,9 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	if !ok {
 		return plan, fmt.Errorf("target ref not found: %s", target)
+	}
+	if opts.ExpectTarget != "" && tsha != opts.ExpectTarget {
+		return plan, fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, target, tsha, opts.ExpectTarget)
 	}
 	plan.Target = target
 	plan.TargetSHA = tsha

@@ -25,6 +25,7 @@ var (
 	integrateCheckControllerConfig string
 	integrateCheckNoFetch          bool
 	integrateCheckExpectSource     string
+	integrateCheckExpectTarget     string
 	integrateCheckLockWait         time.Duration
 )
 
@@ -46,7 +47,7 @@ Exit Codes:
   0  READY
   1  NOT READY, or --target required
   2  the check itself could not run
-  4  --expect-source: the source is not that commit`),
+  4  --expect-source/--expect-target: the approved commit pair changed`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateCheck,
 }
@@ -61,9 +62,14 @@ func init() {
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "resolve the target from local tracking refs without fetching")
 	integrateCheckCmd.Flags().DurationVar(&integrateCheckLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
+	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectTarget, "expect-target", "", "fail with exit 4, before any measurement or push, unless the target is this full commit SHA")
 }
 
 func runIntegrateCheck(cmd *cobra.Command, args []string) error {
+	expectTarget, err := expectedTargetFromFlag(cmd, integrateCheckExpectTarget)
+	if err != nil {
+		return cliutil.NewExitError(2, err)
+	}
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
 	if err != nil {
@@ -84,13 +90,14 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		ControllerConfig:   integrateCheckControllerConfig,
 		NoFetch:            integrateCheckNoFetch,
 		ExpectSource:       integrateCheckExpectSource,
+		ExpectTarget:       expectTarget,
 		LockWait:           integrateCheckLockWait,
 		LockWaitSet:        cmd.Flags().Changed("lock-wait"),
 		LockNotice:         cmd.ErrOrStderr(),
 	})
 	if err != nil {
 		msg := err.Error()
-		if errors.Is(err, integrate.ErrSourceMismatch) {
+		if errors.Is(err, integrate.ErrSourceMismatch) || errors.Is(err, integrate.ErrTargetMismatch) {
 			if !quiet {
 				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)
 			}
