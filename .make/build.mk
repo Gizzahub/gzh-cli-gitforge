@@ -143,9 +143,21 @@ run: ## run the application (usage: make run [args...] or ARGS="args" make run)
 		go run -ldflags "$(VERSION_LDFLAGS)" ./cmd/gz-git; \
 	fi
 
-# Prevent make from interpreting arguments as targets
+# The integration provider invokes `make check` and `make lint` separately.
+# Keep `check` focused on source-non-mutating test evidence: lint, security,
+# coverage floors, and network-backed dependency scans belong to the canonical
+# quality-check/hosted-CI workflow instead.  The parity suite is intentionally
+# included through test-unit-quality; a stale CE contract must block this gate
+# rather than turn it into a successful no-op.
+.PHONY: check
+check: test-unit-quality test-integration-quality ## run the integration test gate
+
+# `make run <args...>` historically accepts the extra goals as CLI arguments.
+# Do not let that compatibility shim make unrelated misspelled targets pass.
+ifneq ($(filter run,$(MAKECMDGOALS)),)
 %:
 	@:
+endif
 
 bootstrap: ## install build dependencies
 	@echo -e "$(CYAN)Installing build dependencies...$(RESET)"
