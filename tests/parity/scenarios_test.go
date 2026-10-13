@@ -2,6 +2,7 @@ package parity
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -273,13 +274,51 @@ func TestParityFinishNoArgHasPushedUpstream(t *testing.T) {
 
 	// Fixture assertion 4: completion reclaimed everything — after the
 	// performed finish neither the local repo nor the bare origin still
-	// carries the task branch.
+	// carries the task branch. Each for-each-ref probe must first prove
+	// itself healthy (exit 0, silent stderr) before its output counts as
+	// evidence: a failed probe's empty stdout is probe failure, never
+	// branch absence.
 	for _, dir := range []string{"repo", "origin.git"} {
-		refs, _, _ := sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname)", "refs/heads/"}, dir: dir})
-		if strings.Contains(refs, taskRef) {
-			t.Errorf("%s still carries the task branch %s after the performed finish:\n%s", dir, taskRef, refs)
+		stdout, stderr, code := sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname)", "refs/heads/"}, dir: dir})
+		if err := checkBranchAbsence(probeResult{dir: dir, exitCode: code, stdout: stdout, stderr: stderr}, taskRef); err != nil {
+			t.Error(err)
 		}
 	}
+}
+
+// probeResult captures one `git for-each-ref` branch probe's full health:
+// which repo was probed, its exit code, stdout, and stderr. It exists so
+// reclaim assertions treat a probe as evidence only when the probe itself
+// succeeded.
+type probeResult struct {
+	dir      string
+	exitCode int
+	stdout   string
+	stderr   string
+}
+
+// checkBranchAbsence decides whether a for-each-ref probe may count as
+// evidence that the task branch is gone. Evidence rules:
+//
+//   - a non-zero exit proves nothing; empty stdout then means the probe
+//     failed, not that the branch is absent, so the probe is rejected;
+//   - stderr emitted despite exit 0 likewise disqualifies the output;
+//   - only a clean probe's stdout is scanned, for the exact task ref.
+//
+// It returns nil only when the probe is healthy and the exact ref is absent.
+func checkBranchAbsence(pr probeResult, taskRef string) error {
+	if pr.exitCode != 0 {
+		return fmt.Errorf("%s for-each-ref probe exited %d — empty stdout is probe failure, not branch absence (stdout:\n%s\nstderr:\n%s)", pr.dir, pr.exitCode, pr.stdout, pr.stderr)
+	}
+	if pr.stderr != "" {
+		return fmt.Errorf("%s for-each-ref probe emitted stderr despite exit 0: %s", pr.dir, pr.stderr)
+	}
+	for _, line := range strings.Split(pr.stdout, "\n") {
+		if strings.TrimSpace(line) == taskRef {
+			return fmt.Errorf("%s still carries the task branch %s after the performed finish:\n%s", pr.dir, taskRef, pr.stdout)
+		}
+	}
+	return nil
 }
 
 // assertFinishNoArgAnswer pins the ISSUE-069 (re-evaluated) answer: the
@@ -313,5 +352,64 @@ func assertFinishNoArgAnswer(t *testing.T, code int, stdout, stderr string) {
 	}
 	if code != 0 {
 		t.Errorf("no-arg finish exited %d (want 0 — the performed finish succeeds); re-evaluate the known-divergent contract\nstdout: %s", code, stdout)
+	}
+}
+
+// TestParityFinishNoArgRejectsFailedBranchProbe pins the evidence rule the
+// no-arg finish reclaim assertions rest on: a failed for-each-ref probe
+// with empty stdout must never be accepted as branch absence, while a
+// healthy probe with genuinely empty stdout is accepted. Pure in-memory
+// captured probe results — no engine, no git, no worktrees.
+func TestParityFinishNoArgRejectsFailedBranchProbe(t *testing.T) {
+	const taskRef = "refs/heads/dev/claude/mbp/chore/noarg"
+
+	cases := []struct {
+		name    string
+		probe   probeResult
+		wantErr bool
+	}{
+		{
+			name:    "failed probe with empty stdout is not branch absence",
+			probe:   probeResult{dir: "repo", exitCode: 128, stdout: "", stderr: "fatal: not a git repository"},
+			wantErr: true,
+		},
+		{
+			name:    "failed probe with empty stdout and empty stderr is still not branch absence",
+			probe:   probeResult{dir: "origin.git", exitCode: 1, stdout: "", stderr: ""},
+			wantErr: true,
+		},
+		{
+			name:    "exit-0 probe that emitted stderr is disqualified",
+			probe:   probeResult{dir: "origin.git", exitCode: 0, stdout: "", stderr: "warning: unable to read ref"},
+			wantErr: true,
+		},
+		{
+			name:    "successful empty probe is accepted as branch absence",
+			probe:   probeResult{dir: "repo", exitCode: 0, stdout: "", stderr: ""},
+			wantErr: false,
+		},
+		{
+			name:    "successful probe still detects the exact task ref",
+			probe:   probeResult{dir: "repo", exitCode: 0, stdout: "refs/heads/dev/main\n" + taskRef + "\n", stderr: ""},
+			wantErr: true,
+		},
+		{
+			name:    "successful probe listing only a longer similarly-named ref is accepted",
+			probe:   probeResult{dir: "origin.git", exitCode: 0, stdout: taskRef + "-followup\n", stderr: ""},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkBranchAbsence(tc.probe, taskRef)
+			if tc.wantErr && err == nil {
+				t.Fatalf("probe (dir %s, exit %d, stdout %q, stderr %q) was wrongly accepted as branch absence", tc.probe.dir, tc.probe.exitCode, tc.probe.stdout, tc.probe.stderr)
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("healthy probe wrongly rejected: %v", err)
+			}
+		})
 	}
 }
