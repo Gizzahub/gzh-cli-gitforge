@@ -200,6 +200,40 @@ func fixtureGit(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
+// classifyBranchAbsence turns the error from `git show-ref --verify --quiet`
+// into the verdict the absence assertion fails on: nil only for the exact
+// *exec.ExitError with exit code 1 that is git's documented "no such ref"
+// answer. A nil error (the ref verified), any other exit code, a start failure
+// that never ran git, or a canceled/expired context is returned as a non-nil
+// verdict: the probe then proved nothing and must not be read as absence.
+func classifyBranchAbsence(err error) error {
+	switch {
+	case err == nil:
+		return errors.New("show-ref verified the ref; the branch still exists")
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return fmt.Errorf("branch-absence check lost its context: %w", err)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return fmt.Errorf("branch-absence check never ran git: %w", err)
+	}
+	if code := exitErr.ExitCode(); code != 1 {
+		return fmt.Errorf("branch-absence check exited %d, want 1: %w", code, err)
+	}
+	return nil
+}
+
+// expectBranchAbsent asserts git refuses refs/heads/branch in dir with its
+// documented not-found exit status 1 -- and nothing else, per
+// classifyBranchAbsence.
+func expectBranchAbsent(t *testing.T, dir, branch string) {
+	t.Helper()
+	err := exec.CommandContext(t.Context(), "git", "-C", dir, "show-ref", "--verify", "--quiet", "refs/heads/"+branch).Run()
+	if verdict := classifyBranchAbsence(err); verdict != nil {
+		t.Fatalf("local branch %s: %v", branch, verdict)
+	}
+}
+
 // TestWorktrunk080VersionContract pins the version half of the Worktrunk
 // contract explicitly: the literal the runtime gates on, the doctor gate
 // accepting the installed 0.80.0 report (and refusing the retired 0.74.0),
@@ -328,12 +362,18 @@ func TestWorktrunkListRejectsCommandFailure(t *testing.T) {
 // installed Worktrunk 0.80.0 -- doctor's version gate and inventory read, wt
 // switch --create under run-start, list and status deriving live state, and
 // discard reclaiming the worktree through wt remove -- on a temporary real git
-// repository. It fails, never skips, when wt is unavailable or reports any
-// version other than the contracted one: a synthetic runner cannot answer
-// whether the installed binary still honors this contract. Everything the
-// fixture creates lives under one t.TempDir, and wt keeps its own state under
-// the repository's .git, so cleanup removes only what this test built.
+// repository. Under normal execution (-short=false) it fails, never skips,
+// when wt is unavailable or reports any version other than the contracted one:
+// a synthetic runner cannot answer whether the installed binary still honors
+// this contract. Only canonical `go test -short` skips it, because short mode
+// cannot assume the wt install; it must not silently weaken into a pass there.
+// Everything the fixture creates lives under one t.TempDir, and wt keeps its
+// own state under the repository's .git, so cleanup removes only what this
+// test built.
 func TestWorktrunk080LifecycleFixture(t *testing.T) {
+	if testing.Short() {
+		t.Skip("real Worktrunk 0.80 lifecycle fixture is disabled in short tests")
+	}
 	wtPath, err := exec.LookPath("wt")
 	if err != nil {
 		t.Fatalf("this fixture requires the installed Worktrunk executable on PATH: %v", err)
@@ -418,9 +458,7 @@ func TestWorktrunk080LifecycleFixture(t *testing.T) {
 	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
 		t.Fatalf("worktree still exists after wt remove: %v", statErr)
 	}
-	if branchErr := exec.CommandContext(t.Context(), "git", "-C", fx.root, "show-ref", "--verify", "--quiet", "refs/heads/"+fx.branch).Run(); branchErr == nil {
-		t.Fatalf("local branch %s survived wt remove", fx.branch)
-	}
+	expectBranchAbsent(t, fx.root, fx.branch)
 	inventory, err = service.worktrunkList(ctx)
 	if err != nil {
 		t.Fatalf("worktrunkList after reclaim: %v", err)
@@ -436,4 +474,88 @@ func TestWorktrunk080LifecycleFixture(t *testing.T) {
 	if finalList.Status != TaskExecutionStatusReady || finalList.ActiveCount != 0 {
 		t.Fatalf("run-list after reclaim = %s with %d active; want READY with 0 active (terminal records do not block)", finalList.Status, finalList.ActiveCount)
 	}
+}
+
+// TestBranchAbsenceClassification pins the classifier behind
+// expectBranchAbsent so the lifecycle fixture's local-branch-absence assertion
+// can never weaken: exit 1 from a real git show-ref is the one accepted
+// "absent" answer, while a verified ref, a different exit code, a git that
+// never started, and a canceled context are each rejected. These controls
+// exercise the classifier directly; the fixture itself still runs the real
+// command through expectBranchAbsent.
+func TestBranchAbsenceClassification(t *testing.T) {
+	base := t.TempDir()
+	global := filepath.Join(base, "gitconfig")
+	if err := os.WriteFile(global, []byte("[init]\n\tdefaultBranch = main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	repo := filepath.Join(base, "repo")
+	if err := os.Mkdir(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixtureGit(t, repo, "init", "-q", "-b", "main")
+	fixtureGit(t, repo, "-c", "user.email=fixture@example.invalid", "-c", "user.name=Worktrunk contract fixture", "commit", "--allow-empty", "-qm", "base")
+	absent := func(t *testing.T) error {
+		t.Helper()
+		return exec.CommandContext(t.Context(), "git", "-C", repo, "show-ref", "--verify", "--quiet", "refs/heads/dev/gone").Run()
+	}
+
+	t.Run("exit 1 means absent", func(t *testing.T) {
+		err := absent(t)
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+			t.Fatalf("missing ref produced %v; want a real *exec.ExitError with exit code 1, so the control pins the accepted class", err)
+		}
+		if verdict := classifyBranchAbsence(err); verdict != nil {
+			t.Fatalf("exit 1 must classify as absence, got rejection: %v", verdict)
+		}
+	})
+	t.Run("verified ref is rejected", func(t *testing.T) {
+		err := exec.CommandContext(t.Context(), "git", "-C", repo, "show-ref", "--verify", "--quiet", "refs/heads/main").Run()
+		if err != nil {
+			t.Fatalf("control ref main did not verify: %v", err)
+		}
+		if verdict := classifyBranchAbsence(err); verdict == nil {
+			t.Fatal("nil success was classified as absence; the branch exists")
+		}
+	})
+	t.Run("a different exit code is rejected", func(t *testing.T) {
+		// Outside any repository show-ref dies with git's generic fatal exit
+		// 128 -- a failure mode the assertion must not read as absence.
+		err := exec.CommandContext(t.Context(), "git", "-C", filepath.Join(base, "not-a-repo"), "show-ref", "--verify", "--quiet", "refs/heads/main").Run()
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() == 1 {
+			t.Fatalf("control produced %v; want an *exec.ExitError whose exit code is not 1", err)
+		}
+		verdict := classifyBranchAbsence(err)
+		if verdict == nil {
+			t.Fatalf("exit %d was classified as absence", exitErr.ExitCode())
+		}
+		if !strings.Contains(verdict.Error(), "want 1") {
+			t.Fatalf("rejection %q does not name the demanded exit status", verdict)
+		}
+	})
+	t.Run("a start failure is rejected", func(t *testing.T) {
+		err := errors.New("exec: git: executable file not found in $PATH")
+		verdict := classifyBranchAbsence(err)
+		if verdict == nil {
+			t.Fatal("a git that never started was classified as absence")
+		}
+		if !strings.Contains(verdict.Error(), "never ran git") {
+			t.Fatalf("rejection %q does not say the check never ran git", verdict)
+		}
+	})
+	t.Run("a canceled context is rejected", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		err := exec.CommandContext(ctx, "git", "-C", repo, "show-ref", "--verify", "--quiet", "refs/heads/dev/gone").Run()
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("control produced %v; want the context error, since Start refuses an already-canceled context", err)
+		}
+		if verdict := classifyBranchAbsence(err); verdict == nil {
+			t.Fatal("context cancellation was classified as absence")
+		}
+	})
 }
