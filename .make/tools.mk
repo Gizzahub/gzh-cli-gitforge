@@ -297,7 +297,7 @@ install-docs-tools: ## install documentation tools
 # identity and still died at scan time. v2.29.0 is the first release whose
 # notes claim "Add support for go version 1.27.0" (PR #1726, 2026-08-26) and
 # its go.mod keeps the floor at `go 1.25.0`, so both historical product
-# toolchains (go1.26.7, go1.27.0) can still build it; go1.27.1 is the current
+# toolchains (go1.26.7, go1.27.0) can still build it; go1.27.2 is the current
 # repository build toolchain. The runtime half of the
 # contract — rebuild the pin with both compilers, scan pkg/gitsettings with
 # each, and reject new findings against v2.22.10 — lives in
