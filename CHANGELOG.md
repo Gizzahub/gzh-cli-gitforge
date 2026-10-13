@@ -46,6 +46,15 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Project builds use Go 1.27.2 in mise, module, and workspace toolchain contracts.
+  The quality gate reported nine standard-library vulnerabilities with Go
+  1.27.1; the supported Go language minimum remains 1.26.
+
+- Integration candidates that fail freshness now return NOT READY before invoking
+  readiness runners, preparation profiles, or Make gates. TASK-285 had spent
+  25 minutes validating an already-stale candidate; fresh candidates retain all
+  required checks, target revalidation, push leases, and reclaim protections.
+
 - High-load resource waiters refresh their captured target ref and stop for a new check
   when it moves, so stale work does not spend the full wait budget before learning that
   verification must restart. Transient fetch failures warn once and preserve the wait.

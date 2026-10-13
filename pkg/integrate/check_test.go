@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -299,6 +300,112 @@ func TestCheck_StaleTargetFailsFreshness(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected freshness FAIL:\n%s", FormatCheck(report))
+	}
+}
+
+func TestCheck_StaleTargetSkipsPreparationAndMake(t *testing.T) {
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	marker := filepath.Join(t.TempDir(), "commands-ran")
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "cargo"), []byte("#!/bin/sh\nprintf cargo >> \"$MARKER\"\n"), 0o755); err != nil {
+		t.Fatalf("write cargo fixture: %v", err)
+	}
+	t.Setenv("MARKER", marker)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// Declare the profile on the target before the branch is created. If the
+	// stale branch reached legacy gates, the fixture cargo wrapper and Makefile
+	// would both leave evidence in marker.
+	runGit(t, fx.Clone, "checkout", "-B", "develop")
+	writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  prepareProfile: cargo-workspace-v1\n")
+	writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@printf check >> \"$$MARKER\"\nlint:\n\t@printf lint >> \"$$MARKER\"\n")
+	runGit(t, fx.Clone, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Clone, "commit", "-m", "declare integration prerequisites")
+	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
+
+	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
+	writeFile(t, fx.Worktree, "task.txt", "task\n")
+	runGit(t, fx.Worktree, "add", "task.txt")
+	runGit(t, fx.Worktree, "commit", "-m", "task work")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+
+	runGit(t, fx.Clone, "checkout", "develop")
+	writeFile(t, fx.Clone, "later.txt", "later\n")
+	runGit(t, fx.Clone, "add", "later.txt")
+	runGit(t, fx.Clone, "commit", "-m", "develop moves")
+	runGit(t, fx.Clone, "push", fx.Remote, "develop")
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree,
+		Branch:   "dev/actor/feat/task",
+	})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if report.Ready || !hasCheckDetail(report, "freshness", checkFail, "commits behind") {
+		t.Fatalf("stale source must fail freshness before gates:\n%s", FormatCheck(report))
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("stale source ran preparation or Make commands: stat marker = %v", err)
+	}
+	for _, item := range report.Items {
+		if item.Name == "readiness contract" || strings.HasPrefix(item.Name, "prepare") || strings.HasPrefix(item.Name, "make") {
+			t.Fatalf("stale source must short-circuit before %q:\n%s", item.Name, FormatCheck(report))
+		}
+	}
+}
+
+func TestCheck_StaleTargetSkipsContractReadinessRunner(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("contract runners are unsupported on Windows")
+	}
+	fx := readinessFixture(t)
+	marker := filepath.Join(t.TempDir(), "runner-ran")
+	runner := "#!/bin/sh\nprintf runner >> " + strconv.Quote(marker) + "\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
+	advanceReadinessTarget(t, fx, "", runner, "record readiness runner invocation")
+
+	writeFile(t, fx.Clone, "target-freshness.txt", "new target commit\n")
+	runGit(t, fx.Clone, "add", "target-freshness.txt")
+	runGit(t, fx.Clone, "commit", "-m", "advance target")
+	runGit(t, fx.Clone, "push", fx.Remote, "develop")
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree,
+		Branch:   "dev/actor/feat/task",
+	})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if report.Ready {
+		t.Fatalf("stale source reported ready:\n%s", FormatCheck(report))
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("stale source ran the readiness runner: %v", err)
+	}
+}
+
+func TestCheck_FreshTargetRunsLegacyGate(t *testing.T) {
+	fx := readyTaskFixture(t)
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	t.Setenv("MARKER", marker)
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@printf check >> \"$$MARKER\"\n")
+	runGit(t, fx.Worktree, "add", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "record gate invocation")
+	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
+		RepoPath: fx.Worktree,
+		Branch:   "dev/actor/feat/task",
+	})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !report.Ready {
+		t.Fatalf("fresh source must run and pass its gate:\n%s", FormatCheck(report))
+	}
+	got, err := os.ReadFile(marker)
+	if err != nil || string(got) != "check" {
+		t.Fatalf("gate marker = %q, %v; want check", got, err)
 	}
 }
 
