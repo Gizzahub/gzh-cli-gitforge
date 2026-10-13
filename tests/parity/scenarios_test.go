@@ -1,14 +1,37 @@
 package parity
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 // The scenario catalog mirrors the contract doc's verb semantics section.
 // Every step is executed for real inside a throwaway sandbox; the goldens
 // under testdata/golden capture CE's exact answers and the resulting git
 // + record state. Steps marked snapshot also pin the worktree, ref, log,
 // execution, and receipt surface at that point.
+//
+// parityScenarios (not a package var) is the one catalog: TestCEParity
+// executes it for the golden diff, TestParityReferencePinsAreCoherent
+// checks it against the committed golden set 1:1, and
+// TestParityFinishNoArgHasPushedUpstream re-executes one scenario's
+// lifecycle with semantic assertions.
 func TestCEParity(t *testing.T) {
-	scenarios := []scenario{
+	scenarios := parityScenarios()
+	for _, sc := range scenarios {
+		sc := sc
+		t.Run(sc.name, func(t *testing.T) {
+			runScenario(t, sc)
+		})
+	}
+}
+
+// parityScenarios is the authoritative 11-scenario CE reference catalog.
+func parityScenarios() []scenario {
+	return []scenario{
 		{
 			name: "doctor-active",
 			steps: []step{
@@ -77,19 +100,37 @@ func TestCEParity(t *testing.T) {
 			},
 		},
 		{
-			// ISSUE-069: with exactly one active run, no-arg run-finish must
-			// answer READY with exit 0. CE pins READY but exits 1. The golden
-			// records CE's actual behavior; the port contract requires the fix.
+			// ISSUE-069, re-evaluated against CE 612f6bf8: the scenario
+			// first drives the real lifecycle — start, edit the task
+			// worktree, commit, push the task branch upstream, and assert
+			// via run-status that the single active run is finish-ready.
+			// No-arg run-finish then performs the finish itself: DONE,
+			// exit 0, source pushed, worktree and local/remote branches
+			// reclaimed. (Pre-612f6bf8 CE answered the READY list document
+			// with exit 1 — the original ISSUE-069 bug.) The golden records
+			// CE's actual behavior; the port contract requires the port to
+			// complete the finish the same way, never to regress to a
+			// list answer.
 			name:           "finish-noarg-single-active",
 			knownDivergent: true,
 			contract: &portContract{
-				Issue:    "ISSUE-069",
-				Note:     "CE reuses the list reader for no-arg finish and hits the nil-execution guard. The port must answer READY with exit 0 when exactly one run is active.",
-				Status:   "READY",
-				ExitCode: 1,
+				Issue: "ISSUE-069",
+				Note: "The single active run is made genuinely finishable first (edit + commit + upstream push + run-status finishReady), " +
+					"then no-arg run-finish runs. CE 612f6bf8 completes the finish: DONE, exit 0, sourcePushed/worktreeRemoved/" +
+					"localBranchRemoved/remoteBranchRemoved all true. The port must complete the finish identically; a list answer " +
+					"or a non-zero exit is the regression this contract forbids. (Target-mode status today: the port gates run-start " +
+					"on its required Worktrunk minor line and is BLOCKED under the ambient 0.80.0 before the lifecycle can start, " +
+					"so the scenario cannot yet reach its finish there — the contract above stays the requirement.)",
+				Status:   "DONE",
+				ExitCode: 0,
 			},
 			steps: []step{
 				{label: "start", args: []string{"task", "run-start", "noarg", "--type", "chore", "--json"}, dir: "repo"},
+				{label: "add-wip", cmd: "touch", args: []string{"noarg.txt"}, dir: wtDir("chore", "noarg")},
+				{label: "stage-wip", cmd: "git", args: []string{"add", "-A"}, dir: wtDir("chore", "noarg")},
+				{label: "commit-wip", cmd: "git", args: []string{"commit", "-qm", "wip"}, dir: wtDir("chore", "noarg")},
+				{label: "push-branch", cmd: "git", args: []string{"push", "-qu", "origin", "dev/claude/mbp/chore/noarg"}, dir: "repo"},
+				{label: "status-ready", args: []string{"task", "run-status", "noarg", "--json"}, dir: "repo"},
 				{label: "finish-noarg", args: []string{"task", "run-finish", "--json"}, dir: "repo", snapshot: true},
 			},
 		},
@@ -105,11 +146,30 @@ func TestCEParity(t *testing.T) {
 			},
 		},
 		{
-			// A run judged from states[].status, not from len(executions):
-			// after an external reclaim CE reconciles the record to ABORTED
-			// on the next read and activeCount drops to 0 while executions
-			// still carries the history entry.
-			name: "reclaimed-run-reconciliation",
+			// CE 612f6bf8 reference for an externally reclaimed run (worktree
+			// and branch removed behind the lifecycle's back): both read
+			// verbs answer BLOCKED with exit 1 ("Worktrunk inventory does
+			// not match execution metadata") and the executions[] history
+			// entry is retained — CE no longer auto-appends a
+			// reconciliation abort receipt for this shape. The golden pins
+			// that CE answer as reference only; the gz-git port's native
+			// reconciliation semantics stay authoritative and are asserted
+			// semantically in target mode (assertPortReclaimedNative),
+			// never coerced toward CE's BLOCKED/exit 1. No port-source
+			// change is implied by these fixtures.
+			name:           "reclaimed-run-reconciliation",
+			knownDivergent: true,
+			contract: &portContract{
+				Issue: "reclaimed-run-reconciliation",
+				Note: "CE 612f6bf8 answers BLOCKED/exit 1 for an externally reclaimed run and retains the executions[] entry. " +
+					"The port's own native reconciliation answer stays authoritative and is asserted semantically in target mode " +
+					"whenever the scenario prerequisites hold (history entry retained, reclaimed run no longer active, terminal or " +
+					"port-own blocked state with matching exit code). If the port refuses setup outright (e.g. its Worktrunk gate " +
+					"under an ambient line it does not accept), that unavailability is surfaced distinctly and is never accepted " +
+					"as the reconciliation answer. The golden is CE reference only — neither side is coerced.",
+				Status:   "BLOCKED",
+				ExitCode: 1,
+			},
 			steps: []step{
 				{label: "start", args: []string{"task", "run-start", "reclaimed-task", "--type", "chore", "--json"}, dir: "repo"},
 				{label: "external-worktree-removal", cmd: "git", args: []string{"worktree", "remove", "--force", "../wt/" + sandboxRepoID + "/claude__mbp__chore__reclaimed-task"}, dir: "repo"},
@@ -127,16 +187,131 @@ func TestCEParity(t *testing.T) {
 			},
 		},
 	}
-	for _, sc := range scenarios {
-		sc := sc
-		t.Run(sc.name, func(t *testing.T) {
-			runScenario(t, sc)
-		})
-	}
 }
 
 // wtDir names the CE-created task worktree path for branch
 // dev/claude/mbp/<type>/<task> under the sandbox worktree root.
 func wtDir(taskType, task string) string {
 	return "wt/" + sandboxRepoID + "/" + actorDefault + "__" + host + "__" + taskType + "__" + task
+}
+
+// scenarioByName fetches one catalog entry by name.
+func scenarioByName(t *testing.T, name string) scenario {
+	t.Helper()
+	for _, sc := range parityScenarios() {
+		if sc.name == name {
+			return sc
+		}
+	}
+	t.Fatalf("scenario %q missing from the parity catalog", name)
+	return scenario{}
+}
+
+// TestParityFinishNoArgHasPushedUpstream exercises the redesigned
+// finish-noarg-single-active lifecycle end to end and asserts the
+// semantics the golden can only show as bytes: the edit really lands in
+// the task worktree, the task branch really reaches origin (upstream
+// push, not a local-only ref), run-status proves the single active run is
+// finish-ready, and the no-arg finish then completes the run — CE
+// 612f6bf8 performs the finish itself (DONE, exit 0, source pushed,
+// worktree and local/remote branches reclaimed; ISSUE-069 re-evaluated),
+// and the port contract requires the same completion. Never skips: in CE
+// mode TestMain has already required ce; in target mode the port binary
+// is built from this checkout.
+func TestParityFinishNoArgHasPushedUpstream(t *testing.T) {
+	sc := scenarioByName(t, "finish-noarg-single-active")
+	sb := newSandbox(t, sc)
+
+	var statusStdout string
+	taskRef := "refs/heads/dev/claude/mbp/chore/noarg"
+	for _, st := range sc.steps {
+		stdout, stderr, code := sb.run(st)
+		switch st.label {
+		case "push-branch":
+			if code != 0 {
+				t.Fatalf("upstream push step failed (%d): %s%s", code, stdout, stderr)
+			}
+		case "status-ready":
+			if code != 0 {
+				t.Fatalf("run-status after upstream push exited %d: %s%s", code, stdout, stderr)
+			}
+			statusStdout = stdout
+
+			// Fixture assertion 1 (before the finish reclaims anything):
+			// the edit step landed inside the task worktree the lifecycle
+			// itself created, not somewhere else.
+			edited := filepath.Join(sb.root, wtDir("chore", "noarg"), "noarg.txt")
+			if _, err := os.Stat(edited); err != nil {
+				t.Errorf("task worktree edit is missing at %s: %v", edited, err)
+			}
+			// Fixture assertion 2: the task branch really exists on origin
+			// — the upstream push is real, not a local ref the tool chose
+			// to believe.
+			originRefs, _, _ := sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname)", "refs/heads/"}, dir: "origin.git"})
+			if !strings.Contains(originRefs, taskRef) {
+				t.Errorf("origin does not carry the pushed task branch %s; origin refs:\n%s", taskRef, originRefs)
+			}
+		case "finish-noarg":
+			assertFinishNoArgAnswer(t, code, stdout, stderr)
+		}
+	}
+
+	// Fixture assertion 3: readiness was proven before the no-arg finish —
+	// the run is ACTIVE and finish-ready for this task. (activeCount is a
+	// list-level field; CE's single-task answer legitimately carries 0.)
+	var ready struct {
+		Status      string `json:"status"`
+		Task        string `json:"task"`
+		FinishReady bool   `json:"finishReady"`
+	}
+	if err := json.Unmarshal([]byte(statusStdout), &ready); err != nil {
+		t.Fatalf("run-status answer is not JSON: %v\n%s", err, statusStdout)
+	}
+	if ready.Task != "noarg" || ready.Status != "ACTIVE" || !ready.FinishReady {
+		t.Errorf("run-status after upstream push = task %q status %q finishReady %v (want noarg/ACTIVE/true)\n%s", ready.Task, ready.Status, ready.FinishReady, statusStdout)
+	}
+
+	// Fixture assertion 4: completion reclaimed everything — after the
+	// performed finish neither the local repo nor the bare origin still
+	// carries the task branch.
+	for _, dir := range []string{"repo", "origin.git"} {
+		refs, _, _ := sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname)", "refs/heads/"}, dir: dir})
+		if strings.Contains(refs, taskRef) {
+			t.Errorf("%s still carries the task branch %s after the performed finish:\n%s", dir, taskRef, refs)
+		}
+	}
+}
+
+// assertFinishNoArgAnswer pins the ISSUE-069 (re-evaluated) answer: the
+// no-arg finish with exactly one finish-ready active run completes the
+// run — DONE, exit 0, receipt proving source push and full reclaim. The
+// CE reference and the port contract agree on completion; a list answer
+// or a non-zero exit is the regression this forbids.
+func assertFinishNoArgAnswer(t *testing.T, code int, stdout, stderr string) {
+	t.Helper()
+	var doc struct {
+		Status  string `json:"status"`
+		Task    string `json:"task"`
+		Receipt *struct {
+			Operation           string `json:"operation"`
+			Status              string `json:"status"`
+			SourcePushed        bool   `json:"sourcePushed"`
+			WorktreeRemoved     bool   `json:"worktreeRemoved"`
+			LocalBranchRemoved  bool   `json:"localBranchRemoved"`
+			RemoteBranchRemoved bool   `json:"remoteBranchRemoved"`
+		} `json:"receipt"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatalf("no-arg finish answer is not JSON: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+	}
+	if doc.Status != "DONE" || doc.Task != "noarg" || doc.Receipt == nil ||
+		doc.Receipt.Operation != "finish" || doc.Receipt.Status != "DONE" ||
+		!doc.Receipt.SourcePushed || !doc.Receipt.WorktreeRemoved ||
+		!doc.Receipt.LocalBranchRemoved || !doc.Receipt.RemoteBranchRemoved {
+		t.Errorf("no-arg finish answer = status %q task %q receipt %+v (want DONE with the performed finish: source pushed, worktree/local/remote reclaimed)\nstdout: %s", doc.Status, doc.Task, doc.Receipt, stdout)
+		return
+	}
+	if code != 0 {
+		t.Errorf("no-arg finish exited %d (want 0 — the performed finish succeeds); re-evaluate the known-divergent contract\nstdout: %s", code, stdout)
+	}
 }
