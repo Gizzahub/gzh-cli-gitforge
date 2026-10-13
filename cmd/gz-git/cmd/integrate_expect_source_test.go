@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// CE detects the expect-source capability the same way it detects
-// --no-fetch: by parsing the rendered --help Flags section.
-func TestIntegrateExpectSourceFlagDeclaredOnCheckAndRun(t *testing.T) {
+// CE detects immutable request capabilities by parsing the rendered --help
+// Flags section, rather than guessing from a binary version.
+func TestIntegrateExpectedCommitFlagsDeclaredOnCheckAndRun(t *testing.T) {
 	for _, tc := range []struct {
 		path      []string
 		operation string
@@ -25,8 +25,10 @@ func TestIntegrateExpectSourceFlagDeclaredOnCheckAndRun(t *testing.T) {
 		if err := cmd.Help(); err != nil {
 			t.Fatalf("%s: Help() error = %v", cmd.CommandPath(), err)
 		}
-		if !helpFlagsSectionDeclares(buf.String(), tc.operation, "--expect-source") {
-			t.Errorf("%s: rendered --help does not declare --expect-source", cmd.CommandPath())
+		for _, flag := range []string{"--expect-source", "--expect-target"} {
+			if !helpFlagsSectionDeclares(buf.String(), tc.operation, flag) {
+				t.Errorf("%s: rendered --help does not declare %s", cmd.CommandPath(), flag)
+			}
 		}
 	}
 }

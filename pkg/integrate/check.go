@@ -46,6 +46,10 @@ type CheckOptions struct {
 	// source is read after the fetch and must be exactly this commit, so the
 	// SHA compared is the SHA every readiness row measures.
 	ExpectSource string
+	// ExpectTarget is the full destination commit the caller approved. It is
+	// intentionally separate from ExpectSource: an immutable request names a
+	// source/target pair and must never silently adopt a newer target tip.
+	ExpectTarget string
 	// LockWait bounds one high-load host-slot acquisition. LockWaitSet keeps
 	// an explicit zero (unbounded) distinct from an omitted flag.
 	LockWait    time.Duration
@@ -136,12 +140,8 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if opts.LockWait < 0 {
 		return nil, fmt.Errorf("--lock-wait must not be negative")
 	}
-	if opts.ExpectSource != "" {
-		expect, err := NormalizeExpectSource(opts.ExpectSource)
-		if err != nil {
-			return nil, err
-		}
-		opts.ExpectSource = expect
+	if err := normalizeExpectedApprovals(&opts); err != nil {
+		return nil, err
 	}
 	dir := strings.TrimSpace(opts.RepoPath)
 	if dir == "" {
@@ -227,7 +227,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	// A high-load gate may run long enough for either ref to move. The target
 	// lock protects local ownership, not a remote writer, so fetch and compare
 	// again before reporting READY. Run repeats this check before its lease push.
-	if _, _, _, err := revalidateCheckedRefs(ctx, g, report, opts.NoFetch); err != nil {
+	if _, _, _, err := revalidateCheckedRefsForExpectedTarget(ctx, g, report, opts.NoFetch, opts.ExpectTarget); err != nil {
+		if opts.ExpectTarget != "" && errors.Is(err, ErrTargetMismatch) {
+			return report, err
+		}
 		add(CheckItem{Name: "post-gate freshness", Status: checkFail, Detail: err.Error()})
 	} else {
 		add(CheckItem{Name: "post-gate freshness", Status: checkPass, Detail: "source and target unchanged"})
