@@ -10,6 +10,7 @@
 package parity
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -28,7 +29,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "f540f972"
+	pinnedCECommit = "7d2bebecf95a8f7bbe5bc21112c21868173c4a23"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -96,24 +97,11 @@ type step struct {
 	snapshot bool     // capture git + CE record state after the step
 }
 
-// portContract records the behavior the gz-git port must implement when it
-// diverges from CE. knownDivergent scenarios pin CE's actual bytes as the
-// reference and carry the fix requirement here, never by editing the
-// captured output.
-type portContract struct {
-	Issue    string `json:"issue"`
-	Note     string `json:"note"`
-	Status   string `json:"status"`
-	ExitCode int    `json:"exitCode"`
-}
-
 type scenario struct {
 	name string
 	// taskRuntimeYAML overrides the generated .ce/task-runtime.yaml; the
 	// WORKTREE_ROOT placeholder is resolved to the sandbox worktree root.
 	taskRuntimeYAML string
-	knownDivergent  bool
-	contract        *portContract
 	steps           []step
 }
 
@@ -137,12 +125,10 @@ type stateSnapshot struct {
 }
 
 type goldenFile struct {
-	Scenario       string         `json:"scenario"`
-	Reference      string         `json:"reference"`
-	Toolchain      toolchain      `json:"toolchain"`
-	KnownDivergent bool           `json:"knownDivergent,omitempty"`
-	PortContract   *portContract  `json:"portContract,omitempty"`
-	Steps          []capturedStep `json:"steps"`
+	Scenario  string         `json:"scenario"`
+	Reference string         `json:"reference"`
+	Toolchain toolchain      `json:"toolchain"`
+	Steps     []capturedStep `json:"steps"`
 }
 
 var (
@@ -286,6 +272,9 @@ func (sb *sandbox) baseEnv() []string {
 		"PATH="+os.Getenv("PATH"),
 		"HOME="+filepath.Join(sb.root, "home"),
 		"XDG_CONFIG_HOME="+filepath.Join(sb.root, "xdg"),
+		// Keep shim config discovery inside the fixture, even when TMPDIR
+		// is mounted below a real home containing ancestor mise config.
+		"MISE_CEILING_PATHS="+sb.root,
 		"GIT_WORK_HOST="+host,
 		"GIT_AUTHOR_DATE="+pinnedGitDate,
 		"GIT_COMMITTER_DATE="+pinnedGitDate,
@@ -443,6 +432,12 @@ func (sb *sandbox) walk(v interface{}) {
 	switch tv := v.(type) {
 	case map[string]interface{}:
 		for k, item := range tv {
+			if k == "processId" {
+				if _, ok := item.(float64); ok {
+					tv[k] = 0
+					continue
+				}
+			}
 			if s, ok := item.(string); ok {
 				tv[k] = sb.norm.norm(s)
 				continue
@@ -471,11 +466,9 @@ func runScenario(t *testing.T, sc scenario) {
 		toolchainBlock = probeToolchain(t)
 	}
 	golden := goldenFile{
-		Scenario:       sc.name,
-		Reference:      "ce-agent-kit master " + pinnedCECommit,
-		KnownDivergent: sc.knownDivergent,
-		PortContract:   sc.contract,
-		Toolchain:      toolchainBlock,
+		Scenario:  sc.name,
+		Reference: "ce-agent-kit master " + pinnedCECommit,
+		Toolchain: toolchainBlock,
 	}
 	for _, st := range sc.steps {
 		stdout, stderr, code := sb.run(st)
@@ -499,19 +492,10 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 	if targetMode {
 		// Both sides of the comparison are pushed through the same
-		// declared-divergence canonicalization before diffing.
+		// canonicalization before diffing.
 		canonicalizeTarget(t, &golden)
-		if sc.knownDivergent && sc.contract != nil {
-			// The golden pins CE's recorded answer, including the behavior
-			// the port deliberately fixes, so byte-diffing is wrong in both
-			// directions; the port contract is asserted semantically.
-			assertPortContract(t, sc, golden.Steps)
-			return
-		}
 	}
-	if sc.knownDivergent && sc.contract != nil {
-		assertContract(t, sc, golden.Steps)
-	}
+	assertLifecycleContract(t, sc, golden.Steps)
 
 	goldenPath := filepath.Join("testdata", "golden", sc.name+".json")
 	if *recordMode {
@@ -550,43 +534,6 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 }
 
-// assertContract pins the semantic acceptance criteria on top of the byte
-// compare — the points the migration ledger calls out by name.
-func assertContract(t *testing.T, sc scenario, steps []capturedStep) {
-	t.Helper()
-	stepByLabel := func(label string) *capturedStep {
-		for i := range steps {
-			if steps[i].Step == label {
-				return &steps[i]
-			}
-		}
-		t.Fatalf("scenario %s: contract step %q missing", sc.name, label)
-		return nil
-	}
-	switch sc.name {
-	case "finish-noarg-single-active":
-		last := stepByLabel("finish-noarg")
-		if last.ExitCode != 1 || !strings.Contains(last.Stdout, "READY") {
-			t.Errorf("known-divergent marker stale: CE now answers no-arg run-finish with exit %d stdout %q; re-evaluate ISSUE-069", last.ExitCode, last.Stdout)
-		}
-	case "reclaimed-run-reconciliation":
-		listStep := stepByLabel("list-after-reclaim")
-		var envelope struct {
-			ActiveCount int `json:"activeCount"`
-			Executions  []struct {
-				Task string `json:"task"`
-			} `json:"executions"`
-			States []struct {
-				Status string `json:"status"`
-			} `json:"states"`
-		}
-		must(t, json.Unmarshal([]byte(listStep.Stdout), &envelope))
-		if envelope.ActiveCount != 0 || len(envelope.Executions) != 1 || len(envelope.States) != 1 || envelope.States[0].Status != "ABORTED" {
-			t.Errorf("reconciliation contract broken: activeCount=%d executions=%d states=%+v — an externally reclaimed run must stay in executions[] with a terminal states[].status", envelope.ActiveCount, len(envelope.Executions), envelope.States)
-		}
-	}
-}
-
 func firstNonEmpty(a, b string) string {
 	if a != "" {
 		return a
@@ -604,10 +551,57 @@ func probeToolchain(t *testing.T) toolchain {
 		return strings.TrimSpace(string(out))
 	}
 	return toolchain{
-		CE:    version(ceBin, "version"),
+		CE:    ceToolchain(t, version(ceBin, "version")),
 		Wt:    version("wt", "--version"),
 		GzGit: version("gz-git", "--version"),
 	}
+}
+
+// ceToolchain keeps CE's human-readable version output and appends its Go
+// build revision when CE's own build stamps are absent. The revision is part
+// of the executable, so it remains a usable provenance token for a locally
+// installed CE binary without treating an empty --json revision as evidence.
+func ceToolchain(t *testing.T, version string) string {
+	t.Helper()
+	revision, err := ceRevision(ceBin)
+	if err != nil {
+		t.Fatalf("probe CE build metadata: %v", err)
+	}
+	if revision != pinnedCECommit {
+		t.Fatalf("CE revision %s does not match the declared reference %s", revision, pinnedCECommit)
+	}
+	return strings.TrimSpace(version) + "\nRevision: " + revision
+}
+
+func ceRevision(binary string) (string, error) {
+	out, err := exec.Command("go", "version", "-m", binary).Output() //nolint:noctx // local binary provenance probe
+	if err != nil {
+		return "", err
+	}
+	return cleanCERevision(string(out))
+}
+
+func cleanCERevision(metadata string) (string, error) {
+	var revision, modified string
+	for _, line := range strings.Split(metadata, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || fields[0] != "build" {
+			continue
+		}
+		if value, ok := strings.CutPrefix(fields[1], "vcs.revision="); ok {
+			revision = value
+		}
+		if value, ok := strings.CutPrefix(fields[1], "vcs.modified="); ok {
+			modified = value
+		}
+	}
+	if modified != "false" {
+		return "", fmt.Errorf("CE executable must have vcs.modified=false")
+	}
+	if _, err := hex.DecodeString(revision); err != nil || len(revision) != 40 {
+		return "", fmt.Errorf("CE executable must carry a full vcs.revision")
+	}
+	return revision, nil
 }
 
 // diffLines renders the first differing regions of two normalized

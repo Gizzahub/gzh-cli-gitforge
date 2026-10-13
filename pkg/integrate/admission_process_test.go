@@ -79,24 +79,32 @@ func TestAdmissionProcessChild(t *testing.T) {
 		if parseErr != nil {
 			t.Fatal(parseErr)
 		}
+		budget := os.Getenv("GZ_GIT_TEST_ADMISSION_LABEL") == "budget"
+		if budget {
+			fmt.Println("starting budget")
+		}
+		started := time.Now()
 		lock, acquireErr := acquireHostLock(context.Background(), hostLockHolder{Branch: os.Getenv("GZ_GIT_TEST_ADMISSION_LABEL")}, wait, io.Discard)
 		if acquireErr != nil {
 			fmt.Println("error " + acquireErr.Error())
+			if budget {
+				fmt.Println("elapsed " + time.Since(started).String())
+			}
 			return
 		}
 		defer lock.release()
 		fmt.Println("acquired " + os.Getenv("GZ_GIT_TEST_ADMISSION_LABEL"))
 		waitRelease()
 	case "cancel-waiter":
-		wait, parseErr := time.ParseDuration(os.Getenv("GZ_GIT_TEST_ADMISSION_WAIT"))
-		if parseErr != nil {
-			t.Fatal(parseErr)
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), wait)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		go func() {
+			waitRelease()
+			cancel()
+		}()
 		_, acquireErr := acquireHostLock(ctx, hostLockHolder{Branch: "canceled"}, 0, io.Discard)
-		if !errors.Is(acquireErr, context.DeadlineExceeded) {
-			t.Fatalf("acquire err = %v, want deadline exceeded", acquireErr)
+		if !errors.Is(acquireErr, context.Canceled) {
+			t.Fatalf("acquire err = %v, want canceled", acquireErr)
 		}
 		fmt.Println("canceled")
 	default:
@@ -158,11 +166,16 @@ func (p *admissionProcess) line(t *testing.T) string {
 	return strings.TrimSpace(line)
 }
 
-func (p *admissionProcess) releaseAndWait(t *testing.T) {
+func (p *admissionProcess) signalRelease(t *testing.T) {
 	t.Helper()
 	if err := os.WriteFile(p.release, []byte("release\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func (p *admissionProcess) releaseAndWait(t *testing.T) {
+	t.Helper()
+	p.signalRelease(t)
 	err := p.finish(3 * time.Second)
 	if err != nil {
 		t.Fatalf("child %d: %v", p.cmd.Process.Pid, err)
@@ -269,10 +282,11 @@ func TestAdmissionProcessCanceledMiddleWaiterDoesNotBlockSuccessors(t *testing.T
 	}
 	first := startAdmissionProcess(t, "lock-waiter", "first", "2s")
 	waitAdmissionTickets(t, 1)
-	middle := startAdmissionProcess(t, "cancel-waiter", "", "100ms")
+	middle := startAdmissionProcess(t, "cancel-waiter", "", "0")
 	waitAdmissionTickets(t, 2)
 	last := startAdmissionProcess(t, "lock-waiter", "last", "2s")
 	waitAdmissionTickets(t, 3)
+	middle.signalRelease(t)
 	if got := middle.line(t); got != "canceled" {
 		t.Fatalf("middle = %q", got)
 	}
@@ -298,26 +312,34 @@ func TestAdmissionProcessBudgetIncludesFIFOAndOSWait(t *testing.T) {
 	if got := head.line(t); got != "admitted" {
 		t.Fatalf("admission holder = %q", got)
 	}
-	started := time.Now()
-	waiter := startAdmissionProcess(t, "lock-waiter", "budget", "1s")
-	waitAdmissionTickets(t, 2)
-	time.Sleep(600 * time.Millisecond)
 	legacy := startAdmissionProcess(t, "legacy-holder", "", "0")
 	if got := legacy.line(t); got != "locked" {
 		t.Fatalf("legacy holder = %q", got)
 	}
-	head.releaseAndWait(t)
+	waiter := startAdmissionProcess(t, "lock-waiter", "budget", "2s")
+	if got := waiter.line(t); got != "starting budget" {
+		t.Fatalf("budget handshake = %q", got)
+	}
+	waitAdmissionTickets(t, 2)
+	time.Sleep(750 * time.Millisecond)
+	head.signalRelease(t)
 	// The waiter now leaves FIFO admission but the legacy lock consumes its
 	// remaining budget. It must fail instead of restarting a second timeout.
-	if got := waiter.line(t); !strings.HasPrefix(got, "error ") || !strings.Contains(got, ErrHostLockWait.Error()) || !strings.Contains(got, "after 1s (explicit; per acquisition)") || !strings.Contains(got, "no gate measured") {
+	if got := waiter.line(t); !strings.HasPrefix(got, "error ") || !strings.Contains(got, ErrHostLockWait.Error()) || !strings.Contains(got, "after 2s (explicit; per acquisition)") || !strings.Contains(got, "no gate measured") || !strings.Contains(got, " holds ") || strings.Contains(got, "acquire FIFO") || strings.Contains(got, "admission consumed") {
 		t.Fatalf("budget waiter = %q", got)
 	}
-	elapsed := time.Since(started)
-	if elapsed < 800*time.Millisecond || elapsed > 1300*time.Millisecond {
-		t.Fatalf("total acquisition wait = %s, want one 1s budget spanning FIFO and OS wait", elapsed)
+	elapsed, err := time.ParseDuration(strings.TrimPrefix(waiter.line(t), "elapsed "))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed < 1800*time.Millisecond || elapsed > 2400*time.Millisecond {
+		t.Fatalf("total acquisition wait = %s, want one 2s budget spanning FIFO and OS wait", elapsed)
 	}
 	if err := waiter.wait(t); err != nil {
 		t.Fatalf("budget waiter child: %v", err)
+	}
+	if err := head.wait(t); err != nil {
+		t.Fatalf("admission holder child: %v", err)
 	}
 	legacy.releaseAndWait(t)
 }

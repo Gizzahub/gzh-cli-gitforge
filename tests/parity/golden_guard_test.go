@@ -19,9 +19,16 @@ import (
 	"testing"
 )
 
-// ceBuildToken extracts the "Build:" token from `ce version` output, e.g.
-// "475-g950650ef". It returns "" when the output carries no build line.
+// ceBuildToken extracts the executable revision when Go build metadata is
+// recorded, otherwise it falls back to the "Build:" token from `ce version`.
+// A locally installed CE may not stamp its own version JSON, while Go's
+// embedded vcs.revision still identifies the exact executable.
 func ceBuildToken(versionOutput string) string {
+	for _, line := range strings.Split(versionOutput, "\n") {
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "Revision:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
 	for _, line := range strings.Split(versionOutput, "\n") {
 		if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "Build:"); ok {
 			return strings.TrimSpace(rest)
@@ -69,7 +76,14 @@ func guardGoldenToolchain() {
 	if err != nil {
 		return
 	}
-	installed := ceBuildToken(string(out))
+	installedOutput := string(out)
+	revision, revisionErr := ceRevision(ceBin)
+	if revisionErr != nil {
+		fmt.Printf("parity: cannot verify a clean CE reference: %v\n", revisionErr)
+		os.Exit(1)
+	}
+	installedOutput = strings.TrimSpace(installedOutput) + "\nRevision: " + revision
+	installed := ceBuildToken(installedOutput)
 	if installed == "" {
 		return
 	}
@@ -97,6 +111,9 @@ re-record with: PARITY_RECORD=1 go test ./tests/parity/...
 }
 
 func TestCEBuildToken(t *testing.T) {
+	if got := ceBuildToken("Build: unknown\nRevision: 7d2bebecf95a8f7bbe5bc21112c21868173c4a23\n"); got != "7d2bebecf95a8f7bbe5bc21112c21868173c4a23" {
+		t.Errorf("ceBuildToken revision = %q, want full revision", got)
+	}
 	out := "ce-agent-kit version 0.8.4\nRelease:  v0.8.4\nBuild:    475-g950650ef\nCommit:   950650ef3741cf662f8df32987746a717166a2e0\nDirty:    false\n"
 	if got := ceBuildToken(out); got != "475-g950650ef" {
 		t.Errorf("ceBuildToken = %q, want %q", got, "475-g950650ef")
@@ -105,6 +122,26 @@ func TestCEBuildToken(t *testing.T) {
 		if got := ceBuildToken(empty); got != "" {
 			t.Errorf("ceBuildToken(%q) = %q, want empty", empty, got)
 		}
+	}
+}
+
+func TestCleanCERevision(t *testing.T) {
+	for _, tc := range []struct {
+		name, metadata string
+		valid          bool
+	}{
+		{"clean", "build vcs.revision=" + pinnedCECommit + "\nbuild vcs.modified=false\n", true},
+		{"dirty", "build vcs.revision=" + pinnedCECommit + "\nbuild vcs.modified=true\n", false},
+		{"missing modified", "build vcs.revision=" + pinnedCECommit, false},
+		{"missing revision", "build vcs.modified=false", false},
+		{"malformed revision", "build vcs.revision=oops\nbuild vcs.modified=false", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := cleanCERevision(tc.metadata)
+			if (err == nil) != tc.valid {
+				t.Fatalf("metadata validity: %v, want %v", err, tc.valid)
+			}
+		})
 	}
 }
 

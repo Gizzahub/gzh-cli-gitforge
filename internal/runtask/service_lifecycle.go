@@ -134,15 +134,23 @@ func (s *Service) Finish(ctx context.Context, task string) (resp TaskResponse, c
 	}
 	defer unlock()
 	status := s.status(ctx, task, false)
-	if status.Execution == nil {
-		// ISSUE-069 divergence from CE, kept deliberate: CE reuses the list
-		// reader for a no-arg finish and exits 1 through the nil-execution
-		// guard even when the aggregate is READY. With exactly one ACTIVE
-		// execution the answer is unambiguous, so the port answers the same
-		// READY document with exit 0; zero or several keep the refusal.
-		if normalize(task) == "" && status.Status == TaskExecutionStatusReady && status.ActiveCount == 1 {
-			return status, 0
+	if status.Execution == nil && normalize(task) == "" {
+		if status.Status == TaskExecutionStatusBlocked && len(status.States) == 0 {
+			return status, 1
 		}
+		owner, ownerErr := s.owner(ctx)
+		if ownerErr != nil {
+			res := response(TaskExecutionStatusBlocked, "", "cannot resolve the current owner for bare run-finish: "+ownerErr.Error(), "set the actor and host, then retry")
+			appendIdentityDiagnostic(&res, ownerErr)
+			return res, 1
+		}
+		selected, refusal := selectOwnedActiveTask(status.States, owner)
+		if refusal != nil {
+			return *refusal, 1
+		}
+		status = s.status(ctx, selected, false)
+	}
+	if status.Execution == nil {
 		return status, 1
 	}
 	if status.Status != TaskExecutionStatusActive {
@@ -150,6 +158,11 @@ func (s *Service) Finish(ctx context.Context, task string) (resp TaskResponse, c
 			return status, 0
 		}
 		return status, 1
+	}
+	if purpose := status.Execution.Purpose; purpose != "" && purpose != "delivery" {
+		return response(TaskExecutionStatusBlocked, status.Execution.Task,
+			"run-finish is only available for delivery executions; "+purpose+" must end with run-abort or run-discard",
+			"record a preservation reason with gz-git run abort "+status.Execution.Task+" --reason R, or reclaim the clean worktree with run discard"), 1
 	}
 	if !status.FinishReady {
 		return status, 1

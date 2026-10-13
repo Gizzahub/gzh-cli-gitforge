@@ -77,19 +77,22 @@ func TestCEParity(t *testing.T) {
 			},
 		},
 		{
-			// ISSUE-069: with exactly one active run, no-arg run-finish must
-			// answer READY with exit 0. CE pins READY but exits 1. The golden
-			// records CE's actual behavior; the port contract requires the fix.
-			name:           "finish-noarg-single-active",
-			knownDivergent: true,
-			contract: &portContract{
-				Issue:    "ISSUE-069",
-				Note:     "CE reuses the list reader for no-arg finish and hits the nil-execution guard. The port must answer READY with exit 0 when exactly one run is active.",
-				Status:   "READY",
-				ExitCode: 1,
-			},
+			// With one active run, CE resolves that task and then applies the
+			// normal finish preconditions. This unpushed fixture therefore
+			// remains ACTIVE with the task-scoped no-upstream refusal.
+			name: "finish-noarg-single-active",
 			steps: []step{
 				{label: "start", args: []string{"task", "run-start", "noarg", "--type", "chore", "--json"}, dir: "repo"},
+				{label: "finish-noarg", args: []string{"task", "run-finish", "--json"}, dir: "repo", snapshot: true},
+			},
+		},
+		{
+			// Two active runs leave no-arg finish ambiguous and must not select
+			// either task.
+			name: "finish-noarg-ambiguous-active",
+			steps: []step{
+				{label: "start-first", args: []string{"task", "run-start", "first", "--type", "chore", "--json"}, dir: "repo"},
+				{label: "start-second", args: []string{"task", "run-start", "second", "--type", "chore", "--json"}, dir: "repo"},
 				{label: "finish-noarg", args: []string{"task", "run-finish", "--json"}, dir: "repo", snapshot: true},
 			},
 		},
@@ -106,7 +109,7 @@ func TestCEParity(t *testing.T) {
 		},
 		{
 			// A run judged from states[].status, not from len(executions):
-			// after an external reclaim CE reconciles the record to ABORTED
+			// Queries preserve the record without closing it after external reclaim.
 			// on the next read and activeCount drops to 0 while executions
 			// still carries the history entry.
 			name: "reclaimed-run-reconciliation",

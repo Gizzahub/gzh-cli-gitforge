@@ -48,19 +48,8 @@ func (s *Service) deriveState(ctx context.Context, execution TaskExecution, rece
 	if err != nil || execution.Worktree != expectedWorktreePath(root, execution.Branch) {
 		return block("execution worktree is outside its configured owner path", "inspect stale or tampered execution metadata")
 	}
-	// Before reading the inventory, because a reclaimed record is absent from
-	// it and would block here on "inventory does not match" -- the very reason
-	// that never reads as the reclaim it is. reconcileReclaimed closes the
-	// record only on positive evidence that the work landed; without it,
-	// execution falls through to the blocks below unchanged.
-	// The declined half still carries its probes: a record that stays blocked
-	// below should be able to show which reconciliation checks were run and
-	// what they answered, not only that they did not add up.
-	reconciled, decided := s.reconcileReclaimed(ctx, execution, cfg)
-	if decided {
-		return reconciled
-	}
-	state.Diagnostics = append(state.Diagnostics, reconciled.Diagnostics...)
+	// Status and list are observations. Missing inventory never authorizes
+	// appending a terminal receipt; an explicit owner action must close it.
 	actual, ok := inventory.Paths[execution.Branch]
 	if !ok || actual != execution.Worktree {
 		return block("Worktrunk inventory does not match execution metadata", "inspect Worktrunk and runtime metadata")

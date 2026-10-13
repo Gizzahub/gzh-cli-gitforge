@@ -17,10 +17,6 @@
 //   - build-identity strings (tool_version, tool_revision, provider version,
 //     the toolchain block) fold to placeholders so a dev build compares
 //     against a release golden without pinning either;
-//   - known-divergent scenarios do not byte-diff in target mode; their port
-//     contract is asserted semantically instead (ISSUE-069: no-arg finish
-//     with one active run exits 0).
-//
 // Target mode never records: goldens describe CE.
 
 package parity
@@ -254,47 +250,4 @@ func isGzGitProbe(entry map[string]interface{}) bool {
 		}
 	}
 	return false
-}
-
-// assertPortContract pins the port-side acceptance for known-divergent
-// scenarios. In target mode these scenarios do not byte-diff against CE's
-// recorded answer, because diverging is the point; the contract below is the
-// fix the golden's portContract field demands.
-func assertPortContract(t *testing.T, sc scenario, steps []capturedStep) {
-	t.Helper()
-	switch sc.name {
-	case "finish-noarg-single-active":
-		// The portContract on the scenario pins it: with exactly one ACTIVE
-		// run, no-arg finish answers the READY aggregate document and exits
-		// 0, where CE recorded the same document with exit 1.
-		last := stepByLabel(t, sc, steps, "finish-noarg")
-		if last.ExitCode != 0 {
-			t.Errorf("ISSUE-069 not fixed: no-arg gz-git run finish exited %d (want 0)\nstdout: %s", last.ExitCode, last.Stdout)
-			return
-		}
-		var doc struct {
-			Status      string `json:"status"`
-			ActiveCount int    `json:"activeCount"`
-		}
-		if err := json.Unmarshal([]byte(last.Stdout), &doc); err != nil {
-			t.Errorf("ISSUE-069 finish response is not JSON: %v\nstdout: %s", err, last.Stdout)
-			return
-		}
-		if doc.Status != "READY" || doc.ActiveCount != 1 {
-			t.Errorf("ISSUE-069 finish response = status %q activeCount %d (want READY/1)\nstdout: %s", doc.Status, doc.ActiveCount, last.Stdout)
-		}
-	default:
-		t.Fatalf("scenario %s is known-divergent without a port contract assert", sc.name)
-	}
-}
-
-func stepByLabel(t *testing.T, sc scenario, steps []capturedStep, label string) *capturedStep {
-	t.Helper()
-	for i := range steps {
-		if steps[i].Step == label {
-			return &steps[i]
-		}
-	}
-	t.Fatalf("scenario %s: step %q missing", sc.name, label)
-	return nil
 }

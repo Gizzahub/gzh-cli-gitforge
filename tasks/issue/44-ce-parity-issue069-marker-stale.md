@@ -5,7 +5,7 @@
 - category: quality/parity
 - created_at: 2026-10-04
 - owner: `gzh-cli-gitforge/tests/parity`
-- work-card: 없음 — 재녹화 범위 결정 대기(메인테이너)
+- work-card: quality-baseline — CE 7d2bebec 기준 정합화; 전체 포트 추종은 ISSUE-42에서 계속
 
 ## 증상
 
@@ -28,10 +28,12 @@
 - 캡처된 `gz-git` 출력: `--version` 0.8.0 → 0.9.0, 그리고 `integrate check/run --help`에 새로 생긴 `--expect-source` 플래그와 exit 4 설명, `integrate-release` capability. 이 부분은 golden이 PATH에 설치된 `gz-git` 버전에도 기대고 있다는 뜻이다.
 - `--allow-skipped-checks` 설명 문구가 늘어남.
 
-## 제안
+## 해결
 
-1. `finish-noarg-single-active`를 다시 설계한다. 태스크 브랜치에 upstream을 만들어(샌드박스 bare remote로 push) no-arg finish가 실제 finish 경로까지 가게 하고, `knownDivergent`과 `portContract`를 지운다. 그다음 gitforge 포트(`gz-git run finish`)가 같은 결과를 내는지 확인한다. 다르면 이슈 42처럼 포트 추종 카드를 따로 만든다.
-2. 이어서 `pinnedCECommit` 상수, `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md`의 ISSUE-069 행·본문·이력, golden 11개를 한 커밋으로 재녹화한다(ISSUE-41 절차).
-3. (선택) 캡처된 `gz-git` 출력이 설치본 버전에 따라 바뀌는 문제는, golden 정규화에서 `gz-git` 버전을 placeholder로 바꾸거나 테스트가 빌드한 바이너리를 쓰게 해 분리한다.
-
-재녹화만 해서 표식 실패를 덮지 않는다. 1을 먼저 결정해야 한다.
+`finish-noarg-single-active`는 sole ACTIVE 실행을 선택한 뒤 일반 finish
+사전조건을 적용하도록 다시 녹화했다. upstream이 없는 이 fixture는
+task-scoped ACTIVE/no-upstream 거부를 유지한다. 두 ACTIVE 실행에서는
+owner-scoped BLOCKED 거부를 검증하는 `finish-noarg-ambiguous-active` 회귀 시나리오를
+추가했다. CE 7d2bebec 실행 파일의 Go build metadata를 golden provenance로
+기록했으며, 오래된 known-divergent/portContract 표식은 더 이상 사용하지
+않는다. 외부 회수 후 조회는 CE ADR-0073대로 BLOCKED 기록을 유지하고 기존 start receipt를 변경하지 않는다는 semantic assertion으로 검증한다. 전체 target-mode parity는 purpose・resume・provider capability・receipt 차이 때문에 완료로 선언하지 않는다. 최신 참조와 의미 계약을 고친 결과는 검증 증거와 함께 기록한다.

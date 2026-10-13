@@ -71,6 +71,7 @@ func (o TaskOwner) String() string {
 type TaskExecution struct {
 	Task      string            `json:"task"`
 	Type      TaskExecutionType `json:"type"`
+	Purpose   string            `json:"purpose,omitempty"`
 	Source    string            `json:"source"`
 	Owner     TaskOwner         `json:"owner"`
 	Branch    string            `json:"branch"`

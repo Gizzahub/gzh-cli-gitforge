@@ -6,9 +6,13 @@ Reference for porting the CE run lifecycle into gz-git, per ce-agent-kit
 window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
-Everything in this document is pinned to **CE source `ce-agent-kit` master
-`f540f972`** (installed binary `ce 0.8.4`, build `498-gf540f972`, with
-Worktrunk 0.80.0; fixtures were first authored against `bb970b24` /
+The current behavioral reference is **CE source `ce-agent-kit`
+`7d2bebecf95a8f7bbe5bc21112c21868173c4a23`**, installed as CE 0.10.1 with
+`vcs.modified=false`. Its own build stamps are absent, so the suite verifies
+the full revision and clean state from Go executable metadata. Fixtures must
+not claim a reference revision different from the executable they capture.
+
+Historical fixtures were first authored against `bb970b24` /
 `400-gbb970b24`, re-recorded across `f927ae5d` / `401-gf927ae5d`, re-recorded
 again across the move to `771c54cf` / `404-g771c54cf` (stamp-only), again
 across the move to `950650ef` / `475-g950650ef` (stamp plus captured wording:
@@ -28,7 +32,12 @@ origin once, as a real clone would. Schema, statuses and allowed actions were
 unchanged, verified by golden diff. The gz-git port does not follow either
 change yet; that is a port decision tracked in
 `tasks/issue/42-runtask-port-follow-ce-f540f972.md`, not a known-divergent
-scenario).
+scenario). The current capture also records purpose fields, explicit resume
+refusals, owner-scoped bare finish, and observational queries (CE ADR-0073).
+The reference suite is not proof that every verb has been ported. Target-mode
+drift remains tracked under ISSUE-42; settlement/close verbs and complete
+purpose/resume/receipt parity are separate port work. No normalization hides
+these differences.
 The behavioral reference is
 the fixture suite in `tests/parity/` — golden files there are
 machine-captured from the CE binary, never hand-written. This document
@@ -37,12 +46,12 @@ fixtures win.
 
 Reference toolchain used by the fixtures:
 
-| Component        | Version                                                    | Role                             |
-| ---------------- | ---------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.8.4 (`f540f972`)                                         | system under test (reference)    |
-| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
-| `gz-git`         | 0.8.x with `integrate check/run` + `--no-fetch` capability | integration provider (reclaim)   |
-| `git`            | system git                                                 | refs, worktree plumbing          |
+| Component        | Version                                                  | Role                             |
+| ---------------- | -------------------------------------------------------- | -------------------------------- |
+| `ce`             | 0.10.1 (`7d2bebec`, clean Go build metadata)             | system under test (reference)    |
+| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
+| `gz-git`         | 0.9.1 (`145799b`, installed provider during capture)     | integration provider (reclaim)   |
+| `git`            | system git                                               | refs, worktree plumbing          |
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
@@ -52,6 +61,12 @@ bypass prohibition + root safety), 0017 (abort verb, append-only closure),
 ______________________________________________________________________
 
 ## 1. Verb surface
+
+The tables below describe the inherited port surface. Current CE also has
+purpose/resume and explicit settlement/closure contracts beyond these eight
+verbs; their remaining port differences are tracked in ISSUE-42. Current
+machine captures and the owner/observation rules below are authoritative for
+the updated scenarios, rather than a claim that the entire CE CLI is ported.
 
 Hand-rolled dispatcher (no cobra): `cmd/ce/handlers_task.go` registers eight
 verbs; parse errors print `Error: <msg>` to stderr and exit 1. `--help`/`-h`
@@ -85,7 +100,7 @@ capabilities, not CLI words.
 | `ce task run-start`   | `gz-git run start`     | `--type`, `--json`                       |                                                                             |
 | `ce task run-status`  | `gz-git run status`    | `--json`                                 |                                                                             |
 | `ce task run-list`    | `gz-git run list`      | `--json`                                 |                                                                             |
-| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | known-divergent: no-arg finish with one ACTIVE run exits 0 (ISSUE-069)      |
+| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | no-arg selects exactly one ACTIVE execution before finish checks            |
 | `ce task run-recover` | `gz-git run recover`   | `--json`                                 |                                                                             |
 | `ce task run-abort`   | `gz-git run abort`     | `--reason`, `--json`                     |                                                                             |
 | `ce task run-discard` | `gz-git run discard`   | `--reason`, `--take-over-from`, `--json` |                                                                             |
@@ -200,7 +215,7 @@ All runtime state lives under the **git common dir**
 | Path              | Format                                                                                                                       | Writer                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `executions.json` | pretty-printed JSON array of `TaskExecution`; atomic replace (temp+fsync+rename+dirsync); missing file reads as `[]`         | start (rewrite), never append-only                  |
-| `receipts.jsonl`  | append-only JSONL, one `TaskReceipt` per line; malformed line is a hard read error                                           | start/finish/abort/discard/recover/reconcile        |
+| `receipts.jsonl`  | append-only JSONL, one `TaskReceipt` per line; malformed line is a hard read error                                           | start/finish/abort/discard/recover                  |
 | `mutation.lock`   | `O_EXCL`-created file, content `pid=<pid> created=<RFC3339>`; removed by the holder's unlock closure; **never auto-removed** | every mutating verb                                 |
 | `board-recovery/` | preserved card copies                                                                                                        | `ce task reconcile` (board verb, out of scope here) |
 
@@ -318,7 +333,7 @@ record → append `operation: start, status: ACTIVE` receipt.
 ### run-status / run-list
 
 Read-only, no lock. Derive per-record state from record + receipts +
-Worktrunk inventory + git, then reconcile (below). Response carries both
+Worktrunk inventory + git, without implicit closure (below). Response carries both
 `executions[]` (raw history, no status field on purpose) and `states[]`
 (derived). `activeCount` counts `states[].status == ACTIVE` — **never**
 `len(executions)` (ISSUE-069). List-level status: READY, or BLOCKED with
@@ -348,20 +363,15 @@ evidence keeps the run BLOCKED (never promoted to DONE). A stale base
 (source tip moved past the branch base) exits 1 with the rebase-directed
 reason.
 
-**No-arg path — KNOWN DIVERGENCE (ISSUE-069).** With no task argument, the
-internal status call returns the *list* answer, and the nil-execution guard
-returns exit 1. Fixture-pinned CE behavior with exactly one active run:
-the JSON envelope is the full list answer — `status READY`,
-`activeCount 1`, `executions[]` and `states[]` both present,
-`allowedActions [run-list, run-status]`, reason
-`task execution states returned`, next `select a task` — yet the process
-exits **1** (stderr `Error: task execution states returned`).
-
-> Port contract (this is the divergence the port must fix): with exactly
-> one active run, no-arg `run-finish` answers **READY with exit 0**. The
-> fixture `finish-noarg-single-active` pins the CE-actual behavior as
-> `referenceBehavior` and the port requirement as `portContract`; the port
-> must flip it, not copy it.
+**No-arg path.** With no task argument, exactly one derived ACTIVE execution
+is selected and then follows the same owner and finish-precondition path as an
+explicit task. For example, an unpushed sole run remains task-scoped ACTIVE
+with `task branch has no upstream` and exit 1. Only ACTIVE delivery executions
+owned by the current actor and host are eligible. Zero or several matches
+return task-empty BLOCKED with exit 1; several matches name sorted task IDs
+and explicit finish commands. Foreign and terminal records are never selected
+implicitly. The fixtures `finish-noarg-single-active` and
+`finish-noarg-ambiguous-active` capture both cases.
 
 ### run-abort
 
@@ -409,21 +419,18 @@ worktree/branch/remote detection — **zero residuals is a failure**
 `integration confirmed after partial provider cleanup; residual <list> left untouched`. A recover DONE receipt only validates as terminal when at
 least one residual remains.
 
-### Reconciliation (runs inside every read)
+### Observation and explicit closure
 
-When a record's worktree is gone (`os.Stat` fails), the read path attempts
-reconciliation under the mutation lock: if landing evidence proves the task
-landed in source (surviving local/remote tip contained in source, or all
-refs gone and — under `allow` policy — `ls-remote` confirms remote
-absence), an `operation: abort, status: ABORTED` receipt with
-`worktreeRemoved: true` and the evidence reason
-(`execution <task> closed by CE reconciliation: …`) is appended and the
-state becomes ABORTED. Without evidence the state stays BLOCKED
-(`Worktrunk inventory does not match execution metadata` /
-`execution metadata points to an unavailable worktree`) — never silently
-ABORTED. This is why an active run is judged from `states[].status`, not
-from the number of executions: an externally reclaimed run keeps its
-`executions[]` entry but reports a terminal state and `activeCount` drops.
+CE ADR-0073 separates read queries from execution closure. If the worktree or
+inventory disappears, status/list retain the execution history as BLOCKED,
+with `activeCount: 0`. They append no terminal receipt, take no mutation lock,
+and infer neither DONE nor ABORTED from resource absence. The fixture asserts
+the retained record and unchanged start receipt in addition to byte comparison.
+
+The port also keeps read derivation observational. CE's explicit `run-settle`
+and `run-close` surfaces remain unported; the existing owner-only `run abort`
+is still an explicit closure action. This change does not claim full target
+parity or treat an unavailable worktree as proof of successful integration.
 
 ______________________________________________________________________
 
@@ -457,10 +464,6 @@ against `testdata/golden/<scenario>.json`.
 
 Golden files are machine-captured reference behavior of the pinned CE
 toolchain. Toolchain upgrades (ce/wt/gz-git) intentionally require
-re-recording — that is the pin doing its job. Known-divergent scenarios
-carry `knownDivergent: true` plus a `portContract` block in the golden
-itself, and the suite asserts the divergence semantically
-(`assertContract`): if a later CE build fixes ISSUE-069 or breaks the
-reconciliation contract, the marker goes stale and the suite fails with
-instructions to re-evaluate — the fix requirement is metadata, never an
-edit to captured bytes.
+re-recording — that is the pin doing its job. A behavioral change is accepted
+only after the scenario's explicit contract is updated and the CE capture
+passes; fixture bytes are never hand-edited to hide a divergence.

@@ -1,0 +1,199 @@
+{
+  "scenario": "finish-noarg-ambiguous-active",
+  "reference": "ce-agent-kit master 7d2bebecf95a8f7bbe5bc21112c21868173c4a23",
+  "toolchain": {
+    "ce": "ce-agent-kit version 0.10.1\nBuild:    unknown (built without build stamps; use make build or make install_cli)\nRevision: 7d2bebecf95a8f7bbe5bc21112c21868173c4a23",
+    "wt": "wt 0.80.0",
+    "gzGit": "gz-git version 0.9.1"
+  },
+  "steps": [
+    {
+      "step": "start-first",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "first",
+        "--type",
+        "chore",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"first\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness; run-finish runs from the primary checkout, after the repository lint passes and the branch is current with the source tip\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"first\",\n    \"type\": \"chore\",\n    \"purpose\": \"delivery\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/chore/first\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"\u003cSHA1\u003e\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/chore/first\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/chore/first\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"\u003cSHA1\u003e\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/chore/first from \u003cSHA1\u003e and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/chore/first\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/chore/first  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "start-second",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-start",
+        "second",
+        "--type",
+        "chore",
+        "--json"
+      ],
+      "exitCode": 0,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"ACTIVE\",\n  \"activeCount\": 0,\n  \"task\": \"second\",\n  \"allowedActions\": [\n    \"run-status\"\n  ],\n  \"reason\": \"task execution started\",\n  \"nextAction\": \"work in the task worktree; use run-status to evaluate finish readiness; run-finish runs from the primary checkout, after the repository lint passes and the branch is current with the source tip\",\n  \"finishReady\": false,\n  \"execution\": {\n    \"task\": \"second\",\n    \"type\": \"chore\",\n    \"purpose\": \"delivery\",\n    \"source\": \"master\",\n    \"owner\": {\n      \"actor\": \"claude\",\n      \"host\": \"mbp\",\n      \"kind\": \"agent\"\n    },\n    \"branch\": \"dev/claude/mbp/chore/second\",\n    \"worktree\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\",\n    \"startedAt\": \"\u003cTS\u003e\",\n    \"updatedAt\": \"\u003cTS\u003e\"\n  },\n  \"diagnostics\": [\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"worktree-path = \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\\\"\",\n        \"switch\",\n        \"--create\",\n        \"--base\",\n        \"\u003cSHA1\u003e\",\n        \"--no-cd\",\n        \"--format=json\",\n        \"dev/claude/mbp/chore/second\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\\"action\\\":\\\"created\\\",\\\"branch\\\":\\\"dev/claude/mbp/chore/second\\\",\\\"path\\\":\\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\\\",\\\"created_branch\\\":true,\\\"base_branch\\\":\\\"\u003cSHA1\u003e\\\"}\\n\",\n      \"stderr\": \"✓ Created branch dev/claude/mbp/chore/second from \u003cSHA1\u003e and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\\n\"\n    },\n    {\n      \"command\": \"wt\",\n      \"executable\": \"\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt\",\n      \"args\": [\n        \"--config-set\",\n        \"list.json-schema = 2\",\n        \"list\",\n        \"--format=json\"\n      ],\n      \"cwd\": \"\u003cSANDBOX\u003e/repo\",\n      \"exitCode\": 0,\n      \"stdout\": \"{\\n  \\\"schema\\\": 2,\\n  \\\"repo\\\": {\\n    \\\"default_branch\\\": \\\"master\\\"\\n  },\\n  \\\"collected\\\": {\\n    \\\"ci\\\": false,\\n    \\\"summary\\\": false\\n  },\\n  \\\"items\\\": [\\n    {\\n      \\\"branch\\\": \\\"master\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/repo\\\",\\n        \\\"main\\\": true,\\n        \\\"current\\\": true,\\n        \\\"previous\\\": true,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": false,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"is_main\\\",\\n        \\\"symbols\\\": \\\"^\\\",\\n        \\\"statusline\\\": \\\"master  \\\\u001b[2m^\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/chore/first\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/chore/first  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    },\\n    {\\n      \\\"branch\\\": \\\"dev/claude/mbp/chore/second\\\",\\n      \\\"head\\\": {\\n        \\\"sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"short_sha\\\": \\\"\u003cSHA1\u003e\\\",\\n        \\\"subject\\\": \\\"init\\\",\\n        \\\"committed_at\\\": \\\"\u003cTS\u003e\\\"\\n      },\\n      \\\"worktree\\\": {\\n        \\\"path\\\": \\\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\\\",\\n        \\\"main\\\": false,\\n        \\\"current\\\": false,\\n        \\\"previous\\\": false,\\n        \\\"detached\\\": false,\\n        \\\"branch_mismatch\\\": true,\\n        \\\"duplicate_branch\\\": false,\\n        \\\"changes\\\": {\\n          \\\"staged\\\": false,\\n          \\\"modified\\\": false,\\n          \\\"untracked\\\": false,\\n          \\\"renamed\\\": false,\\n          \\\"deleted\\\": false,\\n          \\\"conflicted\\\": false,\\n          \\\"diff\\\": {\\n            \\\"added\\\": 0,\\n            \\\"deleted\\\": 0\\n          }\\n        }\\n      },\\n      \\\"default_branch\\\": {\\n        \\\"ahead\\\": 0,\\n        \\\"behind\\\": 0,\\n        \\\"diff\\\": {\\n          \\\"added\\\": 0,\\n          \\\"deleted\\\": 0\\n        },\\n        \\\"orphan\\\": false,\\n        \\\"integration\\\": {\\n          \\\"reason\\\": \\\"same_commit\\\"\\n        },\\n        \\\"merge_conflicts\\\": false\\n      },\\n      \\\"display\\\": {\\n        \\\"state\\\": \\\"empty\\\",\\n        \\\"symbols\\\": \\\"_⚑\\\",\\n        \\\"statusline\\\": \\\"dev/claude/mbp/chore/second  \\\\u001b[33m\\\\u001b[2m⚑\\\\u001b[39m\\\\u001b[22m\\\\u001b[2m_\\\\u001b[22m\\\"\\n      }\\n    }\\n  ]\\n}\\n\"\n    }\n  ]\n}\n",
+      "stderr": ""
+    },
+    {
+      "step": "finish-noarg",
+      "cmd": "ce",
+      "argv": [
+        "task",
+        "run-finish",
+        "--json"
+      ],
+      "exitCode": 1,
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"\",\n  \"allowedActions\": null,\n  \"reason\": \"bare run-finish is ambiguous for claude/mbp: first, second\",\n  \"nextAction\": \"ce task run-finish first; ce task run-finish second\",\n  \"finishReady\": false\n}\n",
+      "stderr": "Error: bare run-finish is ambiguous for claude/mbp: first, second\n",
+      "state": {
+        "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA1\u003e\nbranch refs/heads/master\n\nworktree \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\nHEAD \u003cSHA1\u003e\nbranch refs/heads/dev/claude/mbp/chore/first\n\nworktree \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\nHEAD \u003cSHA1\u003e\nbranch refs/heads/dev/claude/mbp/chore/second\n\n",
+        "refs": "refs/heads/dev/claude/mbp/chore/first \u003cSHA1\u003e\nrefs/heads/dev/claude/mbp/chore/second \u003cSHA1\u003e\nrefs/heads/master \u003cSHA1\u003e\nrefs/remotes/origin/HEAD \u003cSHA1\u003e\nrefs/remotes/origin/master \u003cSHA1\u003e\n",
+        "originRefs": "refs/heads/master \u003cSHA1\u003e\n",
+        "log": "\u003cSHA1\u003e init\n",
+        "executions": [
+          {
+            "branch": "dev/claude/mbp/chore/first",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "purpose": "delivery",
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "first",
+            "type": "chore",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first"
+          },
+          {
+            "branch": "dev/claude/mbp/chore/second",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "purpose": "delivery",
+            "source": "master",
+            "startedAt": "\u003cTS\u003e",
+            "task": "second",
+            "type": "chore",
+            "updatedAt": "\u003cTS\u003e",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second"
+          }
+        ],
+        "receipts": [
+          {
+            "branch": "dev/claude/mbp/chore/first",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "\u003cSHA1\u003e",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/chore/first"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/chore/first from \u003cSHA1\u003e and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/chore/first\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\",\"created_branch\":true,\"base_branch\":\"\u003cSHA1\u003e\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/chore/first\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/chore/first  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "purpose": "delivery",
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "first",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first",
+            "worktreeRemoved": false
+          },
+          {
+            "branch": "dev/claude/mbp/chore/second",
+            "createdAt": "\u003cTS\u003e",
+            "diagnostics": [
+              {
+                "args": [
+                  "--config-set",
+                  "worktree-path = \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\"",
+                  "switch",
+                  "--create",
+                  "--base",
+                  "\u003cSHA1\u003e",
+                  "--no-cd",
+                  "--format=json",
+                  "dev/claude/mbp/chore/second"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt",
+                "exitCode": 0,
+                "stderr": "✓ Created branch dev/claude/mbp/chore/second from \u003cSHA1\u003e and worktree @ \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\n",
+                "stdout": "{\"action\":\"created\",\"branch\":\"dev/claude/mbp/chore/second\",\"path\":\"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\",\"created_branch\":true,\"base_branch\":\"\u003cSHA1\u003e\"}\n"
+              },
+              {
+                "args": [
+                  "--config-set",
+                  "list.json-schema = 2",
+                  "list",
+                  "--format=json"
+                ],
+                "command": "wt",
+                "cwd": "\u003cSANDBOX\u003e/repo",
+                "executable": "\u003cHOME\u003e/.local/share/mise/installs/cargo-worktrunk/0.80/bin/wt",
+                "exitCode": 0,
+                "stdout": "{\n  \"schema\": 2,\n  \"repo\": {\n    \"default_branch\": \"master\"\n  },\n  \"collected\": {\n    \"ci\": false,\n    \"summary\": false\n  },\n  \"items\": [\n    {\n      \"branch\": \"master\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/repo\",\n        \"main\": true,\n        \"current\": true,\n        \"previous\": true,\n        \"detached\": false,\n        \"branch_mismatch\": false,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"display\": {\n        \"state\": \"is_main\",\n        \"symbols\": \"^\",\n        \"statusline\": \"master  \\u001b[2m^\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/chore/first\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__first\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/chore/first  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    },\n    {\n      \"branch\": \"dev/claude/mbp/chore/second\",\n      \"head\": {\n        \"sha\": \"\u003cSHA1\u003e\",\n        \"short_sha\": \"\u003cSHA1\u003e\",\n        \"subject\": \"init\",\n        \"committed_at\": \"\u003cTS\u003e\"\n      },\n      \"worktree\": {\n        \"path\": \"\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second\",\n        \"main\": false,\n        \"current\": false,\n        \"previous\": false,\n        \"detached\": false,\n        \"branch_mismatch\": true,\n        \"duplicate_branch\": false,\n        \"changes\": {\n          \"staged\": false,\n          \"modified\": false,\n          \"untracked\": false,\n          \"renamed\": false,\n          \"deleted\": false,\n          \"conflicted\": false,\n          \"diff\": {\n            \"added\": 0,\n            \"deleted\": 0\n          }\n        }\n      },\n      \"default_branch\": {\n        \"ahead\": 0,\n        \"behind\": 0,\n        \"diff\": {\n          \"added\": 0,\n          \"deleted\": 0\n        },\n        \"orphan\": false,\n        \"integration\": {\n          \"reason\": \"same_commit\"\n        },\n        \"merge_conflicts\": false\n      },\n      \"display\": {\n        \"state\": \"empty\",\n        \"symbols\": \"_⚑\",\n        \"statusline\": \"dev/claude/mbp/chore/second  \\u001b[33m\\u001b[2m⚑\\u001b[39m\\u001b[22m\\u001b[2m_\\u001b[22m\"\n      }\n    }\n  ]\n}\n"
+              }
+            ],
+            "localBranchRemoved": false,
+            "operation": "start",
+            "owner": {
+              "actor": "claude",
+              "host": "mbp",
+              "kind": "agent"
+            },
+            "purpose": "delivery",
+            "reason": "worktree created and inventory verified",
+            "remoteBranchRemoved": false,
+            "sourcePushed": false,
+            "status": "ACTIVE",
+            "task": "second",
+            "worktree": "\u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__second",
+            "worktreeRemoved": false
+          }
+        ]
+      }
+    }
+  ]
+}

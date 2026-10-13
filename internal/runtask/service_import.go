@@ -38,8 +38,8 @@ func ceRuntimeStateStore(commonDir string) stateStore {
 // ImportCE copies in-flight CE task-runtime records into this runtime's
 // state directory, byte for byte. Executions and receipts are evidence: they
 // carry CE's tool stamps and CE's words, and rewriting them would falsify
-// what happened; deriveState reconciles their worktrees and branches against
-// the live repository the same way it reconciles any reclaimed run.
+// what happened; deriveState observes their worktrees and branches against
+// the live repository without closing records whose resources are missing.
 //
 // It refuses to merge: gz-git state that already exists is an operator
 // decision, not an import. It refuses to invent: a source with neither
