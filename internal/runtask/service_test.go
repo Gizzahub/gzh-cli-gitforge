@@ -192,7 +192,8 @@ func fixtureGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	out, err := exec.CommandContext(t.Context(), "git", append([]string{"-C", dir}, args...)...).Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			t.Fatalf("git -C %s %s: %v\n%s", dir, strings.Join(args, " "), err, exitErr.Stderr)
 		}
 		t.Fatalf("git -C %s %s: %v", dir, strings.Join(args, " "), err)
