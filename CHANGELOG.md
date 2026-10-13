@@ -46,6 +46,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Stale integration candidates return NOT READY before readiness, preparation,
+  or Make gates. Previously an already-stale TASK-285 candidate spent 25 minutes
+  in validation. Fresh candidates retain required gates and the separate wait /
+  validation timing contract; unexecuted gates have zero measured duration.
+
 - High-load resource waiters refresh their captured target ref and stop for a new check
   when it moves, so stale work does not spend the full wait budget before learning that
   verification must restart. Transient fetch failures warn once and preserve the wait.

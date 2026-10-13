@@ -211,21 +211,11 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if actual := "refs/heads/" + targetBranchName(plan.Target, plan.Remote); actual != preflight.targetRef || plan.Branch != preflight.branch || plan.Remote != preflight.remote {
 		return nil, fmt.Errorf("integration source or target changed while acquiring ownership; re-run check")
 	}
-	resourceHighLoad, prepareHighLoad, err := resourceDeclarationsForPlan(ctx, g, plan)
-	if err != nil {
-		return nil, err
-	}
-
 	report := &CheckReport{Plan: plan, Controller: controller}
 	// The accumulator is unconditional: every gate mode records its runtime,
 	// so a report always distinguishes "waited for the slot" from "ran the
 	// gate", including a zero for a gate that never launched a subprocess.
 	ctx = withValidationDuration(ctx, &report.ValidationDuration)
-	opts.resourceWait = &report.ResourceWaitDuration
-	if opts.LockNotice == nil {
-		opts.LockNotice = os.Stderr
-	}
-	opts.resourceWaitObserver = targetWaitObserver(g, plan, opts.NoFetch, opts.LockNotice)
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -236,7 +226,22 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 		}
 	}
 
-	add(checkFreshness(ctx, g, plan))
+	freshness := checkFreshness(ctx, g, plan)
+	add(freshness)
+	if freshness.Status == checkFail {
+		// Freshness is a cheap prerequisite for every measurement below. Do
+		// not execute repository-owned readiness, preparation, or Make code
+		// against a source that cannot be integrated until it is refreshed.
+		report.Ready = false
+		return report, nil
+	}
+
+	resourceHighLoad, prepareHighLoad, err := resourceDeclarationsForPlan(ctx, g, plan)
+	if err != nil {
+		return nil, err
+	}
+	opts = configureMeasurementOptions(g, plan, report, opts)
+
 	_, mergeItem := checkMergeTree(ctx, g, plan)
 	add(mergeItem)
 	for _, item := range checkOtherBranches(ctx, g, plan) {
@@ -263,6 +268,15 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
+}
+
+func configureMeasurementOptions(g gitRepo, plan TargetPlan, report *CheckReport, opts CheckOptions) CheckOptions {
+	opts.resourceWait = &report.ResourceWaitDuration
+	if opts.LockNotice == nil {
+		opts.LockNotice = os.Stderr
+	}
+	opts.resourceWaitObserver = targetWaitObserver(g, plan, opts.NoFetch, opts.LockNotice)
+	return opts
 }
 
 func resourceDeclarationsForPlan(ctx context.Context, g gitRepo, plan TargetPlan) (gate, prepare bool, err error) {
