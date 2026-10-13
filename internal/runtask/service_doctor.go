@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// worktrunkVersionReport is the exact `wt --version` stdout the doctor gate
+// accepts: the installed release's whole report line, trimmed. The gate
+// compares against this full line rather than searching for the version as a
+// substring, because containment is not identity: "wt 0.80.0-rc1" and
+// "wt 10.80.0" both contain "0.80.0", and neither is the 0.80.0 report this
+// runtime contracted to trust.
+const worktrunkVersionReport = "wt " + worktrunkVersion
+
 // Doctor answers whether the task runtime dependencies of this checkout are
 // ready, without acquiring the mutation lock: configuration, integration
 // provider presence and capabilities, lock, and receipt readability.
@@ -57,11 +65,16 @@ func (s *Service) Doctor(ctx context.Context) TaskResponse {
 	}
 	version, err := s.command(ctx, s.root, "wt", "--version")
 	if err != nil {
-		res.Status, res.Reason = TaskExecutionStatusBlocked, err.Error()
+		// A version command that never started cannot report anything, so the
+		// gate stays closed -- but the refusal still carries the recorded
+		// evidence and a repair action, like every other doctor failure,
+		// rather than a bare error string with no way forward.
+		res.Diagnostics = append(res.Diagnostics, diagnostic(version))
+		res.Status, res.Reason, res.NextAction = TaskExecutionStatusBlocked, err.Error(), "install or repair Worktrunk "+worktrunkVersion+" and retry this check"
 		return res
 	}
 	res.Diagnostics = append(res.Diagnostics, diagnostic(version))
-	if version.ExitCode != 0 || !strings.Contains(version.Stdout+version.Stderr, worktrunkVersion) {
+	if version.ExitCode != 0 || strings.TrimSpace(version.Stdout) != worktrunkVersionReport {
 		res.Status, res.Reason, res.NextAction = TaskExecutionStatusBlocked, "Worktrunk "+worktrunkVersion+" is required", "activate the repository's Worktrunk pilot"
 		return res
 	}

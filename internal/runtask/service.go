@@ -14,7 +14,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const worktrunkVersion = "0.74.0"
+// worktrunkVersion is the Worktrunk release this run lifecycle contracts
+// with: the installed, mise-authoritative 0.80.0. Its `wt list
+// --format=json` answers the schema 2 envelope the decoder in worktrunk.go
+// reads (items[].branch, items[].worktree.path), and its switch/remove verbs
+// carry the branch/path/inventory semantics service_start.go and
+// service_discard.go verify against. doctor refuses every other reported
+// version -- including the retired 0.74.0 this contract was upgraded forward
+// from -- so a shadowed or stale install fails closed instead of answering
+// with inventory this runtime never agreed to decode.
+const worktrunkVersion = "0.80.0"
 
 // Service carries one repository root and its collaborators for the run
 // lifecycle verbs. It holds no per-run state: all durable state lives in the
