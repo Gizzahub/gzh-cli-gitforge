@@ -51,6 +51,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Integration receipts use schema v2 to bind the original push endpoint and
+  cleanup protections. Schema v1 remains readable but cannot authorize cleanup
+  or replay; this compatibility change requires minor version 0.10.0.
+  Completion requires fresh Git absence proofs and preserves recreated resources.
+
 - Prepare the 0.9.2 patch release with native task finish READY semantics and
   current CE reference validation. Provider rollout retains the expected source
   and target checks; release preparation does not publish or install a snapshot.

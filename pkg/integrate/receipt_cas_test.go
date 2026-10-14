@@ -21,7 +21,7 @@ import (
 // seedCASReceipt builds a minimal valid receipt for file-level CAS tests.
 func seedCASReceipt(executionID, targetRef string) *Receipt {
 	return &Receipt{
-		SchemaVersion:       evidenceSchemaVersion,
+		SchemaVersion:       receiptSchemaVersion,
 		ExecutionID:         executionID,
 		Generation:          "g1",
 		Owner:               OwnerIdentity{Actor: "claude", Host: "testhost", Kind: "agent"},
@@ -177,6 +177,9 @@ func TestReceiptCreateVsExistingRefused(t *testing.T) {
 // ErrEvidenceReplay before run ever reaches a push.
 func TestBeginRunEvidenceConcurrentCollision(t *testing.T) {
 	repo := testutil.TempGitRepoWithCommit(t)
+	// A context intent requires one concrete push endpoint before its CAS.
+	// This fixture never pushes; use its existing repository as that endpoint.
+	runGit(t, repo, "remote", "add", "origin", repo)
 	g := newGitRepo(gitcmd.NewExecutor(), repo)
 	head, ok, err := g.revParse(context.Background(), "HEAD")
 	if err != nil || !ok {
@@ -247,10 +250,12 @@ func TestCleanupRereadGuard(t *testing.T) {
 			t.Fatalf("err = %v, want ErrEvidenceReplay for a changed worktree", err)
 		}
 		common := t.TempDir()
-		if err := createReceipt(context.Background(), common, locked); err != nil {
+		persisted := *locked
+		if err := createReceipt(context.Background(), common, &persisted); err != nil {
 			t.Fatal(err)
 		}
-		moved.Revision = locked.Revision
+		moved.RepositoryCommonDir = persisted.RepositoryCommonDir
+		moved.Revision = persisted.Revision
 		if err := writeReceipt(context.Background(), common, moved); !errors.Is(err, ErrEvidenceReplay) {
 			t.Fatalf("changed worktree receipt overwrite: %v", err)
 		}
@@ -307,6 +312,23 @@ func (w *signalledWriter) Write(p []byte) (int, error) {
 // rewritten underneath it. The after-lock re-read must refuse the moved
 // identity before any proof or deletion, leaving every residual intact.
 func TestCleanupRereadGuardWhileWaitingForLock(t *testing.T) {
+	t.Run("remote changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) { r.Remote = "other" })
+	})
+	t.Run("push endpoint changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) { r.PushRemote = "https://decoy.invalid/repo.git" })
+	})
+	t.Run("captured target changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) { r.TargetBeforeSHA = r.TaskSHA })
+	})
+	t.Run("reclaim branch provenance changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) { r.Provenance.ReclaimRefs.Integration = "different" })
+	})
+	t.Run("controller pattern authority changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) {
+			r.Provenance.Controller = &evidenceControllerProvenance{TaskPattern: []string{"dev/*"}}
+		})
+	})
 	t.Run("target moved", func(t *testing.T) {
 		runCleanupRereadWait(t, func(r *Receipt) { r.TargetRef = "refs/heads/master" })
 	})
