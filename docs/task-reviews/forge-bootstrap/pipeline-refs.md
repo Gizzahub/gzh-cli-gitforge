@@ -19,11 +19,18 @@ CI 성공이나 제품 배포를 이 ref 존재로 주장하지 않는다.
 `make lint-check` exit0(0 issues)이다. 처음 PATH shim의 GitHub403과 오래된 primary
 lint2.13.1/Go1.26 실행은 성공 근거에서 제외했다. pin·PATH·사용자 routing은 바꾸지 않았다.
 
-root canonical `make quality-check`는 기존 CE parity drift로 exit2다.
+rebase 전 source d45c4d3에서 root canonical `make quality-check`는 기존 CE parity drift로 exit2다.
 `tmp/bootstrap-gitlab-system-refs-quality.log`에서 CLI 전체 exit0(52.458초·68.2%),
 bootstrap exit0(11.057초·86.6%), uncached integrate 전체 exit0(553.848초·76.8%)를
 확인했다. 기존 source 실패는 ISSUE-41이 소유하며 전체 PASS로 바꾸지 않는다.
-추가 integration·E2E·critical coverage는 별도 필수 실행으로 확인한다.
+추가 integration·E2E·critical coverage 별도 필수 실행은 exit0이며
+`tmp/bootstrap-gitlab-system-refs-remaining-quality.log`에 보존했다.
+이후 소유 source의 614e47d가 parity 정규화·check target을 수정했지만 기준 CE SHA는
+여전히 b79c1a4다. 그 source 위로 52121ab를 rebase·push한 뒤 실제 canonical 전체
+검사는 `tmp/bootstrap-gitlab-system-refs-rebased-check.log`에서 exit2로 종료됐다.
+설치된 CE 9877764와 기준 b79c1a4의 불일치가 유지된다. 이전 실행을 현재 후보의
+gate 결과나 baseline 면제로 재사용하지 않는다. source 자체 비교는 별도로 기록한다.
+GoReleaser 설정 검사와 snapshot dry-run은 exit0이며 실제 stable 게시·설치와 구분한다.
 
 VERSION·version.go는 0.9.4로 맞췄다. 기존 공개 동작의 버그 수정이므로 patch다.
 source rebase·CE finish·stable 게시·cask 설치는 실제 영수증과 source refs 확인 후
