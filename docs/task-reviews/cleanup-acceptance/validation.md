@@ -73,3 +73,9 @@ push 저장소만 회수하고 caller의 별도 저장소를 보존한다. 이�
 주소나 상대 `file:` URI는 원래 실행 디렉터리를 증명할 수 없으면 거부하며
 현재 caller 디렉터리로 재해석하지 않는다. 기존 absolute/SSH/HTTPS 주소의
 textual identity는 유지한다.
+
+`./store@host:repo.git`처럼 colon 앞에 slash가 있는 이름은 Git에서 로컬
+경로다. 단순 `@` 검사로 SSH로 분류해 relative binding을 건너뛰던 우회도
+normal/retry의 실제 RED로 재현했다. sanitizer와 endpoint binding이 기존
+공통 SCP 분류 helper를 함께 사용하도록 수정했고 같은 spelling의 race
+GREEN 및 `internal/gitcmd` 전체 race 회귀 검사를 확인했다.

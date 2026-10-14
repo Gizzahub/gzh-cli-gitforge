@@ -238,7 +238,7 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if strings.Contains(endpoint, "@") && !strings.Contains(endpoint, "://") {
+	if gitcmd.IsSCPRemoteEndpoint(endpoint) {
 		return endpoint, nil
 	}
 	u, err := url.Parse(endpoint)
@@ -272,7 +272,7 @@ func immutablePushEndpoint(raw string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if strings.Contains(endpoint, "@") && !strings.Contains(endpoint, "://") {
+	if gitcmd.IsSCPRemoteEndpoint(endpoint) {
 		return endpoint, nil
 	}
 	u, err := url.Parse(endpoint)
