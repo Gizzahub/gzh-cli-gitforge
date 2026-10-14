@@ -32,6 +32,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Added
 
+- Typed dependency provisioning accepts `path: <name>` for a single child
+  snapshot, preserving devbox bindings such as `cd ndea-rs` in pristine
+  readiness probes. Adjacent paths remain supported; destination collisions,
+  symlinks and changed lease contents continue to fail closed.
+
 - Committed `branch.prepareHighLoad` puts confirmed heavy preparation profiles
   under FIFO host capacity independently of verification gates, allowing light
   integrations to proceed during a cold build. On cancellation, Go and Cargo
@@ -45,6 +50,9 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   charged to `makeTimeout`, and `--lock-wait` bounds it; an expired wait exits non-zero and measures nothing.
 
 ### Changed
+
+- Prepare the 0.9.3 patch version for the backwards-compatible child snapshot
+  placement contract. No new field, command, fallback or release publication is added.
 
 - Prepare the 0.9.2 patch release with native task finish READY semantics and
   current CE reference validation. Provider rollout retains the expected source

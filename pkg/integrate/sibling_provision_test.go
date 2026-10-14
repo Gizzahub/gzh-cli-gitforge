@@ -180,6 +180,128 @@ func TestProvisionSiblingRefusesCollisionAndTamperedRelease(t *testing.T) {
 	}
 }
 
+func TestChildSiblingProvisionLifecycleAndCollisions(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(t *testing.T, destination string)
+	}{
+		{name: "file", setup: func(t *testing.T, destination string) {
+			t.Helper()
+			writeFile(t, filepath.Dir(destination), filepath.Base(destination), "collision\n")
+		}},
+		{name: "directory", setup: func(t *testing.T, destination string) {
+			t.Helper()
+			if err := os.Mkdir(destination, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run("collision "+tc.name, func(t *testing.T) {
+			fx, dep := siblingFixture(t)
+			dep.Path = dep.Name
+			root := filepath.Join(t.TempDir(), "task")
+			if err := os.Mkdir(root, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			tc.setup(t, filepath.Join(root, dep.Name))
+			if _, err := ProvisionSibling(context.Background(), root, fx.Clone, dep); err == nil || !strings.Contains(err.Error(), "already exists") {
+				t.Fatalf("collision error = %v", err)
+			}
+		})
+	}
+	if runtime.GOOS != "windows" {
+		t.Run("collision symlink", func(t *testing.T) {
+			fx, dep := siblingFixture(t)
+			dep.Path = dep.Name
+			root := filepath.Join(t.TempDir(), "task")
+			if err := os.Mkdir(root, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(fx.Clone, filepath.Join(root, dep.Name)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ProvisionSibling(context.Background(), root, fx.Clone, dep); err == nil || !strings.Contains(err.Error(), "already exists") {
+				t.Fatalf("symlink collision error = %v", err)
+			}
+		})
+	}
+
+	fx, dep := siblingFixture(t)
+	dep.Path = dep.Name
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: "+dep.Name+"\n        remote: "+dep.Remote+"\n        path: "+dep.Path+"\n        sourceBranch: "+dep.SourceBranch+"\n        revision: "+dep.Revision+"\n")
+	lease, err := ProvisionSibling(context.Background(), fx.Worktree, fx.Clone, dep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(fx.Worktree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lease.Destination != filepath.Join(canonicalRoot, dep.Name) {
+		t.Fatalf("destination = %s", lease.Destination)
+	}
+	lease, err = PersistSiblingLease(context.Background(), fx.Worktree, lease)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if leases, err := InspectPersistedSiblingLeases(context.Background(), fx.Worktree); err != nil || len(leases) != 1 || leases[0].ID != lease.ID {
+		t.Fatalf("inspect = %#v, %v", leases, err)
+	}
+	writeFile(t, fx.Worktree, ".gz-git.yaml", strings.ReplaceAll("branch:\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: "+dep.Name+"\n        remote: "+dep.Remote+"\n        path: "+dep.Path+"\n        sourceBranch: "+dep.SourceBranch+"\n        revision: "+dep.Revision+"\n", "path: "+dep.Path, "path: ../legacy"))
+	if _, err := InspectPersistedSiblingLeases(context.Background(), fx.Worktree); err == nil || !strings.Contains(err.Error(), "declaration changed") {
+		t.Fatalf("declaration drift error = %v", err)
+	}
+	writeFile(t, lease.Destination, "payload.txt", "tampered\n")
+	if err := ReleaseSibling(lease); err == nil || !strings.Contains(err.Error(), "changed") {
+		t.Fatalf("mutation release error = %v", err)
+	}
+	writeFile(t, lease.Destination, "payload.txt", "source\n")
+	if err := ReleasePersistedSiblings(context.Background(), fx.Worktree, canonicalRoot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(lease.Destination); !os.IsNotExist(err) {
+		t.Fatalf("child snapshot remains: %v", err)
+	}
+}
+
+func TestReleaseChildSiblingRefusesRootSymlinkReplacement(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink setup is platform-dependent")
+	}
+	fx, dep := siblingFixture(t)
+	dep.Path = dep.Name
+	root := filepath.Join(t.TempDir(), "task")
+	if err := os.Mkdir(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	lease, err := ProvisionSibling(context.Background(), root, fx.Clone, dep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := root + "-moved"
+	if err := os.Rename(root, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(moved, root); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReleaseSibling(lease); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("root symlink release error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(moved, dep.Name, "payload.txt")); err != nil {
+		t.Fatalf("snapshot removed through root symlink: %v", err)
+	}
+	if err := os.Remove(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(moved, root); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReleaseSibling(lease); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestProvisionSiblingRefusesStaleSourceTip(t *testing.T) {
 	fx, dep := siblingFixture(t)
 	runGitInTest(t, fx.Clone, "commit", "--allow-empty", "-m", "unpublished")

@@ -56,3 +56,50 @@ func TestSiblingContractRejectsUnknownAndDuplicateFields(t *testing.T) {
 		})
 	}
 }
+
+func TestSiblingProvisionPathAcceptsLegacyOrExactChildName(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		path  string
+		valid bool
+	}{
+		{name: "legacy", path: "../snapshot", valid: true},
+		{name: "exact child", path: "core", valid: true},
+		{name: "child alias", path: "snapshot"},
+		{name: "nested child", path: "core/nested"},
+		{name: "absolute", path: "/core"},
+		{name: "dot", path: "."},
+		{name: "dot dot", path: ".."},
+		{name: "hidden", path: ".core"},
+		{name: "option", path: "-core"},
+		{name: "nested legacy", path: "../nested/core"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := SiblingProvision{Version: 1, Siblings: []SiblingDependency{{
+				Name: "core", Remote: "ssh://git@example.test/core.git", Path: tc.path,
+				SourceBranch: "master", Revision: "source-tip",
+			}}}
+			err := ValidateSiblingProvision(p)
+			if (err == nil) != tc.valid {
+				t.Fatalf("ValidateSiblingProvision(%q) error = %v, want valid=%t", tc.path, err, tc.valid)
+			}
+		})
+	}
+}
+
+func TestSiblingProvisionExactChildPathParsesYAMLAndJSON(t *testing.T) {
+	for name, doc := range map[string]struct {
+		data []byte
+		json bool
+	}{
+		"YAML": {data: []byte("branch:\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: core\n        remote: ssh://git@example.test/core.git\n        path: core\n        sourceBranch: master\n        revision: source-tip\n")},
+		"JSON": {data: []byte(`{"branch":{"siblingProvision":{"version":1,"siblings":[{"name":"core","remote":"ssh://git@example.test/core.git","path":"core","sourceBranch":"master","revision":"source-tip"}]}}}`), json: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p, present, err := ParseSiblingProvisionDocument(doc.data, doc.json)
+			if err != nil || !present || len(p.Siblings) != 1 || p.Siblings[0].Path != "core" {
+				t.Fatalf("ParseSiblingProvisionDocument = %#v, %t, %v", p, present, err)
+			}
+		})
+	}
+}

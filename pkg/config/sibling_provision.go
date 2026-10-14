@@ -51,7 +51,7 @@ func ValidateSiblingProvision(p SiblingProvision) error {
 }
 
 func validateSiblingDependency(s SiblingDependency, seen, paths map[string]bool) error {
-	if !validSiblingSegment(s.Name) || seen[s.Name] {
+	if !ValidSiblingSegment(s.Name) || seen[s.Name] {
 		return fmt.Errorf("branch.siblingProvision sibling name must be unique and non-empty")
 	}
 	seen[s.Name] = true
@@ -61,8 +61,8 @@ func validateSiblingDependency(s SiblingDependency, seen, paths map[string]bool)
 	if err := validateSiblingRemoteCredentials(s.Remote); err != nil {
 		return fmt.Errorf("branch.siblingProvision %s remote must not contain credentials", s.Name)
 	}
-	if !validSiblingPath(s.Path) || paths[s.Path] {
-		return fmt.Errorf("branch.siblingProvision %s path must be ../<single-segment>", s.Name)
+	if !validSiblingPath(s.Name, s.Path) || paths[s.Path] {
+		return fmt.Errorf("branch.siblingProvision %s path must be ../<single-segment> or the exact sibling name", s.Name)
 	}
 	paths[s.Path] = true
 	if s.Revision == "source-tip" {
@@ -95,11 +95,14 @@ func validateSiblingRemoteCredentials(raw string) error {
 	return nil
 }
 
-func validSiblingPath(p string) bool {
-	return strings.HasPrefix(p, "../") && strings.Count(p, "/") == 1 && path.Clean(p) == p && validSiblingSegment(strings.TrimPrefix(p, "../"))
+func validSiblingPath(name, p string) bool {
+	legacy := strings.HasPrefix(p, "../") && strings.Count(p, "/") == 1 && path.Clean(p) == p && ValidSiblingSegment(strings.TrimPrefix(p, "../"))
+	return legacy || (p == name && ValidSiblingSegment(p))
 }
 
-func validSiblingSegment(s string) bool {
+// ValidSiblingSegment reports whether s is safe as a single sibling directory
+// name. It intentionally accepts neither dot-prefixed nor option-like names.
+func ValidSiblingSegment(s string) bool {
 	if s == "" || strings.HasPrefix(s, ".") || strings.HasPrefix(s, "-") {
 		return false
 	}

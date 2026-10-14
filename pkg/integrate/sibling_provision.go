@@ -347,8 +347,8 @@ func ProvisionSibling(ctx context.Context, repoRoot, source string, dep config.S
 		return SiblingLease{}, err
 	}
 	dest := filepath.Clean(filepath.Join(root, dep.Path))
-	if filepath.Dir(dest) != filepath.Dir(root) {
-		return SiblingLease{}, fmt.Errorf("sibling destination escapes worktree parent")
+	if err := validateSiblingDestination(root, dest, dep.Name); err != nil {
+		return SiblingLease{}, err
 	}
 	if _, err := os.Lstat(dest); err == nil {
 		return SiblingLease{}, fmt.Errorf("sibling destination already exists: %s", dest)
@@ -526,6 +526,28 @@ func validateSiblingPrimary(ctx context.Context, source, name string) (string, e
 	return source, nil
 }
 
+// validateSiblingDestination confines a sibling snapshot to either the legacy
+// adjacent location or the declared sibling-name child of root. Both callers
+// use it so acquisition and release retain the same containment boundary.
+func validateSiblingDestination(root, destination, name string) error {
+	root = filepath.Clean(root)
+	destination = filepath.Clean(destination)
+	if root == filepath.Dir(root) || destination == root {
+		return fmt.Errorf("sibling destination is not distinct from the task root")
+	}
+	base := filepath.Base(destination)
+	if !config.ValidSiblingSegment(base) {
+		return fmt.Errorf("sibling destination has an invalid name")
+	}
+	if filepath.Dir(destination) == root && base == name {
+		return nil
+	}
+	if filepath.Dir(destination) == filepath.Dir(root) {
+		return nil
+	}
+	return fmt.Errorf("sibling destination escapes task worktree scope")
+}
+
 // ReleaseSibling removes only an unchanged destination created by ProvisionSibling.
 func ReleaseSibling(lease SiblingLease) error {
 	if lease.Root == "" || lease.Destination == "" || filepath.Base(lease.Destination) == "." {
@@ -535,11 +557,14 @@ func ReleaseSibling(lease SiblingLease) error {
 	if err != nil {
 		return err
 	}
-	if filepath.Dir(lease.Destination) != filepath.Dir(root) || filepath.Clean(lease.Destination) != lease.Destination {
-		return fmt.Errorf("sibling lease destination escapes task worktree parent")
+	if err := rejectPathSymlinks(root); err != nil {
+		return err
 	}
-	if root == filepath.Dir(root) || lease.Destination == root {
-		return fmt.Errorf("sibling destination is not distinct from the task root")
+	if filepath.Clean(lease.Destination) != lease.Destination {
+		return fmt.Errorf("sibling lease destination is not clean")
+	}
+	if err := validateSiblingDestination(root, lease.Destination, lease.Name); err != nil {
+		return err
 	}
 	if err := rejectPathSymlinks(filepath.Dir(root)); err != nil {
 		return err

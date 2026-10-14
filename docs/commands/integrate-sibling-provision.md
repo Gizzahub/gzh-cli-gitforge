@@ -1,12 +1,15 @@
 # Sibling path-dependency provisioning
 
 `gz-git integrate provision siblings acquire --json` materializes the
-repository-root `branch.siblingProvision` declaration beside the current task
-worktree. It accepts no commands or source paths from the declaration. A
+repository-root `branch.siblingProvision` declaration at either the legacy
+adjacent `../<single-segment>` path or the task-child path exactly matching its
+declared `name`. It accepts no commands or source paths from the declaration. A
 declared sibling can be supplied with `--source name=/absolute/checkout`; when
 it is not supplied, the source is discovered adjacent to the registered primary
-checkout. The source must be clean, primary, and have the declared canonical
-remote; `source-tip` must equal its local `origin/<sourceBranch>` tracking tip.
+checkout. Only when that adjacent path is absent, it can use the exact
+same-name child declared as its workspace with a matching canonical remote.
+The source must be clean, primary, and have the declared canonical remote;
+`source-tip` must equal its local `origin/<sourceBranch>` tracking tip.
 
 As observed with official build `b323`, an undeclared `name` in `--source` is
 currently ignored and acquire falls back to the declared sibling. Do not treat
@@ -20,3 +23,8 @@ existing archive fails closed. `release --lease ID --json` removes only the
 matching, unchanged owned archive. A changed archive, symlink, or mismatched
 receipt also fails closed. Receipts live under the repository Git common
 directory, never in the committed worktree.
+
+The child form is intentionally exact: a nested path, an alias, an absolute
+path, `.`/`..`, a hidden name, and an option-like name are rejected. Existing
+adjacent declarations remain supported for compatibility. Both acquire and
+release enforce the same destination-containment boundary.

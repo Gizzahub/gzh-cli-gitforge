@@ -16,15 +16,15 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
-func siblingContractYAML(remote, revision string) string {
-	return fmt.Sprintf("branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: gitrump-ce\n        remote: %q\n        path: ../gitrump-ce\n        revision: %q\n", remote, revision)
+func siblingContractYAML(remote, revision, siblingName, siblingPath string) string {
+	return fmt.Sprintf("branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: %s\n        remote: %q\n        path: %s\n        revision: %q\n", siblingName, remote, siblingPath, revision)
 }
 
 func TestResolveSiblingContractCommitOwnership(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
-	first := siblingContractYAML("ssh://git@example.test/ce.git", strings.Repeat("a", 40))
+	first := siblingContractYAML("ssh://git@example.test/ce.git", strings.Repeat("a", 40), "gitrump-ce", "../gitrump-ce")
 	writeFile(t, fx.Worktree, ".gz-git.yaml", first)
 	runGitInTest(t, fx.Worktree, "add", ".gz-git.yaml")
 	runGitInTest(t, fx.Worktree, "commit", "-m", "declare siblings")
@@ -58,9 +58,11 @@ func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
 	for _, tc := range []struct {
 		name, declaredRemote, sourceRemote string
 		missing                            bool
-		nested                             bool
+		nested, childDestination           bool
 	}{
 		{name: "adjacent", nested: false},
+		{name: "task child", childDestination: true},
+		{name: "task child from declared nested workspace", nested: true, childDestination: true},
 		{name: "declared nested workspace", nested: true},
 		{name: "declared nested workspace remote mismatch", nested: true, declaredRemote: "ssh://git@example.test/other.git"},
 		{name: "declared nested workspace source remote mismatch", nested: true, sourceRemote: "ssh://git@example.test/other.git"},
@@ -69,13 +71,21 @@ func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dependency, dep := siblingFixture(t)
 			fx := readinessFixture(t)
+			if tc.childDestination {
+				dep.Name = "ndea-rs"
+			}
 			oid := strings.TrimSpace(runGitInTest(t, dependency.Clone, "rev-parse", "HEAD"))
+			snapshotPath := "../gitrump-ce"
 			runner := "#!/bin/sh\nset -eu\ntest \"$(cat ../gitrump-ce/payload.txt)\" = source\ntest \"$(cat \"$2/../gitrump-ce/payload.txt\")\" = source\ntest \"$PWD/../gitrump-ce\" != \"$2/../gitrump-ce\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"snapshots ready\"}'\n"
+			if tc.childDestination {
+				snapshotPath = dep.Name
+				runner = "#!/bin/sh\nset -eu\ncd ndea-rs\ntest \"$(cat payload.txt)\" = source\ntest \"$(cat \"$2/ndea-rs/payload.txt\")\" = source\ntest \"$PWD\" != \"$2/ndea-rs\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"snapshots ready\"}'\n"
+			}
 			declaredRemote := dep.Remote
 			if tc.declaredRemote != "" {
 				declaredRemote = tc.declaredRemote
 			}
-			manifest := siblingContractYAML(dep.Remote, oid)
+			manifest := siblingContractYAML(dep.Remote, oid, dep.Name, snapshotPath)
 			if tc.nested {
 				manifest += "workspaces:\n  " + dep.Name + ":\n    url: " + declaredRemote + "\n"
 			}
