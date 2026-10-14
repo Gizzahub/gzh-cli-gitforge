@@ -422,9 +422,20 @@ func infraOpsChildRemotes(t *testing.T) ([]struct{ name, remote string }, []prep
 	return deps, inputs
 }
 
+const infraOpsFixtureMakefile = `check:
+	@case "$$UV_PROJECT_ENVIRONMENT" in *infra-ops-python-uv-v1/*/venv) ;; *) exit 9;; esac
+	@test "$$VIRTUAL_ENV" = "$$UV_PROJECT_ENVIRONMENT"
+	@test "$$UV_NO_SYNC" = 1
+	@grep -Fx '# tracked direnv boundary; preparation must preserve this file' codes/.envrc >/dev/null
+	@if test "$$(basename "$$PWD")" = source; then echo fixture.py:1: expected; exit 1; fi
+
+lint:
+	@true
+`
+
 func writeInfraOpsFixture(t *testing.T, dir string, inputs []prepareInput) {
 	t.Helper()
-	for _, path := range []string{"scripts", "library/ga4-admin", "library/m365ctl"} {
+	for _, path := range []string{"scripts", "codes", "library/ga4-admin", "library/m365ctl"} {
 		if err := os.MkdirAll(filepath.Join(dir, path), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -434,8 +445,9 @@ func writeInfraOpsFixture(t *testing.T, dir string, inputs []prepareInput) {
 	writeFile(t, dir, "pyproject.toml", "[tool.uv.sources]\nsbkube = { path = \"codes/sbkube\", editable = true }\n\"scripton-cloud-transformer\" = { path = \"codes/cloud-script-transformer\", editable = true }\n")
 	writeFile(t, dir, "uv.lock", "version = 1\n")
 	writeFile(t, dir, ".python-version", "3.14\n")
-	writeFile(t, dir, ".gitignore", "codes/\nnode_modules/\nlibrary/*/node_modules/\n")
-	writeFile(t, dir, "Makefile", "check:\n\t@case \"$$UV_PROJECT_ENVIRONMENT\" in *infra-ops-python-uv-v1/*/venv) ;; *) exit 9;; esac\n\t@test \"$$VIRTUAL_ENV\" = \"$$UV_PROJECT_ENVIRONMENT\"\n\t@test \"$$UV_NO_SYNC\" = 1\n\t@if test \"$$(basename \"$$PWD\")\" = source; then echo fixture.py:1: expected; exit 1; fi\n\n lint:\n\t@true\n")
+	writeFile(t, dir, ".gitignore", "codes/*\n!codes/.envrc\nnode_modules/\nlibrary/*/node_modules/\n")
+	writeFile(t, dir, "codes/.envrc", "# tracked direnv boundary; preparation must preserve this file\n")
+	writeFile(t, dir, "Makefile", infraOpsFixtureMakefile)
 	for _, packagePath := range []string{"library/ga4-admin", "library/m365ctl"} {
 		writeFile(t, dir, filepath.Join(packagePath, "package.json"), "{}\n")
 		writeFile(t, dir, filepath.Join(packagePath, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
