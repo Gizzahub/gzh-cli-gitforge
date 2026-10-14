@@ -87,19 +87,23 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
   `target-input-mode=source-bootstrap`으로 기록한다. 이미 선언한 target의
   manifest 누락은 오류다. manifest에는 revision 외 설정을 넣지 않고 canonical
   remote·path·명령은 executor가 소유한다.
+
 - child clone과 venv는 linked worktree 바깥의 task-owned prepare root에 두고,
   worktree의 `codes/*`에는 symlink만 만든다. nested Git checkout이 worktree
   cleanup을 막지 않도록 한 계약이다.
+
 - 아직 infra-ops 소비자 선언·실제 통합 검증은 이 카드의 후속 범위다. 현재 구현
   검증에는 실제 Git checkout과 legacy gate를 사용하는 회귀검사도 포함한다.
   child pin 변경으로 source만 실패하고 target은 통과하는 경우, Git 설정과
   hook 격리, receipt 재읽기, 양쪽 환경 회수를 확인했다. 전체 quality gate와
   독립 리뷰는 별도 확인하며, 다른 세션의 설치본 갱신 중에는 parity reference를
   자동 재캡처하지 않는다. ISSUE-041의 미해결 실패를 통과로 보고하지 않는다.
+
 - 최신 코드의 독립 strong 리뷰, 집중 검사(20.102초), 기존 Pnpm/Cargo/
   Legacy/FlowTaskchain 검사(16.364초), lint(0 issues), config 전체 검사는 통과했다.
   증거는 `tmp/python-uv-prepare-evidence/final-focused.log`,
   `existing-profiles.log`, `final-lint.log`와 실행 도구 출력에 있다.
+
 - 전체 `make quality-check` 시도는 종료 코드 2였다. 최종 리뷰 수정 전에
   시작한 실행으로, lint·security·build 뒤 unit 단계에서 멈췄다.
   `pkg/integrate`의 기존 테스트는 임시 디렉터리/Git 파일 생성의
@@ -109,6 +113,7 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
   로그는 `tmp/python-uv-prepare-evidence/quality-after-lint-fix.log`다.
   후속 integration/E2E/coverage 단계와 최종 코드 전체 gate 통과는 주장하지 않는다.
   설치본과 저장 공간이 안정된 뒤 source 정렬·최종 gate·통합을 이어간다.
+
 - 후속 확인에서 stdout 캡처 문제는 master의 ISSUE-051과 일치했고 이미
   `ff54f169`에서 수정돼 있었다. 새 이슈는 등록하지 않고 해당 source로 명시적으로
   재기준화했다. `final-rebased-quality.log`의 최종 코드 전체 검사는 종료 코드 2이며,
@@ -118,6 +123,24 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
   게이트는 별도 실행해 종료 코드 0을 받았으며 `final-remaining-gates.log`에 보존한다.
   참조 파일은 변경하지 않았다. 소비자 프로필 선언과 실제 양측 준비 수용이 남아
   있으므로 이 카드 전체의 해결을 주장하지 않는다.
+
+- `e77bb528`의 sibling-primary 변경까지 재기준화한 검사도 완료했다.
+  `current-source-quality.log`는 기존 CE parity 불일치만으로 종료 코드 2였고,
+  `pkg/integrate`는 597.768초에 통과했다. `current-source-remaining-gates.log`의
+  integration/E2E/critical coverage 검사는 종료 코드 0이다.
+  이후 `d45c4d3e`의 독립 forge-bootstrap 변경까지 충돌 없이 재기준화했다.
+  해당 변경은 기존 prepare/config/integrate 코드와 의존성 선언을 변경하지 않는다.
+  현재 결합 tree의 `latest-source-quality.log`도 종료 코드 2이며 실패는 같은
+  기존 parity guard뿐이다. 새 forge-bootstrap(4.978초), 명령 패키지(50.980초),
+  `pkg/integrate` 검사는 통과했다. `latest-source-remaining-gates.log`의
+  integration/E2E/critical coverage는 종료 코드 0이다. 변경 문서는 별도
+  `latest-source-format.log`로 format-check 종료 코드 0을 확인했다.
+
+- infra-ops의 closed 입력 manifest와 기존 helper 소비 변경은 master
+  `10f8cc3a329bd047a8b61a5f833d45bf1560140e`로 전달했다. 실제 frozen bootstrap과
+  native `make check`(5분 28.901초)가 통과했고, 작업 branch/worktree/준비 환경은
+  회수했다. 새 builtin 프로필의 소비자 선언은 아직 적용하지 않았다.
+  다른 세션이 설치본을 갱신 중이므로 경쟁 설치나 parity 재캡처 없이 기다린다.
 
 ## 범위 밖
 
