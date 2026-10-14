@@ -143,9 +143,16 @@ run: ## run the application (usage: make run [args...] or ARGS="args" make run)
 		go run -ldflags "$(VERSION_LDFLAGS)" ./cmd/gz-git; \
 	fi
 
-# Prevent make from interpreting arguments as targets
+# Integration invokes check and lint separately; keep check focused on tests.
+# The full format/security/build/E2E/coverage gate remains quality-check.
+.PHONY: check
+check: test-unit-quality test-integration-quality ## run the integration test gate
+
+# Preserve CLI argument compatibility only for make run.
+ifneq ($(filter run,$(MAKECMDGOALS)),)
 %:
 	@:
+endif
 
 bootstrap: ## install build dependencies
 	@echo -e "$(CYAN)Installing build dependencies...$(RESET)"

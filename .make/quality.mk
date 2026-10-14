@@ -384,6 +384,13 @@ quality-strict: quality-check ## compatibility alias for the canonical quality g
 
 quality-check-validate: ## validate quality workflow delegation and fail-closed commands
 	@set -eu; \
+	check_graph=$$($(MAKE) --no-print-directory -n check); \
+	printf '%s\n' "$$check_graph" | grep -Fq 'go test -short --cover'; \
+	printf '%s\n' "$$check_graph" | grep -Fq 'go test -short -count=1 -v ./tests/integration/...'; \
+	missing_exit=0; $(MAKE) --no-print-directory -n quality-contract-unknown-target >/dev/null 2>&1 || missing_exit=$$?; \
+	[ "$$missing_exit" -eq 2 ] || { echo "unknown Make target did not fail with exit 2" >&2; exit 1; }; \
+	$(MAKE) --no-print-directory -n run -- --version >/dev/null
+	@set -eu; \
 	for target in verify pr-check full ci-local; do \
 		graph=$$($(MAKE) --no-print-directory -n "$$target"); \
 		printf '%s\n' "$$graph" | grep -Fq 'Canonical quality gate passed!'; \

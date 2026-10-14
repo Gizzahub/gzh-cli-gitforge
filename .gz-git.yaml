@@ -5,6 +5,8 @@
 # agent/<task>/<agent-id> and dev/*/*/*/* covers
 # dev/<actor>/<host>/<type>/<slug>.
 branch:
+  # The real check gate runs long unit/integration tests; use host FIFO capacity.
+  resourceHighLoad: true
   integrationBranch:
     - master
   taskPattern:

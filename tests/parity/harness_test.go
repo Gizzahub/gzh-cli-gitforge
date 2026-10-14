@@ -495,6 +495,10 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 	for _, st := range sc.steps {
 		stdout, stderr, code := sb.run(st)
+		if !targetMode && st.cmd == "" && len(st.args) >= 2 && st.args[0] == "task" &&
+			(st.args[1] == "run-doctor" || st.args[1] == "run-discard") {
+			stdout = canonicalGZGitMetadataJSON(stdout)
+		}
 		cs := capturedStep{
 			Step:     st.label,
 			Cmd:      firstNonEmpty(st.cmd, "ce"),
@@ -583,7 +587,7 @@ func probeToolchain(t *testing.T) toolchain {
 	return toolchain{
 		CE:    ceToolchain(t, version(ceBin, "version")),
 		Wt:    version("wt", "--version"),
-		GzGit: version("gz-git", "--version"),
+		GzGit: canonicalGZGitVersion(version("gz-git", "--version")),
 	}
 }
 

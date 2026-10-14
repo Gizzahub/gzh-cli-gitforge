@@ -170,7 +170,113 @@ func canonicalizeRaw(t *testing.T, raw json.RawMessage) json.RawMessage {
 	return json.RawMessage(out)
 }
 
-var gzGitVersionRe = regexp.MustCompile(`^gz-git version .+$`)
+var gzGitVersionLineRe = regexp.MustCompile(`^gz-git version v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?(\r?\n)?$`)
+
+const gzGitVersionPlaceholder = "gz-git version <GZ_GIT_VERSION>"
+
+func canonicalGZGitVersion(s string) string {
+	match := gzGitVersionLineRe.FindStringSubmatch(s)
+	if match == nil {
+		return s
+	}
+	return gzGitVersionPlaceholder + match[1]
+}
+
+// Only doctor/discard query output calls this function. Historical receipts,
+// arbitrary strings, and nested objects are not provider identity metadata.
+func canonicalGZGitMetadataJSON(s string) string {
+	if !json.Valid([]byte(s)) {
+		return s
+	}
+	return string(rewriteJSONValues([]byte(s), func(key string, raw json.RawMessage) []byte {
+		switch key {
+		case "provider":
+			var provider map[string]interface{}
+			if json.Unmarshal(raw, &provider) != nil || provider["name"] != "gz-git" {
+				return raw
+			}
+			if _, ok := provider["capabilities"].(map[string]interface{}); !ok {
+				return raw
+			}
+			return rewriteJSONVersionField(raw, "version")
+		case "diagnostics":
+			return rewriteJSONValues(raw, func(_ string, diagnostic json.RawMessage) []byte {
+				var entry map[string]interface{}
+				if json.Unmarshal(diagnostic, &entry) != nil || !isGzGitVersionProbe(entry) {
+					return diagnostic
+				}
+				return rewriteJSONVersionField(diagnostic, "stdout")
+			})
+		default:
+			return raw
+		}
+	}))
+}
+
+func rewriteJSONVersionField(raw []byte, field string) []byte {
+	return rewriteJSONValues(raw, func(key string, value json.RawMessage) []byte {
+		if key != field {
+			return value
+		}
+		var actual string
+		if json.Unmarshal(value, &actual) != nil {
+			return value
+		}
+		canonical := canonicalGZGitVersion(actual)
+		if canonical == actual {
+			return value
+		}
+		encoded, _ := json.Marshal(canonical) // string marshaling cannot fail
+		return encoded
+	})
+}
+
+// Rewrite selected immediate values using decoder offsets. Everything else,
+// including field order, whitespace and escaped protocol text, stays byte exact.
+func rewriteJSONValues(data []byte, rewrite func(string, json.RawMessage) []byte) []byte {
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	token, err := decoder.Token()
+	if err != nil || (token != json.Delim('{') && token != json.Delim('[')) {
+		return data
+	}
+	var out []byte
+	cursor := 0
+	for decoder.More() {
+		key := ""
+		if token == json.Delim('{') {
+			field, err := decoder.Token()
+			if err != nil {
+				return data
+			}
+			key, _ = field.(string)
+		}
+		var value json.RawMessage
+		if decoder.Decode(&value) != nil {
+			return data
+		}
+		end := int(decoder.InputOffset())
+		start := end - len(value)
+		out = append(out, data[cursor:start]...)
+		out = append(out, rewrite(key, value)...)
+		cursor = end
+	}
+	if _, err := decoder.Token(); err != nil {
+		return data
+	}
+	return append(out, data[cursor:]...)
+}
+
+func isGzGitVersionProbe(entry map[string]interface{}) bool {
+	if command, _ := entry["command"].(string); command != "gz-git" {
+		return false
+	}
+	args, ok := entry["args"].([]interface{})
+	if !ok || len(args) != 1 || args[0] != "--version" {
+		return false
+	}
+	exitCode, ok := entry["exitCode"].(float64)
+	return ok && exitCode == 0
+}
 
 // canonicalizeValue is the shared JSON-tree pass. See the file comment for
 // what it deletes and what it folds, and why each rule stays narrow. It
@@ -187,17 +293,15 @@ func canonicalizeValue(v interface{}) interface{} {
 			delete(tv, "executable")
 		}
 		if name, ok := tv["name"]; ok && name == "gz-git" {
-			if _, hasCapabilities := tv["capabilities"]; hasCapabilities {
+			if _, hasCapabilities := tv["capabilities"].(map[string]interface{}); hasCapabilities {
 				delete(tv, "executable")
+				if version, ok := tv["version"].(string); ok && version != "" {
+					tv["version"] = canonicalGZGitVersion(version)
+				}
 			}
 		}
 		for k, item := range tv {
 			switch k {
-			case "version":
-				if s, ok := item.(string); ok && gzGitVersionRe.MatchString(s) {
-					tv[k] = "gz-git version <GZ_GIT_VERSION>"
-					continue
-				}
 			case "tool_version":
 				if s, ok := item.(string); ok && s != "" {
 					tv[k] = "<TOOL_VERSION>"
@@ -250,4 +354,30 @@ func isGzGitProbe(entry map[string]interface{}) bool {
 		}
 	}
 	return false
+}
+
+func TestCanonicalizeValueProviderVersionKeepsProtocolFacts(t *testing.T) {
+	provider := map[string]interface{}{
+		"name":       "gz-git",
+		"version":    "gz-git version 0.9.2",
+		"executable": "/tmp/gz-git",
+		"capabilities": map[string]interface{}{
+			"integrate-check": true,
+		},
+		"exitCode": float64(0),
+	}
+	canonicalizeValue(provider)
+	if got := provider["version"]; got != gzGitVersionPlaceholder {
+		t.Fatalf("provider version = %#v, want %q", got, gzGitVersionPlaceholder)
+	}
+	if _, exists := provider["executable"]; exists {
+		t.Fatal("in-process provider executable was retained")
+	}
+	capabilities, ok := provider["capabilities"].(map[string]interface{})
+	if !ok || capabilities["integrate-check"] != true {
+		t.Fatalf("provider capabilities changed: %#v", provider["capabilities"])
+	}
+	if got := provider["exitCode"]; got != float64(0) {
+		t.Fatalf("provider exitCode changed: %#v", got)
+	}
 }

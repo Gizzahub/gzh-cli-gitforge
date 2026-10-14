@@ -138,6 +138,11 @@ The fixture harness (`tests/parity/portmode_test.go`) maps
 `["task", "run-<verb>"]` to `["run", "<verb>"]` at execution time and
 canonicalizes both sides into one diffable shape; the canonicalization
 header in that file is the exhaustive list of declared divergences.
+The provider's `gz-git version …` build string is represented as
+`gz-git version <GZ_GIT_VERSION>` in fixture metadata and diagnostics. This
+removes workstation-specific provider identity only; provider presence,
+capabilities, command/help diagnostics, exit codes, and receipts remain exact
+parity inputs.
 
 ### Exit codes
 
