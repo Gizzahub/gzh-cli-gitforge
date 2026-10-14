@@ -1,6 +1,6 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: open (2026-10-14 mst 재확인: b79c1a4a golden / c4deec42 설치본 불일치)
+- status: closed (2026-10-14 — clean CE 9877764d 참조 채택·canonical 품질 통과)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
@@ -260,3 +260,22 @@ fixture는 같다. `bf460da..5599474`의 작업 변경은 문서 3개뿐이며 G
 `sibling-evidence-rebase-quality.log`와 `sibling-evidence-baseline-parity.log`다.
 이 기록은 기존 ISSUE-41의 재현 갱신이며, 새 CE pin 채택이나 golden 재녹화,
 rollback, waiver를 집행한 기록이 아니다.
+
+## 2026-10-14 최신 harness 참조 채택
+
+기존 후보 `9742f8b`는 최신 golden 12개와 rebase 충돌해 선택 없이 취소하고
+CE run-abort로 보존했다. 설치·통합 프로세스와 executable hash를 조회한 뒤
+clean gitforge `1503edf`를 지정 `make install`로 반영했다(경로 audit 포함 exit 0).
+CE는 clean `9877764d`를 유지했다. source checkout의 추가 `3e4340e5`는 문서
+3파일만 바꿨으며 CE 실행 코드는 선택한 revision과 같다.
+
+최신 master의 좁은 provider metadata 정규화와 승인된 help를 유지한 새
+`ce-reference-stable-adoption`에서 fixture를 기계 캡처했다. capture와 fresh
+verify 각각 12 PASS/0 skip, canonical `make quality-check` 종료 코드 0이었다.
+실행 전후 CE/provider hash가 동일했다. 원본은 source primary checkout의
+`tmp/ce-reference-stable-adoption/`에 보존한다.
+
+독립 strong decoded 비교의 39개 leaf 변경은 CE 참조/build 24개, receipt
+`tool_version` 13개, 실제 processHost 관측 2개다. 상태·action·exit·논리 owner·
+source/target/ref·회수·provider 명령/인자/help 변경은 없다. ADR-0117 경로는
+이 시나리오에서 호출하지 않았으며 native port 완료를 주장하지 않는다.

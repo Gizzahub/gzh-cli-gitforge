@@ -1,8 +1,8 @@
 {
   "scenario": "doctor-active",
-  "reference": "ce-agent-kit master b79c1a4a9ab9e53af55074a816d15a3ece9c1704",
+  "reference": "ce-agent-kit master 9877764d3f37bd3d0ee652706762f169646b8f78",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.2\nRelease:  v0.10.0\nBuild:    171-gb79c1a4a\nCommit:   b79c1a4a9ab9e53af55074a816d15a3ece9c1704\nDirty:    false\nRevision: b79c1a4a9ab9e53af55074a816d15a3ece9c1704",
+    "ce": "ce-agent-kit version 0.10.2\nRelease:  v0.10.0\nBuild:    179-g9877764d\nCommit:   9877764d3f37bd3d0ee652706762f169646b8f78\nDirty:    false\nRevision: 9877764d3f37bd3d0ee652706762f169646b8f78",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version \u003cGZ_GIT_VERSION\u003e"
   },
