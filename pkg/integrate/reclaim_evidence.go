@@ -199,11 +199,36 @@ func verifyGitOnlyReclaimScope(common, taskWT string) error {
 		if entry.Name() == ".git" {
 			return fmt.Errorf("nested repository requires caller-owned cleanup: %s", path)
 		}
+		if entry.IsDir() {
+			bare, err := bareRepositoryLayout(path)
+			if err != nil {
+				return err
+			}
+			if bare {
+				return fmt.Errorf("bare repository requires caller-owned cleanup: %s", path)
+			}
+		}
 		return nil
 	}); err != nil {
 		return err
 	}
 	return refuseTaskSiblingLease(common, taskWT)
+}
+
+func bareRepositoryLayout(path string) (bool, error) {
+	for _, name := range []string{"HEAD", "objects", "refs"} {
+		info, err := os.Stat(filepath.Join(path, name))
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if (name == "HEAD" && !info.Mode().IsRegular()) || (name != "HEAD" && !info.IsDir()) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func refuseTaskSiblingLease(common, taskWT string) error {

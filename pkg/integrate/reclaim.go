@@ -221,24 +221,26 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	if opts.Remote == "" {
 		return true
 	}
-	if _, ok, err := sg.revParse(ctx, "refs/remotes/"+opts.Remote+"/"+opts.Branch); err != nil {
-		out.Failed = append(out.Failed, err.Error())
-		return false
-	} else if !ok {
-		// A missing local tracking ref only proves the remote branch is gone
-		// when we know that ref is current. Under --no-fetch nothing refreshed
-		// it, so it may simply be stale (never fetched, or pruned) while the
-		// remote branch still exists — treating that as "nothing to delete"
-		// would fail open and leave the remote task branch behind. Fail
-		// closed instead, matching resolveDefaultTarget/planFetchDefault.
-		if opts.NoFetch {
-			out.Failed = append(out.Failed, fmt.Sprintf(
-				"no local tracking ref for %s/%s — cannot verify without network -- retry without --no-fetch",
-				opts.Remote, opts.Branch,
-			))
+	if out.GitProof == nil {
+		if _, ok, err := sg.revParse(ctx, "refs/remotes/"+opts.Remote+"/"+opts.Branch); err != nil {
+			out.Failed = append(out.Failed, err.Error())
 			return false
+		} else if !ok {
+			// A missing local tracking ref only proves the remote branch is gone
+			// when we know that ref is current. Under --no-fetch nothing refreshed
+			// it, so it may simply be stale (never fetched, or pruned) while the
+			// remote branch still exists — treating that as "nothing to delete"
+			// would fail open and leave the remote task branch behind. Fail
+			// closed instead, matching resolveDefaultTarget/planFetchDefault.
+			if opts.NoFetch {
+				out.Failed = append(out.Failed, fmt.Sprintf(
+					"no local tracking ref for %s/%s — cannot verify without network -- retry without --no-fetch",
+					opts.Remote, opts.Branch,
+				))
+				return false
+			}
+			return true
 		}
-		return true
 	}
 	if opts.TaskSHA == "" {
 		out.Failed = append(out.Failed, "remote delete needs the integrated commit for a lease")

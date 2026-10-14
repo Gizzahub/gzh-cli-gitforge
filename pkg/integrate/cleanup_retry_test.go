@@ -460,6 +460,25 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 	})
 }
 
+func TestCleanupOnlyRetryLocalProbeFailure(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	f.interceptGit(t, `if [[ "$1" == "rev-parse" && "${!#}" == "$TASK302_TEST_REF" ]] || [[ "$1" == "for-each-ref" && "${!#}" == "$TASK302_TEST_REF" ]]; then
+  printf '%s\n' 'injected local inventory failure' >&2
+  exit 42
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if err == nil || (report != nil && report.Complete) {
+		t.Fatalf("failed local query became complete absence: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, wt)
+	if r := f.receipt(t); r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("failed inventory advanced removal evidence: %+v", r)
+	}
+}
+
 func TestCleanupOnlyRetryLocalExpectedOld(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)

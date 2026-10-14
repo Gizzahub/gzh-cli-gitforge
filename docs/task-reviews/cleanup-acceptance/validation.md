@@ -39,3 +39,12 @@ task에 묶인 provisioned sibling lease가 있으면 삭제 전에 거부하고
 않는다. 기존 legacy 경로는 유지하며, network read를 금지한 `--no-fetch`에서는
 live Git proof 필드를 생략한다. 빈 객체나 stale tracking ref를 성공 증거로
 내보내지 않는다. normal reclaim의 local 삭제도 captured OID의 atomic CAS다.
+
+독립 리뷰에서 bare repository, 조회 실패, tracking ref 부재의 세 경계 오류를
+확인했다. 각각 회귀 검사가 기존 코드에서 실제 assertion RED를 재현했다.
+bare 저장소는 `.git` 이름 없이 `HEAD`·`objects`·`refs`를 가지므로 이 layout도
+삭제 전 보존한다. local branch 존재 여부는 성공한 `for-each-ref`의 정확한
+ref/OID로만 판정하며 실패한 조회를 부재로 바꾸지 않는다. live remote proof가
+있는 회수는 local tracking ref 없이도 captured OID의 exact lease로 삭제한다.
+수정 후 세 검사와 기존 사후 조회·nested repository 검사에 race 검증을 적용한다.
+이는 source 변경 근거이며 공식 C1–C5 수용이나 전달 완료 주장이 아니다.

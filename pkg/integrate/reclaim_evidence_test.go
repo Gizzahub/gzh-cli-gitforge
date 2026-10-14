@@ -107,8 +107,10 @@ func TestRunGitReclaimAfterQueryFailure(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
 	f.interceptGit(t, `if [[ "$1" == "for-each-ref" && "${!#}" == "$TASK302_TEST_REF" ]]; then
-  printf '%s\n' 'injected post-delete query failure' >&2
-  exit 42
+  if ! "$TASK302_TEST_GIT" show-ref --verify --quiet "$TASK302_TEST_REF"; then
+    printf '%s\n' 'injected post-delete query failure' >&2
+    exit 42
+  fi
 fi`)
 	report := f.realRun(t)
 	p := report.Reclaim.GitProof
@@ -138,6 +140,41 @@ func TestRunGitReclaimPreservesNestedRepo(t *testing.T) {
 		t.Fatalf("caller-owned nested repository was deleted: %v", err)
 	}
 	f.assertResidualsIntact(t, resolvePath(t, f.fx.Worktree))
+}
+
+func TestRunGitReclaimPreservesBareRepo(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	writeRepoFile(t, f.fx.Worktree, ".gitignore", "nested/\n")
+	runGit(t, f.fx.Worktree, "add", ".gitignore")
+	runGit(t, f.fx.Worktree, "commit", "-m", "ignore bare fixture")
+	runGit(t, f.fx.Worktree, "push", f.fx.Remote, f.taskBranch)
+	f.taskSHA = gitOutput(t, f.fx.Worktree, "rev-parse", "HEAD")
+	f.execution.ExpectSource = f.taskSHA
+	nested := filepath.Join(f.fx.Worktree, "nested")
+	runGit(t, f.fx.Worktree, "init", "--bare", nested)
+	report := f.realRun(t)
+	if !report.Reclaim.Incomplete() || report.Reclaim.GitProof != nil {
+		t.Fatalf("bare repository got a false task-only proof: %+v", report.Reclaim)
+	}
+	if _, err := os.Stat(filepath.Join(nested, "HEAD")); err != nil {
+		t.Fatalf("caller-owned bare repository was deleted: %v", err)
+	}
+	f.assertResidualsIntact(t, resolvePath(t, f.fx.Worktree))
+}
+
+func TestRunGitReclaimWithoutTrackingRef(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	t.Setenv("TASK302_TEST_TRACKING", "refs/remotes/"+f.fx.Remote+"/"+f.taskBranch)
+	f.interceptGit(t, `if [[ "$1" == "worktree" && "${2:-}" == "remove" ]]; then
+  "$TASK302_TEST_GIT" update-ref -d "$TASK302_TEST_TRACKING"
+fi`)
+	report := f.realRun(t)
+	if report.Reclaim.Incomplete() || report.Reclaim.GitProof == nil || !report.Reclaim.GitProof.After.RemoteBranchAbsent {
+		t.Fatalf("live remote proof still depended on tracking ref: %+v", report.Reclaim)
+	}
+	if gitOutput(t, f.fx.Clone, "ls-remote", f.fx.Remote, "refs/heads/"+f.taskBranch) != "" {
+		t.Fatal("proved remote task ref was not reclaimed")
+	}
 }
 
 func TestRunGitReclaimPreservesSiblingLease(t *testing.T) {

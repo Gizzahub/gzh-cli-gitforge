@@ -138,14 +138,26 @@ func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Rece
 // rev-parse --verify proves the branch exists; anything else reports it
 // missing without guessing from tracking refs.
 func probeLocalBranch(ctx context.Context, g gitRepo, branch string) (sha string, present bool, err error) {
-	res, err := g.run(ctx, "rev-parse", "--verify", "refs/heads/"+branch)
+	ref := "refs/heads/" + branch
+	res, err := g.output(ctx, "for-each-ref", "--format=%(refname)%09%(objectname)", ref)
 	if err != nil {
 		return "", false, err
 	}
-	if res.ExitCode != 0 {
-		return "", false, nil
+	for _, line := range strings.Split(res, "\n") {
+		name, oid, ok := strings.Cut(line, "\t")
+		if name != ref {
+			continue
+		}
+		if !ok {
+			return "", false, fmt.Errorf("malformed local ref inventory for %s", ref)
+		}
+		sha, err := NormalizeExpectSource(oid)
+		if err != nil {
+			return "", false, fmt.Errorf("invalid local ref inventory for %s: %w", ref, err)
+		}
+		return sha, true, nil
 	}
-	return strings.TrimSpace(res.Stdout), true, nil
+	return "", false, nil
 }
 
 // validateWorktreeResidual proves the physical worktree recorded in the
