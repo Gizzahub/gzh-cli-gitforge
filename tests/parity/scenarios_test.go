@@ -77,13 +77,18 @@ func TestCEParity(t *testing.T) {
 			},
 		},
 		{
-			// With one active run, CE resolves that task and then applies the
-			// normal finish preconditions. This unpushed fixture therefore
-			// remains ACTIVE with the task-scoped no-upstream refusal.
+			// A finish-ready run proves the deliberate native READY/CE DONE
+			// divergence without weakening explicit completion or ambiguity.
 			name: "finish-noarg-single-active",
 			steps: []step{
 				{label: "start", args: []string{"task", "run-start", "noarg", "--type", "chore", "--json"}, dir: "repo"},
+				{label: "add-feature", cmd: "touch", args: []string{"feature.txt"}, dir: wtDir("chore", "noarg")},
+				{label: "stage-feature", cmd: "git", args: []string{"add", "-A"}, dir: wtDir("chore", "noarg")},
+				{label: "commit-feature", cmd: "git", args: []string{"commit", "-qm", "feature"}, dir: wtDir("chore", "noarg")},
+				{label: "push-branch", cmd: "git", args: []string{"push", "-qu", "origin", "dev/claude/mbp/chore/noarg"}, dir: "repo"},
+				{label: "status-ready", args: []string{"task", "run-status", "noarg", "--json"}, dir: "repo", snapshot: true},
 				{label: "finish-noarg", args: []string{"task", "run-finish", "--json"}, dir: "repo", snapshot: true},
+				{label: "status-after-finish", args: []string{"task", "run-status", "noarg", "--json"}, dir: "repo"},
 			},
 		},
 		{

@@ -144,11 +144,17 @@ func (s *Service) Finish(ctx context.Context, task string) (resp TaskResponse, c
 			appendIdentityDiagnostic(&res, ownerErr)
 			return res, 1
 		}
-		selected, refusal := selectOwnedActiveTask(status.States, owner)
+		_, refusal := selectOwnedActiveTask(status.States, owner)
 		if refusal != nil {
 			return *refusal, 1
 		}
-		status = s.status(ctx, selected, false)
+		// Bare finish is a readiness query, never an implicit integration.
+		// Keep owner/purpose and ambiguity checks, then return the aggregate
+		// without creating a receipt or changing the execution's resources.
+		if status.Status == TaskExecutionStatusReady && status.ActiveCount == 1 {
+			return status, 0
+		}
+		return status, 1
 	}
 	if status.Execution == nil {
 		return status, 1

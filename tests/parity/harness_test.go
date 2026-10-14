@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "cd0e1d19c3211b85a514ac03383ae6166a614f07"
+	pinnedCECommit = "b79c1a4a9ab9e53af55074a816d15a3ece9c1704"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -392,10 +392,10 @@ func must(t *testing.T, err error) {
 func (sb *sandbox) snapshotState() *stateSnapshot {
 	sb.t.Helper()
 	snap := &stateSnapshot{}
-	snap.Worktrees, _, _ = sb.run(step{cmd: "git", args: []string{"worktree", "list", "--porcelain"}, dir: "repo"})
-	snap.Refs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "repo"})
-	snap.OriginRefs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "origin.git"})
-	snap.Log, _, _ = sb.run(step{cmd: "git", args: []string{"log", "--all", "--topo-order", "--format=%H %s"}, dir: "repo"})
+	snap.Worktrees = sb.snapshotGit("repo", "worktree", "list", "--porcelain")
+	snap.Refs = sb.snapshotGit("repo", "for-each-ref", "--format=%(refname) %(objectname)")
+	snap.OriginRefs = sb.snapshotGit("origin.git", "for-each-ref", "--format=%(refname) %(objectname)")
+	snap.Log = sb.snapshotGit("repo", "log", "--all", "--topo-order", "--format=%H %s")
 	stateDir := filepath.Join(sb.root, "repo", ".git", "ce", "task-runtime", "v1")
 	if targetMode {
 		stateDir = filepath.Join(append([]string{sb.root, "repo", ".git"}, targetStateDir()...)...)
@@ -403,6 +403,15 @@ func (sb *sandbox) snapshotState() *stateSnapshot {
 	snap.Executions = sb.readJSON(filepath.Join(stateDir, "executions.json"))
 	snap.Receipts = sb.readJSONL(filepath.Join(stateDir, "receipts.jsonl"))
 	return snap
+}
+
+func (sb *sandbox) snapshotGit(dir string, args ...string) string {
+	sb.t.Helper()
+	out, stderr, code := sb.run(step{cmd: "git", args: args, dir: dir})
+	if code != 0 || stderr != "" {
+		sb.t.Fatalf("snapshot git %v failed (exit %d): %s", args, code, stderr)
+	}
+	return out
 }
 
 func (sb *sandbox) readJSON(path string) json.RawMessage {
@@ -510,6 +519,13 @@ func runScenario(t *testing.T, sc scenario) {
 		canonicalizeTarget(t, &golden)
 	}
 	assertLifecycleContract(t, sc, golden.Steps)
+	if targetMode && (sc.name == "finish-noarg-single-active" || sc.name == "reclaimed-run-reconciliation") {
+		// CE performs completion; native bare finish deliberately preserves
+		// READY resources. Reclaimed history is also checked against its
+		// strict native contract rather than CE's diagnostic byte surface.
+		// Both contracts are asserted before this return.
+		return
+	}
 
 	goldenPath := filepath.Join("testdata", "golden", sc.name+".json")
 	if *recordMode {

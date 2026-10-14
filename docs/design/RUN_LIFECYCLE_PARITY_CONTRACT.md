@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`cd0e1d19c3211b85a514ac03383ae6166a614f07`**, installed as CE 0.10.2 with
+`b79c1a4a9ab9e53af55074a816d15a3ece9c1704`**, installed as CE 0.10.2 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                    | Role                             |
 | ---------------- | ---------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`cd0e1d19`, clean Go build metadata)               | system under test (reference)    |
+| `ce`             | 0.10.2 (`b79c1a4a`, clean Go build metadata)               | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
 | `gz-git`         | 0.9.1 (`96d5ecd`, official install; refreshed diagnostics) | integration provider (reclaim)   |
 | `git`            | system git                                                 | refs, worktree plumbing          |
@@ -108,7 +108,7 @@ capabilities, not CLI words.
 | `ce task run-start`   | `gz-git run start`     | `--type`, `--json`                       |                                                                             |
 | `ce task run-status`  | `gz-git run status`    | `--json`                                 |                                                                             |
 | `ce task run-list`    | `gz-git run list`      | `--json`                                 |                                                                             |
-| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | no-arg selects exactly one ACTIVE execution before finish checks            |
+| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | native no-arg reports readiness; explicit task performs completion          |
 | `ce task run-recover` | `gz-git run recover`   | `--json`                                 |                                                                             |
 | `ce task run-abort`   | `gz-git run abort`     | `--reason`, `--json`                     |                                                                             |
 | `ce task run-discard` | `gz-git run discard`   | `--reason`, `--take-over-from`, `--json` |                                                                             |
@@ -371,15 +371,25 @@ evidence keeps the run BLOCKED (never promoted to DONE). A stale base
 (source tip moved past the branch base) exits 1 with the rebase-directed
 reason.
 
-**No-arg path.** With no task argument, exactly one derived ACTIVE execution
-is selected and then follows the same owner and finish-precondition path as an
-explicit task. For example, an unpushed sole run remains task-scoped ACTIVE
-with `task branch has no upstream` and exit 1. Only ACTIVE delivery executions
-owned by the current actor and host are eligible. Zero or several matches
-return task-empty BLOCKED with exit 1; several matches name sorted task IDs
-and explicit finish commands. Foreign and terminal records are never selected
-implicitly. The fixtures `finish-noarg-single-active` and
-`finish-noarg-ambiguous-active` capture both cases.
+**No-arg path.** Native bare finish is a readiness query. Exactly one ACTIVE
+delivery owned by the current actor and host may return the aggregate
+READY/exit 0/task empty/activeCount 1 document. It does not invoke integration,
+write a finish receipt, or remove the execution's worktree or local/remote refs.
+Zero or several owned matches return task-empty BLOCKED with exit 1; several
+matches name sorted task IDs and explicit finish commands. Foreign, terminal,
+and experiment records cannot become implicit completion targets. A non-ready
+aggregate returns its refusal with exit 1. Explicit task finish still performs
+integration and reclaim.
+
+CE deliberately differs: bare finish selects the sole owned ACTIVE delivery
+and performs normal completion, returning DONE and reclaiming its resources
+when ready. The user selected restoration of the native READY contract in
+`gzh-cli-devbox:decisions/003-current-parity-successor.md` (TASK-322).
+The twelve reference scenarios retain ambiguity and reclamation safety tests.
+`finish-noarg-single-active` captures a committed, pushed, finish-ready run:
+CE DONE is verified with reclaimed resources, while native READY is verified
+against the unchanged pre-finish Git and execution/receipt snapshot. Only this
+declared divergence uses semantic validation instead of CE byte comparison.
 
 ### run-abort
 
