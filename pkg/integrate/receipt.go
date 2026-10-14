@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 	"unicode"
@@ -214,12 +215,20 @@ type evidenceControllerProvenance struct {
 	PrepareProfile string   `json:"prepare_profile"`
 }
 
+// evidenceReclaimRefs records the resolved Git branch names used by normal
+// reclaim. Absence in a legacy receipt is unknown, never permission to delete.
+type evidenceReclaimRefs struct {
+	Default     string `json:"default"`
+	Integration string `json:"integration"`
+}
+
 type evidenceProvenance struct {
 	DeclarationPatterns []string                      `json:"declaration_patterns"`
 	DeclarationFacts    []string                      `json:"declaration_facts,omitempty"`
 	PrepareProfile      string                        `json:"prepare_profile,omitempty"`
 	PrepareInputs       string                        `json:"prepare_inputs,omitempty"`
 	Controller          *evidenceControllerProvenance `json:"controller,omitempty"`
+	ReclaimRefs         *evidenceReclaimRefs          `json:"reclaim_refs,omitempty"`
 }
 
 // Receipt is the durable integration evidence document. Field names are the
@@ -446,6 +455,11 @@ func (r *Receipt) identityConflicts(candidate *Receipt) []string {
 	}
 	if r.TaskWorktree != candidate.TaskWorktree {
 		conflicts = append(conflicts, "task_worktree")
+	}
+	// Patterns, controller identity and resolved branch protections are captured
+	// facts for this run. A waiter or intent replay must not replace them.
+	if !reflect.DeepEqual(r.Provenance, candidate.Provenance) {
+		conflicts = append(conflicts, "provenance")
 	}
 	return conflicts
 }
