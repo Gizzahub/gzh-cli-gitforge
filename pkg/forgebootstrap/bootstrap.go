@@ -53,7 +53,7 @@ func ValidateRequest(r Request) error {
 		return errors.New("project must be lowercase")
 	}
 	u, e := url.Parse(r.Remote)
-	if e != nil || u.Host == "" {
+	if e != nil || (u.Host == "" && u.Scheme != "file") {
 		return errors.New("remote must be absolute URL")
 	}
 	if !filepath.IsAbs(r.Checkout) {
@@ -63,7 +63,7 @@ func ValidateRequest(r Request) error {
 		return errors.New("branches must be distinct")
 	}
 	u, e = url.Parse(r.TemplateURL)
-	if e != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http" && u.Scheme != "ssh") {
+	if e != nil || (u.Host == "" && u.Scheme != "file") || (u.Scheme != "https" && u.Scheme != "http" && u.Scheme != "ssh" && u.Scheme != "file") {
 		return errors.New("template URL must be absolute")
 	}
 	if !shaPattern.MatchString(strings.ToLower(r.TemplateSHA)) {

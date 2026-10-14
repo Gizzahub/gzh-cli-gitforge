@@ -14,6 +14,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
+// Receipt records bootstrap provenance and progress.
 type Receipt struct {
 	SchemaVersion int       `json:"schema_version"`
 	PlanDigest    string    `json:"plan_digest"`
@@ -25,12 +26,17 @@ type Receipt struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 	Error         string    `json:"error,omitempty"`
 }
+
+// Remote provisions or reuses the destination project.
 type Remote interface {
 	Ensure(context.Context, Request) error
 }
+
+// ApplyOptions controls bootstrap execution.
 type ApplyOptions struct {
 	Remote      Remote
 	ReceiptPath string
+	CommitModel string
 	Git         func(context.Context, string, ...string) error
 	GitOutput   func(context.Context, string, ...string) (string, error)
 }
@@ -65,7 +71,10 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	}
 	g := o.Git
 	if g == nil {
-		g = func(c context.Context, _ string, a ...string) error { return execGit(c, r.Checkout, a...) }
+		g = execGit
+	}
+	if o.CommitModel == "" {
+		return Receipt{}, errors.New("commit model is required")
 	}
 	rec := Receipt{SchemaVersion: 1, PlanDigest: p.PlanDigest, Phase: "remote_ready", TemplateURL: r.TemplateURL, TemplateSHA: r.TemplateSHA, SiteDigest: TemplateDigest(r), UpdatedAt: time.Now().UTC()}
 	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
@@ -76,10 +85,13 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 		return rec, e
 	}
 	defer os.RemoveAll(tmp)
-	if e = g(ctx, "", "clone", "--no-checkout", r.TemplateURL, tmp); e != nil {
+	if e := g(ctx, "", "clone", "--no-checkout", r.TemplateURL, tmp); e != nil {
 		return rec, e
 	}
 	if e := g(ctx, tmp, "checkout", "--detach", r.TemplateSHA); e != nil {
+		return rec, e
+	}
+	if e := os.MkdirAll(r.Checkout, 0o750); e != nil {
 		return rec, e
 	}
 	if e := copyTree(tmp, r.Checkout); e != nil {
@@ -183,7 +195,7 @@ func writeSiteConfig(root string, s SiteConfig) error {
 	if e != nil {
 		return e
 	}
-	return os.WriteFile(filepath.Join(root, ".site-config.json"), append(b, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(root, "site.config.json"), append(b, '\n'), 0o644)
 }
 
 func writeReceipt(path string, r Receipt) error {
