@@ -18,6 +18,9 @@ type Receipt struct {
 	PlanDigest    string    `json:"plan_digest"`
 	Phase         string    `json:"phase"`
 	InitialSHA    string    `json:"initial_sha,omitempty"`
+	TemplateURL   string    `json:"template_url"`
+	TemplateSHA   string    `json:"template_sha"`
+	SiteDigest    string    `json:"site_digest"`
 	UpdatedAt     time.Time `json:"updated_at"`
 	Error         string    `json:"error,omitempty"`
 }
@@ -28,6 +31,7 @@ type ApplyOptions struct {
 	Remote      Remote
 	ReceiptPath string
 	Git         func(context.Context, ...string) error
+	GitOutput   func(context.Context, ...string) (string, error)
 }
 
 func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
@@ -42,7 +46,10 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 		if !st.IsDir() {
 			return Receipt{}, errors.New("checkout path is occupied")
 		}
-		ents, _ := os.ReadDir(r.Checkout)
+		ents, e := os.ReadDir(r.Checkout)
+		if e != nil {
+			return Receipt{}, e
+		}
 		if len(ents) > 0 {
 			return Receipt{}, errors.New("checkout path is occupied")
 		}
@@ -59,8 +66,10 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	if g == nil {
 		g = execGit
 	}
-	rec := Receipt{SchemaVersion: 1, PlanDigest: p.PlanDigest, Phase: "remote_ready", UpdatedAt: time.Now().UTC()}
-	_ = writeReceipt(o.ReceiptPath, rec)
+	rec := Receipt{SchemaVersion: 1, PlanDigest: p.PlanDigest, Phase: "remote_ready", TemplateURL: r.TemplateURL, TemplateSHA: r.TemplateSHA, SiteDigest: TemplateDigest(r), UpdatedAt: time.Now().UTC()}
+	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
+		return rec, e
+	}
 	tmp, e := os.MkdirTemp("", "gz-git-template-")
 	if e != nil {
 		return rec, e
@@ -81,19 +90,29 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	if e := writeSiteConfig(r.Checkout, r.Site); e != nil {
 		return rec, e
 	}
-	for _, args := range [][]string{{"-C", r.Checkout, "init", "--initial-branch", r.DefaultBranch}, {"-C", r.Checkout, "remote", "add", "origin", r.Remote}, {"-C", r.Checkout, "add", "--all"}, {"-C", r.Checkout, "commit", "-m", "chore(bootstrap): initialize from template"}, {"-C", r.Checkout, "push", "-u", "origin", r.DefaultBranch}} {
+	if r.DefaultBranch != "master" || r.IntegrationBranch != "develop" {
+		return rec, errors.New("bootstrap supports master default and develop integration branches only")
+	}
+	for _, args := range [][]string{{"-C", r.Checkout, "init", "--initial-branch", r.DefaultBranch}, {"-C", r.Checkout, "remote", "add", "origin", r.Remote}, {"-C", r.Checkout, "add", "--all"}, {"-C", r.Checkout, "commit", "-m", "chore(bootstrap): initialize from template"}, {"-C", r.Checkout, "push", "-u", "origin", r.DefaultBranch}, {"-C", r.Checkout, "branch", r.IntegrationBranch}, {"-C", r.Checkout, "push", "-u", "origin", r.IntegrationBranch}} {
 		if e := g(ctx, args...); e != nil {
 			return rec, e
 		}
 	}
-	out, e := exec.CommandContext(ctx, "git", "-C", r.Checkout, "rev-parse", "HEAD").Output()
-	if e != nil {
+	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
 		return rec, e
 	}
-	rec.InitialSHA = strings.TrimSpace(string(out))
+	if o.GitOutput != nil {
+		out, e := o.GitOutput(ctx, "-C", r.Checkout, "rev-parse", "HEAD")
+		if e != nil {
+			return rec, e
+		}
+		rec.InitialSHA = strings.TrimSpace(out)
+	}
 	rec.Phase = "pushed"
 	rec.UpdatedAt = time.Now().UTC()
-	_ = writeReceipt(o.ReceiptPath, rec)
+	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
+		return rec, e
+	}
 	return rec, nil
 }
 
