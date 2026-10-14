@@ -33,19 +33,23 @@ var errPreMutationOutcomeUnbound = errors.New("pre-mutation outcome is not bound
 // this invocation stopped before that boundary and before any target push.
 // Its absence never proves that a push did not occur.
 type PreMutationOutcome struct {
-	SchemaVersion       int           `json:"schema_version"`
-	Capability          string        `json:"capability"`
-	ExecutionID         string        `json:"execution_id"`
-	Generation          string        `json:"generation"`
-	Owner               OwnerIdentity `json:"owner"`
-	RepositoryCommonDir string        `json:"repository_common_dir"`
-	TaskBranch          string        `json:"task_branch"`
-	TaskSHA             string        `json:"task_sha"`
-	ExpectedSource      string        `json:"expected_source"`
-	TargetRef           string        `json:"target_ref"`
-	PreMutation         bool          `json:"pre_mutation"`
-	Phase               string        `json:"phase"`
-	ReasonClass         string        `json:"reason_class"`
+	SchemaVersion              int           `json:"schema_version"`
+	Capability                 string        `json:"capability"`
+	ExecutionID                string        `json:"execution_id"`
+	Generation                 string        `json:"generation"`
+	Owner                      OwnerIdentity `json:"owner"`
+	RepositoryCommonDir        string        `json:"repository_common_dir"`
+	TaskBranch                 string        `json:"task_branch"`
+	TaskSHA                    string        `json:"task_sha"`
+	ExpectedSource             string        `json:"expected_source"`
+	TargetRef                  string        `json:"target_ref"`
+	PreMutation                bool          `json:"pre_mutation"`
+	Phase                      string        `json:"phase"`
+	ReasonClass                string        `json:"reason_class"`
+	ReconciledReceiptSHA256    string        `json:"reconciled_receipt_sha256,omitempty"`
+	LegacyArtifactSHA256       string        `json:"legacy_artifact_sha256,omitempty"`
+	ReconciledDiagnosticSHA256 string        `json:"reconciled_diagnostic_sha256,omitempty"`
+	LegacySourceRevision       string        `json:"legacy_source_revision,omitempty"`
 }
 
 // preMutationCapture carries a fully bound candidate across Check's target
@@ -189,19 +193,62 @@ func (o *PreMutationOutcome) validate() error {
 	if err := gitcmd.SanitizeBranchName(strings.TrimPrefix(o.TargetRef, "refs/heads/")); err != nil {
 		return fmt.Errorf("invalid target_ref: %w", err)
 	}
-	switch o.Phase {
-	case preMutationPhaseTargetLockWait:
-		if o.ReasonClass != "target_lock_wait" {
-			return fmt.Errorf("target_lock_wait reason_class is %q", o.ReasonClass)
+	if err := o.validateReconciliationProvenance(); err != nil {
+		return err
+	}
+	return validatePreMutationPhase(o.Phase, o.ReasonClass)
+}
+
+func (o *PreMutationOutcome) validateReconciliationProvenance() error {
+	values := []string{o.ReconciledReceiptSHA256, o.LegacyArtifactSHA256, o.ReconciledDiagnosticSHA256, o.LegacySourceRevision}
+	present := 0
+	for _, value := range values {
+		if value != "" {
+			present++
 		}
-	case preMutationPhaseReadinessRejected:
-		if o.ReasonClass != "not_ready" {
-			return fmt.Errorf("readiness_rejected reason_class is %q", o.ReasonClass)
+	}
+	if present != 0 && present != len(values) {
+		return fmt.Errorf("incomplete legacy reconciliation provenance")
+	}
+	for _, value := range values[:3] {
+		if value != "" && !isLowerSHA256(value) {
+			return fmt.Errorf("invalid reconciliation SHA-256")
 		}
-	default:
-		return fmt.Errorf("unknown pre-mutation phase %q", o.Phase)
+	}
+	if values[3] != "" {
+		if _, err := NormalizeExpectSource(values[3]); err != nil {
+			return fmt.Errorf("invalid legacy source revision")
+		}
 	}
 	return nil
+}
+
+func validatePreMutationPhase(phase, reason string) error {
+	switch phase {
+	case preMutationPhaseTargetLockWait:
+		if reason != "target_lock_wait" {
+			return fmt.Errorf("target_lock_wait reason_class is %q", reason)
+		}
+	case preMutationPhaseReadinessRejected:
+		if reason != "not_ready" {
+			return fmt.Errorf("readiness_rejected reason_class is %q", reason)
+		}
+	default:
+		return fmt.Errorf("unknown pre-mutation phase %q", phase)
+	}
+	return nil
+}
+
+func isLowerSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func samePreMutationIdentity(left, right *PreMutationOutcome) bool {
@@ -246,6 +293,14 @@ func recordPreMutationOutcome(ctx context.Context, capture *preMutationCapture, 
 		return nil, err
 	} else if exists && !samePreMutationIdentity(recorded, &candidate) {
 		return nil, fmt.Errorf("execution-id %s has contradictory pre-mutation identity", candidate.ExecutionID)
+	} else if exists && recorded.ReconciledReceiptSHA256 != "" {
+		// A legacy reconciliation is an attestation, not a retry cache. A later
+		// normal refusal must not replace its immutable provenance with an
+		// ordinary outcome document.
+		if phase != preMutationPhaseReadinessRejected {
+			return nil, fmt.Errorf("execution-id %s has reconciled readiness outcome", candidate.ExecutionID)
+		}
+		return recorded, nil
 	}
 	dir := filepath.Dir(preMutationOutcomePath(candidate.RepositoryCommonDir, candidate.ExecutionID))
 	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G301 -- Git common directory is repository-owned
