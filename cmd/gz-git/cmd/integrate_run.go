@@ -58,9 +58,10 @@ Run a bare integrate from a task-branch worktree, not from the target checkout.
 
 Execution context (--execution-id, --generation, --owner-actor, --owner-host,
 --owner-kind, plus --expect-source) records a durable receipt under the Git
-common dir (gz-integrate/v1) before the push: intent, then pushed, then the
+common dir (gz-integrate/v1, receipt schema_version 2) before the push: intent, then pushed, then the
 reclaim results. The identity is immutable — reusing an execution-id with a
-different generation/owner/repo/task/target fails before pushing. With
+different generation/owner/repo/task/target, push endpoint or protections
+fails before pushing. Legacy v1 receipts are read-only. With
 --json, run prints the machine protocol document (schema_version 1,
 snake_case: execution_id, generation, owner{actor,host,kind}, task_sha,
 target_ref, source_pushed, receipt_phase, worktree_removed,

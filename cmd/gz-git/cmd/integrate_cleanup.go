@@ -39,6 +39,11 @@ residual identity — branch at the captured SHA, registration-marked clean
 worktree — before removing anything. A mismatch, a dirty tree, a foreign or
 newer ref, or an unprovable fact preserves all residuals.
 
+Cleanup requires a schema v2 durable receipt with captured push endpoint and
+branch protections. Legacy v1 receipts are inspection-only and are not migrated.
+Completion requires fresh worktree/local/remote absence checks. Resources that
+reappear after a completed execution are preserved rather than deleted again.
+
 Cleanup JSON (--json, schema_version 1, snake_case): execution_id,
 generation, owner{actor,host,kind}, task_sha, target_ref, source_pushed,
 remote_target_contains_task, worktree_removed, local_branch_removed,

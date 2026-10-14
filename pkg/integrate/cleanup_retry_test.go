@@ -4,6 +4,7 @@
 package integrate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -358,6 +360,13 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 		f := newCleanupRetryFX(t, "@true")
 		f.realRun(t)
 		runGit(t, f.fx.Clone, "push", f.fx.Remote, f.taskSHA+":refs/heads/"+f.taskBranch)
+		// A partial execution may retain only its remote branch. A completed
+		// execution cannot authorize deleting a newly recreated branch.
+		f.amendReceiptRaw(t, func(r *Receipt) {
+			r.Phase = evidencePhasePushed
+			r.RemoteBranchRemoved = false
+			r.Claim = deadHolderClaim(t)
+		})
 		report, err := f.cleanup(t, "g7")
 		if err != nil || !report.Complete {
 			t.Fatalf("remote-only cleanup: err=%v report=%+v", err, report)
@@ -457,4 +466,450 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 			t.Fatalf("exit mapping broken")
 		}
 	})
+}
+
+func TestCleanupOnlyRetryUnboundRelativeEndpoint(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	origin := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+	decoy := filepath.Join(f.fx.Clone, "remote.git")
+	runGit(t, f.fx.Clone, "clone", "--bare", origin, decoy)
+	f.amendReceiptRaw(t, func(r *Receipt) { r.PushRemote = "remote.git" })
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupProofUnknown) || (report != nil && report.Complete) {
+		t.Fatalf("unbound relative receipt was reinterpreted: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, wt)
+	if gitOutput(t, f.fx.Clone, "ls-remote", decoy, "refs/heads/"+f.taskBranch) == "" {
+		t.Fatal("caller decoy branch was deleted")
+	}
+}
+
+func TestCleanupOnlyRetrySymbolicRefPreservesReferent(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	protected := "refs/heads/develop"
+	runGit(t, f.fx.Clone, "update-ref", protected, f.taskSHA)
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	t.Setenv("TASK302_TEST_REFERENT", protected)
+	f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  "$TASK302_TEST_GIT" symbolic-ref "$TASK302_TEST_REF" "$TASK302_TEST_REFERENT"
+fi`)
+	_, _ = f.cleanup(t, "g7")
+	got, present, err := newGitRepo(gitcmd.NewExecutor(), f.fx.Clone).revParse(context.Background(), protected)
+	if err != nil || !present || got != f.taskSHA {
+		t.Fatalf("symbolic task deletion damaged protected referent: oid=%s present=%t err=%v", got, present, err)
+	}
+}
+
+func TestCleanupOnlyRetryMovedWorktree(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	moved := filepath.Join(t.TempDir(), "moved-taskwt")
+	runGit(t, f.fx.Clone, "worktree", "move", wt, moved)
+	report, err := f.cleanup(t, "g7")
+	if err == nil || (report != nil && report.Complete) {
+		t.Fatalf("moved branch worktree was treated as absent: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, resolvePath(t, moved))
+	if r := f.receipt(t); r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("moved worktree advanced removal evidence: %+v", r)
+	}
+}
+
+func TestCleanupOnlyRetryPreservesCallerResources(t *testing.T) {
+	for _, kind := range []string{"bare", "sibling-lease"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			wt := resolvePath(t, f.fx.Worktree)
+			var resource string
+			if kind == "bare" {
+				writeRepoFile(t, wt, ".gitignore", "nested/\n")
+				runGit(t, wt, "add", ".gitignore")
+				runGit(t, wt, "commit", "-m", "ignore retry resource")
+				runGit(t, wt, "push", f.fx.Remote, f.taskBranch)
+				f.taskSHA = gitOutput(t, wt, "rev-parse", "HEAD")
+				f.execution.ExpectSource = f.taskSHA
+				nested := filepath.Join(wt, "nested")
+				runGit(t, wt, "init", "--bare", nested)
+				resource = filepath.Join(nested, "HEAD")
+			} else {
+				dir := filepath.Join(f.common, "sibling-provision-leases")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				data, err := json.Marshal(SiblingLease{Root: wt, ID: "caller-owned"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				resource = filepath.Join(dir, "caller-owned.json")
+				if err := os.WriteFile(resource, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if r := f.realRun(t); !r.Reclaim.Incomplete() || r.Reclaim.GitProof != nil {
+				t.Fatalf("normal reclaim did not preserve caller resource: %+v", r.Reclaim)
+			}
+			before, err := os.ReadFile(resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+			report, err := f.cleanup(t, "g7")
+			if err == nil || (report != nil && report.Complete) {
+				t.Fatalf("retry bypassed caller-resource refusal: report=%+v err=%v", report, err)
+			}
+			f.assertResidualsIntact(t, wt)
+			after, err := os.ReadFile(resource)
+			if err != nil || !bytes.Equal(after, before) {
+				t.Fatalf("caller resource was changed: %v", err)
+			}
+		})
+	}
+}
+
+func TestCleanupOnlyRetryLocalProbeFailure(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	f.interceptGit(t, `if [[ "$1" == "rev-parse" && "${!#}" == "$TASK302_TEST_REF" ]] || [[ "$1" == "for-each-ref" && "${!#}" == "$TASK302_TEST_REF" ]]; then
+  printf '%s\n' 'injected local inventory failure' >&2
+  exit 42
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if err == nil || (report != nil && report.Complete) {
+		t.Fatalf("failed local query became complete absence: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, wt)
+	if r := f.receipt(t); r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("failed inventory advanced removal evidence: %+v", r)
+	}
+}
+
+func TestCleanupOnlyRetryLocalExpectedOld(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	moved := gitOutput(t, f.fx.Clone, "rev-parse", f.taskSHA+"^")
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	t.Setenv("TASK302_TEST_MOVED", moved)
+	f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]] || [[ "$1" == "branch" && "${2:-}" == "-d" ]]; then
+  "$TASK302_TEST_GIT" update-ref "$TASK302_TEST_REF" "$TASK302_TEST_MOVED"
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || CleanupExitCode(err) != 3 {
+		t.Fatalf("moved ref must refuse atomic deletion with partial exit 3: report=%+v err=%v", report, err)
+	}
+	if got := gitOutput(t, f.fx.Clone, "rev-parse", "refs/heads/"+f.taskBranch); got != moved {
+		t.Fatalf("moved local ref was not preserved: got %s want %s", got, moved)
+	}
+	if gitOutput(t, f.fx.Clone, "ls-remote", f.fx.Remote, "refs/heads/"+f.taskBranch) == "" {
+		t.Fatal("remote ref was removed after local CAS refusal")
+	}
+	if r := f.receipt(t); !r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("durable partial flags do not match actual removals: %+v", r)
+	}
+}
+
+func TestCleanupOnlyRetryRemoteExactLease(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	tree := gitOutput(t, f.fx.Clone, "rev-parse", f.taskSHA+"^{tree}")
+	moved := gitOutput(t, f.fx.Clone, "commit-tree", tree, "-p", f.taskSHA, "-m", "concurrent remote work")
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	t.Setenv("TASK302_TEST_MOVED", moved)
+	t.Setenv("TASK302_TEST_REMOTE", f.fx.Remote)
+	f.interceptGit(t, `if [[ "$1" == "push" && "${!#}" == ":$TASK302_TEST_REF" ]]; then
+  "$TASK302_TEST_GIT" push "$TASK302_TEST_REMOTE" "$TASK302_TEST_MOVED:$TASK302_TEST_REF"
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || CleanupExitCode(err) != 3 {
+		t.Fatalf("remote lease must preserve concurrent work: report=%+v err=%v", report, err)
+	}
+	if got := gitOutput(t, f.fx.Clone, "ls-remote", f.fx.Remote, "refs/heads/"+f.taskBranch); len(got) < len(moved) || got[:len(moved)] != moved {
+		t.Fatalf("concurrent remote ref was deleted or moved: %q", got)
+	}
+	if r := f.receipt(t); !r.WorktreeRemoved || !r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("durable partial flags do not match actual removals: %+v", r)
+	}
+}
+
+func TestCleanupOnlyRetryLegacyReceiptIsReadOnly(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.seedReceipt(t, evidencePhasePushed, resolvePath(t, f.fx.Worktree))
+	f.amendReceiptRaw(t, func(r *Receipt) { r.SchemaVersion = evidenceSchemaVersion })
+	before, err := os.ReadFile(evidenceReceiptPath(f.common, f.execution.ExecutionID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.cleanup(t, "g7")
+	if !errors.Is(err, ErrReceiptReadOnly) {
+		t.Fatalf("v1 cleanup must refuse: %v", err)
+	}
+	after, err := os.ReadFile(evidenceReceiptPath(f.common, f.execution.ExecutionID))
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("legacy receipt changed: %v", err)
+	}
+	if got := gitOutput(t, f.fx.Clone, "rev-parse", "refs/heads/"+f.taskBranch); got != f.taskSHA {
+		t.Fatalf("legacy task branch changed: %s", got)
+	}
+}
+
+func TestCleanupOnlyRetryFinalProbeFailure(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	runGit(t, f.fx.Clone, "push", f.fx.Remote, f.taskSHA+":refs/heads/develop")
+	wt := resolvePath(t, f.fx.Worktree)
+	f.seedReceipt(t, evidencePhasePushed, wt)
+	f.markWorktree(t, wt, "g7")
+	t.Setenv("TASK302_FINAL_PROBE_FLAG", filepath.Join(t.TempDir(), "deleted"))
+	f.interceptGit(t, `if [[ "$1" == "push" && "${!#}" == :refs/heads/dev/claude/x1 ]]; then
+  "$TASK302_TEST_GIT" "$@"
+  : > "$TASK302_FINAL_PROBE_FLAG"
+  exit 0
+fi
+if [[ -f "$TASK302_FINAL_PROBE_FLAG" && "$1" == "ls-remote" && "${!#}" == refs/heads/dev/claude/x1 ]]; then
+  printf '%s\n' 'injected final remote query failure' >&2
+  exit 42
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || report == nil || report.Complete || CleanupExitCode(err) != 3 {
+		t.Fatalf("unknown final absence must remain partial: %+v %v", report, err)
+	}
+	if f.receipt(t).Phase == evidencePhaseComplete {
+		t.Fatal("query failure marked receipt complete")
+	}
+	f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+	f.interceptGit(t, "")
+	before := f.remoteTargetTip(t)
+	retry, err := f.cleanup(t, "g7")
+	if err != nil || !retry.Complete || f.remoteTargetTip(t) != before {
+		t.Fatalf("retry must prove absence without pushing: %+v %v", retry, err)
+	}
+}
+
+func TestCleanupOnlyRetryFreshAbsence(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	runGit(t, f.fx.Clone, "push", f.fx.Remote, f.taskSHA+":refs/heads/develop")
+	wt := resolvePath(t, f.fx.Worktree)
+	f.seedReceipt(t, evidencePhasePushed, wt)
+	f.markWorktree(t, wt, "g7")
+	f.interceptGit(t, `if [[ "$1" == "push" && "${!#}" == :refs/heads/dev/claude/x1 ]]; then
+  exit 0
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || report == nil || report.Complete || CleanupExitCode(err) != 3 {
+		t.Fatalf("unremoved remote must remain partial: report=%+v err=%v", report, err)
+	}
+	if f.receipt(t).Phase == evidencePhaseComplete {
+		t.Fatal("receipt marked complete without fresh absence proof")
+	}
+}
+
+func TestCleanupOnlyRetryCompleteResurrection(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	runGit(t, f.fx.Clone, "push", f.fx.Remote, f.taskSHA+":refs/heads/develop")
+	runGit(t, f.fx.Clone, "worktree", "remove", f.fx.Worktree)
+	runGit(t, f.fx.Clone, "branch", "-D", f.taskBranch)
+	runGit(t, f.fx.Clone, "push", f.fx.Remote, ":refs/heads/"+f.taskBranch)
+	f.seedReceipt(t, evidencePhaseComplete, resolvePath(t, f.fx.Clone)+"/absent-task-worktree")
+	f.amendReceiptRaw(t, func(r *Receipt) {
+		r.WorktreeRemoved, r.LocalBranchRemoved, r.RemoteBranchRemoved = true, true, true
+	})
+	runGit(t, f.fx.Clone, "branch", f.taskBranch, f.taskSHA)
+	runGit(t, f.fx.Clone, "push", f.fx.Remote, f.taskBranch)
+	report, err := f.cleanup(t, "g7")
+	if err == nil || (report != nil && report.Complete) {
+		t.Fatalf("complete receipt cannot delete resurrected resources: %+v %v", report, err)
+	}
+	if got := gitOutput(t, f.fx.Clone, "rev-parse", "refs/heads/"+f.taskBranch); got != f.taskSHA {
+		t.Fatalf("resurrected local ref was changed: %s", got)
+	}
+	if got := gitOutput(t, f.fx.Origin, "rev-parse", "refs/heads/"+f.taskBranch); got != f.taskSHA {
+		t.Fatalf("resurrected remote ref was changed: %s", got)
+	}
+}
+
+func TestCleanupOnlyRetryPartialThenResume(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  printf '%s\n' 'injected local deletion failure' >&2
+  exit 42
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || CleanupExitCode(err) != 3 || report.Complete {
+		t.Fatalf("expected actual partial removal: report=%+v err=%v", report, err)
+	}
+	if r := f.receipt(t); !r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("durable partial flags incorrect: %+v", r)
+	}
+	// Model a subsequent CLI invocation after the first holder has exited.
+	f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+	f.interceptGit(t, "")
+	before := f.remoteTargetTip(t)
+	retry, err := f.cleanup(t, "g7")
+	if err != nil || !retry.Complete {
+		t.Fatalf("partial retry failed: report=%+v err=%v", retry, err)
+	}
+	f.assertResidualsGone(t, wt)
+	if after := f.remoteTargetTip(t); after != before {
+		t.Fatalf("cleanup re-pushed target: %s -> %s", before, after)
+	}
+}
+
+func TestCleanupOnlyRetryEmptyControllerPattern(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	f.amendReceiptRaw(t, func(r *Receipt) {
+		r.Provenance.Controller = &evidenceControllerProvenance{TaskPattern: []string{}}
+	})
+	if _, err := f.cleanup(t, "g7"); !errors.Is(err, ErrCleanupGuard) {
+		t.Fatalf("empty controller pattern must preserve residuals despite declaration fallback: %v", err)
+	}
+	f.assertResidualsIntact(t, wt)
+}
+
+func TestCleanupOnlyRetryRecordedReclaimRefs(t *testing.T) {
+	for _, kind := range []string{"default", "integration", "remote-integration", "legacy-unknown"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			f.realRun(t)
+			wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+			f.amendReceiptRaw(t, func(r *Receipt) {
+				switch kind {
+				case "default":
+					r.Provenance.ReclaimRefs.Default = f.taskBranch
+				case "integration":
+					r.Provenance.ReclaimRefs.Integration = f.taskBranch
+				case "remote-integration":
+					r.Provenance.ReclaimRefs.Integration = "x1"
+					r.Remote = "dev/claude"
+				case "legacy-unknown":
+					r.Provenance.ReclaimRefs = nil
+				}
+			})
+			if _, err := f.cleanup(t, "g7"); !errors.Is(err, ErrCleanupGuard) {
+				t.Fatalf("%s must preserve residuals under the normal reclaim ref guard: %v", kind, err)
+			}
+			f.assertResidualsIntact(t, wt)
+		})
+	}
+}
+
+func TestCleanupOnlyRetryPathRefGuard(t *testing.T) {
+	for _, target := range []string{"refs/remotes/origin/develop", "develop", "refs/heads/../foreign"} {
+		t.Run(target, func(t *testing.T) {
+			if _, err := receiptTargetBranch(&Receipt{TargetRef: target, TaskBranch: "dev/actor/task"}); err == nil {
+				t.Fatalf("unsafe target ref accepted: %q", target)
+			}
+		})
+	}
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	f.amendReceiptRaw(t, func(r *Receipt) { r.Provenance.DeclarationPatterns = []string{"foreign/*"} })
+	if _, err := f.cleanup(t, "g7"); !errors.Is(err, ErrCleanupGuard) {
+		t.Fatalf("task-pattern mismatch must refuse cleanup: %v", err)
+	}
+	f.assertResidualsIntact(t, wt)
+}
+
+func TestCleanupOnlyRetryConcurrentTarget(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	lock, err := acquireTargetLock(ctx, newGitRepo(f.exec, f.fx.Clone), "refs/heads/develop", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.release()
+	revision := f.receipt(t).Revision
+	waiting := []*signalledWriter{{ch: make(chan struct{})}, {ch: make(chan struct{})}}
+	done := make(chan error, len(waiting))
+	for _, notice := range waiting {
+		go func() {
+			_, err := CleanupRetry(ctx, f.exec, CleanupOptions{RepoPath: f.fx.Clone, ExecutionID: f.execution.ExecutionID, Generation: "g7", LockNotice: notice})
+			done <- err
+		}()
+	}
+	for _, notice := range waiting {
+		select {
+		case <-notice.ch:
+		case err := <-done:
+			t.Fatalf("cleanup bypassed held target ownership: %v", err)
+		case <-ctx.Done():
+			t.Fatal("cleanup did not report target contention")
+		}
+	}
+	f.assertResidualsIntact(t, wt)
+	lock.release()
+	for range waiting {
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("cleanup after target release: %v", err)
+			}
+		case <-ctx.Done():
+			t.Fatal("cleanup did not finish after target release")
+		}
+	}
+	f.assertResidualsGone(t, wt)
+	if got := f.receipt(t).Revision; got != revision+4 {
+		t.Fatalf("concurrent follower rewrote completed cleanup: revision %d -> %d", revision, got)
+	}
+}
+
+func TestCleanupOnlyRetryReceiptFailureIsPartial(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	dir := filepath.Dir(evidenceReceiptPath(f.common, f.execution.ExecutionID))
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode := info.Mode().Perm()
+	t.Cleanup(func() {
+		if err := os.Chmod(dir, mode); err != nil {
+			t.Errorf("restore receipt directory: %v", err)
+		}
+	})
+	t.Setenv("TASK302_TEST_RECEIPTS", dir)
+	f.interceptGit(t, `if [[ "$1" == "worktree" && "${2:-}" == "remove" ]]; then
+  "$TASK302_TEST_GIT" "$@"
+  chmod 500 "$TASK302_TEST_RECEIPTS"
+  exit 0
+fi`)
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupPartial) || CleanupExitCode(err) != 3 || report == nil || !report.Receipt.WorktreeRemoved {
+		t.Fatalf("receipt failure after removal must retain partial report and exit 3: report=%+v err=%v", report, err)
+	}
+	if _, err := os.Stat(wt); !os.IsNotExist(err) {
+		t.Fatalf("worktree removal did not occur: %v", err)
+	}
+	if r := f.receipt(t); r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("failed write falsely advanced durable receipt: %+v", r)
+	}
+	if err := os.Chmod(dir, mode); err != nil {
+		t.Fatal(err)
+	}
+	f.interceptGit(t, "")
+	before := f.remoteTargetTip(t)
+	retry, err := f.cleanup(t, "g7")
+	if err != nil || !retry.Complete {
+		t.Fatalf("cleanup-only reconciliation failed: %+v %v", retry, err)
+	}
+	f.assertResidualsGone(t, wt)
+	if after := f.remoteTargetTip(t); after != before {
+		t.Fatalf("retry re-pushed integration target: %s -> %s", before, after)
+	}
 }

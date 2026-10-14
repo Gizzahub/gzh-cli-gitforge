@@ -25,6 +25,7 @@ type ReclaimResult struct {
 	RemovedWorktree     bool
 	RemovedLocalBranch  bool
 	RemovedRemoteBranch bool
+	GitProof            *GitReclaimProof
 }
 
 // Incomplete reports a successful integrate whose reclaim did not finish.
@@ -43,32 +44,16 @@ type reclaimOpts struct {
 	Patterns     []string
 	Facts        []string
 	NoFetch      bool
+	Receipt      *Receipt
 }
 
-func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts reclaimOpts) ReclaimResult {
-	var out ReclaimResult
-	if repository.IsProtected(opts.Branch) {
-		out.Skipped = fmt.Sprintf("%s is protected from reclaim", opts.Branch)
+func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts reclaimOpts) (out ReclaimResult) {
+	if reason := reclaimRefGuardReason(opts); reason != "" {
+		out.Skipped = reason
 		return out
 	}
-	if opts.Branch == opts.TargetBranch ||
-		(opts.DefaultName != "" && opts.Branch == opts.DefaultName) ||
-		(opts.Integration != "" && opts.Branch == opts.Integration) ||
-		(opts.Integration != "" && opts.Remote != "" && opts.Branch == opts.Remote+"/"+opts.Integration) {
-		out.Skipped = fmt.Sprintf("%s is the integration/default branch", opts.Branch)
-		return out
-	}
-
-	if len(opts.Patterns) == 0 {
-		fact := "no taskPattern declaration"
-		if len(opts.Facts) > 0 {
-			fact = strings.Join(opts.Facts, "; ")
-		}
-		out.Skipped = "reclaim nothing: " + fact
-		return out
-	}
-	if !config.MatchesAnyTaskPattern(opts.Branch, opts.Patterns) {
-		out.Skipped = fmt.Sprintf("%s does not match taskPattern %s", opts.Branch, strings.Join(opts.Patterns, " "))
+	if reason := reclaimPatternGuardReason(opts); reason != "" {
+		out.Skipped = reason
 		return out
 	}
 
@@ -104,22 +89,62 @@ func reclaimAfter(ctx context.Context, exec *gitcmd.Executor, g gitRepo, opts re
 		return out
 	}
 	sg := newGitRepo(exec, stand)
+	if opts.Receipt != nil && !opts.NoFetch {
+		proof, err := captureGitReclaimProof(ctx, sg, opts, taskWT, mainWT, taskTrees)
+		if err != nil {
+			out.Failed = append(out.Failed, "Git reclaim preflight: "+err.Error())
+			return out
+		}
+		out.GitProof = proof
+	}
+	if out.GitProof != nil {
+		defer finishGitReclaimProof(ctx, sg, opts, &out)
+	}
 	if !releaseAndRemoveTask(ctx, sg, stand, taskWT, &out) {
 		return out
 	}
-	if !deleteLocalTaskBranch(ctx, sg, opts.Branch, &out) {
+	if !deleteLocalTaskBranch(ctx, sg, opts.Branch, opts.TaskSHA, &out) {
 		return out
 	}
 
 	if !reclaimRemoteBranch(ctx, sg, opts, &out) {
 		return out
 	}
-	reclaimEmptyParent(taskWT, &out)
+	if out.GitProof == nil {
+		reclaimEmptyParent(taskWT, &out)
+	}
 	return out
 }
 
+func reclaimRefGuardReason(opts reclaimOpts) string {
+	if repository.IsProtected(opts.Branch) {
+		return fmt.Sprintf("%s is protected from reclaim", opts.Branch)
+	}
+	if opts.Branch == opts.TargetBranch ||
+		(opts.DefaultName != "" && opts.Branch == opts.DefaultName) ||
+		(opts.Integration != "" && opts.Branch == opts.Integration) ||
+		(opts.Integration != "" && opts.Remote != "" && opts.Branch == opts.Remote+"/"+opts.Integration) {
+		return fmt.Sprintf("%s is the integration/default branch", opts.Branch)
+	}
+	return ""
+}
+
+func reclaimPatternGuardReason(opts reclaimOpts) string {
+	if len(opts.Patterns) == 0 {
+		fact := "no taskPattern declaration"
+		if len(opts.Facts) > 0 {
+			fact = strings.Join(opts.Facts, "; ")
+		}
+		return "reclaim nothing: " + fact
+	}
+	if !config.MatchesAnyTaskPattern(opts.Branch, opts.Patterns) {
+		return fmt.Sprintf("%s does not match taskPattern %s", opts.Branch, strings.Join(opts.Patterns, " "))
+	}
+	return ""
+}
+
 func releaseAndRemoveTask(ctx context.Context, g gitRepo, stand, taskWT string, out *ReclaimResult) bool {
-	if taskWT != "" {
+	if taskWT != "" && out.GitProof == nil {
 		if err := ReleasePersistedSiblings(ctx, stand, taskWT); err != nil {
 			out.Failed = append(out.Failed, "release provisioned siblings: "+err.Error())
 			return false
@@ -144,6 +169,10 @@ func removeTaskWorktree(ctx context.Context, sg gitRepo, taskWT string, out *Rec
 		return true
 	}
 	if nested := nestedIgnoredRepos(ctx, sg, taskWT); len(nested) > 0 {
+		if out.GitProof != nil {
+			out.Failed = append(out.Failed, "Git-only reclaim refuses nested repository resources")
+			return false
+		}
 		if !reclaimDeclaredClones(ctx, sg, taskWT, nested, out) {
 			return false
 		}
@@ -158,10 +187,22 @@ func removeTaskWorktree(ctx context.Context, sg gitRepo, taskWT string, out *Rec
 	return true
 }
 
-func deleteLocalTaskBranch(ctx context.Context, sg gitRepo, branch string, out *ReclaimResult) bool {
-	res, err := sg.run(ctx, "branch", "-d", branch)
+func deleteLocalTaskBranch(ctx context.Context, sg gitRepo, branch, expected string, out *ReclaimResult) bool {
+	if err := refuseSymbolicTaskRef(ctx, sg, "refs/heads/"+branch); err != nil {
+		out.Failed = append(out.Failed, err.Error())
+		return false
+	}
+	if err := refuseCheckedOutTaskBranch(ctx, sg, branch); err != nil {
+		out.Failed = append(out.Failed, err.Error())
+		return false
+	}
+	if expected == "" {
+		out.Failed = append(out.Failed, "local delete needs the captured commit")
+		return false
+	}
+	res, err := sg.run(ctx, "update-ref", "-d", "--no-deref", "refs/heads/"+branch, expected)
 	if err != nil || (res != nil && res.ExitCode != 0) {
-		out.Failed = append(out.Failed, "branch -d "+branch+": "+gitCmdDetail(res, err))
+		out.Failed = append(out.Failed, "expected-old local delete "+branch+": "+gitCmdDetail(res, err))
 		return false
 	}
 	out.Done = append(out.Done, "local-branch")
@@ -188,24 +229,26 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	if opts.Remote == "" {
 		return true
 	}
-	if _, ok, err := sg.revParse(ctx, "refs/remotes/"+opts.Remote+"/"+opts.Branch); err != nil {
-		out.Failed = append(out.Failed, err.Error())
-		return false
-	} else if !ok {
-		// A missing local tracking ref only proves the remote branch is gone
-		// when we know that ref is current. Under --no-fetch nothing refreshed
-		// it, so it may simply be stale (never fetched, or pruned) while the
-		// remote branch still exists — treating that as "nothing to delete"
-		// would fail open and leave the remote task branch behind. Fail
-		// closed instead, matching resolveDefaultTarget/planFetchDefault.
-		if opts.NoFetch {
-			out.Failed = append(out.Failed, fmt.Sprintf(
-				"no local tracking ref for %s/%s — cannot verify without network -- retry without --no-fetch",
-				opts.Remote, opts.Branch,
-			))
+	if out.GitProof == nil {
+		if _, ok, err := sg.revParse(ctx, "refs/remotes/"+opts.Remote+"/"+opts.Branch); err != nil {
+			out.Failed = append(out.Failed, err.Error())
 			return false
+		} else if !ok {
+			// A missing local tracking ref only proves the remote branch is gone
+			// when we know that ref is current. Under --no-fetch nothing refreshed
+			// it, so it may simply be stale (never fetched, or pruned) while the
+			// remote branch still exists — treating that as "nothing to delete"
+			// would fail open and leave the remote task branch behind. Fail
+			// closed instead, matching resolveDefaultTarget/planFetchDefault.
+			if opts.NoFetch {
+				out.Failed = append(out.Failed, fmt.Sprintf(
+					"no local tracking ref for %s/%s — cannot verify without network -- retry without --no-fetch",
+					opts.Remote, opts.Branch,
+				))
+				return false
+			}
+			return true
 		}
-		return true
 	}
 	if opts.TaskSHA == "" {
 		out.Failed = append(out.Failed, "remote delete needs the integrated commit for a lease")
@@ -219,6 +262,9 @@ func reclaimRemoteBranch(ctx context.Context, sg gitRepo, opts reclaimOpts, out 
 	pushRemote := opts.PushRemote
 	if pushRemote == "" {
 		pushRemote = opts.Remote
+	}
+	if out.GitProof != nil {
+		pushRemote = out.GitProof.ObservedTarget.PushEndpoint
 	}
 	del, err := sg.run(ctx, "push", lease, pushRemote, ":"+ref)
 	if err == nil && (del == nil || del.ExitCode == 0) {
@@ -277,6 +323,8 @@ func reclaimEmptyParent(taskWT string, out *ReclaimResult) {
 type listedWorktree struct {
 	Path   string
 	Branch string
+	Head   string
+	Locked bool
 }
 
 func (g gitRepo) listWorktrees(ctx context.Context) ([]listedWorktree, error) {
@@ -299,6 +347,10 @@ func (g gitRepo) listWorktrees(ctx context.Context) ([]listedWorktree, error) {
 			cur.Path = strings.TrimPrefix(line, "worktree ")
 		case strings.HasPrefix(line, "branch refs/heads/"):
 			cur.Branch = strings.TrimPrefix(line, "branch refs/heads/")
+		case strings.HasPrefix(line, "HEAD "):
+			cur.Head = strings.TrimPrefix(line, "HEAD ")
+		case line == "locked" || strings.HasPrefix(line, "locked "):
+			cur.Locked = true
 		}
 	}
 	flush()
