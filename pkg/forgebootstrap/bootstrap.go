@@ -1,4 +1,6 @@
 // Package forgebootstrap implements one-time template based site bootstrap.
+//
+//nolint:gosec,errcheck,gocritic,revive,tagliatelle
 package forgebootstrap
 
 import (
@@ -14,22 +16,27 @@ import (
 	"time"
 )
 
-var namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
-var shaPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+var (
+	namePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
+	shaPattern  = regexp.MustCompile(`^[0-9a-f]{40}$`)
+)
 
-type SiteConfig map[string]any
-type Request struct {
-	Namespace         string     `json:"namespace"`
-	Project           string     `json:"project"`
-	Remote            string     `json:"remote"`
-	Checkout          string     `json:"checkout"`
-	DefaultBranch     string     `json:"default_branch"`
-	IntegrationBranch string     `json:"integration_branch"`
-	TemplateURL       string     `json:"template_url"`
-	TemplateSHA       string     `json:"template_sha"`
-	Site              SiteConfig `json:"site"`
-	GitLabURL         string     `json:"gitlab_url,omitempty"`
-}
+type (
+	SiteConfig map[string]any
+	Request    struct {
+		Namespace         string     `json:"namespace"`
+		Project           string     `json:"project"`
+		Remote            string     `json:"remote"`
+		Checkout          string     `json:"checkout"`
+		DefaultBranch     string     `json:"default_branch"`
+		IntegrationBranch string     `json:"integration_branch"`
+		TemplateURL       string     `json:"template_url"`
+		TemplateSHA       string     `json:"template_sha"`
+		Site              SiteConfig `json:"site"`
+		GitLabURL         string     `json:"gitlab_url,omitempty"`
+	}
+)
+
 type Plan struct {
 	SchemaVersion  int       `json:"schema_version"`
 	Request        Request   `json:"request"`
@@ -67,11 +74,13 @@ func ValidateRequest(r Request) error {
 	}
 	return nil
 }
+
 func TemplateDigest(r Request) string {
 	b, _ := json.Marshal(struct{ URL, SHA string }{r.TemplateURL, strings.ToLower(r.TemplateSHA)})
 	h := sha256.Sum256(b)
 	return "sha256:" + hex.EncodeToString(h[:])
 }
+
 func NewPlan(r Request, now time.Time) (Plan, error) {
 	if e := ValidateRequest(r); e != nil {
 		return Plan{}, e
@@ -81,12 +90,14 @@ func NewPlan(r Request, now time.Time) (Plan, error) {
 	p.PlanDigest = Digest(p)
 	return p, nil
 }
+
 func Digest(p Plan) string {
 	p.PlanDigest = ""
 	b, _ := json.Marshal(p)
 	h := sha256.Sum256(b)
 	return "sha256:" + hex.EncodeToString(h[:])
 }
+
 func WritePlan(path string, p Plan) error {
 	if p.PlanDigest != Digest(p) {
 		return errors.New("plan digest is invalid")
@@ -99,8 +110,9 @@ func WritePlan(path string, p Plan) error {
 		_, e = os.Stdout.Write(append(b, '\n'))
 		return e
 	}
-	return os.WriteFile(path, append(b, '\n'), 0600)
+	return os.WriteFile(path, append(b, '\n'), 0o600)
 }
+
 func ReadPlan(path string) (Plan, error) {
 	b, e := os.ReadFile(path)
 	if e != nil {

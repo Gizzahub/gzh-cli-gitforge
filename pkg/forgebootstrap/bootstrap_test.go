@@ -15,6 +15,7 @@ func (fakeRemote) Ensure(context.Context, Request) error { return nil }
 func valid() Request {
 	return Request{Namespace: "service-hub/singlepageweb", Project: "singlepageweb-template", Remote: "https://gitlab.example/service-hub/singlepageweb-template.git", Checkout: "/tmp/site", DefaultBranch: "master", IntegrationBranch: "develop", TemplateURL: "https://gitlab.example/service-hub/base.git", TemplateSHA: strings.Repeat("a", 40), Site: SiteConfig{"name": "template"}}
 }
+
 func TestPlanDigestRoundTrip(t *testing.T) {
 	p, e := NewPlan(valid(), time.Unix(10, 0))
 	if e != nil {
@@ -28,6 +29,7 @@ func TestPlanDigestRoundTrip(t *testing.T) {
 		t.Fatal("digest did not bind request")
 	}
 }
+
 func TestValidateRejectsUnsafeInputs(t *testing.T) {
 	r := valid()
 	r.Project = "Bad Name"
@@ -45,7 +47,7 @@ func TestApplyRejectsOccupiedCheckoutBeforeRemoteMutation(t *testing.T) {
 	r := valid()
 	d := t.TempDir()
 	r.Checkout = d
-	if err := os.WriteFile(d+"/existing", []byte("x"), 0600); err != nil {
+	if err := os.WriteFile(d+"/existing", []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	p, err := NewPlan(r, time.Unix(10, 0))

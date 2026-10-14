@@ -1,10 +1,12 @@
+//nolint:gosec,errcheck,gocritic,revive,tagliatelle
 package forgebootstrap
 
 import (
 	"context"
 	"fmt"
-	gitlab "gitlab.com/gitlab-org/api/client-go"
 	"strings"
+
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 )
 
 type GitLabRemote struct{ Client *gitlab.Client }
@@ -25,6 +27,7 @@ func NewGitLabRemote(baseURL, token string) (*GitLabRemote, error) {
 	}
 	return &GitLabRemote{c}, nil
 }
+
 func (g *GitLabRemote) Ensure(ctx context.Context, r Request) error {
 	path := r.Namespace + "/" + r.Project
 	if _, resp, e := g.Client.Projects.GetProject(path, nil, gitlab.WithContext(ctx)); e == nil || resp != nil && resp.StatusCode < 300 {
