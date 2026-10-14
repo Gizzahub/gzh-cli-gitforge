@@ -309,7 +309,10 @@ func (r *cleanupRun) reconcileAbsentResiduals(ctx context.Context, presence resi
 	if !reconciled {
 		return nil
 	}
-	return writeReceipt(ctx, r.common, receipt)
+	if err := writeReceipt(ctx, r.common, receipt); err != nil {
+		return fmt.Errorf("%w: persist reconciled residuals: %w", ErrCleanupPartial, err)
+	}
+	return nil
 }
 
 // removeResiduals removes each validated residual, recording every durable
@@ -324,18 +327,19 @@ func (r *cleanupRun) removeResiduals(ctx context.Context, presence residualPrese
 		}
 		receipt.WorktreeRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist worktree removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "worktree("+receipt.TaskWorktree+")")
 	}
 	if presence.localBranch {
-		res, err := r.g.run(ctx, "branch", "-d", receipt.TaskBranch)
+		ref := "refs/heads/" + receipt.TaskBranch
+		res, err := r.g.run(ctx, "update-ref", "-d", ref, receipt.TaskSHA)
 		if err != nil || (res != nil && res.ExitCode != 0) {
-			return fmt.Errorf("%w: branch -d %s: %s", ErrCleanupPartial, receipt.TaskBranch, gitCmdDetail(res, err))
+			return fmt.Errorf("%w: expected-old local delete %s: %s", ErrCleanupPartial, receipt.TaskBranch, gitCmdDetail(res, err))
 		}
 		receipt.LocalBranchRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist local branch removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "local-branch")
 	}
@@ -348,7 +352,7 @@ func (r *cleanupRun) removeResiduals(ctx context.Context, presence residualPrese
 		}
 		receipt.RemoteBranchRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist remote branch removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "remote-branch")
 	}
@@ -363,7 +367,7 @@ func (r *cleanupRun) finish(ctx context.Context, presence residualPresence) (*Cl
 		if receipt.Phase != evidencePhaseComplete {
 			receipt.Phase = evidencePhaseComplete
 			if err := writeReceipt(ctx, r.common, receipt); err != nil {
-				return r.report, err
+				return r.report, fmt.Errorf("%w: persist cleanup completion: %w", ErrCleanupPartial, err)
 			}
 		}
 		r.report.Complete = true
@@ -374,8 +378,9 @@ func (r *cleanupRun) finish(ctx context.Context, presence residualPresence) (*Cl
 }
 
 // CleanupExitCode maps a cleanup error to the process exit contract: 0 only
-// for a complete cleanup, 3 for a durable partial state, 2 for refusals and
-// execution errors.
+// for a complete cleanup, 3 for partial removal or failed receipt persistence,
+// and 2 for preflight refusals and execution errors. A failed write leaves the
+// previous durable receipt intact; retry re-proves actual Git absence.
 func CleanupExitCode(err error) int {
 	switch {
 	case err == nil:

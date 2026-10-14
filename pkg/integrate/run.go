@@ -544,6 +544,7 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 			Patterns:     decl.Patterns,
 			Facts:        decl.Facts,
 			NoFetch:      noFetch,
+			Receipt:      report.Receipt,
 		})
 		if report.Reclaim.Skipped != "" {
 			report.Printed = append(report.Printed, "RECLAIM skipped: "+report.Reclaim.Skipped)
