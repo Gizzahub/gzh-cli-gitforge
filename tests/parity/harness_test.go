@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Reference toolchain pinned by the contract doc. The suite runs whatever
@@ -136,6 +137,9 @@ var (
 	shaRe   = regexp.MustCompile(`\b[0-9a-f]{40}\b`)
 	shortRe = regexp.MustCompile(`\b[0-9a-f]{7,12}\b`)
 	pidRe   = regexp.MustCompile(`\bpid[=": ]+\d+`)
+	// gz-git prints this human-only diagnostic after a successful readiness
+	// run. Its elapsed duration is intentionally not part of parity output.
+	durationRe = regexp.MustCompile(`\bDuration=((?:\d+(?:\.\d+)?(?:ns|us|µs|ms|s|m|h))+)([[:space:],;\)\]]|\\+[nrt]|$)`)
 	// wt remove summaries report the reclaimed worktree's byte size, which
 	// tracks the length of the sandbox paths inside fixture files.
 	sizeRe = regexp.MustCompile(`(\d+ files? · )[0-9.]+ ?(B|kB|MB|GB)`)
@@ -178,6 +182,16 @@ func (n *normalizer) norm(s string) string {
 	s = tsRe.ReplaceAllString(s, "<TS>")
 	s = pidRe.ReplaceAllString(s, "pid=<PID>")
 	s = sizeRe.ReplaceAllString(s, "${1}<SIZE> ${2}")
+	s = durationRe.ReplaceAllStringFunc(s, func(field string) string {
+		parts := durationRe.FindStringSubmatch(field)
+		if len(parts) != 3 {
+			return field
+		}
+		if _, err := time.ParseDuration(parts[1]); err != nil {
+			return field
+		}
+		return "Duration=<DURATION>" + parts[2]
+	})
 	s = shaRe.ReplaceAllStringFunc(s, func(m string) string {
 		if _, ok := n.shas[m]; !ok {
 			n.nextSHA++

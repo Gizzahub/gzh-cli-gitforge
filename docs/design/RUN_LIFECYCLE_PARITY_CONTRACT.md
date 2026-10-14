@@ -46,12 +46,20 @@ fixtures win.
 
 Reference toolchain used by the fixtures:
 
-| Component        | Version                                                  | Role                             |
-| ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`cd0e1d19`, clean Go build metadata)             | system under test (reference)    |
-| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
-| `gz-git`         | 0.9.1 (`145799b`, installed provider during capture)     | integration provider (reclaim)   |
-| `git`            | system git                                               | refs, worktree plumbing          |
+| Component        | Version                                                    | Role                             |
+| ---------------- | ---------------------------------------------------------- | -------------------------------- |
+| `ce`             | 0.10.2 (`cd0e1d19`, clean Go build metadata)               | system under test (reference)    |
+| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
+| `gz-git`         | 0.9.1 (`96d5ecd`, official install; refreshed diagnostics) | integration provider (reclaim)   |
+| `git`            | system git                                                 | refs, worktree plumbing          |
+
+The provider-only diagnostic snapshots in `doctor-active`, `discard-no-fetch`,
+and `finish-explicit` were recaptured after the official source installation of
+`96d5ecd569c3aaf8ad5cfd0b2dcc922fe63c4859`. The CE reference revision and
+lifecycle state/ref/cleanup assertions remain unchanged. Human diagnostic
+`Duration=` values are normalized; additional readiness diagnostics and the
+canonical executable path are retained. Other scenarios retain their prior
+capture because their normalized observations are unchanged.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),

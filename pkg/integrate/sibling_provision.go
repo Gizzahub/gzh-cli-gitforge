@@ -420,7 +420,7 @@ func resolveSiblingSource(ctx context.Context, source string, dep config.Sibling
 		return gitRepo{}, "", err
 	}
 	status, err := isolatedGitRawOutput(ctx, g, "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if err != nil || status != "" {
+	if err != nil || !siblingSourceStatusClean(status) {
 		if err != nil {
 			return gitRepo{}, "", err
 		}
@@ -444,6 +444,24 @@ func resolveSiblingSource(ctx context.Context, source string, dep config.Sibling
 		oid = pinned
 	}
 	return g, oid, nil
+}
+
+// The archive contains only committed objects. Admit the observed local agent
+// metadata omitted from that archive, without allowing user excludes to hide
+// source changes or widening the independent flow-snapshot policy.
+func siblingSourceStatusClean(status string) bool {
+	return statusCleanExceptUntracked(status, func(name string) bool {
+		if isCELogRuntimeArtifactPath(name) || name == ".ce/task-runtime.yaml" {
+			return true
+		}
+		const prefix = ".agent-mesh/checkpoints/"
+		const suffix = ".checkpoint.json"
+		if !strings.HasPrefix(name, prefix) {
+			return false
+		}
+		base := strings.TrimPrefix(name, prefix)
+		return !strings.Contains(base, "/") && strings.HasSuffix(base, suffix) && strings.TrimSuffix(base, suffix) != ""
+	})
 }
 
 // DiscoverSiblingPrimary finds the dependency next to the selected repository's

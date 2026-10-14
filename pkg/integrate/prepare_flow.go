@@ -339,6 +339,12 @@ func isolatedGitEnv() []string {
 // user excludes, so tracked changes and every other untracked path remain
 // evidence that the checkout cannot be snapshotted safely.
 func flowSnapshotStatusClean(status string) bool {
+	return statusCleanExceptUntracked(status, isFlowRuntimeArtifactPath)
+}
+
+// statusCleanExceptUntracked accepts only complete NUL-delimited untracked
+// records admitted by the operation's explicit runtime-metadata policy.
+func statusCleanExceptUntracked(status string, allowPath func(string) bool) bool {
 	if status == "" {
 		return true
 	}
@@ -353,7 +359,11 @@ func flowSnapshotStatusClean(status string) bool {
 			}
 			return false
 		}
-		if len(record) < 4 || string(record[:2]) != "??" || record[2] != ' ' || !isFlowRuntimeArtifactPath(string(record[3:])) {
+		if len(record) < 4 || string(record[:2]) != "??" || record[2] != ' ' {
+			return false
+		}
+		name := string(record[3:])
+		if name == "" || path.Clean(name) != name || strings.HasPrefix(name, "/") || name == ".." || strings.HasPrefix(name, "../") || !allowPath(name) {
 			return false
 		}
 	}
@@ -367,6 +377,10 @@ func isFlowRuntimeArtifactPath(name string) bool {
 	if relative := strings.TrimPrefix(name, ".omo/run-continuation/"); relative != name {
 		return relative != "" && !strings.Contains(relative, "/") && strings.HasSuffix(relative, ".json")
 	}
+	return isCELogRuntimeArtifactPath(name)
+}
+
+func isCELogRuntimeArtifactPath(name string) bool {
 	parts := strings.Split(name, "/")
 	for index, part := range parts {
 		if part != ".ce" {
