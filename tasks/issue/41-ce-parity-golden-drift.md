@@ -1,6 +1,6 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: closed (2026-10-14 — 현행 clean CE 9877764d 참조 채택·canonical quality·실행본 안정성 검증 통과)
+- status: open (2026-10-14 — provider 설치 갱신으로 최종 source 재검증 실패·갱신 완료 대기)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
@@ -49,6 +49,15 @@ provider SHA-256은 위와 같다. 독립 strong 리뷰에서 838→987의 12개
 CE identity/stamp만이었다. ADR-0117의 새 legacy reconciliation 경로는 이 시나리오가
 실행하지 않으므로 그 경로의 동등성이나 native-port 채택을 주장하지 않는다.
 이 증거로 현행 설치본과 참조의 불일치를 해결하며 기존 모든 거절·드리프트 관측은 보존한다.
+
+그러나 전달 전 source가 `0ff0b221`로 이동해 명시적으로 재기준화하고 canonical
+품질 검사를 다시 실행하는 동안 provider도 clean `0ff0b221` 설치본으로 바뀌었다.
+재검사는 exit 2이며 `doctor-active`, `discard-no-fetch` 두 참조가 provider 도움말
+차이로 실패했다. CE는 `9877764d`를 유지했다. 앞의 PASS는 당시 CE/provider 쌍에
+대한 관측이며 최종 현행 정합성 해결·통합 완료의 증거가 아니다.
+사용자는 다른 세션의 설치 갱신이 진행 중이라고 확인했다. 따라서 자동 재캡처나
+경쟁 설치를 더 하지 않고 후보 branch와 증거를 보존한다. 설치 갱신이 끝난 뒤
+소스·실행본 출처와 해당 공개 계약 차이를 다시 검토해야 하며 이 이슈는 열린 상태다.
 
 증거 로그와 바이너리 해시는 소유 source의 `tmp/ce-reference-current-adoption/`에
 보존하며, 이 경로는 authoring source나 새로운 fixture 후보가 아니다.
