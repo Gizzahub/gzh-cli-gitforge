@@ -20,3 +20,8 @@ func killReadinessProcess(process *os.Process) error {
 	}
 	return process.Kill()
 }
+
+func readinessTerminationRequest() TerminationRequest {
+	// This unsupported runner path requests Process.Kill, not a signal.
+	return TerminationRequest{Method: "process_kill", Signal: nil}
+}

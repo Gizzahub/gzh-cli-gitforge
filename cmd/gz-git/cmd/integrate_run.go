@@ -67,7 +67,11 @@ target_ref, source_pushed, receipt_phase, worktree_removed,
 local_branch_removed, remote_branch_removed, reclaim_*, exit_code, error),
 plus the check's timing as explicit integer milliseconds:
 resource_wait_duration_ms (slot admission) and validation_duration_ms
-(gate runtime), both present even when zero.
+(gate runtime), both present even when zero. On a budget timeout,
+readiness_failures optionally carries typed stage, class, budget_ms,
+elapsed_ms, leaf_exit_code, termination_request and diagnostic_path evidence.
+A diagnostic path is local to the host that ran the command and is not
+portable evidence.
 
 Engine: gz-git-integrate (Go)
 

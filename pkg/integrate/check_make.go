@@ -43,6 +43,12 @@ type makeProbe struct {
 	// so Code stays 0 and Output stops wherever the kill landed; neither may
 	// be compared with another measurement as if the run had finished.
 	TimedOut bool
+	// Budget and Elapsed are captured at the subprocess boundary and are used
+	// only for a typed timeout receipt, never reconstructed from CheckItem
+	// prose after a comparison has run.
+	Budget             time.Duration
+	Elapsed            time.Duration
+	TerminationRequest *TerminationRequest
 	// ToolCrash holds the line proving the tool died instead of reporting
 	// findings. It is separate from Err because a crash and a rule violation
 	// are the same non-zero exit; only the output distinguishes them.
@@ -208,7 +214,10 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 	if err := processTree.configure(cmd); err != nil {
 		return makeProbe{Target: target, WorkDir: dir, Err: fmt.Errorf("prepare make process tree: %w", err)}
 	}
-	cmd.Cancel = processTree.cancel
+	var cancellation terminationRequestRecorder
+	cmd.Cancel = func() error {
+		return cancellation.cancel(makeTerminationRequest(), processTree.cancel)
+	}
 	cmd.WaitDelay = makeTargetWaitDelay
 	if lintCache != "" {
 		cmd.Env = withoutEnv(cmd.Env, "GOLANGCI_LINT_CACHE")
@@ -233,14 +242,18 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 		// Start failure never launched a process and adds exactly zero.
 		accumulateValidation(ctx, time.Since(started))
 	}
+	elapsed := time.Since(started)
 	out := buf.String()
 	if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
 		return makeProbe{
-			Target:   target,
-			WorkDir:  dir,
-			Output:   out,
-			Defined:  true,
-			TimedOut: true,
+			Target:             target,
+			WorkDir:            dir,
+			Output:             out,
+			Defined:            true,
+			TimedOut:           true,
+			Budget:             budget,
+			Elapsed:            elapsed,
+			TerminationRequest: cancellation.snapshot(),
 			Err: fmt.Errorf("make %s exceeded %s and was killed — this repository's gate likely shells out to a live/network-dependent check with no timeout of its own; last output:\n%s",
 				target, budget, crashOutputTail(out, 12)),
 		}
@@ -624,15 +637,23 @@ func judgeMakeWithoutBaseline(probe makeProbe, allowSkipped bool) (CheckItem, bo
 // judgeMakeLegacy preserves the repository-owned baseline comparison used when
 // no controller has captured a prepared target probe.
 func judgeMakeLegacy(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) CheckItem {
+	item, _ := judgeMakeLegacyMeasured(ctx, g, plan, probe, allowSkipped, budget)
+	return item
+}
+
+// judgeMakeLegacyMeasured retains the target probe long enough for Check to
+// emit typed timeout evidence. The legacy helper keeps its established API
+// for direct callers and tests while Check owns protocol recording.
+func judgeMakeLegacyMeasured(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, allowSkipped bool, budget time.Duration) (CheckItem, makeProbe) {
 	if item, decided := judgeMakeWithoutBaseline(probe, allowSkipped); decided {
-		return item
+		return item, makeProbe{}
 	}
 	name := "make " + probe.Target
-	verdict, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
+	verdict, base, err := baselineAgainstTarget(ctx, g, plan, probe, budget)
 	if err != nil {
-		return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}
+		return CheckItem{Name: name, Status: checkFail, Detail: err.Error()}, base
 	}
-	return baselineCheckItem(name, verdict, allowSkipped)
+	return baselineCheckItem(name, verdict, allowSkipped), base
 }
 
 // judgeMakeAgainstProbe consumes a target measurement captured after the
@@ -759,15 +780,15 @@ func baselineCheckItem(name string, verdict BaselineResult, allowSkipped bool) C
 	}
 }
 
-func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, budget time.Duration) (BaselineResult, error) {
+func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, probe makeProbe, budget time.Duration) (BaselineResult, makeProbe, error) {
 	root, err := os.MkdirTemp("", "gz-git-integrate-base-")
 	if err != nil {
-		return BaselineResult{}, fmt.Errorf("temp dir: %w", err)
+		return BaselineResult{}, makeProbe{}, fmt.Errorf("temp dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(root) }()
 	wt := filepath.Join(root, "wt")
 	if err := g.worktreeAddDetach(ctx, wt, plan.TargetSHA); err != nil {
-		return BaselineResult{}, fmt.Errorf("cannot build baseline worktree: %w", err)
+		return BaselineResult{}, makeProbe{}, fmt.Errorf("cannot build baseline worktree: %w", err)
 	}
 	defer func() { _ = g.worktreeRemoveForce(ctx, wt) }()
 
@@ -779,10 +800,10 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	baseProbe := runMakeTargetWithOutcomes(ctx, wt, probe.Target, budget, probe.OutcomesComparable)
 	baseProbe.Prepared = PrepareStatePristine
 	if baseProbe.Unavailable != "" {
-		return BaselineResult{}, fmt.Errorf("measurement unavailable: baseline make %s: %s", probe.Target, baseProbe.Unavailable)
+		return BaselineResult{}, baseProbe, fmt.Errorf("measurement unavailable: baseline make %s: %s", probe.Target, baseProbe.Unavailable)
 	}
 	if baseProbe.MissingCD != "" {
-		return BaselineResult{}, fmt.Errorf(
+		return BaselineResult{}, baseProbe, fmt.Errorf(
 			"baseline make %s did not run — %q missing in target tree",
 			probe.Target,
 			baseProbe.MissingCD,
@@ -790,30 +811,31 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	}
 	if probe.Target == "lint" {
 		if err := foreignDiagnosticErrorForProbe("baseline", baseProbe); err != nil {
-			return BaselineResult{}, err
+			return BaselineResult{}, baseProbe, err
 		}
 	}
 	if probe.OutcomesComparable {
-		return evaluateMakeOutcomeProbes(ctx, g, plan, probe, baseProbe)
+		verdict, err := evaluateMakeOutcomeProbes(ctx, g, plan, probe, baseProbe)
+		return verdict, baseProbe, err
 	}
 	if baseProbe.TimedOut {
-		return timedOutBaseline(baseProbe), nil
+		return timedOutBaseline(baseProbe), baseProbe, nil
 	}
 	if baseProbe.Err == nil {
-		return BaselineResult{Status: BaselineFail, Reason: branchFailsTargetPasses(probe)}, nil
+		return BaselineResult{Status: BaselineFail, Reason: branchFailsTargetPasses(probe)}, baseProbe, nil
 	}
 
 	branchTracked, err := g.lsTreeNames(ctx, plan.BranchSHA)
 	if err != nil {
-		return BaselineResult{}, err
+		return BaselineResult{}, baseProbe, err
 	}
 	baseTracked, err := g.lsTreeNames(ctx, plan.TargetSHA)
 	if err != nil {
-		return BaselineResult{}, err
+		return BaselineResult{}, baseProbe, err
 	}
 	changed, err := g.diffNames(ctx, plan.TargetSHA, plan.BranchSHA)
 	if err != nil {
-		return BaselineResult{}, err
+		return BaselineResult{}, baseProbe, err
 	}
 	return EvaluateBaseline(BaselineInput{
 		BranchLocations: extractLocationsForProbe(probe, branchTracked),
@@ -822,5 +844,5 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 		BranchPrepared:  probe.Prepared,
 		BasePrepared:    baseProbe.Prepared,
 		BaseMeasurement: baseMeasurement(baseProbe, baseTracked),
-	}), nil
+	}), baseProbe, nil
 }

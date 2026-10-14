@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -118,8 +119,60 @@ type CheckReport struct {
 	// baseline was measured and why. A source that passed is not compared
 	// with anything, so its record says the baseline was not measured
 	// instead of leaving the absence unexplained.
-	Baselines  []BaselineRecord
-	Controller *controllerBinding
+	Baselines []BaselineRecord
+	// ReadinessFailures contains only typed subprocess timeouts. Human
+	// CheckItem.Detail remains diagnostic prose and is never parsed back into
+	// protocol data.
+	ReadinessFailures []ReadinessFailure
+	Controller        *controllerBinding
+}
+
+// terminationRequestRecorder observes the Cmd.Cancel callback rather than
+// inferring a kill from a deadline. os/exec may finish before cancellation,
+// so a timeout can legitimately have a nil termination request.
+type terminationRequestRecorder struct {
+	mu      sync.Mutex
+	request *TerminationRequest
+}
+
+func (r *terminationRequestRecorder) cancel(request TerminationRequest, fn func() error) error {
+	r.mu.Lock()
+	requestCopy := request
+	r.request = &requestCopy
+	r.mu.Unlock()
+	return fn()
+}
+
+func (r *terminationRequestRecorder) snapshot() *TerminationRequest {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.request == nil {
+		return nil
+	}
+	observed := *r.request
+	return &observed
+}
+
+func (r *CheckReport) recordMakeTimeout(stage string, probe makeProbe, diagnosticPath *string) {
+	if !probe.TimedOut {
+		return
+	}
+	r.ReadinessFailures = append(r.ReadinessFailures, ReadinessFailure{
+		Stage:              stage,
+		Class:              "timeout",
+		BudgetMS:           int(probe.Budget.Milliseconds()),
+		ElapsedMS:          int(probe.Elapsed.Milliseconds()),
+		LeafExitCode:       nil,
+		TerminationRequest: probe.TerminationRequest,
+		DiagnosticPath:     diagnosticPath,
+	})
+}
+
+func (r *CheckReport) recordReadinessFailure(failure *ReadinessFailure) {
+	if failure == nil {
+		return
+	}
+	r.ReadinessFailures = append(r.ReadinessFailures, *failure)
 }
 
 // BaselineRecord states whether one make target's baseline was measured.
@@ -368,10 +421,20 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 			// A baseline that could not even be prepared is not a verdict
 			// about the target commit, and never a pass for the source.
 			item = CheckItem{Name: "make " + target, Status: checkFail, Detail: "prepare baseline: " + baselineErr.Error()}
-		default:
+		case baseline[target].Target != "":
+			report.recordMakeTimeout("legacy_make_"+target+"_target", baseline[target], nil)
 			item = judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, baseline[target], budget)
+		default:
+			// A pristine target baseline is measured inside the legacy judge.
+			// Keep the typed probe it returns so a target timeout survives the
+			// human verdict without parsing its reason text.
+			var targetProbe makeProbe
+			item, targetProbe = judgeMakeLegacyMeasured(ctx, g, plan, probe, allowSkipped, budget)
+			report.recordMakeTimeout("legacy_make_"+target+"_target", targetProbe, nil)
 		}
-		item = saveLegacyMakeDiagnostic(item, probe)
+		var diagnosticPath *string
+		item, diagnosticPath = saveLegacyMakeDiagnosticWithPath(item, probe)
+		report.recordMakeTimeout("legacy_make_"+target+"_source", probe, diagnosticPath)
 		if item.Status != checkSkip {
 			declared++
 			add(item)
@@ -466,16 +529,23 @@ func targetMovedWhileWaiting(err error) bool {
 // explains the comparison, while this diagnostic is the failed branch run the
 // operator needs to inspect.
 func saveLegacyMakeDiagnostic(item CheckItem, probe makeProbe) CheckItem {
-	if item.Status != checkFail || probe.Output == "" {
-		return item
+	item, _ = saveLegacyMakeDiagnosticWithPath(item, probe)
+	return item
+}
+
+func saveLegacyMakeDiagnosticWithPath(item CheckItem, probe makeProbe) (savedItem CheckItem, diagnosticPath *string) {
+	savedItem = item
+	if savedItem.Status != checkFail || probe.Output == "" {
+		return savedItem, nil
 	}
 	path, err := writeDiagnostic("make-"+probe.Target, []byte(probe.Output))
 	if err != nil {
-		item.Detail += "; diagnostic save failed: " + err.Error()
-		return item
+		savedItem.Detail += "; diagnostic save failed: " + err.Error()
+		return savedItem, nil
 	}
-	item.Detail += "; diagnostic: " + path
-	return item
+	savedItem.Detail += "; diagnostic: " + path
+	diagnosticPath = &path
+	return savedItem, diagnosticPath
 }
 
 func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) (*controllerBinding, error) {

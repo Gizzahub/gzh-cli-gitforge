@@ -5,8 +5,10 @@ package integrate
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -411,10 +413,11 @@ func writeRepoFile(t *testing.T, dir, name, body string) {
 // exit code the killed make never produced (ce-devenv ISSUE-012).
 func TestCheck_MakeTimeoutReportsBudgetNotRC0(t *testing.T) {
 	cases := []struct {
-		name, base, branch, want string
+		name, base, branch, want, stage string
+		wantDiagnostic                  bool
 	}{
-		{"branch exceeds the budget while the target passes", "@true", "@sleep 30", "exceeded 2s"},
-		{"baseline exceeds the budget while the branch fails", "@sleep 30", "@exit 1", "baseline unmeasurable"},
+		{"branch exceeds the budget while the target passes", "@true", "@printf 'branch timeout\\n'; sleep 30", "exceeded 2s", "legacy_make_check_source", true},
+		{"baseline exceeds the budget while the branch fails", "@printf 'baseline timeout\\n'; sleep 30", "@exit 1", "baseline unmeasurable", "legacy_make_check_target", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -436,8 +439,121 @@ func TestCheck_MakeTimeoutReportsBudgetNotRC0(t *testing.T) {
 			if hasCheckDetail(report, "make check", checkFail, "rc=0") {
 				t.Fatalf("timeout rendered as rc=0\n%s", FormatCheck(report))
 			}
+			if len(report.ReadinessFailures) != 1 {
+				t.Fatalf("timeout failures = %+v, want one typed record", report.ReadinessFailures)
+			}
+			failure := report.ReadinessFailures[0]
+			if failure.Stage != tc.stage || failure.Class != "timeout" || failure.BudgetMS != 2000 || failure.ElapsedMS <= 0 || failure.LeafExitCode != nil {
+				t.Fatalf("timeout failure = %+v, want stage=%s class=timeout budget=2000 elapsed>0 and null leaf exit", failure, tc.stage)
+			}
+			if runtime.GOOS != "windows" && (failure.TerminationRequest == nil || failure.TerminationRequest.Method != "process_group" || failure.TerminationRequest.Signal == nil || *failure.TerminationRequest.Signal != "SIGKILL") {
+				t.Fatalf("termination request = %+v, want Unix process-group SIGKILL request", failure.TerminationRequest)
+			}
+			if runtime.GOOS == "windows" && (failure.TerminationRequest == nil || failure.TerminationRequest.Method != "job_object" || failure.TerminationRequest.Signal != nil) {
+				t.Fatalf("termination request = %+v, want Windows Job Object request with null signal", failure.TerminationRequest)
+			}
+			wantSaved := tc.wantDiagnostic && runtime.GOOS != "windows"
+			if !wantSaved {
+				if failure.DiagnosticPath != nil {
+					t.Fatalf("baseline timeout diagnostic path = %q, want null", *failure.DiagnosticPath)
+				}
+				return
+			}
+			if failure.DiagnosticPath == nil {
+				t.Fatal("branch timeout diagnostic path = nil, want saved branch output")
+			}
+			info, statErr := os.Stat(*failure.DiagnosticPath)
+			if statErr != nil {
+				t.Fatalf("stat saved timeout diagnostic %q: %v", *failure.DiagnosticPath, statErr)
+			}
+			if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+				t.Fatalf("saved timeout diagnostic mode = %o, want 600", info.Mode().Perm())
+			}
 		})
 	}
+}
+
+func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
+	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{
+		Items: []CheckItem{{Name: "make check", Status: checkFail, Detail: "ordinary failure"}},
+	}}, nil, 1)
+	if protocol.ReadinessFailures != nil {
+		t.Fatalf("non-timeout failures = %+v, want omitted readiness failures", protocol.ReadinessFailures)
+	}
+	data, err := json.Marshal(protocol)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := document["readiness_failures"]; found {
+		t.Fatalf("non-timeout protocol includes readiness_failures: %#v", document["readiness_failures"])
+	}
+}
+
+func TestBuildRunProtocolTimeoutFailuresKeepNullableFieldsAndAllEntries(t *testing.T) {
+	signal := "SIGKILL"
+	request := &TerminationRequest{Method: "process_group", Signal: &signal}
+	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{ReadinessFailures: []ReadinessFailure{
+		{Stage: "legacy_make_check_source", Class: "timeout", BudgetMS: 20, ElapsedMS: 21, TerminationRequest: request},
+		{Stage: "legacy_make_lint_target", Class: "timeout", BudgetMS: 30, ElapsedMS: 31},
+		{Stage: "legacy_make_check_target", Class: "timeout", BudgetMS: 40, ElapsedMS: 41, TerminationRequest: &TerminationRequest{Method: "job_object"}},
+	}}}, nil, 1)
+	data, err := json.Marshal(protocol)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	failures, ok := document["readiness_failures"].([]any)
+	if !ok || len(failures) != 3 {
+		t.Fatalf("readiness_failures = %#v, want three entries", document["readiness_failures"])
+	}
+	for _, raw := range failures {
+		failure, ok := raw.(map[string]any)
+		if !ok {
+			t.Fatalf("failure JSON = %#v, want object", raw)
+		}
+		for _, key := range []string{"leaf_exit_code", "diagnostic_path"} {
+			value, found := failure[key]
+			if !found || value != nil {
+				t.Fatalf("failure JSON = %#v, want explicit %s:null", raw, key)
+			}
+		}
+		if _, found := failure["termination_request"]; !found {
+			t.Fatalf("failure JSON = %#v, want termination_request key", raw)
+		}
+	}
+	firstFailure := protocolFailureObject(t, failures[0])
+	firstRequest := protocolFailureObject(t, firstFailure["termination_request"])
+	if firstRequest["method"] != "process_group" || firstRequest["signal"] != "SIGKILL" {
+		t.Fatalf("termination request = %#v", firstRequest)
+	}
+	second := protocolFailureObject(t, failures[1])
+	if request, found := second["termination_request"]; !found || request != nil {
+		t.Fatalf("uncanceled timeout request = %#v, want explicit null", second["termination_request"])
+	}
+	third := protocolFailureObject(t, failures[2])
+	jobRequest := protocolFailureObject(t, third["termination_request"])
+	if jobRequest["method"] != "job_object" {
+		t.Fatalf("Windows termination request = %#v", third["termination_request"])
+	}
+	if signal, found := jobRequest["signal"]; !found || signal != nil {
+		t.Fatalf("Windows signal = %#v, want explicit null", jobRequest["signal"])
+	}
+}
+
+func protocolFailureObject(t *testing.T, raw any) map[string]any {
+	t.Helper()
+	object, ok := raw.(map[string]any)
+	if !ok {
+		t.Fatalf("protocol object = %#v, want JSON object", raw)
+	}
+	return object
 }
 
 func makeTimeoutFixture(t *testing.T, baseRecipe, branchRecipe string) *testutil.WorktreeOrigin {

@@ -52,6 +52,9 @@ func TestCheck_StaleFreshnessSkipsLegacyPreparationAndMake(t *testing.T) {
 	if report.ValidationDuration != 0 || report.ResourceWaitDuration != 0 {
 		t.Fatalf("stale source must not record gate timing: validation=%s wait=%s", report.ValidationDuration, report.ResourceWaitDuration)
 	}
+	if report.ReadinessFailures != nil {
+		t.Fatalf("stale source must not record gate failures before any gate starts: %+v", report.ReadinessFailures)
+	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("stale source ran preparation or Make commands: stat marker = %v", err)
 	}
@@ -80,6 +83,9 @@ func TestCheck_StaleFreshnessSkipsContractRunner(t *testing.T) {
 	}
 	if report.ValidationDuration != 0 {
 		t.Fatalf("validation duration = %s, want zero before runner execution", report.ValidationDuration)
+	}
+	if report.ReadinessFailures != nil {
+		t.Fatalf("stale source must not record runner failures before it starts: %+v", report.ReadinessFailures)
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("stale source ran the readiness runner: %v", err)

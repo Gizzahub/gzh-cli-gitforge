@@ -38,10 +38,34 @@ type RunProtocol struct {
 	// slot-admission wait from its gate runtime as explicit integer
 	// milliseconds; both render even when zero, so an absent gate is
 	// distinguishable from a missing field.
-	ResourceWaitDurationMS int    `json:"resource_wait_duration_ms"`
-	ValidationDurationMS   int    `json:"validation_duration_ms"`
-	ExitCode               int    `json:"exit_code"`
-	Error                  string `json:"error,omitempty"`
+	ResourceWaitDurationMS int `json:"resource_wait_duration_ms"`
+	ValidationDurationMS   int `json:"validation_duration_ms"`
+	// ReadinessFailures carries typed timeout evidence captured at the process
+	// boundary. It is absent when every readiness subprocess finished within
+	// its budget, preserving the v1 success shape for existing consumers.
+	ReadinessFailures []ReadinessFailure `json:"readiness_failures,omitempty"`
+	ExitCode          int                `json:"exit_code"`
+	Error             string             `json:"error,omitempty"`
+}
+
+// ReadinessFailure identifies one readiness subprocess that exceeded its
+// declared budget. Nullable fields render as JSON null when a process was
+// killed before it could report an exit code or no cancellation request ran.
+type ReadinessFailure struct {
+	Stage              string              `json:"stage"`
+	Class              string              `json:"class"`
+	BudgetMS           int                 `json:"budget_ms"`
+	ElapsedMS          int                 `json:"elapsed_ms"`
+	LeafExitCode       *int                `json:"leaf_exit_code"`
+	TerminationRequest *TerminationRequest `json:"termination_request"`
+	DiagnosticPath     *string             `json:"diagnostic_path"`
+}
+
+// TerminationRequest records a cancellation request actually made by the
+// process supervisor. It is a request, not proof that the OS delivered it.
+type TerminationRequest struct {
+	Method string  `json:"method"`
+	Signal *string `json:"signal"`
 }
 
 // BuildRunProtocol renders a run result. A nil report with an error is still
@@ -62,6 +86,7 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 			p.TargetRef = "refs/heads/" + targetBranchName(report.Check.Plan.Target, report.Check.Plan.Remote)
 			p.ResourceWaitDurationMS = int(report.Check.ResourceWaitDuration.Milliseconds())
 			p.ValidationDurationMS = int(report.Check.ValidationDuration.Milliseconds())
+			p.ReadinessFailures = report.Check.ReadinessFailures
 		}
 		if report.Receipt != nil {
 			p.ExecutionID = report.Receipt.ExecutionID

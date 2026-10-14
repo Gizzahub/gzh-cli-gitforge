@@ -813,6 +813,14 @@ func TestSaveLegacyMakeDiagnostic_SkipsSuccessAndBaselineOnlyOutput(t *testing.T
 	}
 }
 
+func TestSaveLegacyMakeDiagnosticWithPathEmptyOutputIsNil(t *testing.T) {
+	item := CheckItem{Name: "make check", Status: checkFail, Detail: "timed out"}
+	got, path := saveLegacyMakeDiagnosticWithPath(item, makeProbe{Target: "check"})
+	if got != item || path != nil {
+		t.Fatalf("empty output diagnostic = (%+v, %v), want unchanged item and nil path", got, path)
+	}
+}
+
 func TestSaveLegacyMakeDiagnostic_ReportsSaveFailureAndKeepsFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("private POSIX diagnostic permissions are unavailable on Windows")
@@ -822,7 +830,7 @@ func TestSaveLegacyMakeDiagnostic_ReportsSaveFailureAndKeepsFailure(t *testing.T
 		t.Fatal(err)
 	}
 	t.Setenv("XDG_STATE_HOME", stateRoot)
-	item := saveLegacyMakeDiagnostic(CheckItem{Name: "make lint", Status: checkFail, Detail: "failed here"}, makeProbe{
+	item, path := saveLegacyMakeDiagnosticWithPath(CheckItem{Name: "make lint", Status: checkFail, Detail: "failed here"}, makeProbe{
 		Target: "lint",
 		Output: "lint output",
 	})
@@ -831,5 +839,8 @@ func TestSaveLegacyMakeDiagnostic_ReportsSaveFailureAndKeepsFailure(t *testing.T
 	}
 	if !strings.Contains(item.Detail, "diagnostic save failed: create diagnostic directory") {
 		t.Fatalf("diagnostic save failure cause missing: %q", item.Detail)
+	}
+	if path != nil {
+		t.Fatalf("diagnostic save failure path = %q, want nil", *path)
 	}
 }

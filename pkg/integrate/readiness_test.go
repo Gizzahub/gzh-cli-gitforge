@@ -425,8 +425,15 @@ func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 	isolatedTemp := t.TempDir()
 	t.Setenv("TMPDIR", isolatedTemp)
 	before := gitOutput(t, fx.Worktree, "worktree", "list", "--porcelain")
-	if _, _, err := runContractWithTimeout(context.Background(), g, plan, contract, 20*time.Millisecond); err == nil {
+	result, _, runErr := runContractWithTimeout(context.Background(), g, plan, contract, 20*time.Millisecond)
+	if runErr == nil {
 		t.Fatal("slow contract accepted")
+	}
+	if result.failure == nil || result.failure.Stage != "contract_runner" || result.failure.Class != "timeout" || result.failure.BudgetMS != 20 || result.failure.ElapsedMS <= 0 || result.failure.LeafExitCode != nil || result.failure.DiagnosticPath != nil {
+		t.Fatalf("contract timeout failure = %+v, want typed timeout with null exit and diagnostic path", result.failure)
+	}
+	if runtime.GOOS != "windows" && (result.failure.TerminationRequest == nil || result.failure.TerminationRequest.Method != "process_group" || result.failure.TerminationRequest.Signal == nil || *result.failure.TerminationRequest.Signal != "SIGKILL") {
+		t.Fatalf("contract termination request = %+v, want Unix process-group SIGKILL request", result.failure.TerminationRequest)
 	}
 	after := gitOutput(t, fx.Worktree, "worktree", "list", "--porcelain")
 	if after != before {
@@ -438,6 +445,25 @@ func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("readiness temp root leaked: %v", entries)
+	}
+}
+
+func TestExecuteReadinessParentDeadlineDoesNotInventRunnerBudgetTimeout(t *testing.T) {
+	if !readinessRunnerSupported() {
+		t.Skip("contract runners are unsupported on Windows")
+	}
+	runner := filepath.Join(t.TempDir(), "runner")
+	if err := os.WriteFile(runner, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatalf("write slow runner: %v", err)
+	}
+	parent, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	result, err := executeReadinessWithTimeout(parent, runner, t.TempDir(), t.TempDir(), "source", "target", time.Minute)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("parent deadline error = %v, want context deadline exceeded", err)
+	}
+	if result.failure != nil {
+		t.Fatalf("parent deadline invented runner timeout metadata: %+v", result.failure)
 	}
 }
 

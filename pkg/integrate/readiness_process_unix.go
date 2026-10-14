@@ -30,3 +30,8 @@ func killReadinessProcess(process *os.Process) error {
 	}
 	return nil
 }
+
+func readinessTerminationRequest() TerminationRequest {
+	signal := "SIGKILL"
+	return TerminationRequest{Method: "process_group", Signal: &signal}
+}

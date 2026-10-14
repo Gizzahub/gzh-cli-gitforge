@@ -42,6 +42,7 @@ type readinessResult struct {
 	Status  string `json:"status"`
 	Summary string `json:"summary"`
 	stderr  []byte
+	failure *ReadinessFailure
 }
 
 func loadReadinessContract(ctx context.Context, g gitRepo, sha string) (readinessContract, bool, error) {
@@ -145,7 +146,12 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 		if errors.Is(err, errTargetMovedWhileWaiting) {
 			return CheckItem{Name: "readiness contract", Status: checkFail, Detail: err.Error()}
 		}
-		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: readinessFailureDetail("measurement unavailable: "+err.Error(), result.stderr)}
+		detail, path := readinessFailureDetailWithPath("measurement unavailable: "+err.Error(), result.stderr)
+		if result.failure != nil {
+			result.failure.DiagnosticPath = path
+			report.recordReadinessFailure(result.failure)
+		}
+		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: detail}
 	}
 	if result.Status == "ready" {
 		return CheckItem{Name: "readiness contract", Status: checkPass, Detail: result.Summary}
@@ -157,14 +163,23 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 }
 
 func readinessFailureDetail(detail string, stderr []byte) string {
+	detail, _ = readinessFailureDetailWithPath(detail, stderr)
+	return detail
+}
+
+func readinessFailureDetailWithPath(detail string, stderr []byte) (renderedDetail string, diagnosticPath *string) {
 	path, err := writeDiagnostic("readiness", stderr)
 	if err != nil {
-		return detail + "; diagnostic unavailable: " + err.Error()
+		renderedDetail = detail + "; diagnostic unavailable: " + err.Error()
+		return renderedDetail, nil
 	}
 	if path == "" {
-		return detail
+		renderedDetail = detail
+		return renderedDetail, nil
 	}
-	return detail + "; diagnostic: " + path
+	renderedDetail = detail + "; diagnostic: " + path
+	diagnosticPath = &path
+	return renderedDetail, diagnosticPath
 }
 
 func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration) (result readinessResult, duration time.Duration, err error) {
@@ -270,7 +285,10 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 	cmd.Env = readinessEnv(os.Environ())
 	cmd.Env = hostSlotsHeldForChild(parent, cmd.Env)
 	configureReadinessProcess(cmd)
-	cmd.Cancel = func() error { return killReadinessProcess(cmd.Process) }
+	var cancellation terminationRequestRecorder
+	cmd.Cancel = func() error {
+		return cancellation.cancel(readinessTerminationRequest(), func() error { return killReadinessProcess(cmd.Process) })
+	}
 	cmd.WaitDelay = readinessWaitDelay
 	var stdout, stderr limitedBuffer
 	stdout.limit, stderr.limit = readinessMaxIO, readinessMaxIO
@@ -285,8 +303,20 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 		// adds exactly zero.
 		accumulateValidation(parent, time.Since(started))
 	}
-	if ctx.Err() == context.DeadlineExceeded {
-		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner timed out")
+	elapsed := time.Since(started)
+	if ctx.Err() == context.DeadlineExceeded && parent.Err() == nil {
+		return readinessResult{
+			Status: "unavailable",
+			stderr: bytes.Clone(stderr.Bytes()),
+			failure: &ReadinessFailure{
+				Stage:              "contract_runner",
+				Class:              "timeout",
+				BudgetMS:           int(timeout.Milliseconds()),
+				ElapsedMS:          int(elapsed.Milliseconds()),
+				LeafExitCode:       nil,
+				TerminationRequest: cancellation.snapshot(),
+			},
+		}, fmt.Errorf("runner timed out")
 	}
 	if ctx.Err() != nil {
 		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, ctx.Err()
