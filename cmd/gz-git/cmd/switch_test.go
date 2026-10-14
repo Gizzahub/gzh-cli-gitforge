@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -15,24 +16,53 @@ import (
 )
 
 // captureStdout redirects os.Stdout for the duration of fn and returns what was written.
-func captureStdout(t *testing.T, fn func()) string {
+func captureStdout(t *testing.T, fn func()) (output string) {
 	t.Helper()
 	orig := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("os.Pipe: %v", err)
 	}
-	os.Stdout = w
-	defer func() { os.Stdout = orig }()
-
-	fn()
-
-	_ = w.Close()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r); err != nil {
-		t.Fatalf("copy stdout: %v", err)
+	type copied struct {
+		output string
+		err    error
 	}
-	return buf.String()
+	copiedCh := make(chan copied, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, copyErr := io.Copy(&buf, r)
+		closeErr := r.Close()
+		if copyErr == nil {
+			copyErr = closeErr
+		}
+		copiedCh <- copied{output: buf.String(), err: copyErr}
+	}()
+	os.Stdout = w
+	defer func() {
+		os.Stdout = orig
+		if err := w.Close(); err != nil {
+			t.Errorf("close captured stdout: %v", err)
+		}
+		result := <-copiedCh
+		output = result.output
+		if result.err != nil {
+			t.Errorf("copy stdout: %v", result.err)
+		}
+	}()
+	fn()
+	return output
+}
+
+func TestCaptureStdoutReadsBeyondPipeCapacity(t *testing.T) {
+	want := strings.Repeat("x", 256*1024)
+	got := captureStdout(t, func() {
+		if _, err := fmt.Fprint(os.Stdout, want); err != nil {
+			t.Fatalf("write captured stdout: %v", err)
+		}
+	})
+	if got != want {
+		t.Fatalf("captured %d bytes, want %d", len(got), len(want))
+	}
 }
 
 // TestDisplaySwitchResults_DefaultMode_ShowsRebaseInProgress verifies that a repo skipped

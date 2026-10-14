@@ -6,6 +6,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -33,29 +34,63 @@ func captureOutErr(t *testing.T, fn func()) (stdout, stderr string) {
 
 	errR, errW, err := os.Pipe()
 	if err != nil {
+		_ = outR.Close()
+		_ = outW.Close()
 		t.Fatalf("os.Pipe: %v", err)
 	}
-
+	type copied struct {
+		output string
+		err    error
+	}
+	copyPipe := func(reader *os.File) <-chan copied {
+		result := make(chan copied, 1)
+		go func() {
+			var buf bytes.Buffer
+			_, copyErr := io.Copy(&buf, reader)
+			closeErr := reader.Close()
+			if copyErr == nil {
+				copyErr = closeErr
+			}
+			result <- copied{output: buf.String(), err: copyErr}
+		}()
+		return result
+	}
+	outCopied, errCopied := copyPipe(outR), copyPipe(errR)
 	os.Stdout, os.Stderr = outW, errW
-
-	defer func() { os.Stdout, os.Stderr = origOut, origErr }()
-
+	defer func() {
+		os.Stdout, os.Stderr = origOut, origErr
+		if err := outW.Close(); err != nil {
+			t.Errorf("close captured stdout: %v", err)
+		}
+		if err := errW.Close(); err != nil {
+			t.Errorf("close captured stderr: %v", err)
+		}
+		outResult, errResult := <-outCopied, <-errCopied
+		stdout, stderr = outResult.output, errResult.output
+		if outResult.err != nil {
+			t.Errorf("copy stdout: %v", outResult.err)
+		}
+		if errResult.err != nil {
+			t.Errorf("copy stderr: %v", errResult.err)
+		}
+	}()
 	fn()
+	return stdout, stderr
+}
 
-	_ = outW.Close()
-	_ = errW.Close()
-
-	var outBuf, errBuf bytes.Buffer
-
-	if _, err := io.Copy(&outBuf, outR); err != nil {
-		t.Fatalf("copy stdout: %v", err)
+func TestCaptureOutErrReadsBeyondPipeCapacityOnBothStreams(t *testing.T) {
+	wantOut, wantErr := strings.Repeat("o", 256*1024), strings.Repeat("e", 256*1024)
+	gotOut, gotErr := captureOutErr(t, func() {
+		if _, err := fmt.Fprint(os.Stdout, wantOut); err != nil {
+			t.Fatalf("write stdout: %v", err)
+		}
+		if _, err := fmt.Fprint(os.Stderr, wantErr); err != nil {
+			t.Fatalf("write stderr: %v", err)
+		}
+	})
+	if gotOut != wantOut || gotErr != wantErr {
+		t.Fatalf("captured stdout/stderr lengths = %d/%d, want %d/%d", len(gotOut), len(gotErr), len(wantOut), len(wantErr))
 	}
-
-	if _, err := io.Copy(&errBuf, errR); err != nil {
-		t.Fatalf("copy stderr: %v", err)
-	}
-
-	return outBuf.String(), errBuf.String()
 }
 
 // setCleanupBranchTestGlobals pins the command's flag globals and restores them.
