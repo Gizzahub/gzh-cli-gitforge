@@ -179,7 +179,7 @@ func prepareInfraOpsPythonUV(ctx context.Context, g gitRepo, dir string, inputs 
 		return err
 	}
 	ownedRoot := infraOpsOwnedRoot(dir)
-	if err := initializeInfraOpsResources(dir, ownedRoot); err != nil {
+	if err := initializeInfraOpsResources(runCtx, dir, ownedRoot); err != nil {
 		return err
 	}
 	if err := prepareInfraOpsChildren(runCtx, g, dir, ownedRoot, inputs); err != nil {
@@ -194,9 +194,8 @@ func prepareInfraOpsPythonUV(ctx context.Context, g gitRepo, dir string, inputs 
 	if err := before.verify(ctx, g, dir); err != nil {
 		return err
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "codes"))
-	if err != nil || len(entries) != len(infraOpsDependencies) {
-		return fmt.Errorf("preparation changed the owned dependency directory")
+	if err := validateInfraOpsCodesLayout(runCtx, dir, true); err != nil {
+		return err
 	}
 	for _, spec := range infraOpsDependencies {
 		actual, err := os.Readlink(filepath.Join(dir, "codes", spec.name))
@@ -211,7 +210,7 @@ func prepareInfraOpsPythonUV(ctx context.Context, g gitRepo, dir string, inputs 
 	return validatePreparedStatusRecords([]byte(raw), isInfraOpsPreparedPath)
 }
 
-func initializeInfraOpsResources(dir, ownedRoot string) error {
+func initializeInfraOpsResources(ctx context.Context, dir, ownedRoot string) error {
 	if err := rejectPathSymlinks(filepath.Join(dir, "codes")); err != nil {
 		return err
 	}
@@ -232,12 +231,8 @@ func initializeInfraOpsResources(dir, ownedRoot string) error {
 	if err := os.MkdirAll(filepath.Join(dir, "codes"), 0o750); err != nil {
 		return err
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "codes"))
-	if err != nil {
+	if err := validateInfraOpsCodesLayout(ctx, dir, false); err != nil {
 		return err
-	}
-	if len(entries) != 0 {
-		return fmt.Errorf("refusing pre-existing codes resources")
 	}
 	if _, err := os.Lstat(ownedRoot); !os.IsNotExist(err) {
 		if err == nil {

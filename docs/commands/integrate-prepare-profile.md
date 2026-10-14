@@ -115,3 +115,8 @@ checkout hooks while retaining SSH transport authentication. Existing output
 directories and symlink escapes are refused; preparation checks the created
 venv and Node markers before declaring readiness. This remains process
 isolation, not a sandbox for trusted repository code or dependencies.
+The optional `codes/.envrc` boundary marker is preserved only when it is a
+tracked regular source file. It is not an owned dependency resource. Untracked
+markers, symlinks, directories and any other pre-existing `codes` entries are
+refused. The tracked-tree guard still rejects changes to this marker during
+preparation; cleanup never treats it as a generated resource.

@@ -146,3 +146,19 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
 
 일반적인 임의 repository hook, 자동 키 배치·회전, infra-ops 게이트 완화,
 기존 CASE/coverage 상한 조정, 다른 준비 프로필의 재설계는 하지 않는다.
+
+## 2026-10-15 실제 소비자 준비의 추적 marker 수정
+
+infra-ops 소비자 후보 `9413159c`의 실제 native 전달을 source-installed provider
+`1503edf`로 실행하자 `refusing pre-existing codes resources`로 준비가 실패했다.
+`codes/.envrc`는 target `6c6540c3`가 추적하는 일반 파일인데, executor는 codes
+디렉터리가 완전히 비어 있어야 한다고 가정했다. 소비자 marker를 삭제하지 않고
+소유 executor의 경계를 고친다. 원본은 infra-ops primary의
+`tmp/python-uv-profile-adoption/native-prepare-refusal.log`에 보존한다.
+
+실제 `.gitignore`의 `codes/*`·`!codes/.envrc`와 추적 marker를 fixture에 반영하면
+기존 source/baseline 환경·회수 회귀가 같은 이유로 RED(2.406초)였다.
+추적된 regular `.envrc`만 보존하는 수정 후 GREEN(5.428초)을 확인했다.
+그 밖의 추적 파일, untracked marker, marker symlink/directory, 기존 child는
+그대로 거부한다. 초기 거부에서 owned resource를 만들지 않는 회귀도 추가했다.
+후속 전체 검사와 실제 소비자 재실행 전에는 이 이슈를 완료 처리하지 않는다.
