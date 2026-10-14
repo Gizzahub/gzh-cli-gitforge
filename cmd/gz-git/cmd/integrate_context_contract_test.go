@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -115,6 +116,58 @@ func TestIntegrateRunContextTargetMismatchPrintsProtocolAndExitFour(t *testing.T
 	}
 	if protocol.SchemaVersion != 1 || protocol.Command != "integrate-run" || protocol.ExitCode != cliutil.ExitSourceMismatch {
 		t.Fatalf("protocol = %+v, want schema=1 command=integrate-run exit=%d", protocol, cliutil.ExitSourceMismatch)
+	}
+}
+
+func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) {
+	restore := setIntegrateRunContextGlobals(t)
+	defer restore()
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	target := gitOutputForIntegrateRun(t, fx.Clone, "branch", "--show-current")
+	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n")
+	writeFile(t, fx.Clone, "Makefile", "check:\n\t@true\nlint:\n\t@true\n")
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "declare passing baseline")
+	runGit(t, fx.Clone, "push", fx.Remote, "HEAD")
+	runGit(t, fx.Worktree, "merge", "--ff-only", target)
+	writeFile(t, fx.Worktree, "Makefile", "check:\n\t@echo readiness-failure-marker\n\t@false\nlint:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "introduce failing gate")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	before := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", target)
+	integrateRunJSON, quiet = true, false
+	integrateRunExecutionID, integrateRunGeneration = "diagnostic-run", "generation-1"
+	integrateRunOwnerActor, integrateRunOwnerHost, integrateRunOwnerKind = "codex", "mst", "agent"
+	integrateRunExpectSource = gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	var stdout, stderr bytes.Buffer
+	integrateRunCmd.SetOut(&stdout)
+	integrateRunCmd.SetErr(&stderr)
+	t.Cleanup(func() { integrateRunCmd.SetOut(nil); integrateRunCmd.SetErr(nil) })
+	t.Chdir(fx.Worktree)
+	err := runIntegrateRun(integrateRunCmd, []string{"feature/worktree"})
+	if cliutil.ExitCodeForError(err) != 1 {
+		t.Fatalf("exit = %v; stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	var protocol integrate.RunProtocol
+	if err := json.Unmarshal(stdout.Bytes(), &protocol); err != nil {
+		t.Fatalf("protocol stream contains non-JSON diagnostics: %s: %v", stdout.String(), err)
+	}
+	if protocol.SourcePushed || protocol.Integrated || protocol.PreMutationOutcome == nil {
+		t.Fatalf("refusal lost its negative binding: %+v", protocol)
+	}
+	if !strings.Contains(stderr.String(), "FAIL  make check") || !strings.Contains(stderr.String(), "diagnostic: ") || !strings.Contains(stderr.String(), "NOT READY") {
+		t.Fatalf("failed gate cause missing from stderr: %s", stderr.String())
+	}
+	for _, line := range strings.Split(stderr.String(), "\n") {
+		if _, path, found := strings.Cut(line, "diagnostic: "); found {
+			log, readErr := os.ReadFile(strings.TrimSpace(path))
+			if readErr != nil || !bytes.Contains(log, []byte("readiness-failure-marker")) {
+				t.Fatalf("reported diagnostic did not preserve the actual failed command: %v: %s", readErr, log)
+			}
+		}
+	}
+	if got := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", target); got != before {
+		t.Fatalf("failed gate changed target: %s -> %s", before, got)
 	}
 }
 

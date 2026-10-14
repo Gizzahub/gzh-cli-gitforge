@@ -72,6 +72,8 @@ readiness_failures optionally carries typed stage, class, budget_ms,
 elapsed_ms, leaf_exit_code, termination_request and diagnostic_path evidence.
 A diagnostic path is local to the host that ran the command and is not
 portable evidence.
+Readiness refusal details are printed on stderr while JSON stdout remains
+one protocol document; diagnostic paths identify the retained command logs.
 
 When a complete execution context is refused before the target push because
 target ownership timed out or readiness rejected it, pre_mutation_outcome
@@ -192,6 +194,11 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	}
 	if !quiet {
 		if integrateRunJSON {
+			if report != nil && report.Check != nil && !report.Check.Ready {
+				if _, printErr := fmt.Fprint(cmd.ErrOrStderr(), integrate.FormatCheck(report.Check)); printErr != nil {
+					return cliutil.NewExitError(2, fmt.Errorf("write readiness failure diagnostics: %w", printErr))
+				}
+			}
 			proto := integrate.BuildRunProtocol(report, err, exit)
 			data, marshalErr := json.Marshal(proto)
 			if marshalErr != nil {
