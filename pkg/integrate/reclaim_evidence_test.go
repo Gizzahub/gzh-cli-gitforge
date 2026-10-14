@@ -125,6 +125,41 @@ func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
 	}
 }
 
+func TestRunGitReclaimSymlinkParentEndpoint(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	writeRepoFile(t, f.fx.Worktree, ".gitignore", "link\nremote.git/\n")
+	runGit(t, f.fx.Worktree, "add", ".gitignore")
+	runGit(t, f.fx.Worktree, "commit", "-m", "ignore endpoint fixture resources")
+	runGit(t, f.fx.Worktree, "push", f.fx.Remote, f.taskBranch)
+	f.taskSHA = gitOutput(t, f.fx.Worktree, "rev-parse", "HEAD")
+	f.execution.ExpectSource = f.taskSHA
+	origin := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+	parent := t.TempDir()
+	actual := filepath.Join(parent, "remote.git")
+	decoy := filepath.Join(f.fx.Worktree, "remote.git")
+	subdir := filepath.Join(parent, "subdir")
+	if err := os.Mkdir(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, f.fx.Clone, "clone", "--bare", origin, actual)
+	runGit(t, f.fx.Clone, "clone", "--bare", origin, decoy)
+	before := gitOutput(t, actual, "rev-parse", "refs/heads/develop")
+	if err := os.Symlink(subdir, filepath.Join(f.fx.Worktree, "link")); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, f.fx.Clone, "remote", "set-url", "--push", f.fx.Remote, "./link/../remote.git")
+	report := f.realRun(t)
+	if got := gitOutput(t, actual, "rev-parse", "refs/heads/develop"); got != f.taskSHA {
+		t.Fatalf("configured physical target was not pushed: %s want %s", got, f.taskSHA)
+	}
+	if got := gitOutput(t, decoy, "rev-parse", "refs/heads/develop"); got != before {
+		t.Fatalf("lexical decoy target was pushed: %s -> %s", before, got)
+	}
+	if report.Receipt.PushRemote != resolvePath(t, actual) {
+		t.Fatalf("receipt bound the wrong symlink-parent endpoint: %s", report.Receipt.PushRemote)
+	}
+}
+
 func TestRunGitReclaimRelativePushEndpoint(t *testing.T) {
 	for _, retry := range []bool{false, true} {
 		for _, spelling := range []string{"remote.git", "./store@host:repo.git"} {

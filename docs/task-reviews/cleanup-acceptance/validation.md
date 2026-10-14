@@ -79,3 +79,8 @@ textual identity는 유지한다.
 normal/retry의 실제 RED로 재현했다. sanitizer와 endpoint binding이 기존
 공통 SCP 분류 helper를 함께 사용하도록 수정했고 같은 spelling의 race
 GREEN 및 `internal/gitcmd` 전체 race 회귀 검사를 확인했다.
+
+symlink 뒤의 `..`를 lexical 정리하면 실제 Git filesystem 해석과 다른
+저장소를 선택할 수 있다. 이 경우도 같은 refs를 가진 decoy로 실제 잘못된
+target push를 재현했다. relative 구성 요소를 physical resolution 전에
+보존하도록 수정하고 configured target만 변경되는 race 회귀 검사를 추가했다.

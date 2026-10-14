@@ -257,7 +257,9 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 		if err != nil {
 			return "", err
 		}
-		endpoint = filepath.Join(anchor, endpoint)
+		// Preserve symlink/.. ordering until physical resolution; Join would
+		// lexically clean it and select a different repository.
+		endpoint = anchor + string(os.PathSeparator) + endpoint //nolint:gocritic // filepath.Join changes Git symlink/.. semantics and the tested destination.
 		physical, err := filepath.EvalSymlinks(endpoint)
 		if err != nil {
 			return "", err
