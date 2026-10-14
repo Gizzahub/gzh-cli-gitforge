@@ -26,9 +26,11 @@ import (
 // Reference toolchain pinned by the contract doc. The suite runs whatever
 // `ce` resolves on PATH; the versions below are recorded into every golden
 // so a toolchain drift shows up as a diff, and re-recording is the
-// declared response.
+// declared response. The CE pin is the full 40-hex source commit of the
+// approved build (142-g612f6bf8); TestParityReferencePinsAreCoherent holds
+// goldens, harness, and contract doc to this one identity.
 const (
-	pinnedCECommit = "f540f972"
+	pinnedCECommit = "612f6bf80d76563c60464e33802ef7c299940299"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -68,6 +70,13 @@ func TestMain(m *testing.M) {
 	}
 	found, err := exec.LookPath(envOr("CE_BIN", "ce"))
 	if err != nil {
+		if os.Getenv("CE_BIN") != "" {
+			// Fail closed: an explicitly supplied CE_BIN that does not
+			// resolve must never pass as a skipped run — the goldens claim
+			// to describe that exact binary.
+			fmt.Printf("parity: CE_BIN=%s does not resolve; failing closed (goldens pin a specific CE)\n", os.Getenv("CE_BIN"))
+			os.Exit(1)
+		}
 		fmt.Println("parity: ce binary not found on PATH (or CE_BIN); skipping parity fixtures")
 		os.Exit(0)
 	}
@@ -153,6 +162,16 @@ var (
 	// wt remove summaries report the reclaimed worktree's byte size, which
 	// tracks the length of the sandbox paths inside fixture files.
 	sizeRe = regexp.MustCompile(`(\d+ files? · )[0-9.]+ ?(B|kB|MB|GB)`)
+	// Technical-only folds. The ambient gz-git provider version identity is
+	// fixture context, never the pin — the CE identity above stays literal
+	// everywhere. The fold replaces ONLY the version token, never trailing
+	// words, so error and state wording after a version line survives
+	// verbatim. The integrate validation wall-clock duration is
+	// nondeterministic run to run. Neither fold carries state, error, or
+	// exit meaning; every semantic literal in captured output stays
+	// literal.
+	gzVersionAnyRe = regexp.MustCompile(`gz-git version \d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?`)
+	durationRe     = regexp.MustCompile(`(validation \x{2014} Duration=)[0-9.]+(?:ms|\x{b5}s|us|ns|s)\b`)
 )
 
 // normalizer rewrites volatile fields into stable placeholders. The full
@@ -192,6 +211,8 @@ func (n *normalizer) norm(s string) string {
 	s = tsRe.ReplaceAllString(s, "<TS>")
 	s = pidRe.ReplaceAllString(s, "pid=<PID>")
 	s = sizeRe.ReplaceAllString(s, "${1}<SIZE> ${2}")
+	s = gzVersionAnyRe.ReplaceAllString(s, "gz-git version <GZ_GIT_VERSION>")
+	s = durationRe.ReplaceAllString(s, "${1}<DUR>")
 	s = shaRe.ReplaceAllStringFunc(s, func(m string) string {
 		if _, ok := n.shas[m]; !ok {
 			n.nextSHA++
@@ -272,7 +293,7 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	sb.git("", "clone", "-q", "--bare", "repo", "origin.git")
 	sb.git("repo", "remote", "add", "origin", filepath.Join(root, "origin.git"))
 	// A real clone carries refs/remotes/origin/<integration>; CE reads the
-	// run source from that remote-tracking ref (ce-agent-kit f540f972), so
+	// run source from that remote-tracking ref (ce-agent-kit 612f6bf8), so
 	// the sandbox fetches once to match a cloned primary checkout.
 	sb.git("repo", "fetch", "-q", "origin")
 	return sb
@@ -389,10 +410,17 @@ func must(t *testing.T, err error) {
 func (sb *sandbox) snapshotState() *stateSnapshot {
 	sb.t.Helper()
 	snap := &stateSnapshot{}
-	snap.Worktrees, _, _ = sb.run(step{cmd: "git", args: []string{"worktree", "list", "--porcelain"}, dir: "repo"})
-	snap.Refs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "repo"})
-	snap.OriginRefs, _, _ = sb.run(step{cmd: "git", args: []string{"for-each-ref", "--format=%(refname) %(objectname)"}, dir: "origin.git"})
-	snap.Log, _, _ = sb.run(step{cmd: "git", args: []string{"log", "--all", "--topo-order", "--format=%H %s"}, dir: "repo"})
+	probe := func(dir string, args ...string) string {
+		stdout, stderr, code := sb.run(step{cmd: "git", args: args, dir: dir})
+		if code != 0 || stderr != "" {
+			sb.t.Fatalf("snapshot git %v in %s is unhealthy: exit %d stderr %q stdout %q", args, dir, code, stderr, stdout)
+		}
+		return stdout
+	}
+	snap.Worktrees = probe("repo", "worktree", "list", "--porcelain")
+	snap.Refs = probe("repo", "for-each-ref", "--format=%(refname) %(objectname)")
+	snap.OriginRefs = probe("origin.git", "for-each-ref", "--format=%(refname) %(objectname)")
+	snap.Log = probe("repo", "log", "--all", "--topo-order", "--format=%H %s")
 	stateDir := filepath.Join(sb.root, "repo", ".git", "ce", "task-runtime", "v1")
 	if targetMode {
 		stateDir = filepath.Join(append([]string{sb.root, "repo", ".git"}, targetStateDir()...)...)
@@ -443,6 +471,14 @@ func (sb *sandbox) walk(v interface{}) {
 	switch tv := v.(type) {
 	case map[string]interface{}:
 		for k, item := range tv {
+			if k == "processId" {
+				// CE 0.10.1 records the provider process id in finish
+				// diagnostics; it is nondeterministic technical data with
+				// no semantic content. Only this key folds — stdout, stderr,
+				// and error wording around it stay literal.
+				tv[k] = "<PID>"
+				continue
+			}
 			if s, ok := item.(string); ok {
 				tv[k] = sb.norm.norm(s)
 				continue
@@ -458,6 +494,31 @@ func (sb *sandbox) walk(v interface{}) {
 			sb.walk(item)
 		}
 	}
+}
+
+// normStdoutJSON applies the structured walk to a captured step's stdout
+// whenever it is a JSON envelope — unconditionally, because ordinary
+// finish answers embed receipts whose diagnostics carry the nondeterministic
+// processId. Inside the walk only technical values fold (processId, the
+// ambient GZ version token, shared normalizer folds); statuses, reasons,
+// error wording, and exit-relevant text stay literal. Ambient gz-git probe
+// stdout/stderr and their errors are captured as-is — only the version
+// identity token is placeholder-folded, so distinct errors never collide.
+func (sb *sandbox) normStdoutJSON(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if !strings.HasPrefix(trimmed, "{") {
+		return s
+	}
+	var v interface{}
+	if err := json.Unmarshal([]byte(trimmed), &v); err != nil {
+		return s
+	}
+	sb.walk(v)
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return s
+	}
+	return string(out) + "\n"
 }
 
 func runScenario(t *testing.T, sc scenario) {
@@ -479,12 +540,16 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 	for _, st := range sc.steps {
 		stdout, stderr, code := sb.run(st)
+		stdout = sb.norm.norm(stdout)
+		if !targetMode {
+			stdout = sb.normStdoutJSON(stdout)
+		}
 		cs := capturedStep{
 			Step:     st.label,
 			Cmd:      firstNonEmpty(st.cmd, "ce"),
 			Argv:     st.args,
 			ExitCode: code,
-			Stdout:   sb.norm.norm(stdout),
+			Stdout:   stdout,
 			Stderr:   sb.norm.norm(stderr),
 		}
 		if st.snapshot {
@@ -565,14 +630,49 @@ func assertContract(t *testing.T, sc scenario, steps []capturedStep) {
 	}
 	switch sc.name {
 	case "finish-noarg-single-active":
+		// Re-evaluated against CE 612f6bf8: readiness is proven first (the
+		// task is committed and pushed upstream; run-status answers ACTIVE
+		// with finishReady), and no-arg run-finish then performs the
+		// finish: DONE, exit 0, source pushed, worktree and both branches
+		// reclaimed.
+		ready := stepByLabel("status-ready")
+		var readyDoc struct {
+			Status      string `json:"status"`
+			Task        string `json:"task"`
+			FinishReady bool   `json:"finishReady"`
+		}
+		must(t, json.Unmarshal([]byte(ready.Stdout), &readyDoc))
+		if ready.ExitCode != 0 || readyDoc.Task != "noarg" || readyDoc.Status != "ACTIVE" || !readyDoc.FinishReady {
+			t.Errorf("finish-noarg precondition drifted: run-status after upstream push = exit %d status %q task %q finishReady %v; the single active run must be finish-ready before the no-arg finish", ready.ExitCode, readyDoc.Status, readyDoc.Task, readyDoc.FinishReady)
+		}
 		last := stepByLabel("finish-noarg")
-		if last.ExitCode != 1 || !strings.Contains(last.Stdout, "READY") {
-			t.Errorf("known-divergent marker stale: CE now answers no-arg run-finish with exit %d stdout %q; re-evaluate ISSUE-069", last.ExitCode, last.Stdout)
+		var done struct {
+			Status  string `json:"status"`
+			Receipt *struct {
+				Operation           string `json:"operation"`
+				Status              string `json:"status"`
+				SourcePushed        bool   `json:"sourcePushed"`
+				WorktreeRemoved     bool   `json:"worktreeRemoved"`
+				LocalBranchRemoved  bool   `json:"localBranchRemoved"`
+				RemoteBranchRemoved bool   `json:"remoteBranchRemoved"`
+			} `json:"receipt"`
+		}
+		must(t, json.Unmarshal([]byte(last.Stdout), &done))
+		if last.ExitCode != 0 || done.Status != "DONE" || done.Receipt == nil ||
+			done.Receipt.Operation != "finish" || done.Receipt.Status != "DONE" ||
+			!done.Receipt.SourcePushed || !done.Receipt.WorktreeRemoved ||
+			!done.Receipt.LocalBranchRemoved || !done.Receipt.RemoteBranchRemoved {
+			t.Errorf("known-divergent contract stale: CE no-arg finish = exit %d status %q receipt %+v; expected the performed finish (DONE/exit 0, source pushed, worktree/local/remote reclaimed) — re-evaluate ISSUE-069", last.ExitCode, done.Status, done.Receipt)
 		}
 	case "reclaimed-run-reconciliation":
+		// CE 612f6bf8 reference for an externally reclaimed run: both read
+		// verbs answer BLOCKED with exit 1 and the execution history entry
+		// stays. The port keeps its native reconciliation semantics — this
+		// assert pins the CE reference only and never coerces the port.
 		listStep := stepByLabel("list-after-reclaim")
 		var envelope struct {
-			ActiveCount int `json:"activeCount"`
+			Status      string `json:"status"`
+			ActiveCount int    `json:"activeCount"`
 			Executions  []struct {
 				Task string `json:"task"`
 			} `json:"executions"`
@@ -581,8 +681,14 @@ func assertContract(t *testing.T, sc scenario, steps []capturedStep) {
 			} `json:"states"`
 		}
 		must(t, json.Unmarshal([]byte(listStep.Stdout), &envelope))
-		if envelope.ActiveCount != 0 || len(envelope.Executions) != 1 || len(envelope.States) != 1 || envelope.States[0].Status != "ABORTED" {
-			t.Errorf("reconciliation contract broken: activeCount=%d executions=%d states=%+v — an externally reclaimed run must stay in executions[] with a terminal states[].status", envelope.ActiveCount, len(envelope.Executions), envelope.States)
+		if listStep.ExitCode != 1 || envelope.Status != "BLOCKED" || envelope.ActiveCount != 0 ||
+			len(envelope.Executions) != 1 || envelope.Executions[0].Task != "reclaimed-task" ||
+			len(envelope.States) != 1 || envelope.States[0].Status != "BLOCKED" {
+			t.Errorf("reclaimed CE reference drifted: list = exit %d status %q activeCount %d executions %d states %+v — expected BLOCKED/exit 1 with the history entry retained; re-evaluate the declared divergence", listStep.ExitCode, envelope.Status, envelope.ActiveCount, len(envelope.Executions), envelope.States)
+		}
+		statusStep := stepByLabel("status-after-reclaim")
+		if statusStep.ExitCode != 1 || !strings.Contains(statusStep.Stdout, "Worktrunk inventory does not match execution metadata") {
+			t.Errorf("reclaimed CE reference drifted: status = exit %d stdout %q — expected BLOCKED/exit 1 with the inventory-mismatch reason; re-evaluate the declared divergence", statusStep.ExitCode, statusStep.Stdout)
 		}
 	}
 }
@@ -603,10 +709,15 @@ func probeToolchain(t *testing.T) toolchain {
 		}
 		return strings.TrimSpace(string(out))
 	}
+	gz := version("gz-git", "--version")
+	// Ambient-GZ isolation at the toolchain block: the provider version is
+	// fixture context and folds to the declared placeholder; the CE and wt
+	// tokens stay literal — they are part of the pinned reference identity.
+	gz = gzVersionAnyRe.ReplaceAllString(gz, "gz-git version <GZ_GIT_VERSION>")
 	return toolchain{
 		CE:    version(ceBin, "version"),
 		Wt:    version("wt", "--version"),
-		GzGit: version("gz-git", "--version"),
+		GzGit: gz,
 	}
 }
 
