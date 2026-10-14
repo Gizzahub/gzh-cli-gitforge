@@ -51,6 +51,13 @@ func snapshotPrepareInputs(ctx context.Context, selected gitRepo, profile string
 	if profile == cargoWorkspacePrepareV1 || profile == pnpmFrozenLockfilePrepareV1 {
 		return nil, nil
 	}
+	if profile == infraOpsPythonUVV1 {
+		sha, err := selected.headSHA(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return snapshotInfraOpsPythonUVInputs(ctx, selected, sha)
+	}
 	if profile != flowTaskchainLocalSubprojectsV1 {
 		return nil, fmt.Errorf("unsupported preparation profile %q", profile)
 	}
@@ -73,6 +80,13 @@ func snapshotPrepareInputs(ctx context.Context, selected gitRepo, profile string
 		inputs = append(inputs, input)
 	}
 	return inputs, nil
+}
+
+func snapshotPrepareInputsAt(ctx context.Context, selected gitRepo, profile, sourceSHA string) ([]prepareInput, error) {
+	if profile == infraOpsPythonUVV1 {
+		return snapshotInfraOpsPythonUVInputs(ctx, selected, sourceSHA)
+	}
+	return snapshotPrepareInputs(ctx, selected, profile)
 }
 
 func primaryFlowTaskchainDevbox(ctx context.Context, selected gitRepo) (string, error) {

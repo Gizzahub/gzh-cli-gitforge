@@ -217,6 +217,8 @@ type evidenceControllerProvenance struct {
 type evidenceProvenance struct {
 	DeclarationPatterns []string                      `json:"declaration_patterns"`
 	DeclarationFacts    []string                      `json:"declaration_facts,omitempty"`
+	PrepareProfile      string                        `json:"prepare_profile,omitempty"`
+	PrepareInputs       string                        `json:"prepare_inputs,omitempty"`
 	Controller          *evidenceControllerProvenance `json:"controller,omitempty"`
 }
 

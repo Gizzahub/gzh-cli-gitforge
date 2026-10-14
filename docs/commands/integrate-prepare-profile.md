@@ -80,3 +80,38 @@ one per workspace package. The 10-minute ceiling is for a cold store.
 
 `familybook-ent-v1` remains the fixed Ent generation profile. Details and its
 controller example are in [controller-config integration](integrate-controller-config.md).
+
+`infra-ops-python-uv-v1` is a fixed, opt-in executor for the supported
+infra-ops layout. Its source commit must contain
+`scripts/worktree-env-inputs.json`, a schema-version-1 JSON document with the
+two ordered dependency names `sbkube` and `cloud-script-transformer` and their
+lowercase 40-character commit IDs. The manifest does not name remotes, paths,
+commands, registries, or environment variables. Those are fixed by this
+executor: it checks out both dependencies from their canonical remotes, runs
+`uv sync --frozen`, and runs frozen pnpm installation for
+`library/ga4-admin` and `library/m365ctl`.
+
+Each detached source or target worktree receives its own environment. Child
+clones and the virtual environment live under the task-owned prepare root next
+to the worktree, while `codes/*` inside the worktree are links to those child
+clones. This avoids nested Git repositories that would prevent Git from
+removing the prepared worktree. The Make probes receive only that worktree's
+`UV_PROJECT_ENVIRONMENT`, `VIRTUAL_ENV`, and `UV_NO_SYNC=1`; inherited UV
+variables are replaced only for this profile. The manifest blob and child
+commit IDs appear in preparation evidence and durable receipt provenance,
+alongside each commit's Python and pnpm lockfile blob IDs. Each commit uses its
+own manifest when present, so a source child-pin regression cannot be hidden by
+preparing the target with the same broken source pin. Only repository-owned
+first adoption (source declares the profile, target declares none and lacks
+the manifest) uses source inputs to bootstrap the target, visibly marked
+`target-input-mode=source-bootstrap`. A declared target profile without its
+manifest fails; controller-only selection cannot use this bridge. Initial
+adoption must preserve and verify the prior helper's pins. Missing tools, invalid project
+shape, unsafe paths, clone/fetch failures, lockfile failures, ref movement, or
+the 30-minute preparation ceiling fail preparation; there is no offline or
+ambient-venv fallback.
+Git dependency operations ignore global/system configuration, URL rewrites and
+checkout hooks while retaining SSH transport authentication. Existing output
+directories and symlink escapes are refused; preparation checks the created
+venv and Node markers before declaring readiness. This remains process
+isolation, not a sandbox for trusted repository code or dependencies.

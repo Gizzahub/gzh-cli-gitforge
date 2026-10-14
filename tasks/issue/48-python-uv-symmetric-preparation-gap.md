@@ -7,7 +7,7 @@
 - owner: `gzh-cli-gitforge/pkg/integrate`
 - implementation-grade: strong
 - review-grade: strong (독립 리뷰)
-- work-card: 없음 — 구현 착수 시 devbox 루트에 실행 카드를 만든다
+- work-card: `gzh-cli-devbox:tasks/todo/324-python-uv-symmetric-preparation.md` (TASK-324)
 - related: [ISSUE-034](34-generalize-prepare-profile-baseline-probe-dies-without-bootstrap.md), infra-ops `tasks/issue/005-integrate-baseline-unmeasurable-in-pristine-worktree.md`
 
 ## 확인된 문제
@@ -78,6 +78,37 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
   기존 네 프로필과 infra-ops의 standalone 환경 준비 회귀검사를 보존한다.
 - infra-ops에서 프로필 채택 후 해당 Python 측정 축의 대칭 준비 증거를 확보한다.
   기존 Ansible 로케일 문제·호스트 비밀 전제·GA4 timeout의 해결까지 주장하지 않는다.
+
+## 2026-10-14 구현 진행
+
+- gzh 측 closed profile `infra-ops-python-uv-v1` 구현은 source와 target 각 commit의
+  `scripts/worktree-env-inputs.json`을 읽어 각각의 child revision을 적용한다.
+  최초 채택에서만 profile 선언이 없는 target에 source 입력을 적용하며
+  `target-input-mode=source-bootstrap`으로 기록한다. 이미 선언한 target의
+  manifest 누락은 오류다. manifest에는 revision 외 설정을 넣지 않고 canonical
+  remote·path·명령은 executor가 소유한다.
+- child clone과 venv는 linked worktree 바깥의 task-owned prepare root에 두고,
+  worktree의 `codes/*`에는 symlink만 만든다. nested Git checkout이 worktree
+  cleanup을 막지 않도록 한 계약이다.
+- 아직 infra-ops 소비자 선언·실제 통합 검증은 이 카드의 후속 범위다. 현재 구현
+  검증에는 실제 Git checkout과 legacy gate를 사용하는 회귀검사도 포함한다.
+  child pin 변경으로 source만 실패하고 target은 통과하는 경우, Git 설정과
+  hook 격리, receipt 재읽기, 양쪽 환경 회수를 확인했다. 전체 quality gate와
+  독립 리뷰는 별도 확인하며, 다른 세션의 설치본 갱신 중에는 parity reference를
+  자동 재캡처하지 않는다. ISSUE-041의 미해결 실패를 통과로 보고하지 않는다.
+- 최신 코드의 독립 strong 리뷰, 집중 검사(20.102초), 기존 Pnpm/Cargo/
+  Legacy/FlowTaskchain 검사(16.364초), lint(0 issues), config 전체 검사는 통과했다.
+  증거는 `tmp/python-uv-prepare-evidence/final-focused.log`,
+  `existing-profiles.log`, `final-lint.log`와 실행 도구 출력에 있다.
+- 전체 `make quality-check` 시도는 종료 코드 2였다. 최종 리뷰 수정 전에
+  시작한 실행으로, lint·security·build 뒤 unit 단계에서 멈췄다.
+  `pkg/integrate`의 기존 테스트는 임시 디렉터리/Git 파일 생성의
+  `No space left on device`로 실패했고, parity는 ISSUE-041의 기존 불일치였다.
+  `cmd/gz-git/cmd`는 20분 제한을 넘어 stdout 캡처 경로에 머물러, 소유한
+  테스트 프로세스만 SIGQUIT으로 stack을 기록하고 중단했다. 원인은 별도 조사한다.
+  로그는 `tmp/python-uv-prepare-evidence/quality-after-lint-fix.log`다.
+  후속 integration/E2E/coverage 단계와 최종 코드 전체 gate 통과는 주장하지 않는다.
+  설치본과 저장 공간이 안정된 뒤 source 정렬·최종 gate·통합을 이어간다.
 
 ## 범위 밖
 

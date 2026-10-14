@@ -22,6 +22,9 @@ const (
 	// PrepareProfilePnpmFrozenLockfileV1 installs a pnpm project's locked
 	// dependencies before the readiness probes run.
 	PrepareProfilePnpmFrozenLockfileV1 = "pnpm-frozen-lockfile-v1"
+	// PrepareProfileInfraOpsPythonUVV1 prepares infra-ops' locked Python and
+	// Node dependencies in a detached integration worktree.
+	PrepareProfileInfraOpsPythonUVV1 = "infra-ops-python-uv-v1"
 )
 
 var validPrepareProfiles = map[string]struct{}{
@@ -29,6 +32,7 @@ var validPrepareProfiles = map[string]struct{}{
 	PrepareProfileFlowTaskchainLocalSubprojectsV1: {},
 	PrepareProfileCargoWorkspaceV1:                {},
 	PrepareProfilePnpmFrozenLockfileV1:            {},
+	PrepareProfileInfraOpsPythonUVV1:              {},
 }
 
 // ValidatePrepareProfile validates the closed set of repository preparation

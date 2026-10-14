@@ -406,7 +406,8 @@ func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller
 	probes := make(map[string]makeProbe, len(targets))
 	var needed []string
 	for _, target := range targets {
-		probe := prepared.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, prepared.source, target, budget, outcomes.source.Includes(target)))
+		probeCtx := withInfraOpsPrepareMakeEnv(ctx, prepared.source, profile)
+		probe := prepared.annotateProbe(probeCtx, runMakeTargetWithOutcomes(probeCtx, prepared.source, target, budget, outcomes.source.Includes(target)))
 		probe.OutcomesComparable = outcomes.target.Includes(target)
 		probes[target] = probe
 		_, decided := judgeMakeWithoutBaseline(probe, allowSkipped)

@@ -21,6 +21,9 @@ type preparedLegacy struct {
 	source, root string
 	profile      string
 	inputs       []prepareInput
+	targetInputs []prepareInput
+	inputMode    string
+	lockInputs   []prepareInput
 	// sourcePrepared is the kind of tree source is. It is stamped onto every
 	// probe measured there so the baseline comparison can see whether the two
 	// sides were prepared alike, instead of assuming they were.
@@ -41,14 +44,28 @@ func (p preparedLegacy) annotateProbe(ctx context.Context, probe makeProbe) make
 
 // evidence is a stable, human-readable record of the closed profile and the
 // immutable subproject commits extracted into every prepared tree. The
-// source always gets them; the target gets the same ones only when a
-// baseline is measured, which the per-target baseline record states.
+// Source inputs always run. Python target inputs belong to the target commit;
+// other profiles share their snapshot. Target inputs run only when a baseline
+// is measured, which the per-target baseline record states.
 func (p preparedLegacy) evidence() string {
 	if p.profile == "" {
 		return ""
 	}
 	parts := []string{p.profile}
 	for _, input := range p.inputs {
+		name := input.Name
+		if p.profile == infraOpsPythonUVV1 {
+			name = "source:" + name
+		}
+		parts = append(parts, name+"@"+input.OID)
+	}
+	for _, input := range p.targetInputs {
+		parts = append(parts, "target:"+input.Name+"@"+input.OID)
+	}
+	if p.inputMode != "" {
+		parts = append(parts, p.inputMode)
+	}
+	for _, input := range p.lockInputs {
 		parts = append(parts, input.Name+"@"+input.OID)
 	}
 	return strings.Join(parts, " ")
@@ -96,16 +113,33 @@ func prepareLegacySourceWithResource(ctx context.Context, g gitRepo, plan Target
 		}
 		return preparedLegacy{source: g.dir, sourcePrepared: PrepareStateWorkingDir}, nil
 	}
-	inputs, err := snapshotPrepareInputs(ctx, g, profile)
+	inputs, err := snapshotPrepareInputsAt(ctx, g, profile, plan.BranchSHA)
 	if err != nil {
 		return preparedLegacy{}, fmt.Errorf("snapshot preparation inputs: %w", err)
+	}
+	lockInputs, err := snapshotPrepareLockInputs(ctx, g, profile, plan.BranchSHA, "source")
+	if err != nil {
+		return preparedLegacy{}, fmt.Errorf("snapshot source preparation lockfiles: %w", err)
+	}
+	var targetInputs []prepareInput
+	var inputMode string
+	if profile == infraOpsPythonUVV1 {
+		targetInputs, inputMode, err = snapshotInfraOpsTargetInputs(ctx, g, plan, inputs)
+		if err != nil {
+			return preparedLegacy{}, fmt.Errorf("snapshot target preparation inputs: %w", err)
+		}
+		targetLocks, err := snapshotPrepareLockInputs(ctx, g, profile, plan.TargetSHA, "target")
+		if err != nil {
+			return preparedLegacy{}, fmt.Errorf("snapshot target preparation lockfiles: %w", err)
+		}
+		lockInputs = append(lockInputs, targetLocks...)
 	}
 	root, err := os.MkdirTemp("", "gz-git-integrate-prepare-")
 	if err != nil {
 		return preparedLegacy{}, err
 	}
 	source := filepath.Join(root, "source")
-	if err := g.worktreeAddDetach(ctx, source, plan.BranchSHA); err != nil {
+	if err := addPreparedWorktree(ctx, g, source, plan.BranchSHA, profile); err != nil {
 		_ = os.RemoveAll(root)
 		return preparedLegacy{}, fmt.Errorf("prepare source worktree: %w", err)
 	}
@@ -117,11 +151,11 @@ func prepareLegacySourceWithResource(ctx context.Context, g gitRepo, plan Target
 		cleanupErr := removePreparedWorktree(ctx, g, source, root)
 		return preparedLegacy{}, errors.Join(fmt.Errorf("prepare source: %w", err), cleanupErr)
 	}
-	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, g: g, prepareHighLoad: prepareHighLoad, opts: opts}, nil
+	return preparedLegacy{source: source, root: root, sourcePrepared: PrepareStateProfilePrepared, controllerPrepared: true, profile: profile, inputs: inputs, targetInputs: targetInputs, inputMode: inputMode, lockInputs: lockInputs, g: g, prepareHighLoad: prepareHighLoad, opts: opts}, nil
 }
 
 // measureBaseline measures the target commit for exactly the named make
-// targets, with the profile and input snapshot the source was prepared from.
+// targets, with the same profile and its selected target input snapshot.
 // Both sides get a fresh worktree and the same profile, so these probes ARE
 // prepared alike; the stamp records that symmetry as evidence.
 //
@@ -141,12 +175,16 @@ func (p *preparedLegacy) measureBaseline(ctx context.Context, plan TargetPlan, t
 		p.source = ""
 	}
 	target := filepath.Join(p.root, "target")
-	if err := p.g.worktreeAddDetach(ctx, target, plan.TargetSHA); err != nil {
+	if err := addPreparedWorktree(ctx, p.g, target, plan.TargetSHA, p.profile); err != nil {
 		return nil, fmt.Errorf("prepare target worktree: %w", err)
+	}
+	inputs := p.inputs
+	if p.profile == infraOpsPythonUVV1 {
+		inputs = p.targetInputs
 	}
 	guard, err := newPreparedRefGuard(ctx, p.g, plan, plan.TargetSHA)
 	if err == nil {
-		err = runPrepareProfileWithResource(ctx, p.g, target, p.profile, p.inputs, guard, p.prepareHighLoad, p.opts)
+		err = runPrepareProfileWithResource(ctx, p.g, target, p.profile, inputs, guard, p.prepareHighLoad, p.opts)
 	}
 	if err != nil {
 		cleanupErr := removePreparedWorktree(ctx, p.g, target, "")
@@ -154,7 +192,8 @@ func (p *preparedLegacy) measureBaseline(ctx context.Context, plan TargetPlan, t
 	}
 	baseline := make(map[string]makeProbe, len(targets))
 	for _, name := range targets {
-		baseline[name] = p.annotateProbe(ctx, runMakeTargetWithOutcomes(ctx, target, name, budget, outcomes.Includes(name)))
+		probeCtx := withInfraOpsPrepareMakeEnv(ctx, target, p.profile)
+		baseline[name] = p.annotateProbe(probeCtx, runMakeTargetWithOutcomes(probeCtx, target, name, budget, outcomes.Includes(name)))
 	}
 	if err := removePreparedWorktree(ctx, p.g, target, ""); err != nil {
 		return nil, fmt.Errorf("cleanup prepared target: %w", err)
@@ -250,6 +289,9 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 	}
 	if profile == pnpmFrozenLockfilePrepareV1 {
 		return preparePnpmFrozenLockfile(parent, g, dir, guard)
+	}
+	if profile == infraOpsPythonUVV1 {
+		return prepareInfraOpsPythonUV(parent, g, dir, inputs, guard)
 	}
 	if profile != familybookEntPrepareV1 {
 		return fmt.Errorf("unsupported preparation profile %q", profile)
@@ -352,6 +394,10 @@ func validatePreparedStatusAllowing(ctx context.Context, dir string, allowed fun
 	if err != nil {
 		return fmt.Errorf("inspect prepared tree: %w", err)
 	}
+	return validatePreparedStatusRecords(raw, allowed)
+}
+
+func validatePreparedStatusRecords(raw []byte, allowed func(path string) bool) error {
 	for _, record := range bytes.Split(raw, []byte{0}) {
 		if len(record) == 0 {
 			continue

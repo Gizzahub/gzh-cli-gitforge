@@ -196,6 +196,12 @@ func runMakeTargetWithReportPath(ctx context.Context, dir, target string, budget
 	cmd := exec.CommandContext(runCtx, "make", "-w", target) // #nosec G204 -- validated against allowedMakeTargets above
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	if overlay := prepareMakeEnv(ctx); len(overlay) > 0 {
+		for _, key := range []string{"UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV", "UV_NO_SYNC"} {
+			cmd.Env = withoutEnv(cmd.Env, key)
+		}
+		cmd.Env = append(cmd.Env, overlay...)
+	}
 	cmd.Env = hostSlotsHeldForChild(ctx, cmd.Env)
 	cmd.Env = withoutEnv(cmd.Env, makeOutcomeReportEnv)
 	if reportPath != "" {
