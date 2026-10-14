@@ -5,8 +5,10 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
@@ -33,6 +35,20 @@ type RunReport struct {
 	// Receipt is the durable evidence recorded for an execution-context run;
 	// nil for a legacy run.
 	Receipt *Receipt
+	// PreMutationOutcome is set only when this invocation durably recorded a
+	// verified refusal before it could enter the target push.
+	PreMutationOutcome *PreMutationOutcome
+}
+
+const preMutationOutcomeWriteTimeout = 5 * time.Second
+
+// recordCurrentPreMutationOutcome gives the evidence write a bounded context
+// after the caller's lock-wait context has expired. Reusing the canceled
+// context would turn a verified pre-push refusal into an unbound error.
+func recordCurrentPreMutationOutcome(ctx context.Context, capture *preMutationCapture, phase string) (*PreMutationOutcome, error) {
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), preMutationOutcomeWriteTimeout)
+	defer cancel()
+	return recordPreMutationOutcome(writeCtx, capture, phase)
 }
 
 // Run fast-forwards the target and reclaims the task branch.
@@ -48,6 +64,27 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	}
 	if opts.Execution != nil {
 		opts.ExpectSource = opts.Execution.ExpectSource
+		opts.preMutation = &preMutationCapture{execution: *opts.Execution}
+		dir := strings.TrimSpace(opts.RepoPath)
+		if dir == "" {
+			dir = "."
+		}
+		g := newGitRepo(exec, dir)
+		if !g.isRepo(ctx) {
+			return nil, fmt.Errorf("not a git repository: %s", dir)
+		}
+		common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+		if err != nil || common == "" {
+			if err == nil {
+				err = fmt.Errorf("git common directory is empty")
+			}
+			return nil, fmt.Errorf("resolve execution run common directory: %w", err)
+		}
+		runLock, err := acquireExecutionRunLock(ctx, common, opts.Execution.ExecutionID)
+		if err != nil {
+			return nil, err
+		}
+		defer runLock.release()
 	}
 	// Target ownership survives readiness through the exact lease push and
 	// reclaim. Resource slots are acquired only around declared high-load gates.
@@ -55,9 +92,27 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	defer lock.release()
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
-		return nil, err
+		report := &RunReport{Check: check}
+		if errors.Is(err, errTargetLockWait) {
+			outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseTargetLockWait)
+			if recordErr != nil {
+				return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
+			}
+			report.PreMutationOutcome = outcome
+		}
+		return report, err
 	}
-	return runChecked(ctx, exec, opts, check)
+	report, err := runChecked(ctx, exec, opts, check)
+	if err != nil && check != nil && !check.Ready {
+		outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
+		if recordErr != nil {
+			return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
+		}
+		if report != nil {
+			report.PreMutationOutcome = outcome
+		}
+	}
+	return report, err
 }
 
 // runChecked continues an integration from an immutable readiness report.

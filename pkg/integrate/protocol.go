@@ -44,8 +44,12 @@ type RunProtocol struct {
 	// boundary. It is absent when every readiness subprocess finished within
 	// its budget, preserving the v1 success shape for existing consumers.
 	ReadinessFailures []ReadinessFailure `json:"readiness_failures,omitempty"`
-	ExitCode          int                `json:"exit_code"`
-	Error             string             `json:"error,omitempty"`
+	// PreMutationOutcome is a separately durable, context-bound refusal that
+	// this invocation recorded before it reached the target push. Its absence
+	// is never evidence that a push did not happen.
+	PreMutationOutcome *PreMutationOutcome `json:"pre_mutation_outcome,omitempty"`
+	ExitCode           int                 `json:"exit_code"`
+	Error              string              `json:"error,omitempty"`
 }
 
 // ReadinessFailure identifies one readiness subprocess that exceeded its
@@ -101,6 +105,16 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 			if p.TaskRefEmpty() {
 				p.TargetRef = report.Receipt.TargetRef
 			}
+		}
+		if report.PreMutationOutcome != nil {
+			outcome := *report.PreMutationOutcome
+			p.PreMutationOutcome = &outcome
+			p.ExecutionID = outcome.ExecutionID
+			p.Generation = outcome.Generation
+			owner := outcome.Owner
+			p.Owner = &owner
+			p.TaskSHA = outcome.TaskSHA
+			p.TargetRef = outcome.TargetRef
 		}
 	}
 	if err != nil {

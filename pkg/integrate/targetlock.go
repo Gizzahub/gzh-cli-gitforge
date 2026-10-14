@@ -6,6 +6,7 @@ package integrate
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,10 @@ import (
 )
 
 const targetLocksDirName = "gz-git-integrate-targets"
+
+// errTargetLockWait means target ownership was not acquired. It is distinct
+// from a lock operation error: no target push can have started on this path.
+var errTargetLockWait = errors.New("target lock wait ended before ownership")
 
 // targetLock is local Git mutation ownership. Its path is below the Git
 // common directory so every worktree of one repository contends on the same
@@ -70,7 +75,7 @@ func acquireTargetLock(ctx context.Context, g gitRepo, targetRef string, notice 
 		case <-ctx.Done():
 			timer.Stop()
 			_ = f.Close()
-			return nil, fmt.Errorf("wait for target lock %s: %w", targetRef, ctx.Err())
+			return nil, fmt.Errorf("%w: wait for target lock %s: %w", errTargetLockWait, targetRef, ctx.Err())
 		case <-timer.C:
 		}
 	}

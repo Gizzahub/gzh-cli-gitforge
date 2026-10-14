@@ -60,6 +60,9 @@ type CheckOptions struct {
 	LockNotice           io.Writer
 	resourceWait         *time.Duration
 	resourceWaitObserver func(context.Context) error
+	// preMutation is internal Run-only state. Check never writes it durably;
+	// Run records it only after a classified refusal before push.
+	preMutation *preMutationCapture
 }
 
 // validationDurationKey carries Check's validation-time accumulator. Unlike
@@ -240,6 +243,9 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 
 	preflight, err := preflightTargetRef(ctx, g, exec, opts, controller)
 	if err != nil {
+		return nil, err
+	}
+	if err := opts.preMutation.capture(ctx, g, preflight); err != nil {
 		return nil, err
 	}
 	releaseTarget, err := holdTargetLock(ctx, g, preflight.targetRef, opts.LockNotice)

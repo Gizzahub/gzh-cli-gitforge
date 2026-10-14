@@ -73,6 +73,12 @@ elapsed_ms, leaf_exit_code, termination_request and diagnostic_path evidence.
 A diagnostic path is local to the host that ran the command and is not
 portable evidence.
 
+When a complete execution context is refused before the target push because
+target ownership timed out or readiness rejected it, pre_mutation_outcome
+may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
+does not prove that no push occurred, and a receipt of any phase prevents a
+negative outcome from being reused for that execution.
+
 Engine: gz-git-integrate (Go)
 
 Exit Codes:
