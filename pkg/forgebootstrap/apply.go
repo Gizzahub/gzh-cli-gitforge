@@ -41,6 +41,7 @@ type ApplyOptions struct {
 	GitOutput   func(context.Context, string, ...string) (string, error)
 }
 
+// Apply initializes an independent repository from a pinned template.
 func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	if p.PlanDigest != Digest(p) {
 		return Receipt{}, errors.New("plan digest mismatch")
@@ -49,18 +50,7 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 		return Receipt{}, e
 	}
 	r := p.Request
-	if st, e := os.Stat(r.Checkout); e == nil {
-		if !st.IsDir() {
-			return Receipt{}, errors.New("checkout path is occupied")
-		}
-		ents, e := os.ReadDir(r.Checkout)
-		if e != nil {
-			return Receipt{}, e
-		}
-		if len(ents) > 0 {
-			return Receipt{}, errors.New("checkout path is occupied")
-		}
-	} else if !os.IsNotExist(e) {
+	if e := validateCheckoutPath(r.Checkout); e != nil {
 		return Receipt{}, e
 	}
 	if o.Remote == nil {
@@ -91,7 +81,7 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	if e := g(ctx, tmp, "checkout", "--detach", r.TemplateSHA); e != nil {
 		return rec, e
 	}
-	if e := os.MkdirAll(r.Checkout, 0o750); e != nil {
+	if e := os.MkdirAll(r.Checkout, 0o700); e != nil {
 		return rec, e
 	}
 	if e := copyTree(tmp, r.Checkout); e != nil {
@@ -132,6 +122,32 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	return rec, nil
 }
 
+func validateCheckoutPath(path string) error {
+	if st, e := os.Lstat(path); e == nil {
+		if st.Mode()&os.ModeSymlink != 0 {
+			return errors.New("checkout path is a symlink")
+		}
+		if !st.IsDir() {
+			return errors.New("checkout path is occupied")
+		}
+		ents, e := os.ReadDir(path)
+		if e != nil {
+			return e
+		}
+		if len(ents) > 0 {
+			return errors.New("checkout path is occupied")
+		}
+		return nil
+	} else if !os.IsNotExist(e) {
+		return e
+	}
+	parent := filepath.Dir(path)
+	if st, e := os.Lstat(parent); e == nil && st.Mode()&os.ModeSymlink != 0 {
+		return errors.New("checkout ancestor is a symlink")
+	}
+	return nil
+}
+
 func execGit(ctx context.Context, dir string, args ...string) error {
 	r, err := gitcmd.NewExecutor().Run(ctx, dir, args...)
 	if err != nil {
@@ -169,6 +185,9 @@ func copyTree(src, dst string) error {
 		if err != nil {
 			return err
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("template contains symlink: %s", rel)
+		}
 		if rel == "." {
 			return nil
 		}
@@ -180,13 +199,19 @@ func copyTree(src, dst string) error {
 		}
 		to := filepath.Join(dst, rel)
 		if d.IsDir() {
-			return os.MkdirAll(to, 0o755)
+			return os.MkdirAll(to, 0o700)
 		}
-		b, e := os.ReadFile(path)
+		b, e := os.ReadFile(path) // #nosec G304,G122 -- path is produced by WalkDir under the validated template root
 		if e != nil {
 			return e
 		}
-		return os.WriteFile(to, b, 0o644)
+		mode := d.Type().Perm()
+		if mode&0o100 != 0 {
+			mode = 0o600 | (mode & 0o111)
+		} else {
+			mode = 0o600
+		}
+		return os.WriteFile(to, b, mode) // #nosec G703 -- destination is filepath.Join of validated relative path
 	})
 }
 
@@ -195,7 +220,7 @@ func writeSiteConfig(root string, s SiteConfig) error {
 	if e != nil {
 		return e
 	}
-	return os.WriteFile(filepath.Join(root, "site.config.json"), append(b, '\n'), 0o644)
+	return os.WriteFile(filepath.Join(root, "site.config.json"), append(b, '\n'), 0o600)
 }
 
 func writeReceipt(path string, r Receipt) error {
@@ -206,7 +231,7 @@ func writeReceipt(path string, r Receipt) error {
 	if e != nil {
 		return e
 	}
-	if e = os.MkdirAll(filepath.Dir(path), 0o755); e != nil {
+	if e := os.MkdirAll(filepath.Dir(path), 0o700); e != nil {
 		return e
 	}
 	return os.WriteFile(path, append(b, '\n'), 0o600)
