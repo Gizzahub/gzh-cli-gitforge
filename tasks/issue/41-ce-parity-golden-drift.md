@@ -120,3 +120,62 @@ port 수용을 대신하지 않으며, outer quality의 nonzero를 helper 성공
 
 이번 변경은 계획·관측 기록만 전달한다. 새 예산 채택·fixture 실행·재녹화·설치·
 릴리스 또는 TASK-302 수용을 실행하지 않았다.
+
+## Approved one-candidate execution — rejected (2026-10-14)
+
+The user explicitly approved the proposed bounded reference execution. A fresh
+delivery run `issue-41-reference-adoption` started from clean source
+`7840a4a2635c53d1c7d518e042fb3d063c3210c6`; exhausted TASK-318/321 runs and
+their retained resources were untouched. Implementation and separate independent
+review requested strong capability (observed models gpt-6 and gpt-6-astra).
+
+The sole capture used the resolved clean CE executable `/Users/archmagece/go/bin/ce`,
+revision `b79c1a4a9ab9e53af55074a816d15a3ece9c1704`, SHA-256
+`665e88b710344a7445b90cc800b3b35488846aa8d01dc1b4d3a2f87dace7c6fe`.
+Capture and focused verification completed naturally in 14.942 and 15.436 seconds:
+each had all twelve distinct reference scenarios PASS, zero skips/failures,
+exit 0, and unchanged CE executable hash. No second capture occurred.
+
+Independent recursive comparison found 42 changed fields: 24 CE reference/toolchain
+identity fields, 9 receipt `tool_version` fields, 8 provider help strings, and
+one physical `processHost` observation. Lifecycle exit/status, logical owner,
+source/ref, worktree and cleanup fields were otherwise unchanged. However,
+`doctor-active` and `discard-no-fetch` help removed `--expect-target` and narrowed
+exit 4 from approved source/target-pair changes to source-only changes. This is
+advertised public capability/approval-contract drift, not a harmless stamp fold.
+
+The actual clean integration provider is `f012c9f8599f3d5de9ff3ab6b2dce799ad541cba`,
+while the existing contract records `96d5ecd`. Both report 0.9.1, so version text
+alone did not establish equivalent provenance. This is not evidence of a CE
+engine regression. The adopted meaning/provenance stop condition rejects the
+candidate. The proposed pin and all twelve generated golden changes were removed;
+the existing `cd0e1d19` reference and contract remain unchanged.
+
+The rejected diff SHA-256 is
+`43e0cf350a09365d833765eff413fe22bc27db34c385219a7a67823b9da1c69a`.
+Capture/result receipts, field comparison, CE metadata and the exact candidate
+patch are preserved under the owner devbox's
+`tmp/issue-41-reference-adoption-20261014/`. The original worktree evidence was
+`tmp/issue-41/`. These are audit observations, not adopted fixtures or TASK-302
+acceptance evidence. No engine, native-port, tool pin, global executable, PATH,
+model/provider binding, or source version was changed.
+
+No further candidate or automatic runtime installation follows this rejection.
+Resolve the integration provider's official-release/adopted-runtime provenance
+through its existing owner workflow, then explicitly decide a new reference
+disposition. ISSUE-42 port acceptance and TASK-302 C1–C5 remain separate. The
+existing ACTIVE ISSUE-304 execution was not touched.
+
+The rejected fixture bytes were restored before the separate canonical source
+measurement. Existing DVA project-local provisioning completed with exit 0;
+repository-adopted tool versions and the active Go 1.27.2 were preserved, with no
+global installation or new dependency selection. `dva quality-check` delegated
+to the existing `make quality-check` and naturally completed in 461.297 seconds,
+exit 2, without timeout or interruption. Format, lint and security-code passed;
+govulncheck found zero called vulnerabilities. Unit aggregation failed at the
+unchanged CE-reference guard (`cd0e1d19` goldens versus clean `b79c1a4a`).
+The integrate package itself passed in 385.763 seconds. Canonical stages after
+the failed unit dependency were not claimed as executed. Raw `quality.log`,
+`quality.stderr` and `quality-result.json` preserve this baseline failure; it is
+not a PASS or a reason to weaken TASK-302's exit-zero acceptance requirement.
+This delivery changes the issue record only.
