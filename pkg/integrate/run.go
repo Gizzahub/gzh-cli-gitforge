@@ -185,6 +185,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 			return report, err
 		}
 		report.Receipt = receipt
+		pushRemote = receipt.PushRemote
 	}
 	if err := pushFastForwardWithExpectedTarget(ctx, g, pushRemote, check.Plan.Remote, opts.ExpectTarget != "", sourceSHA, targetName, check.Plan.TargetSHA); err != nil {
 		return report, err
@@ -533,13 +534,17 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 		report.Reclaim.Skipped = "reclaim nothing: " + loadErr.Error()
 		report.Printed = append(report.Printed, "RECLAIM skipped: "+report.Reclaim.Skipped)
 	} else {
+		pushRemote := controllerPushRemote(report.Check)
+		if report.Receipt != nil {
+			pushRemote = report.Receipt.pushRemote()
+		}
 		report.Reclaim = reclaimAfter(ctx, exec, g, reclaimOpts{
 			Branch:       report.Check.Plan.Branch,
 			TargetBranch: targetName,
 			DefaultName:  defaultBranchName(report.Check.Plan.DefaultRef, report.Check.Plan.Remote),
 			Integration:  report.Check.Plan.Integration.Name,
 			Remote:       report.Check.Plan.Remote,
-			PushRemote:   controllerPushRemote(report.Check),
+			PushRemote:   pushRemote,
 			TaskSHA:      report.SHA,
 			Patterns:     decl.Patterns,
 			Facts:        decl.Facts,

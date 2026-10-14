@@ -9,7 +9,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 func TestRunGitReclaimProof(t *testing.T) {
@@ -82,6 +85,75 @@ func TestRunGitReclaimNoFetchOmitsProof(t *testing.T) {
 	}
 	if _, ok := doc["git_reclaim"]; ok {
 		t.Fatal("no-fetch emitted an empty live Git proof")
+	}
+}
+
+func TestNormalReclaimSymbolicRefPreservesReferent(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	runGit(t, f.fx.Clone, "worktree", "remove", f.fx.Worktree)
+	protected := "refs/heads/develop"
+	runGit(t, f.fx.Clone, "update-ref", protected, f.taskSHA)
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	t.Setenv("TASK302_TEST_REFERENT", protected)
+	f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  "$TASK302_TEST_GIT" symbolic-ref "$TASK302_TEST_REF" "$TASK302_TEST_REFERENT"
+fi`)
+	var result ReclaimResult
+	deleteLocalTaskBranch(context.Background(), newGitRepo(f.exec, f.fx.Clone), f.taskBranch, f.taskSHA, &result)
+	got, present, err := newGitRepo(gitcmd.NewExecutor(), f.fx.Clone).revParse(context.Background(), protected)
+	if err != nil || !present || got != f.taskSHA {
+		t.Fatalf("symbolic normal deletion damaged protected referent: oid=%s present=%t err=%v", got, present, err)
+	}
+}
+
+func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	actual := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+	mirror := filepath.Join(t.TempDir(), "fetch.git")
+	runGit(t, f.fx.Clone, "clone", "--bare", actual, mirror)
+	runGit(t, f.fx.Clone, "remote", "set-url", "--push", f.fx.Remote, actual)
+	runGit(t, f.fx.Clone, "remote", "set-url", f.fx.Remote, mirror)
+	report := f.realRun(t)
+	if report.Reclaim.Incomplete() || report.Reclaim.GitProof == nil || !report.Reclaim.GitProof.After.RemoteBranchAbsent {
+		t.Fatalf("proof followed fetch endpoint instead of actual push: %+v", report.Reclaim)
+	}
+	if gitOutput(t, f.fx.Clone, "ls-remote", actual, "refs/heads/"+f.taskBranch) != "" {
+		t.Fatal("actual push task branch remains")
+	}
+	if gitOutput(t, f.fx.Clone, "ls-remote", mirror, "refs/heads/"+f.taskBranch) == "" {
+		t.Fatal("caller fetch mirror was modified")
+	}
+}
+
+func TestRunGitReclaimAmbiguousPushEndpoints(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	actual := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+	mirror := filepath.Join(t.TempDir(), "other-push.git")
+	runGit(t, f.fx.Clone, "clone", "--bare", actual, mirror)
+	runGit(t, f.fx.Clone, "remote", "set-url", "--add", "--push", f.fx.Remote, actual)
+	runGit(t, f.fx.Clone, "remote", "set-url", "--add", "--push", f.fx.Remote, mirror)
+	before := f.remoteTargetTip(t)
+	_, err := Run(context.Background(), f.exec, RunOptions{
+		CheckOptions: CheckOptions{RepoPath: f.fx.Worktree, Target: f.target},
+		Execution:    &f.execution,
+	})
+	if err == nil || !strings.Contains(err.Error(), "ambiguous push endpoint") {
+		t.Fatalf("ambiguous push endpoints were not refused for their cause: %v", err)
+	}
+	if after := f.remoteTargetTip(t); after != before {
+		t.Fatalf("ambiguous destination was pushed: %s -> %s", before, after)
+	}
+	if _, err := os.Stat(filepath.Join(f.fx.Worktree, ".git")); err != nil {
+		t.Fatalf("task worktree was removed: %v", err)
+	}
+	if got := gitOutput(t, f.fx.Clone, "rev-parse", "refs/heads/"+f.taskBranch); got != f.taskSHA {
+		t.Fatalf("task local ref changed: %s", got)
+	}
+	if gitOutput(t, f.fx.Clone, "ls-remote", actual, "refs/heads/"+f.taskBranch) == "" {
+		t.Fatal("task remote ref was removed")
+	}
+	if _, ok, err := readReceipt(f.common, f.execution.ExecutionID); err != nil || ok {
+		t.Fatalf("ambiguous destination created an integration intent: exists=%t err=%v", ok, err)
 	}
 }
 

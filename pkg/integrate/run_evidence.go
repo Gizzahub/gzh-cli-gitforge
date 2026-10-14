@@ -36,6 +36,13 @@ func beginRunEvidence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, com
 	}
 	// Worktree discovery and provenance read git; they stay outside the
 	// execution write lock, which permits file work only.
+	endpoint := controllerPushRemote(check)
+	if endpoint == "" {
+		endpoint, err = pushEndpoint(ctx, g, check.Plan.Remote)
+		if err != nil {
+			return nil, fmt.Errorf("resolve integration push endpoint: %w", err)
+		}
+	}
 	candidate := &Receipt{
 		SchemaVersion:       evidenceSchemaVersion,
 		ExecutionID:         e.ExecutionID,
@@ -48,7 +55,7 @@ func beginRunEvidence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, com
 		TargetRef:           "refs/heads/" + targetName,
 		TargetBeforeSHA:     check.Plan.TargetSHA,
 		Remote:              check.Plan.Remote,
-		PushRemote:          controllerPushRemote(check),
+		PushRemote:          endpoint,
 		Phase:               evidencePhaseIntent,
 		Provenance:          runProvenance(ctx, g, check),
 	}

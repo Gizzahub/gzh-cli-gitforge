@@ -27,6 +27,10 @@ func (r *Receipt) pushRemote() string {
 	return r.Remote
 }
 
+func receiptPushEndpoint(ctx context.Context, g gitRepo, receipt *Receipt) (string, error) {
+	return boundPushEndpoint(ctx, g, receipt.Remote, receipt.PushRemote)
+}
+
 // receiptTargetBranch validates and extracts the plain target branch name the
 // receipt's refs/heads target ref names.
 func receiptTargetBranch(receipt *Receipt) (string, error) {
@@ -103,8 +107,7 @@ func (r *Receipt) ProvenanceControllerPatterns() []string {
 // captured task SHA: the tip is read live with ls-remote, and either equals
 // the task SHA or is locally resolvable history that contains it. Anything
 // else is unknown, and unknown is a refusal.
-func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Receipt, targetName string) (bool, error) {
-	remote := receipt.pushRemote()
+func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Receipt, targetName, remote string) (bool, error) {
 	if remote == "" {
 		return false, fmt.Errorf("%w: receipt records no remote", ErrCleanupProofUnknown)
 	}
@@ -140,6 +143,9 @@ func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Rece
 // missing without guessing from tracking refs.
 func probeLocalBranch(ctx context.Context, g gitRepo, branch string) (sha string, present bool, err error) {
 	ref := "refs/heads/" + branch
+	if err := refuseSymbolicTaskRef(ctx, g, ref); err != nil {
+		return "", false, err
+	}
 	res, err := g.output(ctx, "for-each-ref", "--format=%(refname)%09%(objectname)", ref)
 	if err != nil {
 		return "", false, err
@@ -159,6 +165,20 @@ func probeLocalBranch(ctx context.Context, g gitRepo, branch string) (sha string
 		return sha, true, nil
 	}
 	return "", false, nil
+}
+
+func refuseSymbolicTaskRef(ctx context.Context, g gitRepo, ref string) error {
+	res, err := g.run(ctx, "symbolic-ref", "--quiet", ref)
+	if err != nil {
+		return err
+	}
+	if res.ExitCode == 0 {
+		return fmt.Errorf("task ref is unexpectedly symbolic: %s -> %s", ref, strings.TrimSpace(res.Stdout))
+	}
+	if res.ExitCode != 1 {
+		return fmt.Errorf("cannot prove direct task ref %s: %s", ref, strings.TrimSpace(res.Stderr))
+	}
+	return nil
 }
 
 // validateWorktreeResidual proves the physical worktree recorded in the

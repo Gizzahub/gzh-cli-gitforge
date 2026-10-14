@@ -29,8 +29,9 @@ type GitReclaimProof struct {
 }
 
 type reclaimObservedTarget struct {
-	Ref string `json:"ref"`
-	OID string `json:"oid"`
+	Ref          string `json:"ref"`
+	OID          string `json:"oid"`
+	PushEndpoint string `json:"push_endpoint"`
 }
 
 type gitReclaimChecks struct {
@@ -145,10 +146,18 @@ func captureReclaimInventory(ctx context.Context, g gitRepo, opts reclaimOpts, t
 
 func captureReclaimRemote(ctx context.Context, g gitRepo, opts reclaimOpts, before *reclaimBeforeInventory, checks *gitReclaimChecks) (reclaimObservedTarget, error) {
 	r := opts.Receipt
-	remote := r.pushRemote()
+	remote, err := receiptPushEndpoint(ctx, g, r)
+	if err != nil {
+		return reclaimObservedTarget{}, err
+	}
+	selected, err := boundPushEndpoint(ctx, g, opts.Remote, opts.PushRemote)
+	if err != nil {
+		return reclaimObservedTarget{}, err
+	}
 	target := reclaimObservedTarget{Ref: "refs/heads/" + opts.TargetBranch}
+	target.PushEndpoint = remote
 	checks.TargetAndRemoteExactMatch = r.TargetRef == target.Ref && r.TaskSHA == opts.TaskSHA &&
-		r.TaskBranch == opts.Branch && r.TaskWorktree == before.Worktree && r.RepositoryCommonDir == before.RepositoryCommonDir && remote == reclaimPushRemote(opts)
+		r.TaskBranch == opts.Branch && r.TaskWorktree == before.Worktree && r.RepositoryCommonDir == before.RepositoryCommonDir && remote == selected
 	normalized, err := NormalizeExpectSource(opts.TaskSHA)
 	if err != nil || normalized != opts.TaskSHA {
 		return target, fmt.Errorf("captured task OID is not a full canonical object ID")
@@ -176,13 +185,6 @@ func captureReclaimRemote(ctx context.Context, g gitRepo, opts reclaimOpts, befo
 	}
 	checks.RemoteTargetContainsTaskOID = contains
 	return target, nil
-}
-
-func reclaimPushRemote(opts reclaimOpts) string {
-	if opts.PushRemote != "" {
-		return opts.PushRemote
-	}
-	return opts.Remote
 }
 
 func verifyGitOnlyReclaimScope(common, taskWT string) error {
@@ -293,7 +295,7 @@ func finishGitReclaimProof(ctx context.Context, g gitRepo, opts reclaimOpts, out
 	} else {
 		p.After.LocalBranchAbsent = !containsExactRef(refs, "refs/heads/"+opts.Branch)
 	}
-	_, present, err := lsRemoteHead(ctx, g, reclaimPushRemote(opts), opts.Branch)
+	_, present, err := lsRemoteHead(ctx, g, p.ObservedTarget.PushEndpoint, opts.Branch)
 	if err != nil {
 		out.Failed = append(out.Failed, "verify remote ref absence: "+err.Error())
 	} else {

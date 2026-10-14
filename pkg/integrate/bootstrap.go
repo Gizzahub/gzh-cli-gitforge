@@ -219,6 +219,13 @@ func bootstrapSnapshot(ctx context.Context, g gitRepo, opts BootstrapOptions) (B
 	return BootstrapPlan{Repository: endpoint, Remote: remote, TargetRef: target, TargetSHA: shaTarget, SourceRef: branch, SourceSHA: sha, ManifestPath: contract.ManifestPath, ManifestOID: contract.ManifestOID, RunnerPath: contract.Decl.Runner, RunnerOID: contract.RunnerOID, ReadinessTreeOID: contract.TreeOID, ReadinessTreeDigest: digest, PushEndpoint: endpoint, DestinationRef: destination}, nil
 }
 
+func boundPushEndpoint(ctx context.Context, g gitRepo, remote, explicit string) (string, error) {
+	if explicit != "" {
+		return canonicalPushEndpoint(explicit)
+	}
+	return pushEndpoint(ctx, g, remote)
+}
+
 func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
 	res, err := g.run(ctx, "remote", "get-url", "--push", "--all", remote)
 	if err != nil {

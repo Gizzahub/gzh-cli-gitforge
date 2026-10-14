@@ -461,6 +461,24 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 	})
 }
 
+func TestCleanupOnlyRetrySymbolicRefPreservesReferent(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	protected := "refs/heads/develop"
+	runGit(t, f.fx.Clone, "update-ref", protected, f.taskSHA)
+	t.Setenv("TASK302_TEST_REF", "refs/heads/"+f.taskBranch)
+	t.Setenv("TASK302_TEST_REFERENT", protected)
+	f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  "$TASK302_TEST_GIT" symbolic-ref "$TASK302_TEST_REF" "$TASK302_TEST_REFERENT"
+fi`)
+	_, _ = f.cleanup(t, "g7")
+	got, present, err := newGitRepo(gitcmd.NewExecutor(), f.fx.Clone).revParse(context.Background(), protected)
+	if err != nil || !present || got != f.taskSHA {
+		t.Fatalf("symbolic task deletion damaged protected referent: oid=%s present=%t err=%v", got, present, err)
+	}
+}
+
 func TestCleanupOnlyRetryMovedWorktree(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)

@@ -55,3 +55,12 @@ ref/OID로만 판정하며 실패한 조회를 부재로 바꾸지 않는다. li
 등록되지 않은 물리 경로도 부재로 처리하지 않는다. local atomic CAS 직전에는
 task branch를 사용하는 worktree가 없는지 다시 확인한다. moved-worktree 및
 정상 거부 후 retry 검사도 실제 RED 후 수정된 race GREEN으로 확인한다.
+
+symbolic task ref가 삭제 직전에 보호 branch를 가리키도록 바뀌면 `update-ref`
+기본 dereference가 그 대상까지 삭제할 수 있었다. retry와 normal 경로의
+실제 RED를 확인해 direct ref 검사를 추가하고 atomic 삭제에 `--no-deref`를
+적용했다. fetch와 push 주소가 다른 remote도 재현했다. context 실행은 기존
+push endpoint resolver로 단일 실제 주소를 통합 전에 확정하고 기존 receipt의
+`PushRemote`에 기록한다. push, 삭제 전 containment, remote 삭제와 사후 부재
+조회가 같은 주소를 사용하며 Git-only JSON의 observed target도 그 endpoint를
+내보낸다. 여러 push 주소는 intent/push 전에 거부하고 기존 자원을 보존한다.
