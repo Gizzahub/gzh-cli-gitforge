@@ -42,6 +42,7 @@ ______________________________________________________________________
 | 41  | ce-parity-golden-drift                                           | 2026-10-14 재발. source9e054cf4의 cd0e1d19 golden과 설치 CE b79c1a4a 불일치로 guard exit1. 2026-10-02 해결 이력은 보존하며 재녹화·설치는 별도 판정                                                                                                              |
 | 43  | integrate-release-expected-source-sha                            | `integrate check/run`에 `--expect-source <sha>`가 없어 호출자(CE `run-release`)가 승인한 develop 커밋을 프로세스 안에서 고정할 수 없다. 외부 fetch가 끼면 승인 안 된 후손이 승격될 수 있다. 요청처: ce-agent-kit `f6493563`                                     |
 | 45  | human-approval-review-queue                                      | 설계 확정·착수 대기. 사람 전용 apply 앞의 수작업 명령 조립을 줄인다: 읽기 전용 `bootstrap check`·`approval list`(에이전트 허용)와 TTY 전용 `approval review`(저장소별 확인 기본, `--group-confirm` 옵션). 요청 파일 없이 스캔. 훅·launcher는 ce-devenv 이슈 013 |
+| 47  | interrupted-baseline-worktree-recovery                           | 중단된 integrate의 clean detached 기준선 worktree가 남고 CE task 회수에 포함되지 않는다. 신원·소유·종료 검증을 유지하는 provider 회수 경로가 필요하다                                                                                                           |
 
 `v0.8.0`은 준비된 `VERSION`과 릴리스 노트 기준으로 2026-10-01 `9d7041c`에 발행됐다.
 발행 당시 보류 조건이던 탭 bootstrap·최초 Cask 게시·macOS 설치 검증은 이슈 28이 계속
