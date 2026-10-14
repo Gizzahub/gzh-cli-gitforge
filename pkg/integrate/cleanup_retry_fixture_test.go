@@ -212,7 +212,10 @@ func (f *cleanupRetryFX) seedReceipt(t *testing.T, phase, worktree string) {
 		Remote:              f.fx.Remote,
 		SourcePushed:        phase != evidencePhaseIntent,
 		Phase:               phase,
-		Provenance:          &evidenceProvenance{DeclarationPatterns: []string{"dev/*"}},
+		Provenance: &evidenceProvenance{
+			DeclarationPatterns: []string{"dev/*"},
+			ReclaimRefs:         &evidenceReclaimRefs{Default: "main", Integration: "develop"},
+		},
 	}
 	if err := createReceipt(context.Background(), f.common, r); err != nil {
 		t.Fatalf("seed receipt: %v", err)

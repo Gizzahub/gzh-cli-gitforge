@@ -12,7 +12,6 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // errTargetNotContaining is the definitive negative: the remote target was
@@ -75,11 +74,15 @@ func refuseLiveOrUnknownClaim(receipt *Receipt) error {
 // reclaim, using the run's recorded provenance — the declaration and
 // controller the caller approved, not whatever the dying worktree says now.
 func cleanupGuards(receipt *Receipt, targetName string) error {
-	if repository.IsProtected(receipt.TaskBranch) {
-		return fmt.Errorf("%w: %s is protected", ErrCleanupGuard, receipt.TaskBranch)
+	if receipt.Provenance == nil || receipt.Provenance.ReclaimRefs == nil {
+		return fmt.Errorf("%w: run did not record resolved reclaim branch names", ErrCleanupGuard)
 	}
-	if receipt.TaskBranch == targetName {
-		return fmt.Errorf("%w: %s is the integration target", ErrCleanupGuard, receipt.TaskBranch)
+	refs := receipt.Provenance.ReclaimRefs
+	if reason := reclaimRefGuardReason(reclaimOpts{
+		Branch: receipt.TaskBranch, TargetBranch: targetName,
+		DefaultName: refs.Default, Integration: refs.Integration, Remote: receipt.Remote,
+	}); reason != "" {
+		return fmt.Errorf("%w: %s", ErrCleanupGuard, reason)
 	}
 	patterns := receipt.ProvenanceControllerPatterns()
 	if len(patterns) == 0 {
@@ -97,7 +100,7 @@ func (r *Receipt) ProvenanceControllerPatterns() []string {
 	if r.Provenance == nil {
 		return nil
 	}
-	if r.Provenance.Controller != nil && len(r.Provenance.Controller.TaskPattern) > 0 {
+	if r.Provenance.Controller != nil {
 		return r.Provenance.Controller.TaskPattern
 	}
 	return r.Provenance.DeclarationPatterns

@@ -177,6 +177,9 @@ func TestReceiptCreateVsExistingRefused(t *testing.T) {
 // ErrEvidenceReplay before run ever reaches a push.
 func TestBeginRunEvidenceConcurrentCollision(t *testing.T) {
 	repo := testutil.TempGitRepoWithCommit(t)
+	// A context intent requires one concrete push endpoint before its CAS.
+	// This fixture never pushes; use its existing repository as that endpoint.
+	runGit(t, repo, "remote", "add", "origin", repo)
 	g := newGitRepo(gitcmd.NewExecutor(), repo)
 	head, ok, err := g.revParse(context.Background(), "HEAD")
 	if err != nil || !ok {
@@ -307,6 +310,14 @@ func (w *signalledWriter) Write(p []byte) (int, error) {
 // rewritten underneath it. The after-lock re-read must refuse the moved
 // identity before any proof or deletion, leaving every residual intact.
 func TestCleanupRereadGuardWhileWaitingForLock(t *testing.T) {
+	t.Run("reclaim branch provenance changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) { r.Provenance.ReclaimRefs.Integration = "different" })
+	})
+	t.Run("controller pattern authority changed", func(t *testing.T) {
+		runCleanupRereadWait(t, func(r *Receipt) {
+			r.Provenance.Controller = &evidenceControllerProvenance{TaskPattern: []string{"dev/*"}}
+		})
+	})
 	t.Run("target moved", func(t *testing.T) {
 		runCleanupRereadWait(t, func(r *Receipt) { r.TargetRef = "refs/heads/master" })
 	})

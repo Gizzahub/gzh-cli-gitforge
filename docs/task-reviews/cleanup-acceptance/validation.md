@@ -1,7 +1,7 @@
 # TASK-302 cleanup retry safety
 
 Cleanup-only retry의 local ref 삭제는 captured `TaskSHA`를 expected-old로 묶은
-`git update-ref -d refs/heads/<task> <TaskSHA>`를 사용한다. 사전 검증과 삭제
+`git update-ref -d --no-deref refs/heads/<task> <TaskSHA>`를 사용한다. 사전 검증과 삭제
 사이에 ref가 바뀌면 삭제를 거부하고 남은 local/remote ref를 보존한다.
 이전 `git branch -d`는 이름 기준 삭제여서 검증 이후의 이동을 막지 못했다.
 remote 삭제는 기존 exact `--force-with-lease=<ref>:<TaskSHA>`를 유지한다.
@@ -11,7 +11,7 @@ remote 삭제는 기존 exact `--force-with-lease=<ref>:<TaskSHA>`를 유지한�
 후속 cleanup-only 호출은 기존 영수증과 실제 Git 부재를 다시 증명해 남은
 자원만 회수한다. provider, readiness, merge와 target push는 반복하지 않는다.
 
-`pkg/integrate/cleanup_retry_safety_test.go`는 실제 bare origin과 linked worktree로
+`pkg/integrate/cleanup_retry_test.go`는 실제 bare origin과 linked worktree로
 검증 직후 local/remote ref 이동, 삭제 후 영수증 쓰기 실패, 실제 partial 뒤
 재시도, 잘못된 ref/task pattern 거부와 동일 target의 두 cleanup 직렬화를
 검증한다. 장애 주입은 테스트 executor의 상수 Bash 프로그램에만 존재하며
@@ -90,3 +90,15 @@ relative binding이 만든 최종 absolute 주소에 적용되는 URL rewrite도
 돌아갈 수 있었다. 두 경로의 RED를 확인해 최종 주소와 저장된 explicit 주소에
 호출 context의 rewrite 검사를 적용했다. config 조회 실패도 빈 설정으로
 처리하지 않으며 rewrite가 있으면 intent/push 또는 retry 삭제 전에 거부한다.
+
+controller가 존재하면 빈 task pattern도 그대로 적용해 retry의 declaration
+fallback을 막는다. 실행 당시의 resolved default·integration branch 이름은
+기존 receipt provenance의 `reclaim_refs`에 기록하고, retry도 정상 회수의
+동일 ref guard를 사용한다. 이 정보가 없는 과거 receipt는 삭제를 거부하고
+잔여 자원을 보존한다. 별도 권한·세대 ledger를 추가하지 않는다.
+provenance도 기존 immutable receipt 비교에 포함한다. target lock을 기다리는
+동안 pattern이나 branch 보호 정보가 바뀌면 실제 회수 전에 replay로 거부한다.
+
+빈 URL rewrite prefix는 Git에서 모든 주소와 일치한다. 실제 Git의 주소
+변환과 기존 검사의 assertion RED를 확인했고, 빈 값과 공백을 포함한
+prefix를 보존해 검사하도록 수정했다. 이 변경도 최종 수용 증거와 별개다.

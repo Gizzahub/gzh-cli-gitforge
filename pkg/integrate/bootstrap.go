@@ -329,13 +329,10 @@ func refusePushEndpointRewrites(ctx context.Context, g gitRepo, endpoint string)
 		return fmt.Errorf("URL rewrite configuration query is incomplete")
 	}
 	for _, line := range strings.Split(rewrites.Stdout, "\n") {
-		fields := strings.Fields(line)
-		key := ""
-		if len(fields) > 0 {
-			key = strings.ToLower(fields[0])
-		}
+		key, prefix, hasValue := strings.Cut(line, " ")
+		key = strings.ToLower(key)
 		isRewrite := strings.HasSuffix(key, ".insteadof") || strings.HasSuffix(key, ".pushinsteadof")
-		if isRewrite && len(fields) >= 2 && strings.HasPrefix(endpoint, fields[len(fields)-1]) {
+		if isRewrite && (!hasValue || strings.HasPrefix(endpoint, prefix)) {
 			return fmt.Errorf("effective push endpoint is subject to another URL rewrite")
 		}
 	}

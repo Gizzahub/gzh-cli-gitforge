@@ -169,7 +169,10 @@ func findTaskWorktree(ctx context.Context, g gitRepo, branch string) (string, er
 // intent time, so cleanup judges guards against what was approved, not
 // against whatever the dying worktree last said.
 func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
-	p := &evidenceProvenance{}
+	p := &evidenceProvenance{ReclaimRefs: &evidenceReclaimRefs{
+		Default:     defaultBranchName(check.Plan.DefaultRef, check.Plan.Remote),
+		Integration: check.Plan.Integration.Name,
+	}}
 	if decl, err := config.LoadRepoRootTaskPattern(g.dir); err == nil {
 		p.DeclarationPatterns = append([]string(nil), decl.Patterns...)
 		p.DeclarationFacts = append([]string(nil), decl.Facts...)

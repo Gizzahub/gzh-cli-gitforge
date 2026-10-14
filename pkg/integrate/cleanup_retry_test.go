@@ -661,6 +661,46 @@ fi`)
 	}
 }
 
+func TestCleanupOnlyRetryEmptyControllerPattern(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	f.amendReceiptRaw(t, func(r *Receipt) {
+		r.Provenance.Controller = &evidenceControllerProvenance{TaskPattern: []string{}}
+	})
+	if _, err := f.cleanup(t, "g7"); !errors.Is(err, ErrCleanupGuard) {
+		t.Fatalf("empty controller pattern must preserve residuals despite declaration fallback: %v", err)
+	}
+	f.assertResidualsIntact(t, wt)
+}
+
+func TestCleanupOnlyRetryRecordedReclaimRefs(t *testing.T) {
+	for _, kind := range []string{"default", "integration", "remote-integration", "legacy-unknown"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			f.realRun(t)
+			wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+			f.amendReceiptRaw(t, func(r *Receipt) {
+				switch kind {
+				case "default":
+					r.Provenance.ReclaimRefs.Default = f.taskBranch
+				case "integration":
+					r.Provenance.ReclaimRefs.Integration = f.taskBranch
+				case "remote-integration":
+					r.Provenance.ReclaimRefs.Integration = "x1"
+					r.Remote = "dev/claude"
+				case "legacy-unknown":
+					r.Provenance.ReclaimRefs = nil
+				}
+			})
+			if _, err := f.cleanup(t, "g7"); !errors.Is(err, ErrCleanupGuard) {
+				t.Fatalf("%s must preserve residuals under the normal reclaim ref guard: %v", kind, err)
+			}
+			f.assertResidualsIntact(t, wt)
+		})
+	}
+}
+
 func TestCleanupOnlyRetryPathRefGuard(t *testing.T) {
 	for _, target := range []string{"refs/remotes/origin/develop", "develop", "refs/heads/../foreign"} {
 		t.Run(target, func(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
 func TestRunGitReclaimProof(t *testing.T) {
@@ -122,6 +123,20 @@ func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
 	}
 	if gitOutput(t, f.fx.Clone, "ls-remote", mirror, "refs/heads/"+f.taskBranch) == "" {
 		t.Fatal("caller fetch mirror was modified")
+	}
+}
+
+func TestPushEndpointEmptyRewritePrefix(t *testing.T) {
+	for _, kind := range []string{"insteadOf", "pushInsteadOf"} {
+		t.Run(kind, func(t *testing.T) {
+			repo := testutil.TempGitRepoWithCommit(t)
+			endpoint := filepath.Join(repo, "original.git")
+			runGit(t, repo, "config", "url./decoy/."+kind, "")
+			g := newGitRepo(gitcmd.NewExecutor(), repo)
+			if err := refusePushEndpointRewrites(context.Background(), g, endpoint); err == nil {
+				t.Fatal("empty rewrite prefix matches every endpoint and must refuse")
+			}
+		})
 	}
 }
 
