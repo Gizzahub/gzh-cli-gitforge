@@ -127,7 +127,7 @@ func validateSiteValue(v any) error {
 	case map[string]any:
 		for k, val := range x {
 			lower := strings.NewReplacer("_", "", "-", "").Replace(strings.ToLower(k))
-			for _, bad := range []string{"password", "secret", "token", "credential", "privatekey", "apikey"} {
+			for _, bad := range []string{"password", "secret", "token", "credential", "privatekey", "apikey", "authorization", "authheader", "accesskey", "sessionkey"} {
 				if strings.Contains(lower, bad) {
 					return errors.New("site configuration must not contain secret fields")
 				}

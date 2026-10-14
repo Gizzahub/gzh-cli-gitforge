@@ -18,7 +18,9 @@ canonical `make quality-check`는 exit2이며 로그는 `tmp/forge-bootstrap-qua
 
 변경 없는 primary source 0ff0b2213153d2a8a7448ee2a1e3305d7c4a962c에서도 `go test -short -cover -count=1 -coverprofile=tmp/forge-bootstrap-baseline-current/parity.out ./tests/parity` exit1을 재현했다. 로그는 primary `tmp/forge-bootstrap-baseline-current/parity.log`다. 설치 CE 9877764d와 기존 fixture b79c1a4의 toolchain drift 및 program not built with -cover가 원인이다. 소유 이슈는 [ISSUE-41](../../../tasks/issue/41-ce-parity-golden-drift.md)이다. 새 bootstrap 수정으로 golden·pin·gate를 낮추거나 다른 세션의 참조 채택을 덮어쓰지 않는다. 이 관측은 전체 gate 성공이나 baseline 수정을 의미하지 않는다.
 
-추가 필수 `make test-integration-quality test-e2e-only coverage-critical-check` exit0. package integration·E2E·critical coverage floor를 실제 실행했으며 로그는 `tmp/forge-bootstrap-remaining-quality.log`다. 최종 source rebase 뒤 affected 검사를 다시 확인한다.
+추가 필수 `make test-integration-quality test-e2e-only coverage-critical-check` exit0. package integration·E2E·critical coverage floor를 실제 실행했으며 로그는 `tmp/forge-bootstrap-remaining-quality.log`다.
+
+최신 origin/master e77bb528 위로 rebase한 뒤 `make quality-check`를 다시 실행했다. `tmp/forge-bootstrap-quality-rebased.log`의 exit2는 기존 parity drift만 남았으며 cmd 전체 테스트 exit0(45.758초), bootstrap package exit0(86.2%)다. 이후 인증 헤더·access/session key 이름의 대소문자·구분자·중첩/배열 변형을 계획에서 거절하고 일반 설명문은 허용하는 회귀 검사를 추가했다. CLI의 digest 불일치·인증 누락·계획 누락 거절이 API 쓰기·checkout 생성·비밀 출력 없이 끝나는 실제 TLS 검사도 추가했다. 독립 리뷰가 새 검사 단독 실행의 nil context를 발견해 명시적 context 설정·복원으로 고쳤으며, 단독·선택식 `-race`를 구현자와 독립 리뷰가 각각 exit0으로 확인했다. 최종 delta 독립 strong PASS이며 최종 동결 전체 검사 로그는 `tmp/forge-bootstrap-quality-final-frozen.log`다. 관측된 기존 parity 실패를 전체 PASS로 기록하지 않는다.
 
 CE controller는 기존 primary 선언을 사용한다. primary doctor ACTIVE와 run-status는 이 작업 actor·host·branch·worktree를 식별한다. task checkout의 로컬 선언 누락은 임의 복사로 우회하지 않고 primary에서 status/finish를 수행한다. 실제 finish 거절 시 중단한다.
 

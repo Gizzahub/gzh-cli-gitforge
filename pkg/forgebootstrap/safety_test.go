@@ -1030,3 +1030,20 @@ func TestProvisioningBindsReturnedAndObservedIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestPlanRejectsAuthenticationFieldVariantsWithoutRejectingProse(t *testing.T) {
+	for _, key := range []string{"authorization", "Authorization", "AUTHORIZATION", "auth_header", "Auth-Header", "authHeader", "access_key", "ACCESS-KEY", "accessKey", "session_key", "Session-Key", "sessionKey"} {
+		for _, site := range []SiteConfig{{key: "Bearer synthetic-private-value"}, {"nested": map[string]any{key: "synthetic-private-value"}}, {"nested": []any{map[string]any{key: "synthetic-private-value"}}}} {
+			r := valid()
+			r.Site = site
+			if _, err := NewPlan(r, time.Now()); err == nil {
+				t.Fatalf("authentication field %s was accepted into a plan", key)
+			}
+		}
+	}
+	r := valid()
+	r.Site = SiteConfig{"description": "Documentation explains authorization headers, access keys and session keys without containing credentials.", "displayName": "Authorization reference"}
+	if _, err := NewPlan(r, time.Now()); err != nil {
+		t.Fatalf("ordinary descriptive prose rejected: %v", err)
+	}
+}
