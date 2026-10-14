@@ -1,4 +1,3 @@
-//nolint:gosec,errcheck,gocritic,revive,tagliatelle
 package forgebootstrap
 
 import (
