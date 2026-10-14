@@ -32,6 +32,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Added
 
+- `gz-git forge bootstrap plan/apply` creates or reuses an empty GitLab project
+  from a pinned template revision. Plans bind identity and configuration; retained
+  receipts verify resume state, provenance and atomic master/develop refs. An initial
+  template seed is supported without adding runtime dependencies to generated sites.
+
 - Committed `branch.prepareHighLoad` puts confirmed heavy preparation profiles
   under FIFO host capacity independently of verification gates, allowing light
   integrations to proceed during a cold build. On cancellation, Go and Cargo

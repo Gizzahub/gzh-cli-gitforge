@@ -46,6 +46,7 @@ var readOnlyRuns = map[string][]string{
 	"conflict detect":                      {"conflict", "detect", "feature", "main"},
 	"diff":                                 {"diff", "."},
 	"doctor":                               {"doctor"},
+	"forge bootstrap plan":                 {"forge", "bootstrap", "plan"},
 	"handoff check":                        {"handoff", "check", "."},
 	"history blame":                        {"history", "blame", "README.md"},
 	"history contributors":                 {"history", "contributors"},
@@ -92,6 +93,10 @@ func TestReadOnlyCommandsWriteNothing(t *testing.T) {
 	for key, args := range readOnlyRuns {
 		t.Run(key, func(t *testing.T) {
 			t.Chdir(work)
+			var verifyBootstrap func()
+			if key == "forge bootstrap plan" {
+				args, verifyBootstrap = readOnlyBootstrapPlanFixture(t)
+			}
 			before := snapshotFiles(t, base)
 			var out bytes.Buffer
 			root.SetOut(&out)
@@ -103,6 +108,12 @@ func TestReadOnlyCommandsWriteNothing(t *testing.T) {
 			root.SetArgs(nil)
 			if err != nil {
 				t.Logf("%v returned %v (writes are still checked)", args, err)
+			}
+			if verifyBootstrap != nil {
+				if err != nil {
+					t.Errorf("bootstrap plan failed: %v", err)
+				}
+				verifyBootstrap()
 			}
 			diffSnapshots(t, before, snapshotFiles(t, base))
 		})

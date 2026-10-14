@@ -41,6 +41,12 @@ the task worktree.
 [Integration resource scope](integrate-resources.md) documents target ownership
 and the explicit high-load resource declaration.
 
+## 새 저장소 초기 준비
+
+[Forge bootstrap](forge-bootstrap.md)는 GitLab 프로젝트를 관찰한 계획을 승인한 뒤
+고정된 템플릿 또는 최초 시드에서 독립 저장소를 만든다. 인증 원점, CE 초기
+준비 경계, 영수증과 실패 후 재개 계약을 함께 설명한다.
+
 ## Global Flags
 
 | Flag        | Short | Description               |

@@ -119,6 +119,8 @@ var commandEffects = map[string][]string{
 	"conflict detect": nil,
 
 	"forge config generate": {mutatesConfig},
+	"forge bootstrap plan":  {},
+	"forge bootstrap apply": {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesForge},
 	"forge from":            {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
 	"forge setup":           {mutatesFilesystem, mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesConfig},
 	"forge status":          {mutatesTrackingRefs, mutatesFilesystem},

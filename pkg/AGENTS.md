@@ -20,7 +20,7 @@ guarantee.
 
 ______________________________________________________________________
 
-## Package Map (28 packages)
+## Package Map (29 packages)
 
 ### Core Git Operations
 
@@ -35,6 +35,7 @@ ______________________________________________________________________
 
 ### Git Forge Integration
 
+- **forgebootstrap/** - Digest-bound GitLab project bootstrap, pinned templates, seed preparation, receipts and safe resume
 - **provider/** - Forge provider interface (GitHub/GitLab/Gitea)
 - **github/** - GitHub provider (github.com + GitHub Enterprise Server via custom base URL)
 - **gitlab/** - GitLab provider implementation

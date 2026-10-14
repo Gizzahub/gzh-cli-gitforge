@@ -3,6 +3,7 @@ package forgebootstrap
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,10 @@ func TestValidateRejectsUnsafeInputs(t *testing.T) {
 func TestApplyRejectsOccupiedCheckoutBeforeRemoteMutation(t *testing.T) {
 	r := valid()
 	d := t.TempDir()
+	d, err := filepath.EvalSymlinks(d)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r.Checkout = d
 	if err := os.WriteFile(d+"/existing", []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
@@ -56,7 +61,7 @@ func TestApplyRejectsOccupiedCheckoutBeforeRemoteMutation(t *testing.T) {
 	}
 	called := false
 	remote := remoteFunc(func(context.Context, Request) error { called = true; return nil })
-	_, err = Apply(context.Background(), p, ApplyOptions{Remote: remote})
+	_, err = Apply(context.Background(), p, ApplyOptions{Remote: remote, CommitModel: "gpt-6.1-sol"})
 	if err == nil || !strings.Contains(err.Error(), "occupied") {
 		t.Fatalf("error = %v", err)
 	}
