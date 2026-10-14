@@ -204,3 +204,14 @@ capability 누락을 정상화로 숨기지 않았다. 새로운 도움말의 �
 이는 source 통합이나 TASK-302 C1–C5 수용 완료를 의미하지 않는다. 최종
 source 기준의 독립 리뷰, 변이 검증, 실제 통합·push·회수 증거가 남아 있다.
 전체 native 열두 시나리오의 byte parity도 주장하지 않는다.
+
+## 2026-10-14: 0.9.2 공식 릴리스 준비
+
+별도 delivery 실행 `release-0-9-2-preparation`에서 버전과 릴리스 준비 문서를
+정리한다. 고정 GoReleaser 2.18.2의 설정 검사와 비게시 snapshot 빌드는
+exit 0이며 5개 archive의 digest를 확인했다. 상세 명령과 검증 상태는
+`docs/releases/0.9.2-preparation.md`에 기록한다. TASK302 활성 실행은 보존한다.
+
+공식 게시 전 GitHub workflow의 secret·게시 권한 확인이 남는다. 현재 토큰의
+secret 이름 조회는 HTTP 403이며, 원격 secret 부재로 판단하지 않는다.
+이 기록은 릴리스 게시·stable 설치·TASK302 인수 완료를 의미하지 않는다.

@@ -46,6 +46,10 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Changed
 
+- Prepare the 0.9.2 patch release with native task finish READY semantics and
+  current CE reference validation. Provider rollout retains the expected source
+  and target checks; release preparation does not publish or install a snapshot.
+
 - Stale integration candidates return NOT READY before readiness, preparation,
   or Make gates. Previously an already-stale TASK-285 candidate spent 25 minutes
   in validation. Fresh candidates retain required gates and the separate wait /
