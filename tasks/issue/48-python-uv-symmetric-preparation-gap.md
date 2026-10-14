@@ -109,6 +109,15 @@ infra-ops가 프로필을 선언하는 소비자 변경은 지원 구현·검증
   로그는 `tmp/python-uv-prepare-evidence/quality-after-lint-fix.log`다.
   후속 integration/E2E/coverage 단계와 최종 코드 전체 gate 통과는 주장하지 않는다.
   설치본과 저장 공간이 안정된 뒤 source 정렬·최종 gate·통합을 이어간다.
+- 후속 확인에서 stdout 캡처 문제는 master의 ISSUE-051과 일치했고 이미
+  `ff54f169`에서 수정돼 있었다. 새 이슈는 등록하지 않고 해당 source로 명시적으로
+  재기준화했다. `final-rebased-quality.log`의 최종 코드 전체 검사는 종료 코드 2이며,
+  실패는 기존 `tests/parity`의 CE `b79c1a4a` → `9877764d` 불일치뿐이다.
+  명령 패키지는 51.405초, `pkg/integrate`는 677.225초에 통과했다.
+  이 실행에는 디스크 공간 부족 실패가 없다. 뒤의 integration/E2E/critical coverage
+  게이트는 별도 실행해 종료 코드 0을 받았으며 `final-remaining-gates.log`에 보존한다.
+  참조 파일은 변경하지 않았다. 소비자 프로필 선언과 실제 양측 준비 수용이 남아
+  있으므로 이 카드 전체의 해결을 주장하지 않는다.
 
 ## 범위 밖
 
