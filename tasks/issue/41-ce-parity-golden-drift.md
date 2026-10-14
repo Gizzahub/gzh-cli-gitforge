@@ -238,3 +238,25 @@ Go manifest, Make 품질 계약은 같았다. 이번 등록 역시 문서 변경
 소급 수정하지 않는다. 설치된 CE와 선언된 참조를 소유 계약에 따라 다시 맞추는
 작업은 이 기존 이슈의 후속이다. 이번 등록에서는 CE 설치·PATH·골든·검사 상한을
 바꾸지 않았고, 같은 문제가 이미 등록돼 있어 새 parity 이슈는 만들지 않는다.
+
+## 2026-10-14 sibling lifecycle 문서 전달 중 재확인
+
+설치 CE가 `c4deec428559ea49a9b5a066ddfe727045b00a37`로 전진한 뒤,
+`sibling-provision-evidence` 작업의 `make quality-check`는 앞선 unit 검사를
+통과하고 parity TestMain에서 exit 2로 중단했다. 12개 golden은 계속
+`cd0e1d19c3211b85a514ac03383ae6166a614f07`를 참조한다. 이후 integration,
+E2E, coverage 단계는 실행하지 않았다. `make check`는 통과했다.
+
+canonical source primary `b32360a`의 직접 `go test ./tests/parity`도 같은
+installed-build guard에서 exit 1로 실패했다. primary, 현재 target
+`bf460da`, 문서 작업 `5599474`의 `tests/parity` Git tree object는 모두
+`675f90fb8c04470b3a4aa84886b2cd73d7a8ba16`이며, 해당 parity package의 Go 소스와
+fixture는 같다. `bf460da..5599474`의 작업 변경은 문서 3개뿐이며 Go・test・tool
+경로를 바꾸지 않았다. 실패는 scenario 실행 전에 동일한 TestMain guard에서
+발생하므로, 이 문서 작업이 baseline 실패를 악화하지 않았음을 독립 strong AI
+검수로 확인했다.
+
+원시 로그는 `/Users/archmagece/mycache/tmp/gzh-cli-quality.5wDebO/`의
+`sibling-evidence-rebase-quality.log`와 `sibling-evidence-baseline-parity.log`다.
+이 기록은 기존 ISSUE-41의 재현 갱신이며, 새 CE pin 채택이나 golden 재녹화,
+rollback, waiver를 집행한 기록이 아니다.
