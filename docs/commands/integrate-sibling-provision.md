@@ -11,7 +11,7 @@ remote; `source-tip` must equal its local `origin/<sourceBranch>` tracking tip.
 As observed with official build `b323`, an undeclared `name` in `--source` is
 currently ignored and acquire falls back to the declared sibling. Do not treat
 that form as arbitrary source selection; this known limitation is tracked in
-`tasks/issue/47-undeclared-sibling-source-override.md`.
+`tasks/issue/49-undeclared-sibling-source-override.md`.
 
 The command prints an opaque lease ID. `inspect --json` lists unchanged leases
 bound to the current task root and reports `RESUMABLE` for a retained lease; it

@@ -37,4 +37,4 @@ acquire부터 release까지의 native 경로에서 해소되었다.
 정상 archive였다. 첫 EE coherent compile에서 재사용·복구 가능 상태로 확인한 뒤,
 HTTP audit private-setting retention gap을 드러낸 경계 전에 clean release했다.
 `ee-native-sibling-pre-audit-release.json`은 그 lease의 `RELEASED` 결과를 기록한다.
-선언되지 않은 `--source` 이름 처리 결함은 ISSUE-47에서 추적한다.
+선언되지 않은 `--source` 이름 처리 결함은 ISSUE-49에서 추적한다.
