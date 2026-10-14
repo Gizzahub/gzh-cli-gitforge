@@ -89,6 +89,7 @@ type cleanupRun struct {
 	common     string
 	caller     OwnerIdentity
 	targetName string
+	endpoint   string
 	report     *CleanupReport
 }
 
@@ -110,7 +111,7 @@ func CleanupRetry(ctx context.Context, exec *gitcmd.Executor, opts CleanupOption
 		return nil, err
 	}
 	defer lock.release()
-	if err := run.revalidateUnderLock(); err != nil {
+	if err := run.revalidateUnderLock(ctx); err != nil {
 		return nil, err
 	}
 	if err := run.proveRemoteTarget(ctx); err != nil {
@@ -196,7 +197,7 @@ func newCleanupRun(ctx context.Context, exec *gitcmd.Executor, opts CleanupOptio
 // immutable field; a receipt rebound to another destination means this lock
 // guards the wrong ref. The claim check and guards follow; a live or
 // unknowable holder refuses before any proof or deletion.
-func (r *cleanupRun) revalidateUnderLock() error {
+func (r *cleanupRun) revalidateUnderLock(ctx context.Context) error {
 	lockedRead := r.report.Receipt
 	receipt, ok, err := readReceipt(r.common, r.opts.ExecutionID)
 	if err != nil {
@@ -222,6 +223,10 @@ func (r *cleanupRun) revalidateUnderLock() error {
 		return err
 	}
 	r.targetName = targetName
+	r.endpoint, err = receiptPushEndpoint(ctx, r.g, receipt)
+	if err != nil {
+		return fmt.Errorf("%w: resolve push endpoint: %w", ErrCleanupProofUnknown, err)
+	}
 	r.report.Receipt = receipt
 	return nil
 }
@@ -234,7 +239,7 @@ func (r *cleanupRun) revalidateUnderLock() error {
 // behind the fact; that flag is reconciled here under the lock, without
 // re-pushing.
 func (r *cleanupRun) proveRemoteTarget(ctx context.Context) error {
-	contains, err := proveRemoteTargetContainsTask(ctx, r.g, r.report.Receipt, r.targetName)
+	contains, err := proveRemoteTargetContainsTask(ctx, r.g, r.report.Receipt, r.targetName, r.endpoint)
 	if err != nil {
 		if !r.report.Receipt.SourcePushed && errors.Is(err, errTargetNotContaining) {
 			return fmt.Errorf("%w: %s phase=%s: %w", ErrCleanupNotPushed, r.opts.ExecutionID, r.report.Receipt.Phase, err)
@@ -275,7 +280,7 @@ func (r *cleanupRun) validateResiduals(ctx context.Context) (residualPresence, e
 	if err != nil {
 		return residualPresence{}, err
 	}
-	remoteSHA, remotePresent, err := lsRemoteHead(ctx, r.g, receipt.pushRemote(), receipt.TaskBranch)
+	remoteSHA, remotePresent, err := lsRemoteHead(ctx, r.g, r.endpoint, receipt.TaskBranch)
 	if err != nil {
 		return residualPresence{}, fmt.Errorf("%w: query remote task branch: %w", ErrCleanupProofUnknown, err)
 	}
@@ -309,7 +314,10 @@ func (r *cleanupRun) reconcileAbsentResiduals(ctx context.Context, presence resi
 	if !reconciled {
 		return nil
 	}
-	return writeReceipt(ctx, r.common, receipt)
+	if err := writeReceipt(ctx, r.common, receipt); err != nil {
+		return fmt.Errorf("%w: persist reconciled residuals: %w", ErrCleanupPartial, err)
+	}
+	return nil
 }
 
 // removeResiduals removes each validated residual, recording every durable
@@ -324,31 +332,38 @@ func (r *cleanupRun) removeResiduals(ctx context.Context, presence residualPrese
 		}
 		receipt.WorktreeRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist worktree removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "worktree("+receipt.TaskWorktree+")")
 	}
 	if presence.localBranch {
-		res, err := r.g.run(ctx, "branch", "-d", receipt.TaskBranch)
+		if err := refuseCheckedOutTaskBranch(ctx, r.g, receipt.TaskBranch); err != nil {
+			return fmt.Errorf("%w: refuse checked-out local delete: %w", ErrCleanupPartial, err)
+		}
+		ref := "refs/heads/" + receipt.TaskBranch
+		if err := refuseSymbolicTaskRef(ctx, r.g, ref); err != nil {
+			return fmt.Errorf("%w: refuse symbolic local delete: %w", ErrCleanupPartial, err)
+		}
+		res, err := r.g.run(ctx, "update-ref", "-d", "--no-deref", ref, receipt.TaskSHA)
 		if err != nil || (res != nil && res.ExitCode != 0) {
-			return fmt.Errorf("%w: branch -d %s: %s", ErrCleanupPartial, receipt.TaskBranch, gitCmdDetail(res, err))
+			return fmt.Errorf("%w: expected-old local delete %s: %s", ErrCleanupPartial, receipt.TaskBranch, gitCmdDetail(res, err))
 		}
 		receipt.LocalBranchRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist local branch removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "local-branch")
 	}
 	if presence.remoteBranch {
 		ref := "refs/heads/" + receipt.TaskBranch
 		lease := "--force-with-lease=" + ref + ":" + receipt.TaskSHA
-		del, err := r.g.run(ctx, "push", lease, receipt.pushRemote(), ":"+ref)
+		del, err := r.g.run(ctx, "push", lease, r.endpoint, ":"+ref)
 		if err != nil || (del != nil && del.ExitCode != 0) {
 			return fmt.Errorf("%w: leased remote delete %s: %s", ErrCleanupPartial, receipt.TaskBranch, gitCmdDetail(del, err))
 		}
 		receipt.RemoteBranchRemoved = true
 		if err := writeReceipt(ctx, r.common, receipt); err != nil {
-			return err
+			return fmt.Errorf("%w: persist remote branch removal: %w", ErrCleanupPartial, err)
 		}
 		r.report.Actions = append(r.report.Actions, "remote-branch")
 	}
@@ -363,7 +378,7 @@ func (r *cleanupRun) finish(ctx context.Context, presence residualPresence) (*Cl
 		if receipt.Phase != evidencePhaseComplete {
 			receipt.Phase = evidencePhaseComplete
 			if err := writeReceipt(ctx, r.common, receipt); err != nil {
-				return r.report, err
+				return r.report, fmt.Errorf("%w: persist cleanup completion: %w", ErrCleanupPartial, err)
 			}
 		}
 		r.report.Complete = true
@@ -374,8 +389,9 @@ func (r *cleanupRun) finish(ctx context.Context, presence residualPresence) (*Cl
 }
 
 // CleanupExitCode maps a cleanup error to the process exit contract: 0 only
-// for a complete cleanup, 3 for a durable partial state, 2 for refusals and
-// execution errors.
+// for a complete cleanup, 3 for partial removal or failed receipt persistence,
+// and 2 for preflight refusals and execution errors. A failed write leaves the
+// previous durable receipt intact; retry re-proves actual Git absence.
 func CleanupExitCode(err error) int {
 	switch {
 	case err == nil:

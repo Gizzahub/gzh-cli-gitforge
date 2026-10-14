@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -26,6 +27,23 @@ type cleanupRetryFX struct {
 	target     string
 	common     string
 	execution  ExecutionContext
+}
+
+// interceptGit injects a fixture-only fault at a real Git command boundary.
+// The script is a constant test program; fixture values travel as environment
+// entries and quoted arguments, never interpolated shell code.
+func (f *cleanupRetryFX) interceptGit(t *testing.T, script string) {
+	t.Helper()
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrapper := filepath.Join(t.TempDir(), "git-intercept")
+	body := "#!/bin/bash\nset -euo pipefail\n" + script + "\nexec \"$TASK302_TEST_GIT\" \"$@\"\n"
+	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	f.exec = gitcmd.NewExecutor(gitcmd.WithGitBinary(wrapper), gitcmd.WithEnv([]string{"TASK302_TEST_GIT=" + realGit}))
 }
 
 // newCleanupRetryFX builds the fixture and runs a real evidenced integrate
@@ -194,7 +212,10 @@ func (f *cleanupRetryFX) seedReceipt(t *testing.T, phase, worktree string) {
 		Remote:              f.fx.Remote,
 		SourcePushed:        phase != evidencePhaseIntent,
 		Phase:               phase,
-		Provenance:          &evidenceProvenance{DeclarationPatterns: []string{"dev/*"}},
+		Provenance: &evidenceProvenance{
+			DeclarationPatterns: []string{"dev/*"},
+			ReclaimRefs:         &evidenceReclaimRefs{Default: "main", Integration: "develop"},
+		},
 	}
 	if err := createReceipt(context.Background(), f.common, r); err != nil {
 		t.Fatalf("seed receipt: %v", err)

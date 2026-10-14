@@ -7,11 +7,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
 // errTargetNotContaining is the definitive negative: the remote target was
@@ -24,6 +24,10 @@ func (r *Receipt) pushRemote() string {
 		return r.PushRemote
 	}
 	return r.Remote
+}
+
+func receiptPushEndpoint(ctx context.Context, g gitRepo, receipt *Receipt) (string, error) {
+	return boundPushEndpoint(ctx, g, receipt.Remote, receipt.PushRemote)
 }
 
 // receiptTargetBranch validates and extracts the plain target branch name the
@@ -70,11 +74,15 @@ func refuseLiveOrUnknownClaim(receipt *Receipt) error {
 // reclaim, using the run's recorded provenance — the declaration and
 // controller the caller approved, not whatever the dying worktree says now.
 func cleanupGuards(receipt *Receipt, targetName string) error {
-	if repository.IsProtected(receipt.TaskBranch) {
-		return fmt.Errorf("%w: %s is protected", ErrCleanupGuard, receipt.TaskBranch)
+	if receipt.Provenance == nil || receipt.Provenance.ReclaimRefs == nil {
+		return fmt.Errorf("%w: run did not record resolved reclaim branch names", ErrCleanupGuard)
 	}
-	if receipt.TaskBranch == targetName {
-		return fmt.Errorf("%w: %s is the integration target", ErrCleanupGuard, receipt.TaskBranch)
+	refs := receipt.Provenance.ReclaimRefs
+	if reason := reclaimRefGuardReason(reclaimOpts{
+		Branch: receipt.TaskBranch, TargetBranch: targetName,
+		DefaultName: refs.Default, Integration: refs.Integration, Remote: receipt.Remote,
+	}); reason != "" {
+		return fmt.Errorf("%w: %s", ErrCleanupGuard, reason)
 	}
 	patterns := receipt.ProvenanceControllerPatterns()
 	if len(patterns) == 0 {
@@ -92,7 +100,7 @@ func (r *Receipt) ProvenanceControllerPatterns() []string {
 	if r.Provenance == nil {
 		return nil
 	}
-	if r.Provenance.Controller != nil && len(r.Provenance.Controller.TaskPattern) > 0 {
+	if r.Provenance.Controller != nil {
 		return r.Provenance.Controller.TaskPattern
 	}
 	return r.Provenance.DeclarationPatterns
@@ -102,8 +110,7 @@ func (r *Receipt) ProvenanceControllerPatterns() []string {
 // captured task SHA: the tip is read live with ls-remote, and either equals
 // the task SHA or is locally resolvable history that contains it. Anything
 // else is unknown, and unknown is a refusal.
-func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Receipt, targetName string) (bool, error) {
-	remote := receipt.pushRemote()
+func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Receipt, targetName, remote string) (bool, error) {
 	if remote == "" {
 		return false, fmt.Errorf("%w: receipt records no remote", ErrCleanupProofUnknown)
 	}
@@ -138,37 +145,77 @@ func proveRemoteTargetContainsTask(ctx context.Context, g gitRepo, receipt *Rece
 // rev-parse --verify proves the branch exists; anything else reports it
 // missing without guessing from tracking refs.
 func probeLocalBranch(ctx context.Context, g gitRepo, branch string) (sha string, present bool, err error) {
-	res, err := g.run(ctx, "rev-parse", "--verify", "refs/heads/"+branch)
+	ref := "refs/heads/" + branch
+	if err := refuseSymbolicTaskRef(ctx, g, ref); err != nil {
+		return "", false, err
+	}
+	res, err := g.output(ctx, "for-each-ref", "--format=%(refname)%09%(objectname)", ref)
 	if err != nil {
 		return "", false, err
 	}
-	if res.ExitCode != 0 {
-		return "", false, nil
+	for _, line := range strings.Split(res, "\n") {
+		name, oid, ok := strings.Cut(line, "\t")
+		if name != ref {
+			continue
+		}
+		if !ok {
+			return "", false, fmt.Errorf("malformed local ref inventory for %s", ref)
+		}
+		sha, err := NormalizeExpectSource(oid)
+		if err != nil {
+			return "", false, fmt.Errorf("invalid local ref inventory for %s: %w", ref, err)
+		}
+		return sha, true, nil
 	}
-	return strings.TrimSpace(res.Stdout), true, nil
+	return "", false, nil
+}
+
+func refuseSymbolicTaskRef(ctx context.Context, g gitRepo, ref string) error {
+	res, err := g.run(ctx, "symbolic-ref", "--quiet", ref)
+	if err != nil {
+		return err
+	}
+	if res.ExitCode == 0 {
+		return fmt.Errorf("task ref is unexpectedly symbolic: %s -> %s", ref, strings.TrimSpace(res.Stdout))
+	}
+	if res.ExitCode != 1 {
+		return fmt.Errorf("cannot prove direct task ref %s: %s", ref, strings.TrimSpace(res.Stderr))
+	}
+	return nil
 }
 
 // validateWorktreeResidual proves the physical worktree recorded in the
 // receipt is still this execution's worktree: listed, on the task branch,
 // registration-marked for this execution and generation, and clean.
 func validateWorktreeResidual(ctx context.Context, exec *gitcmd.Executor, g gitRepo, receipt *Receipt) (bool, error) {
-	if receipt.TaskWorktree == "" {
-		return false, nil
-	}
 	trees, err := g.listWorktrees(ctx)
 	if err != nil {
 		return false, err
 	}
 	var listed bool
 	for _, wt := range trees {
+		if wt.Branch == receipt.TaskBranch && wt.Path != receipt.TaskWorktree {
+			return false, fmt.Errorf("%w: task branch is held by another worktree: %s", ErrCleanupRegistration, wt.Path)
+		}
 		if wt.Path == receipt.TaskWorktree {
 			listed = true
+			if wt.Locked {
+				return false, fmt.Errorf("%w: task worktree is locked: %s", ErrCleanupRegistration, wt.Path)
+			}
 			if wt.Branch != receipt.TaskBranch {
 				return false, fmt.Errorf("%w: worktree %s is on branch %s, not the task branch %s", ErrCleanupRegistration, receipt.TaskWorktree, wt.Branch, receipt.TaskBranch)
 			}
 		}
 	}
 	if !listed {
+		if receipt.TaskWorktree == "" {
+			return false, nil
+		}
+		if _, err := os.Lstat(receipt.TaskWorktree); err == nil {
+			return false, fmt.Errorf("%w: unregistered residual path %s", ErrCleanupRegistration, receipt.TaskWorktree)
+		} else if !os.IsNotExist(err) {
+			return false, fmt.Errorf("%w: probe residual path %s: %w", ErrCleanupRegistration, receipt.TaskWorktree, err)
+		}
 		return false, nil
 	}
 	marker, ok, err := readRegistrationMarker(ctx, exec, receipt.TaskWorktree)
@@ -186,7 +233,27 @@ func validateWorktreeResidual(ctx context.Context, exec *gitcmd.Executor, g gitR
 	if strings.TrimSpace(porcelain) != "" {
 		return false, fmt.Errorf("%w: %s", ErrCleanupDirtyWorktree, receipt.TaskWorktree)
 	}
+	common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return false, err
+	}
+	if err := verifyGitOnlyReclaimScope(common, receipt.TaskWorktree); err != nil {
+		return false, fmt.Errorf("%w: caller-owned resources: %w", ErrCleanupRegistration, err)
+	}
 	return true, nil
+}
+
+func refuseCheckedOutTaskBranch(ctx context.Context, g gitRepo, branch string) error {
+	trees, err := g.listWorktrees(ctx)
+	if err != nil {
+		return err
+	}
+	for _, wt := range trees {
+		if wt.Branch == branch {
+			return fmt.Errorf("task branch is still checked out at %s", wt.Path)
+		}
+	}
+	return nil
 }
 
 // lsRemoteHead queries one remote head live. exists=false is reported only

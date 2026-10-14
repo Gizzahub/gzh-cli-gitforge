@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -219,7 +221,84 @@ func bootstrapSnapshot(ctx context.Context, g gitRepo, opts BootstrapOptions) (B
 	return BootstrapPlan{Repository: endpoint, Remote: remote, TargetRef: target, TargetSHA: shaTarget, SourceRef: branch, SourceSHA: sha, ManifestPath: contract.ManifestPath, ManifestOID: contract.ManifestOID, RunnerPath: contract.Decl.Runner, RunnerOID: contract.RunnerOID, ReadinessTreeOID: contract.TreeOID, ReadinessTreeDigest: digest, PushEndpoint: endpoint, DestinationRef: destination}, nil
 }
 
+func boundPushEndpoint(ctx context.Context, g gitRepo, remote, explicit string) (string, error) {
+	endpoint := explicit
+	if endpoint == "" {
+		var err error
+		endpoint, err = configuredPushEndpoint(ctx, g, remote)
+		if err != nil {
+			return "", err
+		}
+	}
+	return validateBoundPushEndpoint(ctx, g, endpoint)
+}
+
 func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
+	endpoint, err := configuredPushEndpoint(ctx, g, remote)
+	if err != nil {
+		return "", err
+	}
+	if gitcmd.IsSCPRemoteEndpoint(endpoint) {
+		return validateBoundPushEndpoint(ctx, g, endpoint)
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" {
+		if filepath.IsAbs(endpoint) {
+			return validateBoundPushEndpoint(ctx, g, endpoint)
+		}
+		anchor, err := filepath.Abs(g.dir)
+		if err != nil {
+			return "", err
+		}
+		anchor, err = filepath.EvalSymlinks(anchor)
+		if err != nil {
+			return "", err
+		}
+		// Preserve symlink/.. ordering until physical resolution; Join would
+		// lexically clean it and select a different repository.
+		endpoint = anchor + string(os.PathSeparator) + endpoint //nolint:gocritic // filepath.Join changes Git symlink/.. semantics and the tested destination.
+		physical, err := filepath.EvalSymlinks(endpoint)
+		if err != nil {
+			return "", err
+		}
+		return validateBoundPushEndpoint(ctx, g, physical)
+	}
+	return validateBoundPushEndpoint(ctx, g, endpoint)
+}
+
+func validateBoundPushEndpoint(ctx context.Context, g gitRepo, raw string) (string, error) {
+	endpoint, err := immutablePushEndpoint(raw)
+	if err != nil {
+		return "", err
+	}
+	if err := refusePushEndpointRewrites(ctx, g, endpoint); err != nil {
+		return "", err
+	}
+	return endpoint, nil
+}
+
+func immutablePushEndpoint(raw string) (string, error) {
+	endpoint, err := canonicalPushEndpoint(raw)
+	if err != nil {
+		return "", err
+	}
+	if gitcmd.IsSCPRemoteEndpoint(endpoint) {
+		return endpoint, nil
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	if (u.Scheme == "" && !filepath.IsAbs(endpoint)) || (u.Scheme == "file" && (u.Opaque != "" || !filepath.IsAbs(u.Path))) {
+		return "", fmt.Errorf("relative push endpoint has no immutable execution-directory binding: %s", endpoint)
+	}
+	return endpoint, nil
+}
+
+func configuredPushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
 	res, err := g.run(ctx, "remote", "get-url", "--push", "--all", remote)
 	if err != nil {
 		return "", err
@@ -232,22 +311,32 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	rewrites, err := g.run(ctx, "config", "--get-regexp", `^url\.`)
-	if err != nil {
+	if err := refusePushEndpointRewrites(ctx, g, endpoint); err != nil {
 		return "", err
 	}
+	return endpoint, nil
+}
+
+func refusePushEndpointRewrites(ctx context.Context, g gitRepo, endpoint string) error {
+	rewrites, err := g.run(ctx, "config", "--get-regexp", `^url\.`)
+	if err != nil {
+		return err
+	}
+	if rewrites.ExitCode != 0 && rewrites.ExitCode != 1 {
+		return fmt.Errorf("cannot query URL rewrite configuration: exit %d", rewrites.ExitCode)
+	}
+	if rewrites.ExitCode == 1 && strings.TrimSpace(rewrites.Stdout) != "" {
+		return fmt.Errorf("URL rewrite configuration query is incomplete")
+	}
 	for _, line := range strings.Split(rewrites.Stdout, "\n") {
-		fields := strings.Fields(line)
-		key := ""
-		if len(fields) > 0 {
-			key = strings.ToLower(fields[0])
-		}
+		key, prefix, hasValue := strings.Cut(line, " ")
+		key = strings.ToLower(key)
 		isRewrite := strings.HasSuffix(key, ".insteadof") || strings.HasSuffix(key, ".pushinsteadof")
-		if isRewrite && len(fields) >= 2 && strings.HasPrefix(endpoint, fields[len(fields)-1]) {
-			return "", fmt.Errorf("effective push endpoint is subject to another URL rewrite")
+		if isRewrite && (!hasValue || strings.HasPrefix(endpoint, prefix)) {
+			return fmt.Errorf("effective push endpoint is subject to another URL rewrite")
 		}
 	}
-	return endpoint, nil
+	return nil
 }
 
 func canonicalPushEndpoint(raw string) (string, error) {
