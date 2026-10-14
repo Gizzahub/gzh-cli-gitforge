@@ -188,6 +188,10 @@ func removeTaskWorktree(ctx context.Context, sg gitRepo, taskWT string, out *Rec
 }
 
 func deleteLocalTaskBranch(ctx context.Context, sg gitRepo, branch, expected string, out *ReclaimResult) bool {
+	if err := refuseCheckedOutTaskBranch(ctx, sg, branch); err != nil {
+		out.Failed = append(out.Failed, err.Error())
+		return false
+	}
 	if expected == "" {
 		out.Failed = append(out.Failed, "local delete needs the captured commit")
 		return false

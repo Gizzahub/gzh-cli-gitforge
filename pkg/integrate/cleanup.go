@@ -332,6 +332,9 @@ func (r *cleanupRun) removeResiduals(ctx context.Context, presence residualPrese
 		r.report.Actions = append(r.report.Actions, "worktree("+receipt.TaskWorktree+")")
 	}
 	if presence.localBranch {
+		if err := refuseCheckedOutTaskBranch(ctx, r.g, receipt.TaskBranch); err != nil {
+			return fmt.Errorf("%w: refuse checked-out local delete: %w", ErrCleanupPartial, err)
+		}
 		ref := "refs/heads/" + receipt.TaskBranch
 		res, err := r.g.run(ctx, "update-ref", "-d", ref, receipt.TaskSHA)
 		if err != nil || (res != nil && res.ExitCode != 0) {

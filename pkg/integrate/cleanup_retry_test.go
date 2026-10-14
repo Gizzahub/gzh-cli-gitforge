@@ -4,6 +4,7 @@
 package integrate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -458,6 +459,73 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 			t.Fatalf("exit mapping broken")
 		}
 	})
+}
+
+func TestCleanupOnlyRetryMovedWorktree(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	moved := filepath.Join(t.TempDir(), "moved-taskwt")
+	runGit(t, f.fx.Clone, "worktree", "move", wt, moved)
+	report, err := f.cleanup(t, "g7")
+	if err == nil || (report != nil && report.Complete) {
+		t.Fatalf("moved branch worktree was treated as absent: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, resolvePath(t, moved))
+	if r := f.receipt(t); r.WorktreeRemoved || r.LocalBranchRemoved || r.RemoteBranchRemoved {
+		t.Fatalf("moved worktree advanced removal evidence: %+v", r)
+	}
+}
+
+func TestCleanupOnlyRetryPreservesCallerResources(t *testing.T) {
+	for _, kind := range []string{"bare", "sibling-lease"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			wt := resolvePath(t, f.fx.Worktree)
+			var resource string
+			if kind == "bare" {
+				writeRepoFile(t, wt, ".gitignore", "nested/\n")
+				runGit(t, wt, "add", ".gitignore")
+				runGit(t, wt, "commit", "-m", "ignore retry resource")
+				runGit(t, wt, "push", f.fx.Remote, f.taskBranch)
+				f.taskSHA = gitOutput(t, wt, "rev-parse", "HEAD")
+				f.execution.ExpectSource = f.taskSHA
+				nested := filepath.Join(wt, "nested")
+				runGit(t, wt, "init", "--bare", nested)
+				resource = filepath.Join(nested, "HEAD")
+			} else {
+				dir := filepath.Join(f.common, "sibling-provision-leases")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				data, err := json.Marshal(SiblingLease{Root: wt, ID: "caller-owned"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				resource = filepath.Join(dir, "caller-owned.json")
+				if err := os.WriteFile(resource, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if r := f.realRun(t); !r.Reclaim.Incomplete() || r.Reclaim.GitProof != nil {
+				t.Fatalf("normal reclaim did not preserve caller resource: %+v", r.Reclaim)
+			}
+			before, err := os.ReadFile(resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+			report, err := f.cleanup(t, "g7")
+			if err == nil || (report != nil && report.Complete) {
+				t.Fatalf("retry bypassed caller-resource refusal: report=%+v err=%v", report, err)
+			}
+			f.assertResidualsIntact(t, wt)
+			after, err := os.ReadFile(resource)
+			if err != nil || !bytes.Equal(after, before) {
+				t.Fatalf("caller resource was changed: %v", err)
+			}
+		})
+	}
 }
 
 func TestCleanupOnlyRetryLocalProbeFailure(t *testing.T) {

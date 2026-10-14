@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -164,23 +165,34 @@ func probeLocalBranch(ctx context.Context, g gitRepo, branch string) (sha string
 // receipt is still this execution's worktree: listed, on the task branch,
 // registration-marked for this execution and generation, and clean.
 func validateWorktreeResidual(ctx context.Context, exec *gitcmd.Executor, g gitRepo, receipt *Receipt) (bool, error) {
-	if receipt.TaskWorktree == "" {
-		return false, nil
-	}
 	trees, err := g.listWorktrees(ctx)
 	if err != nil {
 		return false, err
 	}
 	var listed bool
 	for _, wt := range trees {
+		if wt.Branch == receipt.TaskBranch && wt.Path != receipt.TaskWorktree {
+			return false, fmt.Errorf("%w: task branch is held by another worktree: %s", ErrCleanupRegistration, wt.Path)
+		}
 		if wt.Path == receipt.TaskWorktree {
 			listed = true
+			if wt.Locked {
+				return false, fmt.Errorf("%w: task worktree is locked: %s", ErrCleanupRegistration, wt.Path)
+			}
 			if wt.Branch != receipt.TaskBranch {
 				return false, fmt.Errorf("%w: worktree %s is on branch %s, not the task branch %s", ErrCleanupRegistration, receipt.TaskWorktree, wt.Branch, receipt.TaskBranch)
 			}
 		}
 	}
 	if !listed {
+		if receipt.TaskWorktree == "" {
+			return false, nil
+		}
+		if _, err := os.Lstat(receipt.TaskWorktree); err == nil {
+			return false, fmt.Errorf("%w: unregistered residual path %s", ErrCleanupRegistration, receipt.TaskWorktree)
+		} else if !os.IsNotExist(err) {
+			return false, fmt.Errorf("%w: probe residual path %s: %w", ErrCleanupRegistration, receipt.TaskWorktree, err)
+		}
 		return false, nil
 	}
 	marker, ok, err := readRegistrationMarker(ctx, exec, receipt.TaskWorktree)
@@ -198,7 +210,27 @@ func validateWorktreeResidual(ctx context.Context, exec *gitcmd.Executor, g gitR
 	if strings.TrimSpace(porcelain) != "" {
 		return false, fmt.Errorf("%w: %s", ErrCleanupDirtyWorktree, receipt.TaskWorktree)
 	}
+	common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return false, err
+	}
+	if err := verifyGitOnlyReclaimScope(common, receipt.TaskWorktree); err != nil {
+		return false, fmt.Errorf("%w: caller-owned resources: %w", ErrCleanupRegistration, err)
+	}
 	return true, nil
+}
+
+func refuseCheckedOutTaskBranch(ctx context.Context, g gitRepo, branch string) error {
+	trees, err := g.listWorktrees(ctx)
+	if err != nil {
+		return err
+	}
+	for _, wt := range trees {
+		if wt.Branch == branch {
+			return fmt.Errorf("task branch is still checked out at %s", wt.Path)
+		}
+	}
+	return nil
 }
 
 // lsRemoteHead queries one remote head live. exists=false is reported only

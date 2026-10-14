@@ -48,3 +48,10 @@ ref/OID로만 판정하며 실패한 조회를 부재로 바꾸지 않는다. li
 있는 회수는 local tracking ref 없이도 captured OID의 exact lease로 삭제한다.
 수정 후 세 검사와 기존 사후 조회·nested repository 검사에 race 검증을 적용한다.
 이는 source 변경 근거이며 공식 C1–C5 수용이나 전달 완료 주장이 아니다.
+
+같은 보존 규칙은 cleanup-only retry에도 적용한다. 정상 회수가 거부한 bare
+저장소와 sibling lease를 retry가 삭제하던 경로를 회귀 검사로 재현했다.
+기록된 task worktree가 다른 경로로 이동했거나 잠겨 있으면 삭제를 거부한다.
+등록되지 않은 물리 경로도 부재로 처리하지 않는다. local atomic CAS 직전에는
+task branch를 사용하는 worktree가 없는지 다시 확인한다. moved-worktree 및
+정상 거부 후 retry 검사도 실제 RED 후 수정된 race GREEN으로 확인한다.
