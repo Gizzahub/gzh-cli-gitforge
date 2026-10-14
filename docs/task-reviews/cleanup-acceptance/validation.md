@@ -64,3 +64,12 @@ push endpoint resolver로 단일 실제 주소를 통합 전에 확정하고 기
 `PushRemote`에 기록한다. push, 삭제 전 containment, remote 삭제와 사후 부재
 조회가 같은 주소를 사용하며 Git-only JSON의 observed target도 그 endpoint를
 내보낸다. 여러 push 주소는 intent/push 전에 거부하고 기존 자원을 보존한다.
+
+plain relative filesystem remote는 최초 push 실행 디렉터리의 physical 주소로
+확정해 저장한다. 다른 checkout parent와 같은 task/target OID를 가진 별도
+bare 저장소를 준비하자 기존 normal/retry가 그 저장소를 삭제하고 실제 push
+저장소를 남기는 assertion RED가 재현됐다. 절대 주소 binding 후에는 실제
+push 저장소만 회수하고 caller의 별도 저장소를 보존한다. 이미 저장된 relative
+주소나 상대 `file:` URI는 원래 실행 디렉터리를 증명할 수 없으면 거부하며
+현재 caller 디렉터리로 재해석하지 않는다. 기존 absolute/SSH/HTTPS 주소의
+textual identity는 유지한다.

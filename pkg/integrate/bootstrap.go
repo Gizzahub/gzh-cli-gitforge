@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -220,13 +222,70 @@ func bootstrapSnapshot(ctx context.Context, g gitRepo, opts BootstrapOptions) (B
 }
 
 func boundPushEndpoint(ctx context.Context, g gitRepo, remote, explicit string) (string, error) {
-	if explicit != "" {
-		return canonicalPushEndpoint(explicit)
+	endpoint := explicit
+	if endpoint == "" {
+		var err error
+		endpoint, err = configuredPushEndpoint(ctx, g, remote)
+		if err != nil {
+			return "", err
+		}
 	}
-	return pushEndpoint(ctx, g, remote)
+	return immutablePushEndpoint(endpoint)
 }
 
 func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
+	endpoint, err := configuredPushEndpoint(ctx, g, remote)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(endpoint, "@") && !strings.Contains(endpoint, "://") {
+		return endpoint, nil
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" {
+		if filepath.IsAbs(endpoint) {
+			return immutablePushEndpoint(endpoint)
+		}
+		anchor, err := filepath.Abs(g.dir)
+		if err != nil {
+			return "", err
+		}
+		anchor, err = filepath.EvalSymlinks(anchor)
+		if err != nil {
+			return "", err
+		}
+		endpoint = filepath.Join(anchor, endpoint)
+		physical, err := filepath.EvalSymlinks(endpoint)
+		if err != nil {
+			return "", err
+		}
+		return immutablePushEndpoint(physical)
+	}
+	return immutablePushEndpoint(endpoint)
+}
+
+func immutablePushEndpoint(raw string) (string, error) {
+	endpoint, err := canonicalPushEndpoint(raw)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(endpoint, "@") && !strings.Contains(endpoint, "://") {
+		return endpoint, nil
+	}
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	if (u.Scheme == "" && !filepath.IsAbs(endpoint)) || (u.Scheme == "file" && (u.Opaque != "" || !filepath.IsAbs(u.Path))) {
+		return "", fmt.Errorf("relative push endpoint has no immutable execution-directory binding: %s", endpoint)
+	}
+	return endpoint, nil
+}
+
+func configuredPushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
 	res, err := g.run(ctx, "remote", "get-url", "--push", "--all", remote)
 	if err != nil {
 		return "", err

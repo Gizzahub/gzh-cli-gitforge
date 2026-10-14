@@ -461,6 +461,24 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 	})
 }
 
+func TestCleanupOnlyRetryUnboundRelativeEndpoint(t *testing.T) {
+	f := newCleanupRetryFX(t, "@true")
+	f.realRun(t)
+	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
+	origin := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+	decoy := filepath.Join(f.fx.Clone, "remote.git")
+	runGit(t, f.fx.Clone, "clone", "--bare", origin, decoy)
+	f.amendReceiptRaw(t, func(r *Receipt) { r.PushRemote = "remote.git" })
+	report, err := f.cleanup(t, "g7")
+	if !errors.Is(err, ErrCleanupProofUnknown) || (report != nil && report.Complete) {
+		t.Fatalf("unbound relative receipt was reinterpreted: report=%+v err=%v", report, err)
+	}
+	f.assertResidualsIntact(t, wt)
+	if gitOutput(t, f.fx.Clone, "ls-remote", decoy, "refs/heads/"+f.taskBranch) == "" {
+		t.Fatal("caller decoy branch was deleted")
+	}
+}
+
 func TestCleanupOnlyRetrySymbolicRefPreservesReferent(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)

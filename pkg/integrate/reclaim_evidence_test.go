@@ -125,6 +125,66 @@ func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
 	}
 }
 
+func TestRunGitReclaimRelativePushEndpoint(t *testing.T) {
+	for _, retry := range []bool{false, true} {
+		name := "normal"
+		if retry {
+			name = "retry"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			origin := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+			sourceParent := t.TempDir()
+			actual := filepath.Join(sourceParent, "actual.git")
+			decoy := filepath.Join(f.fx.Clone, "remote.git")
+			moved := filepath.Join(sourceParent, "taskwt")
+			runGit(t, f.fx.Clone, "worktree", "move", f.fx.Worktree, moved)
+			f.fx.Worktree = moved
+			writeRepoFile(t, moved, ".gitignore", "remote.git\n")
+			runGit(t, moved, "add", ".gitignore")
+			runGit(t, moved, "commit", "-m", "ignore relative endpoint alias")
+			runGit(t, moved, "push", f.fx.Remote, f.taskBranch)
+			f.taskSHA = gitOutput(t, moved, "rev-parse", "HEAD")
+			f.execution.ExpectSource = f.taskSHA
+			runGit(t, f.fx.Clone, "clone", "--bare", origin, actual)
+			runGit(t, f.fx.Clone, "clone", "--bare", origin, decoy)
+			runGit(t, decoy, "update-ref", "refs/heads/develop", f.taskSHA)
+			if err := os.Symlink(actual, filepath.Join(moved, "remote.git")); err != nil {
+				t.Fatal(err)
+			}
+			runGit(t, f.fx.Clone, "remote", "set-url", "--push", f.fx.Remote, "remote.git")
+			if retry {
+				f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  printf '%s\n' 'injected local delete interruption' >&2
+  exit 42
+fi`)
+			}
+			report := f.realRun(t)
+			if retry {
+				if !report.Reclaim.Incomplete() {
+					t.Fatal("retry fixture did not interrupt normal cleanup")
+				}
+				f.interceptGit(t, "")
+				f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+				if cleanup, err := f.cleanup(t, "g7"); err != nil || !cleanup.Complete {
+					t.Fatalf("different-directory retry failed: %+v %v", cleanup, err)
+				}
+			} else if report.Reclaim.Incomplete() {
+				t.Fatalf("relative endpoint normal cleanup failed: %+v", report.Reclaim)
+			}
+			if gitOutput(t, f.fx.Clone, "ls-remote", actual, "refs/heads/"+f.taskBranch) != "" {
+				t.Fatal("actual pushed repository retained its task branch")
+			}
+			if gitOutput(t, f.fx.Clone, "ls-remote", decoy, "refs/heads/"+f.taskBranch) == "" {
+				t.Fatal("matching caller repository was deleted through relative reinterpretation")
+			}
+			if !filepath.IsAbs(report.Receipt.PushRemote) || report.Receipt.PushRemote != resolvePath(t, actual) {
+				t.Fatalf("receipt did not bind physical push address: %s", report.Receipt.PushRemote)
+			}
+		})
+	}
+}
+
 func TestRunGitReclaimAmbiguousPushEndpoints(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	actual := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
