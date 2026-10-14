@@ -1,6 +1,6 @@
 # ISSUE: go1.27 툴체인으로 빌드한 gosec가 export data를 읽지 못한다
 
-- status: TASK-270의 기존 수선은 resolved; Go 1.27.2 호환 gosec 후속 채택은 blocked (2026-10-14 비안정 도구 선택 대기)
+- status: TASK-270의 기존 수선은 resolved; Go 1.27.2 호환 gosec 정확 후보 채택 승인 (2026-10-14 통합·공식 설치 검증 진행)
 - priority: P1
 - category: quality/ci
 - created_at: 2026-10-01

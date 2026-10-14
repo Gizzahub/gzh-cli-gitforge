@@ -7,19 +7,21 @@ reference `cd0e1d19c3211b85a514ac03383ae6166a614f07`. Concurrent source adoption
 Go advances to the reported fixed patch 1.27.2 after managed-runtime verification.
 No workstation pin is rolled back and no product version is raised.
 
-## Adoption blocker (2026-10-14)
+## Explicit candidate adoption (2026-10-14)
 
 The updated user policy requires explicit selection before adopting an unreleased
-development tool. The tested gosec pseudo-version below is a candidate only:
-this task has not been integrated or installed. Independent technical review is
-compatibility evidence, not authorization for that policy exception.
+development tool. The user approved the recommendation to adopt exactly
+`v2.29.1-0.20261009120814-7b1b5cebe007` as a bounded exception. Independent
+technical review remains compatibility evidence; the user's approval authorizes
+the policy exception. Integration and official installation are the next steps,
+and are not established by the prior successful candidate checks.
 
 The latest official stable remains [v2.29.0](https://github.com/securego/gosec/releases/tag/v2.29.0).
 Its [x/tools v0.49.0 declaration](https://raw.githubusercontent.com/securego/gosec/v2.29.0/go.mod)
-matches the reproduced Go 1.27.2 export-format failure. Integration and the
-dependent EE native sibling-adoption proof wait for either an explicit choice of
-`v2.29.1-0.20261009120814-7b1b5cebe007` or a compatible official stable release.
-Existing successful candidate checks do not establish delivery completion.
+matches the reproduced Go 1.27.2 export-format failure. A compatible official
+stable successor must be verified before replacing the exact adopted pin.
+EE native sibling adoption still requires proof against the officially installed
+producer after delivery.
 
 ## Behavioral scope
 
