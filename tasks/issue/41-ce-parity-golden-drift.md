@@ -70,3 +70,53 @@ env -u CE_BIN -u PARITY_TARGET -u GZ_GIT_BIN -u PARITY_RECORD \
 이 등록은 재녹화·CE 설치·구버전 강제·fixture 예산 재설정 승인이 아니다.
 참조 채택과 의미 차이는 기존 소유자가 독립 strong 리뷰로 판정해야 하며
 전체 포트 추종 범위는 ISSUE-42와 분리한다.
+
+## 계약 확인과 새 후속 범위 (2026-10-14)
+
+ce-devenv의 `config/agents/agent-kit.toml`, 배포된 CE locator와 live snapshot의
+동일 파일은 같은 소스를 가리킨다. 이는 소스 경로 일치이며 immutable revision
+pin의 일치를 뜻하지 않는다. authoring source HEAD는 `9012626c`, clean 실행
+바이너리는 `b79c1a4a`다. 실행 build metadata는 `vcs.modified=false`다.
+따라서 source HEAD를 그대로 설치하거나 과거 cd0 바이너리로 강제하지 않는다.
+
+`cd0e1d19`는 b79의 조상이며 그 사이 네 커밋의 net diff에 task-runtime endpoint
+변경은 없다. b79 이후 현재 source까지도 해당 경로 변경은 관측되지 않았다.
+그러나 12개 시나리오의 실제 출력 비교는 아직 없으므로 stamp-only 또는 의미
+동등성을 확정하지 않는다. 원시 locator·binary·Git 관측은 devbox의
+`tmp/dva-project-tooling-evidence-20261014/followup/source-runtime-context.log`에
+보존한다. 이전 guard 실패·해결·리뷰 기록은 변경하지 않는다.
+
+### 제안한 단일 후보 예산 — 아직 활성화하지 않음
+
+TASK-318/321의 소진 예산을 재사용하거나 초기화하지 않는다. ISSUE-41에 연결된
+별도 후속 실행을 선택할 때만 다음 신규 예산을 적용하도록 제안한다.
+
+| 항목                     | 상한                                       |
+| ------------------------ | ------------------------------------------ |
+| 신규 참조 후보           | clean resolved b79 한 개                   |
+| 기계 캡처                | 12개 CE-reference 시나리오 전체 한 번      |
+| 독립 리뷰                | strong 한 번; 구현도 strong                |
+| record 실행              | 10분                                       |
+| focused reference 재검증 | 10분, zero skip                            |
+| canonical quality        | 45분; 기존 package timeout은 변경하지 않음 |
+| 독립 리뷰 시간           | 30분                                       |
+
+실행·리뷰 합계 상한은 95분이며 기존 FIFO 자원 대기와 Git 통합 대기는 별도로
+관측한다. 재시도·두 번째 후보·자동 시간 연장은 없다. 읽기 전용 preflight는
+후보를 소비하지 않지만 실패하면 진행을 멈춘다. 새 참조로 record가 처음 시작해
+proposed fixture를 쓰는 순간 한 후보·한 캡처를 소비한다. isolated evidence
+copy도 이 횟수에 포함하며, 임시 복사본을 추가 후보나 authoring source로 쓰지 않는다.
+
+활성화 전 source freshness·ACTIVE 소유권·resolved CE의 SHA와 clean build를 다시
+확인한다. 허용 변경은 `tests/parity/harness_test.go`의 참조 pin, 기존 golden
+12개, `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md`, 이 이슈의 새 증거뿐이다.
+엔진·native port·설치 pin·devenv·gz-git 버전은 제외한다.
+
+캡처 후 모든 변경을 시나리오·구조 필드별로 분류한다. status·exit·reason/action
+의미·owner·source/ref·worktree·cleanup의 변화, 미분류 차이, skip, timeout,
+nonzero 또는 provenance 불일치가 있으면 후보를 거절한다. 캡처와 독립 리뷰를
+통과하기 전 pin/golden을 수용하지 않는다. reference 후속은 ISSUE-42의 native
+port 수용을 대신하지 않으며, outer quality의 nonzero를 helper 성공으로 상쇄하지 않는다.
+
+이번 변경은 계획·관측 기록만 전달한다. 새 예산 채택·fixture 실행·재녹화·설치·
+릴리스 또는 TASK-302 수용을 실행하지 않았다.

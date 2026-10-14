@@ -57,6 +57,39 @@ b79c1a4a 차이를 거절했다. primary source에서도 같은 guard 실패(exi
 `tmp/dva-project-tooling-evidence-20261014/gitforge/`에 보존한다.
 실제 repository delivery는 CE receipt로 별도 확인한다.
 
+### 후속 실행 전에 확인할 소유 계약
+
+CE locator의 source·배포·live 경로 일치와 실행 revision 일치는 서로 다릅니다.
+2026-10-14 관측은 source HEAD 9012626c, clean 실행 CE b79c1a4a, gitforge 참조
+cd0e1d19입니다. 실제 fixture 의미 비교 전에는 stamp-only로 판정하지 않습니다.
+[ISSUE-41의 단일 후보 후속안](../../../tasks/issue/41-ce-parity-golden-drift.md#%EC%A0%9C%EC%95%88%ED%95%9C-%EB%8B%A8%EC%9D%BC-%ED%9B%84%EB%B3%B4-%EC%98%88%EC%82%B0--%EC%95%84%EC%A7%81-%ED%99%9C%EC%84%B1%ED%99%94%ED%95%98%EC%A7%80-%EC%95%8A%EC%9D%8C)은
+소진된 TASK-318/321과 별개이며 아직 활성화하지 않았습니다.
+
+DVA의 [공식 latest stable](https://github.com/ScriptonBasestar/dva/releases/latest)은
+v0.3.0(tag 629c34c1)입니다. ce-devenv의
+`scripts/install-internal-go-tools.sh`도 그 정확한 태그를 요구하지만, 실제
+DVA는 0.3.0/2a807f58 및 devel metadata를 보고합니다. 이는 설치기 결함의
+재현이나 자동 downgrade 근거가 아닙니다. doctor 개선 source5a0570f9는
+미공개이며 현재 설치본 지원으로 취급하지 않습니다.
+
+DVA의 기존 [릴리스 로드맵](https://github.com/ScriptonBasestar/dva/blob/master/ROADMAP.md)과
+[수동 릴리스 런북](https://github.com/ScriptonBasestar/dva/blob/master/docs/52-manual-release-runbook.md)이
+후보·공개 절차를 소유합니다. 검증된 공개 stable 뒤 ce-devenv의 기록 버전·commit을
+소유 source에서 갱신하고, 별도 승인된 설치기로 전달해야 합니다. release·global
+CLI 설치·skill 설치를 소스 delivery로 대신하거나 자동 실행하지 않습니다.
+현재 바이너리를 유지하고 PATH/mise 우회·구버전 강제는 하지 않습니다.
+
+현재 internal Go 설치기는 DVA만 선택하는 공식 selector가 없고, agent-mesh·
+flow-mcp 및 locator가 설정된 CE도 함께 재빌드할 수 있습니다. DVA-only 설치를
+승인하기 전에 ce-devenv 소유의 기존 설치기에 명시적 대상 선택을 준비하고,
+CE locator가 있어도 CE를 교체하지 않는다는 검증이 필요합니다. 임의 경로로
+다른 도구를 숨기거나 locator를 지우는 테스트 격리 방식을 실제 설치에 쓰지 않습니다.
+이는 개선 제안이며 현재 설치기 결함이나 새 selector 지원을 주장하지 않습니다.
+
+CE 라우팅 안내는 다른 ACTIVE 실행의 delivery와 소유권 clear 후 기존 스킬에서
+DVA 정본으로 연결합니다. 전체 후속 범위는 ISSUE-41, CE 라우팅, DVA stable
+rollout의 세 가지이며, TASK-302 선행 조건 충족 전 이전 실행 묶음을 등록하지 않습니다.
+
 ## `info` shows `↑N` but `push` reports "up-to-date"
 
 Both are right — they measure different things. `info` prints divergence in two
