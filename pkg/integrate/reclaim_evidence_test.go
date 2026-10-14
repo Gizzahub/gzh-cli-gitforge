@@ -125,6 +125,68 @@ func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
 	}
 }
 
+func TestRunGitReclaimBoundEndpointRewrite(t *testing.T) {
+	for _, retry := range []bool{false, true} {
+		name := "normal"
+		if retry {
+			name = "retry"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := newCleanupRetryFX(t, "@true")
+			writeRepoFile(t, f.fx.Worktree, ".gitignore", "remote.git\n")
+			runGit(t, f.fx.Worktree, "add", ".gitignore")
+			runGit(t, f.fx.Worktree, "commit", "-m", "ignore rewrite endpoint alias")
+			runGit(t, f.fx.Worktree, "push", f.fx.Remote, f.taskBranch)
+			f.taskSHA = gitOutput(t, f.fx.Worktree, "rev-parse", "HEAD")
+			f.execution.ExpectSource = f.taskSHA
+			origin := gitOutput(t, f.fx.Clone, "remote", "get-url", f.fx.Remote)
+			actual := filepath.Join(t.TempDir(), "actual.git")
+			decoy := filepath.Join(t.TempDir(), "decoy.git")
+			runGit(t, f.fx.Clone, "clone", "--bare", origin, actual)
+			runGit(t, f.fx.Clone, "clone", "--bare", origin, decoy)
+			before := gitOutput(t, actual, "rev-parse", "refs/heads/develop")
+			runGit(t, decoy, "update-ref", "refs/heads/develop", f.taskSHA)
+			if err := os.Symlink(actual, filepath.Join(f.fx.Worktree, "remote.git")); err != nil {
+				t.Fatal(err)
+			}
+			runGit(t, f.fx.Clone, "remote", "set-url", "--push", f.fx.Remote, "./remote.git")
+			if retry {
+				f.interceptGit(t, `if [[ "$1" == "update-ref" && "${2:-}" == "-d" ]]; then
+  exit 42
+fi`)
+				if r := f.realRun(t); !r.Reclaim.Incomplete() {
+					t.Fatal("retry fixture did not interrupt cleanup")
+				}
+				f.interceptGit(t, "")
+				f.amendReceiptRaw(t, func(r *Receipt) { r.Claim = deadHolderClaim(t) })
+			}
+			runGit(t, f.fx.Clone, "config", "url."+decoy+".insteadOf", resolvePath(t, actual))
+			var err error
+			if retry {
+				_, err = f.cleanup(t, "g7")
+			} else {
+				_, err = Run(context.Background(), f.exec, RunOptions{
+					CheckOptions: CheckOptions{RepoPath: f.fx.Worktree, Target: f.target},
+					Execution:    &f.execution,
+				})
+			}
+			if err == nil || !strings.Contains(err.Error(), "URL rewrite") {
+				t.Fatalf("bound endpoint rewrite was not refused: %v", err)
+			}
+			want := before
+			if retry {
+				want = f.taskSHA
+			}
+			if got := gitOutput(t, actual, "rev-parse", "refs/heads/develop"); got != want {
+				t.Fatalf("configured target changed after refusal: %s want %s", got, want)
+			}
+			if got := gitOutput(t, decoy, "rev-parse", "refs/heads/"+f.taskBranch); got != f.taskSHA {
+				t.Fatalf("caller decoy branch changed: %s", got)
+			}
+		})
+	}
+}
+
 func TestRunGitReclaimSymlinkParentEndpoint(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	writeRepoFile(t, f.fx.Worktree, ".gitignore", "link\nremote.git/\n")

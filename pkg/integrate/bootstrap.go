@@ -230,7 +230,7 @@ func boundPushEndpoint(ctx context.Context, g gitRepo, remote, explicit string) 
 			return "", err
 		}
 	}
-	return immutablePushEndpoint(endpoint)
+	return validateBoundPushEndpoint(ctx, g, endpoint)
 }
 
 func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error) {
@@ -239,7 +239,7 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 		return "", err
 	}
 	if gitcmd.IsSCPRemoteEndpoint(endpoint) {
-		return endpoint, nil
+		return validateBoundPushEndpoint(ctx, g, endpoint)
 	}
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -247,7 +247,7 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 	}
 	if u.Scheme == "" {
 		if filepath.IsAbs(endpoint) {
-			return immutablePushEndpoint(endpoint)
+			return validateBoundPushEndpoint(ctx, g, endpoint)
 		}
 		anchor, err := filepath.Abs(g.dir)
 		if err != nil {
@@ -264,9 +264,20 @@ func pushEndpoint(ctx context.Context, g gitRepo, remote string) (string, error)
 		if err != nil {
 			return "", err
 		}
-		return immutablePushEndpoint(physical)
+		return validateBoundPushEndpoint(ctx, g, physical)
 	}
-	return immutablePushEndpoint(endpoint)
+	return validateBoundPushEndpoint(ctx, g, endpoint)
+}
+
+func validateBoundPushEndpoint(ctx context.Context, g gitRepo, raw string) (string, error) {
+	endpoint, err := immutablePushEndpoint(raw)
+	if err != nil {
+		return "", err
+	}
+	if err := refusePushEndpointRewrites(ctx, g, endpoint); err != nil {
+		return "", err
+	}
+	return endpoint, nil
 }
 
 func immutablePushEndpoint(raw string) (string, error) {
@@ -300,9 +311,22 @@ func configuredPushEndpoint(ctx context.Context, g gitRepo, remote string) (stri
 	if err != nil {
 		return "", err
 	}
+	if err := refusePushEndpointRewrites(ctx, g, endpoint); err != nil {
+		return "", err
+	}
+	return endpoint, nil
+}
+
+func refusePushEndpointRewrites(ctx context.Context, g gitRepo, endpoint string) error {
 	rewrites, err := g.run(ctx, "config", "--get-regexp", `^url\.`)
 	if err != nil {
-		return "", err
+		return err
+	}
+	if rewrites.ExitCode != 0 && rewrites.ExitCode != 1 {
+		return fmt.Errorf("cannot query URL rewrite configuration: exit %d", rewrites.ExitCode)
+	}
+	if rewrites.ExitCode == 1 && strings.TrimSpace(rewrites.Stdout) != "" {
+		return fmt.Errorf("URL rewrite configuration query is incomplete")
 	}
 	for _, line := range strings.Split(rewrites.Stdout, "\n") {
 		fields := strings.Fields(line)
@@ -312,10 +336,10 @@ func configuredPushEndpoint(ctx context.Context, g gitRepo, remote string) (stri
 		}
 		isRewrite := strings.HasSuffix(key, ".insteadof") || strings.HasSuffix(key, ".pushinsteadof")
 		if isRewrite && len(fields) >= 2 && strings.HasPrefix(endpoint, fields[len(fields)-1]) {
-			return "", fmt.Errorf("effective push endpoint is subject to another URL rewrite")
+			return fmt.Errorf("effective push endpoint is subject to another URL rewrite")
 		}
 	}
-	return endpoint, nil
+	return nil
 }
 
 func canonicalPushEndpoint(raw string) (string, error) {

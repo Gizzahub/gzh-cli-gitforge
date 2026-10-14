@@ -84,3 +84,9 @@ symlink 뒤의 `..`를 lexical 정리하면 실제 Git filesystem 해석과 다�
 저장소를 선택할 수 있다. 이 경우도 같은 refs를 가진 decoy로 실제 잘못된
 target push를 재현했다. relative 구성 요소를 physical resolution 전에
 보존하도록 수정하고 configured target만 변경되는 race 회귀 검사를 추가했다.
+
+relative binding이 만든 최종 absolute 주소에 적용되는 URL rewrite도 검사한다.
+기존 검사는 raw relative spelling만 확인해 decoy 주소로 실제 push와 retry가
+돌아갈 수 있었다. 두 경로의 RED를 확인해 최종 주소와 저장된 explicit 주소에
+호출 context의 rewrite 검사를 적용했다. config 조회 실패도 빈 설정으로
+처리하지 않으며 rewrite가 있으면 intent/push 또는 retry 삭제 전에 거부한다.
