@@ -388,8 +388,12 @@ when ready. The user selected restoration of the native READY contract in
 The twelve reference scenarios retain ambiguity and reclamation safety tests.
 `finish-noarg-single-active` captures a committed, pushed, finish-ready run:
 CE DONE is verified with reclaimed resources, while native READY is verified
-against the unchanged pre-finish Git and execution/receipt snapshot. Only this
-declared divergence uses semantic validation instead of CE byte comparison.
+against the unchanged pre-finish Git and execution/receipt snapshot. This case
+and `reclaimed-run-reconciliation` use explicit semantic validation instead of
+CE byte comparison. The reclaimed case verifies failed external cleanup,
+retained execution identity and history, exact absent resources, and matching
+BLOCKED observations. Other target scenarios retain their byte comparisons;
+passing these two cases does not claim full native twelve-scenario equality.
 
 ### run-abort
 

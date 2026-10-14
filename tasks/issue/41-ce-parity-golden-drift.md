@@ -179,3 +179,28 @@ the failed unit dependency were not claimed as executed. Raw `quality.log`,
 `quality.stderr` and `quality-result.json` preserve this baseline failure; it is
 not a PASS or a reason to weaken TASK-302's exit-zero acceptance requirement.
 This delivery changes the issue record only.
+
+## 2026-10-14: 별도 승인된 TASK-322 참조 재검증
+
+위 거절 기록과 소진된 후보 예산은 보존한다. 사용자는 별도 TASK-322에서
+최대 세 후보와 strong 독립 리뷰를 승인했고, native bare finish의 READY 유지
+계약 복원을 선택했다. 또한 clean accepted source
+`1095e751ab8546a04715b1393ab0d02ada3de9fb`를 Go 1.27.2로 빌드한 뒤 지정
+`make install`로 설치하는 개발 source 예외를 명시적으로 승인했다.
+
+실제 설치는 종료 코드 0이다. 정상 PATH의 `~/go/bin/gz-git`은 해당 source,
+Go 1.27.2, `vcs.modified=false`와 일치하며 `--expect-source` 및
+`--expect-target`을 제공한다. 중간 설치본의 bare finish는 DONE이며,
+TASK-322는 READY 복원을 별도 검증한다. 병렬 바이너리나 PATH 우회는 없다.
+
+이 설치 후 clean CE `b79c1a4a9ab9e53af55074a816d15a3ece9c1704`로
+열두 참조를 실제 재캡처하여 PASS 12, skip 0을 확인했다. 참조의 provider
+capability 누락을 정상화로 숨기지 않았다. 새로운 도움말의 선택적 timeout
+진단 문구, 실제 receipt host 관측값, 승인된 READY 준비 시나리오를 분류했다.
+같은 후보의 `mise exec -- dva quality-check`도 종료 코드 0이다.
+원본 로그는 TASK-322 실행의 `tmp/task322/reference-record-after-provider-adoption.jsonl`
+및 `tmp/task322/quality-after-provider-adoption.log`에 보존한다.
+
+이는 source 통합이나 TASK-302 C1–C5 수용 완료를 의미하지 않는다. 최종
+source 기준의 독립 리뷰, 변이 검증, 실제 통합·push·회수 증거가 남아 있다.
+전체 native 열두 시나리오의 byte parity도 주장하지 않는다.
