@@ -1,6 +1,6 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: open (2026-10-14 재발: cd0e1d19 golden / b79c1a4a 설치본 불일치)
+- status: open (2026-10-14 mst 재확인: b79c1a4a golden / c4deec42 설치본 불일치)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
@@ -215,3 +215,26 @@ exit 0이며 5개 archive의 digest를 확인했다. 상세 명령과 검증 상
 공식 게시 전 GitHub workflow의 secret·게시 권한 확인이 남는다. 현재 토큰의
 secret 이름 조회는 HTTP 403이며, 원격 secret 부재로 판단하지 않는다.
 이 기록은 릴리스 게시·stable 설치·TASK302 인수 완료를 의미하지 않는다.
+
+## 2026-10-14: Python 준비 이슈 등록 중 mst 기준선 재확인
+
+delivery 실행 `python-uv-prepare-gap`의 기준 소스
+`233eb907d80e90e0cb0f3b6bcc1b1abdfe6e2d84`에서 `make quality-check`는 exit 2였다.
+포맷, lint(0 issues), gosec(0 issues), govulncheck(영향받는 취약점 0), 빌드와
+install audit는 통과했다. 단위 검사에서 `pkg/integrate`는 718.978초에 통과했지만,
+parity guard가 실제 설치 CE `c4deec428559ea49a9b5a066ddfe727045b00a37`와
+현재 골든의 `b79c1a4a9ab9e53af55074a816d15a3ece9c1704` 불일치를 거부했다.
+전체 품질 게이트 성공이 아니며, 뒤의 package integration/E2E/critical coverage
+단계는 실행됐다고 주장하지 않는다.
+
+변경 없는 review 실행 `python-uv-baseline`은 당시 최신 source
+`ddf1276c47126d7bb004c0726dbbe1d1aae66423`에서
+`GOWORK=off go test -count=1 ./tests/parity/...`를 실행해 같은 guard와 exit 1을
+재현했다. 두 source 사이 변경은 README와 별도 이슈 카드뿐이며 parity 코드·골든,
+Go manifest, Make 품질 계약은 같았다. 이번 등록 역시 문서 변경만 포함한다.
+따라서 이 CE 설치/참조 불일치는 Python 준비 이슈 등록의 회귀가 아니다.
+
+이 관측은 앞의 별도 승인된 참조 재캡처 결과를 무효화하거나 설치 이력을
+소급 수정하지 않는다. 설치된 CE와 선언된 참조를 소유 계약에 따라 다시 맞추는
+작업은 이 기존 이슈의 후속이다. 이번 등록에서는 CE 설치·PATH·골든·검사 상한을
+바꾸지 않았고, 같은 문제가 이미 등록돼 있어 새 parity 이슈는 만들지 않는다.
