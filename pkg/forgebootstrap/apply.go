@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 type Receipt struct {
@@ -30,8 +31,8 @@ type Remote interface {
 type ApplyOptions struct {
 	Remote      Remote
 	ReceiptPath string
-	Git         func(context.Context, ...string) error
-	GitOutput   func(context.Context, ...string) (string, error)
+	Git         func(context.Context, string, ...string) error
+	GitOutput   func(context.Context, string, ...string) (string, error)
 }
 
 func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
@@ -64,7 +65,7 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	}
 	g := o.Git
 	if g == nil {
-		g = execGit
+		g = func(c context.Context, _ string, a ...string) error { return execGit(c, r.Checkout, a...) }
 	}
 	rec := Receipt{SchemaVersion: 1, PlanDigest: p.PlanDigest, Phase: "remote_ready", TemplateURL: r.TemplateURL, TemplateSHA: r.TemplateSHA, SiteDigest: TemplateDigest(r), UpdatedAt: time.Now().UTC()}
 	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
@@ -75,10 +76,10 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 		return rec, e
 	}
 	defer os.RemoveAll(tmp)
-	if e = g(ctx, "clone", "--no-checkout", r.TemplateURL, tmp); e != nil {
+	if e = g(ctx, "", "clone", "--no-checkout", r.TemplateURL, tmp); e != nil {
 		return rec, e
 	}
-	if e = g(ctx, "-C", tmp, "checkout", "--detach", r.TemplateSHA); e != nil {
+	if e := g(ctx, tmp, "checkout", "--detach", r.TemplateSHA); e != nil {
 		return rec, e
 	}
 	if e := copyTree(tmp, r.Checkout); e != nil {
@@ -94,15 +95,18 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 		return rec, errors.New("bootstrap supports master default and develop integration branches only")
 	}
 	for _, args := range [][]string{{"-C", r.Checkout, "init", "--initial-branch", r.DefaultBranch}, {"-C", r.Checkout, "remote", "add", "origin", r.Remote}, {"-C", r.Checkout, "add", "--all"}, {"-C", r.Checkout, "commit", "-m", "chore(bootstrap): initialize from template"}, {"-C", r.Checkout, "push", "-u", "origin", r.DefaultBranch}, {"-C", r.Checkout, "branch", r.IntegrationBranch}, {"-C", r.Checkout, "push", "-u", "origin", r.IntegrationBranch}} {
-		if e := g(ctx, args...); e != nil {
+		if e := g(ctx, r.Checkout, args...); e != nil {
 			return rec, e
 		}
 	}
 	if e := writeReceipt(o.ReceiptPath, rec); e != nil {
 		return rec, e
 	}
+	if o.GitOutput == nil {
+		o.GitOutput = execGitOutput
+	}
 	if o.GitOutput != nil {
-		out, e := o.GitOutput(ctx, "-C", r.Checkout, "rev-parse", "HEAD")
+		out, e := o.GitOutput(ctx, r.Checkout, "rev-parse", "HEAD")
 		if e != nil {
 			return rec, e
 		}
@@ -116,11 +120,32 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 	return rec, nil
 }
 
-func execGit(ctx context.Context, args ...string) error {
-	c := exec.CommandContext(ctx, "git", args...)
-	c.Stdout = nil
-	c.Stderr = nil
-	return c.Run()
+func execGit(ctx context.Context, dir string, args ...string) error {
+	r, err := gitcmd.NewExecutor().Run(ctx, dir, args...)
+	if err != nil {
+		return err
+	}
+	if r.Error != nil {
+		return fmt.Errorf("git failed: %w: %s", r.Error, strings.TrimSpace(r.Stderr))
+	}
+	if r.ExitCode != 0 {
+		return fmt.Errorf("git exited %d: %s", r.ExitCode, strings.TrimSpace(r.Stderr))
+	}
+	return nil
+}
+
+func execGitOutput(ctx context.Context, dir string, args ...string) (string, error) {
+	r, err := gitcmd.NewExecutor().Run(ctx, dir, args...)
+	if err != nil {
+		return "", err
+	}
+	if r.Error != nil {
+		return "", r.Error
+	}
+	if r.ExitCode != 0 {
+		return "", fmt.Errorf("git exited %d: %s", r.ExitCode, strings.TrimSpace(r.Stderr))
+	}
+	return r.Stdout, nil
 }
 
 func copyTree(src, dst string) error {
@@ -128,7 +153,10 @@ func copyTree(src, dst string) error {
 		if e != nil {
 			return e
 		}
-		rel, _ := filepath.Rel(src, path)
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
 		if rel == "." {
 			return nil
 		}
