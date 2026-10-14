@@ -1,12 +1,41 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: open (2026-10-14 mst 재확인: b79c1a4a golden / c4deec42 설치본 불일치)
+- status: closed (2026-10-14 — 현행 clean CE 8381300b 참조 채택 및 canonical quality 통과)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
 - created_at: 2026-10-01
 - owner: `gzh-cli-gitforge/tests/parity/testdata/golden`
 - work-card: 없음 — 신규 발견, 재녹화는 메인테이너 결정
+
+## 2026-10-14: 현행 참조 정합성 후속 실행
+
+사용자가 잔여 작업 분석의 권장 순서대로 실제 후속 작업을 승인했다.
+새 delivery `ce-reference-current-adoption`은 source `eafb1c19`에서 시작했다.
+앞의 거절된 후보와 소진 예산, 다른 실행의 자원·결정은 재사용하거나 변경하지 않았다.
+
+이전 관측의 CE `c4deec42`를 대상으로 준비했지만 실행 전 설치본이 바뀌어
+첫 pin 검사는 12개 시나리오에서 거부됐다. 골든은 하나도 생성되지 않았다.
+설치를 실행하거나 이전 바이너리를 강제하지 않고 현행 출처를 다시 확인했다.
+정상 PATH의 clean CE는 source `8381300b9bdcd105219c3075a400a0496d3b82f0`,
+clean gz-git은 source `eafb1c19ff48a7cd893ebc7ec2c672f38bf8d0f1`이었다.
+두 바이너리의 SHA-256은 다음과 같다.
+
+- CE: `32b68b759a1042f29d6513862a62627ad0e0c75885c70f13c4d0d9165646f37c`
+- gz-git: `3e1537714c9b0baf1ac5818655c5c8c7b7b1aabf86aeb51d5bc5d15496706911`
+
+현행 CE의 기계 캡처와 reference 재검증은 각각 12 PASS, 0 fail, 0 skip,
+종료 코드 0이었다. 전후 바이너리 해시도 동일했다. 독립 strong 리뷰는 CE/gz-git
+식별자, receipt 도구 버전, physical processHost 2건, pre-mutation-outcome
+도움말 4건으로 차이를 분류했다. lifecycle 상태·종료 코드·action/reason 의미,
+소유권·source/target/ref·worktree·cleanup 의미 변화는 없었다.
+CE ADR-0116의 결합된 push 이전 거절 처리와 provider의 공개 계약이 정합한다.
+pin과 골든·계약 문서만 갱신하며 ISSUE-42 native port 수용을 주장하지 않는다.
+
+전체 canonical `make quality-check`는 종료 코드 0으로 통과했다. 포맷·lint·보안·빌드·
+단위·package integration·E2E·critical coverage를 기존 계약 그대로 실행했다.
+증거 로그와 바이너리 해시는 소유 source의 `tmp/ce-reference-current-adoption/`에
+보존하며, 이 경로는 authoring source나 새로운 fixture 후보가 아니다.
 
 ## 증상과 원인
 

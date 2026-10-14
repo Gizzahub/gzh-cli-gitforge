@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`b79c1a4a9ab9e53af55074a816d15a3ece9c1704`**, installed as CE 0.10.2 with
+`8381300b9bdcd105219c3075a400a0496d3b82f0`**, installed as CE 0.10.2 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -46,12 +46,12 @@ fixtures win.
 
 Reference toolchain used by the fixtures:
 
-| Component        | Version                                                    | Role                             |
-| ---------------- | ---------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`b79c1a4a`, clean Go build metadata)               | system under test (reference)    |
-| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`)   | worktree create/remove/inventory |
-| `gz-git`         | 0.9.1 (`96d5ecd`, official install; refreshed diagnostics) | integration provider (reclaim)   |
-| `git`            | system git                                                 | refs, worktree plumbing          |
+| Component        | Version                                                  | Role                             |
+| ---------------- | -------------------------------------------------------- | -------------------------------- |
+| `ce`             | 0.10.2 (`8381300b`, clean Go build metadata)             | system under test (reference)    |
+| `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
+| `gz-git`         | 0.9.2 (`eafb1c19`, clean installed source build)         | integration provider (reclaim)   |
+| `git`            | system git                                               | refs, worktree plumbing          |
 
 The provider-only diagnostic snapshots in `doctor-active`, `discard-no-fetch`,
 and `finish-explicit` were recaptured after the official source installation of
@@ -59,7 +59,18 @@ and `finish-explicit` were recaptured after the official source installation of
 lifecycle state/ref/cleanup assertions remain unchanged. Human diagnostic
 `Duration=` values are normalized; additional readiness diagnostics and the
 canonical executable path are retained. Other scenarios retain their prior
-capture because their normalized observations are unchanged.
+capture because their normalized observations are unchanged. This paragraph
+describes that historical provider-only refresh.
+
+The 2026-10-14 current-reference adoption recaptured all twelve scenarios from
+clean CE `8381300b` with clean provider `eafb1c19` on the normal PATH. The full
+revisions and executable digests were checked before and after capture and
+reference verification. The current provider retains both approved-pair flags;
+its new durable pre-mutation-outcome help is preserved rather than normalized
+away. The fixture review distinguishes tool identities, provider diagnostics,
+receipt tool versions and physical process-host observations from lifecycle
+status, exit, ownership, ref and cleanup semantics. This reference refresh does
+not adopt additional native-port behavior or claim ISSUE-42 completion.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),

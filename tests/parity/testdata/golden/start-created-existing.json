@@ -1,10 +1,10 @@
 {
   "scenario": "start-created-existing",
-  "reference": "ce-agent-kit master b79c1a4a9ab9e53af55074a816d15a3ece9c1704",
+  "reference": "ce-agent-kit master 8381300b9bdcd105219c3075a400a0496d3b82f0",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.2\nRelease:  v0.10.0\nBuild:    171-gb79c1a4a\nCommit:   b79c1a4a9ab9e53af55074a816d15a3ece9c1704\nDirty:    false\nRevision: b79c1a4a9ab9e53af55074a816d15a3ece9c1704",
+    "ce": "ce-agent-kit version 0.10.2\nRelease:  v0.10.0\nBuild:    178-g8381300b\nCommit:   8381300b9bdcd105219c3075a400a0496d3b82f0\nDirty:    false\nRevision: 8381300b9bdcd105219c3075a400a0496d3b82f0",
     "wt": "wt 0.80.0",
-    "gzGit": "gz-git version 0.9.1"
+    "gzGit": "gz-git version 0.9.2"
   },
   "steps": [
     {
