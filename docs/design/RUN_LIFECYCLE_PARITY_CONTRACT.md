@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`8381300b9bdcd105219c3075a400a0496d3b82f0`**, installed as CE 0.10.2 with
+`9877764d3f37bd3d0ee652706762f169646b8f78`**, installed as CE 0.10.2 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`8381300b`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.2 (`9877764d`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | 0.9.2 (`eafb1c19`, clean installed source build)         | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -63,7 +63,9 @@ capture because their normalized observations are unchanged. This paragraph
 describes that historical provider-only refresh.
 
 The 2026-10-14 current-reference adoption recaptured all twelve scenarios from
-clean CE `8381300b` with clean provider `eafb1c19` on the normal PATH. The full
+clean CE `9877764d` with clean provider `eafb1c19` on the normal PATH. An earlier
+`8381300b` candidate passed capture and quality, but another installation during
+that gate invalidated its current-runtime claim; it was not integrated. The full
 revisions and executable digests were checked before and after capture and
 reference verification. The current provider retains both approved-pair flags;
 its new durable pre-mutation-outcome help is preserved rather than normalized
@@ -71,6 +73,10 @@ away. The fixture review distinguishes tool identities, provider diagnostics,
 receipt tool versions and physical process-host observations from lifecycle
 status, exit, ownership, ref and cleanup semantics. This reference refresh does
 not adopt additional native-port behavior or claim ISSUE-42 completion.
+CE ADR-0117 adds a legacy reconciliation path that these twelve scenarios do
+not invoke. Its implementation changed between the two captures, but this
+fixture surface changed only CE identity/stamps; it does not prove equivalence
+or native-port adoption of that additional path.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),

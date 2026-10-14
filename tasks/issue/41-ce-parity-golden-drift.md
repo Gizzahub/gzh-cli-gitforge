@@ -1,6 +1,6 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: closed (2026-10-14 — 현행 clean CE 8381300b 참조 채택 및 canonical quality 통과)
+- status: closed (2026-10-14 — 현행 clean CE 9877764d 참조 채택·canonical quality·실행본 안정성 검증 통과)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
@@ -34,6 +34,22 @@ pin과 골든·계약 문서만 갱신하며 ISSUE-42 native port 수용을 주�
 
 전체 canonical `make quality-check`는 종료 코드 0으로 통과했다. 포맷·lint·보안·빌드·
 단위·package integration·E2E·critical coverage를 기존 계약 그대로 실행했다.
+그러나 최종 리뷰에서 전체 검사 도중 다른 실행이 CE를 clean `9877764d`로 교체했음을
+확인했다. `8381300b` 후보는 통합하지 않았고 위 통과는 그 후보의 과거 결과로만
+보존한다. 현재-runtime 정합성은 해결되지 않았으므로 이슈를 닫지 않는다.
+새 설치본에는 ADR-0117의 task-runtime 변경이 있어 stamp-only로 취급하지 않는다.
+사용자의 현행 참조 후속 해결 승인 범위에서 실제 설치 `9877764d`를 한 번 더
+검토·캡처하며, 이후 runtime이 다시 바뀌면 자동 재캡처하지 않는다.
+
+최종 `9877764d` 캡처와 reference 재검증은 각각 12 PASS, 0 fail, 0 skip,
+종료 코드 0이다. canonical `make quality-check`도 종료 코드 0이다.
+캡처 전·캡처 후·재검증 후·전체 품질 검사 후의 네 해시 manifest는 모두 동일하다.
+CE SHA-256은 `4555b56bc1fdb883215e1dc3d03eddd9d76a188b744d06ea2946c6531c640d5f`이며,
+provider SHA-256은 위와 같다. 독립 strong 리뷰에서 838→987의 12개 골든 차이는
+CE identity/stamp만이었다. ADR-0117의 새 legacy reconciliation 경로는 이 시나리오가
+실행하지 않으므로 그 경로의 동등성이나 native-port 채택을 주장하지 않는다.
+이 증거로 현행 설치본과 참조의 불일치를 해결하며 기존 모든 거절·드리프트 관측은 보존한다.
+
 증거 로그와 바이너리 해시는 소유 source의 `tmp/ce-reference-current-adoption/`에
 보존하며, 이 경로는 authoring source나 새로운 fixture 후보가 아니다.
 
