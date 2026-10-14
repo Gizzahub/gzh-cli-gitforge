@@ -1,6 +1,7 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
-- status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
+- status: open (2026-10-14 재발: cd0e1d19 golden / b79c1a4a 설치본 불일치)
+- previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1
 - category: quality/parity
 - created_at: 2026-10-01
@@ -47,3 +48,25 @@ recover-requires-cleanup-failure, start-created-existing
   parity 단계는 푸시/통합 시점에 확인한다.
 - 후속: ce 드리프트 시 스위트가 실패 전단계에서 재녹화 안내와 함께
   실패하는 가드(parity-version-guard)를 별도 과제로 진행한다.
+
+## 재발 관측 (2026-10-14)
+
+DVA 최소 연결의 source 기준 `9e054cf4daae3b52fb55465741fe57815ad8e9f9`에서
+참조 golden은 `cd0e1d19c3211b85a514ac03383ae6166a614f07`, 실제 PATH의 clean CE는
+`b79c1a4a9ab9e53af55074a816d15a3ece9c1704`였다. 과거 재녹화 해결과 리뷰는
+위 기록대로 보존하며, 새 issue를 중복 등록하지 않고 이번 재발만 추가한다.
+
+source primary에서 다음 명령은 exit 1, golden guard에서 조기 실패했다.
+DVA 연결은 Makefile·Go 소스·golden·CE pin을 변경하지 않았다.
+
+```bash
+env -u CE_BIN -u PARITY_TARGET -u GZ_GIT_BIN -u PARITY_RECORD \
+  go test -short -count=1 ./tests/parity
+```
+
+`source-parity-baseline.log`는 설치 build와 12개 golden의 차이를 기록한다.
+원시 증거는 소유 devbox `gzh-cli-devbox`의
+`tmp/dva-project-tooling-evidence-20261014/gitforge/`에 보존한다.
+이 등록은 재녹화·CE 설치·구버전 강제·fixture 예산 재설정 승인이 아니다.
+참조 채택과 의미 차이는 기존 소유자가 독립 strong 리뷰로 판정해야 하며
+전체 포트 추종 범위는 ISSUE-42와 분리한다.

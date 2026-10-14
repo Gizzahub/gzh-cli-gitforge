@@ -4,6 +4,59 @@ Symptom-first guide for `gz-git`. For what a command does, see the
 [command reference](../../commands/README.md); for what this project is, see the
 [FAQ](faq.md).
 
+## 개발 품질 도구가 없거나 준비 뒤에도 검사가 실패할 때
+
+도구 버전·빌드 Go·설치 경로는 기존 `mise.toml`과 `.make/tools.mk`가 소유합니다.
+DVA는 선언된 준비·검사 명령을 호출하며 버전을 다시 선언하지 않습니다.
+프로젝트의 기존 mise 환경을 활성화한 뒤 실행합니다. DVA가 자동으로 mise를
+설치하거나 활성화하지는 않습니다.
+
+```bash
+dva config validate
+dva manifest -f json
+dva ls
+dva provision tools
+dva quality-contract
+dva quality-check
+# 전체 품질 검사 대신 단위 검사만 필요한 경우
+dva test-unit-quality
+```
+
+`provision tools`는 기존 installer 중 ignored `bin/tools`에 Go 도구를 설치하는
+대상만 호출합니다. `make install-quality-tools`는 gci 또는 mdformat의 전역 설치도
+수행할 수 있어 이 로컬 profile에서 호출하지 않습니다. mdformat 등 외부 전제조건이
+없으면 해당 소유자의 설치 절차를 별도로 확인합니다. 전역 PATH·pin은 바꾸지 않습니다.
+준비 target은 기존 Makefile의 module 버전과 active Go 빌드 검증을 유지합니다.
+
+`dva quality-check`와 `dva test-unit-quality`는 원래 Make target과 입력 환경을
+그대로 사용합니다. CE pin이 필요한 검사는 해당 작업의 승인된 `CE_BIN` 등 입력을
+실행 환경으로 전달해야 합니다. `PARITY_TARGET` 등 이전 실행의 환경을 임의로
+상속해 다른 검사를 실행하지 않도록 원래 검증 계약을 확인합니다.
+
+도구 준비 exit 0이나 helper 두 개의 exit 0이 outer quality exit 2를 성공으로
+바꾸지 않습니다. repository delivery, TASK-302 제품 수용과 Intent는 별도 증거로
+판정합니다. `.sb/dva/`의 provision marker는 준비 실행 기록이며 현재 도구 버전의
+증거가 아닙니다. 변경된 도구 계약은 준비 target을 다시 실행해 검증합니다.
+
+### 2026-10-14 DVA 연결 검증 기록
+
+source `9e054cf4`에서 설정 validate·manifest·ls·quality-contract와 실제 tools
+provision은 exit 0이었다. 준비한 Go 도구는 기존 pin을 따르고 Go 1.27.2로
+빌드됐으며, 바이너리와 provision marker는 ignored 상태다.
+
+`dva quality-check`는 임의 중단 없이 exit 2로 종료했다. unit의 pkg/integrate는
+532.202초에 통과했지만 parity guard가 source의 cd0e1d19 reference와 설치 CE
+b79c1a4a 차이를 거절했다. primary source에서도 같은 guard 실패(exit 1)가
+재현돼 기존 ISSUE-41을 재발로 열고 과거 종료 기록을 보존했다.
+전체 quality·unit 성공으로 판정하지 않으며 뒤의 integration/E2E/critical coverage
+단계가 실행됐다고 주장하지 않는다. 이번 연결에서 CE pin·golden·Go 소스는 바꾸지
+않았다. 미매핑 Make 명령에 대한 DVA suggestion은 최소 부분 채택 범위 밖이며
+경고를 숨기지 않았다.
+
+원시 로그는 devbox `gzh-cli-devbox`의
+`tmp/dva-project-tooling-evidence-20261014/gitforge/`에 보존한다.
+실제 repository delivery는 CE receipt로 별도 확인한다.
+
 ## `info` shows `↑N` but `push` reports "up-to-date"
 
 Both are right — they measure different things. `info` prints divergence in two
