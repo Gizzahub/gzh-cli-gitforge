@@ -30,6 +30,13 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ## [Unreleased]
 
+### Fixed
+
+- Bootstrap resume accepts GitLab-created numeric pipeline refs only when both
+  expected branches and every pipeline ref match the initial commit. First-push
+  emptiness checks and rejection of tags, notes, extra branches and changed SHAs
+  remain strict. Prepare patch 0.9.4 for this published-behavior correction.
+
 ### Added
 
 - `gz-git forge bootstrap plan/apply` creates or reuses an empty GitLab project

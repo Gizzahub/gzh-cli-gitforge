@@ -115,15 +115,43 @@ func Apply(ctx context.Context, p Plan, o ApplyOptions) (Receipt, error) {
 }
 
 func verifyRefs(raw string, r Request, sha string) error {
-	refs := map[string]string{}
+	return verifyBootstrapRefs(raw, r, sha, false)
+}
+
+// Already published GitLab pipelines may retain the exact initial commit.
+func verifyPublishedRefs(raw string, r Request, sha string) error {
+	return verifyBootstrapRefs(raw, r, sha, true)
+}
+
+func verifyBootstrapRefs(raw string, r Request, sha string, allowPipelines bool) error {
+	required := map[string]bool{"refs/heads/" + r.DefaultBranch: false, "refs/heads/" + r.IntegrationBranch: false}
+	seen := map[string]bool{}
+	pipeline := regexp.MustCompile(`^refs/pipelines/[1-9]\d*$`)
 	for _, line := range strings.Split(strings.TrimSpace(raw), "\n") {
 		parts := strings.Fields(line)
-		if len(parts) == 2 {
-			refs[parts[1]] = parts[0]
+		if len(parts) != 2 {
+			return errors.New("remote ref response is malformed")
+		}
+		name := parts[1]
+		if seen[name] {
+			return errors.New("remote ref response contains duplicates")
+		}
+		seen[name] = true
+		if parts[0] != sha {
+			return errors.New("remote ref differs from the initial commit")
+		}
+		if _, ok := required[name]; ok {
+			required[name] = true
+			continue
+		}
+		if !allowPipelines || !pipeline.MatchString(name) {
+			return errors.New("remote contains an unexpected ref")
 		}
 	}
-	if len(refs) != 2 || refs["refs/heads/"+r.DefaultBranch] != sha || refs["refs/heads/"+r.IntegrationBranch] != sha {
-		return errors.New("remote branches do not match the initial commit")
+	for _, present := range required {
+		if !present {
+			return errors.New("remote branches do not match the initial commit")
+		}
 	}
 	return nil
 }
@@ -589,7 +617,7 @@ func finishApply(ctx context.Context, p Plan, o ApplyOptions, rec Receipt) (Rece
 			return fail(e)
 		}
 		if strings.TrimSpace(remoteRefs) != "" {
-			if err := verifyRefs(remoteRefs, r, rec.InitialSHA); err != nil {
+			if err := verifyPublishedRefs(remoteRefs, r, rec.InitialSHA); err != nil {
 				return fail(err)
 			}
 		} else if err = g(ctx, r.Checkout, "-c", "core.hooksPath=/dev/null", "push", "--atomic", "-u", "origin", r.DefaultBranch, r.IntegrationBranch); err != nil {
@@ -600,7 +628,7 @@ func finishApply(ctx context.Context, p Plan, o ApplyOptions, rec Receipt) (Rece
 	if err != nil {
 		return fail(err)
 	}
-	if err = verifyRefs(refs, r, rec.InitialSHA); err != nil {
+	if err = verifyPublishedRefs(refs, r, rec.InitialSHA); err != nil {
 		return fail(err)
 	}
 	rec.Phase = "pushed"

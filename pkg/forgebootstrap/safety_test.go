@@ -1047,3 +1047,43 @@ func TestPlanRejectsAuthenticationFieldVariantsWithoutRejectingProse(t *testing.
 		t.Fatalf("ordinary descriptive prose rejected: %v", err)
 	}
 }
+
+func TestPublishedRefsAllowOnlyMatchingGitLabPipelineIDs(t *testing.T) {
+	r := valid()
+	sha := strings.Repeat("a", 40)
+	other := strings.Repeat("b", 40)
+	heads := sha + "\trefs/heads/master\n" + sha + "\trefs/heads/develop"
+	for _, fixture := range []struct {
+		name, refs string
+		accepted   bool
+	}{
+		{"exact-heads", heads, true},
+		{"pipeline", heads + "\n" + sha + "\trefs/pipelines/1", true},
+		{"multiple-pipelines", heads + "\n" + sha + "\trefs/pipelines/26880\n" + sha + "\trefs/pipelines/26881", true},
+		{"pipeline-other-sha", heads + "\n" + other + "\trefs/pipelines/26880", false},
+		{"tag", heads + "\n" + sha + "\trefs/tags/v1", false},
+		{"notes", heads + "\n" + sha + "\trefs/notes/commits", false},
+		{"extra-head", heads + "\n" + sha + "\trefs/heads/feature", false},
+		{"non-numeric", heads + "\n" + sha + "\trefs/pipelines/latest", false},
+		{"zero-id", heads + "\n" + sha + "\trefs/pipelines/0", false},
+		{"negative-id", heads + "\n" + sha + "\trefs/pipelines/-1", false},
+		{"noncanonical-id", heads + "\n" + sha + "\trefs/pipelines/01", false},
+		{"nested-pipeline", heads + "\n" + sha + "\trefs/pipelines/1/extra", false},
+		{"pipeline-only", sha + "\trefs/pipelines/26880", false},
+		{"partial-heads", sha + "\trefs/heads/master\n" + sha + "\trefs/pipelines/26880", false},
+		{"wrong-head-sha", other + "\trefs/heads/master\n" + sha + "\trefs/heads/develop", false},
+		{"malformed", heads + "\nmalformed-ref-line", false},
+		{"duplicate", heads + "\n" + sha + "\trefs/heads/master", false},
+		{"empty", "", false},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			err := verifyPublishedRefs(fixture.refs, r, sha)
+			if (err == nil) != fixture.accepted {
+				t.Fatalf("published verification=%v accepted=%v", err, fixture.accepted)
+			}
+			if fixture.name != "exact-heads" && verifyRefs(fixture.refs, r, sha) == nil {
+				t.Fatal("strict initial ref verifier accepted additional or incomplete refs")
+			}
+		})
+	}
+}

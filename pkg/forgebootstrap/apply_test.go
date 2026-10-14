@@ -83,14 +83,43 @@ func TestApplyLocalBareFixtureCreatesIndependentBranches(t *testing.T) {
 	}
 	remote := remoteFunc(func(context.Context, Request) error { return nil })
 	failedPush := false
+	published, failedPostPushRead := false, false
+	pushAttempts := 0
 	options := ApplyOptions{Remote: remote, CommitModel: "gpt-6.1-sol", Git: func(ctx context.Context, dir string, args ...string) error {
 		for _, arg := range args {
+			if arg == "push" {
+				pushAttempts++
+			}
 			if arg == "push" && !failedPush {
 				failedPush = true
 				return errors.New("injected push failure")
 			}
 		}
-		return execGit(ctx, dir, args...)
+
+		if err := execGit(ctx, dir, args...); err != nil {
+			return err
+		}
+		for _, arg := range args {
+			if arg == "push" {
+				published = true
+				head, err := execGitOutput(ctx, dir, "rev-parse", "HEAD")
+				if err != nil {
+					return err
+				}
+				for _, ref := range []string{"refs/pipelines/26880", "refs/pipelines/26881"} {
+					if err := execGit(ctx, bare, "update-ref", ref, strings.TrimSpace(head)); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	}, GitOutput: func(ctx context.Context, dir string, args ...string) (string, error) {
+		if len(args) > 0 && args[0] == "ls-remote" && published && !failedPostPushRead {
+			failedPostPushRead = true
+			return "", errors.New("injected post-push verification read failure")
+		}
+		return execGitOutput(ctx, dir, args...)
 	}}
 	partial, err := Apply(context.Background(), p, options)
 	if err == nil || partial.Phase != "committed" {
@@ -105,9 +134,21 @@ func TestApplyLocalBareFixtureCreatesIndependentBranches(t *testing.T) {
 		t.Fatal("pushed branches despite existing tag")
 	}
 	git(bare, "update-ref", "-d", "refs/tags/preexisting")
+	git(bare, "update-ref", "refs/pipelines/26879", partial.InitialSHA)
+	if _, err := Apply(context.Background(), p, options); err == nil {
+		t.Fatal("pipeline-only remote authorized initial push")
+	}
+	git(bare, "update-ref", "-d", "refs/pipelines/26879")
+	ambiguous, err := Apply(context.Background(), p, options)
+	if err == nil || ambiguous.Phase != "committed" || !published {
+		t.Fatalf("expected retained committed receipt after successful push: %v %s", err, ambiguous.Phase)
+	}
 	got, err := Apply(context.Background(), p, options)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if pushAttempts != 2 {
+		t.Fatalf("matching published remote was pushed again: %d", pushAttempts)
 	}
 	if got.InitialSHA == "" {
 		t.Fatal("missing initial SHA")
@@ -132,7 +173,7 @@ func TestApplyLocalBareFixtureCreatesIndependentBranches(t *testing.T) {
 		t.Fatalf("missing runtime footer: %s", message)
 	}
 	repeated, err := Apply(context.Background(), p, options)
-	if err != nil || repeated.InitialSHA != got.InitialSHA {
+	if err != nil || repeated.InitialSHA != got.InitialSHA || repeated.Phase != "pushed" || pushAttempts != 2 {
 		t.Fatalf("completed resume changed SHA: %v", err)
 	}
 	git(checkout, "tag", "unexpected", got.InitialSHA)
