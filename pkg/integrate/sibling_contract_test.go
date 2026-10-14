@@ -55,20 +55,46 @@ func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX readiness runner")
 	}
-	for _, missing := range []bool{false, true} {
-		t.Run(fmt.Sprintf("missing=%v", missing), func(t *testing.T) {
+	for _, tc := range []struct {
+		name, declaredRemote, sourceRemote string
+		missing                            bool
+		nested                             bool
+	}{
+		{name: "adjacent", nested: false},
+		{name: "declared nested workspace", nested: true},
+		{name: "declared nested workspace remote mismatch", nested: true, declaredRemote: "ssh://git@example.test/other.git"},
+		{name: "declared nested workspace source remote mismatch", nested: true, sourceRemote: "ssh://git@example.test/other.git"},
+		{name: "missing", missing: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			dependency, dep := siblingFixture(t)
 			fx := readinessFixture(t)
 			oid := strings.TrimSpace(runGitInTest(t, dependency.Clone, "rev-parse", "HEAD"))
-			if !missing {
-				source := filepath.Join(filepath.Dir(fx.Clone), dep.Name)
+			runner := "#!/bin/sh\nset -eu\ntest \"$(cat ../gitrump-ce/payload.txt)\" = source\ntest \"$(cat \"$2/../gitrump-ce/payload.txt\")\" = source\ntest \"$PWD/../gitrump-ce\" != \"$2/../gitrump-ce\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"snapshots ready\"}'\n"
+			declaredRemote := dep.Remote
+			if tc.declaredRemote != "" {
+				declaredRemote = tc.declaredRemote
+			}
+			manifest := siblingContractYAML(dep.Remote, oid)
+			if tc.nested {
+				manifest += "workspaces:\n  " + dep.Name + ":\n    url: " + declaredRemote + "\n"
+			}
+			advanceReadinessTarget(t, fx, manifest, runner, "declare dependency probe")
+			if !tc.missing {
+				sourceRoot := filepath.Dir(fx.Clone)
+				if tc.nested {
+					sourceRoot = fx.Clone
+				}
+				source := filepath.Join(sourceRoot, dep.Name)
 				runGit(t, fx.Clone, "clone", dependency.Origin, source)
 				runGit(t, source, "checkout", "-B", "master", "origin/master")
-				runGit(t, source, "remote", "set-url", "origin", dep.Remote)
-				runGit(t, source, "remote", "set-url", "--push", "origin", dep.Remote)
+				sourceRemote := dep.Remote
+				if tc.sourceRemote != "" {
+					sourceRemote = tc.sourceRemote
+				}
+				runGit(t, source, "remote", "set-url", "origin", sourceRemote)
+				runGit(t, source, "remote", "set-url", "--push", "origin", sourceRemote)
 			}
-			runner := "#!/bin/sh\nset -eu\ntest \"$(cat ../gitrump-ce/payload.txt)\" = source\ntest \"$(cat \"$2/../gitrump-ce/payload.txt\")\" = source\ntest \"$PWD/../gitrump-ce\" != \"$2/../gitrump-ce\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"snapshots ready\"}'\n"
-			advanceReadinessTarget(t, fx, siblingContractYAML(dep.Remote, oid), runner, "declare dependency probe")
 			g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 			before := runGitInTest(t, fx.Worktree, "worktree", "list", "--porcelain")
 			target := strings.TrimSpace(runGitInTest(t, fx.Clone, "rev-parse", "HEAD"))
@@ -78,9 +104,9 @@ func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
 				t.Fatal(err)
 			}
 			result, _, err := runContractWithTimeout(context.Background(), g, TargetPlan{TargetSHA: target, BranchSHA: source}, contract, readinessTimeout)
-			if missing {
+			if tc.missing || tc.declaredRemote != "" || tc.sourceRemote != "" {
 				if err == nil || result.Status != "unavailable" {
-					t.Fatalf("missing source: result=%+v err=%v", result, err)
+					t.Fatalf("unavailable sibling source: result=%+v err=%v", result, err)
 				}
 			} else if err != nil || result.Status != "ready" || !strings.Contains(result.Summary, dep.Name+"@"+oid) {
 				t.Fatalf("result=%+v err=%v", result, err)
@@ -88,8 +114,12 @@ func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
 			if after := runGitInTest(t, fx.Worktree, "worktree", "list", "--porcelain"); before != after {
 				t.Fatalf("readiness worktree leaked: before=%s after=%s", before, after)
 			}
-			if !missing {
-				data, readErr := os.ReadFile(filepath.Join(filepath.Dir(fx.Clone), dep.Name, "payload.txt"))
+			if !tc.missing {
+				sourceRoot := filepath.Dir(fx.Clone)
+				if tc.nested {
+					sourceRoot = fx.Clone
+				}
+				data, readErr := os.ReadFile(filepath.Join(sourceRoot, dep.Name, "payload.txt"))
 				if readErr != nil || string(data) != "source\n" {
 					t.Fatalf("primary sibling changed: data=%q err=%v", data, readErr)
 				}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -188,5 +189,111 @@ func TestProvisionSiblingRefusesStaleSourceTip(t *testing.T) {
 	}
 	if _, err := ProvisionSibling(context.Background(), root, fx.Clone, dep); err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("stale tip err=%v", err)
+	}
+}
+
+func TestDiscoverSiblingPrimaryUsesDeclaredNestedWorkspace(t *testing.T) {
+	dependency, dep := siblingFixture(t)
+	primary := testutil.TempWorktreeWithBareOrigin(t)
+	source := filepath.Join(primary.Clone, dep.Name)
+	runGit(t, primary.Clone, "clone", dependency.Origin, source)
+	runGit(t, source, "checkout", "-B", "master", "origin/master")
+	runGit(t, source, "remote", "set-url", "origin", dep.Remote)
+	runGit(t, source, "remote", "set-url", "--push", "origin", dep.Remote)
+	writeFile(t, primary.Clone, ".gz-git.yaml", "workspaces:\n  "+dep.Name+":\n    url: "+dep.Remote+"\n")
+
+	got, err := DiscoverSiblingPrimary(context.Background(), primary.Worktree, dep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("source = %s, want %s", got, want)
+	}
+}
+
+func TestDiscoverSiblingPrimaryKeepsAdjacentCompatibility(t *testing.T) {
+	dependency, dep := siblingFixture(t)
+	primary := testutil.TempWorktreeWithBareOrigin(t)
+	source := filepath.Join(filepath.Dir(primary.Clone), dep.Name)
+	runGit(t, primary.Clone, "clone", dependency.Origin, source)
+	runGit(t, source, "checkout", "-B", "master", "origin/master")
+	runGit(t, source, "remote", "set-url", "origin", dep.Remote)
+	runGit(t, source, "remote", "set-url", "--push", "origin", dep.Remote)
+
+	got, err := DiscoverSiblingPrimary(context.Background(), primary.Worktree, dep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("source = %s, want %s", got, want)
+	}
+}
+
+func TestDiscoverSiblingPrimaryDoesNotFallbackFromPresentAdjacentPath(t *testing.T) {
+	dependency, dep := siblingFixture(t)
+	primary := testutil.TempWorktreeWithBareOrigin(t)
+	nested := filepath.Join(primary.Clone, dep.Name)
+	runGit(t, primary.Clone, "clone", dependency.Origin, nested)
+	runGit(t, nested, "checkout", "-B", "master", "origin/master")
+	runGit(t, nested, "remote", "set-url", "origin", dep.Remote)
+	runGit(t, nested, "remote", "set-url", "--push", "origin", dep.Remote)
+	writeFile(t, primary.Clone, ".gz-git.yaml", "workspaces:\n  "+dep.Name+":\n    url: "+dep.Remote+"\n")
+	if err := os.Mkdir(filepath.Join(filepath.Dir(primary.Clone), dep.Name), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := DiscoverSiblingPrimary(context.Background(), primary.Worktree, dep)
+	if err == nil || !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("DiscoverSiblingPrimary error = %v, want adjacent refusal", err)
+	}
+}
+
+func TestDiscoverSiblingPrimaryRejectsMismatchedOrSymlinkedNestedWorkspace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink setup is platform-dependent")
+	}
+	for _, tc := range []struct {
+		name  string
+		setup func(t *testing.T, primary, source string, dep config.SiblingDependency)
+		want  string
+	}{
+		{
+			name: "mismatched remote",
+			setup: func(t *testing.T, primary, source string, dep config.SiblingDependency) {
+				t.Helper()
+				writeFile(t, primary, ".gz-git.yaml", "workspaces:\n  "+dep.Name+":\n    url: ssh://git@example.test/other.git\n")
+			},
+			want: "does not match sibling remote",
+		},
+		{
+			name: "symlink",
+			setup: func(t *testing.T, primary, source string, dep config.SiblingDependency) {
+				t.Helper()
+				writeFile(t, primary, ".gz-git.yaml", "workspaces:\n  "+dep.Name+":\n    url: "+dep.Remote+"\n")
+				if err := os.Symlink(source, filepath.Join(primary, dep.Name)); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: "symlink",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dependency, dep := siblingFixture(t)
+			primary := testutil.TempWorktreeWithBareOrigin(t)
+			tc.setup(t, primary.Clone, dependency.Clone, dep)
+
+			_, err := DiscoverSiblingPrimary(context.Background(), primary.Worktree, dep)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("DiscoverSiblingPrimary error = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }

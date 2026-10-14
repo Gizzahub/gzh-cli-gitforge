@@ -2,13 +2,13 @@
 # config.LoadRepoRootTaskPattern (repo-root file only, never the upward
 # merger). taskPattern is the reclaim allow-list: the prefix before the
 # first '*' marks a task-branch namespace, so agent/* also covers
-# agent/<task>/<agent-id> and dev/*/*/* covers
-# dev/<actor>/<type>/<slug>.
+# agent/<task>/<agent-id> and dev/*/*/*/* covers
+# dev/<actor>/<host>/<type>/<slug>.
 branch:
   integrationBranch:
     - master
   taskPattern:
-    - dev/*/*/*
+    - dev/*/*/*/*
     - feat/*
     - fix/*
     - docs/*

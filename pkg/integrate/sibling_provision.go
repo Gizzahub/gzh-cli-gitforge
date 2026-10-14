@@ -465,8 +465,10 @@ func siblingSourceStatusClean(status string) bool {
 }
 
 // DiscoverSiblingPrimary finds the dependency next to the selected repository's
-// registered primary checkout. It intentionally never walks parents beyond
-// that one deterministic adjacency rule.
+// registered primary checkout. When that adjacent checkout is absent, it may
+// use the exact same-name path declared as a git workspace by the primary
+// checkout. It intentionally never walks arbitrary parents or discovers an
+// undeclared workspace.
 func DiscoverSiblingPrimary(ctx context.Context, repoRoot string, dep config.SiblingDependency) (string, error) {
 	g := newGitRepo(gitcmd.NewExecutor(), repoRoot)
 	trees, err := g.listWorktrees(ctx)
@@ -481,10 +483,35 @@ func DiscoverSiblingPrimary(ctx context.Context, repoRoot string, dep config.Sib
 	if err := rejectPathSymlinks(source); err != nil {
 		return "", err
 	}
+	if _, err := os.Lstat(source); err == nil {
+		return validateSiblingPrimary(ctx, source, dep.Name)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	declared, err := config.DeclaredWorkspaceClones(primary)
+	if err != nil {
+		return "", fmt.Errorf("read declared workspaces: %w", err)
+	}
+	declaredRemote, ok := declared[dep.Name]
+	if !ok {
+		return "", fmt.Errorf("declared sibling primary %s is unavailable", dep.Name)
+	}
+	if normalizeCloneURL(declaredRemote) != normalizeCloneURL(dep.Remote) {
+		return "", fmt.Errorf("declared workspace %s does not match sibling remote", dep.Name)
+	}
+	source = filepath.Join(primary, filepath.FromSlash(dep.Name))
+	if err := rejectPathSymlinks(source); err != nil {
+		return "", err
+	}
+	return validateSiblingPrimary(ctx, source, dep.Name)
+}
+
+func validateSiblingPrimary(ctx context.Context, source, name string) (string, error) {
 	sg := newGitRepo(gitcmd.NewExecutor(), source)
 	actual, err := sg.toplevel(ctx)
 	if err != nil || actual != source {
-		return "", fmt.Errorf("declared sibling primary %s is unavailable", dep.Name)
+		return "", fmt.Errorf("declared sibling primary %s is unavailable", name)
 	}
 	common, err := sg.output(ctx, "rev-parse", "--git-common-dir")
 	if err != nil {
@@ -494,7 +521,7 @@ func DiscoverSiblingPrimary(ctx context.Context, repoRoot string, dep config.Sib
 		common = filepath.Join(source, common)
 	}
 	if filepath.Clean(common) != filepath.Join(source, ".git") {
-		return "", fmt.Errorf("declared sibling %s is not a primary checkout", dep.Name)
+		return "", fmt.Errorf("declared sibling %s is not a primary checkout", name)
 	}
 	return source, nil
 }
