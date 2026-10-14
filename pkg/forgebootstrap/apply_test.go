@@ -60,8 +60,8 @@ func TestApplyLocalBareFixtureCreatesIndependentBranches(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(checkout, "site.config.json")); err != nil {
 		t.Fatal("site config missing")
 	}
-	if got := git(checkout, "rev-parse", "refs/heads/master"); got != got.InitialSHA {
-		t.Fatalf("master = %s, initial = %s", got, got.InitialSHA)
+	if master := git(checkout, "rev-parse", "refs/heads/master"); master != got.InitialSHA {
+		t.Fatalf("master = %s, initial = %s", master, got.InitialSHA)
 	}
 	git(checkout, "show-ref", "refs/remotes/origin/develop")
 }
