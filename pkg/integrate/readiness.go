@@ -200,12 +200,17 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("create isolated worktrees: %w", err)
 	}
+	preserveRoot := false
 	defer func() {
 		if err != nil {
 			result.Status = "unavailable"
 		}
 	}()
 	defer func() {
+		if preserveRoot {
+			err = errors.Join(err, fmt.Errorf("retained readiness workspace after sibling cleanup failure: %s", root))
+			return
+		}
 		if removeErr := os.RemoveAll(root); removeErr != nil {
 			err = errors.Join(err, fmt.Errorf("cleanup readiness workspace: %w", removeErr))
 		}
@@ -231,13 +236,28 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 	}
 	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
 	var siblingEvidence string
+	var siblingLeases []SiblingLease
 	if hasSiblings {
 		leases, evidence, prepareErr := prepareReadinessSiblings(ctx, g, targetSiblings, sourceSiblings, targetDir, sourceDir)
 		if prepareErr != nil {
 			return readinessResult{Status: "unavailable"}, 0, prepareErr
 		}
-		defer func() { err = errors.Join(err, releaseReadinessSiblings(leases)) }()
+		siblingLeases = leases
+		defer func() {
+			cleanupErr := releaseReadinessSiblings(leases)
+			preserveRoot = cleanupErr != nil
+			err = errors.Join(err, cleanupErr)
+		}()
 		siblingEvidence = evidence
+	}
+	runnerEnv := readinessEnv(os.Environ())
+	if contract.Decl.PrepareProfile != "" {
+		cargoTarget, prepareErr := prepareNDReadinessPair(ctx, g, plan, contract.Decl.PrepareProfile, root, targetDir, sourceDir, siblingLeases, opts)
+		if prepareErr != nil {
+			return readinessResult{Status: "unavailable"}, 0, prepareErr
+		}
+		runnerEnv = ndPreparationEnv(runnerEnv, cargoTarget)
+		siblingEvidence += "; preparation " + contract.Decl.PrepareProfile
 	}
 	runner := filepath.Join(targetDir, filepath.FromSlash(contract.Decl.Runner))
 	if resourceHighLoad {
@@ -255,7 +275,7 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 		ctx = runnerCtx
 	}
 	started := time.Now()
-	result, err = executeReadinessWithTimeout(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout)
+	result, err = executeReadinessWithEnvironment(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout, runnerEnv)
 	duration = time.Since(started)
 	// ReadinessDuration keeps reporting the whole runner-execution span,
 	// while validation time accumulates inside it around the started process
@@ -278,11 +298,15 @@ func mergeCleanupError(parent context.Context, current error, g gitRepo, dir str
 }
 
 func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration) (readinessResult, error) {
+	return executeReadinessWithEnvironment(parent, runner, targetDir, sourceDir, sourceSHA, targetSHA, timeout, readinessEnv(os.Environ()))
+}
+
+func executeReadinessWithEnvironment(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration, env []string) (readinessResult, error) {
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, runner, "--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "json-v1") // #nosec G204 -- runner is target-owned, validated Git blob
 	cmd.Dir = targetDir
-	cmd.Env = readinessEnv(os.Environ())
+	cmd.Env = env
 	cmd.Env = hostSlotsHeldForChild(parent, cmd.Env)
 	configureReadinessProcess(cmd)
 	var cancellation terminationRequestRecorder

@@ -10,6 +10,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestReadinessPreparationStrictAndDigest(t *testing.T) {
+	base := Readiness{Version: 1, Runner: ".gz-git/readiness/check"}
+	legacy, err := CanonicalReadiness(base)
+	if err != nil || legacy != `{"version":1,"runner":".gz-git/readiness/check"}` {
+		t.Fatalf("legacy digest input changed: %s %v", legacy, err)
+	}
+	base.PrepareProfile = NDStackCheckedTestsV1
+	prepared, err := CanonicalReadiness(base)
+	if err != nil || prepared == legacy {
+		t.Fatalf("profile missing from contract digest: %s %v", prepared, err)
+	}
+	for _, tc := range []struct {
+		doc   string
+		json  bool
+		valid bool
+	}{
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","prepareProfile":"nd-stack-checked-tests-v1"}}}`, true, true},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","prepareProfile":null}}}`, true, false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","prepareProfile":""}}}`, true, false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","prepareProfile":"shell"}}}`, true, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: nd-stack-checked-tests-v1\n", false, true},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: null\n", false, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: false\n", false, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: nd-stack-checked-tests-v1\n    prepareProfile: nd-stack-checked-tests-v1\n", false, false},
+	} {
+		_, present, err := ParseReadinessDocument([]byte(tc.doc), tc.json)
+		if (err == nil && present) != tc.valid {
+			t.Fatalf("valid=%v got present=%v err=%v for %s", tc.valid, present, err, tc.doc)
+		}
+	}
+}
+
 func TestParseReadinessDocument_StrictV1(t *testing.T) {
 	for _, tt := range []struct {
 		name string

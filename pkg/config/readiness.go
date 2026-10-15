@@ -21,9 +21,13 @@ import (
 // no command, argument, environment, or cwd fields: V1 has one fixed runner
 // invocation and accepts no caller-controlled execution surface.
 type Readiness struct {
-	Version int    `yaml:"version" json:"version"`
-	Runner  string `yaml:"runner" json:"runner"`
+	Version        int    `yaml:"version" json:"version"`
+	Runner         string `yaml:"runner" json:"runner"`
+	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
 }
+
+// NDStackCheckedTestsV1 prepares the fixed ND checked-binding test units.
+const NDStackCheckedTestsV1 = "nd-stack-checked-tests-v1"
 
 // CanonicalReadiness is a stable, strict representation used to compare the
 // target declaration to the source declaration before executing a runner.
@@ -50,6 +54,9 @@ func ReadinessDigest(r Readiness) (string, error) {
 
 // ValidateReadiness validates the closed V1 contract.
 func ValidateReadiness(r Readiness) error {
+	if r.PrepareProfile != "" && r.PrepareProfile != NDStackCheckedTestsV1 {
+		return fmt.Errorf("unsupported branch.readiness.prepareProfile: %q", r.PrepareProfile)
+	}
 	if r.Version != 1 {
 		return fmt.Errorf("branch.readiness.version must be 1")
 	}
@@ -121,12 +128,20 @@ func parseReadinessJSON(data []byte) (Readiness, bool, error) {
 	if err != nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness must be an object")
 	}
-	if len(fields) != 2 || fields["version"] == nil || fields["runner"] == nil {
+	if len(fields) < 2 || len(fields) > 3 || fields["version"] == nil || fields["runner"] == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
+	}
+	for key := range fields {
+		if key != "version" && key != "runner" && key != "prepareProfile" {
+			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
+		}
 	}
 	var r Readiness
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return Readiness{}, false, fmt.Errorf("parse branch.readiness: %w", err)
+	}
+	if fields["prepareProfile"] != nil && r.PrepareProfile == "" {
+		return Readiness{}, false, fmt.Errorf("prepareProfile must be a non-empty profile ID")
 	}
 	return r, true, ValidateReadiness(r)
 }
@@ -194,8 +209,17 @@ func parseReadinessYAML(data []byte) (Readiness, bool, error) {
 	if node == nil {
 		return Readiness{}, false, nil
 	}
-	if node.Kind != yaml.MappingNode || len(node.Content) != 4 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
+	if node.Kind != yaml.MappingNode || len(node.Content) < 4 || len(node.Content) > 6 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i].Value
+		if key != "version" && key != "runner" && key != "prepareProfile" {
+			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
+		}
+	}
+	if profile := mappingValue(node, "prepareProfile"); profile != nil && (profile.Tag != "!!str" || profile.Value == "") {
+		return Readiness{}, false, fmt.Errorf("prepareProfile must be a non-empty profile ID")
 	}
 	if err := rejectDuplicateYAMLKeys(node); err != nil {
 		return Readiness{}, false, err
