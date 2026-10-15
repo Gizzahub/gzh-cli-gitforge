@@ -105,6 +105,18 @@ the capture host; this provenance remains visible without normalization.
 This reference adoption does not attest a native
 port, baseline Make execution, or consumer acceptance.
 
+After rebasing onto the checkout-provider change `43f94e8`, the current capture
+uses the merged checkout build with `GOWORK=off` and the same clean CE `05438e10`.
+The first full record run rejected the old `917e236a` golden pins before writing
+the twelve replacement captures; its exit 1 is retained, not accepted as PASS.
+With those machine-generated inputs updated, full record and separate full
+non-record verification passed all twelve scenarios with zero skips in 21.763s
+and 21.737s. The latter includes the hostile-ambient provider regression.
+The CE executable hash remained unchanged. This is checkout-provider evidence,
+not a capture of the installed provider. Logs are
+`parity-capture-rebased.log`, `parity-capture-rebased-current.log`, and
+`parity-verify-rebased.log` in the same primary evidence directory.
+
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
 0026 (provider adapter boundary only), 0028 (finish owns DONE evidence),

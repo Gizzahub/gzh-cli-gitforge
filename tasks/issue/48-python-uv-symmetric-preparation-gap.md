@@ -162,3 +162,23 @@ infra-ops 소비자 후보 `9413159c`의 실제 native 전달을 source-installe
 그 밖의 추적 파일, untracked marker, marker symlink/directory, 기존 child는
 그대로 거부한다. 초기 거부에서 owned resource를 만들지 않는 회귀도 추가했다.
 후속 전체 검사와 실제 소비자 재실행 전에는 이 이슈를 완료 처리하지 않는다.
+
+## 2026-10-16 marker 경계와 단계별 검증 재개
+
+최신 재개는 live 파일 형식뿐 아니라 Git index의 stage 0과 mode
+`100644`/`100755`도 확인한다. `core.symlinks=false`에서 committed symlink가
+일반 파일로 materialize되는 회귀는 수정 전 RED, 수정 후 GREEN이다. 정상
+추적 marker의 내용은 보존하고 untracked·symlink·directory·다른 자원은 거부한다.
+실제 Python 양측 준비·환경 전달·회수와 기존 준비 프로필의 회귀 및 독립 strong
+리뷰를 통과했다. Bash fault wrapper의 ambient initializer 격리는 테스트에만
+적용하며 제품 실행 환경을 바꾸지 않는다.
+
+사용자 승인으로 단계별 임시 예산을 선언했으며 기존 canonical 검사 항목은
+유지했다. 후보 `2074a90`의 실제 native 실행은 `make check`와 `make lint` 모두
+PASS였지만, 검사 중 target이 `92afce3`에서 `43f94e8`로 이동해 마지막 freshness가
+FAIL이었다. 전체 validation은 14분 45.98초, CLI exit 1이며 source 통합·push·회수는
+없다. baseline Make는 source 성공 때문에 실행하지 않았다. 원본은 primary의
+`tmp/verification-profiles-20261016/native-finish.{json,stderr}`에 보존한다.
+이는 과거 20분 timeout의 원인 해결이나 소비자 native 수용을 뜻하지 않는다.
+최신 checkout-provider harness를 보존해 재기준화하고 새 최종 게이트를 적용한다.
+소비자 수용 전까지 이 이슈를 완료 처리하지 않는다.
