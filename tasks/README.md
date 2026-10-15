@@ -1,6 +1,6 @@
 # Tasks — gzh-cli-gitforge
 
-> Last Updated: 2026-10-14
+> Last Updated: 2026-10-16
 
 ## 구조
 
@@ -45,7 +45,8 @@ stdout/stderr 캡처의 선재 교착은 [ISSUE-51](issue/51-stdout-capture-pipe
 | 43  | integrate-release-expected-source-sha                            | `integrate check/run`에 `--expect-source <sha>`가 없어 호출자(CE `run-release`)가 승인한 develop 커밋을 프로세스 안에서 고정할 수 없다. 외부 fetch가 끼면 승인 안 된 후손이 승격될 수 있다. 요청처: ce-agent-kit `f6493563`                                     |
 | 45  | human-approval-review-queue                                      | 설계 확정·착수 대기. 사람 전용 apply 앞의 수작업 명령 조립을 줄인다: 읽기 전용 `bootstrap check`·`approval list`(에이전트 허용)와 TTY 전용 `approval review`(저장소별 확인 기본, `--group-confirm` 옵션). 요청 파일 없이 스캔. 훅·launcher는 ce-devenv 이슈 013 |
 | 47  | interrupted-baseline-worktree-recovery                           | 중단된 integrate의 clean detached 기준선 worktree가 남고 CE task 회수에 포함되지 않는다. 신원·소유·종료 검증을 유지하는 provider 회수 경로가 필요하다                                                                                                           |
-| 48  | python-uv-symmetric-preparation-gap                              | infra-ops ISSUE-005 원인 1. Python/uv·editable 입력의 대칭 준비와 Make 환경 전달 프로필이 없다. ISSUE-034와 분리하며 구현·네트워크·cleanup 계약 확정이 필요하다                                                                                                 |
+| 48  | python-uv-symmetric-preparation-gap                              | Python/UV 범위 해결. source 9227bf3 및 infra-ops b7ad3178 실제 native full 수용·고정 입력·환경 전달·회수 확인. baseline Make는 미측정이며 GA4 문제 해결을 주장하지 않는다                                                                                       |
+| 52  | legacy-json-unbound-mutation-flags                               | no-context 성공 JSON의 receipt 기반 push/cleanup 필드가 false 기본값으로 남는다. 실제 ref·경로 검증은 성공이며 API/schema 수정은 별도 후속이다                                                                                                                  |
 
 `v0.8.0`은 준비된 `VERSION`과 릴리스 노트 기준으로 2026-10-01 `9d7041c`에 발행됐다.
 발행 당시 보류 조건이던 탭 bootstrap·최초 Cask 게시·macOS 설치 검증은 이슈 28이 계속

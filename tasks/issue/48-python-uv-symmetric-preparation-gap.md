@@ -1,13 +1,13 @@
 # ISSUE: infra-ops의 Python/uv 실행환경을 통합 양측에 대칭 준비할 프로필이 없다
 
-- status: open
+- status: resolved (Python/UV preparation scope)
 - priority: P2
 - category: quality/integrate-baseline
 - created_at: 2026-10-14
 - owner: `gzh-cli-gitforge/pkg/integrate`
 - implementation-grade: strong
 - review-grade: strong (독립 리뷰)
-- work-card: `gzh-cli-devbox:tasks/todo/324-python-uv-symmetric-preparation.md` (TASK-324)
+- work-card: `gzh-cli-devbox:tasks/_archive/done/324-python-uv-symmetric-preparation.md` (TASK-324; board closure follows acceptance)
 - related: [ISSUE-034](34-generalize-prepare-profile-baseline-probe-dies-without-bootstrap.md), infra-ops `tasks/issue/005-integrate-baseline-unmeasurable-in-pristine-worktree.md`
 
 ## 확인된 문제
@@ -182,3 +182,23 @@ FAIL이었다. 전체 validation은 14분 45.98초, CLI exit 1이며 source 통�
 이는 과거 20분 timeout의 원인 해결이나 소비자 native 수용을 뜻하지 않는다.
 최신 checkout-provider harness를 보존해 재기준화하고 새 최종 게이트를 적용한다.
 소비자 수용 전까지 이 이슈를 완료 처리하지 않는다.
+
+## 2026-10-16 실제 전달과 소비자 수용
+
+source `9227bf3def05ce106323e46188551fd7d9b52b04`의 최종 native는 check·lint·
+freshness PASS, validation 3분 38.215초, CE finish exit 0·DONE이다. source 통합·
+push·task 자원 회수를 완료하고 지정 installer로 같은 clean revision을 설치했다.
+
+infra-ops `b7ad3178524ff6ac13e3345d3a5e2477162f9689`는 이 설치본으로 closed profile을
+실제 채택·통합했다. DVA `531136ab3b8a336602e9d3042d640640`의 full은 5단계 모두
+PASS, 8분 19.968초다. 실제 격리 source의 venv, child 고정 revision, 추적 marker
+내용 보존을 관측했고 native 종료 후 준비 root와 task 자원을 회수했다. 원격 master와
+로컬/원격 task ref 부재를 독립 확인했다. 실행하지 않은 target baseline Make는 PASS로
+세지 않는다. 양측 환경·child pin 회귀와 기존 프로필은 실제 baseline을 유발하는
+소유 회귀 검사와 독립 재검증으로 확인했다.
+
+소비자 primary의 `tmp/verification-profiles-20261016/native-adoption*`와
+`native-prepared-source.json`이 증거다. no-context JSON의 미결속 false 필드는
+[ISSUE-052](52-legacy-json-unbound-mutation-flags.md)에 따로 등록했고 원문을 보존했다.
+이번 수용은 실제 ref·경로 검증으로 보완했다. 기존 GA4 timeout은 이번에 재현되지
+않았을 뿐 해결을 주장하지 않는다. 운영 키·locale·GA4의 다른 범위는 그대로다.
