@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`917e236a6d57779676fd02629f48a5549c4c4eeb`**, installed as CE 0.10.7 with
+`05438e109bb20d2d2c303a4db56ed9152b0ef281`**, installed as CE 0.10.8 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.7 (`917e236a`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.8 (`05438e10`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -91,6 +91,19 @@ parent process PATH, runtime configuration or physical-host value is changed.
 The sandbox path uses the existing `<SANDBOX>` normalization; no new semantic
 normalization is introduced. A hostile ambient `gz-git` regression verifies
 both CE's actual provider resolution and the direct toolchain probe.
+
+In the earlier 2026-10-16 installed-provider capture, all twelve scenarios were freshly machine-captured from the
+designated clean CE 0.10.8 installation `05438e10` and provider `1503edf`.
+Capture and fresh verification each passed twelve scenarios with no skips;
+both executable SHA256 values were unchanged before and after. Evidence is in
+the source primary checkout's `tmp/verification-profiles-20261016/`.
+The original normalizer is unchanged, including physical `processHost` fields.
+Besides reference stamps, the finish captures include the new remote-source
+push proof described below. The two FINISHING receipts also change physical
+`processHost` from `CEui-MacBookPro.local` to `CE-Mac-Studio.local`, reflecting
+the capture host; this provenance remains visible without normalization.
+This reference adoption does not attest a native
+port, baseline Make execution, or consumer acceptance.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
@@ -407,6 +420,20 @@ evidence keeps the run BLOCKED (never promoted to DONE). A stale base
 (source tip moved past the branch base) exits 1 with the rebase-directed
 reason.
 
+CE's post-operation source-push proof under network policy `allow` queries
+`git ls-remote --exit-code --heads origin refs/heads/<source>`, validates the
+exact returned ref/OID, and requires that commit to exist locally with
+`git cat-file -e <oid>^{commit}`. It checks whether a local source branch exists
+and, when present, requires `git rev-list --count <oid>..refs/heads/<source>`
+to be zero. The local source branch may be absent or behind the proven remote
+tip. Under `no-fetch`, the proof uses the local remote-tracking ref instead;
+the allow-path remote query is not evidence of the no-fetch branch. Captured
+finish success proves the allow-path sequence, not every refusal branch.
+Proof errors distinguish missing/transport failures, malformed or wrong-ref
+responses, unavailable local commits, local-ref probe errors, and a local branch
+ahead of the proven remote. Finish exposes these as
+`post-operation evidence failed: <stage error>`.
+
 **No-arg path.** Native bare finish is a readiness query. Exactly one ACTIVE
 delivery owned by the current actor and host may return the aggregate
 READY/exit 0/task empty/activeCount 1 document. It does not invoke integration,
@@ -468,14 +495,22 @@ Closes a *proven* exit-3 partial cleanup without removing anything. The
 latest receipt must match `operation: finish, status: BLOCKED`, reason
 `integration succeeded but task recovery cleanup failed`, with heads, push
 flag, and an `integrate run` diagnostic exiting 3 — else
-`run-recover requires the recorded exit-3 provider cleanup failure`, exit 1.
-Owner-only. Probes (never mutates): source head contains the recorded task
-head; source is pushed (`current source branch is not pushed`); residual
+`run-recover requires the recorded exit-3 provider cleanup failure or an interrupted run-finish`, exit 1.
+Owner-only. Probes (never mutates): the same policy-dependent source-push proof
+as finish runs first (errors are wrapped as `resolve current source head: ...`),
+then the proven source head must contain the recorded task head; residual
 worktree/branch/remote detection — **zero residuals is a failure**
 (`provider cleanup left no residual path or ref to recover`). Success:
 `operation: recover, status: DONE` receipt, exit 0, reason
 `integration confirmed after partial provider cleanup; residual <list> left untouched`. A recover DONE receipt only validates as terminal when at
 least one residual remains.
+
+If source-push proof fails, CE returns BLOCKED with
+`partial cleanup recovery is not proven: resolve current source head: <stage error>`.
+The response contains the failed probe diagnostics and a transient BLOCKED
+recovery receipt, which is not appended to history. The twelve-scenario
+`recover-requires-cleanup-failure` capture rejects an ineligible prior receipt
+before this proof, so it does not cover the source-proof failure response.
 
 ### Observation and explicit closure
 
@@ -498,9 +533,14 @@ ______________________________________________________________________
 
 ```bash
 go test ./tests/parity/...                       # verify: fresh CE runs must match goldens
-PARITY_RECORD=1 go test ./tests/parity/...       # record: re-capture goldens from CE
+PARITY_RECORD=1 go test ./tests/parity/... -run '^TestCEParity$' # capture all 12 CE scenarios
 PARITY_TARGET=gz-git go test ./tests/parity/...  # target: same fixtures against the port
 ```
+
+After changing the CE pin, capture the twelve scenarios first, then run the full
+non-record verification. The full suite checks existing golden pins before the
+scenario writer and also runs the hostile-ambient provider regression; the
+targeted capture is generation, not a replacement for that verification.
 
 Target mode (`PARITY_TARGET=gz-git`, or `GZ_GIT_BIN=<path>`) runs the same
 fixtures against the port binary instead of CE. Both sides are

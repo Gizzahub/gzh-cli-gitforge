@@ -1,8 +1,8 @@
 {
   "scenario": "finish-noarg-ambiguous-active",
-  "reference": "ce-agent-kit master 917e236a6d57779676fd02629f48a5549c4c4eeb",
+  "reference": "ce-agent-kit master 05438e109bb20d2d2c303a4db56ed9152b0ef281",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.7\nRelease:  v0.10.0\nBuild:    219-g917e236a\nCommit:   917e236a6d57779676fd02629f48a5549c4c4eeb\nDirty:    false\nRevision: 917e236a6d57779676fd02629f48a5549c4c4eeb",
+    "ce": "ce-agent-kit version 0.10.8\nRelease:  v0.10.0\nBuild:    226-g05438e10\nCommit:   05438e109bb20d2d2c303a4db56ed9152b0ef281\nDirty:    false\nRevision: 05438e109bb20d2d2c303a4db56ed9152b0ef281",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version \u003cGZ_GIT_VERSION\u003e"
   },
