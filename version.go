@@ -29,12 +29,17 @@ var (
 	// BuildDate is the date when the binary was built.
 	// This is set during the build process.
 	BuildDate = defaultUnknown
+
+	// versionLinkerStamp distinguishes an explicit linker value equal to the
+	// source default from an unstamped binary. Build recipes set it together
+	// with Version because the resulting strings are otherwise identical.
+	versionLinkerStamp = ""
 )
 
 // Defaults the linker overwrites. They are named so the build-info fallback can
 // tell "nobody set this" apart from "the build deliberately said this".
 const (
-	defaultVersion = "0.10.1"
+	defaultVersion = "0.10.2"
 	defaultUnknown = "unknown"
 )
 
@@ -57,17 +62,17 @@ const (
 // on, and that needs no VCS stamp at all.
 func init() {
 	if bi, ok := debug.ReadBuildInfo(); ok {
-		Version, GitCommit, BuildDate = versionFromBuildInfo(bi, Version, GitCommit, BuildDate)
+		Version, GitCommit, BuildDate = versionFromBuildInfo(bi, Version, GitCommit, BuildDate, versionLinkerStamp == "true")
 	}
 }
 
 // versionFromBuildInfo fills in only the fields still holding their defaults, so
 // -ldflags always wins over the embedded stamp. It is separated from init for
 // testing; it must not mutate package state.
-func versionFromBuildInfo(bi *debug.BuildInfo, version, commit, date string) (outVersion, outCommit, outDate string) {
+func versionFromBuildInfo(bi *debug.BuildInfo, version, commit, date string, versionStamped bool) (outVersion, outCommit, outDate string) {
 	// "(devel)" is what the toolchain records for a build that is not from a
 	// tagged module version -- it carries no more information than the default.
-	if version == defaultVersion && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+	if !versionStamped && version == defaultVersion && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 		version = strings.TrimPrefix(bi.Main.Version, "v")
 	}
 

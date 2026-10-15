@@ -27,6 +27,7 @@ func TestVersionFromBuildInfo(t *testing.T) {
 		name                              string
 		info                              *debug.BuildInfo
 		inVersion, inCommit, inDate       string
+		versionStamped                    bool
 		wantVersion, wantCommit, wantDate string
 	}{
 		{
@@ -35,8 +36,14 @@ func TestVersionFromBuildInfo(t *testing.T) {
 				Main:     debug.Module{Version: "v9.9.9"},
 				Settings: settings("vcs.revision", "ffffffffffffffff", "vcs.time", "2000-01-01T00:00:00Z"),
 			},
-			inVersion: "1.2.3", inCommit: "abc1234", inDate: "2026-01-01T00:00:00Z",
+			inVersion: "1.2.3", inCommit: "abc1234", inDate: "2026-01-01T00:00:00Z", versionStamped: true,
 			wantVersion: "1.2.3", wantCommit: "abc1234", wantDate: "2026-01-01T00:00:00Z",
+		},
+		{
+			name:      "linker-stamped default version wins over the embedded stamp",
+			info:      &debug.BuildInfo{Main: debug.Module{Version: "v0.10.2-0.20261016000000-deadbeef"}},
+			inVersion: defaultVersion, inCommit: defaultUnknown, inDate: defaultUnknown, versionStamped: true,
+			wantVersion: defaultVersion, wantCommit: defaultUnknown, wantDate: defaultUnknown,
 		},
 		{
 			name:      "go install of a tagged version supplies the version",
@@ -80,7 +87,7 @@ func TestVersionFromBuildInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			version, commit, date := versionFromBuildInfo(tt.info, tt.inVersion, tt.inCommit, tt.inDate)
+			version, commit, date := versionFromBuildInfo(tt.info, tt.inVersion, tt.inCommit, tt.inDate, tt.versionStamped)
 			if version != tt.wantVersion {
 				t.Errorf("version = %q, want %q", version, tt.wantVersion)
 			}

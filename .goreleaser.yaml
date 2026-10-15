@@ -53,6 +53,7 @@ builds:
       # by commit keeps a rebuild of the same tag reporting the same thing --
       # which is what mod_timestamp below already assumes.
       - -X github.com/gizzahub/gzh-cli-gitforge.Version={{.Version}}
+      - -X github.com/gizzahub/gzh-cli-gitforge.versionLinkerStamp=true
       - -X github.com/gizzahub/gzh-cli-gitforge.GitCommit={{.ShortCommit}}
       - -X github.com/gizzahub/gzh-cli-gitforge.BuildDate={{.CommitDate}}
     mod_timestamp: '{{ .CommitTimestamp }}'
