@@ -94,7 +94,14 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 			p.ValidationDurationMS = int(report.Check.ValidationDuration.Milliseconds())
 			p.ReadinessFailures = report.Check.ReadinessFailures
 		}
-		if report.Receipt != nil {
+		if report.Receipt == nil && report.Integrated {
+			// Legacy runs have no durable receipt identity, but still record
+			// successful push and individual reclaim outcomes in the report.
+			p.SourcePushed = report.Integrated
+			p.WorktreeRemoved = report.Reclaim.RemovedWorktree
+			p.LocalBranchRemoved = report.Reclaim.RemovedLocalBranch
+			p.RemoteBranchRemoved = report.Reclaim.RemovedRemoteBranch
+		} else if report.Receipt != nil {
 			p.ExecutionID = report.Receipt.ExecutionID
 			p.Generation = report.Receipt.Generation
 			owner := report.Receipt.Owner

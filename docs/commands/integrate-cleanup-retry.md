@@ -13,6 +13,20 @@ gz-git integrate cleanup --execution-id run-42 --generation g7 --json
 두 명령은 해당 저장소에서 실행한다. 실제 runtime이 발급한 실행 ID와 세대를
 사용한다. 예시의 이름을 다른 실행에 재사용하지 않는다.
 
+## 실행 context 없는 run JSON
+
+`integrate run --json`의 기존 v1 필드는 실행 context가 없어도 실제 결과를
+표시한다. `source_pushed`는 이 호출의 target push가 성공했을 때 true이며,
+회수 도중 오류가 나더라도 성공한 push를 false로 되돌리지 않는다.
+`worktree_removed`, `local_branch_removed`, `remote_branch_removed`는 각 회수
+단계의 구조화된 성공 결과를 따른다. skip이나 미완료를 모두 성공으로 묶지 않는다.
+원격 branch의 확인된 기존 부재도 해당 단계의 성공에 포함한다.
+
+이 경우 execution ID·generation·owner·receipt phase는 생성하지 않는다.
+이 필드는 호출 결과이며 durable 영수증이나 복구 권한을 대신하지 않는다.
+context가 있으면 기존처럼 영수증의 값이 우선한다. 과거 바이너리의 기본 false는
+실제 작업 실패를 입증하지 않으므로 원본을 보존하고 Git ref·경로 증거와 대조한다.
+
 ## 버전과 호환성
 
 새 durable 영수증의 `schema_version`은 **2**다. 저장 위치는 기존 Git common

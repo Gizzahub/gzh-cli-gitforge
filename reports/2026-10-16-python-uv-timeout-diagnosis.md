@@ -70,3 +70,50 @@ GOWORK=off go test -count=1 ./pkg/integrate \
 `-run`으로 좁힌 진단 성공은 전체 품질·baseline 비악화·native 전달 성공을
 대신하지 않는다. 일반적인 캐시 우회, timeout 연장, fixture 공유에 의한 안전성
 단언 축소는 이 수정에 포함하지 않는다.
+
+
+## 후속 검증 시간 기록 설계
+
+이 절은 수집 구현 전의 설계다. 기존 Make/DVA 예산 선언을 정본으로 유지하고
+새 서비스·자동 예산 조정·실패 재시도를 도입하지 않는다. 과거 20분 package 제한은
+당시 관측이며 현재 `.make/test.mk` 선언과 구분한다. 초기 예산을 측정 p95로
+표시하지 않는다.
+
+각 실행은 task-owned `tmp/<execution>/`에 원본 로그와 불변 JSON 결과 하나를
+보존한다. 내부 기록에는 다음 항목을 포함한다. 공개 CLI schema를 추가하지 않는다.
+
+- 실행 ID, 관측 UTC, 저장소 ID, source/base commit과 전체 dirty diff digest,
+  정확한 argv·작업 디렉터리·선택 profile/stage 및 실제 선택 package 목록.
+- runner·도구 revision과 해시, 결과에 영향을 주는 설정의 digest, worker·병렬 수,
+  outer/stage/package 예산. 비밀 환경 값은 저장하지 않고 필요한 비밀 외 입력만 기록한다.
+- 단조 시계 wall elapsed, 종료 상태와 실제 exit code(관측 불가이면 null), timeout
+  발생 계층·예산, signal 요청과 관측 종료를 구분한 취소 결과, 도달/미도달 단계.
+- 원본 artifact의 상대 경로·SHA256, 생성 자원의 회수 결과와 명시적 보존 경로.
+  종료 뒤 manifest를 확정하고 과거 결과를 덮어쓰지 않는다.
+
+wrapper는 성공뿐 아니라 nonzero·timeout·signal 경로에서도 상태와 elapsed를
+먼저 확정하고 정리 결과를 덧붙인다. 정리 실패가 원래 실패를 덮어쓰지 않게 한다.
+강제 종료로 종료 기록을 못 남긴 실행은 다음 관측자가 incomplete로 구분하고
+알 수 없는 exit를 0으로 채우지 않는다. 기록 writer도 실패하면 그 실패를 노출한다.
+
+Go JSON의 test/package 시간은 이벤트 의미 그대로 보존한다. 병렬 test 시간의
+합이나 package 시간의 합을 profile wall time으로 쓰지 않는다. resource-slot
+대기, gate wall time, PASS 이후 Go 처리, coverage와 후속 integration은 각 경계가
+관측됐을 때만 별도로 기록하며 단순 차감으로 원인을 추정하지 않는다.
+
+집계는 같은 profile·command·선택 범위·예산·runner/toolchain·source 입력 조건의
+표본만 묶는다. dirty diff도 입력이므로 HEAD 일치만으로 합치지 않는다. 비교 가능한
+표본이 20개 미만이면 n과 개별값·min/median만 제시한다. 20개 이상이면 정렬한
+표본의 nearest-rank p95(ceil(0.95*n)번째)를 함께 기록한다. timeout은 완료 시간
+표본에서 빼되 별도의 건수와 예산 하한으로 반드시 보인다. 서로 다른 기준·시점의
+이번 전후 수치는 인과나 p95 근거가 아니다.
+
+수동 검토는 timeout 발생, 동일 조건 3회 연속 stage wall time이 예산의 80% 이상,
+또는 비교 가능한 기준보다 median이 20% 이상 증가했을 때 시작한다. 이 수치는
+초기 검토 trigger 제안이며 자동 정책이 아니다. 담당자가 실패 계층과 누적 비용을
+분리한 증거를 보고 판단하고, 예산 변경은 별도 소유 설정 변경과 리뷰를 거친다.
+
+구현 수용 시 정상·nonzero·timeout·signal·정리 실패·기록 실패·불완전 종료의
+각 경로를 synthetic 실행으로 검증해야 한다. 실제 선언 profile 한 회의 입력·
+wall time·종료·원본 해시를 결속하고 기존 검사 선택·예산·exit 전달의 불변을
+독립 검토한다. 이 설계의 문서 검토를 수집기 구현이나 전체 품질 PASS로 대신하지 않는다.

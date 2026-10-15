@@ -1,6 +1,6 @@
 # ISSUE-052: Legacy JSON reports unbound mutation flags as false
 
-- status: open
+- status: fixed
 - priority: P2
 - category: lifecycle/evidence
 - created_at: 2026-10-16
@@ -37,3 +37,17 @@ Do not treat these four booleans alone as side-effect proof for such runs.
 The actual effects of this invocation were independently verified, so this
 finding does not invalidate its acceptance. Registration does not authorize
 a public API/schema change or runtime redesign in the Python/UV delivery.
+
+## 2026-10-16 compatibility correction
+
+Implementation and independent review requirements remain strong. The fix keeps
+schema v1 and all existing field types. Without a receipt, the renderer uses
+`RunReport.Integrated` (set only after successful push) and the existing structured
+`ReclaimResult.Removed*` outcomes. Receipt-backed reports retain precedence; no
+receipt identity is invented and action strings are not parsed. Regression tests
+cover skipped, partial and complete reclaim, unrelated action text and receipt
+precedence; actual legacy runs bind flags to remote target and removed resources.
+The implementation is fixed; delivery is accepted only after the declared native
+full gate passes. The owning execution is `issue-052-legacy-run-flags`; its CE
+finish receipt and check logs are preserved by the source primary under
+`tmp/issue052-delivery/`. Historical raw consumer output is unchanged.

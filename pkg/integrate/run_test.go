@@ -37,6 +37,10 @@ func TestRun_NoPatternSkipsReclaim(t *testing.T) {
 		!strings.Contains(report.Reclaim.Skipped, "no declaration") {
 		t.Fatalf("want no-pattern skip, got %+v", report.Reclaim)
 	}
+	p := BuildRunProtocol(report, nil, 0)
+	if !p.SourcePushed || p.WorktreeRemoved || p.LocalBranchRemoved || p.RemoteBranchRemoved {
+		t.Fatalf("legacy skipped reclaim flags: %+v", p)
+	}
 	// Task branch must still exist — reclaim did nothing.
 	if _, err := os.Stat(fx.Worktree); err != nil {
 		t.Fatalf("worktree should remain: %v", err)
@@ -115,6 +119,14 @@ func TestRun_ReclaimsMatchingPattern(t *testing.T) {
 	if report.Reclaim.Skipped != "" {
 		t.Fatalf("should reclaim, skipped: %s", report.Reclaim.Skipped)
 	}
+	p := BuildRunProtocol(report, nil, 0)
+	if report.Receipt != nil || !p.SourcePushed || !p.WorktreeRemoved || !p.LocalBranchRemoved || !p.RemoteBranchRemoved {
+		t.Fatalf("legacy successful run flags: %+v", p)
+	}
+	if got := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != report.SHA {
+		t.Fatalf("remote target %s != reported push %s", got, report.SHA)
+	}
+
 	if _, err := os.Stat(fx.Worktree); err == nil {
 		t.Fatal("worktree should be removed")
 	}
