@@ -110,7 +110,7 @@ func SanitizeURL(value string) error {
 
 	// SCP-style SSH URLs are not understood by net/url. Accept any non-empty
 	// username/host pair, rather than hard-coding the conventional "git" user.
-	if looksLikeSCPURL(value) {
+	if IsSCPRemoteEndpoint(value) {
 		return nil
 	}
 
@@ -144,7 +144,7 @@ func CanonicalRemoteEndpoint(raw string) (string, error) {
 	if raw == "" || strings.HasPrefix(raw, "-") || strings.IndexFunc(raw, func(r rune) bool { return r <= 0x20 || r == 0x7f }) >= 0 {
 		return "", fmt.Errorf("remote endpoint must be a credential-free URL")
 	}
-	if strings.Contains(raw, "@") && !strings.Contains(raw, "://") { // credential-free scp syntax: user@host:path
+	if IsSCPRemoteEndpoint(raw) { // credential-free scp syntax: user@host:path
 		at := strings.IndexByte(raw, '@')
 		colon := strings.IndexByte(raw[at+1:], ':')
 		if at <= 0 || colon <= 0 || at+1+colon+1 >= len(raw) || strings.Contains(raw[:at], ":") {
@@ -184,7 +184,9 @@ func CanonicalRemoteEndpoint(raw string) (string, error) {
 	return u.String(), nil
 }
 
-func looksLikeSCPURL(value string) bool {
+// IsSCPRemoteEndpoint recognizes supported user@host:path syntax while
+// excluding local paths whose slash precedes the colon.
+func IsSCPRemoteEndpoint(value string) bool {
 	colon := strings.IndexByte(value, ':')
 	if colon <= 0 || strings.Contains(value[:colon], "/") {
 		return false

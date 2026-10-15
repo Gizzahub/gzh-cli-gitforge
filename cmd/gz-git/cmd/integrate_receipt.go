@@ -32,7 +32,10 @@ Reads the receipt recorded under the repository's Git common dir
 (gz-integrate/v1/receipts). The query is read-only: it never creates
 the evidence directory or a receipt.
 
-Receipt JSON (schema_version 1, snake_case): execution_id, generation,
+New receipts use schema_version 2; legacy schema_version 1 remains readable
+but cannot authorize cleanup or replay. No automatic migration is performed.
+
+Receipt JSON (snake_case): execution_id, generation,
 owner{actor,host,kind}, repository_common_dir, task_branch, task_worktree,
 task_sha, target_ref, target_before_sha, remote, push_remote, source_pushed,
 worktree_removed, local_branch_removed, remote_branch_removed, phase,

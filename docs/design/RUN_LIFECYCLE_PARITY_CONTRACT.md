@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`9877764d3f37bd3d0ee652706762f169646b8f78`**, installed as CE 0.10.2 with
+`7c22bfb44543bb28ef8df811d0a48f2e0287eeaf`**, installed as CE 0.10.5 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`9877764d`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.5 (`7c22bfb4`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | 0.9.4 (`1503edf`, designated source install)             | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -71,6 +71,17 @@ above the selected executable revision; no CE code or installed settings were
 changed for this capture. Evidence is retained in the source primary checkout's
 `tmp/ce-reference-stable-adoption/`. This reference adoption does not complete
 the native port or ADR-0117 acceptance.
+
+The final TASK-327 candidate captures the installed clean CE `7c22bfb4`
+reference without adding `processHost` normalization. Its original normalizer
+retains physical host values in the two historical FINISHING receipts. Those
+fields are machine-sensitive: captures on a different physical host can differ.
+They are not diagnostic-only fields; CE uses physical host equality before
+interpreting a claim PID and conservatively retains foreign-host claims.
+The existing finish scenarios record completed histories, not a live two-host
+claim regression. This adoption does not claim that additional coverage.
+The frozen `d9e9677` candidate and its earlier evidence remain unchanged.
+New capture, verification and final-candidate logs are recorded independently.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
