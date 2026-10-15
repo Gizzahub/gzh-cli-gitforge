@@ -404,7 +404,7 @@ verify-affected: ## run affected Go tests (5m); a widened result requires verify
 		if "$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_NARROW_TIMEOUT)" scripts/verification-profile.sh run --base "$(VERIFY_BASE)" -- $(MAKE) --no-print-directory test-affected; then :; \
 		else rc=$$?; [ "$$rc" -eq 3 ] || exit "$$rc"; echo "development profile widened; run 'make verify-full' before integration" >&2; exit 3; fi
 
-verify-commit: ## run the 10m commit profile, or one full gate when widened
+verify-commit: ## run the 8m commit profile; a widened result requires verify-full
 	@set -eu; \
 		command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }; \
 		if "$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_COMMIT_TIMEOUT)" scripts/verification-profile.sh run --base "$(VERIFY_BASE)" -- $(MAKE) --no-print-directory verify-commit-affected; then :; \
