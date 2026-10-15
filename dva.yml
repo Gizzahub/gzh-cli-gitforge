@@ -20,3 +20,23 @@ interaction:
     description: Verify existing quality workflow delegation
     runner: local
     command: make quality-check-validate
+
+ci:
+  profiles:
+    commit:
+      description: Run the 8-minute impact-aware commit profile within DVA's 10-minute hard ceiling.
+      timeout: 10m
+      warn_after: 5m
+      max_parallel: 1
+      steps:
+        - name: affected-commit-gate
+          run: VERIFY_BASE=origin/master make verify-commit
+          timeout: 10m
+    full:
+      description: Run the canonical 60-minute full profile with cleanup and TERM headroom.
+      timeout: 65m
+      max_parallel: 1
+      steps:
+        - name: final-full-gate
+          run: make verify-full
+          timeout: 65m

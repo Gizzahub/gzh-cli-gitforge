@@ -13,11 +13,21 @@ CRITICAL_COVERAGE_PACKAGES := \
 	github.com/gizzahub/gzh-cli-gitforge/pkg/reposync \
 	github.com/gizzahub/gzh-cli-gitforge/pkg/workspacecli
 
+# Package workers are bounded so a full suite does not monopolize the host.
+# Keep test functions serial: several integration-style tests deliberately
+# alter process-wide Git or environment state and cannot use t.Parallel.
+VERIFY_GO_GOMAXPROCS ?= 4
+VERIFY_GO_PACKAGE_WORKERS ?= 4
+VERIFY_GO_TEST_PARALLEL ?= 1
+# Provisional full-suite package budget. It replaces the previous 20m cap
+# without changing the selected package set or its coverage assertions.
+VERIFY_GO_FULL_PACKAGE_TIMEOUT ?= 30m
+
 # ==============================================================================
 # Testing Targets
 # ==============================================================================
 
-.PHONY: test test-unit test-unit-quality coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
+.PHONY: test test-unit test-unit-quality test-affected coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
 .PHONY: cover cover-html cover-report bench test-coverage test-docker
 
 test: clean build ## run all tests with coverage (requires binary for integration tests)
@@ -44,10 +54,20 @@ test-unit-quality: ## run unit tests without leaving a coverage artifact in the 
 	trap 'rm -rf "$$quality_tmp"' EXIT HUP INT TERM; \
 	coverage_out="$${QUALITY_COVERAGE_OUT:-$$quality_tmp/coverage-unit.out}"; \
 	echo -e "$(CYAN)Running unit tests with coverage...$(RESET)"; \
-	GOWORK=off go test -short --cover -timeout=20m -parallel=1 -v -coverprofile="$$coverage_out" \
+	GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short --cover -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v -coverprofile="$$coverage_out" \
 		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)'); \
 	go tool cover -func="$$coverage_out" | sort -rnk3; \
 	echo -e "$(GREEN)✅ Unit tests completed$(RESET)"
+
+# VERIFY_SELECTED_PACKAGES is only supplied by verification-profile.sh. This
+# guard makes a selector failure visible instead of letting `go test` succeed
+# without testing a package.
+test-affected: ## run selected affected Go packages and reverse test dependencies
+	@set -eu; \
+		[ -n "$(VERIFY_SELECTED_PACKAGES)" ] || { echo "VERIFY_SELECTED_PACKAGES is required" >&2; exit 2; }; \
+		echo -e "$(CYAN)Running affected package tests...$(RESET)"; \
+		GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short -count=1 -cover -timeout="$(VERIFY_NARROW_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v $(VERIFY_SELECTED_PACKAGES); \
+		echo -e "$(GREEN)✅ Affected package tests completed$(RESET)"
 
 # coverage-critical-check measures exactly the critical packages into a
 # throwaway profile under tmp/ (gitignored) and fails when any package drops
@@ -63,7 +83,7 @@ coverage-critical-check: ## fail when a critical package's coverage drops below 
 	trap 'rm -rf "$$critical_tmp"' EXIT HUP INT TERM; \
 	profile="$$critical_tmp/critical-coverage.out"; \
 	echo -e "$(CYAN)Measuring critical package coverage...$(RESET)"; \
-	GOWORK=off go test -short -count=1 -covermode=set -coverprofile="$$profile" \
+	GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short -count=1 -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -covermode=set -coverprofile="$$profile" \
 		$(CRITICAL_COVERAGE_PACKAGES); \
 	echo -e "$(CYAN)Checking critical coverage floors...$(RESET)"; \
 	go run ./cmd/coveragegate -manifest .ci/critical-coverage-floors.json -profile "$$profile"; \
@@ -77,7 +97,7 @@ test-integration-quality: ## run package integration tests without repository ar
 	@set -eu; \
 	export GOWORK=off; \
 	echo -e "$(CYAN)Running package integration tests...$(RESET)"; \
-	GOWORK=off go test -short -count=1 -v ./tests/integration/...; \
+	GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short -count=1 -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v ./tests/integration/...; \
 	echo -e "$(GREEN)✅ Package integration tests completed$(RESET)"
 
 test-integration-only: build ## run only integration tests with build tag
@@ -92,7 +112,7 @@ test-integration-only: build ## run only integration tests with build tag
 test-e2e-only: ## run only e2e tests with build tag
 	@echo -e "$(CYAN)Running E2E tests...$(RESET)"
 	@if [ -d "./tests/e2e" ]; then \
-		go test -tags=e2e -v ./tests/e2e/...; \
+		GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -tags=e2e -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v ./tests/e2e/...; \
 	else \
 		echo -e "$(YELLOW)No e2e tests found$(RESET)"; \
 	fi

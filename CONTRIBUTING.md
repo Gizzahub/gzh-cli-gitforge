@@ -99,15 +99,17 @@ git checkout -b fix/your-bug-fix
 
 ### 3. Run Quality Checks
 
-Before committing, ensure all quality checks pass:
+Before committing, run the impact-aware profile against the declared upstream:
 
 ```bash
-# Run the canonical, source-non-mutating quality gate (Go + changed Markdown format,
-# unlimited lint, gosec, govulncheck, build, unit tests, and self-contained E2E)
-make quality-check
+# Changed Go packages plus their reverse test dependencies, formatting, lint,
+# and security checks. Shared, deleted, moved, unknown, or non-Go inputs widen
+# safely to the full profile. There is no zero-test success path.
+VERIFY_BASE=origin/master make verify-commit
 
-# `make quality` remains a compatibility alias for quality-check.
-make quality
+# Native integration runs the full gate exactly once. It includes the full
+# build, integration/E2E, and critical coverage checks.
+make check
 
 # Or run individually:
 make fmt        # Format code
@@ -115,6 +117,21 @@ make lint       # Run linters
 make test       # Run all tests
 make test-coverage  # Check coverage
 ```
+
+`dva ci commit` records the selected profile, step status, and elapsed duration
+in its existing local run receipt; `dva ci full` records the final gate the
+same way. Centralized metric collection, a shared event schema, and aggregation
+are intentionally deferred until enough profile data exists to design them.
+`dva` owns only the commit and full profiles; use the direct Make entrypoints
+`verify-affected` and `verify-release` for development and release checks. If
+the development or commit selector widens, it exits nonzero and names
+`make verify-full`; run that full profile explicitly before integration.
+
+The canonical unit suite uses a provisional 30-minute per-package Go timeout.
+This replaces the former 20-minute cap after TASK-324 recorded a 1,200.391s
+timeout following 1,196.67s of passing test time. The full profile remains
+bounded at 60 minutes with a 67-minute outer cleanup budget. Duration and
+status remain in existing DVA receipts; centralized metrics design is deferred.
 
 ### 4. Commit Your Changes
 

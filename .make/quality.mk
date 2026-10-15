@@ -340,6 +340,18 @@ pre-commit-update: ## update pre-commit hooks to latest versions
 # ==============================================================================
 
 .PHONY: quality quality-strict quality-fix quality-build quality-workspace-check quality-check-validate lint-all
+.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test
+.NOTPARALLEL: quality-check verify-commit-affected
+
+# The base is a declared remote-tracking integration ref, not a guessed local
+# branch. Callers may override it only with another explicit commit/ref.
+VERIFY_BASE ?= origin/master
+VERIFY_TIMEOUT ?= timeout
+VERIFY_NARROW_TIMEOUT ?= 5m
+VERIFY_COMMIT_TIMEOUT ?= 8m
+VERIFY_FULL_TIMEOUT ?= 60m
+VERIFY_RELEASE_TIMEOUT ?= 75m
+VERIFY_TIMEOUT_KILL_AFTER ?= 5s
 
 # quality-check is the one canonical source-non-mutating gate. Keep build/tests
 # here instead of in each workflow wrapper so security and test work is never
@@ -375,18 +387,57 @@ quality-workspace-check: ## verify workspace metadata in an isolated temporary c
 		echo -e "$(GREEN)✅ Tracked Go workspace metadata is clean!$(RESET)"
 
 quality-check: export GOWORK := off
-quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
+quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
 	@echo -e "$(GREEN)✅ Canonical quality gate passed!$(RESET)"
 
 quality: quality-check ## compatibility alias for the canonical quality gate
 
 quality-strict: quality-check ## compatibility alias for the canonical quality gate
 
+# Development and commit profiles select changed Go packages plus their reverse
+# test dependencies. Shared/unknown inputs deliberately widen to verify-full;
+# they never report a zero-test pass. The timeout command is configurable for
+# hosts that call GNU coreutils `gtimeout` instead of `timeout`.
+verify-affected: ## run affected Go tests (5m); a widened result requires verify-full
+	@set -eu; \
+		command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }; \
+		if "$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_NARROW_TIMEOUT)" scripts/verification-profile.sh run --base "$(VERIFY_BASE)" -- $(MAKE) --no-print-directory test-affected; then :; \
+		else rc=$$?; [ "$$rc" -eq 3 ] || exit "$$rc"; echo "development profile widened; run 'make verify-full' before integration" >&2; exit 3; fi
+
+verify-commit: ## run the 10m commit profile, or one full gate when widened
+	@set -eu; \
+		command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }; \
+		if "$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_COMMIT_TIMEOUT)" scripts/verification-profile.sh run --base "$(VERIFY_BASE)" -- $(MAKE) --no-print-directory verify-commit-affected; then :; \
+		else rc=$$?; [ "$$rc" -eq 3 ] || exit "$$rc"; echo "commit profile widened; run 'make verify-full' before integration" >&2; exit 3; fi
+
+verify-commit-affected: format-check lint-check security-code security-deps test-affected
+	@echo -e "$(GREEN)✅ Commit verification profile passed!$(RESET)"
+
+verify-full: ## run the canonical 60m full profile
+	@command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }
+	@"$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_FULL_TIMEOUT)" $(MAKE) --no-print-directory quality-check
+	@echo -e "$(GREEN)✅ Full verification profile passed!$(RESET)"
+
+verify-release: ## run the release profile: full gate plus check-only snapshot packaging
+	@command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }
+	@"$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_RELEASE_TIMEOUT)" $(MAKE) --no-print-directory verify-release-steps
+
+verify-release-steps:
+	@$(MAKE) --no-print-directory verify-full
+	@$(MAKE) --no-print-directory release-check
+	@$(MAKE) --no-print-directory release-dry-run
+
+verification-selector-test: ## run isolated selector/profile regression fixtures
+	@/bin/bash scripts/test-verification-profile.sh
+
 quality-check-validate: ## validate quality workflow delegation and fail-closed commands
 	@set -eu; \
-	check_graph=$$($(MAKE) --no-print-directory -n check); \
-	printf '%s\n' "$$check_graph" | grep -Fq 'go test -short --cover'; \
-	printf '%s\n' "$$check_graph" | grep -Fq 'go test -short -count=1 -v ./tests/integration/...'; \
+	grep -Eq '^check: verify-full' .make/build.mk; \
+	grep -Eq '^verify-full:' .make/quality.mk; \
+	! grep -Eq '^check:.*verify-commit' .make/build.mk; \
+	grep -Fq 'go test -short --cover' .make/test.mk; \
+	grep -Fq 'go test -short -count=1 -timeout="$$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)"' .make/test.mk; \
+	grep -Fq './tests/integration/...' .make/test.mk; \
 	missing_exit=0; $(MAKE) --no-print-directory -n quality-contract-unknown-target >/dev/null 2>&1 || missing_exit=$$?; \
 	[ "$$missing_exit" -eq 2 ] || { echo "unknown Make target did not fail with exit 2" >&2; exit 1; }; \
 	$(MAKE) --no-print-directory -n run -- --version >/dev/null
@@ -398,7 +449,7 @@ quality-check-validate: ## validate quality workflow delegation and fail-closed 
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/govulncheck" ./...' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=auto go list -mod=readonly -m all >/dev/null' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short --cover' || true)" -eq 1 ]; \
-		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short -count=1 -v ./tests/integration/...' || true)" -eq 1 ]; \
+		[ "$$(printf '%s\n' "$$graph" | grep -Ec 'go test -short -count=1 -timeout="30m".* ./tests/integration/\.\.\.' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -tags=e2e' || true)" -eq 1 ]; \
 	done
 	@if sed -n '/^security-deps:/,/^# ====/p' .make/quality.mk | grep -Eq '\|\|[[:space:]]*(true|touch)'; then \

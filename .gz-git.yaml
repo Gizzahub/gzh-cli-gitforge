@@ -7,6 +7,8 @@
 branch:
   # The real check gate runs long unit/integration tests; use host FIFO capacity.
   resourceHighLoad: true
+  # Provisional full-gate ceiling: 60m verification plus cleanup/TERM headroom.
+  makeTimeout: 67m
   integrationBranch:
     - master
   taskPattern:

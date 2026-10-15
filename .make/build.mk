@@ -143,10 +143,10 @@ run: ## run the application (usage: make run [args...] or ARGS="args" make run)
 		go run -ldflags "$(VERSION_LDFLAGS)" ./cmd/gz-git; \
 	fi
 
-# Integration invokes check and lint separately; keep check focused on tests.
-# The full format/security/build/E2E/coverage gate remains quality-check.
+# Native integration is the final gate. It runs the full profile exactly once;
+# the 10-minute commit profile is intentionally not an integration substitute.
 .PHONY: check
-check: test-unit-quality test-integration-quality ## run the integration test gate
+check: verify-full ## run the integration test gate
 
 # Preserve CLI argument compatibility only for make run.
 ifneq ($(filter run,$(MAKECMDGOALS)),)

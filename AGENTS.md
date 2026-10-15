@@ -6,18 +6,22 @@ LLM-optimized guidance for gzh-cli-gitforge.
 
 ## Top Commands
 
-| Command              | Purpose                                                                         | When                  |
-| -------------------- | ------------------------------------------------------------------------------- | --------------------- |
-| `make quality-check` | Source-non-mutating format + unlimited lint + security + build + unit/E2E tests | Pre-commit (CRITICAL) |
-| `make quality`       | Alias for `quality-check`                                                       | Pre-commit (CRITICAL) |
-| `make dev-fast`      | format + unit tests                                                             | Quick dev cycle       |
-| `make build`         | Build binary                                                                    | After changes         |
-| `make pr-check`      | Pre-PR verification                                                             | Before PR             |
-| `make test-coverage` | Coverage report                                                                 | Check coverage        |
+| Command                | Purpose                                                               | When             |
+| ---------------------- | --------------------------------------------------------------------- | ---------------- |
+| `make verify-affected` | Changed Go packages and reverse test dependencies (5m)                | Development loop |
+| `make verify-commit`   | Impact-aware format, lint, security, and tests (10m)                  | Before commit    |
+| `make verify-full`     | Full format, lint, security, build, unit/E2E, and coverage gate (60m) | Integration      |
+| `make verify-release`  | Full gate plus check-only snapshot packaging (75m)                    | Before release   |
+| `make quality-check`   | Canonical full gate called by `verify-full`                           | Compatibility    |
+| `make quality`         | Alias for `quality-check`                                             | Compatibility    |
+| `make dev-fast`        | format + unit tests                                                   | Quick dev cycle  |
+| `make build`           | Build binary                                                          | After changes    |
+| `make pr-check`        | Pre-PR verification                                                   | Before PR        |
+| `make test-coverage`   | Coverage report                                                       | Check coverage   |
 
 ## Absolute Rules
 
-**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `make quality-check` before every commit · Sanitize all git inputs · 80%+ test coverage for core logic
+**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · When a narrow profile widens, run `make verify-full` explicitly before integration · Run `make check` for integration · Sanitize all git inputs · 80%+ test coverage for core logic
 
 **DON'T**: Use `sh -c` (command injection) · Concatenate user input into commands · Log credentials · Commit without security tests
 
