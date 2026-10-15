@@ -22,6 +22,7 @@ func TestCapabilityCommandReportsSupportedCapability(t *testing.T) {
 		integrateRunContextV1Capability,
 		integrateReconcilePreMutationV1Capability,
 		integrateLegacyCleanupStandaloneV1Capability,
+		integrateLegacyCleanupCEV1Capability,
 	} {
 		t.Run(capability, func(t *testing.T) {
 			cmd := newCapabilityCommand()

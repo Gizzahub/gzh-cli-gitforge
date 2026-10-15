@@ -11,11 +11,17 @@ execution ID나 generation을 추정하지 않으며 v1/v2 영수증과 등록 m
 `gz-git capability integrate-legacy-cleanup-standalone-v1`로 standalone 명령 계약을
 조회한다. 각 저장소의 lifecycle 검사는 apply에서 별도로 수행한다.
 
-현재 apply는 task-runtime 선언이 없는 standalone 저장소에 한정한다.
-CE 또는 native task lifecycle이 선언된 저장소는 공개 lifecycle fence와의
-연결이 필요하므로 삭제 전에 거부한다. 선언 파일이 task worktree에 없더라도
-primary의 선언을 확인해야 한다. 이 명령을 lifecycle 밖에서 자원을 정리하는
-우회 수단으로 사용하지 않는다.
+기본 apply는 task-runtime 선언이 없는 standalone 저장소에 한정한다. CE 저장소는
+`gz-git capability integrate-legacy-cleanup-ce-v1`와 CE가 발급한
+`--runtime-guard`를 함께 사용해야 한다. guard는 task·owner·Git 정체성과 CE
+검증 실행 파일의 SHA-256을 계획에 결속한다. apply는 매 mutation 전과 각
+자원 상태 확인 전후에 CE verifier의 public attestation을 재검증하며,
+`--runtime-attempt` nonce가 없거나 attestation이 바뀌면 자원을 보존한다.
+
+native task lifecycle, native runtime state, CE guard가 없는 CE 선언은 계속
+삭제 전에 거부한다. native는 CE의 private ledger나 receipt를 읽거나 변환하지
+않는다. 선언 파일이 task worktree에 없더라도 primary의 선언을 확인해야 한다.
+이 명령을 lifecycle 밖에서 자원을 정리하는 우회 수단으로 사용하지 않는다.
 
 worktree와 Git directory의 device/inode 정체성을 관찰할 수 없는 호스트는
 지원하지 않는다. 경로·파일 크기·수정 시각으로 물리 정체성을 추정하지 않는다.
@@ -28,7 +34,8 @@ worktree와 Git directory의 device/inode 정체성을 관찰할 수 없는 호�
 
 `plan`은 task worktree에서 대상 integration branch와 DONE·RELEASED 근거를
 명시해 실행한다. `--output`, `--done-artifact`, `--released-artifact`는 절대
-경로를 사용한다. 기존 파일을 덮어쓰지 않는 계획 파일을 생성하며 Git 자원은
+경로를 사용한다. CE 경로는 CE가 만든 절대 경로 `--runtime-guard`도 명시한다.
+기존 파일을 덮어쓰지 않는 계획 파일을 생성하며 Git 자원은
 변경하지 않는다. 정확한 인자와 근거 스키마는 명령 도움말과 계획 스키마를
 확인한다.
 

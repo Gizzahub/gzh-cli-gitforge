@@ -78,6 +78,49 @@ func TestLegacyCleanupPlanRejectsForeignMovedAndTargetFacts(t *testing.T) {
 	}
 }
 
+func TestLegacyCleanupPlanBindsRuntimeGuardIntoDigest(t *testing.T) {
+	p := validLegacyCleanupPlanForTest(t)
+	p.RuntimeGuard = &LegacyRuntimeGuard{
+		SchemaVersion:      legacyRuntimeGuardSchema,
+		Capability:         legacyRuntimeGuardCapability,
+		OperationID:        strings.Repeat("a", 32),
+		RepositoryRoot:     p.RepositoryRoot,
+		CommonDir:          p.CommonDir,
+		TaskBranch:         p.TaskBranch,
+		TaskWorktree:       p.TaskWorktree,
+		TaskOID:            p.TaskOID,
+		Owner:              p.Owner,
+		VerifierExecutable: "/usr/bin/true",
+		VerifierSHA256:     strings.Repeat("b", 64),
+	}
+	digest, err := legacyCleanupPlanDigest(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.PlanDigest = digest
+	if err := p.Validate(); err != nil {
+		t.Fatalf("guard-bound plan invalid: %v", err)
+	}
+	p.RuntimeGuard.OperationID = strings.Repeat("c", 32)
+	path := filepath.Join(t.TempDir(), "plan.json")
+	if err := WriteLegacyCleanupPlan(path, p); err == nil || !strings.Contains(err.Error(), "digest mismatch") {
+		t.Fatalf("modified runtime guard err=%v, want digest mismatch", err)
+	}
+}
+
+func TestLegacyRuntimeGuardRejectsMissingAttempt(t *testing.T) {
+	p := validLegacyCleanupPlanForTest(t)
+	p.RuntimeGuard = &LegacyRuntimeGuard{
+		SchemaVersion: legacyRuntimeGuardSchema, Capability: legacyRuntimeGuardCapability,
+		OperationID: strings.Repeat("a", 32), RepositoryRoot: p.RepositoryRoot, CommonDir: p.CommonDir,
+		TaskBranch: p.TaskBranch, TaskWorktree: p.TaskWorktree, TaskOID: p.TaskOID, Owner: p.Owner,
+		VerifierExecutable: "/usr/bin/true", VerifierSHA256: strings.Repeat("b", 64),
+	}
+	if _, err := newLegacyGuardChecker(p, ""); err == nil || !strings.Contains(err.Error(), "attempt") {
+		t.Fatalf("missing runtime attempt err=%v", err)
+	}
+}
+
 func writePlanFixture(t *testing.T, p *LegacyCleanupPlan) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "plan.json")

@@ -98,6 +98,54 @@ func refuseLegacyRuntime(roots ...string) error {
 	return nil
 }
 
+// validateLegacyCERuntime permits a CE declaration only when an external CE
+// verifier is bound into the prospective plan. Native state is never read.
+func validateLegacyCERuntime(roots ...string) error {
+	found := false
+	for _, root := range roots {
+		if _, err := os.Lstat(filepath.Join(root, ".gz-git-task.yaml")); err == nil {
+			return ErrLegacyCleanupUnsupportedNative
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("inspect native lifecycle declaration: %w", err)
+		}
+		dir := filepath.Join(root, ".ce")
+		info, err := os.Lstat(dir)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect CE lifecycle directory: %w", err)
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("CE lifecycle directory has an unsupported physical type: %s", dir)
+		}
+		for _, name := range []string{"task-runtime.yaml", "task-runtime.yml"} {
+			path := filepath.Join(dir, name)
+			entry, statErr := os.Lstat(path)
+			if os.IsNotExist(statErr) {
+				continue
+			}
+			if statErr != nil || !entry.Mode().IsRegular() || entry.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("CE lifecycle declaration has an unsupported physical type: %s", path)
+			}
+			found = true
+		}
+	}
+	if !found {
+		return ErrLegacyCleanupUnsupportedNative
+	}
+	return nil
+}
+
+func refuseLegacyNativeRuntimeState(common string) error {
+	if _, err := os.Lstat(filepath.Join(common, "gz-git", "task-runtime")); err == nil {
+		return ErrLegacyCleanupUnsupportedNative
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect native lifecycle state boundary: %w", err)
+	}
+	return nil
+}
+
 // State-directory presence is an unsupported lifecycle boundary, not permission
 // to interpret or import the host's private execution records.
 func refuseLegacyRuntimeState(common string) error {

@@ -60,6 +60,7 @@ type LegacyCleanupPlan struct {
 	ReleasedArtifactPath   string                  `json:"released_artifact_path"`
 	ReleasedArtifactSHA256 string                  `json:"released_artifact_sha256"`
 	PlanDigest             string                  `json:"plan_digest"`
+	RuntimeGuard           *LegacyRuntimeGuard     `json:"runtime_guard,omitempty"`
 	WorktreeIdentity       *LegacyWorktreeIdentity `json:"worktree_identity,omitempty"`
 }
 
@@ -71,6 +72,7 @@ type LegacyCleanupPlanOptions struct {
 	DoneArtifactPath     string
 	ReleasedArtifactPath string
 	Owner                OwnerIdentity
+	RuntimeGuard         *LegacyRuntimeGuard
 }
 
 type legacyCleanupArtifact struct {
@@ -192,6 +194,7 @@ func observeLegacyCleanupPlan(ctx context.Context, exec *gitcmd.Executor, opts L
 		TaskPatterns: append([]string(nil), patternDecl.Patterns...), ProtectedBranches: append([]string(nil), repository.ProtectedBranches...),
 		RetiredDisposition: legacyRetiredDisposition, DoneArtifactPath: cleanAbsolute(opts.DoneArtifactPath), DoneArtifactSHA256: "",
 		ReleasedArtifactPath: cleanAbsolute(opts.ReleasedArtifactPath), ReleasedArtifactSHA256: "",
+		RuntimeGuard: opts.RuntimeGuard,
 	}
 	return plan, nil
 }
@@ -320,6 +323,11 @@ func (p *LegacyCleanupPlan) Validate() error {
 	}
 	if p.PlanDigest != "" && !validSHA256(p.PlanDigest) {
 		return fmt.Errorf("legacy cleanup plan has invalid plan digest")
+	}
+	if p.RuntimeGuard != nil {
+		if err := p.RuntimeGuard.ValidateForPlan(p); err != nil {
+			return err
+		}
 	}
 	if len(p.TaskPatterns) == 0 {
 		return fmt.Errorf("legacy cleanup plan has no task pattern")

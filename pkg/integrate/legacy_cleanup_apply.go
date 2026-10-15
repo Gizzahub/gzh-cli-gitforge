@@ -19,8 +19,9 @@ import (
 
 // LegacyCleanupApplyOptions identifies an independently approved plan.
 type LegacyCleanupApplyOptions struct {
-	PlanPath      string
-	ApproveDigest string
+	PlanPath       string
+	ApproveDigest  string
+	RuntimeAttempt string
 }
 
 // ErrLegacyCleanupPartial reports an incomplete or uncertain deletion outcome.
@@ -108,7 +109,11 @@ func ApplyLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, opts LegacyC
 		return err
 	}
 	defer target.release()
-	return applyStandaloneLegacyCleanup(ctx, exec, p)
+	checker, err := newLegacyGuardChecker(p, opts.RuntimeAttempt)
+	if err != nil {
+		return err
+	}
+	return applyStandaloneLegacyCleanup(ctx, exec, p, checker)
 }
 
 func validateLegacyRepository(ctx context.Context, g gitRepo, p *LegacyCleanupPlan) error {
@@ -147,10 +152,7 @@ func validateLegacyRepository(ctx context.Context, g gitRepo, p *LegacyCleanupPl
 	if p.WorktreeIdentity == nil || identity != p.WorktreeIdentity.PrimaryGitDirectory {
 		return fmt.Errorf("primary git directory physical identity changed")
 	}
-	if err := refuseLegacyRuntime(root, p.TaskWorktree); err != nil {
-		return err
-	}
-	if err := refuseLegacyRuntimeState(common); err != nil {
+	if err := validateLegacyRuntimeMode(p, root, common); err != nil {
 		return err
 	}
 	trees, err := g.listWorktrees(ctx)
@@ -175,6 +177,19 @@ func validateLegacyRepository(ctx context.Context, g gitRepo, p *LegacyCleanupPl
 		return fmt.Errorf("primary worktree is dirty")
 	}
 	return nil
+}
+
+func validateLegacyRuntimeMode(p *LegacyCleanupPlan, root, common string) error {
+	if p.RuntimeGuard == nil {
+		if err := refuseLegacyRuntime(root, p.TaskWorktree); err != nil {
+			return err
+		}
+		return refuseLegacyRuntimeState(common)
+	}
+	if err := validateLegacyCERuntime(root, p.TaskWorktree); err != nil {
+		return err
+	}
+	return refuseLegacyNativeRuntimeState(common)
 }
 
 // legacyCleanupPresence proves all surviving identities. Absence must be a
@@ -299,7 +314,7 @@ func legacyCleanupPresence(ctx context.Context, exec *gitcmd.Executor, g gitRepo
 	return removed, nil
 }
 
-func prepareLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, g gitRepo, p *LegacyCleanupPlan, path string) (*legacyCleanupIntent, int, error) {
+func prepareLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, g gitRepo, p *LegacyCleanupPlan, path string, checker legacyGuardChecker) (*legacyCleanupIntent, int, error) {
 	intent, err := loadLegacyCleanupIntent(path)
 	if err != nil && !errors.Is(err, errLegacyIntentMissing) {
 		return nil, 0, err
@@ -313,6 +328,12 @@ func prepareLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, g gitRepo,
 		if err != nil {
 			return nil, 0, err
 		}
+	}
+	if err := attestLegacyCleanup(ctx, checker, "before resume"); err != nil {
+		if recorded > 0 {
+			return nil, 0, fmt.Errorf("%w: %w", ErrLegacyCleanupPartial, err)
+		}
+		return nil, 0, err
 	}
 	removed, err := legacyCleanupPresence(ctx, exec, g, p, recorded)
 	if err != nil {
@@ -340,10 +361,10 @@ func prepareLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, g gitRepo,
 	return intent, removed, nil
 }
 
-func applyStandaloneLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, p *LegacyCleanupPlan) error {
+func applyStandaloneLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, p *LegacyCleanupPlan, checker legacyGuardChecker) error {
 	g := newGitRepo(exec, p.RepositoryRoot)
 	path := filepath.Join(p.CommonDir, legacyCleanupIntentDir, p.PlanDigest+".json")
-	intent, removed, err := prepareLegacyCleanup(ctx, exec, g, p, path)
+	intent, removed, err := prepareLegacyCleanup(ctx, exec, g, p, path, checker)
 	if err != nil {
 		return err
 	}
@@ -352,6 +373,9 @@ func applyStandaloneLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, p 
 	}
 	phases := []string{legacyPhaseIntent, legacyPhaseWorktree, legacyPhaseLocal, legacyPhaseRemote}
 	for step := removed; step < 3; step++ {
+		if err := attestLegacyCleanup(ctx, checker, fmt.Sprintf("before remove step %d", step)); err != nil {
+			return fmt.Errorf("%w: %w", ErrLegacyCleanupPartial, err)
+		}
 		actual, err := legacyCleanupPresence(ctx, exec, g, p, step)
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrLegacyCleanupPartial, err)
@@ -373,6 +397,9 @@ func applyStandaloneLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, p 
 		if err != nil {
 			return fmt.Errorf("%w: remove step %d: %w", ErrLegacyCleanupPartial, step, err)
 		}
+		if err := attestLegacyCleanup(ctx, checker, fmt.Sprintf("after remove step %d", step)); err != nil {
+			return fmt.Errorf("%w: %w", ErrLegacyCleanupPartial, err)
+		}
 		actual, err = legacyCleanupPresence(ctx, exec, g, p, step+1)
 		if err != nil {
 			return fmt.Errorf("%w: verify removal: %w", ErrLegacyCleanupPartial, err)
@@ -391,6 +418,13 @@ func applyStandaloneLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, p 
 	intent.Phase = legacyPhaseComplete
 	if err := writeLegacyCleanupIntent(path, intent); err != nil {
 		return fmt.Errorf("%w: %w", ErrLegacyCleanupPartial, err)
+	}
+	return nil
+}
+
+func attestLegacyCleanup(ctx context.Context, checker legacyGuardChecker, stage string) error {
+	if err := checker(ctx); err != nil {
+		return fmt.Errorf("runtime attestation %s: %w", stage, err)
 	}
 	return nil
 }

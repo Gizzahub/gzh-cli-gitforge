@@ -14,6 +14,7 @@ import (
 var (
 	legacyCleanupPlanTarget, legacyCleanupPlanOutput                 string
 	legacyCleanupPlanDoneArtifact, legacyCleanupPlanReleasedArtifact string
+	legacyCleanupPlanRuntimeGuard                                    string
 	legacyCleanupPlanJSON                                            bool
 )
 
@@ -31,6 +32,7 @@ func init() {
 	f.StringVar(&legacyCleanupPlanOutput, "output", "", "absolute output plan path")
 	f.StringVar(&legacyCleanupPlanDoneArtifact, "done-artifact", "", "absolute retired DONE artifact")
 	f.StringVar(&legacyCleanupPlanReleasedArtifact, "released-artifact", "", "absolute retired RELEASED artifact")
+	f.StringVar(&legacyCleanupPlanRuntimeGuard, "runtime-guard", "", "absolute CE legacy-cleanup guard JSON")
 	f.BoolVar(&legacyCleanupPlanJSON, "json", false, "emit machine-readable result")
 }
 
@@ -54,7 +56,14 @@ func runIntegrateLegacyCleanupPlan(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fail(err)
 	}
-	plan, err := integrate.BuildLegacyCleanupPlan(cmdContext(cmd), gitcmd.NewExecutor(), integrate.LegacyCleanupPlanOptions{RepoPath: root, Target: legacyCleanupPlanTarget, DoneArtifactPath: legacyCleanupPlanDoneArtifact, ReleasedArtifactPath: legacyCleanupPlanReleasedArtifact, Owner: owner})
+	var guard *integrate.LegacyRuntimeGuard
+	if legacyCleanupPlanRuntimeGuard != "" {
+		guard, err = integrate.ReadLegacyRuntimeGuard(legacyCleanupPlanRuntimeGuard)
+		if err != nil {
+			return fail(err)
+		}
+	}
+	plan, err := integrate.BuildLegacyCleanupPlan(cmdContext(cmd), gitcmd.NewExecutor(), integrate.LegacyCleanupPlanOptions{RepoPath: root, Target: legacyCleanupPlanTarget, DoneArtifactPath: legacyCleanupPlanDoneArtifact, ReleasedArtifactPath: legacyCleanupPlanReleasedArtifact, Owner: owner, RuntimeGuard: guard})
 	if err != nil {
 		return fail(err)
 	}

@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	legacyCleanupApplyPlan   string
-	legacyCleanupApplyDigest string
-	legacyCleanupApplyJSON   bool
+	legacyCleanupApplyPlan    string
+	legacyCleanupApplyDigest  string
+	legacyCleanupApplyAttempt string
+	legacyCleanupApplyJSON    bool
 )
 
 var integrateLegacyCleanupApplyCmd = &cobra.Command{
@@ -28,6 +29,7 @@ func init() {
 	integrateLegacyCleanupCmd.AddCommand(integrateLegacyCleanupApplyCmd)
 	integrateLegacyCleanupApplyCmd.Flags().StringVar(&legacyCleanupApplyPlan, "plan", "", "absolute prospective plan path")
 	integrateLegacyCleanupApplyCmd.Flags().StringVar(&legacyCleanupApplyDigest, "approve-digest", "", "exact plan digest approval")
+	integrateLegacyCleanupApplyCmd.Flags().StringVar(&legacyCleanupApplyAttempt, "runtime-attempt", "", "exact CE runtime attestation attempt nonce")
 	integrateLegacyCleanupApplyCmd.Flags().BoolVar(&legacyCleanupApplyJSON, "json", false, "emit machine-readable result")
 }
 
@@ -47,7 +49,7 @@ func runIntegrateLegacyCleanupApply(cmd *cobra.Command, _ []string) error {
 	if _, err := os.Stat(legacyCleanupApplyPlan); err != nil {
 		return fail(err, 2)
 	}
-	err := integrate.ApplyLegacyCleanup(cmdContext(cmd), gitcmd.NewExecutor(), integrate.LegacyCleanupApplyOptions{PlanPath: legacyCleanupApplyPlan, ApproveDigest: legacyCleanupApplyDigest})
+	err := integrate.ApplyLegacyCleanup(cmdContext(cmd), gitcmd.NewExecutor(), integrate.LegacyCleanupApplyOptions{PlanPath: legacyCleanupApplyPlan, ApproveDigest: legacyCleanupApplyDigest, RuntimeAttempt: legacyCleanupApplyAttempt})
 	if err != nil {
 		return fail(err, integrate.LegacyCleanupExitCode(err))
 	}

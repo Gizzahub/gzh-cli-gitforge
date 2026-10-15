@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`05438e109bb20d2d2c303a4db56ed9152b0ef281`**, installed as CE 0.10.8 with
+`9fe1ce4506629ce5fa98023d0a8469e336130488`**, installed as CE 0.10.9 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.8 (`05438e10`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.9 (`9fe1ce45`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -105,7 +105,7 @@ the capture host; this provenance remains visible without normalization.
 This reference adoption does not attest a native
 port, baseline Make execution, or consumer acceptance.
 
-After rebasing onto the checkout-provider change `43f94e8`, the current capture
+After rebasing onto the checkout-provider change `43f94e8`, the prior capture
 uses the merged checkout build with `GOWORK=off` and the same clean CE `05438e10`.
 The first full record run rejected the old `917e236a` golden pins before writing
 the twelve replacement captures; its exit 1 is retained, not accepted as PASS.
@@ -116,6 +116,27 @@ The CE executable hash remained unchanged. This is checkout-provider evidence,
 not a capture of the installed provider. Logs are
 `parity-capture-rebased.log`, `parity-capture-rebased-current.log`, and
 `parity-verify-rebased.log` in the same primary evidence directory.
+
+### CE legacy-cleanup provider reference refresh
+
+The legacy-cleanup provider follow-up selects clean CE `9fe1ce45` / `0.10.9`
+(`233-g9fe1ce45`) while preserving the checkout-provider binding introduced by
+ISSUE-303. Its capture and verification use the merged checkout provider, not
+an installed provider. The existing normalizer and hostile-ambient regression
+remain unchanged from the adopted source contract.
+
+The selected reference copy has SHA-256
+`0f4268204b2f08cd2bcd41a4664bd848b906f81e71dab388a95e391b1093cf2c`.
+The designated CLI-only installation of the same clean revision has SHA-256
+`beebe3c4a47d701599e25c8eaf2ce7633bdcf02e13d4d4e098ebb01b74861aae`.
+Earlier pre-rebase installed-provider captures remain historical evidence only;
+they do not establish the merged checkout-provider behavior. After preserving
+the adopted checkout-provider implementation, targeted capture freshly recorded
+all twelve scenarios in 14.089s. Full non-record verification passed in 13.371s,
+including the hostile-ambient provider regression and capture pin checks. Both
+runs used the same clean installed CE revision and unchanged executable hash.
+Evidence is retained in the source primary's
+`tmp/issue331-ce-provider-proof-20261016/`.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
