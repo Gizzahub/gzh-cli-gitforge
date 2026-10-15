@@ -20,8 +20,17 @@ func TestNDReadinessNativePreparation(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX project-cargo fixture")
 	}
-	for _, mode := range []string{"ready", "failure", "source-failure", "cancel", "ref-drift"} {
+	for _, mode := range []string{"ready", "ready-heavy", "failure", "source-failure", "cancel", "ref-drift", "sibling-drift"} {
 		t.Run(mode, func(t *testing.T) {
+			ready := strings.HasPrefix(mode, "ready")
+			t.Setenv("XDG_STATE_HOME", t.TempDir())
+			t.Setenv(hostSlotsHeldEnv, "aux")
+			slots, err := hostSlotsDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			sidecar := filepath.Join(slots, integrateLockName+".json")
+			t.Setenv("ND_TEST_SLOT_FILE", sidecar)
 			dependency, dep := siblingFixture(t)
 			script := "#!/bin/sh\nset -eu\nprintf '%s|%s\\n' \"$CARGO_TARGET_DIR\" \"$*\" >> \"$ND_TEST_TRACE\"\n"
 			switch mode {
@@ -33,14 +42,19 @@ func TestNDReadinessNativePreparation(t *testing.T) {
 				script += "case \"$CARGO_TARGET_DIR\" in */source-cargo) exit 7;; esac\nprintf '%s\\n' \"$*\" >> \"$CARGO_TARGET_DIR/compiled\"\n"
 			case "ref-drift":
 				script += "git -C \"$ND_TEST_WORKTREE\" update-ref refs/heads/dev/actor/feat/task \"$ND_TEST_TARGET_SHA\"\n"
+			case "sibling-drift":
+				script += "printf 'changed\\n' > payload.txt\n"
 			default:
 				script += "printf '%s\\n' \"$*\" >> \"$CARGO_TARGET_DIR/compiled\"\n"
+			}
+			if mode == "ready-heavy" {
+				script += "test \"$HOST_SLOTS_HELD\" = aux,integrate\ntest -f \"$ND_TEST_SLOT_FILE\"\n"
 			}
 			if err := os.MkdirAll(filepath.Join(dependency.Clone, "scripts"), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			writeRepoFile(t, dependency.Clone, "scripts/project-cargo", script)
-			if err := os.Chmod(filepath.Join(dependency.Clone, "scripts/project-cargo"), 0o755); err != nil {
+			if err := os.Chmod(filepath.Join(dependency.Clone, "scripts", "project-cargo"), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			runGit(t, dependency.Clone, "add", "scripts/project-cargo")
@@ -56,6 +70,9 @@ func TestNDReadinessNativePreparation(t *testing.T) {
 			runGit(t, primary, "remote", "set-url", "origin", dep.Remote)
 			runGit(t, primary, "remote", "set-url", "--push", "origin", dep.Remote)
 			manifest := fmt.Sprintf("branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: nd-stack-checked-tests-v1\n  siblingProvision:\n    version: 1\n    siblings:\n      - name: ndea-rs\n        remote: %q\n        path: ../ndea-rs\n        sourceBranch: master\n        revision: source-tip\n", dep.Remote)
+			if mode == "ready-heavy" {
+				manifest += "  prepareHighLoad: true\n"
+			}
 			runner := "#!/bin/sh\nset -eu\ntest \"$#\" = 8\ntest -f \"$CARGO_TARGET_DIR/compiled\"\ntest \"$(wc -l < \"$CARGO_TARGET_DIR/compiled\" | tr -d ' ')\" = 3\ncase \"$CARGO_TARGET_DIR\" in */source-cargo) ;; *) exit 1;; esac\nprintf 'runner\\n' >> \"$ND_TEST_TRACE\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"prepared source bindings\"}'\n"
 			advanceReadinessTarget(t, fx, manifest, runner, "declare ND preparation")
 			g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
@@ -82,18 +99,39 @@ func TestNDReadinessNativePreparation(t *testing.T) {
 				}()
 			}
 			result, _, err := runContractWithTimeout(ctx, g, plan, contract, time.Second)
-			if mode == "ready" && (err != nil || result.Status != "ready") {
+			if ready && (err != nil || result.Status != "ready") {
 				t.Fatalf("native result=%+v err=%v", result, err)
 			}
-			if mode != "ready" && (err == nil || result.Status != "unavailable") {
+			if !ready && (err == nil || result.Status != "unavailable") {
 				t.Fatalf("failed preparation admitted runner: %+v %v", result, err)
+			}
+			if mode == "ref-drift" && !strings.Contains(err.Error(), "ref") {
+				t.Fatalf("wrong refusal for bound ref mutation: %v", err)
 			}
 			data, err := os.ReadFile(trace)
 			if err != nil {
 				t.Fatal(err)
 			}
 			lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-			if mode == "ready" {
+			if mode == "sibling-drift" {
+				buildTarget := strings.SplitN(lines[0], "|", 2)[0]
+				retainedRoot := filepath.Dir(buildTarget)
+				if !strings.HasPrefix(filepath.Base(retainedRoot), "gz-git-readiness-") {
+					t.Fatalf("unexpected retained workspace: %s", retainedRoot)
+				}
+				contents, err := os.ReadFile(filepath.Join(retainedRoot, "target-side", "ndea-rs", "payload.txt"))
+				if err != nil || string(contents) != "changed\n" {
+					t.Fatalf("changed evidence lost: %q %v", contents, err)
+				}
+				// Only this test's newly-created synthetic workspace is reclaimed.
+				t.Cleanup(func() {
+					if err := os.RemoveAll(retainedRoot); err != nil {
+						t.Error(err)
+					}
+				})
+			}
+			switch {
+			case ready:
 				if len(lines) != 7 || lines[6] != "runner" || !strings.Contains(lines[1], "--features nd-common/events") || !strings.Contains(lines[2], "-p nd-events --no-run") {
 					t.Fatalf("wrong preparation coverage/order: %s", data)
 				}
@@ -106,19 +144,23 @@ func TestNDReadinessNativePreparation(t *testing.T) {
 						t.Fatalf("cache mismatch: %s", line)
 					}
 				}
-			} else if mode == "source-failure" && len(lines) != 4 {
-				t.Fatalf("source failure did not stop runner: %s", data)
-			} else if mode != "source-failure" && len(lines) != 1 {
-				t.Fatalf("failure did not stop source preparation/runner: %s", data)
+			case mode == "source-failure":
+				if len(lines) != 4 {
+					t.Fatalf("source failure did not stop runner: %s", data)
+				}
+			default:
+				if len(lines) != 1 {
+					t.Fatalf("failure did not stop source preparation/runner: %s", data)
+				}
 			}
 			if mode == "ref-drift" {
-				if !strings.Contains(err.Error(), "ref") {
-					t.Fatalf("wrong refusal for bound ref mutation: %v", err)
-				}
 				runGit(t, fx.Worktree, "update-ref", "refs/heads/dev/actor/feat/task", plan.BranchSHA)
 			}
 			if after := runGitInTest(t, fx.Worktree, "worktree", "list", "--porcelain"); after != before {
 				t.Fatalf("readiness worktree leak: %s", after)
+			}
+			if _, err := os.Stat(sidecar); !os.IsNotExist(err) {
+				t.Fatalf("host slot not released: %v", err)
 			}
 		})
 	}

@@ -19,6 +19,8 @@ already exists.
 explicit devbox-only policy path for repositories that have no target-owned
 readiness contract.
 
+[ND checked-binding preparation](integrate-nd-preparation.md) describes the optional
+native readiness compilation profile for ND source-board bindings.
 [Integration preparation profiles](integrate-prepare-profile.md) describe
 repository-root fixed profiles and symmetric target/source preparation.
 

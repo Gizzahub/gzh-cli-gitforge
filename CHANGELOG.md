@@ -39,6 +39,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Added
 
+- Readiness V1 can opt into the closed `nd-stack-checked-tests-v1` preparation
+  profile before its source-board gate. Both leased engine snapshots compile
+  fixed test units into isolated caches; failures refuse the runner and preserve
+  changed sibling evidence. Existing runner arguments and legacy digests remain unchanged.
+
 - `gz-git forge bootstrap plan/apply` creates or reuses an empty GitLab project
   from a pinned template revision. Plans bind identity and configuration; retained
   receipts verify resume state, provenance and atomic master/develop refs. An initial
