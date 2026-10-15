@@ -71,7 +71,6 @@ GOWORK=off go test -count=1 ./pkg/integrate \
 대신하지 않는다. 일반적인 캐시 우회, timeout 연장, fixture 공유에 의한 안전성
 단언 축소는 이 수정에 포함하지 않는다.
 
-
 ## 후속 검증 시간 기록 설계
 
 이 절은 수집 구현 전의 설계다. 기존 Make/DVA 예산 선언을 정본으로 유지하고
@@ -104,7 +103,7 @@ Go JSON의 test/package 시간은 이벤트 의미 그대로 보존한다. 병�
 집계는 같은 profile·command·선택 범위·예산·runner/toolchain·source 입력 조건의
 표본만 묶는다. dirty diff도 입력이므로 HEAD 일치만으로 합치지 않는다. 비교 가능한
 표본이 20개 미만이면 n과 개별값·min/median만 제시한다. 20개 이상이면 정렬한
-표본의 nearest-rank p95(ceil(0.95*n)번째)를 함께 기록한다. timeout은 완료 시간
+표본의 nearest-rank p95(ceil(0.95\*n)번째)를 함께 기록한다. timeout은 완료 시간
 표본에서 빼되 별도의 건수와 예산 하한으로 반드시 보인다. 서로 다른 기준·시점의
 이번 전후 수치는 인과나 p95 근거가 아니다.
 
