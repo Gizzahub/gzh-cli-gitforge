@@ -7,6 +7,30 @@ import (
 	"testing"
 )
 
+func TestNormalizerProcessHostIsDiagnosticOnly(t *testing.T) {
+	n := newNormalizer(t.TempDir())
+	for _, hostname := range []string{"workstation-one.local", "workstation-two.local"} {
+		raw := `{"processHost":"` + hostname + `","owner":{"host":"mbp"},"host":"other","processHostname":"unchanged"}`
+		want := `{"processHost":"<PROCESS_HOST>","owner":{"host":"mbp"},"host":"other","processHostname":"unchanged"}`
+		if got := n.norm(raw); got != want {
+			t.Fatalf("raw normalization: got %s, want %s", got, want)
+		}
+		sb := sandbox{t: t, norm: n}
+		var doc map[string]interface{}
+		if err := json.Unmarshal(sb.normJSON([]byte(raw)), &doc); err != nil {
+			t.Fatal(err)
+		}
+		owner, ok := doc["owner"].(map[string]interface{})
+		if !ok || doc["processHost"] != "<PROCESS_HOST>" || doc["host"] != "other" ||
+			doc["processHostname"] != "unchanged" || owner["host"] != "mbp" {
+			t.Fatalf("structured normalization changed identity: %#v", doc)
+		}
+	}
+	if got := n.norm(`{"processHost":""}`); got != `{"processHost":""}` {
+		t.Fatalf("empty processHost changed: %s", got)
+	}
+}
+
 func TestNormalizerDurationDiagnostic(t *testing.T) {
 	normalizer := newNormalizer(t.TempDir())
 	tests := []struct {

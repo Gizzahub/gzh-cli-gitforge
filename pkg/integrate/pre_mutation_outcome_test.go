@@ -98,7 +98,7 @@ func TestMalformedContextAndExistingReceiptCannotProduceSafeOutcome(t *testing.T
 	if capture.candidate == nil {
 		t.Fatal("capture did not bind candidate")
 	}
-	receipt := &Receipt{SchemaVersion: evidenceSchemaVersion, ExecutionID: execution.ExecutionID, Generation: execution.Generation, Owner: execution.Owner, RepositoryCommonDir: common, TaskBranch: capture.candidate.TaskBranch, TaskSHA: capture.candidate.TaskSHA, TargetRef: capture.candidate.TargetRef, Phase: evidencePhaseIntent}
+	receipt := &Receipt{SchemaVersion: receiptSchemaVersion, ExecutionID: execution.ExecutionID, Generation: execution.Generation, Owner: execution.Owner, RepositoryCommonDir: common, TaskBranch: capture.candidate.TaskBranch, TaskSHA: capture.candidate.TaskSHA, TargetRef: capture.candidate.TargetRef, Phase: evidencePhaseIntent}
 	if err := createReceipt(context.Background(), common, receipt); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestExistingPushedReceiptSuppressesStaleNegativeOutcome(t *testing.T) {
 		t.Fatalf("record stale outcome = %#v, %v", outcome, err)
 	}
 	receipt := &Receipt{
-		SchemaVersion:       evidenceSchemaVersion,
+		SchemaVersion:       receiptSchemaVersion,
 		ExecutionID:         execution.ExecutionID,
 		Generation:          execution.Generation,
 		Owner:               execution.Owner,

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 	"unicode"
@@ -26,10 +27,14 @@ import (
 // authority by itself: cleanup re-proves the remote target, the residuals,
 // and the caller's identity before removing anything.
 const (
-	evidenceSchemaVersion  = 1
-	evidenceDirName        = "gz-integrate"
-	evidenceVersionName    = "v1"
-	evidenceReceiptsSuffix = "receipts"
+	// Machine run protocol and durable receipt contracts have independent
+	// versions. The former remains v1 while the latter is v2.
+	evidenceSchemaVersion     = 1
+	receiptSchemaVersion      = 2
+	registrationSchemaVersion = 1
+	evidenceDirName           = "gz-integrate"
+	evidenceVersionName       = "v1"
+	evidenceReceiptsSuffix    = "receipts"
 	// registrationMarkerName lives in a worktree's own Git directory. It binds
 	// one physical worktree to the run that registered it, so a later branch
 	// reused at the same commit cannot satisfy an older generation's receipt.
@@ -51,6 +56,11 @@ var ErrEvidenceReplay = errors.New("execution identity conflicts with the durabl
 // removed, advanced to another revision, or rebound to another identity. The
 // writer's in-memory receipt is untouched and must be re-read before retry.
 var ErrReceiptCASConflict = errors.New("integrate receipt changed since it was read")
+
+// ErrReceiptReadOnly reports a legacy durable receipt. Version 1 receipts are
+// readable for diagnosis, but cannot be rewritten or used to authorize a
+// cleanup mutation because they lack the v2 provenance contract.
+var ErrReceiptReadOnly = errors.New("legacy integrate receipt is read-only")
 
 // ErrInvalidExecutionContext reports a malformed or partial execution context.
 var ErrInvalidExecutionContext = errors.New("invalid execution context")
@@ -219,7 +229,16 @@ type evidenceProvenance struct {
 	DeclarationFacts    []string                      `json:"declaration_facts,omitempty"`
 	PrepareProfile      string                        `json:"prepare_profile,omitempty"`
 	PrepareInputs       string                        `json:"prepare_inputs,omitempty"`
+	ReclaimRefs         *evidenceReclaimRefs          `json:"reclaim_refs,omitempty"`
 	Controller          *evidenceControllerProvenance `json:"controller,omitempty"`
+}
+
+// evidenceReclaimRefs records the branch names used by the reclaim guard at
+// intent time. Cleanup must use these captured names, never re-resolve them
+// from mutable repository configuration.
+type evidenceReclaimRefs struct {
+	Default     string `json:"default"`
+	Integration string `json:"integration"`
 }
 
 // Receipt is the durable integration evidence document. Field names are the
@@ -258,11 +277,31 @@ func evidenceReceiptPath(common, executionID string) string {
 	return filepath.Join(evidenceRoot(common), evidenceReceiptsSuffix, fmt.Sprintf("%x.json", digest))
 }
 
+func canonicalCommonDir(common string) (string, error) {
+	if strings.TrimSpace(common) == "" {
+		return "", fmt.Errorf("repository common directory is empty")
+	}
+	abs, err := filepath.Abs(common)
+	if err != nil {
+		return "", fmt.Errorf("resolve repository common directory: %w", err)
+	}
+	canonical, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return "", fmt.Errorf("canonicalize repository common directory: %w", err)
+	}
+	return filepath.Clean(canonical), nil
+}
+
 // readReceipt loads a receipt without creating anything. A missing receipt is
 // ok=false, not an error; an unparseable one is an error, because guessing
 // around damaged evidence would fabricate authority.
 func readReceipt(common, executionID string) (*Receipt, bool, error) {
-	data, err := os.ReadFile(evidenceReceiptPath(common, executionID)) // #nosec G304 -- fixed digest path below the Git common directory
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return nil, false, err
+	}
+	path := evidenceReceiptPath(canonical, executionID)
+	data, err := os.ReadFile(path) // #nosec G304 -- fixed digest path below the Git common directory
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, false, nil
@@ -271,11 +310,22 @@ func readReceipt(common, executionID string) (*Receipt, bool, error) {
 	}
 	var r Receipt
 	if err := jsonUnmarshalStrict(data, &r); err != nil {
-		return nil, false, fmt.Errorf("parse integrate receipt %s: %w", evidenceReceiptPath(common, executionID), err)
+		return nil, false, fmt.Errorf("parse integrate receipt %s: %w", path, err)
 	}
-	if r.SchemaVersion != evidenceSchemaVersion {
-		return nil, false, fmt.Errorf("integrate receipt %s has unsupported schema_version %d", evidenceReceiptPath(common, executionID), r.SchemaVersion)
+	if r.SchemaVersion != evidenceSchemaVersion && r.SchemaVersion != receiptSchemaVersion {
+		return nil, false, fmt.Errorf("integrate receipt %s has unsupported schema_version %d", path, r.SchemaVersion)
 	}
+	if r.ExecutionID != executionID {
+		return nil, false, fmt.Errorf("%w: integrate receipt %s execution_id %q does not match lookup key %q", ErrEvidenceReplay, path, r.ExecutionID, executionID)
+	}
+	storedCommon, err := canonicalCommonDir(r.RepositoryCommonDir)
+	if err != nil {
+		return nil, false, fmt.Errorf("integrate receipt %s has invalid repository common directory: %w", path, err)
+	}
+	if storedCommon != canonical {
+		return nil, false, fmt.Errorf("%w: integrate receipt %s is bound to common directory %q, lookup used %q", ErrEvidenceReplay, path, r.RepositoryCommonDir, canonical)
+	}
+	r.RepositoryCommonDir = storedCommon
 	return &r, true, nil
 }
 
@@ -294,6 +344,9 @@ func writeReceipt(ctx context.Context, common string, r *Receipt) error {
 	if r == nil {
 		return fmt.Errorf("receipt is nil")
 	}
+	if r.SchemaVersion != receiptSchemaVersion {
+		return fmt.Errorf("%w: schema_version %d cannot be rewritten", ErrReceiptReadOnly, r.SchemaVersion)
+	}
 	lock, err := acquireReceiptWriteLock(ctx, common, r.ExecutionID)
 	if err != nil {
 		return err
@@ -311,6 +364,14 @@ func createReceipt(ctx context.Context, common string, r *Receipt) error {
 	if r == nil {
 		return fmt.Errorf("receipt is nil")
 	}
+	if r.SchemaVersion != receiptSchemaVersion {
+		return fmt.Errorf("%w: schema_version %d cannot be created", ErrReceiptReadOnly, r.SchemaVersion)
+	}
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return err
+	}
+	r.RepositoryCommonDir = canonical
 	lock, err := acquireReceiptWriteLock(ctx, common, r.ExecutionID)
 	if err != nil {
 		return err
@@ -340,12 +401,16 @@ func evidenceReceiptLockPath(common, executionID string) string {
 // drops it if the holder dies. Callers already hold the target lock; nothing
 // may take these two locks in the opposite order.
 func acquireReceiptWriteLock(ctx context.Context, common, executionID string) (*receiptWriteLock, error) {
-	receiptPath := evidenceReceiptPath(common, executionID)
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return nil, err
+	}
+	receiptPath := evidenceReceiptPath(canonical, executionID)
 	dir := filepath.Dir(receiptPath)
 	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G301 -- receipt state is per-execution private evidence
 		return nil, fmt.Errorf("create integrate receipt directory: %w", err)
 	}
-	f, err := os.OpenFile(evidenceReceiptLockPath(common, executionID), os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- fixed digest below the Git common directory
+	f, err := os.OpenFile(evidenceReceiptLockPath(canonical, executionID), os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- fixed digest below the Git common directory
 	if err != nil {
 		return nil, fmt.Errorf("open integrate receipt write lock: %w", err)
 	}
@@ -375,12 +440,19 @@ func acquireReceiptWriteLock(ctx context.Context, common, executionID string) (*
 // claim are mutated only after every check has passed, so a refused CAS
 // leaves r exactly as the caller supplied it.
 func writeReceiptLocked(common string, r, expect *Receipt) error {
-	onDisk, ok, err := readReceipt(common, r.ExecutionID)
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return err
+	}
+	onDisk, ok, err := readReceipt(canonical, r.ExecutionID)
 	if err != nil {
 		return err
 	}
 	switch {
 	case expect == nil && ok:
+		if onDisk.SchemaVersion != receiptSchemaVersion {
+			return fmt.Errorf("%w: schema_version %d cannot be rebound", ErrReceiptReadOnly, onDisk.SchemaVersion)
+		}
 		if conflicts := onDisk.identityConflicts(r); len(conflicts) > 0 {
 			return fmt.Errorf("%w: %w: execution-id %s recorded %s as %s; refusing to create as %s", ErrReceiptCASConflict, ErrEvidenceReplay, r.ExecutionID, strings.Join(conflicts, ", "), describeReceiptIdentity(onDisk), describeReceiptIdentity(r))
 		}
@@ -388,6 +460,9 @@ func writeReceiptLocked(common string, r, expect *Receipt) error {
 	case expect != nil && !ok:
 		return fmt.Errorf("%w: execution-id %s disappeared", ErrReceiptCASConflict, r.ExecutionID)
 	case expect != nil && ok:
+		if onDisk.SchemaVersion != receiptSchemaVersion || expect.SchemaVersion != receiptSchemaVersion {
+			return fmt.Errorf("%w: schema_version %d cannot be rewritten", ErrReceiptReadOnly, onDisk.SchemaVersion)
+		}
 		if onDisk.Revision != expect.Revision {
 			return fmt.Errorf("%w: execution-id %s advanced to revision %d, expected %d", ErrReceiptCASConflict, r.ExecutionID, onDisk.Revision, expect.Revision)
 		}
@@ -398,7 +473,7 @@ func writeReceiptLocked(common string, r, expect *Receipt) error {
 	revision, claim := r.Revision, r.Claim
 	refreshClaim(r)
 	r.Revision++
-	if err := atomicStateWrite(evidenceReceiptPath(common, r.ExecutionID), mustMarshalJSON(r)); err != nil {
+	if err := atomicStateWrite(evidenceReceiptPath(canonical, r.ExecutionID), mustMarshalJSON(r)); err != nil {
 		r.Revision, r.Claim = revision, claim
 		return fmt.Errorf("write integrate receipt: %w", err)
 	}
@@ -426,6 +501,12 @@ func physicalHost() string {
 // identity may not be replayed with different values.
 func (r *Receipt) identityConflicts(candidate *Receipt) []string {
 	var conflicts []string
+	if r.SchemaVersion != candidate.SchemaVersion {
+		conflicts = append(conflicts, "schema_version")
+	}
+	if r.ExecutionID != candidate.ExecutionID {
+		conflicts = append(conflicts, "execution_id")
+	}
 	if r.Generation != candidate.Generation {
 		conflicts = append(conflicts, "generation")
 	}
@@ -434,6 +515,18 @@ func (r *Receipt) identityConflicts(candidate *Receipt) []string {
 	}
 	if r.RepositoryCommonDir != candidate.RepositoryCommonDir {
 		conflicts = append(conflicts, "repository_common_dir")
+	}
+	if r.TargetBeforeSHA != candidate.TargetBeforeSHA {
+		conflicts = append(conflicts, "target_before_sha")
+	}
+	if r.Remote != candidate.Remote {
+		conflicts = append(conflicts, "remote")
+	}
+	if r.PushRemote != candidate.PushRemote {
+		conflicts = append(conflicts, "push_remote")
+	}
+	if !reflect.DeepEqual(r.Provenance, candidate.Provenance) {
+		conflicts = append(conflicts, "provenance")
 	}
 	if r.TaskSHA != candidate.TaskSHA {
 		conflicts = append(conflicts, "task_sha")

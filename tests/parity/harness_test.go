@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "9877764d3f37bd3d0ee652706762f169646b8f78"
+	pinnedCECommit = "f81ecd059c0c02f52ef22a461dc5279bf6e41cc8"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -137,6 +137,9 @@ var (
 	shaRe   = regexp.MustCompile(`\b[0-9a-f]{40}\b`)
 	shortRe = regexp.MustCompile(`\b[0-9a-f]{7,12}\b`)
 	pidRe   = regexp.MustCompile(`\bpid[=": ]+\d+`)
+	// The executing machine is diagnostic provenance, not the declared
+	// actor/host identity. Keep owner.host intact across captures.
+	processHostRe = regexp.MustCompile(`("processHost"\s*:\s*")[^"]+(")`)
 	// gz-git prints this human-only diagnostic after a successful readiness
 	// run. Its elapsed duration is intentionally not part of parity output.
 	durationRe = regexp.MustCompile(`\bDuration=((?:\d+(?:\.\d+)?(?:ns|us|µs|ms|s|m|h))+)([[:space:],;\)\]]|\\+[nrt]|$)`)
@@ -181,6 +184,7 @@ func (n *normalizer) norm(s string) string {
 	}
 	s = tsRe.ReplaceAllString(s, "<TS>")
 	s = pidRe.ReplaceAllString(s, "pid=<PID>")
+	s = processHostRe.ReplaceAllString(s, "${1}<PROCESS_HOST>${2}")
 	s = sizeRe.ReplaceAllString(s, "${1}<SIZE> ${2}")
 	s = durationRe.ReplaceAllStringFunc(s, func(field string) string {
 		parts := durationRe.FindStringSubmatch(field)
@@ -455,6 +459,12 @@ func (sb *sandbox) walk(v interface{}) {
 	switch tv := v.(type) {
 	case map[string]interface{}:
 		for k, item := range tv {
+			if k == "processHost" {
+				if value, ok := item.(string); ok && value != "" {
+					tv[k] = "<PROCESS_HOST>"
+					continue
+				}
+			}
 			if k == "processId" {
 				if _, ok := item.(float64); ok {
 					tv[k] = 0

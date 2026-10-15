@@ -34,21 +34,32 @@ func beginRunEvidence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, com
 	if err != nil {
 		return nil, fmt.Errorf("discover task worktree before integration: %w", err)
 	}
+	canonicalCommon, err := canonicalCommonDir(common)
+	if err != nil {
+		return nil, err
+	}
+	pushRemote := controllerPushRemote(check)
+	if pushRemote == "" {
+		pushRemote, err = pushEndpoint(ctx, g, check.Plan.Remote)
+		if err != nil {
+			return nil, fmt.Errorf("resolve push endpoint before recording intent: %w", err)
+		}
+	}
 	// Worktree discovery and provenance read git; they stay outside the
 	// execution write lock, which permits file work only.
 	candidate := &Receipt{
-		SchemaVersion:       evidenceSchemaVersion,
+		SchemaVersion:       receiptSchemaVersion,
 		ExecutionID:         e.ExecutionID,
 		Generation:          e.Generation,
 		Owner:               e.Owner,
-		RepositoryCommonDir: common,
+		RepositoryCommonDir: canonicalCommon,
 		TaskBranch:          check.Plan.Branch,
 		TaskWorktree:        worktree,
 		TaskSHA:             sourceSHA,
 		TargetRef:           "refs/heads/" + targetName,
 		TargetBeforeSHA:     check.Plan.TargetSHA,
 		Remote:              check.Plan.Remote,
-		PushRemote:          controllerPushRemote(check),
+		PushRemote:          pushRemote,
 		Phase:               evidencePhaseIntent,
 		Provenance:          runProvenance(ctx, g, check),
 	}
@@ -90,7 +101,7 @@ func beginRunEvidence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, com
 	// so a later branch reused at the same commit cannot satisfy this receipt.
 	if candidate.TaskWorktree != "" {
 		if err := writeRegistrationMarker(ctx, exec, candidate.TaskWorktree, registrationMarker{
-			SchemaVersion: evidenceSchemaVersion,
+			SchemaVersion: registrationSchemaVersion,
 			ExecutionID:   candidate.ExecutionID,
 			Generation:    candidate.Generation,
 			TaskSHA:       candidate.TaskSHA,
@@ -162,21 +173,31 @@ func findTaskWorktree(ctx context.Context, g gitRepo, branch string) (string, er
 // intent time, so cleanup judges guards against what was approved, not
 // against whatever the dying worktree last said.
 func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
-	p := &evidenceProvenance{PrepareProfile: check.PrepareProfile, PrepareInputs: check.PrepareInputs}
+	p := &evidenceProvenance{}
+	if check != nil {
+		p.PrepareProfile = check.PrepareProfile
+		p.PrepareInputs = check.PrepareInputs
+		p.ReclaimRefs = &evidenceReclaimRefs{
+			Default:     defaultBranchName(check.Plan.DefaultRef, check.Plan.Remote),
+			Integration: check.Plan.Integration.Name,
+		}
+	}
 	if decl, err := config.LoadRepoRootTaskPattern(g.dir); err == nil {
 		p.DeclarationPatterns = append([]string(nil), decl.Patterns...)
 		p.DeclarationFacts = append([]string(nil), decl.Facts...)
 	}
-	if c := check.Controller; c != nil {
-		p.Controller = &evidenceControllerProvenance{
-			Path:           c.Path,
-			Digest:         c.Digest,
-			Workspace:      c.Workspace,
-			Remote:         c.Remote,
-			RemoteURL:      c.RemoteURL,
-			Integration:    append([]string(nil), c.Integration...),
-			TaskPattern:    append([]string(nil), c.TaskPattern...),
-			PrepareProfile: c.PrepareProfile,
+	if check != nil {
+		if c := check.Controller; c != nil {
+			p.Controller = &evidenceControllerProvenance{
+				Path:           c.Path,
+				Digest:         c.Digest,
+				Workspace:      c.Workspace,
+				Remote:         c.Remote,
+				RemoteURL:      c.RemoteURL,
+				Integration:    append([]string(nil), c.Integration...),
+				TaskPattern:    append([]string(nil), c.TaskPattern...),
+				PrepareProfile: c.PrepareProfile,
+			}
 		}
 	}
 	return p

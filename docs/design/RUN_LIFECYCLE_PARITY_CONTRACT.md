@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`9877764d3f37bd3d0ee652706762f169646b8f78`**, installed as CE 0.10.2 with
+`f81ecd059c0c02f52ef22a461dc5279bf6e41cc8`**, installed as CE 0.10.3 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,9 +48,9 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.2 (`9877764d`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.3 (`f81ecd05`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
-| `gz-git`         | 0.9.4 (`1503edf`, designated source install)             | integration provider (reclaim)   |
+| `gz-git`         | installed 0.9.3; provider version diagnostics normalized | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
 
 The provider-only diagnostic snapshots in `doctor-active`, `discard-no-fetch`,
@@ -61,7 +61,7 @@ lifecycle state/ref/cleanup assertions remain unchanged. Human diagnostic
 canonical executable path are retained. Other scenarios retained their prior
 capture at that checkpoint because their normalized observations were unchanged.
 
-On 2026-10-14 all twelve scenarios were freshly machine-captured with clean CE
+Previously, on 2026-10-14 all twelve scenarios were freshly machine-captured with clean CE
 `9877764d` and the designated `make install` provider `1503edf`. The current
 master harness retains its narrow provider-version normalization and approved
 diagnostic help updates. Capture and fresh verification each passed twelve
@@ -71,6 +71,21 @@ above the selected executable revision; no CE code or installed settings were
 changed for this capture. Evidence is retained in the source primary checkout's
 `tmp/ce-reference-stable-adoption/`. This reference adoption does not complete
 the native port or ADR-0117 acceptance.
+
+On 2026-10-15 the user approved adopting the current installed clean CE
+`f81ecd05` (0.10.3), without installing a parallel or older executable. The
+resolved provider was the existing installed `gz-git` 0.9.3, not the historical
+0.9.4 provider from the prior capture; provider version-only diagnostics retain
+their existing narrow normalization. All twelve
+scenarios were freshly machine-captured. Comparing every JSON field with the
+prior `9877764d` capture found only CE revision/version stamps and diagnostic
+`processHost` differences. The latter is now normalized to `<PROCESS_HOST>` in
+raw output and structured records; declared `owner.host` and other host fields
+remain significant. A two-host regression test first failed before this change.
+The CE lifecycle semantics, refusal outcomes and Git/ref/cleanup state assertions
+are unchanged. No fixtures were hand-edited. Capture, comparison and verification
+logs are retained under the source primary's `tmp/task302-successor-evidence/`.
+This reference adoption alone does not accept TASK-302 C1–C5 or the native port.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
@@ -497,7 +512,7 @@ fixed sequence of `ce` invocations with a fully pinned environment
 (no ambient `CE_TASK_ACTOR`/`GIT_WORK_ACTOR`/`GIT_WORK_HOST`/identity-file
 leakage), captures per-step stdout/stderr/exit plus git and record state,
 normalizes volatile fields (sandbox paths incl. `~/`-abbreviated forms,
-40-hex SHAs by first appearance, timestamps, pids), and diffs the result
+40-hex SHAs by first appearance, timestamps, pids, diagnostic processHost), and diffs the result
 against `testdata/golden/<scenario>.json`.
 
 Golden files are machine-captured reference behavior of the pinned CE
