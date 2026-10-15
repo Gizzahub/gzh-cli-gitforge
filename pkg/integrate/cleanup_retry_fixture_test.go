@@ -43,7 +43,9 @@ func (f *cleanupRetryFX) interceptGit(t *testing.T, script string) {
 	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	f.exec = gitcmd.NewExecutor(gitcmd.WithGitBinary(wrapper), gitcmd.WithEnv([]string{"TASK302_TEST_GIT=" + realGit}))
+	// This program injects a fixture fault; caller startup code must not run
+	// before that program or replace its intended exit and Git delegation.
+	f.exec = gitcmd.NewExecutor(gitcmd.WithGitBinary(wrapper), gitcmd.WithEnv([]string{"TASK302_TEST_GIT=" + realGit, "BASH_ENV="}))
 }
 
 // newCleanupRetryFX builds the fixture and runs a real evidenced integrate
