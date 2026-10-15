@@ -13,7 +13,7 @@ import (
 )
 
 func TestInfraOpsCodesLayoutPreservesOnlyTrackedRegularBoundary(t *testing.T) {
-	for _, kind := range []string{"tracked", "untracked", "symlink", "directory", "unknown tracked file", "existing child"} {
+	for _, kind := range []string{"tracked", "tracked executable", "untracked", "symlink", "symlink checkout as regular", "directory", "unknown tracked file", "existing child"} {
 		t.Run(kind, func(t *testing.T) {
 			fx := testutil.TempWorktreeWithBareOrigin(t)
 			codes := filepath.Join(fx.Worktree, "codes")
@@ -22,7 +22,7 @@ func TestInfraOpsCodesLayoutPreservesOnlyTrackedRegularBoundary(t *testing.T) {
 			}
 			marker := filepath.Join(codes, ".envrc")
 			switch kind {
-			case "symlink":
+			case "symlink", "symlink checkout as regular":
 				if err := os.Symlink(filepath.Join(fx.Worktree, "README.md"), marker); err != nil {
 					t.Fatal(err)
 				}
@@ -33,12 +33,29 @@ func TestInfraOpsCodesLayoutPreservesOnlyTrackedRegularBoundary(t *testing.T) {
 			default:
 				writeFile(t, fx.Worktree, "codes/.envrc", "# preserved boundary\n")
 			}
+			if kind == "tracked executable" {
+				runGitInTest(t, fx.Worktree, "config", "core.filemode", "true")
+				if err := os.Chmod(marker, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if kind == "unknown tracked file" {
 				writeFile(t, fx.Worktree, "codes/unknown", "not an owned preparation resource\n")
 			}
 			if kind != "untracked" && kind != "directory" {
 				runGitInTest(t, fx.Worktree, "add", "codes")
 				runGitInTest(t, fx.Worktree, "commit", "-m", "tracked layout")
+			}
+			if kind == "symlink checkout as regular" {
+				runGitInTest(t, fx.Worktree, "config", "core.symlinks", "false")
+				if err := os.Remove(marker); err != nil {
+					t.Fatal(err)
+				}
+				runGitInTest(t, fx.Worktree, "checkout", "--", "codes/.envrc")
+				info, err := os.Lstat(marker)
+				if err != nil || !info.Mode().IsRegular() {
+					t.Fatalf("Git did not materialize the symlink as a regular file: %v", err)
+				}
 			}
 			if kind == "existing child" {
 				if err := os.Mkdir(filepath.Join(codes, "sbkube"), 0o755); err != nil {
@@ -47,7 +64,7 @@ func TestInfraOpsCodesLayoutPreservesOnlyTrackedRegularBoundary(t *testing.T) {
 			}
 			ownedRoot := filepath.Join(t.TempDir(), "owned")
 			err := initializeInfraOpsResources(context.Background(), fx.Worktree, ownedRoot)
-			if kind != "tracked" {
+			if kind != "tracked" && kind != "tracked executable" {
 				if err == nil {
 					t.Fatal("unsafe existing layout accepted")
 				}

@@ -37,12 +37,21 @@ func verifyInfraOpsTrackedEnvrc(ctx context.Context, dir string) error {
 	if err := requireRegularPreparationFile(filepath.Join(dir, "codes", ".envrc")); err != nil {
 		return err
 	}
-	tracked, err := runInfraOpsCommandOutput(ctx, dir, nil, "git", "ls-files", "--error-unmatch", "--", "codes/.envrc")
+	tracked, err := runInfraOpsCommandOutput(ctx, dir, nil, "git", "ls-files", "--stage", "-z", "--error-unmatch", "--", "codes/.envrc")
 	if err != nil {
 		return fmt.Errorf("verify tracked codes/.envrc: %w", err)
 	}
-	if strings.TrimSpace(tracked) != "codes/.envrc" {
-		return fmt.Errorf("codes/.envrc must be a tracked regular source file")
+	// core.symlinks=false materializes a tracked symlink as a regular file.
+	// The index mode, exact path and stage must also describe regular source.
+	records := strings.Split(tracked, "\x00")
+	if len(records) != 2 || records[1] != "" {
+		return fmt.Errorf("codes/.envrc must have one tracked stage-0 entry")
+	}
+	header, path, found := strings.Cut(records[0], "\t")
+	fields := strings.Fields(header)
+	if !found || path != "codes/.envrc" || len(fields) != 3 || fields[2] != "0" ||
+		(fields[0] != "100644" && fields[0] != "100755") {
+		return fmt.Errorf("codes/.envrc must be a tracked regular stage-0 source file")
 	}
 	return nil
 }
