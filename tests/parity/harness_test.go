@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "7c22bfb44543bb28ef8df811d0a48f2e0287eeaf"
+	pinnedCECommit = "917e236a6d57779676fd02629f48a5549c4c4eeb"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -62,11 +62,7 @@ func TestMain(m *testing.M) {
 			fmt.Println("parity: PARITY_RECORD is ignored in target mode; goldens describe CE and are never rewritten from the port")
 			*recordMode = false
 		}
-		code := m.Run()
-		if gzBuildDir != "" {
-			_ = os.RemoveAll(gzBuildDir)
-		}
-		os.Exit(code)
+		os.Exit(runParityTests(m))
 	}
 	found, err := exec.LookPath(envOr("CE_BIN", "ce"))
 	if err != nil {
@@ -77,7 +73,24 @@ func TestMain(m *testing.M) {
 	if !*recordMode {
 		guardGoldenToolchain()
 	}
-	os.Exit(m.Run())
+	os.Exit(runParityTests(m))
+}
+
+// Only remove the binary and directory created by this test process. Refuse
+// unexpected contents rather than recursively deleting an assumed build tree.
+func runParityTests(m *testing.M) int {
+	code := m.Run()
+	if gzBuildDir != "" {
+		if err := os.Remove(gzGitBin); err != nil {
+			fmt.Fprintln(os.Stderr, "parity: remove checkout binary:", err)
+			code = 1
+		}
+		if err := os.Remove(gzBuildDir); err != nil {
+			fmt.Fprintln(os.Stderr, "parity: remove build directory:", err)
+			code = 1
+		}
+	}
+	return code
 }
 
 func envOr(key, fallback string) string {
@@ -237,6 +250,14 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	must(t, os.MkdirAll(filepath.Join(root, "home"), 0o755))
 	must(t, os.MkdirAll(filepath.Join(root, "xdg", "ce"), 0o755))
 	sb := &sandbox{root: root, t: t, norm: newNormalizer(root)}
+	if !targetMode {
+		// CE resolves its provider by name. Give only this fixture process a
+		// path to the checkout build; never replace an installed executable.
+		ensureTargetBinary(t)
+		binDir := filepath.Join(root, "bin")
+		must(t, os.MkdirAll(binDir, 0o755))
+		must(t, os.Symlink(gzGitBin, filepath.Join(binDir, "gz-git")))
+	}
 
 	decl := sc.taskRuntimeYAML
 	if decl == "" {
@@ -283,7 +304,7 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 func (sb *sandbox) baseEnv() []string {
 	return append(
 		os.Environ()[:0],
-		"PATH="+os.Getenv("PATH"),
+		"PATH="+filepath.Join(sb.root, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"HOME="+filepath.Join(sb.root, "home"),
 		"XDG_CONFIG_HOME="+filepath.Join(sb.root, "xdg"),
 		// Keep shim config discovery inside the fixture, even when TMPDIR
@@ -587,7 +608,7 @@ func probeToolchain(t *testing.T) toolchain {
 	return toolchain{
 		CE:    ceToolchain(t, version(ceBin, "version")),
 		Wt:    version("wt", "--version"),
-		GzGit: canonicalGZGitVersion(version("gz-git", "--version")),
+		GzGit: canonicalGZGitVersion(version(gzGitBin, "--version")),
 	}
 }
 

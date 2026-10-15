@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`7c22bfb44543bb28ef8df811d0a48f2e0287eeaf`**, installed as CE 0.10.5 with
+`917e236a6d57779676fd02629f48a5549c4c4eeb`**, installed as CE 0.10.7 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,12 +48,12 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.5 (`7c22bfb4`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.7 (`917e236a`, clean Go build metadata)             | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
-| `gz-git`         | 0.9.4 (`1503edf`, designated source install)             | integration provider (reclaim)   |
+| `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
 
-The provider-only diagnostic snapshots in `doctor-active`, `discard-no-fetch`,
+Historical provider-only diagnostic snapshots in `doctor-active`, `discard-no-fetch`,
 and `finish-explicit` were recaptured after the official source installation of
 `96d5ecd569c3aaf8ad5cfd0b2dcc922fe63c4859`. The CE reference revision and
 lifecycle state/ref/cleanup assertions remain unchanged. Human diagnostic
@@ -82,6 +82,15 @@ The existing finish scenarios record completed histories, not a live two-host
 claim regression. This adoption does not claim that additional coverage.
 The frozen `d9e9677` candidate and its earlier evidence remain unchanged.
 New capture, verification and final-candidate logs are recorded independently.
+
+ISSUE-303's provider-capture follow-up uses the checkout build in CE reference
+mode as well as target mode. Each CE sandbox owns a `bin/gz-git` symlink to
+that build and prepends only that directory to the child process's PATH.
+The toolchain version probe reads the same build directly. No installed binary,
+parent process PATH, runtime configuration or physical-host value is changed.
+The sandbox path uses the existing `<SANDBOX>` normalization; no new semantic
+normalization is introduced. A hostile ambient `gz-git` regression verifies
+both CE's actual provider resolution and the direct toolchain probe.
 
 Governing CE ADRs: 0006 (superseded original contract), 0015 (lifecycle
 bypass prohibition + root safety), 0017 (abort verb, append-only closure),
@@ -501,6 +510,11 @@ header in `portmode_test.go` is the exhaustive declared divergence surface.
 Target mode never records: goldens describe CE. The target build runs with
 `GOWORK=off` so a devbox workspace cannot leak another tree's sources into
 the binary being judged.
+
+CE reference mode also builds that checkout once and exposes it as the
+fixture-local provider described above. `GZ_GIT_BIN` retains its existing
+target-mode meaning; it is not a CE provider override. Missing builds or CE
+capabilities fail the fixture rather than falling back to an installed provider.
 
 Each scenario builds a throwaway sandbox (git repo on `master` + bare
 origin cloned from it + `.ce/task-runtime.yaml` + `.gz-git.yaml`), runs a

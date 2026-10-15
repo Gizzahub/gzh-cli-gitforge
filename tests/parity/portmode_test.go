@@ -37,8 +37,9 @@ var (
 	gzBuildDir string
 )
 
-// ensureTargetBinary picks GZ_GIT_BIN or builds the port binary from this
-// repository, once per test-binary run. The build runs with GOWORK=off: a
+// ensureTargetBinary picks GZ_GIT_BIN in target mode or builds the binary from
+// this repository, once per test-binary run. CE reference fixtures use the same
+// checkout build as their external provider. The build runs with GOWORK=off: a
 // devbox workspace that lists the primary checkout must not leak another
 // tree's sources into the binary the fixtures are about to judge.
 func ensureTargetBinary(t *testing.T) {
@@ -46,7 +47,7 @@ func ensureTargetBinary(t *testing.T) {
 	if gzGitBin != "" {
 		return
 	}
-	if bin := os.Getenv("GZ_GIT_BIN"); bin != "" {
+	if bin := os.Getenv("GZ_GIT_BIN"); targetMode && bin != "" {
 		gzGitBin = bin
 		return
 	}
@@ -170,7 +171,7 @@ func canonicalizeRaw(t *testing.T, raw json.RawMessage) json.RawMessage {
 	return json.RawMessage(out)
 }
 
-var gzGitVersionLineRe = regexp.MustCompile(`^gz-git version v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?(\r?\n)?$`)
+var gzGitVersionLineRe = regexp.MustCompile(`^gz-git version v?[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?(\r?\n)?$`)
 
 const gzGitVersionPlaceholder = "gz-git version <GZ_GIT_VERSION>"
 
