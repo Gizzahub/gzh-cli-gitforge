@@ -53,10 +53,11 @@ func TestLegacyRunProtocolPartialEffects(t *testing.T) {
 	}{
 		{name: "before push"},
 		{name: "push only", run: RunReport{Integrated: true}, want: [4]bool{true, false, false, false}},
-		{name: "worktree only", run: RunReport{Reclaim: ReclaimResult{RemovedWorktree: true}}, want: [4]bool{false, true, false, false}},
-		{name: "local only", run: RunReport{Reclaim: ReclaimResult{RemovedLocalBranch: true}}, want: [4]bool{false, false, true, false}},
-		{name: "remote only", run: RunReport{Reclaim: ReclaimResult{RemovedRemoteBranch: true}}, want: [4]bool{false, false, false, true}},
-		{name: "prose is not proof", run: RunReport{Reclaim: ReclaimResult{Done: []string{"worktree(x)", "local-branch", "remote-branch"}}}},
+		{name: "push and worktree", run: RunReport{Integrated: true, Reclaim: ReclaimResult{RemovedWorktree: true}}, want: [4]bool{true, true, false, false}},
+		{name: "push and local", run: RunReport{Integrated: true, Reclaim: ReclaimResult{RemovedLocalBranch: true}}, want: [4]bool{true, false, true, false}},
+		{name: "push and remote", run: RunReport{Integrated: true, Reclaim: ReclaimResult{RemovedRemoteBranch: true}}, want: [4]bool{true, false, false, true}},
+		{name: "unbound removals before push", run: RunReport{Reclaim: ReclaimResult{RemovedWorktree: true, RemovedLocalBranch: true, RemovedRemoteBranch: true}}},
+		{name: "prose is not proof", run: RunReport{Integrated: true, Reclaim: ReclaimResult{Done: []string{"worktree(x)", "local-branch", "remote-branch"}}}, want: [4]bool{true, false, false, false}},
 		{name: "receipt overrides true report", run: RunReport{Integrated: true, Reclaim: ReclaimResult{RemovedWorktree: true, RemovedLocalBranch: true, RemovedRemoteBranch: true}, Receipt: &Receipt{}}},
 		{name: "receipt overrides false report", run: RunReport{Receipt: &Receipt{SourcePushed: true, WorktreeRemoved: true, LocalBranchRemoved: true, RemoteBranchRemoved: true}}, want: [4]bool{true, true, true, true}},
 	} {

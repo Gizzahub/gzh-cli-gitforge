@@ -56,7 +56,8 @@ finish receipt and check logs are preserved by the source primary under
 
 Version 0.10.2 keeps schema v1 and every existing field/type. A no-context run
 now maps the four fields from its structured invocation-local push/removal
-facts. It does not parse `reclaim_done` text or invent receipt identity/phase.
+facts after confirmed push success. Inconsistent pre-push removal flags do not
+become positive outcomes. It does not parse `reclaim_done` text or invent receipt identity/phase.
 When a receipt exists, its values remain authoritative, including false.
 False still means no positive evidence here, not proof that no side effect
 occurred. Durable acceptance must inspect its bound receipt or actual state.

@@ -26,7 +26,9 @@ GA4 실패를 동일 원인으로 추정하지 않는다. 이번 수정은 이�
 ## ISSUE-052의 호환 수정
 
 receipt가 없을 때 기존 네 boolean은 `RunReport.Integrated`와 structured
-removal 결과에서 채운다. receipt가 있으면 그 값을 우선하며 false도 덮어쓰지
+removal 결과에서 채운다. 실제 Run에서 회수는 push 성공 뒤에만 실행되므로
+`Integrated`가 false인 불일치 report의 removal 값을 positive outcome으로 만들지 않는다.
+receipt가 있으면 그 값을 우선하며 false도 덮어쓰지
 않는다. 필드·타입·schema v1은 그대로이고 owner·generation·receipt phase를
 만들지 않는다. legacy true는 해당 호출에서 확인한 결과이지 durable receipt가
 아니다. false도 side effect 부재의 증명으로 사용할 수 없다.
@@ -53,6 +55,12 @@ check-only였다. 별도의 순수 산술·휴가 일정 두 부정 사례에서
 실패 관측, 정정, 정확한 prompt와 fixture bytes, raw JSONL, 시간·종료 코드를
 모두 보존한다. 이는 단일 관측 묶음이며 일반적인 선택 성공률의 증명이 아니다.
 관측된 유효 사례에는 스킬 소스 변경이 필요하지 않았다.
+
+실제 task worktree의 별도 native 세션도 80.51초, exit 0으로 끝났으며 스킬을
+읽고 commit 8분/DVA 10분, native full 60분/outer 67분과 직전 중복 회피 계획을
+선택했다. 실제 검사는 실행하지 않았다. read-only Git의 xcrun 임시 cache 권한
+경고를 보존했다. 관측 중 root의 소스 수정이 있어 초기 diff hash는 시점 기록일
+뿐 고정 입력이나 재사용 가능한 게이트 증거가 아니다. 선택 행위 관측으로만 쓴다.
 
 실제 저장소 지침에서도 root의 커밋 예산 표기(직접 8분, DVA wrapper 10분)와
 `cmd/AGENTS_COMMON.md`의 오래된 매 커밋 전체 검사 요구를 현재 프로필에 맞췄다.
@@ -90,3 +98,25 @@ v2 case 02의 stderr에는 native host-service의 system skills 설치 중
 
 스킬 관측 방법의 참고는 [OpenAI의 skill eval 문서](https://developers.openai.com/blog/eval-skills)이며,
 위 결론은 일반 지침이 아니라 보존한 실제 trace에 근거한다.
+
+## 동시 전달의 정합화와 중단 증거
+
+다른 실행 `issue-052-legacy-run-flags`의 `6ef04783` 전달 시도는 실패했고 해당
+시점의 master는 `6edbbe19`로 유지됐다. 그 실패 진단은 기존 FAIL 저장 경로의
+출력이며 새 WARN 보존 수정의 수용 증거가 아니다. 미통합 후보를 source tip처럼
+rebase하지 않는다. 이후 해당 task branch가 전진할 수 있으므로 위 SHA는 그
+실패 시도만 식별한다.
+
+우리 첫 native 시도는 target 잠금 대기 뒤 측정을 시작했으나, 중복 후보와
+실제 Run 상태 순서에 맞는 guard를 정합화하기 위해 중단했다. 확인한 task
+프로세스 트리의 provider/Make group ID에 SIGTERM을 요청했다. 이후 같은 숫자
+PGID에서 관측된 별도 GoogleUpdater는 소유 증거로 취급하지 않고 재신호하지
+않았다. 원격 master는 그대로이고 task worktree/branch는 다음 시도를 위해
+보존했다. 원본 BLOCKED 영수증과 취소·종료 확인 증거는 primary 보존 경로의
+`native-finish.*`, `cancelled-native-processes.json`에 남긴다. 이 시도를 PASS나
+통합 성공으로 표시하지 않는다.
+
+그 뒤 성공 guard를 추가하고 실제 상태에 맞는 부분 결과 회귀를 갱신했다.
+최종 부분 결과 row까지 갱신한 좁은 회귀는 6.594초 PASS다. 위 870.874초 package 진단은 이 guard 정합화
+이전의 고정 입력이며 최종 후보의 전체 게이트를 대체하지 않는다. 다른 세션의
+자원이나 branch를 수정·회수하지 않는다.
