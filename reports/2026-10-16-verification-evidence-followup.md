@@ -66,14 +66,22 @@ v2 case 02의 stderr에는 native host-service의 system skills 설치 중
 ## 검증 경계와 후속
 
 - 수정 전 동작 회귀: legacy JSON과 WARN 출력 유실을 실제로 재현한 FAIL 보존.
-- 관련 회귀와 실제 synthetic 게이트: 16.428초 PASS.
+- 관련 회귀와 실제 synthetic 게이트: 16.428초 PASS. 독립 리뷰의 관련 회귀와
+  outcome 계약 검사도 28.228초 PASS.
 - format/lint/gosec/dependency 검사: 종료 코드 0. dependency scan은 호출 경로의
   취약점 0이며 미호출 package/module 발견이 없다는 뜻은 아니다.
-- commit profile은 `VERSION` 변경을 unknown/shared 입력으로 보고 exit 3으로
-  전체 검사 필요를 반환했다. 이를 commit profile PASS로 표시하지 않는다.
+- commit selector/recipe는 `VERSION` 변경을 unknown/shared 입력으로 보고 exit 3으로
+  전체 검사 필요를 반환했고, 이를 감싼 Make 프로세스는 exit 2였다.
+  이를 commit profile PASS로 표시하지 않는다.
 - `pkg/integrate`만 기존 `-short --cover -timeout=30m -p=4 -parallel=1` 조건으로
-  JSON 이벤트 진단한다. 고정 입력, diff와 파일 hash, 실제 종료·시간은
-  `package-diagnostic*` 증거에 남긴다. 이는 과거 원문의 복구나 전체 수용 증거가 아니다.
+  JSON 이벤트 진단했다. 종료 코드 0, 실패 이벤트 0, wall 870.874초였다.
+  출력의 테스트 시간 832.579초 뒤 최종 package PASS 이벤트는 868.576초에
+  도착했다. coverage는 77.1%이며 새로운 coverage 기준을 채택한 것은 아니다.
+  고정 입력, diff와 파일 hash, 실제 종료·시간은 `package-diagnostic*`에 보존한다.
+  skip 이벤트 5개는 subprocess helper 4개와 별도 retained artifact 입력을 요구하는
+  legacy reconciliation 검사 1개다. 해당 retained-artifact 수용을 증명하지 않는다.
+  현재 입력에서는 기존 세 진단을 재현하지 못했으며, 이는 과거 원문 복구나
+  원인 해결 또는 전체 수용 증거가 아니다.
 - 최종 전체 게이트는 native integrator가 실행하며 바로 앞에서 중복 실행하지 않는다.
   이전 Python/UV 소비자 수용 `9227bf3`/infra-ops `b7ad3178`을 새 설치 증거로
   소급 대체하지 않는다.
