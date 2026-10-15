@@ -54,6 +54,10 @@ check-only였다. 별도의 순수 산술·휴가 일정 두 부정 사례에서
 모두 보존한다. 이는 단일 관측 묶음이며 일반적인 선택 성공률의 증명이 아니다.
 관측된 유효 사례에는 스킬 소스 변경이 필요하지 않았다.
 
+실제 저장소 지침에서도 root의 커밋 예산 표기(직접 8분, DVA wrapper 10분)와
+`cmd/AGENTS_COMMON.md`의 오래된 매 커밋 전체 검사 요구를 현재 프로필에 맞췄다.
+전체 게이트를 없애지 않고 native integrator가 실행하는 경계에 유지한다.
+
 v2 case 02의 stderr에는 native host-service의 system skills 설치 중
 `Directory not empty` 오류가 기록됐다. 프로세스는 0으로 종료했고 이후 설치된
 스킬을 직접 읽어 선택을 완료했다. 원문을 보존하며 설치 디렉터리 정리나 원인

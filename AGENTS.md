@@ -9,7 +9,7 @@ LLM-optimized guidance for gzh-cli-gitforge.
 | Command                | Purpose                                                               | When             |
 | ---------------------- | --------------------------------------------------------------------- | ---------------- |
 | `make verify-affected` | Changed Go packages and reverse test dependencies (5m)                | Development loop |
-| `make verify-commit`   | Impact-aware format, lint, security, and tests (10m)                  | Before commit    |
+| `make verify-commit`   | Impact-aware format, lint, security, and tests (8m; DVA wrapper 10m)  | Before commit    |
 | `make verify-full`     | Full format, lint, security, build, unit/E2E, and coverage gate (60m) | Integration      |
 | `make verify-release`  | Full gate plus check-only snapshot packaging (75m)                    | Before release   |
 | `make quality-check`   | Canonical full gate called by `verify-full`                           | Compatibility    |
@@ -21,7 +21,7 @@ LLM-optimized guidance for gzh-cli-gitforge.
 
 ## Absolute Rules
 
-**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · When a narrow profile widens, run `make verify-full` explicitly before integration · Run `make check` for integration · Sanitize all git inputs · 80%+ test coverage for core logic
+**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · A widened profile requires the full integration gate · The native integrator owns `make check` (`verify-full`); do not run it again immediately beforehand · Sanitize all git inputs · 80%+ test coverage for core logic
 
 **DON'T**: Use `sh -c` (command injection) · Concatenate user input into commands · Log credentials · Commit without security tests
 

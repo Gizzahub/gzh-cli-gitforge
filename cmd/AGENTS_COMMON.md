@@ -205,8 +205,12 @@ ______________________________________________________________________
 ### Before Commit
 
 ```bash
-make quality  # REQUIRED
+VERIFY_BASE=origin/master make verify-commit
 ```
+
+Follow the root verification profile contract. A widened result requires the full
+integration gate; it is not a narrow PASS. The native integrator runs `make check`
+(`verify-full`), so do not duplicate the full gate immediately before integration.
 
 ______________________________________________________________________
 
