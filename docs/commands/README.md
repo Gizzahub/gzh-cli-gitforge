@@ -39,6 +39,9 @@ remote-tracking integration ref as the source.
 [통합 영수증과 cleanup-only 복구](integrate-cleanup-retry.md)는 v2 영수증,
 v1 조회 전용 호환성과 잔여 자원 보존·완료 판정을 설명한다.
 
+[Legacy 작업 자원의 정리 계획](integrate-legacy-cleanup.md)은 별도 승인하는
+prospective plan과 standalone apply의 지원 범위를 설명한다.
+
 [Reclaiming declared workspace clones](integrate-reclaim-workspace-clones.md)
 explains when `integrate run` may delete clones that `make prepare` left in
 the task worktree.

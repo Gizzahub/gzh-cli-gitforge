@@ -146,6 +146,8 @@ var commandEffects = map[string][]string{
 	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
 	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
 	"integrate cleanup":                    {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
+	"integrate legacy-cleanup plan":        {mutatesFilesystem},
+	"integrate legacy-cleanup apply":       {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 	"integrate receipt":                    nil,
 	"integrate reconcile":                  {mutatesFilesystem},
 	"integrate bootstrap plan":             {mutatesTrackingRefs},

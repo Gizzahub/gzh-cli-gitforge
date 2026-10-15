@@ -62,6 +62,11 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if err := opts.Execution.Validate(); err != nil {
 		return nil, err
 	}
+	taskFence, err := acquireTaskResourceFence(ctx, exec, opts.RepoPath, opts.Branch, opts.LockNotice)
+	if err != nil {
+		return nil, err
+	}
+	defer taskFence.release()
 	if opts.Execution != nil {
 		opts.ExpectSource = opts.Execution.ExpectSource
 		opts.preMutation = &preMutationCapture{execution: *opts.Execution}

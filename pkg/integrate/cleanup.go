@@ -104,6 +104,11 @@ func CleanupRetry(ctx context.Context, exec *gitcmd.Executor, opts CleanupOption
 	if err != nil {
 		return nil, err
 	}
+	taskFence, err := acquireTaskResourceFence(ctx, exec, run.g.dir, run.report.Receipt.TaskBranch, opts.LockNotice)
+	if err != nil {
+		return nil, err
+	}
+	defer taskFence.release()
 	// The existing repo/target lock is the mutation authority for this
 	// destination; the receipt CAS happens under it.
 	lock, err := acquireTargetLock(ctx, run.g, run.report.Receipt.TargetRef, opts.LockNotice)
