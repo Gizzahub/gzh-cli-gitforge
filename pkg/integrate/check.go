@@ -532,7 +532,8 @@ func targetMovedWhileWaiting(err error) bool {
 }
 
 // saveLegacyMakeDiagnostic preserves branch Make output after the prepared
-// worktree is removed. Baseline output is deliberately never passed here: it
+// worktree is removed, even when baseline comparison downgrades a failed
+// source measurement to WARN. Baseline output is never passed here: it
 // explains the comparison, while this diagnostic is the failed branch run the
 // operator needs to inspect.
 func saveLegacyMakeDiagnostic(item CheckItem, probe makeProbe) CheckItem {
@@ -542,7 +543,9 @@ func saveLegacyMakeDiagnostic(item CheckItem, probe makeProbe) CheckItem {
 
 func saveLegacyMakeDiagnosticWithPath(item CheckItem, probe makeProbe) (savedItem CheckItem, diagnosticPath *string) {
 	savedItem = item
-	if savedItem.Status != checkFail || probe.Output == "" {
+	// Semantic FAIL can follow rc=0 (for example, a removed outcome ID).
+	// Keep that established evidence as well as failed probes downgraded to WARN.
+	if probe.Output == "" || (savedItem.Status != checkFail && probe.Err == nil && !probe.TimedOut) {
 		return savedItem, nil
 	}
 	path, err := writeDiagnostic("make-"+probe.Target, []byte(probe.Output))

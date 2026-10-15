@@ -782,6 +782,52 @@ func TestSaveLegacyMakeDiagnostic_PersistsFailedBranchOutput(t *testing.T) {
 	}
 }
 
+func TestSaveLegacyMakeDiagnostic_PreservesNonWorseningFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private POSIX diagnostic permissions are unavailable on Windows")
+	}
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	probe := makeProbe{
+		Target: "check", Defined: true, Err: errors.New("exit status 2"), Code: 2,
+		Output: "pkg/example.go:12: first failure\npkg/example.go:18: second failure\npkg/example.go:24: third failure\n",
+	}
+	item := CheckItem{Name: "make check", Status: checkWarn, Detail: "baseline failure, non-worsening: count 3 → 3"}
+	got, path := saveLegacyMakeDiagnosticWithPath(item, probe)
+	if got.Status != checkWarn || path == nil || !strings.Contains(got.Detail, item.Detail+"; diagnostic: ") {
+		t.Fatalf("non-worsening failure lost diagnostic or changed verdict: item=%+v path=%v", got, path)
+	}
+	data, err := os.ReadFile(*path)
+	if err != nil || string(data) != probe.Output {
+		t.Fatalf("saved failure bytes differ: %q err=%v", data, err)
+	}
+}
+
+func TestNonWorseningCheckRetainsDiagnosticAfterCleanup(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private POSIX diagnostic permissions are unavailable on Windows")
+	}
+	fx := newLazyBaselineFixture(t, lazyConfig, lazyCheckFails, lazyCheckFails)
+	report := fx.check(t)
+	if !report.Ready {
+		t.Fatalf("non-worsening gate rejected: %s", FormatCheck(report))
+	}
+	for _, item := range report.Items {
+		if item.Name != "make check" {
+			continue
+		}
+		_, path, ok := strings.Cut(item.Detail, "; diagnostic: ")
+		if item.Status != checkWarn || !ok {
+			t.Fatalf("failed source output lost after baseline judgment: %+v", item)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || !strings.Contains(string(data), "pkg/old.go:1:") {
+			t.Fatalf("raw source failure unavailable after cleanup: %q err=%v", data, err)
+		}
+		return
+	}
+	t.Fatal("make check verdict missing")
+}
+
 func TestSaveLegacyMakeDiagnostic_SkipsSuccessAndBaselineOnlyOutput(t *testing.T) {
 	stateRoot := filepath.Join(t.TempDir(), "state")
 	t.Setenv("XDG_STATE_HOME", stateRoot)
@@ -793,6 +839,11 @@ func TestSaveLegacyMakeDiagnostic_SkipsSuccessAndBaselineOnlyOutput(t *testing.T
 		{
 			name:  "success",
 			item:  CheckItem{Name: "make check", Status: checkPass, Detail: "ok"},
+			probe: makeProbe{Target: "check", Output: "successful output"},
+		},
+		{
+			name:  "warning without failed measurement",
+			item:  CheckItem{Name: "make check", Status: checkWarn, Detail: "skipped"},
 			probe: makeProbe{Target: "check", Output: "successful output"},
 		},
 		{

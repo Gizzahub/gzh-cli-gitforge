@@ -73,6 +73,11 @@ readiness_failures optionally carries typed stage, class, budget_ms,
 elapsed_ms, leaf_exit_code, termination_request and diagnostic_path evidence.
 A diagnostic path is local to the host that ran the command and is not
 portable evidence.
+Without an execution context, source_pushed and the three *_removed fields
+report positive outcomes observed by this invocation; they do not create a
+durable receipt or owner identity. With a receipt, its fields are authoritative.
+False is not proof that an operation did not occur: positive evidence may be
+unavailable. Verify actual Git/remote/filesystem state when reconciling a run.
 Readiness refusal details are printed on stderr while JSON stdout remains
 one protocol document; diagnostic paths identify the retained command logs.
 
