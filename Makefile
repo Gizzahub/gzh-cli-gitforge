@@ -34,6 +34,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null || echo "unknown")
 VERSION_LDFLAGS := -X main.version=$(VERSION) \
 	-X $(MODULE).Version=$(VERSION) \
+	-X $(MODULE).versionLinkerStamp=true \
 	-X $(MODULE).GitCommit=$(COMMIT) \
 	-X $(MODULE).BuildDate=$(BUILD_DATE)
 

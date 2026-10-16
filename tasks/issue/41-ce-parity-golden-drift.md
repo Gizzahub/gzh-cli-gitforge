@@ -288,3 +288,25 @@ verify 각각 12 PASS/0 skip, canonical `make quality-check` 종료 코드 0이�
 `tool_version` 13개, 실제 processHost 관측 2개다. 상태·action·exit·논리 owner·
 source/target/ref·회수·provider 명령/인자/help 변경은 없다. ADR-0117 경로는
 이 시나리오에서 호출하지 않았으며 native port 완료를 주장하지 않는다.
+
+## 2026-10-16 ISSUE-332 재베이스의 물리 host 기준선
+
+source `6b8c62ad2e72636c1d6c2c2604cec493cd92e8c1`의 깨끗한 review worktree와
+별도 version 수정 worktree에서 동일한 두 parity 시나리오를 실제 실행했다.
+`finish-explicit`와 `finish-noarg-single-active` 모두 `scenarios_test.go:141`에서
+exit 1이며, 두 JSON 차이는 각각 line 183·260의 `processHost`뿐이다.
+정본은 `CE-Mac-Studio.local`, 현재 관측은 `CEui-MacBookPro.local`이다.
+두 트리의 `tests/parity` Git tree는 동일한
+`62d0dd511c263b9ebca48c5309b329d9cfd58b1d`다. 변경 경로에 새 parity 진단은 없다.
+
+`processHost`의 foreign-host claim 보존 의미를 유지한다. golden 재녹화나
+정규화 변경으로 차이를 지우지 않는다. 이 관측은 ISSUE-332의 버전 회귀와
+분리된 기존 reference 문제이며, native gate가 실제 source/branch 비교로
+non-worsening READY를 반환해야 전달할 수 있다. unmeasurable 또는 새 실패면
+통합을 보류한다. 이것은 TASK-306의 새 후보나 소진 예산 재설정이 아니다.
+
+소유 source primary의 `tmp/issue332-version-delivery-20261016/`에
+`issue332-parity-baseline.log`, `issue332-parity-branch.log`와 baseline metadata를
+보존한다. review worktree는 증거 복사 후 정식 discard하며 수용 근거로 쓰지 않는다.
+첫 `b362607e` 기반 후보의 DVA full은 exit 0이었지만, 그 결과를 최신 source의
+full PASS로 이월하지 않는다. 최종 전달 판정은 native 영수증이 소유한다.

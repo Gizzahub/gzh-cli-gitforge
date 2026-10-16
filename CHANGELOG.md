@@ -32,6 +32,10 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Fixed
 
+- Linker-stamped library versions now retain their explicit value even when it
+  equals the source default. Unstamped `go install` builds still use the module
+  version recorded in build information. Prepare patch 0.10.3.
+
 - Bootstrap resume accepts GitLab-created numeric pipeline refs only when both
   expected branches and every pipeline ref match the initial commit. First-push
   emptiness checks and rejection of tags, notes, extra branches and changed SHAs
