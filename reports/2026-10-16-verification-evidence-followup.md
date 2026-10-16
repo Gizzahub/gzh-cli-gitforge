@@ -148,3 +148,32 @@ PASS/0 skip과 hostile-ambient provider 회귀를 확인했다. golden diff와 C
 `reference-refresh-cancel.json`의 BLOCKED 기록을 보존한다. 이 영수증의
 `sourcePushed`는 기존 source의 원격 일치 확인이며 task 통합의 증명이 아니다.
 별도 parity 생성·검증은 전체 native 수용을 대신하지 않는다.
+
+## 최신 source 재기준화
+
+선행 실행이 `01c4fe1b68a8515ede1c861b2c54e0a70ce6d123`를 실제 master에
+통합한 뒤, `c8778cb7`의 native 시도는 stale-base 검사에서 조기 BLOCKED였다.
+이 시도는 전체 측정을 시작하지 않았다. 원본은
+`native-finish-parity-reviewed.*`에 보존한다.
+
+자체 변경을 최신 source에 rebase하며 `protocol.go`는 이미 통합된 동일한
+성공 guard 구현을 유지했다. ISSUE-052는 원래 실행과 증거 위치를 보존했다.
+자체 중복 real-run fixture를 제거하고, 기존 bare-remote Run 회귀에 JSON
+round-trip·schema v1·무결속 identity·오류를 구분한 자원 부재 검증을 보강했다.
+기존 부분 결과 table에는 exact action text의 비추론과 positive receipt 우선순위,
+local-only 결과를 추가했다. 양쪽 의도를 보존하며 중복 렌더러를 만들지 않았다.
+
+선행 source의 timeout 보고서에 추가된 메트릭 제안은 보존하지만, 이번 전달에서
+수집·저장·집계 또는 자동 조정 구현을 활성화하지 않는다. 기존 예산과 로그를
+유지하며 상세 메트릭 구현은 사용자 지시대로 후속 검토 범위다.
+
+재기준화 뒤 legacy 실제 Run·부분 결과·실패 출력 보존의 선택 회귀는
+3.578초 PASS, lazy baseline cleanup과 rc=0 semantic FAIL 회귀는 2.250초
+PASS다. `make format-check lint-check`는 exit 0, lint 0 issues다.
+이는 최종 native 전체 게이트와 별개의 좁은 증거다.
+
+독립 리뷰에서 ref 부재를 모든 Git nonzero와 혼동하는 기존 helper를 확인했다.
+실제 Run 검증은 local `for-each-ref`와 remote `ls-remote`를 오류 시 실패하는
+`gitOutput`으로 조회하며, 성공한 빈 결과만 부재로 인정하도록 보강했다.
+최종 관련 회귀는 입력 diff hash가 전후 동일한 상태에서 wall 7.199초, exit 0이다.
+원본과 명령·hash·종료는 `rebased-final-regressions*`에 보존한다.

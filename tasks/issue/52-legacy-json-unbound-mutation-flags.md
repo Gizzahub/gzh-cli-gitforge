@@ -52,7 +52,7 @@ full gate passes. The owning execution is `issue-052-legacy-run-flags`; its CE
 finish receipt and check logs are preserved by the source primary under
 `tmp/issue052-delivery/`. Historical raw consumer output is unchanged.
 
-## Compatible correction (2026-10-16)
+### 0.10.2 follow-up verification
 
 Version 0.10.2 keeps schema v1 and every existing field/type. A no-context run
 now maps the four fields from its structured invocation-local push/removal
@@ -62,9 +62,12 @@ When a receipt exists, its values remain authoritative, including false.
 False still means no positive evidence here, not proof that no side effect
 occurred. Durable acceptance must inspect its bound receipt or actual state.
 
-The regression first failed on a real bare-remote integration whose target
-was pushed and all three resources were independently proven absent. The
-corrected JSON reports all four true. Partial outcomes, receipt precedence,
-and refusal to infer effects from prose are also covered. Related regressions
-passed in 16.428s; the actual native delivery verdict belongs to the CE receipt
-for `verification-evidence-followup`, separately from this source correction.
+The independently developed regression first failed on a real bare-remote
+integration before the correction. After `01c4fe1b` landed, the follow-up kept
+that source implementation and consolidated its extra JSON round-trip,
+schema/identity, error-aware resource absence, exact action-text non-inference,
+and positive receipt precedence assertions into the existing tests. It adds
+no duplicate renderer or bare-remote fixture. Earlier regressions passed in
+16.428s; the reconciled candidate needs its own verification and native verdict.
+That delivery belongs to the CE receipt for `verification-evidence-followup`,
+separately from the original correction's execution and historical raw evidence.

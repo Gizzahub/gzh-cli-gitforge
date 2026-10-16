@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -123,18 +124,32 @@ func TestRun_ReclaimsMatchingPattern(t *testing.T) {
 	if report.Receipt != nil || !p.SourcePushed || !p.WorktreeRemoved || !p.LocalBranchRemoved || !p.RemoteBranchRemoved {
 		t.Fatalf("legacy successful run flags: %+v", p)
 	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded RunProtocol
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.SchemaVersion != 1 || decoded.ExecutionID != "" || decoded.Generation != "" || decoded.Owner != nil || decoded.ReceiptPhase != "" {
+		t.Fatalf("legacy JSON fabricated durable identity or changed schema: %s", data)
+	}
+	if !decoded.SourcePushed || !decoded.WorktreeRemoved || !decoded.LocalBranchRemoved || !decoded.RemoteBranchRemoved {
+		t.Fatalf("legacy JSON lost confirmed effects: %s", data)
+	}
 	if got := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != report.SHA {
 		t.Fatalf("remote target %s != reported push %s", got, report.SHA)
 	}
 
-	if _, err := os.Stat(fx.Worktree); err == nil {
-		t.Fatal("worktree should be removed")
+	if _, err := os.Stat(fx.Worktree); !os.IsNotExist(err) {
+		t.Fatalf("worktree absence unproven: %v", err)
 	}
-	if refExists(t, fx.Clone, "refs/heads/dev/actor/feat/task") {
-		t.Fatal("local task branch should be deleted")
+	if refs := gitOutput(t, fx.Clone, "for-each-ref", "--format=%(refname)", "refs/heads/dev/actor/feat/task"); refs != "" {
+		t.Fatalf("local task branch should be deleted: %s", refs)
 	}
-	if refExists(t, fx.Origin, "refs/heads/dev/actor/feat/task") {
-		t.Fatal("remote task branch should be deleted")
+	if refs := gitOutput(t, fx.Clone, "ls-remote", fx.Remote, "refs/heads/dev/actor/feat/task"); refs != "" {
+		t.Fatalf("remote task branch should be deleted: %s", refs)
 	}
 }
 
