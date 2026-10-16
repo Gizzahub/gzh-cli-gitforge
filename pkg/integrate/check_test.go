@@ -31,6 +31,12 @@ func TestCheck_UndeclaredTargetsOriginHead(t *testing.T) {
 	if report.Plan.Integration.Name != "main" || report.Plan.Integration.Source != SourceHeuristic {
 		t.Fatalf("integration = %+v, want heuristic main", report.Plan.Integration)
 	}
+	if report.Warnings == 0 || !hasCheckDetail(report, "integration target", checkWarn, "inferred from origin/HEAD") {
+		t.Fatalf("heuristic target must remain usable but visible:\n%s", FormatCheck(report))
+	}
+	if got := FormatCheck(report); !strings.Contains(got, "integration=main (heuristic: origin/HEAD)") {
+		t.Fatalf("formatted integration source = %q", got)
+	}
 }
 
 func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
@@ -44,6 +50,9 @@ func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
 	}
 	if !report.Ready {
 		t.Fatalf("want READY, got\n%s", FormatCheck(report))
+	}
+	if got := FormatCheck(report); !strings.Contains(got, "integration=develop (config[0])") {
+		t.Fatalf("declared integration source missing from check report: %q", got)
 	}
 }
 

@@ -62,6 +62,9 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if err := opts.Execution.Validate(); err != nil {
 		return nil, err
 	}
+	if err := rejectUnconfirmedHeuristicTarget(ctx, exec, opts.CheckOptions); err != nil {
+		return nil, err
+	}
 	taskFence, err := acquireTaskResourceFence(ctx, exec, opts.RepoPath, opts.Branch, opts.LockNotice)
 	if err != nil {
 		return nil, err
@@ -118,6 +121,45 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 	}
 	return report, err
+}
+
+// rejectUnconfirmedHeuristicTarget keeps a remote HEAD fallback observable in
+// Check but requires Run callers to confirm it before any readiness gate can
+// execute. Explicit targets and controller policies are already confirmation.
+func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) error {
+	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.ControllerConfig) != "" {
+		return nil
+	}
+	if err := normalizeExpectedApprovals(&opts); err != nil {
+		return err
+	}
+	g, root, err := openCheckRepo(ctx, exec, opts.RepoPath)
+	if err != nil {
+		return err
+	}
+	decl, err := config.LoadRepoRootTaskPattern(root)
+	if err != nil {
+		return err
+	}
+	if len(opts.IntegrationConfig) == 0 {
+		opts.IntegrationConfig = decl.IntegrationBranch
+	}
+	integration, err := ResolveIntegrationBranch(ctx, exec, g.dir, opts.IntegrationConfig)
+	if err != nil {
+		return err
+	}
+	if integration.Source != SourceHeuristic {
+		return nil
+	}
+	// Check resolves expectation mismatches before readiness gates. Preserve
+	// that ordering while still stopping a heuristic run before a gate, merge,
+	// or push.
+	if opts.ExpectSource != "" || opts.ExpectTarget != "" {
+		if _, err := resolveTarget(ctx, g, exec, opts); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("integration target %s is inferred from origin/HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", integration.Name, integration.Name)
 }
 
 // runChecked continues an integration from an immutable readiness report.
