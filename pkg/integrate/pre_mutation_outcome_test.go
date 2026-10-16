@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -116,11 +117,38 @@ func TestSameExecutionCannotRecordNegativeWhileAnotherRunOwnsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer owner.release()
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	report, err := Run(ctx, gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
-	}, Execution: execution})
+	type runResult struct {
+		report *RunReport
+		err    error
+	}
+	done := make(chan runResult, 1)
+	go func() {
+		report, err := Run(ctx, gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
+		}, Execution: execution})
+		done <- runResult{report: report, err: err}
+	}()
+	// The identity lookup can exceed the old 100ms budget.  Observe the actual
+	// lock-wait frame so cancellation is synchronized to the intended boundary.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		buf := make([]byte, 128<<10)
+		n := runtime.Stack(buf, true)
+		if strings.Contains(string(buf[:n]), "acquireExecutionRunLock") {
+			cancel()
+			break
+		}
+		if time.Now().After(deadline) {
+			cancel()
+			<-done
+			t.Fatal("Run did not reach execution lock wait")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	result := <-done
+	report, err := result.report, result.err
 	if err == nil || !strings.Contains(err.Error(), "wait for integration run") {
 		t.Fatalf("Run() error = %v, want execution ownership wait", err)
 	}

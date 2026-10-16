@@ -310,3 +310,12 @@ non-worsening READY를 반환해야 전달할 수 있다. unmeasurable 또는 �
 보존한다. review worktree는 증거 복사 후 정식 discard하며 수용 근거로 쓰지 않는다.
 첫 `b362607e` 기반 후보의 DVA full은 exit 0이었지만, 그 결과를 최신 source의
 full PASS로 이월하지 않는다. 최종 전달 판정은 native 영수증이 소유한다.
+
+## 2026-10-17 runner 예산 후보의 기준선 대조
+
+readiness runner 예산 후보의 최초 native 전달은 설치 CE `e8307aa4`와 golden의 guard
+불일치를 관측했다. 기준 source62459750과 후보72d5796b의 `tests/parity` Git tree는
+동일하다. [전달 기록](../../docs/task-reviews/readiness-runner-budget/validation.md)과
+[원본 영수증](../../docs/task-reviews/readiness-runner-budget/first-finish.json)을 보존한다.
+이번에는 별도의 실행 잠금 테스트 진단이 source에 추가돼 native가 BLOCKED를 반환했다.
+parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 결과는 전달 성공이 아니다.
