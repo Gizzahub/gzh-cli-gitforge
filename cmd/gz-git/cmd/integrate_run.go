@@ -189,6 +189,8 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			exit = cliutil.ExitReclaimIncomplete
 		case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
 			exit = cliutil.ExitSourceMismatch
+		case errors.Is(err, integrate.ErrHostLockWait):
+			exit = 2
 		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
 			exit = 1
 		default:

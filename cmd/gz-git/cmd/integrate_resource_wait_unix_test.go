@@ -48,7 +48,7 @@ func TestIntegrateResourceWaitExpiryExitsTwo(t *testing.T) {
 	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "integrate.lock.json"), []byte(`{"pid":1,"repository":"/fixture-holder","branch":"dev/holder"}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "integrate.lock.json"), []byte(`{"pid":1,"repository":"/fixture-holder/integration branch --target not ready","branch":"dev/holder"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(fx.Worktree)
@@ -67,7 +67,7 @@ func TestIntegrateResourceWaitExpiryExitsTwo(t *testing.T) {
 		if cliutil.ExitCodeForError(err) != 2 || !errors.Is(err, integrate.ErrHostLockWait) {
 			t.Fatalf("exit=%d err=%v", cliutil.ExitCodeForError(err), err)
 		}
-		for _, want := range []string{"50ms", "repository config", "per acquisition", "/fixture-holder", "no gate measured", "resource wait"} {
+		for _, want := range []string{"50ms", "repository config", "per acquisition", "/fixture-holder/integration branch --target not ready", "no gate measured", "resource wait"} {
 			if !strings.Contains(out.String(), want) {
 				t.Fatalf("missing %q in report: %s", want, out.String())
 			}
@@ -95,7 +95,7 @@ func TestIntegrateResourceWaitExpiryExitsTwo(t *testing.T) {
 		if p.SchemaVersion != 1 || p.ExitCode != 2 || p.Integrated || p.SourcePushed || p.WorktreeRemoved || p.LocalBranchRemoved || p.RemoteBranchRemoved || p.ResourceWaitDurationMS <= 0 || p.ValidationDurationMS != 0 {
 			t.Fatalf("expiry protocol: %+v", p)
 		}
-		if !strings.Contains(p.Error, "host measurement lock wait expired") || strings.Contains(p.Error, "pre-mutation outcome is not bound") || !strings.Contains(stderr.String(), "/fixture-holder") || !strings.Contains(stderr.String(), "no gate measured") {
+		if !strings.Contains(p.Error, "host measurement lock wait expired") || strings.Contains(p.Error, "pre-mutation outcome is not bound") || !strings.Contains(stderr.String(), "/fixture-holder/integration branch --target not ready") || !strings.Contains(stderr.String(), "no gate measured") {
 			t.Fatalf("diagnostics: %+v stderr=%s", p, stderr.String())
 		}
 	})

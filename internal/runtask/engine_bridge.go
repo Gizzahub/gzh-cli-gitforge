@@ -35,7 +35,9 @@ func (engineIntegrate) Check(ctx context.Context, dir string, noFetch bool) (Com
 	}
 	if err != nil {
 		msg := err.Error()
-		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
+		if errors.Is(err, integrate.ErrHostLockWait) {
+			result.ExitCode = 2
+		} else if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
 			result.ExitCode = 1
 			result.Stderr = "integrate check: " + msg + "\n"
 		} else {
@@ -59,7 +61,9 @@ func (engineIntegrate) Run(ctx context.Context, dir string, noFetch bool) (Comma
 	}
 	if err != nil {
 		msg := err.Error()
-		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "not ready") || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
+		if errors.Is(err, integrate.ErrHostLockWait) {
+			result.ExitCode = 2
+		} else if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "not ready") || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
 			result.ExitCode = 1
 		} else {
 			result.ExitCode = 2

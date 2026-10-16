@@ -103,18 +103,19 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 			}
 			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
 		}
-		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
-			if !quiet {
-				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)
-			}
-			return cliutil.NewExitError(1, err)
-		}
 		if errors.Is(err, integrate.ErrHostLockWait) {
 			if !quiet && report != nil {
 				fmt.Fprint(cmd.OutOrStdout(), integrate.FormatCheck(report))
 			}
 			return cliutil.NewExitError(2, err)
 		}
+		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
+			if !quiet {
+				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)
+			}
+			return cliutil.NewExitError(1, err)
+		}
+
 		return cliutil.NewExitError(2, err)
 	}
 
