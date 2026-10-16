@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -283,7 +284,7 @@ func TestHeavyPreparationAdmissionBudgetRemovesOnlyItsFIFOTicket(t *testing.T) {
 	waitAdmissionTickets(t, 1)
 	const budget = 120 * time.Millisecond
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockWait: budget, LockWaitSet: true, LockNotice: io.Discard})
-	if err != nil || report == nil || report.Ready {
+	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready {
 		t.Fatalf("preparation admission timeout = %#v, %v", report, err)
 	}
 	text := FormatCheck(report)

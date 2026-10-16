@@ -42,6 +42,14 @@ it is a non-empty string in the repository-root document only, and duplicate,
 alias, merge, null, numeric, or negative forms fail closed. It is never
 inherited from a profile, parent directory, or workspace configuration.
 
+When this budget expires, check and run exit 2 because the declared gate could
+not be measured. The readiness report and resource-wait duration remain visible;
+an ordinary completed NOT READY verdict still exits 1. Run JSON retains schema v1
+and reports `exit_code: 2`, without claiming push or reclaim. A bound execution
+records the existing `readiness_rejected` pre-mutation outcome; a run without an
+execution context does not invent one. The original typed expiry remains in the
+error chain when recording the refusal or another check step also fails.
+
 While a high-load request waits in FIFO admission or for the OS slot, it
 refreshes the captured remote target ref at the holder-notice interval. If the
 target moves, the request returns NOT READY with a re-run-check message and

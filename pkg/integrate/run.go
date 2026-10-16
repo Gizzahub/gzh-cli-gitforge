@@ -104,6 +104,12 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 				return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
 			}
 			report.PreMutationOutcome = outcome
+		} else if opts.Execution != nil && errors.Is(err, ErrHostLockWait) && check != nil && !check.Ready {
+			outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
+			if recordErr != nil {
+				return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
+			}
+			report.PreMutationOutcome = outcome
 		}
 		return report, err
 	}

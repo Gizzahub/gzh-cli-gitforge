@@ -109,6 +109,12 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 			}
 			return cliutil.NewExitError(1, err)
 		}
+		if errors.Is(err, integrate.ErrHostLockWait) {
+			if !quiet && report != nil {
+				fmt.Fprint(cmd.OutOrStdout(), integrate.FormatCheck(report))
+			}
+			return cliutil.NewExitError(2, err)
+		}
 		return cliutil.NewExitError(2, err)
 	}
 

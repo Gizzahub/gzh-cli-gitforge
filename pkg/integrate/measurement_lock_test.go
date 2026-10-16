@@ -726,7 +726,7 @@ func TestMeasurementLockWait(t *testing.T) {
 
 	checkReport, checkErr := Check(context.Background(), gitcmd.NewExecutor(), opts)
 	runReport, runErr := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
-	if checkErr != nil || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
+	if !errors.Is(checkErr, ErrHostLockWait) || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
 		t.Fatalf("check = %#v, %v; want a not-ready resource-slot report", checkReport, checkErr)
 	}
 	if !hasCheckDetailParts(checkReport, "make check", checkFail, "300ms", "flag", "per acquisition", "no gate measured") {
@@ -767,7 +767,7 @@ func TestMeasurementLockConfiguredWait(t *testing.T) {
 	setMeasurementLockWait(t, fx, "50ms")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if err != nil || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "repository config", "per acquisition", "no gate measured") {
+	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "repository config", "per acquisition", "no gate measured") {
 		t.Fatalf("configured Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
@@ -784,7 +784,7 @@ func TestMeasurementLockDefaultWait(t *testing.T) {
 	fx := measurementLockFixture(t, "@touch "+ran, "1m")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if err != nil || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "default", "per acquisition", "no gate measured") {
+	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "default", "per acquisition", "no gate measured") {
 		t.Fatalf("default Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
