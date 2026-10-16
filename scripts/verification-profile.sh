@@ -98,7 +98,8 @@ END {
       for (j = 1; j <= count; j++) if (chosen[imports[j]]) { chosen[pkg] = 1; changed = 1; break }
     }
   }
-  for (pkg in chosen) print pkg
+  # Array lookups above also create false entries; emit only the true closure.
+  for (pkg in chosen) if (chosen[pkg]) print pkg
 }' "$selector_tmp/selected" "$selector_tmp/metadata" | LC_ALL=C sort >"$selector_tmp/reverse" || fail "reverse dependency selection failed"
 	[ -s "$selector_tmp/reverse" ] || { printf 'full\tno affected Go test packages; refusing a zero-test pass\n'; exit 0; }
 	closure_has_test=0
