@@ -60,6 +60,7 @@ type CheckOptions struct {
 	LockNotice           io.Writer
 	resourceWait         *time.Duration
 	resourceWaitObserver func(context.Context) error
+	resourceWaitError    *error
 	// preMutation is internal Run-only state. Check never writes it durably;
 	// Run records it only after a classified refusal before push.
 	preMutation *preMutationCapture
@@ -214,7 +215,7 @@ func baselineRecordFor(probe makeProbe, needed bool) BaselineRecord {
 }
 
 // Check answers whether the branch can land on the target.
-func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*CheckReport, error) {
+func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (report *CheckReport, err error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
 	}
@@ -261,7 +262,12 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	if actual := "refs/heads/" + targetBranchName(plan.Target, plan.Remote); actual != preflight.targetRef || plan.Branch != preflight.branch || plan.Remote != preflight.remote {
 		return nil, fmt.Errorf("integration source or target changed while acquiring ownership; re-run check")
 	}
-	report := &CheckReport{Plan: plan, Controller: controller}
+	report = &CheckReport{Plan: plan, Controller: controller}
+	// Resource-slot expiry is a typed check failure even when the readiness
+	// runner turns it into a diagnostic item. Keep the first acquisition error
+	// so callers can select the tool-error exit code after cleanup completes.
+	opts.resourceWaitError = new(error)
+	defer func() { err = applyResourceWaitError(err, *opts.resourceWaitError) }()
 	// The accumulator is unconditional: every gate mode records its runtime,
 	// so a report always distinguishes "waited for the slot" from "ran the
 	// gate", including a zero for a gate that never launched a subprocess.
@@ -321,6 +327,19 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
+}
+
+func applyResourceWaitError(err, resourceWaitError error) error {
+	if resourceWaitError == nil {
+		return err
+	}
+	if err == nil {
+		return resourceWaitError
+	}
+	if !errors.Is(err, resourceWaitError) {
+		return errors.Join(err, resourceWaitError)
+	}
+	return err
 }
 
 // openCheckRepo binds the executor to the requested repository path and

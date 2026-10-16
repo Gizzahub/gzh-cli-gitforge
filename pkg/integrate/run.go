@@ -98,12 +98,8 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
 		report := &RunReport{Check: check}
-		if errors.Is(err, errTargetLockWait) {
-			outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseTargetLockWait)
-			if recordErr != nil {
-				return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
-			}
-			report.PreMutationOutcome = outcome
+		if recordErr := recordPreMutationCheckFailure(ctx, opts, check, report, err); recordErr != nil {
+			return report, recordErr
 		}
 		return report, err
 	}
@@ -118,6 +114,24 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 	}
 	return report, err
+}
+
+func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, check *CheckReport, report *RunReport, checkErr error) error {
+	phase := ""
+	switch {
+	case errors.Is(checkErr, errTargetLockWait):
+		phase = preMutationPhaseTargetLockWait
+	case opts.Execution != nil && errors.Is(checkErr, ErrHostLockWait) && check != nil && !check.Ready:
+		phase = preMutationPhaseReadinessRejected
+	default:
+		return nil
+	}
+	outcome, err := recordCurrentPreMutationOutcome(ctx, opts.preMutation, phase)
+	if err != nil {
+		return fmt.Errorf("%w; record pre-mutation outcome: %w", checkErr, err)
+	}
+	report.PreMutationOutcome = outcome
+	return nil
 }
 
 // runChecked continues an integration from an immutable readiness report.

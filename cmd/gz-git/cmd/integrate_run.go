@@ -182,19 +182,8 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 		},
 		Execution: executionContext,
 	})
-	exit := 0
-	if err != nil {
-		switch {
-		case report != nil && report.Integrated:
-			exit = cliutil.ExitReclaimIncomplete
-		case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
-			exit = cliutil.ExitSourceMismatch
-		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
-			exit = 1
-		default:
-			exit = 2
-		}
-	} else if report != nil && report.Integrated && report.Reclaim.Incomplete() {
+	exit := integrateRunExitCode(report, err)
+	if err == nil && report != nil && report.Integrated && report.Reclaim.Incomplete() {
 		err = fmt.Errorf("reclaim incomplete")
 		exit = cliutil.ExitReclaimIncomplete
 	}
@@ -216,4 +205,22 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 		}
 	}
 	return cliutil.NewExitError(exit, err)
+}
+
+func integrateRunExitCode(report *integrate.RunReport, err error) int {
+	if err == nil {
+		return 0
+	}
+	switch {
+	case report != nil && report.Integrated:
+		return cliutil.ExitReclaimIncomplete
+	case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
+		return cliutil.ExitSourceMismatch
+	case errors.Is(err, integrate.ErrHostLockWait):
+		return 2
+	case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
+		return 1
+	default:
+		return 2
+	}
 }

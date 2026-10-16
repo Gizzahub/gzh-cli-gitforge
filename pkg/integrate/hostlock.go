@@ -349,7 +349,12 @@ func hostSlotsHeldForChild(ctx context.Context, env []string) []string {
 
 // holdMeasurementLock acquires one host measurement slot for a declared
 // high-load gate. Callers release it before Git cleanup, push, or reclaim.
-func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (context.Context, func(), error) {
+func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (held context.Context, release func(), err error) {
+	defer func() {
+		if opts.resourceWaitError != nil && *opts.resourceWaitError == nil && errors.Is(err, ErrHostLockWait) {
+			*opts.resourceWaitError = err
+		}
+	}()
 	ctx = withResourceWaitObserver(ctx, opts.resourceWaitObserver)
 	if hostSlotIsInherited() {
 		if opts.LockNotice != nil {
