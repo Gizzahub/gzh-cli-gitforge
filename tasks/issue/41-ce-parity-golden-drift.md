@@ -1,5 +1,14 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 2026-10-16 후속 참조 정합화
+
+`verification-evidence-followup`의 현재 후보에서 네 시나리오 차이를 재현했다.
+CE pin은 clean `9fe1ce45`와 일치하며 이번 provider help 두 곳과 물리 호스트명
+두 곳의 차이다. 기존 계약에 따라 12개를 전부 기계 캡처했고 실제 네 golden만
+변경됐다. pin·normalizer·schema를 바꾸지 않았다. 과거 원문 유실 진단의 원인
+규명이나 전체 native 통합 성공으로 표시하지 않는다. 생성·재검증·독립 리뷰와
+최종 전달 상태는 `reports/2026-10-16-verification-evidence-followup.md`에 기록한다.
+
 - status: closed (2026-10-14 — clean CE 9877764d 참조 채택·canonical 품질 통과)
 - previous-status: closed (2026-10-02 — 제안 2)대로 `PARITY_RECORD=1` 재녹화로 해결; 아래 해결 기록)
 - priority: P1

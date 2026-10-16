@@ -180,7 +180,7 @@
               "host": "mbp",
               "kind": "agent"
             },
-            "processHost": "CEui-MacBookPro.local",
+            "processHost": "CE-Mac-Studio.local",
             "processId": 0,
             "purpose": "delivery",
             "reason": "integration provider is running; the mutation lock is released until it exits",

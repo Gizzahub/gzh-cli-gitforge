@@ -120,3 +120,31 @@ PGID에서 관측된 별도 GoogleUpdater는 소유 증거로 취급하지 않�
 최종 부분 결과 row까지 갱신한 좁은 회귀는 6.594초 PASS다. 위 870.874초 package 진단은 이 guard 정합화
 이전의 고정 입력이며 최종 후보의 전체 게이트를 대체하지 않는다. 다른 세션의
 자원이나 branch를 수정·회수하지 않는다.
+
+## 현재 참조 실패의 격리와 기계 캡처
+
+`02f0adcc`의 별도 parity 진단은 22.774초, exit 1로 네 시나리오 차이를
+재현했다. `doctor-active`와 `discard-no-fetch`는 이번 JSON 의미 설명의
+embedded provider help 차이이며, `finish-explicit`와
+`finish-noarg-single-active`는 보존된 물리 `processHost` 차이다.
+이 현재 네 실패를 원문이 유실된 과거 세 진단과 동일시하지 않는다.
+
+clean CE `9fe1ce4506629ce5fa98023d0a8469e336130488`에서 기존 CE-reference
+record 경로로 12개 시나리오를 전부 기계 캡처했다(22.412초, exit 0).
+실행 전후 CE SHA-256은
+`beebe3c4a47d701599e25c8eaf2ce7633bdcf02e13d4d4e098ebb01b74861aae`로
+동일하다. capture는 10분의 제한된 생성 실행이며, 후속 비기록 검증은 기존
+30분 package timeout을 사용한다. pin·normalizer·schema는 변경하지 않고
+checkout-built provider를 사용했다. 실제 변경은 위 네 golden뿐이다.
+호스트 필드를 감추거나 fixture를 손으로 고치지 않았다.
+후속 비기록 parity package 검증은 22.395초, exit 0이며 12개 시나리오
+PASS/0 skip과 hostile-ambient provider 회귀를 확인했다. golden diff와 CE hash는
+검증 전후 동일하다. 원본은 `parity-diagnostic*`, `parity-capture*`,
+`parity-verify*`에 남긴다.
+
+이 참조 갱신 전에 두 번째 native 시도는 여전히 다른 세션의 target ownership을
+기다리고 있었다. 자체 provider group에 다른 자식이 없음을 확인하고 중단했다.
+측정은 시작하지 않았고 master는 그대로다. `native-finish-reconciled.*`와
+`reference-refresh-cancel.json`의 BLOCKED 기록을 보존한다. 이 영수증의
+`sourcePushed`는 기존 source의 원격 일치 확인이며 task 통합의 증명이 아니다.
+별도 parity 생성·검증은 전체 native 수용을 대신하지 않는다.

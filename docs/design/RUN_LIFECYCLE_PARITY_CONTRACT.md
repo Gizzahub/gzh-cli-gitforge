@@ -562,6 +562,15 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
+On 2026-10-16, `verification-evidence-followup` freshly machine-captured all
+twelve scenarios with the same clean CE `9fe1ce45` pin and the checkout-built
+provider. Four goldens changed: two embedded provider help strings describe
+legacy JSON outcomes, and two retained physical `processHost` fields reflect
+the capture host. No normalization, lifecycle schema, or CE pin changed.
+Capture provenance and fresh verification results are recorded in
+`reports/2026-10-16-verification-evidence-followup.md`; generation alone is not
+full integration acceptance.
+
 `tests/parity/` (Go, stdlib only). Modes:
 
 ```bash
