@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	readinessTimeout     = 15 * time.Minute
+	readinessTimeout     = config.DefaultReadinessTimeout
 	readinessMaxIO       = 1 << 20
 	readinessMaxSummary  = 4096
 	readinessMaxManifest = 64 << 10
@@ -187,7 +187,11 @@ func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, con
 }
 
 func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, resourceHighLoad bool, opts CheckOptions) (readinessResult, time.Duration, error) {
-	return runContractWithTimeoutResource(ctx, g, plan, contract, readinessTimeout, resourceHighLoad, opts)
+	timeout, err := contract.Decl.ExecutionTimeout()
+	if err != nil {
+		return readinessResult{Status: "unavailable"}, 0, err
+	}
+	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, resourceHighLoad, opts)
 }
 
 func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {

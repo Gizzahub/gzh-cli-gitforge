@@ -21,6 +21,13 @@ func unmarshalFile(path string, v any) error {
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	// Validate the raw project contract before null/unknown fields can be lost
+	// by decoding into the public struct.
+	if _, project := v.(*ProjectConfig); project && (ext == ".json" || ext == ".yaml" || ext == ".yml") {
+		if _, _, err := ParseReadinessDocument(data, ext == ".json"); err != nil {
+			return fmt.Errorf("invalid project readiness contract: %w", err)
+		}
+	}
 	switch ext {
 	case ".json":
 		if err := json.Unmarshal(data, v); err != nil {

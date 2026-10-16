@@ -58,7 +58,7 @@ func TestBootstrapPlanApplyBareRemoteAndOneUse(t *testing.T) {
 	run(work, "checkout", "-b", "dev/bootstrap")
 	os.MkdirAll(filepath.Join(work, ".gz-git", "readiness"), 0o755)
 	os.WriteFile(filepath.Join(work, ".gz-git", "readiness", "check"), []byte("#!/bin/sh\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}\\n'\n"), 0o755)
-	os.WriteFile(filepath.Join(work, ".gz-git.yaml"), []byte("branch:\n  integrationBranch: master\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n"), 0o644)
+	os.WriteFile(filepath.Join(work, ".gz-git.yaml"), []byte("branch:\n  integrationBranch: master\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 30ms\n"), 0o644)
 	run(work, "add", ".")
 	run(work, "commit", "-m", "bootstrap")
 	p, err := BootstrapPlanFor(context.Background(), gitcmd.NewExecutor(), BootstrapOptions{RepoPath: work, Target: "origin/master", Issuer: "test", Expiry: time.Minute})

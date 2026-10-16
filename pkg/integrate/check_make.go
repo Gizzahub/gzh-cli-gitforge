@@ -66,9 +66,8 @@ const (
 	// ceiling here a recipe that shells out to a live/network-dependent check
 	// (observed: a deploy-verification script gated only by best-effort mock
 	// PATH injection) hangs the whole `integrate check`/`integrate run`
-	// process indefinitely instead of failing the check. Matches the ceiling
-	// the readiness-contract runner already applies to its own subprocess
-	// (readinessTimeout).
+	// process indefinitely instead of failing the check. This matches the default
+	// readiness runner budget; explicit readiness budgets are contract-owned.
 	makeTargetTimeout = 15 * time.Minute
 	// makeTargetWaitDelay bounds how long Cmd.Wait keeps reading the
 	// stdout/stderr pipe after Cancel fires. `make` forks a whole shell-script

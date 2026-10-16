@@ -33,6 +33,15 @@ outside the slot. Capacity remains one per host.
 wait prints its common-directory and destination-ref ownership reason to the
 configured command error writer.
 
+Readiness V1 defaults to a 15-minute runner execution budget. The committed
+repository-root `branch.readiness.timeout` can declare a positive Go duration
+up to `2h`, for example `45m`. This target-owned value is part of the readiness
+contract digest; source-only changes fail closed and must use the human-operated
+readiness update transaction. Preparation and resource waiting are outside this
+budget. There is no CLI, environment, profile, or global override. Empty, null,
+non-string, whitespace-padded, invalid, zero, negative, and excessive values are
+rejected. Omitting the field retains the original canonical contract and digest.
+
 Each high-load admission and final OS-slot attempt shares one wait budget.
 `--lock-wait` has highest precedence, followed by the repository-root
 `branch.lockWait`, then the 60 minute default. The flag or declaration accepts

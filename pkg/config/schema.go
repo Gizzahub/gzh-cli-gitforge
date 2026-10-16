@@ -130,6 +130,9 @@ branch:
   readiness:
     version: 1
     runner: .gz-git/readiness/check
+    # Optional target-owned runner budget; default 15m, positive and at most 2h.
+    # Preparation/resource waits are excluded. Changes require readiness update.
+    timeout: 45m
 
   # Branch-name templates used by 'gz-git branch name <task>', one per role.
   # Placeholders: {task}, {device}, {agent}. Each is slugified before it is

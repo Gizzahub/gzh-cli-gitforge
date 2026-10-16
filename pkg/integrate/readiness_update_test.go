@@ -68,6 +68,29 @@ func TestReadinessUpdatePlanApplyRenamedRunnerAndDeletedHelper(t *testing.T) {
 	}
 }
 
+func TestReadinessUpdatePlanApplyTimeoutOnlyBindsContractEvidence(t *testing.T) {
+	work := readinessUpdateFixture(t, ".gz-git.yaml")
+	if err := os.WriteFile(filepath.Join(work, ".gz-git.yaml"), []byte("branch:\n  integrationBranch: master\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 30ms\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitInTest(t, work, "add", ".gz-git.yaml")
+	runGitInTest(t, work, "commit", "-m", "change readiness timeout")
+
+	p, err := ReadinessUpdatePlanFor(context.Background(), gitcmd.NewExecutor(), ReadinessUpdateOptions{RepoPath: work, Target: "origin/master", Issuer: "human", Expiry: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.OldManifestOID == p.NewManifestOID || p.OldContractDigest == p.NewContractDigest || p.OldReadinessTreeDigest != p.NewReadinessTreeDigest {
+		t.Fatalf("timeout-only update did not bind manifest/tree/contract evidence: %#v", p)
+	}
+	if err := ReadinessUpdateApply(context.Background(), gitcmd.NewExecutor(), p, work, ReadinessUpdatePlanDigest(p)); err != nil {
+		t.Fatalf("apply timeout-only update: %v", err)
+	}
+	if got := runGitInTest(t, work, "ls-remote", p.PushEndpoint, p.DestinationRef); !strings.HasPrefix(got, p.SourceSHA) {
+		t.Fatalf("target=%q source=%s", got, p.SourceSHA)
+	}
+}
+
 func TestReadinessUpdateSupportsYAMLYMLAndJSON(t *testing.T) {
 	for _, manifest := range []string{".gz-git.yaml", ".gz-git.yml", ".gz-git.json"} {
 		t.Run(manifest, func(t *testing.T) {

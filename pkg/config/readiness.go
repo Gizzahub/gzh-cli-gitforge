@@ -13,6 +13,7 @@ import (
 	"io"
 	"path"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,10 +25,26 @@ type Readiness struct {
 	Version        int    `yaml:"version" json:"version"`
 	Runner         string `yaml:"runner" json:"runner"`
 	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
+	Timeout        string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 // NDStackCheckedTestsV1 prepares the fixed ND checked-binding test units.
 const NDStackCheckedTestsV1 = "nd-stack-checked-tests-v1"
+
+// DefaultReadinessTimeout preserves the execution budget of contracts without timeout.
+const DefaultReadinessTimeout = 15 * time.Minute
+
+// ExecutionTimeout resolves the target-owned runner budget, excluding preparation and resource waits.
+func (r Readiness) ExecutionTimeout() (time.Duration, error) {
+	if r.Timeout == "" {
+		return DefaultReadinessTimeout, nil
+	}
+	budget, err := time.ParseDuration(r.Timeout)
+	if err != nil || strings.TrimSpace(r.Timeout) != r.Timeout || budget <= 0 || budget > 2*time.Hour {
+		return 0, fmt.Errorf("branch.readiness.timeout must be a positive Go duration no greater than 2h")
+	}
+	return budget, nil
+}
 
 // CanonicalReadiness is a stable, strict representation used to compare the
 // target declaration to the source declaration before executing a runner.
@@ -59,6 +76,9 @@ func ValidateReadiness(r Readiness) error {
 	}
 	if r.Version != 1 {
 		return fmt.Errorf("branch.readiness.version must be 1")
+	}
+	if _, err := r.ExecutionTimeout(); err != nil {
+		return err
 	}
 	if err := validateReadinessRunner(r.Runner); err != nil {
 		return err
@@ -128,11 +148,11 @@ func parseReadinessJSON(data []byte) (Readiness, bool, error) {
 	if err != nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness must be an object")
 	}
-	if len(fields) < 2 || len(fields) > 3 || fields["version"] == nil || fields["runner"] == nil {
+	if len(fields) < 2 || len(fields) > 4 || fields["version"] == nil || fields["runner"] == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
 	}
 	for key := range fields {
-		if key != "version" && key != "runner" && key != "prepareProfile" {
+		if key != "version" && key != "runner" && key != "prepareProfile" && key != "timeout" {
 			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
 		}
 	}
@@ -142,6 +162,9 @@ func parseReadinessJSON(data []byte) (Readiness, bool, error) {
 	}
 	if fields["prepareProfile"] != nil && r.PrepareProfile == "" {
 		return Readiness{}, false, fmt.Errorf("prepareProfile must be a non-empty profile ID")
+	}
+	if fields["timeout"] != nil && r.Timeout == "" {
+		return Readiness{}, false, fmt.Errorf("timeout must be a non-empty duration string")
 	}
 	return r, true, ValidateReadiness(r)
 }
@@ -209,17 +232,17 @@ func parseReadinessYAML(data []byte) (Readiness, bool, error) {
 	if node == nil {
 		return Readiness{}, false, nil
 	}
-	if node.Kind != yaml.MappingNode || len(node.Content) < 4 || len(node.Content) > 6 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
+	if node.Kind != yaml.MappingNode || len(node.Content) < 4 || len(node.Content) > 8 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
 	}
 	for i := 0; i < len(node.Content); i += 2 {
 		key := node.Content[i].Value
-		if key != "version" && key != "runner" && key != "prepareProfile" {
+		if key != "version" && key != "runner" && key != "prepareProfile" && key != "timeout" {
 			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
 		}
 	}
-	if profile := mappingValue(node, "prepareProfile"); profile != nil && (profile.Tag != "!!str" || profile.Value == "") {
-		return Readiness{}, false, fmt.Errorf("prepareProfile must be a non-empty profile ID")
+	if err := validateReadinessYAMLStrings(node); err != nil {
+		return Readiness{}, false, err
 	}
 	if err := rejectDuplicateYAMLKeys(node); err != nil {
 		return Readiness{}, false, err
@@ -229,6 +252,15 @@ func parseReadinessYAML(data []byte) (Readiness, bool, error) {
 		return Readiness{}, false, fmt.Errorf("parse branch.readiness: %w", err)
 	}
 	return r, true, ValidateReadiness(r)
+}
+
+func validateReadinessYAMLStrings(node *yaml.Node) error {
+	for _, key := range []string{"prepareProfile", "timeout"} {
+		if value := mappingValue(node, key); value != nil && (value.Tag != "!!str" || value.Value == "") {
+			return fmt.Errorf("%s must be a non-empty string", key)
+		}
+	}
+	return nil
 }
 
 func parseJSONObjectUnique(data []byte) (map[string]json.RawMessage, error) {

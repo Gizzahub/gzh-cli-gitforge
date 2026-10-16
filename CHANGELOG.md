@@ -43,6 +43,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Added
 
+- Readiness V1 accepts target-owned `branch.readiness.timeout` for gates whose
+  measured runtime exceeds 15 minutes. Positive durations up to two hours are
+  contract-digest bound; omission preserves legacy digests and the 15-minute
+  default. Resource waits remain separate. Prepare patch 0.10.4.
+
 - Readiness V1 can opt into the closed `nd-stack-checked-tests-v1` preparation
   profile before its source-board gate. Both leased engine snapshots compile
   fixed test units into isolated caches; failures refuse the runner and preserve

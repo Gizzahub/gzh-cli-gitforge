@@ -4,8 +4,13 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -141,5 +146,116 @@ func TestReadinessRejectedOutsideProjectRoot(t *testing.T) {
 	}
 	if err := v.ValidateProfile(&Profile{Name: "work", Branch: &BranchConfig{Readiness: readiness}}); err == nil {
 		t.Fatal("profile readiness accepted")
+	}
+}
+
+func TestReadinessTimeoutContract(t *testing.T) {
+	base := Readiness{Version: 1, Runner: ".gz-git/readiness/check"}
+	budget, err := base.ExecutionTimeout()
+	if err != nil || budget != 15*time.Minute {
+		t.Fatalf("default budget = %v, %v", budget, err)
+	}
+	legacy, err := ReadinessDigest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"1ns", "50ms", "30m", "2h"} {
+		t.Run(value, func(t *testing.T) {
+			want, err := time.ParseDuration(value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			contract := base
+			contract.Timeout = value
+			budget, err := contract.ExecutionTimeout()
+			if err != nil || budget != want {
+				t.Fatalf("budget = %v, %v", budget, err)
+			}
+			digest, err := ReadinessDigest(contract)
+			if err != nil || digest == legacy {
+				t.Fatalf("timeout missing from digest: %s, %v", digest, err)
+			}
+			contract.PrepareProfile = NDStackCheckedTestsV1
+			for _, isJSON := range []bool{false, true} {
+				project := map[string]any{"branch": map[string]any{"readiness": contract}}
+				var doc []byte
+				if isJSON {
+					doc, err = json.Marshal(project)
+				} else {
+					doc, err = yaml.Marshal(project)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, present, err := ParseReadinessDocument(doc, isJSON)
+				if err != nil || !present || got != contract {
+					t.Fatalf("roundtrip JSON=%v: %+v, %v, %v", isJSON, got, present, err)
+				}
+			}
+		})
+	}
+	changed := base
+	changed.Timeout = "15m"
+	digest, err := ReadinessDigest(changed)
+	if err != nil || digest == legacy {
+		t.Fatalf("explicit timeout must change digest: %s, %v", digest, err)
+	}
+}
+
+func TestReadinessTimeoutRejectsMalformedDocuments(t *testing.T) {
+	for _, value := range []string{`""`, `null`, `42`, `true`, `[]`, `{}`, `" 1m"`, `"1m "`, `"0s"`, `"-1s"`, `"tomorrow"`, `"999999999999999999999h"`, `"2h1ns"`} {
+		for _, isJSON := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%v/%s", isJSON, value), func(t *testing.T) {
+				doc := fmt.Sprintf("branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: %s\n", value)
+				if isJSON {
+					doc = fmt.Sprintf(`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","timeout":%s}}}`, value)
+				}
+				if _, _, err := ParseReadinessDocument([]byte(doc), isJSON); err == nil {
+					t.Fatalf("accepted invalid timeout: %s", doc)
+				}
+			})
+		}
+	}
+	for _, tc := range []struct {
+		doc    string
+		isJSON bool
+	}{
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 1m\n    timeout: 1m\n", false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","timeout":"1m","timeout":"1m"}}}`, true},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeoutSeconds: 60\n", false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","timeoutSeconds":60}}}`, true},
+	} {
+		if _, _, err := ParseReadinessDocument([]byte(tc.doc), tc.isJSON); err == nil {
+			t.Fatalf("accepted duplicate or unknown field: %s", tc.doc)
+		}
+	}
+}
+
+func TestLoadProjectConfigRejectsInvalidTimeoutBeforeDecoding(t *testing.T) {
+	for _, ext := range []string{"yaml", "yml", "json"} {
+		for _, value := range []string{`null`, `""`, `42`, `"0s"`, `" 1m"`, `"2h1ns"`, `"30m"`} {
+			t.Run(ext+"/"+value, func(t *testing.T) {
+				dir := t.TempDir()
+				t.Chdir(dir)
+				doc := fmt.Sprintf("branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: %s\n", value)
+				if ext == "json" {
+					doc = fmt.Sprintf(`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","timeout":%s}}}`, value)
+				}
+				if err := os.WriteFile(filepath.Join(dir, ".gz-git."+ext), []byte(doc), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				manager := &Manager{validator: NewValidator()}
+				got, err := manager.LoadProjectConfig()
+				if value != `"30m"` {
+					if err == nil {
+						t.Fatalf("invalid timeout accepted: %+v", got)
+					}
+					return
+				}
+				if err != nil || got == nil || got.Branch == nil || got.Branch.Readiness == nil || got.Branch.Readiness.Timeout != "30m" {
+					t.Fatalf("valid timeout not preserved: %+v %v", got, err)
+				}
+			})
+		}
 	}
 }

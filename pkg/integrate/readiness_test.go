@@ -57,6 +57,22 @@ func TestCheck_ContractChangeFailsClosed(t *testing.T) {
 	}
 }
 
+func TestCheck_TimeoutOnlySourceChangeFailsClosed(t *testing.T) {
+	fx := readinessFixture(t)
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 30ms\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "change readiness timeout")
+	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
+
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if report.Ready || !hasCheckDetail(report, "readiness contract", checkFail, "changed") {
+		t.Fatalf("timeout-only source change must fail closed:\n%s", FormatCheck(report))
+	}
+}
+
 func TestCheck_BootstrapFailureDoesNotRunHeadMake(t *testing.T) {
 	fx := readyTaskFixtureNoGate(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, ".gz-git", "readiness"), 0o755); err != nil {
@@ -403,11 +419,12 @@ func TestExecuteReadinessTimeoutKillsDescendants(t *testing.T) {
 
 func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 	fx := readinessFixture(t)
+	writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 30ms\n")
 	writeRepoFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\nsleep 30\n")
 	if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	runGit(t, fx.Clone, "add", ".gz-git/readiness/check")
+	runGit(t, fx.Clone, "add", ".gz-git.yaml", ".gz-git/readiness/check")
 	runGit(t, fx.Clone, "commit", "-m", "slow readiness runner")
 	runGit(t, fx.Clone, "push", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "rebase", "develop")
@@ -425,12 +442,12 @@ func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 	isolatedTemp := t.TempDir()
 	t.Setenv("TMPDIR", isolatedTemp)
 	before := gitOutput(t, fx.Worktree, "worktree", "list", "--porcelain")
-	result, _, runErr := runContractWithTimeout(context.Background(), g, plan, contract, 20*time.Millisecond)
+	result, _, runErr := runContractWithResource(context.Background(), g, plan, contract, false, CheckOptions{})
 	if runErr == nil {
 		t.Fatal("slow contract accepted")
 	}
-	if result.failure == nil || result.failure.Stage != "contract_runner" || result.failure.Class != "timeout" || result.failure.BudgetMS != 20 || result.failure.ElapsedMS <= 0 || result.failure.LeafExitCode != nil || result.failure.DiagnosticPath != nil {
-		t.Fatalf("contract timeout failure = %+v, want typed timeout with null exit and diagnostic path", result.failure)
+	if result.failure == nil || result.failure.Stage != "contract_runner" || result.failure.Class != "timeout" || result.failure.BudgetMS != 30 || result.failure.ElapsedMS <= 0 || result.failure.LeafExitCode != nil || result.failure.DiagnosticPath != nil {
+		t.Fatalf("contract timeout failure = %+v, want declared 30ms timeout with null exit and diagnostic path", result.failure)
 	}
 	if runtime.GOOS != "windows" && (result.failure.TerminationRequest == nil || result.failure.TerminationRequest.Method != "process_group" || result.failure.TerminationRequest.Signal == nil || *result.failure.TerminationRequest.Signal != "SIGKILL") {
 		t.Fatalf("contract termination request = %+v, want Unix process-group SIGKILL request", result.failure.TerminationRequest)

@@ -356,7 +356,12 @@ with fixed `--source-dir`, `--source-sha`, `--target-sha`, and
 measurement, malformed result, timeout, changed runner tree, or changed
 contract is never downgraded by `--allow-skipped-checks`.
 
-V1 has a fixed 15-minute execution timeout. Standard output and standard error
+V1 defaults to a 15-minute runner execution timeout. A target-owned
+`branch.readiness.timeout` may set a positive Go duration up to `2h` (for example
+`45m`). Omission preserves the existing contract digest. An explicit value is
+part of the contract digest and requires the normal readiness update transaction.
+Preparation and resource waiting do not consume this runner budget.
+Standard output and standard error
 are each limited to 1 MiB. Standard output must contain exactly one
 duplicate-free JSON object with the three fields `version`, `status`, and
 `summary`; unknown fields and trailing values are rejected. `summary` must be
@@ -367,8 +372,8 @@ The runner is isolated from the source checkout but is not a sandbox: it
 inherits the normal toolchain, cache, credential, and temporary-directory
 environment needed by repository validation. Selected shell-startup controls
 and Git repository override variables are removed, and `LC_ALL`/`LANG` are
-forced to `C`. The manifest cannot configure arguments, environment, cwd, or
-timeout.
+forced to `C`. The manifest cannot configure arguments, environment, or cwd. Timeout cannot
+be overridden through a CLI flag, environment variable, profile, or global config.
 
 ## `integrate check` reports a failing gate without its output
 

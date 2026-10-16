@@ -31,7 +31,11 @@ The source must be exactly one fast-forward commit ahead of the target. That
 commit may change only the selected existing manifest (`.gz-git.yaml`,
 `.gz-git.yml`, or `.gz-git.json`) and paths under `.gz-git/readiness/`; it may
 not migrate the selected manifest path. The final manifest and readiness files
-must be regular blobs. A runner rename and adding, changing, or deleting
+must be regular blobs. A change only to optional `branch.readiness.timeout`
+(including adding or removing it) is also a contract change: the existing old/new
+manifest and contract digests bind the execution budget without additional plan
+fields. The duration must be positive and no greater than `2h`; omission uses
+15 minutes. A runner rename and adding, changing, or deleting
 readiness helpers are valid contract changes, including deletion of the old
 runner, provided the resulting V1 contract is valid.
 
