@@ -275,6 +275,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (*Chec
 			report.Warnings++
 		}
 	}
+	addIntegrationTargetWarning(plan, add)
 
 	freshness := checkFreshness(ctx, g, plan)
 	add(freshness)
@@ -736,7 +737,7 @@ func FormatCheck(r *CheckReport) string {
 		fmt.Fprintf(&b, ", default=%s", r.Plan.DefaultRef)
 	}
 	if r.Plan.Integration.Participates {
-		fmt.Fprintf(&b, ", integration=%s", r.Plan.Integration.Name)
+		fmt.Fprintf(&b, ", integration=%s", formatIntegrationResolution(r.Plan.Integration))
 	}
 	b.WriteString(")\n\n")
 	for _, item := range r.Items {
@@ -765,4 +766,23 @@ func FormatCheck(r *CheckReport) string {
 		fmt.Fprintf(&b, "NOT READY — %d failure(s), %d warning(s)\n", r.Failures, r.Warnings)
 	}
 	return b.String()
+}
+
+func formatIntegrationResolution(integration Resolution) string {
+	source := integration.Source
+	if source == SourceHeuristic {
+		source += ": remote HEAD"
+	}
+	return fmt.Sprintf("%s (%s)", integration.Name, source)
+}
+
+func addIntegrationTargetWarning(plan TargetPlan, add func(CheckItem)) {
+	if plan.Integration.Source != SourceHeuristic {
+		return
+	}
+	add(CheckItem{
+		Name:   "integration target",
+		Status: checkWarn,
+		Detail: fmt.Sprintf("%s is inferred from the remote HEAD; integrate run requires --target %s --direct-to-default, branch.integrationBranch, or --controller-config", plan.Integration.Name, plan.Integration.Name),
+	})
 }
