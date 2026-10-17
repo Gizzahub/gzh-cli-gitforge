@@ -39,6 +39,16 @@ fields. The duration must be positive and no greater than `2h`; omission uses
 readiness helpers are valid contract changes, including deletion of the old
 runner, provided the resulting V1 contract is valid.
 
+On Unix, runner timeout or caller cancellation first sends `SIGTERM` to the
+runner's captured process group. A two-second cleanup grace allows a cooperative
+gate to cancel bindings in separate process groups; a surviving outer group is
+then sent `SIGKILL`. The supervisor completes this sequence synchronously before
+returning. The timeout receipt records the initial `SIGTERM` request, not proof
+of signal delivery or complete descendant cleanup. An uncooperative process that
+escapes the outer group remains outside this guarantee; inherited output pipes
+are independently bounded by the existing two-second wait delay. The cleanup
+grace does not change the execution budget or turn a timeout into a ready verdict.
+
 The plan binds the repository and push endpoint, source and target refs/object
 IDs, destination ref, operation-marker ref, and both old and new manifest,
 runner, readiness-tree, tree-digest, and contract-digest evidence. It does not

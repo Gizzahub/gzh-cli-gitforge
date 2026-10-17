@@ -51,7 +51,7 @@ func TestExecuteReadinessWaitDelayBoundsEscapedPipe(t *testing.T) {
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancel result = %v, want context.Canceled", err)
 	}
-	if elapsed := time.Since(started); elapsed > readinessWaitDelay+time.Second {
+	if elapsed := time.Since(started); elapsed > readinessTerminationGrace+readinessWaitDelay+time.Second {
 		t.Fatalf("escaped pipe exceeded bounded wait: %s", elapsed)
 	}
 }

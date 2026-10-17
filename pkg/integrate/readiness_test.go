@@ -449,8 +449,8 @@ func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 	if result.failure == nil || result.failure.Stage != "contract_runner" || result.failure.Class != "timeout" || result.failure.BudgetMS != 30 || result.failure.ElapsedMS <= 0 || result.failure.LeafExitCode != nil || result.failure.DiagnosticPath != nil {
 		t.Fatalf("contract timeout failure = %+v, want declared 30ms timeout with null exit and diagnostic path", result.failure)
 	}
-	if runtime.GOOS != "windows" && (result.failure.TerminationRequest == nil || result.failure.TerminationRequest.Method != "process_group" || result.failure.TerminationRequest.Signal == nil || *result.failure.TerminationRequest.Signal != "SIGKILL") {
-		t.Fatalf("contract termination request = %+v, want Unix process-group SIGKILL request", result.failure.TerminationRequest)
+	if runtime.GOOS != "windows" && (result.failure.TerminationRequest == nil || result.failure.TerminationRequest.Method != "process_group" || result.failure.TerminationRequest.Signal == nil || *result.failure.TerminationRequest.Signal != "SIGTERM") {
+		t.Fatalf("contract termination request = %+v, want Unix process-group SIGTERM request", result.failure.TerminationRequest)
 	}
 	after := gitOutput(t, fx.Worktree, "worktree", "list", "--porcelain")
 	if after != before {
