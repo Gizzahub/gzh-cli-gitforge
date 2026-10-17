@@ -108,4 +108,46 @@ selector_pid=$!
 if wait "$selector_pid"; then echo 'TERM interruption unexpectedly succeeded' >&2; exit 1; fi
 [ -z "$(find tmp -maxdepth 1 -type d -name 'verification-profile-select.*' -print)" ]
 
+# A selected integration package cannot complete the five-minute affected
+# profile. Keep its full suite intact and require the existing full gate.
+slow_fixture="$fixture/slow-closure"
+mkdir -p "$slow_fixture"
+cd "$slow_fixture"
+git init -q
+git config user.email test@example.invalid
+git config user.name verification-profile-test
+printf 'module example.invalid/slow\ngo 1.26\n' >go.mod
+mkdir -p dep pkg/integrate pkg/integrated pkg/integratehelper
+printf 'package dep\nfunc Value() int { return 1 }\n' >dep/code.go
+printf 'package integrate\nimport "example.invalid/slow/dep"\nfunc Value() int { return dep.Value() }\n' >pkg/integrate/code.go
+printf 'package integrate\nimport "testing"\nfunc TestValue(t *testing.T) {}\n' >pkg/integrate/code_test.go
+for name in integrated integratehelper; do
+    printf 'package %s\n' "$name" >"pkg/$name/code.go"
+    printf 'package %s\nimport "testing"\nfunc TestValue(t *testing.T) {}\n' "$name" >"pkg/$name/code_test.go"
+done
+git add .
+git commit -qm slow-base
+slow_base=$(git rev-parse HEAD)
+slow_expected=$'full\taffected closure includes slow package: example.invalid/slow/pkg/integrate'
+printf '\n// direct change\n' >>pkg/integrate/code.go
+[[ $(/bin/bash "$selector" select --base "$slow_base") == "$slow_expected" ]] || assertion_failed "$LINENO"
+slow_child="$fixture/slow-child-ran"
+if /bin/bash "$selector" run --base "$slow_base" -- touch "$slow_child" >"$fixture/slow-run.out" 2>&1; then
+    echo 'slow closure unexpectedly executed affected command' >&2
+    exit 1
+else
+    slow_status=$?
+fi
+[[ "$slow_status" -eq 3 && ! -e "$slow_child" ]] || assertion_failed "$LINENO"
+[[ $(cat "$fixture/slow-run.out") == "$slow_expected" ]] || assertion_failed "$LINENO"
+git restore -- pkg/integrate/code.go
+printf '\n// reverse dependency change\n' >>dep/code.go
+[[ $(/bin/bash "$selector" select --base "$slow_base") == "$slow_expected" ]] || assertion_failed "$LINENO"
+git restore -- dep/code.go
+for name in integrated integratehelper; do
+    printf '\n// similarly named package\n' >>"pkg/$name/code.go"
+    [[ $(/bin/bash "$selector" select --base "$slow_base") == $'affected\t'"example.invalid/slow/pkg/$name" ]] || assertion_failed "$LINENO"
+    git restore -- "pkg/$name/code.go"
+done
+
 echo 'verification profile selector tests passed'
