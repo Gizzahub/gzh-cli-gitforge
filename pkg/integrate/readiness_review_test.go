@@ -192,3 +192,27 @@ func TestReadinessAutomaticRejectsMovementAndRevokedAuthorityAfterCheck(t *testi
 		})
 	}
 }
+
+func TestReadinessAutomaticHonorsCandidateExecutionBudget(t *testing.T) {
+	work, opts := reviewUpdateFixture(t, "#!/bin/sh\nsleep 2\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"too late\"}'\n")
+	manifest := filepath.Join(work, ".gz-git.yaml")
+	data, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, append(data, []byte("    timeout: 20ms\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGitInTest(t, work, "add", ".gz-git.yaml")
+	runGitInTest(t, work, "commit", "--amend", "--no-edit")
+	opts.ExpectSource = runGitInTest(t, work, "rev-parse", "HEAD")
+	setReviewApproval(t, "automatic")
+	before := runGitInTest(t, work, "ls-remote", "origin", "refs/heads/master")
+	opts.Automatic, opts.Statement = true, "테스트완료"
+	if _, err := ReviewReadinessUpdate(context.Background(), gitcmd.NewExecutor(), opts); err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("candidate budget not enforced: %v", err)
+	}
+	if runGitInTest(t, work, "ls-remote", "origin", "refs/heads/master") != before {
+		t.Fatal("timed-out candidate was applied")
+	}
+}

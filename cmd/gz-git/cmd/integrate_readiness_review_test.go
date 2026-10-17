@@ -29,6 +29,7 @@ func TestReadinessRunDispatchesFromGlobalModeBeforeGitWork(t *testing.T) {
 	t.Run("manual rejects non-terminal", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		t.Setenv("HOME", t.TempDir())
+		t.Setenv("APPDATA", t.TempDir())
 		err := integrateReadinessUpdateRunCmd.RunE(integrateReadinessUpdateRunCmd, nil)
 		if err == nil || !strings.Contains(err.Error(), "interactive terminal") {
 			t.Fatalf("manual run error = %v", err)
@@ -37,6 +38,7 @@ func TestReadinessRunDispatchesFromGlobalModeBeforeGitWork(t *testing.T) {
 	t.Run("automatic requires source before git", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 		t.Setenv("HOME", t.TempDir())
+		t.Setenv("APPDATA", t.TempDir())
 		paths, err := config.NewPaths()
 		if err != nil {
 			t.Fatal(err)
