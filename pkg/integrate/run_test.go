@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -169,6 +170,60 @@ func TestRun_HeuristicTargetUsesBoundSourceApproval(t *testing.T) {
 				t.Fatalf("bound approval must override the option before heuristic refusal: %v", err)
 			}
 		})
+	}
+}
+
+func TestRun_HeuristicTargetRecheckedAfterTaskFenceWait(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := runFixture(t, "")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\nlint:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "declare remote HEAD branch")
+	runGit(t, fx.Worktree, "push")
+	executor := gitcmd.NewExecutor()
+	held, err := acquireTaskResourceFence(context.Background(), executor, fx.Worktree, "dev/actor/feat/task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.release()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	notice := &lockedBuffer{}
+	type result struct {
+		report *RunReport
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		report, runErr := Run(ctx, executor, RunOptions{CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice,
+		}})
+		done <- result{report, runErr}
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		held.release()
+		<-done
+	}()
+	waitForText(t, "task fence wait", notice.String, "destination=task-resource:")
+	targetBefore := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "remove declaration during fence wait")
+	runGit(t, fx.Worktree, "push")
+	held.release()
+	got := <-done
+	if got.err == nil || !strings.Contains(got.err.Error(), "inferred from the remote HEAD") {
+		t.Fatalf("Run adopted unconfirmed post-fence plan: report=%+v err=%v", got.report, got.err)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("gate ran for an unconfirmed post-fence plan: %v", statErr)
+	}
+	if after := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main"); after != targetBefore {
+		t.Fatalf("target moved after post-fence refusal: %s -> %s", targetBefore, after)
 	}
 }
 

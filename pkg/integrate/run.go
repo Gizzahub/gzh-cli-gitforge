@@ -100,6 +100,7 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	// reclaim. Resource slots are acquired only around declared high-load gates.
 	ctx, lock := withTargetLockSlot(ctx)
 	defer lock.release()
+	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
 		report := &RunReport{Check: check}
@@ -175,7 +176,20 @@ func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor
 			return err
 		}
 	}
-	return fmt.Errorf("integration target %s is inferred from the remote HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", integration.Name, integration.Name)
+	return unconfirmedIntegrationTargetError(integration.Name)
+}
+
+// rejectHeuristicRunPlan rechecks the authoritative plan after ownership waits.
+// The early precheck alone cannot authorize a declaration that changes later.
+func rejectHeuristicRunPlan(plan TargetPlan, opts CheckOptions) error {
+	if opts.requireConfirmedTarget && strings.TrimSpace(opts.Target) == "" && strings.TrimSpace(opts.ControllerConfig) == "" && plan.Integration.Source == SourceHeuristic {
+		return unconfirmedIntegrationTargetError(plan.Integration.Name)
+	}
+	return nil
+}
+
+func unconfirmedIntegrationTargetError(name string) error {
+	return fmt.Errorf("integration target %s is inferred from the remote HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", name, name)
 }
 
 // runChecked continues an integration from an immutable readiness report.

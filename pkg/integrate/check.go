@@ -64,6 +64,8 @@ type CheckOptions struct {
 	// preMutation is internal Run-only state. Check never writes it durably;
 	// Run records it only after a classified refusal before push.
 	preMutation *preMutationCapture
+	// requireConfirmedTarget is Run-only; standalone Check keeps heuristic WARNs.
+	requireConfirmedTarget bool
 }
 
 // validationDurationKey carries Check's validation-time accumulator. Unlike
