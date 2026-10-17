@@ -15,11 +15,11 @@ after this move. There is no destination-directory staging step.
 
 Read-only filesystem observations on mst, 2026-10-17:
 
-| Path | `st_dev` |
-| --- | --- |
+| Path                                                         | `st_dev`   |
+| ------------------------------------------------------------ | ---------- |
 | `/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge` | `16777245` |
-| `/Users/archmagece/go/bin` | `16777232` |
-| `/Users/archmagece/go/bin/gz-git` | `16777232` |
+| `/Users/archmagece/go/bin`                                   | `16777232` |
+| `/Users/archmagece/go/bin/gz-git`                            | `16777232` |
 
 The source observation is the checkout directory where `build` writes its
 output, not a newly built executable. The official documentation task worktree
