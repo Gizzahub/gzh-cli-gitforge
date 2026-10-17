@@ -537,8 +537,19 @@ type GlobalConfig struct {
 	// is committed, and a shared device name names nothing.
 	Identity *identity.Identity `yaml:"identity,omitempty"`
 
+	// Integration selects machine-wide integration policy. It is intentionally
+	// global-only because a committed project file must not widen an operator's
+	// readiness-approval boundary.
+	Integration *IntegrationPolicy `yaml:"integration,omitempty"`
+
 	// Environments define named token sets
 	Environments map[string]Environment `yaml:"environments,omitempty"`
+}
+
+// IntegrationPolicy contains global integration controls.
+type IntegrationPolicy struct {
+	// ReadinessApproval is "manual" (the default) or "automatic".
+	ReadinessApproval string `yaml:"readinessApproval,omitempty"`
 }
 
 // Environment represents a named set of API tokens.

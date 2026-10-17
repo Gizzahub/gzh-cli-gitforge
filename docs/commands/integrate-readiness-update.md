@@ -1,9 +1,78 @@
 # Readiness contract update
 
-`gz-git integrate readiness update` is the deliberately narrow, human-operated
-transaction for changing an existing target-owned Readiness V1 contract. It is
+`gz-git integrate readiness update` is the narrow transaction for changing an
+existing target-owned Readiness V1 contract. It is
 not a target rollout mechanism: both the target and source must already have a
 valid V1 contract.
+
+```sh
+gz-git integrate readiness update run \
+  --branch feature/readiness-change --target origin/master
+```
+
+## Global approval policy
+
+The global gz-git configuration alone selects the approval mode:
+
+```yaml
+integration:
+  readinessApproval: manual
+```
+
+`manual` is the default when the setting or file is absent. `automatic` opts into
+agent-controlled contract updates. Invalid values or malformed configuration
+fail visibly. Profiles, repository manifests and command flags cannot override
+this setting. The file uses the existing `config.NewPaths` platform location:
+`~/Library/Application Support/gz-git/config.yaml` on macOS, or
+`${XDG_CONFIG_HOME:-$HOME/.config}/gz-git/config.yaml` on Linux. Existing `.yml`
+and `.json` global files are also supported. Preserve other global settings.
+`gz-git integrate readiness update policy` prints only the effective mode and
+does not fetch, execute a runner, or mutate Git state.
+
+In manual mode, `run` displays the repository, exact source/target commits and
+complete contract diff, then asks for one `yes` from an interactive terminal.
+Decline or EOF stops the update. No plan file or digest needs copying.
+`review` explicitly selects this human path even when automatic mode is enabled.
+The reviewed snapshot is recomputed after approval. Reading for more than 15
+minutes does not invalidate an unchanged snapshot: a fresh internal transaction
+is issued only for the identical reviewed state. Drift requires a new review.
+
+In automatic mode, invoke the same command with an exact source and request:
+
+```sh
+gz-git integrate readiness update run \
+  --branch feature/readiness-change --target origin/master \
+  --expect-source "$SOURCE_SHA" --statement '테스트완료'
+```
+
+`SOURCE_SHA` must be the full commit intended for integration. `auto` explicitly
+selects the automatic path, but still refuses unless the global policy is
+`automatic`. Agent hosts may expose a pinned `branch-readiness-auto` launcher;
+their own policy must authorize it. There is no chat-output watcher.
+
+The Korean statement means “tests completed” and is only a request to execute
+checks. The tool loads the **proposed runner** from an isolated source checkout
+and runs it with the detached target checkout as its working directory and
+`--source-dir` pointing to the source, preserving the V1 protocol against
+frozen source/target commits. Successful execution and a valid
+`json-v1` result with `status: ready` are required. Nonzero exit, malformed
+output, `not_ready`, `unavailable`, changed commits or revoked global policy
+stop the update. The candidate is trusted to define its own checks in this
+opt-in mode; execution proves that runner's result, not test completeness or
+the honesty of its code. Manual review remains available for broken-runner
+repairs without executing either runner.
+
+Actual automatic measurements are recorded under the Git common directory at
+`gz-git-readiness-updates/<operation-id>.json`, including the frozen plan,
+runner identity, result and duration. These are local observations, not
+reusable authorization or proof that a push succeeded. The successful remote
+operation ref below records application separately. Neither approval mode
+reclaims the task branch or worktree; use the adopted task lifecycle to settle
+remaining resources.
+
+## Compatibility: saved plans
+
+The original plan/apply interface remains available:
 
 ```sh
 gz-git integrate readiness update plan \
@@ -76,6 +145,6 @@ Operation refs below `refs/gz-git/readiness-update/operations/` are intended to
 be permanent audit and replay-protection markers. Preserve them; deleting one
 removes both its audit record and the replay protection it provides.
 
-The downstream agent policy and PreToolUse hook must deny
-`integrate readiness update apply`. Only a separately reviewed, human-operated
-procedure may invoke `apply`.
+The downstream agent policy and PreToolUse hook must continue to deny raw
+`integrate readiness update apply`. Automatic approval is a separate,
+globally opted-in entrypoint, never an implicit bypass of saved-plan review.

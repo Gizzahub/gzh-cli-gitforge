@@ -20,24 +20,48 @@
 1. 에이전트는 plan을 미리 만들어 둘 수 없다. plan TTL이 15분이므로, 사람이 읽을
    무렵이면 만료된다. 그래서 에이전트는 명령문만 출력하고, 사람은 저장소 경로·브랜치·
    plan 파일·digest를 셸에 다시 입력한다.
-2. 다시 입력하다 오타(`readiness-bottstrap`)가 났다. 저장소가 여러 개라 에이전트가
+1. 다시 입력하다 오타(`readiness-bottstrap`)가 났다. 저장소가 여러 개라 에이전트가
    그때그때 반복문 셸 스크립트를 따로 만들어 건넸다. 이런 일회용 스크립트는 작업할
    때마다 새로 생긴다.
-3. 여섯 plan은 `readiness_tree_digest`(`7f78973c…`)와 `runner_oid`가 같았다. 실제로
+1. 여섯 plan은 `readiness_tree_digest`(`7f78973c…`)와 `runner_oid`가 같았다. 실제로
    검토할 대상은 runner 하나였는데도 사람은 digest 6개를 따로 확인하고 입력해야 했다.
-4. bootstrap은 "1커밋 앞섬"과 "계약 파일만 변경"을 요구한다. 그런데 이 조건은 plan을
+1. bootstrap은 "1커밋 앞섬"과 "계약 파일만 변경"을 요구한다. 그런데 이 조건은 plan을
    실행해 볼 때까지 드러나지 않는다. 그래서 준비 브랜치가 이 조건을 어긴 채(3커밋)
    사람 앞에 도착했다.
 
 ## 결정 (2026-10-06)
 
+### 2026-10-18 후속 결정: readiness update의 승인 방식
+
+사용자가 해시 복사와 15분 만료가 실제 검토를 돕지 못한다고 지적하고,
+수동 검토 개선안과 사람 승인을 없애는 자동 모드를 모두 요청했다.
+readiness update에 대해서는 아래 D2의 해시 재입력 방식을 대체한다.
+
+- 전역 gz-git 설정 `integration.readinessApproval`만 모드를 선택한다.
+  기본 `manual`은 `readiness update run`에서 diff와 대상 커밋을 보여 주고
+  `yes` 한 번으로 승인한다. 계획 파일·해시 전달은 필요 없다.
+- `automatic`은 사람 승인 없이 실행하지만 `--expect-source`와 요청 문장
+  `--statement 테스트완료`가 필요하다. 문장은 검사를 요청할 뿐이며 도구가
+  제안된 runner를 격리된 커밋 쌍에서 실제 실행해 성공을 확인한다.
+- 검토/검사 후 상태가 같을 때만 내부 계획의 유효기간을 새로 발급한다.
+  변경된 상태에 기존 승인을 재사용하지 않으며 exact lease·원자적 push·
+  일회용 operation ref는 유지한다. 기존 plan/apply도 호환 경로로 남긴다.
+- 에이전트 호스트의 자동 경로는 동일 전역 설정을 조회하는 전용
+  `branch-readiness-auto` launcher로 제한한다. 설치된 이전 바이너리나 훅에
+  새 권한이 생겼다고 간주하지 않는다.
+
+이 변경은 readiness update 한 저장소의 승인 흐름을 다룬다. 아래의
+bootstrap 사전 검사·workspace 스캔·묶음 검토는 이 작업에서 구현하지 않으며
+이 이슈가 계속 보유한다. 새 동작의 정본은
+`docs/commands/integrate-readiness-update.md`다.
+
 ### D1. 하위 명령 세 개를 추가하고, 요청 파일은 두지 않는다
 
-| 하위 명령 | 하는 일 | 선언 Effect |
-| --- | --- | --- |
-| `integrate bootstrap check [--branch …] [--target …]` | bootstrap 사전 조건을 판정한다(1커밋 fast-forward, 변경 경로가 `.gz-git.yaml`의 `branch.readiness`와 `.gz-git/readiness/` 아래 일반 파일뿐, target 미선언, symlink·submodule 없음). plan을 만들지 않는다. | `tracking-refs` (fetch 시) |
-| `integrate approval list [<workspace>]` | workspace를 스캔해 bootstrap·readiness-update 대상 브랜치를 나열하고, 같은 readiness 트리끼리 묶어 보여 준다. 대상이 아닌 후보도 이유와 함께 표시한다. | `tracking-refs` |
-| `integrate approval review [<workspace>]` | `list`와 같은 스캔 → 묶음별로 plan을 그 자리에서 생성 → 확인 → apply. TTY가 없으면 거부한다. | apply와 같다(`refs`, `tracking-refs`, `remote`, `readiness-contract`) |
+| 하위 명령                                             | 하는 일                                                                                                                                                                                                   | 선언 Effect                                                           |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `integrate bootstrap check [--branch …] [--target …]` | bootstrap 사전 조건을 판정한다(1커밋 fast-forward, 변경 경로가 `.gz-git.yaml`의 `branch.readiness`와 `.gz-git/readiness/` 아래 일반 파일뿐, target 미선언, symlink·submodule 없음). plan을 만들지 않는다. | `tracking-refs` (fetch 시)                                            |
+| `integrate approval list [<workspace>]`               | workspace를 스캔해 bootstrap·readiness-update 대상 브랜치를 나열하고, 같은 readiness 트리끼리 묶어 보여 준다. 대상이 아닌 후보도 이유와 함께 표시한다.                                                    | `tracking-refs`                                                       |
+| `integrate approval review [<workspace>]`             | `list`와 같은 스캔 → 묶음별로 plan을 그 자리에서 생성 → 확인 → apply. TTY가 없으면 거부한다.                                                                                                              | apply와 같다(`refs`, `tracking-refs`, `remote`, `readiness-contract`) |
 
 승인 요청 파일(에이전트가 쓰는 대기열)은 두지 않는다. 요청 파일이 맡으려던 일은
 모두 저장소 상태에서 다시 계산할 수 있기 때문이다.

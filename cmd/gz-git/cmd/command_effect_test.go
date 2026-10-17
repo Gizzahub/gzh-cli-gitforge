@@ -146,8 +146,11 @@ func TestRunFinishCoversIntegrateRun(t *testing.T) {
 // changes with a person; a wrong declaration here silently widens that policy.
 func TestReadinessContractDeclarations(t *testing.T) {
 	want := map[string]bool{
-		"integrate bootstrap apply":        true,
-		"integrate readiness update apply": true,
+		"integrate bootstrap apply":         true,
+		"integrate readiness update apply":  true,
+		"integrate readiness update review": true,
+		"integrate readiness update auto":   true,
+		"integrate readiness update run":    true,
 	}
 	for key, targets := range commandEffects {
 		has := false

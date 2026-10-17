@@ -195,6 +195,12 @@ func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, co
 }
 
 func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {
+	return runContractPair(ctx, g, plan, contract, timeout, resourceHighLoad, opts, false)
+}
+
+// runContractPair normally executes the target-owned runner. Only the explicit
+// globally authorized readiness-update workflow may select the candidate runner.
+func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions, candidate bool) (result readinessResult, duration time.Duration, err error) {
 	targetSiblings, sourceSiblings, hasSiblings, err := resolveSiblingContractPair(ctx, g, plan)
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
@@ -263,7 +269,11 @@ func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetP
 		runnerEnv = ndPreparationEnv(runnerEnv, cargoTarget)
 		siblingEvidence += "; preparation " + contract.Decl.PrepareProfile
 	}
-	runner := filepath.Join(targetDir, filepath.FromSlash(contract.Decl.Runner))
+	runnerDir := targetDir
+	if candidate {
+		runnerDir = sourceDir
+	}
+	runner := filepath.Join(runnerDir, filepath.FromSlash(contract.Decl.Runner))
 	if resourceHighLoad {
 		waitStarted := time.Now()
 		runnerCtx, releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)

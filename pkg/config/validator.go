@@ -161,6 +161,11 @@ func (v *Validator) ValidateGlobalConfig(g *GlobalConfig) error {
 	if g.ActiveProfile != "" && !validProfileName.MatchString(g.ActiveProfile) {
 		return fmt.Errorf("invalid active profile name '%s': must contain only alphanumeric, dash, or underscore", g.ActiveProfile)
 	}
+	if g.Integration != nil && g.Integration.ReadinessApproval != "" &&
+		g.Integration.ReadinessApproval != ReadinessApprovalManual &&
+		g.Integration.ReadinessApproval != ReadinessApprovalAutomatic {
+		return fmt.Errorf("invalid integration.readinessApproval %q: must be %q or %q", g.Integration.ReadinessApproval, ReadinessApprovalManual, ReadinessApprovalAutomatic)
+	}
 
 	return nil
 }
