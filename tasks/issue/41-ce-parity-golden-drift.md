@@ -1,5 +1,25 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 재발 관측 (2026-10-18, readiness approval modes)
+
+- status: reopened — 참조 채택은 별도 소유 작업이며 이번 기능에서 변경하지 않는다.
+- 후보 `67232de27985a0250b53d64393d19441e60f2837`의 native 통합 검사에서
+  golden pin `9fe1ce4506629ce5fa98023d0a8469e336130488`과 설치된 clean CE
+  `1734ce1f79b385b629f176afc1f51831f46beded`의 불일치로 guard가 실패했다.
+- 후보와 기준선 `f96bdca495489380347e976811aacd7db8748a42`의
+  `tests/parity` tree는 모두 `62d0dd511c263b9ebca48c5309b329d9cfd58b1d`다.
+  전체 기준선 실행은 완료되지 않았으므로 비악화 게이트 통과로 해석하지 않는다.
+- 원시 검사 로그: `/Users/archmagece/.local/state/gz-git/integrate/diagnostics/make-check-1496353676.log`.
+  native 결과: primary checkout의 `tmp/readiness-approval-finish-67232de2.json`.
+- 설치된 gz-git `b362607ee19079b90950ff6fa27b269da30d1f8b`의
+  `pkg/integrate/readiness.go`는 contract runner 전체에 15분 제한을 건다.
+  source 검사 14분 40초와 슬롯 대기 이후 기준선 비교가 deadline으로 중단됐다.
+  `branch.makeTimeout`은 legacy make 경로에만 적용된다.
+- 같은 실행에서 발견한 신규 policy 명령의 read-only 테스트 등록 누락은
+  이번 기능 범위에서 수정했으며 관련 read-only 테스트는 통과했다.
+- 통합·설치는 수행되지 않았다. CE pin 변경, golden 재녹화, 구버전 강제,
+  게이트 우회는 이번 기록의 범위가 아니다.
+
 ## 2026-10-16 후속 참조 정합화
 
 `verification-evidence-followup`의 현재 후보에서 네 시나리오 차이를 재현했다.

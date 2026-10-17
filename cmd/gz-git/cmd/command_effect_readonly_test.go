@@ -54,6 +54,7 @@ var readOnlyRuns = map[string][]string{
 	"history stats":                        {"history", "stats"},
 	"integrate provision siblings inspect": {"integrate", "provision", "siblings", "inspect", "--json"},
 	"integrate receipt":                    {"integrate", "receipt", "--execution-id", "readonly-probe", "--generation", "g1", "--json"},
+	"integrate readiness update policy":    {"integrate", "readiness", "update", "policy"},
 	"info":                                 {"info", "."},
 	"stash list":                           {"stash", "list", "."},
 	"tag list":                             {"tag", "list", "."},
@@ -133,6 +134,7 @@ func sandboxRepo(t *testing.T, base, home, work string) {
 	}
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", filepath.Join(home, "AppData"))
 	t.Setenv("GIT_CONFIG_GLOBAL", gitConfig)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 
