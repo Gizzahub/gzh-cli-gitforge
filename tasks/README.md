@@ -23,8 +23,8 @@ ______________________________________________________________________
 
 ## Open Issues (후속)
 
-[ISSUE-54](issue/54-resource-probe-deadline.md) tracks remote probes truncating
-resource admission. [ISSUE-55](issue/55-resource-slot-release-window.md) separately
+[ISSUE-54](issue/54-resource-probe-deadline.md) records the resolved remote-probe
+deadline and verified mbp installation. [ISSUE-55](issue/55-resource-slot-release-window.md) separately
 tracks the existing gap between periodic observation and actual slot acquisition.
 
 stdout/stderr 캡처의 선재 교착은 [ISSUE-51](issue/51-stdout-capture-pipe-deadlock.md)에 재현·수정을 보존했다. 두 도우미 수정 후 생략 없는 전체 CLI 테스트와 린트가 통과했다.

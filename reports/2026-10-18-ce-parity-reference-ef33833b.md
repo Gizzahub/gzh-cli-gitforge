@@ -28,6 +28,24 @@ golden을 검사하는 pin assertion도 함께 실행해 package가 실패했으
 `tmp/parity-8f7c2963-final-native.json`으로 보존한다. 아래 ef33833b의
 성공 receipt 예정 경로는 추가 채택으로 대체됐으며 성공 파일을 만들지 않았다.
 
+## ISSUE54 소유 수정 채택과 설치
+
+사용자가 별도 소유 작업 인계·통합·설치를 승인했다. 수정은 최신 source 위로
+재배치해 집중 slow-probe 검사를 12.504초에 통과했고 독립 strong 검토도
+통과했다. native 절차는 `a1c51c9f`를 master에 통합·푸시하고 세 작업 자원을
+모두 제거해 DONE으로 종료했다. 검증 1,950,580ms, 자원 대기 460ms다.
+이는 native 통합 판정이며 source·baseline의 개별 검사가 모두 green이라는
+주장은 아니다. 원시 결과는 `tmp/resource-handoff-finish.json`에 보존한다.
+
+clean committed primary의 `make install`과 selected-path audit가 성공했다.
+설치본은 `a1c51c9f`, SHA-256은
+`15fddbccd4ef3135f88d04d02400f2d89b4ad3a2551c86591d35b0feaa50bad5`다.
+상세 소유 기록은 [ISSUE54](../tasks/issue/54-resource-probe-deadline.md)에 있다.
+parity 작업도 이 source 위로 재배치했고, 변경된 checkout provider를 새로 빌드한
+별도 전체 non-record parity 검사가 29.593초에 성공했다. 로그는
+`tmp/parity-8f7c2963-installed-provider-verify.log`다. ISSUE55의 기존 slot 직전 freshness
+간격은 별도이며 이번 수정에서 해결됐다고 주장하지 않는다.
+
 ## 범위와 후보
 
 단일 후보는 clean source와 설치된 CE 0.10.13의
