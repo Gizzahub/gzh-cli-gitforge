@@ -32,6 +32,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Fixed
 
+- Resource-wait target observations now use the remaining acquisition budget
+  instead of a separate five-second deadline. Healthy slow remote refreshes no
+  longer cancel finite or explicitly unbounded admission early; observation
+  errors returned by the observer and parent cancellation remain failures.
+
 - Linker-stamped library versions now retain their explicit value even when it
   equals the source default. Unstamped `go install` builds still use the module
   version recorded in build information. Prepare patch 0.10.3.

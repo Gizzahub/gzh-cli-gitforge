@@ -274,11 +274,13 @@ func observeResourceWait(ctx context.Context, remaining time.Duration, bounded b
 	if bounded && remaining <= 0 {
 		return ErrHostLockWait
 	}
-	limit := 5 * time.Second
-	if remaining > 0 && remaining < limit {
-		limit = remaining
+	if !bounded {
+		return observer(ctx)
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, limit)
+	// Refreshing a remote can take several Git commands. A separate short
+	// deadline must not cancel an otherwise live acquisition. Include this
+	// observation in the caller's remaining budget, preserving every error.
+	probeCtx, cancel := context.WithTimeout(ctx, remaining)
 	defer cancel()
 	return observer(probeCtx)
 }
