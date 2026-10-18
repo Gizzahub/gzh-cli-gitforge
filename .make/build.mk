@@ -12,6 +12,8 @@
 # Detect OS-specific executable extension (e.g., .exe on Windows)
 BINEXT := $(shell go env GOEXE)
 BINARY := $(executablename)$(BINEXT)
+INSTALL_SOURCE ?= $(BINARY)
+ATOMIC_INSTALL_REQUIRE_CROSSFS ?= 0
 GOBIN := $(shell go env GOBIN)
 GOPATH := $(shell go env GOPATH)
 HOST_GOCACHE := $(shell go env GOCACHE)
@@ -42,7 +44,7 @@ endif
 # Build Targets
 # ==============================================================================
 
-.PHONY: build install test-install test-install-audit install-git-plugin run bootstrap clean release-dry-run release-snapshot release-check deploy
+.PHONY: build install install-publish test-install test-install-atomic test-install-audit install-git-plugin run bootstrap clean release-dry-run release-snapshot release-check deploy
 
 build: ## build golang binary
 	@printf "$(CYAN)Building %s...$(RESET)\n" "$(BINARY)"
@@ -51,25 +53,40 @@ build: ## build golang binary
 
 
 install: build ## install golang binary
-	@printf "$(CYAN)Installing $(BINARY) $(VERSION) to %s$(RESET)\n" "$(INSTALL_BINDIR)$(SEP)$(BINARY)"
-	@mkdir -p "$(INSTALL_BINDIR)"
-	@if [ -d "$(INSTALL_BINDIR)$(SEP)$(BINARY)" ]; then \
-		printf "$(RED)Error: install target is a directory: %s$(RESET)\n" "$(INSTALL_BINDIR)$(SEP)$(BINARY)" >&2; \
-		exit 1; \
-	fi
-	@mv "$(BINARY)" "$(INSTALL_BINDIR)$(SEP)$(BINARY)"
-	@printf "$(GREEN)✅ Installed $(BINARY) $(VERSION) to %s$(RESET)\n" "$(INSTALL_BINDIR)$(SEP)$(BINARY)"
-	@echo ""
-	@printf "$(CYAN)Verifying installation...$(RESET)\n"
-	@"$(INSTALL_BINDIR)$(SEP)$(BINARY)" --version
-	@echo ""
-	@printf "$(CYAN)Auditing install path...$(RESET)\n"
-	@RECLAIM="$(RECLAIM)" INSTALL_AUDIT_WARN_ONLY="$(INSTALL_AUDIT_WARN_ONLY)" \
-		"$(CURDIR)$(SEP)scripts$(SEP)install-path-audit.sh" "$(BINARY)" "$(INSTALL_BINDIR)$(SEP)$(BINARY)"
-	@echo ""
-	@printf "$(GREEN)🎉 Installation complete! Run '$(BINARY) --help' to get started.$(RESET)\n"
+	@$(MAKE) --no-print-directory install-publish INSTALL_SOURCE="$(BINARY)"
 
-test-install-audit: ## verify the install path audit fails when it should
+install-publish: ## publish a prebuilt binary atomically
+	@set -eu; \
+	bindir="$(INSTALL_BINDIR)"; target="$$bindir$(SEP)$(BINARY)"; source="$(INSTALL_SOURCE)"; stage=""; \
+	printf "$(CYAN)Installing $(BINARY) $(VERSION) to %s$(RESET)\n" "$$target"; mkdir -p "$$bindir"; \
+	if [ -d "$$target" ]; then printf "$(RED)Error: install target is a directory: %s$(RESET)\n" "$$target" >&2; exit 1; fi; \
+	cleanup() { test -z "$$stage" || rm -f -- "$$stage"; }; abort() { cleanup; exit 143; }; \
+	trap cleanup EXIT; trap abort HUP INT TERM; \
+	stage=$$(mktemp "$$bindir$(SEP).$(BINARY).install.XXXXXX"); \
+	install -m 0755 "$$source" "$$stage"; "$$stage" --version; \
+	mv -f "$$stage" "$$target"; stage=""; trap - EXIT HUP INT TERM; \
+	printf "$(GREEN)✅ Installed $(BINARY) $(VERSION) to %s$(RESET)\n" "$$target"; \
+	printf "$(CYAN)Verifying installation...$(RESET)\n"; "$$target" --version; \
+	printf "$(CYAN)Auditing install path...$(RESET)\n"; \
+	RECLAIM="$(RECLAIM)" INSTALL_AUDIT_WARN_ONLY="$(INSTALL_AUDIT_WARN_ONLY)" "$(CURDIR)$(SEP)scripts$(SEP)install-path-audit.sh" "$(BINARY)" "$$target"; \
+	printf "$(GREEN)🎉 Installation complete! Run '$(BINARY) --help' to get started.$(RESET)\n"
+
+test-install-atomic: ## exercise atomic installer publication with fake executables
+	@set -eu; \
+	mkdir -p tmp; tmpdir="$$(mktemp -d "$${TMPDIR:-/tmp}/gz-git-atomic.XXXXXX")"; sourcedir="$$(mktemp -d "tmp/gz-git-atomic-source.XXXXXX")"; bindir="$$tmpdir/bin"; target="$$bindir/$(BINARY)"; new="$$sourcedir/new-source"; bad="$$sourcedir/bad-source"; term="$$sourcedir/term-source"; saved="$$tmpdir/saved-final"; consumer="$$tmpdir/consumer.log"; failed="$$tmpdir/consumer.failed"; refusal="$$tmpdir/refusal.log"; consumer_pid=""; \
+	cleanup() { status="$$?"; if test -n "$$consumer_pid"; then kill "$$consumer_pid" 2>/dev/null || true; if ! wait "$$consumer_pid"; then status=1; fi; fi; if test -d "$$target"; then rmdir "$$target" || status=1; else rm -f -- "$$target" || status=1; fi; for owned in "$$new" "$$bad" "$$term" "$$saved" "$$consumer" "$$failed" "$$refusal"; do rm -f -- "$$owned" || status=1; done; rmdir "$$bindir" || status=1; rmdir "$$tmpdir" || status=1; rmdir "$$sourcedir" || status=1; exit "$$status"; }; device_id() { value="$$(stat -c '%d' "$$1" 2>/dev/null)" && case "$$value" in ''|*[!0-9]*) ;; *) printf '%s\n' "$$value"; return 0;; esac; value="$$(stat -f '%d' "$$1" 2>/dev/null)" && case "$$value" in ''|*[!0-9]*) ;; *) printf '%s\n' "$$value"; return 0;; esac; printf '%s\n' "unable to determine device id for $$1" >&2; return 1; }; assert_no_stage() { if find "$$bindir" -maxdepth 1 -name ".$(BINARY).install.*" -print | grep -q .; then echo "owned staging file leaked" >&2; exit 1; fi; }; trap cleanup EXIT; mkdir -p "$$bindir"; source_device="$$(device_id "$$sourcedir")"; destination_device="$$(device_id "$$bindir")"; if test "$$source_device" = "$$destination_device"; then echo "atomic installer: cross-device source unavailable (source=$$source_device destination=$$destination_device); structural staging invariant exercised"; test "$(ATOMIC_INSTALL_REQUIRE_CROSSFS)" != 1; else echo "atomic installer: cross-device source=$$source_device destination=$$destination_device"; fi; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; echo old' >"$$target"; chmod 0755 "$$target"; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; echo new' >"$$new"; chmod 0755 "$$new"; \
+	(trap 'exit 0' TERM; while :; do "$$target" --version >>"$$consumer" 2>&1 || { : >"$$failed"; exit 1; }; done) & consumer_pid="$$!"; \
+	$(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null; kill "$$consumer_pid"; wait "$$consumer_pid"; consumer_pid=""; \
+	test "$$($$target --version)" = new; test ! -e "$$failed"; test -s "$$consumer"; ! grep -Ev '^(old|new)$$' "$$consumer"; test "$$(stat -c '%a' "$$target" 2>/dev/null || stat -f '%Lp' "$$target")" = 755; \
+	assert_no_stage; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; exit 9' >"$$bad"; chmod 0755 "$$bad"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$bad" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; kill -TERM "$$PPID"; sleep 1; echo new' >"$$term"; chmod 0755 "$$term"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$term" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
+	mv "$$target" "$$saved"; mkdir "$$target"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >"$$refusal" 2>&1; then exit 1; fi; grep -F "Error: install target is a directory" "$$refusal" >/dev/null; rmdir "$$target"; mv "$$saved" "$$target"; test "$$($$target --version)" = new; \
+	echo "atomic installer: staging is created inside destination bindir; source may be on another filesystem without affecting final rename"
+
+test-install-audit: test-install-atomic ## verify install audit and atomic publication regressions
 	@"$(CURDIR)$(SEP)scripts$(SEP)test-install-path-audit.sh"
 
 test-install: ## verify install uses only BINDIR without touching user directories

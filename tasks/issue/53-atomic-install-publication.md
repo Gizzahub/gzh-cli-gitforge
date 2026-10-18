@@ -1,6 +1,6 @@
 # ISSUE: Cross-filesystem install does not publish the executable atomically
 
-- status: open
+- status: resolved (installer behavior; delivery governed by the native integration gate)
 - priority: P2
 - category: installation/publication
 - owner: gzh-cli-gitforge — `.make/build.mk` (`build` and `install`)
@@ -63,3 +63,41 @@ Follow-up validation should cover cross-filesystem source-to-destination
 staging, concurrent consumer opens, failed/interrupted preparation with the old
 executable retained, and current install destination-selection behavior. This
 registration changes no installer code, platform contract, or installation.
+
+## 2026-10-18 implementation and focused verification
+
+The delivery candidate stages the executable inside the resolved destination
+directory, sets mode 0755, runs the staged executable's `--version` as validation,
+and publishes by same-filesystem
+rename. Build completes before publication, including parallel make invocation.
+Preparation failure and terminal signal handling preserve the previous target.
+Final path verification, installation audit, destination selection, and plugin
+installation dependencies remain in place. This establishes atomic visibility;
+it makes no crash-durability claim.
+
+`test-install-atomic` is a prerequisite of the existing `test-install-audit`
+quality-check surface. It checks concurrent complete old/new observations,
+failed validation, TERM interruption, directory-target refusal, permissions,
+and attempt-owned staging cleanup. Independent review passed, including a
+7.98-second run of
+`make --no-print-directory test-install-atomic ATOMIC_INSTALL_REQUIRE_CROSSFS=1`.
+The source fixture device was 16777251 and destination device 16777232 on mst.
+Default runs explicitly report structural-only coverage when both devices match;
+the opt-in requirement rejects that case. Windows behavior remains unverified.
+
+The device-ID helper accepts only successful numeric output from GNU/BSD stat.
+Failed GNU `stat -f` can emit partial filesystem information, so failed output
+must never participate in device comparisons. BSD stat and GNU gstat IDs were
+compared with `os.stat` on two same-device paths. The final independent
+cross-device regression passed in 9.12 seconds after this portability fix.
+
+The delivery must pass the required `verify-commit` profile and native full gate.
+This record alone does not claim integration or installation of the candidate executable.
+
+The original delivery was interrupted while waiting for the host measurement slot
+and emitted no native pre-mutation proof. Its execution was aborted with its
+`be521940` worktree and refs explicitly retained as evidence. A fresh delivery,
+`53-atomic-install-publication-retry`, starts from source `1db93c1b` and reauthors
+the same installer change. Its focused atomic-install regression passed in
+9.185 seconds with source device 16777251 and destination device 16777232.
+The fresh delivery must produce its own full-gate and integration receipts.
