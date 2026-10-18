@@ -1,8 +1,8 @@
 {
   "scenario": "recover-requires-cleanup-failure",
-  "reference": "ce-agent-kit master 9fe1ce4506629ce5fa98023d0a8469e336130488",
+  "reference": "ce-agent-kit master ad92901e322e3c64f350363feecc9c8b6b3807c3",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.9\nRelease:  v0.10.0\nBuild:    233-g9fe1ce45\nCommit:   9fe1ce4506629ce5fa98023d0a8469e336130488\nDirty:    false\nRevision: 9fe1ce4506629ce5fa98023d0a8469e336130488",
+    "ce": "ce-agent-kit version 0.10.13\nRelease:  v0.10.0\nBuild:    267-gad92901e\nCommit:   ad92901e322e3c64f350363feecc9c8b6b3807c3\nDirty:    false\nRevision: ad92901e322e3c64f350363feecc9c8b6b3807c3",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version \u003cGZ_GIT_VERSION\u003e"
   },

@@ -1,5 +1,17 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 참조 정합화 (2026-10-18)
+
+- status: resolved (참조 불일치만 해결; native 통합 게이트는 별도)
+- 사용자가 승인한 후속 계획에 따라 현재 clean CE 0.10.13
+  `ad92901e322e3c64f350363feecc9c8b6b3807c3`을 채택했다. 소스와 설치된
+  실행 파일의 전체 revision 및 clean Go metadata가 일치한다.
+- 열두 시나리오 기계 캡처 22.873초, 별도 full non-record 검증 26.745초 성공.
+  normalizer는 변경하지 않았다. 아래 과거 실패 관측은 그대로 보존한다.
+- 독립 strong 검토에서 provenance stamp·물리 processHost·task 포함 관계를
+  검증하는 성공 진단의 추가로 분류했다. 상태·권한·ref·정리 결과는 불변이다.
+  세부 계약과 재현 경로는 `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md` §7.
+
 ## 재발 관측 (2026-10-18, readiness approval modes)
 
 - status: reopened — 참조 채택은 별도 소유 작업이며 이번 기능에서 변경하지 않는다.

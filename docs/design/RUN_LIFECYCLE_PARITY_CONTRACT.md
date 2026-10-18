@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`9fe1ce4506629ce5fa98023d0a8469e336130488`**, installed as CE 0.10.9 with
+`ad92901e322e3c64f350363feecc9c8b6b3807c3`**, installed as CE 0.10.13 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.9 (`9fe1ce45`, clean Go build metadata)             | system under test (reference)    |
+| `ce`             | 0.10.13 (`ad92901e`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -561,6 +561,21 @@ parity or treat an unavailable worktree as proof of successful integration.
 ______________________________________________________________________
 
 ## 7. Fixture suite
+
+On 2026-10-18, the readiness-approval follow-up adopted clean CE 0.10.13
+`ad92901e322e3c64f350363feecc9c8b6b3807c3`. The source checkout and executable
+Go metadata agree, including `vcs.modified=false`. Fresh machine capture passed
+all twelve scenarios in 22.873s; separate full non-record verification passed
+in 26.745s. All twelve provenance stamps changed. Two finish scenarios also
+retain this capture host's physical `processHost` and successful
+`git merge-base --is-ancestor <taskHead> <sourceHead>` diagnostics. The latter
+reflect CE's fail-closed task-containment proof, introduced by `e8307aa4`, rather
+than a cosmetic stamp change. Status, schema, allowed actions, exit results,
+refs, worktree and cleanup outcomes did not change. These scenarios prove only
+the direct-ancestor success case, not rebase/provider-binding behavior. No
+normalizer changed; this reference adoption alone is not a full integration
+gate verdict. Reproduction uses the commands below; raw logs are retained in
+the source primary checkout's `tmp/readiness-parity-{record,verify}-ad92901e.log`.
 
 On 2026-10-16, `verification-evidence-followup` freshly machine-captured all
 twelve scenarios with the same clean CE `9fe1ce45` pin and the checkout-built
