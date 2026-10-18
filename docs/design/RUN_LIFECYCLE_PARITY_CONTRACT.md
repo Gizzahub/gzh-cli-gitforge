@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`ad92901e322e3c64f350363feecc9c8b6b3807c3`**, installed as CE 0.10.13 with
+`ef33833b542cbe84be842f8a77293e61bce449ea`**, installed as CE 0.10.13 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.13 (`ad92901e`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.13 (`ef33833b`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -524,19 +524,20 @@ Idempotent re-discard of a closed execution: exit 0
 
 ### run-recover
 
-Closes a *proven* exit-3 partial cleanup without removing anything. The
+Closes a proven exit-3 partial cleanup or a bound native completion without
+removing anything. For the partial-cleanup path, the
 latest receipt must match `operation: finish, status: BLOCKED`, reason
 `integration succeeded but task recovery cleanup failed`, with heads, push
 flag, and an `integrate run` diagnostic exiting 3 — else
-`run-recover requires the recorded exit-3 provider cleanup failure or an interrupted run-finish`, exit 1.
+`run-recover requires the recorded exit-3 provider cleanup failure, a bound native completion, or an interrupted run-finish`, exit 1.
 Owner-only. Probes (never mutates): the same policy-dependent source-push proof
-as finish runs first (errors are wrapped as `resolve current source head: ...`),
+as finish runs first for partial cleanup (errors are wrapped as `resolve current source head: ...`),
 then the proven source head must contain the recorded task head; residual
 worktree/branch/remote detection — **zero residuals is a failure**
 (`provider cleanup left no residual path or ref to recover`). Success:
 `operation: recover, status: DONE` receipt, exit 0, reason
 `integration confirmed after partial provider cleanup; residual <list> left untouched`. A recover DONE receipt only validates as terminal when at
-least one residual remains.
+least one residual remains for that partial-cleanup path.
 
 If source-push proof fails, CE returns BLOCKED with
 `partial cleanup recovery is not proven: resolve current source head: <stage error>`.
@@ -544,6 +545,21 @@ The response contains the failed probe diagnostics and a transient BLOCKED
 recovery receipt, which is not appended to history. The twelve-scenario
 `recover-requires-cleanup-failure` capture rejects an ineligible prior receipt
 before this proof, so it does not cover the source-proof failure response.
+
+A separate native-completion path accepts one exact, successful, context-bound
+`integrate run` diagnostic from the latest owner-matching BLOCKED finish receipt.
+It binds the absolute provider executable, SHA-256, argv, execution/generation,
+owner, task SHA, target ref and complete JSON push/cleanup outcome. It rechecks
+that the recorded worktree (including dangling symlinks) and local task branch
+are absent and that the local source contains the task head. It does not rerun
+the provider, access the network, or mutate refs. Failure is BLOCKED with
+`native completion recovery is not proven: <cause>`; success records a DONE
+recover receipt with reason `native provider completion confirmed from durable receipt`
+and all push/cleanup flags true. This is the zero-residual exception to the
+partial-cleanup rule above; terminal validation retains the bound proof.
+The twelve reference scenarios still cover only recovery refusal, not this new
+success path. Its positive, forged-proof, residual-resource, dangling-link and
+non-ancestor cases are verified in the owning CE taskruntime unit suite.
 
 ### Observation and explicit closure
 
@@ -562,7 +578,36 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
-The TASK-289 follow-up uses clean CE 0.10.13
+After TASK-289 landed at `abee75f2`, the same clean `ef33833b` candidate was
+freshly machine-captured against that updated checkout provider. Its predecessor
+reference `7140701a` is an ancestor of `ef33833b`, not a replacement candidate.
+This capture preserves TASK-289's required `config[0]` provider diagnostics.
+Relative to the new baseline's twelve goldens, 39 decoded leaves changed:
+37 CE identity values and two literal physical `processHost` values from
+`CE-Mac-Studio.local` to `CEui-MacBookPro.local`. Status, exit, ownership, refs,
+push and cleanup outcomes are unchanged; no normalizer or scenario changed.
+The separate record and non-record logs are retained under
+`tmp/parity-ef33833b-rebased-{record,verify}.log`, with decoded evidence in
+`tmp/parity-ef33833b-rebased-decoded-diff.json` in the primary checkout.
+
+The initial pre-TASK-289 capture on 2026-10-18 used clean CE 0.10.13
+`ef33833b542cbe84be842f8a77293e61bce449ea`. The installed executable and clean
+source checkout agreed before capture; the installed CE executable SHA-256
+was unchanged across capture. The provider was built from this checkout by the
+fixture harness, not taken from the installed ambient gz-git. All twelve scenarios were machine-captured in
+18.222s. Decoding embedded JSON showed 39 changed leaves: 37 CE identity values
+and two refusal reason/stderr values in `recover-requires-cleanup-failure`.
+The new refusal names bound native completion, matching CE `e5fc498c` and its
+`3b7df148` dangling-worktree hardening. This is a real recovery contract extension,
+not just a stamp update. Existing scenario statuses, exits, refs and cleanup
+outcomes are unchanged. No scenario or normalizer was changed; the new success
+path is outside these twelve captures, as specified in §6 above.
+Raw capture, non-record verification and decoded difference evidence are retained
+in the primary checkout under `tmp/parity-ef33833b-{record,verify,decoded-diff}`
+(with `.log` for runs and `.json` for the decoded diff). These are host-local
+observations; full delivery acceptance belongs to the native integration gate.
+
+The earlier TASK-289 follow-up used clean CE 0.10.13
 `7140701a8f024cd8112d03f25e8595398e3557ea`, matching its owning source and
 installed executable. The checkout-built provider now reports the integration
 resolution source for every target, including `integration=master (config[0])`.
@@ -570,7 +615,7 @@ That provider prose is required by TASK-289, rather than a lifecycle outcome
 change. Reference adoption requires a machine capture of all twelve scenarios,
 fresh non-record verification, and independent comparison of the complete diff.
 
-Physical `processHost` remains literal capture provenance. This follow-up captures
+Physical `processHost` remains literal capture provenance. That follow-up captured
 on `CE-Mac-Studio.local`; it does not normalize host identities or accept a foreign
 host as local. A different physical host may still differ from the reference:
 only the native gate's measured baseline comparison can accept a proven

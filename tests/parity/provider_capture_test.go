@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -42,8 +43,15 @@ func TestParityReferencePinsMatchCapture(t *testing.T) {
 	}
 	contract, err := os.ReadFile(filepath.Join("..", "..", "docs", "design", "RUN_LIFECYCLE_PARITY_CONTRACT.md"))
 	must(t, err)
-	if !bytes.Contains(contract, []byte(pinnedCECommit)) {
-		t.Fatal("parity contract does not declare the captured CE revision")
+	// Historical references may contain the new pin too. Require the active
+	// declaration and toolchain row, rather than any occurrence in the file.
+	reference := regexp.MustCompile("(?s)The current behavioral reference is \\*\\*CE source `ce-agent-kit`\\s*`([0-9a-f]{40})`\\*\\*").FindSubmatch(contract)
+	if len(reference) != 2 || string(reference[1]) != pinnedCECommit {
+		t.Fatal("parity contract current reference does not match the captured CE revision")
+	}
+	toolchainRow := regexp.MustCompile("(?m)^\\| `ce`\\s*\\|[^\\n]+").Find(contract)
+	if !bytes.Contains(toolchainRow, []byte("`"+pinnedCECommit[:8]+"`")) {
+		t.Fatal("parity contract CE toolchain row does not match the captured CE revision")
 	}
 }
 

@@ -1,5 +1,26 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## ef33833b 후속 참조 채택 (2026-10-18)
+
+- 상태: 참조 갱신·집중 검증·독립 strong 검토 완료, native 전체 전달 게이트 대기.
+- clean CE 소스와 설치본이 모두
+  `ef33833b542cbe84be842f8a77293e61bce449ea`로 일치하는 것을 확인했다.
+  기존 `ad92901e` 참조와의 불일치는 짧은 사전 검증에서 재현했다.
+- 12개 시나리오 기계 캡처 18.222초, 계약 문서 갱신 후 별도 full non-record
+  검증 21.213초 성공. 현재 참조·toolchain 행 검사를 강화한 뒤 최종 non-record도
+  24.881초에 성공했다. 최초 non-record의 계약 revision 누락 오류는 문서를
+  함께 갱신해 해결했다. normalizer와 시나리오는 변경하지 않았다.
+- decoded diff의 39개 leaf 중 37개는 CE identity이며, 나머지 둘은 recover
+  거절 reason·stderr다. CE `e5fc498c`의 bound native completion 복구와
+  `3b7df148`의 dangling-link 방어를 계약 §6에 반영했다. 단순 stamp 변경으로
+  분류하지 않는다. 기존 12개 시나리오의 상태·종료·ref·정리 결과는 불변이다.
+- 새 복구 성공 경로는 기존 12개 캡처 범위 밖이다. 소유 CE의 positive·위조
+  증거·자원 잔존·비조상·dangling-link 회귀 검사는 0.493초에 성공했다.
+  이 결과는 consumer capture나 전체 게이트 성공을 대신하지 않는다.
+- raw 근거와 검토 범위는
+  [채택 기록](../../reports/2026-10-18-ce-parity-reference-ef33833b.md)에 있다.
+  과거 실패·해결 기록은 아래에 당시 관측으로 보존한다.
+
 ## 참조 정합화 (2026-10-18)
 
 - status: resolved (참조 불일치만 해결; native 통합 게이트는 별도)
