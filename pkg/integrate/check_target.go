@@ -186,7 +186,7 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	if err := requireRemoteReleaseRef(ctx, g, plan); err != nil {
 		return plan, err
 	}
-	return plan, nil
+	return plan, rejectHeuristicRunPlan(plan, opts)
 }
 
 // resolveSource reads the source commit and holds it to the caller's

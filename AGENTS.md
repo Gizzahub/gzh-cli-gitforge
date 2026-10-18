@@ -19,6 +19,12 @@ LLM-optimized guidance for gzh-cli-gitforge.
 | `make pr-check`        | Pre-PR verification                                                   | Before PR        |
 | `make test-coverage`   | Coverage report                                                       | Check coverage   |
 
+Affected closures containing this module's exact `pkg/integrate` package widen to
+`verify-full`: its integration fixtures exceed the five-minute affected budget.
+This includes reverse dependencies. Keep the existing test selection and timeout
+values; a widened result is not a passing commit profile, and the native full
+gate remains required.
+
 ## Absolute Rules
 
 **DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · A widened profile requires the full integration gate · The native integrator owns `make check` (`verify-full`); do not run it again immediately beforehand · Sanitize all git inputs · 80%+ test coverage for core logic

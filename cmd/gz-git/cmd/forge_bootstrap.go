@@ -6,8 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/forgebootstrap"
 	"github.com/spf13/cobra"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/forgebootstrap"
 )
 
 var (

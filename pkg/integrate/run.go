@@ -62,13 +62,18 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if err := opts.Execution.Validate(); err != nil {
 		return nil, err
 	}
+	if opts.Execution != nil {
+		opts.ExpectSource = opts.Execution.ExpectSource
+	}
+	if err := rejectUnconfirmedHeuristicTarget(ctx, exec, opts.CheckOptions); err != nil {
+		return nil, err
+	}
 	taskFence, err := acquireTaskResourceFence(ctx, exec, opts.RepoPath, opts.Branch, opts.LockNotice)
 	if err != nil {
 		return nil, err
 	}
 	defer taskFence.release()
 	if opts.Execution != nil {
-		opts.ExpectSource = opts.Execution.ExpectSource
 		opts.preMutation = &preMutationCapture{execution: *opts.Execution}
 		dir := strings.TrimSpace(opts.RepoPath)
 		if dir == "" {
@@ -95,6 +100,7 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	// reclaim. Resource slots are acquired only around declared high-load gates.
 	ctx, lock := withTargetLockSlot(ctx)
 	defer lock.release()
+	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if err != nil {
 		report := &RunReport{Check: check}
@@ -132,6 +138,58 @@ func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, check *
 	}
 	report.PreMutationOutcome = outcome
 	return nil
+}
+
+// rejectUnconfirmedHeuristicTarget keeps a remote HEAD fallback observable in
+// Check but requires Run callers to confirm it before any readiness gate can
+// execute. Explicit targets and controller policies are already confirmation.
+func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) error {
+	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.ControllerConfig) != "" {
+		return nil
+	}
+	if err := normalizeExpectedApprovals(&opts); err != nil {
+		return err
+	}
+	g, root, err := openCheckRepo(ctx, exec, opts.RepoPath)
+	if err != nil {
+		return err
+	}
+	decl, err := config.LoadRepoRootTaskPattern(root)
+	if err != nil {
+		return err
+	}
+	if len(opts.IntegrationConfig) == 0 {
+		opts.IntegrationConfig = decl.IntegrationBranch
+	}
+	integration, err := ResolveIntegrationBranch(ctx, exec, g.dir, opts.IntegrationConfig)
+	if err != nil {
+		return err
+	}
+	if integration.Source != SourceHeuristic {
+		return nil
+	}
+	// Check resolves expectation mismatches before readiness gates. Preserve
+	// that ordering while still stopping a heuristic run before a gate, merge,
+	// or push.
+	if opts.ExpectSource != "" || opts.ExpectTarget != "" {
+		if _, err := resolveTarget(ctx, g, exec, opts); err != nil {
+			return err
+		}
+	}
+	return unconfirmedIntegrationTargetError(integration.Name)
+}
+
+// rejectHeuristicRunPlan rechecks the authoritative plan after ownership waits.
+// The early precheck alone cannot authorize a declaration that changes later.
+func rejectHeuristicRunPlan(plan TargetPlan, opts CheckOptions) error {
+	if opts.requireConfirmedTarget && strings.TrimSpace(opts.Target) == "" && strings.TrimSpace(opts.ControllerConfig) == "" && plan.Integration.Source == SourceHeuristic {
+		return unconfirmedIntegrationTargetError(plan.Integration.Name)
+	}
+	return nil
+}
+
+func unconfirmedIntegrationTargetError(name string) error {
+	return fmt.Errorf("integration target %s is inferred from the remote HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", name, name)
 }
 
 // runChecked continues an integration from an immutable readiness report.

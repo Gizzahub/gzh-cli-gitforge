@@ -31,6 +31,28 @@ func TestCheck_UndeclaredTargetsOriginHead(t *testing.T) {
 	if report.Plan.Integration.Name != "main" || report.Plan.Integration.Source != SourceHeuristic {
 		t.Fatalf("integration = %+v, want heuristic main", report.Plan.Integration)
 	}
+	if report.Warnings == 0 || !hasCheckDetail(report, "integration target", checkWarn, "inferred from the remote HEAD") {
+		t.Fatalf("heuristic target must remain usable but visible:\n%s", FormatCheck(report))
+	}
+	if got := FormatCheck(report); !strings.Contains(got, "integration=main (heuristic: remote HEAD)") {
+		t.Fatalf("formatted integration source = %q", got)
+	}
+}
+
+func TestCheck_HeuristicTargetWithRenamedRemote(t *testing.T) {
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	runGit(t, fx.Worktree, "remote", "rename", "origin", "upstream")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "feature/worktree"})
+	if err != nil {
+		t.Fatalf("Check with renamed remote: %v", err)
+	}
+	if report.Plan.Target != "upstream/main" || report.Plan.Integration.Source != SourceHeuristic {
+		t.Fatalf("unexpected heuristic plan: %+v", report.Plan)
+	}
+	formatted := FormatCheck(report)
+	if !strings.Contains(formatted, "integration=main (heuristic: remote HEAD)") || strings.Contains(formatted, "origin/HEAD") {
+		t.Fatalf("resolution must describe the actual remote fallback without assuming origin: %s", formatted)
+	}
 }
 
 func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
@@ -44,6 +66,9 @@ func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
 	}
 	if !report.Ready {
 		t.Fatalf("want READY, got\n%s", FormatCheck(report))
+	}
+	if got := FormatCheck(report); !strings.Contains(got, "integration=develop (config[0])") {
+		t.Fatalf("declared integration source missing from check report: %q", got)
 	}
 }
 
