@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`8f7c2963e27128e7d112a42b1f6c17bf039514aa`**, installed as CE 0.10.13 with
+`d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`**, installed as CE 0.10.13 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.13 (`8f7c2963`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.13 (`d7c88ff6`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -704,3 +704,19 @@ toolchain. Toolchain upgrades (ce/wt/gz-git) intentionally require
 re-recording — that is the pin doing its job. A behavioral change is accepted
 only after the scenario's explicit contract is updated and the CE capture
 passes; fixture bytes are never hand-edited to hide a divergence.
+
+
+## 2026-10-19 rebase recapture
+
+The refresh preserves target `9174d8e6` provider behavior and history, and captures
+all twelve scenarios from clean installed CE `d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`.
+Capture passed in 32.147s, focused non-record verification in 34.290s, and the
+full non-record parity package in 30.199s. The current decoded diff has 39 leaves:
+12 reference stamps, 12 CE toolchain stamps, 13 receipt tool-version stamps
+(including five captured stdout values), and two literal physical host values.
+The target captured those two `processHost` values on `CEui-MacBookPro.local`;
+this capture records `CE-Mac-Studio.local`. No normalizer changed. Lifecycle
+outcomes and logical owners are unchanged. The 2026-10-18 37-leaf comparison
+and timings apply only to its earlier base. Raw logs remain in the primary
+checkout under `tmp/issue41-ce429-parity-reference/`. Native acceptance remains
+separate from reference adoption.

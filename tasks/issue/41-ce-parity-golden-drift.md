@@ -421,3 +421,41 @@ readiness runner 예산 후보의 최초 native 전달은 설치 CE `e8307aa4`�
 [원본 영수증](../../docs/task-reviews/readiness-runner-budget/first-finish.json)을 보존한다.
 이번에는 별도의 실행 잠금 테스트 진단이 source에 추가돼 native가 BLOCKED를 반환했다.
 parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 결과는 전달 성공이 아니다.
+
+## 2026-10-18 CE429 참조 갱신
+
+설치된 CE 0.10.13 `d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`
+(`Build: 288-gd7c88ff6`, `Dirty: false`)를 새 behavioral reference로 채택했다.
+`PARITY_RECORD=1` 전체 열두 시나리오 capture는 33.611초에 성공했고,
+`CE_BIN=/Users/archmagece/go/bin/ce`, `GOWORK=off`, `GOMAXPROCS=4`, package
+worker 4 및 test parallel 1을 고정했다. physical `processHost`는
+`CE-Mac-Studio.local`을 literal provenance로 보존했으며 normalizer는 변경하지
+않았다.
+
+완전 decoded 비교에서 37개 leaf 변경은 reference 12개, CE toolchain stamp 12개,
+receipt `tool_version` 13개(그중 5개는 captured JSON stdout)뿐이다. status,
+exit, allowed action, owner, source/ref, push, worktree, cleanup 및
+`processHost` 변경은 없다. capture 직후 non-record 검증은 계약에 새 revision이
+아직 선언되지 않아 `TestParityReferencePinsMatchCapture`에서 의도대로 실패했고,
+계약 동기화 뒤 fresh non-record 검증은 28.102초에 통과했다.
+원시 로그는 source primary의
+`tmp/issue41-ce429-parity-reference/{capture-d7c88ff6,verify-*-d7c88ff6}.log`에
+보존한다. 이 참조 갱신은 native port 또는 native integration gate의 수용을
+의미하지 않는다.
+
+
+## 2026-10-19 최신 기반 재캡처
+
+위 2026-10-18의 37개 leaf 비교와 시간은 이전 기반의 과거 근거다.
+최신 target `9174d8e6`의 provider 동작과 이력을 보존하고 clean CE `d7c88ff6`로
+12개 시나리오를 새로 캡처했다(32.147초). focused 비교는 34.290초,
+참조 pin과 provider-capture 검사를 포함한 전체 non-record parity 패키지는
+30.199초에 통과했다.
+
+현재 비교는 39개 leaf다: reference 12, toolchain 12, receipt tool-version 13
+(그중 stdout 내부 5), physical processHost 2. 두 호스트 값은 target의
+`CEui-MacBookPro.local`에서 현재 캡처 장비 `CE-Mac-Studio.local`로 바뀌었다.
+이는 literal provenance이며 normalizer 변경이 아니다. 상태·exit·논리 owner·ref·
+push·worktree·cleanup 결과는 유지했다. 원시 로그와 상세 비교는
+[갱신 보고서](../../reports/2026-10-18-issue41-ce429-parity-reference.md)에 기록한다.
+전체 native gate 수용은 별도로 확인해야 한다.

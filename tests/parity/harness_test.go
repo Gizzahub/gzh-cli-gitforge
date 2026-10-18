@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "8f7c2963e27128e7d112a42b1f6c17bf039514aa"
+	pinnedCECommit = "d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
