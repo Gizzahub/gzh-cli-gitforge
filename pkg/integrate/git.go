@@ -337,7 +337,7 @@ func (g gitRepo) worktreeRemoveForce(ctx context.Context, path string) error {
 	if res.ExitCode != 0 {
 		failure := fmt.Errorf("git worktree remove %s failed (exit %d): %s", boundedReadinessPath(path), res.ExitCode, worktreeRemoveFailureDetail(ctx, res))
 		if res.Error != nil {
-			failure = errors.Join(failure, boundedGitCause{cause: res.Error})
+			failure = errors.Join(failure, boundedGitError{cause: res.Error})
 		}
 		if ctx != nil && ctx.Err() != nil {
 			return errors.Join(failure, ctx.Err())
@@ -347,10 +347,10 @@ func (g gitRepo) worktreeRemoveForce(ctx context.Context, path string) error {
 	return nil
 }
 
-type boundedGitCause struct{ cause error }
+type boundedGitError struct{ cause error }
 
-func (e boundedGitCause) Error() string { return boundedDetail(e.cause.Error()) }
-func (e boundedGitCause) Unwrap() error { return e.cause }
+func (e boundedGitError) Error() string { return boundedDetail(e.cause.Error()) }
+func (e boundedGitError) Unwrap() error { return e.cause }
 
 func worktreeRemoveFailureDetail(ctx context.Context, res *gitcmd.Result) string {
 	parts := make([]string, 0, 2)

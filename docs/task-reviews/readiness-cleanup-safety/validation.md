@@ -54,3 +54,22 @@ exit 0(22.075s)을 확인했다. 실제 사용자 저장소는 사용하지 않�
 결정과 실패 시 자료 보존, 실제 사례의 원인 미확정 경계를 함께 검토했다.
 설치본 및 과거 실패 자원은 변경하지 않았다. 이 문서는 commit 전 검증 기록이며
 최종 native full·통합·push·회수 판정은 해당 CE 실행 영수증과 실제 ref로 확인한다.
+
+
+## 첫 native 전달 시도
+
+`70cc360aef22a9b93a8780af586364a18eff095b` 전달은 2026-10-18T16:02:25Z에
+BLOCKED로 종료했다. 후보 `make check`는 formatting을 통과한 뒤 오류 타입명·변수명과
+두 함수의 cognitive complexity, 총 4개 lint 오류에서 종료했다. baseline 측 검사는
+FIFO resource admission 시간 초과로 측정되지 않았다. 따라서 full PASS가 아니며
+source push·worktree/branch 회수도 수행되지 않았다.
+
+진단 원본은 `~/.local/state/gz-git/integrate/diagnostics/make-check-1010465594.log`이며,
+CE task `readiness-cleanup-safety`의 BLOCKED 영수증이 전달 결과를 보존한다.
+린트 오류는 이름 수정과 신원 검증·정리 결과 처리 함수 추출로 바로잡는다.
+이름 변경과 함수 분리는 삭제 권한·검증 순서·실패 보존·자동 재시도 정책을 바꾸지 않는다.
+
+린트 보정 후 동일 회귀 명령 exit 0(39.570s), 전체 `golangci-lint run`
+exit 0(`0 issues.`), 독립 strong 재리뷰 PASS와 diff check 통과를 확인했다.
+최종 보정은 `(bool, error)` 결과 순서를 쓰며 보존 여부는 기존 값과 OR한다.
+commit profile은 여전히 full로 확대되며 최종 native 전달 결과를 대신하지 않는다.

@@ -127,11 +127,11 @@ func TestReadinessCleanupRefusesChangedHeadUnregisteredAndRemovalSymlink(t *test
 
 func TestReadinessCleanupDoesNotRetryRemoveFailure(t *testing.T) {
 	fx := readinessFixture(t)
-	real := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	realRepo := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	path := filepath.Join(t.TempDir(), "target")
 	head := gitOutput(t, fx.Worktree, "rev-parse", "develop")
 	runGit(t, fx.Worktree, "worktree", "add", "--detach", path, head)
-	identity, err := captureReadinessWorktree(context.Background(), real, path, head)
+	identity, err := captureReadinessWorktree(context.Background(), realRepo, path, head)
 	if err != nil {
 		t.Fatal(err)
 	}

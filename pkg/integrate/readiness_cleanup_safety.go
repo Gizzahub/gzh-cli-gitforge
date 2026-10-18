@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,23 +74,8 @@ func verifyReadinessWorktree(ctx context.Context, g gitRepo, want readinessWorkt
 	if want.path == "" || want.head == "" || want.commonDir == "" {
 		return fmt.Errorf("readiness worktree identity is incomplete")
 	}
-	if got, err := legacyPhysicalIdentity(want.commonDir, true); err != nil || got != want.common {
-		if err != nil {
-			return fmt.Errorf("verify readiness common repository: %w", err)
-		}
-		return fmt.Errorf("verify readiness common repository: physical identity changed")
-	}
-	if got, err := legacyPhysicalIdentity(want.path, true); err != nil || got != want.directory {
-		if err != nil {
-			return fmt.Errorf("verify readiness worktree %s directory: %w", boundedReadinessPath(want.path), err)
-		}
-		return fmt.Errorf("verify readiness worktree %s: directory identity changed", boundedReadinessPath(want.path))
-	}
-	if got, err := legacyPhysicalIdentity(filepath.Join(want.path, ".git"), false); err != nil || got != want.gitFile {
-		if err != nil {
-			return fmt.Errorf("verify readiness worktree %s gitfile: %w", boundedReadinessPath(want.path), err)
-		}
-		return fmt.Errorf("verify readiness worktree %s: gitfile identity changed", boundedReadinessPath(want.path))
+	if err := verifyReadinessPhysicalIdentity(want); err != nil {
+		return err
 	}
 	worktree := newGitRepo(g.exec, want.path)
 	top, err := worktree.toplevel(ctx)
@@ -127,6 +113,43 @@ func verifyReadinessWorktree(ctx context.Context, g gitRepo, want readinessWorkt
 		}
 	}
 	return fmt.Errorf("verify readiness worktree %s: no matching registration", boundedReadinessPath(want.path))
+}
+
+func verifyReadinessPhysicalIdentity(want readinessWorktreeIdentity) error {
+	if got, err := legacyPhysicalIdentity(want.commonDir, true); err != nil || got != want.common {
+		if err != nil {
+			return fmt.Errorf("verify readiness common repository: %w", err)
+		}
+		return fmt.Errorf("verify readiness common repository: physical identity changed")
+	}
+	if got, err := legacyPhysicalIdentity(want.path, true); err != nil || got != want.directory {
+		if err != nil {
+			return fmt.Errorf("verify readiness worktree %s directory: %w", boundedReadinessPath(want.path), err)
+		}
+		return fmt.Errorf("verify readiness worktree %s: directory identity changed", boundedReadinessPath(want.path))
+	}
+	if got, err := legacyPhysicalIdentity(filepath.Join(want.path, ".git"), false); err != nil || got != want.gitFile {
+		if err != nil {
+			return fmt.Errorf("verify readiness worktree %s gitfile: %w", boundedReadinessPath(want.path), err)
+		}
+		return fmt.Errorf("verify readiness worktree %s: gitfile identity changed", boundedReadinessPath(want.path))
+	}
+	return nil
+}
+
+func accumulateReadinessCleanup(ctx context.Context, g gitRepo, identity readinessWorktreeIdentity, current error, preserveRoot bool) (bool, error) {
+	cleanupErr := removeReadinessWorktree(ctx, g, identity)
+	return preserveRoot || cleanupErr != nil, errors.Join(current, cleanupErr)
+}
+
+func finishReadinessRoot(ctx context.Context, g gitRepo, root string, identity LegacyFileIdentity, siblings, preserve bool) error {
+	if preserve {
+		return fmt.Errorf("retained readiness workspace after cleanup failure: %s", root)
+	}
+	if err := removeEmptyReadinessRoot(ctx, g, root, identity, siblings); err != nil {
+		return fmt.Errorf("cleanup readiness workspace: %w", err)
+	}
+	return nil
 }
 
 func removeReadinessWorktree(parent context.Context, g gitRepo, identity readinessWorktreeIdentity) error {

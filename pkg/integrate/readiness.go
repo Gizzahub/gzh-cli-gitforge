@@ -221,13 +221,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		}
 	}()
 	defer func() {
-		if preserveRoot {
-			err = errors.Join(err, fmt.Errorf("retained readiness workspace after cleanup failure: %s", root))
-			return
-		}
-		if removeErr := removeEmptyReadinessRoot(ctx, g, root, rootIdentity, hasSiblings); removeErr != nil {
-			err = errors.Join(err, fmt.Errorf("cleanup readiness workspace: %w", removeErr))
-		}
+		err = errors.Join(err, finishReadinessRoot(ctx, g, root, rootIdentity, hasSiblings, preserveRoot))
 	}()
 	targetDir, sourceDir := filepath.Join(root, "target"), filepath.Join(root, "source")
 	if hasSiblings {
@@ -249,13 +243,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		preserveRoot = true
 		return readinessResult{Status: "unavailable"}, 0, captureErr
 	}
-	defer func() {
-		cleanupErr := removeReadinessWorktree(ctx, g, targetIdentity)
-		if cleanupErr != nil {
-			preserveRoot = true
-		}
-		err = errors.Join(err, cleanupErr)
-	}()
+	defer func() { preserveRoot, err = accumulateReadinessCleanup(ctx, g, targetIdentity, err, preserveRoot) }()
 	if err := g.worktreeAddDetach(ctx, sourceDir, plan.BranchSHA); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
@@ -264,13 +252,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		preserveRoot = true
 		return readinessResult{Status: "unavailable"}, 0, captureErr
 	}
-	defer func() {
-		cleanupErr := removeReadinessWorktree(ctx, g, sourceIdentity)
-		if cleanupErr != nil {
-			preserveRoot = true
-		}
-		err = errors.Join(err, cleanupErr)
-	}()
+	defer func() { preserveRoot, err = accumulateReadinessCleanup(ctx, g, sourceIdentity, err, preserveRoot) }()
 	var siblingEvidence string
 	var siblingLeases []SiblingLease
 	if hasSiblings {
