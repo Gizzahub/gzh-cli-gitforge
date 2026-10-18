@@ -48,3 +48,12 @@ go test ./pkg/integrate -run 'Test(RunContractTimeoutCleansDetachedWorktrees|Exe
 
 설치된 도구를 수정하거나 PATH를 바꾸지 않는다. 공개 릴리스·workstation 설치와
 소비 저장소의 재통합은 각각 지정 경로와 실제 receipt로 확인한다.
+
+## 실제 native 통합 시도
+
+후보 `09565294`를 push한 뒤 CE `run-finish readiness-cleanup-preservation`을 실행했다.
+provider는 `refs/heads/master` ownership 대기에서 전체 검사에 진입하지 못했다.
+17분 이상 대기를 확인하고 이번 provider만 SIGINT로 취소했다. CE 결과는 BLOCKED이며
+source `1db93c1b`는 그대로이고 source push·worktree 회수는 모두 false다.
+다른 세션 lock은 보존했다. 시간 상한 공백은 [ISSUE-54](../../../tasks/issue/54-target-ownership-wait-unbounded.md)에
+등록했다. 집중 검사 PASS와 실제 전체 게이트 미실행을 구분하며 source 전달은 미완료다.
