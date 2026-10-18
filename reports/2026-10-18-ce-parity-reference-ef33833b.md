@@ -53,3 +53,17 @@ DVA의 commit/full profile은 확인했지만 focused parity·CE unit 명령은 
 범위, decoded diff, 정확한 후보 CE의 소유 회귀 검사와 소비자 성공 경로 미검증
 제한을 대조했다. 새 복구 경로를 gz-git이 구현·의존하거나 호환성을 보장할 때는
 별도 consumer scenario가 필요하다. 이번 참조 채택에서는 그 보장을 추가하지 않는다.
+
+## 첫 native 전달 시도: 측정 불가
+
+후보 `0a46c87b`의 native 전달은 FIFO 자원 대기 중 `context deadline exceeded`로
+거절됐다. `resource_wait_duration_ms`는 401,461이며 전체 게이트는 하나도 측정되지
+않았다. source·target 신선도와 clean/pushed 상태는 통과했고 push/reclaim은 없다.
+원시 receipt와 stderr는 primary의 `tmp/parity-ef33833b-finish-0a46c87b.*`에 있다.
+
+관측 당시 슬롯 소유 PID 89296은 sigdock-idp-rs의 실행 중인 검증이었다.
+같은 원격 관측 프로브 deadline을 다루는 기존 소유 작업은 gitforge
+`dev/codex/mbp/fix/resource-probe-timeout`의 ISSUE-54
+(`tasks/issue/54-resource-probe-deadline.md`, 당시 commit `6c490c89`)다.
+이 기록은 해당 수정의 채택·설치를 승인하거나 반복 대기를 해결했다고 주장하지 않는다.
+슬롯 소유자와 잠금을 보존하고 가용성을 확인한 뒤 원래 native 전달을 재시도한다.
