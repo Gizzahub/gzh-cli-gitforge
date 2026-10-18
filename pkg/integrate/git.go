@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -331,12 +332,41 @@ func (g gitRepo) worktreeAddDetach(ctx context.Context, path, sha string) error 
 func (g gitRepo) worktreeRemoveForce(ctx context.Context, path string) error {
 	res, err := g.run(ctx, "worktree", "remove", "--force", path)
 	if err != nil {
-		return err
+		return fmt.Errorf("git worktree remove %s: %w", boundedReadinessPath(path), err)
 	}
 	if res.ExitCode != 0 {
-		return fmt.Errorf("git worktree remove failed: %s", strings.TrimSpace(res.Stderr))
+		failure := fmt.Errorf("git worktree remove %s failed (exit %d): %s", boundedReadinessPath(path), res.ExitCode, worktreeRemoveFailureDetail(ctx, res))
+		if res.Error != nil {
+			failure = errors.Join(failure, boundedGitCause{cause: res.Error})
+		}
+		if ctx != nil && ctx.Err() != nil {
+			return errors.Join(failure, ctx.Err())
+		}
+		return failure
 	}
 	return nil
+}
+
+type boundedGitCause struct{ cause error }
+
+func (e boundedGitCause) Error() string { return boundedDetail(e.cause.Error()) }
+func (e boundedGitCause) Unwrap() error { return e.cause }
+
+func worktreeRemoveFailureDetail(ctx context.Context, res *gitcmd.Result) string {
+	parts := make([]string, 0, 2)
+	if res != nil && strings.TrimSpace(res.Stderr) != "" {
+		parts = append(parts, boundedDetail(strings.TrimSpace(res.Stderr)))
+	}
+	if res != nil && res.Error != nil {
+		parts = append(parts, boundedDetail(res.Error.Error()))
+	}
+	if ctx != nil && ctx.Err() != nil {
+		parts = append(parts, ctx.Err().Error())
+	}
+	if len(parts) == 0 {
+		return "no stderr"
+	}
+	return strings.Join(parts, "; ")
 }
 
 func parseAheadBehind(raw string) (ahead, behind int, err error) {

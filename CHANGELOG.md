@@ -32,6 +32,11 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Fixed
 
+- Readiness worktree cleanup preserves failed workspaces instead of deleting
+  their files behind Git's registration. Removal verifies the expected detached
+  worktree identity and reports bounded exit, stderr and cancellation details;
+  unknown failures are not retried automatically. Prepare patch 0.10.5.
+
 - Resource-wait target observations now use the remaining acquisition budget
   instead of a separate five-second deadline. Healthy slow remote refreshes no
   longer cancel finite or explicitly unbounded admission early; observation
