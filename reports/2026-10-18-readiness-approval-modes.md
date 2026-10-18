@@ -1,5 +1,31 @@
 # Readiness 승인 모드 구현·검증 기록
 
+## 최종 전달 완료 (2026-10-18)
+
+아래 재개·최초 기록은 당시 관측이다. 이후 native 전체 게이트를 통과해
+수동·자동 승인 모드를 통합하고 설치했다. 자동 정책은 활성화하지 않았으며
+설치본의 유효 정책은 기본값 `manual`이다.
+
+- gitforge: `master`의 `1db93c1b6b1cef49586fe53645a60b7ef5e377e2`까지
+  원격 푸시·설치 완료. native 전체 검증은 945,153ms에 통과했다.
+- devenv: `master`의 `1ecf454ae8737fcb94a311afa7abb02eafd147b0`까지
+  원격 푸시·설치 완료. 최종 native 검증은 218,485ms에 통과했다.
+  기존 iTerm2 CurrentDir 검사 실패는 기준선 대비 비악화로 판정됐으며,
+  모든 개별 검사가 성공했다는 뜻은 아니다. 소유 이슈는 devenv `ISSUE-029`다.
+- 두 delivery의 receipt는 `DONE`, `sourcePushed: true`이며 worktree,
+  로컬·원격 task branch 제거를 모두 확인했다. 이전 유지 안내는 종료됐다.
+- 설치된 CLI로 수동 거절·승인, 자동의 문장 출력만으로는 거절,
+  유효한 ready JSON과 성공 종료 시 적용의 네 합성 시나리오를 확인했다.
+  설치된 launcher도 `manual` 정책에서 자동 요청을 exit 2로 거부했다.
+- 설치 전후 선택된 모델·provider·reasoning 설정과 Docker 설정 바이트·0600
+  권한을 비교해 보존을 확인했다.
+
+원시 native receipt는 각 primary checkout의
+`tmp/readiness-approval-finish-1db93c1.json`(gitforge)과
+`tmp/readiness-feature-finish-1ecf454a.json`(devenv)에 있다. 설치 로그는
+각각 `tmp/readiness-gitforge-install.log`, `tmp/readiness-final-install.log`다.
+이 경로는 실행 호스트의 보조 증거이며 배포 파일이나 재사용 승인서는 아니다.
+
 ## 후속 재개 (2026-10-18)
 
 CE 참조 불일치는 clean source/executable `ad92901e`를 채택하고 열두 시나리오
