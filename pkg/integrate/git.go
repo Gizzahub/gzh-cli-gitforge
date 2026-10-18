@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -330,11 +331,23 @@ func (g gitRepo) worktreeAddDetach(ctx context.Context, path, sha string) error 
 
 func (g gitRepo) worktreeRemoveForce(ctx context.Context, path string) error {
 	res, err := g.run(ctx, "worktree", "remove", "--force", path)
-	if err != nil {
-		return err
-	}
-	if res.ExitCode != 0 {
-		return fmt.Errorf("git worktree remove failed: %s", strings.TrimSpace(res.Stderr))
+	if err != nil || res == nil || res.ExitCode != 0 {
+		if res == nil {
+			cause := errors.Join(err, ctx.Err())
+			if cause == nil {
+				cause = fmt.Errorf("git returned no result")
+			}
+			return fmt.Errorf("git worktree remove failed without a result: %w", cause)
+		}
+		detail := strings.TrimSpace(res.Stderr)
+		if detail == "" {
+			detail = "no stderr"
+		}
+		cause := errors.Join(err, res.Error, ctx.Err())
+		if cause == nil {
+			cause = fmt.Errorf("git exited non-zero")
+		}
+		return fmt.Errorf("git worktree remove failed (exit code %d, duration %s): %s: %w", res.ExitCode, res.Duration, detail, cause)
 	}
 	return nil
 }

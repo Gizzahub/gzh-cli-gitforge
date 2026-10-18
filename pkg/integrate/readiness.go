@@ -26,6 +26,9 @@ const (
 	readinessMaxSummary  = 4096
 	readinessMaxManifest = 64 << 10
 	readinessWaitDelay   = 2 * time.Second
+	// Cleanup is Git work, so it uses the executor's normal command budget.
+	// It deliberately outlives a canceled readiness runner context.
+	readinessCleanupTimeout = 5 * time.Minute
 )
 
 type readinessContract struct {
@@ -43,6 +46,11 @@ type readinessResult struct {
 	Summary string `json:"summary"`
 	stderr  []byte
 	failure *ReadinessFailure
+}
+
+type readinessCleanupState struct {
+	err          error
+	preserveRoot bool
 }
 
 func loadReadinessContract(ctx context.Context, g gitRepo, sha string) (readinessContract, bool, error) {
@@ -210,15 +218,15 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("create isolated worktrees: %w", err)
 	}
-	preserveRoot := false
+	cleanup := &readinessCleanupState{}
 	defer func() {
 		if err != nil {
 			result.Status = "unavailable"
 		}
 	}()
 	defer func() {
-		if preserveRoot {
-			err = errors.Join(err, fmt.Errorf("retained readiness workspace after sibling cleanup failure: %s", root))
+		if cleanup.preserveRoot {
+			err = errors.Join(err, cleanup.err, fmt.Errorf("retained readiness workspace after cleanup failure: %s", root))
 			return
 		}
 		if removeErr := os.RemoveAll(root); removeErr != nil {
@@ -240,11 +248,11 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	if err := g.worktreeAddDetach(ctx, targetDir, plan.TargetSHA); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
-	defer func() { err = mergeCleanupError(ctx, err, g, targetDir) }()
+	defer cleanupReadinessWorktree(ctx, g, targetDir, cleanup)
 	if err := g.worktreeAddDetach(ctx, sourceDir, plan.BranchSHA); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
-	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
+	defer cleanupReadinessWorktree(ctx, g, sourceDir, cleanup)
 	var siblingEvidence string
 	var siblingLeases []SiblingLease
 	if hasSiblings {
@@ -255,7 +263,9 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		siblingLeases = leases
 		defer func() {
 			cleanupErr := releaseReadinessSiblings(leases)
-			preserveRoot = cleanupErr != nil
+			if cleanupErr != nil {
+				cleanup.preserveRoot = true
+			}
 			err = errors.Join(err, cleanupErr)
 		}()
 		siblingEvidence = evidence
@@ -269,27 +279,17 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		runnerEnv = ndPreparationEnv(runnerEnv, cargoTarget)
 		siblingEvidence += "; preparation " + contract.Decl.PrepareProfile
 	}
-	runnerDir := targetDir
-	if candidate {
-		runnerDir = sourceDir
-	}
+	runnerDir := readinessRunnerDir(targetDir, sourceDir, candidate)
 	runner := filepath.Join(runnerDir, filepath.FromSlash(contract.Decl.Runner))
-	if resourceHighLoad {
-		waitStarted := time.Now()
-		runnerCtx, releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)
-		if opts.resourceWait != nil {
-			*opts.resourceWait += time.Since(waitStarted)
-		}
-		if acquireErr != nil {
-			return readinessResult{Status: "unavailable"}, 0, acquireErr
-		}
-		// Registered after the worktree cleanup defers, so it runs first: Git
-		// cleanup remains outside the machine resource slot.
-		defer releaseSlot()
-		ctx = runnerCtx
+	runnerCtx, releaseSlot, acquireErr := readinessRunnerContext(ctx, g, resourceHighLoad, opts)
+	if acquireErr != nil {
+		return readinessResult{Status: "unavailable"}, 0, acquireErr
 	}
+	// Registered after the worktree cleanup defers, so it runs first: Git
+	// cleanup remains outside the machine resource slot.
+	defer releaseSlot()
 	started := time.Now()
-	result, err = executeReadinessWithEnvironment(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout, runnerEnv)
+	result, err = executeReadinessWithEnvironment(runnerCtx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout, runnerEnv)
 	duration = time.Since(started)
 	// ReadinessDuration keeps reporting the whole runner-execution span,
 	// while validation time accumulates inside it around the started process
@@ -300,15 +300,41 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	return result, duration, err
 }
 
-func mergeCleanupError(parent context.Context, current error, g gitRepo, dir string) error {
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), 30*time.Second)
+func readinessRunnerDir(targetDir, sourceDir string, candidate bool) string {
+	if candidate {
+		return sourceDir
+	}
+	return targetDir
+}
+
+func readinessRunnerContext(ctx context.Context, g gitRepo, resourceHighLoad bool, opts CheckOptions) (context.Context, func(), error) {
+	if !resourceHighLoad {
+		return ctx, func() {}, nil
+	}
+	waitStarted := time.Now()
+	runnerCtx, releaseSlot, err := holdMeasurementLock(ctx, g, opts)
+	if opts.resourceWait != nil {
+		*opts.resourceWait += time.Since(waitStarted)
+	}
+	return runnerCtx, releaseSlot, err
+}
+
+func cleanupReadinessWorktree(parent context.Context, g gitRepo, dir string, state *readinessCleanupState) {
+	cleanupErr := mergeCleanupError(parent, g, dir)
+	if cleanupErr != nil {
+		state.preserveRoot = true
+		state.err = errors.Join(state.err, cleanupErr)
+	}
+}
+
+func mergeCleanupError(parent context.Context, g gitRepo, dir string) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), readinessCleanupTimeout)
 	defer cancel()
 	if err := g.worktreeRemoveForce(cleanupCtx, dir); err != nil {
 		removeErr := fmt.Errorf("cleanup readiness worktree: %w", err)
-		fsErr := os.RemoveAll(dir)
-		return errors.Join(current, removeErr, fsErr)
+		return removeErr
 	}
-	return current
+	return nil
 }
 
 func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration) (readinessResult, error) {

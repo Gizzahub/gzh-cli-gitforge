@@ -486,6 +486,18 @@ func TestExecuteReadinessParentDeadlineDoesNotInventRunnerBudgetTimeout(t *testi
 
 func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
 	fx := readinessFixture(t)
+	cleanupPath := filepath.Join(t.TempDir(), "canceled-parent")
+	runGit(t, fx.Clone, "worktree", "add", "--detach", cleanupPath, "develop")
+	parent, cancel := context.WithCancel(context.Background())
+	cancel()
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	if err := mergeCleanupError(parent, g, cleanupPath); err != nil {
+		t.Fatalf("cleanup after parent cancellation: %v", err)
+	}
+	if _, err := os.Stat(cleanupPath); !os.IsNotExist(err) {
+		t.Fatalf("canceled-parent worktree survives: %v", err)
+	}
+
 	unrelated := filepath.Join(t.TempDir(), "unrelated")
 	runGit(t, fx.Clone, "worktree", "add", "--detach", unrelated, "develop")
 	if err := os.RemoveAll(unrelated); err != nil {
@@ -500,18 +512,75 @@ func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
 	if err := os.MkdirAll(notRegistered, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
-	if err := mergeCleanupError(context.Background(), nil, g, notRegistered); err == nil {
+	if err := mergeCleanupError(context.Background(), g, notRegistered); err == nil {
 		t.Fatal("unregistered cleanup path unexpectedly succeeded")
+	} else if !strings.Contains(err.Error(), "exit code") || !strings.Contains(err.Error(), "duration") {
+		t.Fatalf("cleanup diagnostics omit exit code or duration: %v", err)
 	}
 	after := gitOutput(t, fx.Clone, "worktree", "list", "--porcelain")
 	if !strings.Contains(after, "/unrelated\n") {
 		t.Fatalf("readiness cleanup pruned unrelated metadata:\n%s", after)
 	}
-	if _, err := os.Stat(notRegistered); !os.IsNotExist(err) {
-		t.Fatalf("exact failed cleanup path remains: %v", err)
+	if _, err := os.Stat(notRegistered); err != nil {
+		t.Fatalf("failed cleanup path was not preserved: %v", err)
+	}
+	if err := os.Remove(notRegistered); err != nil {
+		t.Fatal(err)
 	}
 	runGit(t, fx.Clone, "worktree", "prune", "--expire", "now")
+}
+
+func TestRunContractRetainsWorkspaceWhenGitRemovalFails(t *testing.T) {
+	fx := readinessFixture(t)
+	shim := filepath.Join(t.TempDir(), "git")
+	if err := os.WriteFile(shim, []byte("#!/bin/sh\nif [ \"$1\" = worktree ] && [ \"$2\" = remove ]; then echo injected-remove-failure >&2; exit 73; fi\nexec git \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	isolatedTemp := t.TempDir()
+	t.Setenv("TMPDIR", isolatedTemp)
+	g := newGitRepo(gitcmd.NewExecutor(gitcmd.WithGitBinary(shim)), fx.Worktree)
+	plan := TargetPlan{BranchSHA: gitOutput(t, fx.Worktree, "rev-parse", "HEAD"), TargetSHA: gitOutput(t, fx.Worktree, "rev-parse", "develop")}
+	contract, present, err := loadReadinessContract(context.Background(), g, plan.TargetSHA)
+	if err != nil || !present {
+		t.Fatalf("load readiness contract: %+v, %v", contract, err)
+	}
+	_, _, err = runContractWithResource(context.Background(), g, plan, contract, false, CheckOptions{})
+	if err == nil || !strings.Contains(err.Error(), "retained readiness workspace after cleanup failure") || !strings.Contains(err.Error(), "exit code 73") || !strings.Contains(err.Error(), "duration") {
+		t.Fatalf("cleanup failure diagnostics = %v", err)
+	}
+	entries, readErr := os.ReadDir(isolatedTemp)
+	if readErr != nil || len(entries) != 1 {
+		t.Fatalf("retained workspace entries = %v, %v", entries, readErr)
+	}
+	root := filepath.Join(isolatedTemp, entries[0].Name())
+	for _, name := range []string{"target", "source"} {
+		path := filepath.Join(root, name)
+		if _, statErr := os.Stat(path); statErr != nil {
+			t.Fatalf("failed cleanup worktree %q was removed: %v", name, statErr)
+		}
+		runGit(t, fx.Worktree, "worktree", "remove", "--force", path)
+	}
+	if err := os.Remove(root); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWorktreeRemoveForceReportsTimeoutDiagnostics(t *testing.T) {
+	shim := filepath.Join(t.TempDir(), "git")
+	if err := os.WriteFile(shim, []byte("#!/bin/sh\nexec sleep 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	err := newGitRepo(gitcmd.NewExecutor(gitcmd.WithGitBinary(shim)), t.TempDir()).worktreeRemoveForce(ctx, t.TempDir())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("remove timeout error = %v, want deadline exceeded", err)
+	}
+	for _, detail := range []string{"exit code", "duration", "no stderr"} {
+		if !strings.Contains(err.Error(), detail) {
+			t.Fatalf("remove timeout diagnostics omit %q: %v", detail, err)
+		}
+	}
 }
 
 func TestExecuteReadiness_NonzeroAndOversizeFailUnavailable(t *testing.T) {
