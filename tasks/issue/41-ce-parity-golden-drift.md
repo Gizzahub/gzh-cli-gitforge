@@ -1,5 +1,18 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 8f7c2963 추가 채택 (2026-10-18)
+
+- 상태: 참조 정합화 검증 완료 — 최종 전달은 native receipt로 확인한다.
+  통합 대기 중 소스·설치 CE가 clean `8f7c2963`으로 변경됐다.
+  사용자가 추가 후보의 의미 검토·회귀 검사·기계 재수집 후 채택을 승인했다.
+- 소유 CE의 source resolver·native completion·decisions 검증 관련 집중 검사
+  통과. 재수집한 12개 시나리오의 decoded 차이는 CE identity 37개뿐이며
+  normalizer·시나리오·상태·종료·권한·ref·push·cleanup은 변경하지 않았다.
+- targeted record 62.939초와 별도 전체 non-record 44.028초에 성공했고,
+  검사 전후 실행 파일 해시가 일치했다.
+- 아래 ef33833b 결과는 역사적 관측이다. 현재 검증과 최종 native 전달 근거는
+  [채택 기록](../../reports/2026-10-18-ce-parity-reference-ef33833b.md)의 현재 후보 절을 따른다.
+
 ## ef33833b 후속 참조 채택 (2026-10-18)
 
 - 상태: resolved — 참조 정합화와 독립 strong 검토 완료. 최종 전달 판정은

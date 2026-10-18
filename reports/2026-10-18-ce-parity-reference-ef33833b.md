@@ -1,5 +1,33 @@
 # CE parity 참조 ef33833b 채택 기록
 
+## 현재 후보: 8f7c2963 추가 채택
+
+통합 대기 중 다른 세션에서 소스와 설치 CE가 clean
+`8f7c2963e27128e7d112a42b1f6c17bf039514aa`로 갱신됐다. 사용자는 의미 검토와
+재검증 후 이 후보를 채택하도록 추가 승인했다. 아래 ef33833b 관측은 당시
+이력이며 현재 후보의 검증을 대신하지 않는다. 기존 파일명과 작업 이름도
+착수 이력을 유지한다.
+
+추가 세 커밋 중 두 개는 문서이며, 제품 변경은 decisions 검증을
+`ce validate decisions`로 분리하고 source branch resolver를 공유한다.
+선언 우선·origin/HEAD fallback·읽기/파싱 오류 거절은 유지된다. 소유 CE의
+source/Change-Id/native completion 회귀 검사와 decisions·adapter·CLI 배선
+집중 검사는 모두 통과했다. 이 검사는 전체 CE 게이트를 대신하지 않는다.
+
+12개 golden을 재수집한 decoded diff는 ef33833b 대비 CE identity 37개뿐이다.
+상태·종료 코드·권한·ref·push·cleanup과 `config[0]` 진단은 동일하다.
+normalizer·시나리오는 변경하지 않았다. 최초 whole-package record는 이전
+golden을 검사하는 pin assertion도 함께 실행해 package가 실패했으므로 채택
+증거로 쓰지 않았다. 해당 실패는 `tmp/parity-8f7c2963-record.log`에 보존하고,
+계약에 지정된
+`-run '^TestCEParity$'` writer는 62.939초, 별도 non-record 검증은 44.028초에
+성공했다. 두 검사 전후 CE·ambient gz-git executable SHA-256도 일치했다.
+원시 근거는 primary의 `tmp/parity-8f7c2963-*`에 보존한다.
+
+최종 전달은 후보 기준 native receipt가 판정한다. 성공을 검증한 receipt만
+`tmp/parity-8f7c2963-final-native.json`으로 보존한다. 아래 ef33833b의
+성공 receipt 예정 경로는 추가 채택으로 대체됐으며 성공 파일을 만들지 않았다.
+
 ## 범위와 후보
 
 단일 후보는 clean source와 설치된 CE 0.10.13의

@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`ef33833b542cbe84be842f8a77293e61bce449ea`**, installed as CE 0.10.13 with
+`8f7c2963e27128e7d112a42b1f6c17bf039514aa`**, installed as CE 0.10.13 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.13 (`ef33833b`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.13 (`8f7c2963`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -577,6 +577,18 @@ parity or treat an unavailable worktree as proof of successful integration.
 ______________________________________________________________________
 
 ## 7. Fixture suite
+
+The current clean `8f7c2963` reference was adopted after a separate user decision
+when the installed CE and source moved beyond `ef33833b` during integration.
+The additional source-branch resolver extraction preserves declaration-first,
+origin/HEAD fallback and fail-closed parse/read errors. Decisions validation now
+has its own command; the lifecycle fixtures do not exercise that command.
+Owning CE source/recovery and decisions regression checks passed separately.
+The twelve newly captured fixtures differ from the prior `ef33833b` capture in
+37 CE identity leaves only. Status, exits, ownership, refs, push, cleanup and
+`config[0]` diagnostics remain unchanged. Historical captures below retain their
+original reference and scope. Evidence is in the primary checkout's
+`tmp/parity-8f7c2963-*` and the adoption report under `reports/`.
 
 After TASK-289 landed at `abee75f2`, the same clean `ef33833b` candidate was
 freshly machine-captured against that updated checkout provider. Its predecessor
