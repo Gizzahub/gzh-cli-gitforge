@@ -6,11 +6,13 @@ package integrate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -47,6 +49,290 @@ func TestRun_NoPatternSkipsReclaim(t *testing.T) {
 		t.Fatalf("worktree should remain: %v", err)
 	}
 	assertRef(t, fx.Clone, "refs/heads/dev/actor/feat/task")
+}
+
+func TestRun_RefusesHeuristicTargetBeforeGateOrPush(t *testing.T) {
+	fx := runFixture(t, "")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "remove integration declaration")
+	runGit(t, fx.Worktree, "push")
+
+	targetBefore := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main")
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task"}})
+	if err == nil || !strings.Contains(err.Error(), "integration target main is inferred from the remote HEAD") || !strings.Contains(err.Error(), "branch.integrationBranch") || !strings.Contains(err.Error(), "--controller-config") {
+		t.Fatalf("heuristic run error = %v", err)
+	}
+	if report != nil {
+		t.Fatalf("heuristic refusal report = %+v, want nil before Check", report)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("readiness gate ran before heuristic refusal: %v", statErr)
+	}
+	if got := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main"); got != targetBefore {
+		t.Fatalf("heuristic refusal moved target: got %s, want %s", got, targetBefore)
+	}
+}
+
+func TestRun_HeuristicTargetAllowsExplicitConfirmation(t *testing.T) {
+	fx := runFixture(t, "")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "remove integration declaration")
+	runGit(t, fx.Worktree, "push")
+
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", Target: "main", DirectToDefault: true,
+	}})
+	if err != nil {
+		t.Fatalf("explicit heuristic confirmation: %v", err)
+	}
+	if !report.Integrated {
+		t.Fatalf("explicit heuristic confirmation did not integrate:\n%s", FormatRun(report))
+	}
+}
+
+func TestRun_HeuristicTargetAllowsControllerDeclaration(t *testing.T) {
+	fx := runFixture(t, "")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "remove integration declaration")
+	runGit(t, fx.Worktree, "push")
+
+	remoteURL := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
+	controller := filepath.Join(t.TempDir(), "controller.yaml")
+	writeFile(t, filepath.Dir(controller), filepath.Base(controller), "workspaces:\n  fixture:\n    url: "+remoteURL+"\n    branch:\n      integrationBranch: develop\n    integration: {}\n")
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", ControllerConfig: controller,
+	}})
+	if err != nil {
+		t.Fatalf("controller declaration: %v", err)
+	}
+	if !report.Integrated || report.Check.Plan.Integration.Source != "config[0]" || !strings.Contains(FormatRun(report), "integration=develop (config[0])") {
+		t.Fatalf("controller declaration report = %+v", report)
+	}
+}
+
+func TestRun_HeuristicTargetPreservesExpectationMismatch(t *testing.T) {
+	for name, opts := range map[string]CheckOptions{
+		"source": {ExpectSource: strings.Repeat("0", 40)},
+		"target": {ExpectTarget: strings.Repeat("0", 40)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fx := runFixture(t, "")
+			writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+			runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+			runGit(t, fx.Worktree, "commit", "-m", "remove integration declaration")
+			runGit(t, fx.Worktree, "push")
+
+			opts.RepoPath = fx.Worktree
+			opts.Branch = "dev/actor/feat/task"
+			_, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
+			want := ErrSourceMismatch
+			if name == "target" {
+				want = ErrTargetMismatch
+			}
+			if !errors.Is(err, want) || strings.Contains(err.Error(), "inferred from the remote HEAD") {
+				t.Fatalf("%s mismatch error = %v, want %v before heuristic refusal", name, err, want)
+			}
+		})
+	}
+}
+
+func TestRun_HeuristicTargetUsesBoundSourceApproval(t *testing.T) {
+	for _, mismatched := range []bool{true, false} {
+		t.Run(map[bool]string{true: "bound-mismatch", false: "bound-approval-overrides-option"}[mismatched], func(t *testing.T) {
+			fx := runFixture(t, "")
+			writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+			runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+			runGit(t, fx.Worktree, "commit", "-m", "remove integration declaration")
+			runGit(t, fx.Worktree, "push")
+			execution := outcomeExecution(t, fx.Worktree, "heuristic-bound-source")
+			optionApproval := strings.Repeat("0", 40)
+			if mismatched {
+				execution.ExpectSource = optionApproval
+				optionApproval = ""
+			}
+			report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
+				CheckOptions: CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", ExpectSource: optionApproval},
+				Execution:    execution,
+			})
+			if report != nil || err == nil {
+				t.Fatalf("unconfirmed heuristic run = %+v, %v", report, err)
+			}
+			if mismatched {
+				if !errors.Is(err, ErrSourceMismatch) {
+					t.Fatalf("bound mismatch must retain precedence: %v", err)
+				}
+			} else if errors.Is(err, ErrSourceMismatch) || !strings.Contains(err.Error(), "inferred from") {
+				t.Fatalf("bound approval must override the option before heuristic refusal: %v", err)
+			}
+		})
+	}
+}
+
+func TestRun_HeuristicTargetRecheckedAfterTaskFenceWait(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := runFixture(t, "")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\nlint:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "declare remote HEAD branch")
+	runGit(t, fx.Worktree, "push")
+	executor := gitcmd.NewExecutor()
+	held, err := acquireTaskResourceFence(context.Background(), executor, fx.Worktree, "dev/actor/feat/task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.release()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	notice := &lockedBuffer{}
+	type result struct {
+		report *RunReport
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		report, runErr := Run(ctx, executor, RunOptions{CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice,
+		}})
+		done <- result{report, runErr}
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		held.release()
+		<-done
+	}()
+	waitForText(t, "task fence wait", notice.String, "destination=task-resource:")
+	targetBefore := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "remove declaration during fence wait")
+	runGit(t, fx.Worktree, "push")
+	held.release()
+	got := <-done
+	if got.err == nil || !strings.Contains(got.err.Error(), "inferred from the remote HEAD") {
+		t.Fatalf("Run adopted unconfirmed post-fence plan: report=%+v err=%v", got.report, got.err)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("gate ran for an unconfirmed post-fence plan: %v", statErr)
+	}
+	if after := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main"); after != targetBefore {
+		t.Fatalf("target moved after post-fence refusal: %s -> %s", targetBefore, after)
+	}
+}
+
+func TestRun_DeclarationRecheckedAfterTargetLockWait(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := runFixture(t, "")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\nlint:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "declare remote HEAD branch")
+	runGit(t, fx.Worktree, "push")
+	executor := gitcmd.NewExecutor()
+	held, err := acquireTargetLock(context.Background(), newGitRepo(executor, fx.Worktree), "refs/heads/main", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.release()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	notice := &lockedBuffer{}
+	type result struct {
+		report *RunReport
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		report, runErr := Run(ctx, executor, RunOptions{CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice,
+		}})
+		done <- result{report, runErr}
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		held.release()
+		<-done
+	}()
+	waitForText(t, "target ownership wait", notice.String, "destination=refs/heads/main")
+	targetBefore := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
+	runGit(t, fx.Worktree, "commit", "-m", "remove declaration during target lock wait")
+	runGit(t, fx.Worktree, "push")
+	held.release()
+	got := <-done
+	if got.err == nil || !strings.Contains(got.err.Error(), "integration declaration changed while acquiring ownership") {
+		t.Fatalf("Run adopted unconfirmed post-target-lock plan: report=%+v err=%v", got.report, got.err)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("gate ran for an unconfirmed post-target-lock plan: %v", statErr)
+	}
+	if after := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main"); after != targetBefore {
+		t.Fatalf("target moved after post-target-lock refusal: %s -> %s", targetBefore, after)
+	}
+}
+
+func TestRun_ControllerRecheckedBeforeGateAfterTargetLockWait(t *testing.T) {
+	fastHostLockPolling(t)
+	fx := runFixture(t, "")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\nlint:\n\t@true\n")
+	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "declare remote HEAD branch")
+	runGit(t, fx.Worktree, "push")
+	controllerPath := filepath.Join(t.TempDir(), "controller.yaml")
+	controllerBody := "workspaces:\n  engine: {url: " + fx.Origin + ", branch: {integrationBranch: main}, integration: {}}\n"
+	writeFile(t, filepath.Dir(controllerPath), filepath.Base(controllerPath), controllerBody)
+	executor := gitcmd.NewExecutor()
+	held, err := acquireTargetLock(context.Background(), newGitRepo(executor, fx.Worktree), "refs/heads/main", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.release()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	notice := &lockedBuffer{}
+	type result struct {
+		report *RunReport
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		report, runErr := Run(ctx, executor, RunOptions{CheckOptions: CheckOptions{
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: notice, ControllerConfig: controllerPath,
+		}})
+		done <- result{report, runErr}
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		held.release()
+		<-done
+	}()
+	waitForText(t, "target ownership wait", notice.String, "destination=refs/heads/main")
+	targetBefore := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main")
+	writeFile(t, filepath.Dir(controllerPath), filepath.Base(controllerPath), controllerBody+"# changed while waiting\n")
+	held.release()
+	got := <-done
+	if got.err == nil || !strings.Contains(got.err.Error(), "controller config changed during readiness") {
+		t.Fatalf("Run adopted unconfirmed post-target-lock plan: report=%+v err=%v", got.report, got.err)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("gate ran for an unconfirmed post-target-lock plan: %v", statErr)
+	}
+	if after := gitOutput(t, fx.Clone, "rev-parse", "refs/remotes/origin/main"); after != targetBefore {
+		t.Fatalf("target moved after post-target-lock refusal: %s -> %s", targetBefore, after)
+	}
 }
 
 func TestRun_ReclaimIncompleteWhenMultipleWorktrees(t *testing.T) {

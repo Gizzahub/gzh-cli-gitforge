@@ -349,6 +349,22 @@ exit 1이며, 두 JSON 차이는 각각 line 183·260의 `processHost`뿐이다.
 non-worsening READY를 반환해야 전달할 수 있다. unmeasurable 또는 새 실패면
 통합을 보류한다. 이것은 TASK-306의 새 후보나 소진 예산 재설정이 아니다.
 
+## TASK-289 출력 계약의 제한된 후속
+
+TASK-289 후보 f6d19f9a의 실제 native는 literal processHost 차이에 config[0]
+출력 차이가 추가돼 진단2→3으로 거부됐다. 단위 pkg/integrate954.073s와 lint는
+통과했지만 baseline full도 실패했고 source도 이동해 전달하지 않았다. 원본은
+source primary의 tmp/task289-current/native-finish-rebased-primary.json과
+current-outcome.json이다. 실행은 ABORTED, 후보와 자원은 보존했다.
+
+사용자가 승인한 task289-parity-contract 후속은 모든 target의 출처 표시라는
+기존 수용 조건을 계약에 명시하고 현재 clean CE7140701a를 채택한다. 기계 캡처와
+별도 non-record 검증은12시나리오 PASS/skip0이며 normalizer를 바꾸지 않았다.
+decoded diff48개는 reference24, receipt stamp13, literal physicalHost2,
+provider prose7, recover 거부 문구2다. 새로운 native completion 성공 경로를
+검증한 것은 아니다. 전체 native 수용·설치는 아직 별도 미완료다.
+이 기록은 TASK-306/318/321의 소진된 시도를 재개하지 않는다.
+
 소유 source primary의 `tmp/issue332-version-delivery-20261016/`에
 `issue332-parity-baseline.log`, `issue332-parity-branch.log`와 baseline metadata를
 보존한다. review worktree는 증거 복사 후 정식 discard하며 수용 근거로 쓰지 않는다.

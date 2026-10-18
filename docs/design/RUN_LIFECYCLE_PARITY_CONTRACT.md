@@ -562,6 +562,26 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
+The TASK-289 follow-up uses clean CE 0.10.13
+`7140701a8f024cd8112d03f25e8595398e3557ea`, matching its owning source and
+installed executable. The checkout-built provider now reports the integration
+resolution source for every target, including `integration=master (config[0])`.
+That provider prose is required by TASK-289, rather than a lifecycle outcome
+change. Reference adoption requires a machine capture of all twelve scenarios,
+fresh non-record verification, and independent comparison of the complete diff.
+
+Physical `processHost` remains literal capture provenance. This follow-up captures
+on `CE-Mac-Studio.local`; it does not normalize host identities or accept a foreign
+host as local. A different physical host may still differ from the reference:
+only the native gate's measured baseline comparison can accept a proven
+non-worsening difference. Scenario statuses, ownership, refs, push and cleanup
+results must remain unchanged. Generation alone is not native acceptance.
+
+CE's `recover-requires-cleanup-failure` refusal now also names a bound native
+completion as an eligible recovery input. The fixture still has no such input:
+its refusal status and exit code remain unchanged. The new native-completion
+success path is not exercised or accepted by these twelve scenarios.
+
 On 2026-10-18, the readiness-approval follow-up adopted clean CE 0.10.13
 `ad92901e322e3c64f350363feecc9c8b6b3807c3`. The source checkout and executable
 Go metadata agree, including `vcs.modified=false`. Fresh machine capture passed

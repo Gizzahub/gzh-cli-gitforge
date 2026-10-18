@@ -1,8 +1,8 @@
 {
   "scenario": "recover-requires-cleanup-failure",
-  "reference": "ce-agent-kit master ad92901e322e3c64f350363feecc9c8b6b3807c3",
+  "reference": "ce-agent-kit master 7140701a8f024cd8112d03f25e8595398e3557ea",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.13\nRelease:  v0.10.0\nBuild:    267-gad92901e\nCommit:   ad92901e322e3c64f350363feecc9c8b6b3807c3\nDirty:    false\nRevision: ad92901e322e3c64f350363feecc9c8b6b3807c3",
+    "ce": "ce-agent-kit version 0.10.13\nRelease:  v0.10.0\nBuild:    281-g7140701a\nCommit:   7140701a8f024cd8112d03f25e8595398e3557ea\nDirty:    false\nRevision: 7140701a8f024cd8112d03f25e8595398e3557ea",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version \u003cGZ_GIT_VERSION\u003e"
   },
@@ -47,8 +47,8 @@
         "--json"
       ],
       "exitCode": 1,
-      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"cleanup-fail\",\n  \"allowedActions\": null,\n  \"reason\": \"run-recover requires the recorded exit-3 provider cleanup failure or an interrupted run-finish\",\n  \"nextAction\": \"inspect task runtime receipt evidence\",\n  \"finishReady\": false\n}\n",
-      "stderr": "Error: run-recover requires the recorded exit-3 provider cleanup failure or an interrupted run-finish\n",
+      "stdout": "{\n  \"schemaVersion\": 1,\n  \"status\": \"BLOCKED\",\n  \"activeCount\": 0,\n  \"task\": \"cleanup-fail\",\n  \"allowedActions\": null,\n  \"reason\": \"run-recover requires the recorded exit-3 provider cleanup failure, a bound native completion, or an interrupted run-finish\",\n  \"nextAction\": \"inspect task runtime receipt evidence\",\n  \"finishReady\": false\n}\n",
+      "stderr": "Error: run-recover requires the recorded exit-3 provider cleanup failure, a bound native completion, or an interrupted run-finish\n",
       "state": {
         "worktrees": "worktree \u003cSANDBOX\u003e/repo\nHEAD \u003cSHA1\u003e\nbranch refs/heads/master\n\nworktree \u003cSANDBOX\u003e/wt/parity-sandbox/claude__mbp__chore__cleanup-fail\nHEAD \u003cSHA1\u003e\nbranch refs/heads/dev/claude/mbp/chore/cleanup-fail\n\n",
         "refs": "refs/heads/dev/claude/mbp/chore/cleanup-fail \u003cSHA1\u003e\nrefs/heads/master \u003cSHA1\u003e\nrefs/remotes/origin/HEAD \u003cSHA1\u003e\nrefs/remotes/origin/master \u003cSHA1\u003e\n",

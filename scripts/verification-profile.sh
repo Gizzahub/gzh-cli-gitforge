@@ -102,6 +102,15 @@ END {
   for (pkg in chosen) if (chosen[pkg]) print pkg
 }' "$selector_tmp/selected" "$selector_tmp/metadata" | LC_ALL=C sort >"$selector_tmp/reverse" || fail "reverse dependency selection failed"
 	[ -s "$selector_tmp/reverse" ] || { printf 'full\tno affected Go test packages; refusing a zero-test pass\n'; exit 0; }
+	# Integration fixtures exceed the affected package budget even on the
+	# unchanged source. Preserve the suite and use the existing full profile.
+	module_path=$(GOWORK=off "$go_bin" list -m -f '{{.Path}}') || fail "go list for current module failed"
+	while IFS= read -r package; do
+		if [ "$package" = "$module_path/pkg/integrate" ]; then
+			printf 'full\taffected closure includes slow package: %s\n' "$package"
+			exit 0
+		fi
+	done <"$selector_tmp/reverse"
 	closure_has_test=0
 	while IFS= read -r package; do
 		test_counts=$(GOWORK=off "$go_bin" list -f '{{len .TestGoFiles}} {{len .XTestGoFiles}}' "$package") || fail "go list for selected package test files failed: $package"
