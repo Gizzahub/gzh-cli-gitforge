@@ -73,3 +73,17 @@ CE task `readiness-cleanup-safety`의 BLOCKED 영수증이 전달 결과를 보�
 exit 0(`0 issues.`), 독립 strong 재리뷰 PASS와 diff check 통과를 확인했다.
 최종 보정은 `(bool, error)` 결과 순서를 쓰며 보존 여부는 기존 값과 OR한다.
 commit profile은 여전히 full로 확대되며 최종 native 전달 결과를 대신하지 않는다.
+
+
+## 보정 후 native 전달 시도
+
+`84a4f363d111eb21aba0ff31f356c2b1637eeeb6` 재시도는 2026-10-18T16:40:07Z에
+`resource slot unavailable: context deadline exceeded`로 BLOCKED 종료했다.
+원본 영수증은 [native-finish-blocked.json](native-finish-blocked.json)에 보존한다.
+이 결과는 전체 게이트 PASS가 아니며, source는 여전히 `e1a4bb5a`다.
+sourcePushed·worktreeRemoved·localBranchRemoved·remoteBranchRemoved는 모두 false다.
+
+같은 자원 경합 상태에서 blind retry를 반복하지 않는다. 실행은 ABORTED로 종료해
+작업 worktree와 로컬·원격 task branch를 보존한다. 남은 전달 조건은 공용 슬롯 확보와
+최신 source 기준 full gate·통합·source push·회수다. 이 기록은 완료 선언이 아니다.
+설치·릴리스 게시·CalcGlide 통합 재시도는 계속 범위 밖이다.
