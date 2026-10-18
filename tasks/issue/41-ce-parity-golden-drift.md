@@ -12,6 +12,18 @@
   검증하는 성공 진단의 추가로 분류했다. 상태·권한·ref·정리 결과는 불변이다.
   세부 계약과 재현 경로는 `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md` §7.
 
+### 실행 제한 진단 정정
+
+아래 과거 관측의 contract runner 15분 원인 설명은 실제 실행 경로와 맞지
+않는다. 보존된 protocol은 `legacy-make`이며 readiness contract runner를
+호출하지 않았다. 설치 provider `b362607`의 legacy 경로는 이미 선언된
+`branch.makeTimeout: 67m`을 source와 baseline에 적용한다. CE native adapter도
+별도의 전체 15분 제한을 만들지 않는다. 원시 protocol에는 typed
+`readiness_failures`가 없고 resource wait 17,938ms, validation 880,627ms와
+`not ready`만 남았다. 따라서 이 기록만으로 약 15분의 중단 원인을 확정할 수
+없다. 추측에 따른 timeout 코드·설정 변경 없이 확인된 source 검사 실패를
+수정한 뒤 동일한 검증 provider로 native 게이트를 재시도한다.
+
 ## 재발 관측 (2026-10-18, readiness approval modes)
 
 - status: reopened — 참조 채택은 별도 소유 작업이며 이번 기능에서 변경하지 않는다.

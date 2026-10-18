@@ -1,5 +1,17 @@
 # Readiness 승인 모드 구현·검증 기록
 
+## 후속 재개 (2026-10-18)
+
+CE 참조 불일치는 clean source/executable `ad92901e`를 채택하고 열두 시나리오
+기계 캡처 및 별도 full non-record 검증으로 해결했다. 독립 strong 리뷰는
+task-containment 성공 진단 추가를 확인했고 normalizer는 변경하지 않았다.
+
+아래 최초 기록의 구버전 provider 15분 제한 원인 설명은 정정한다. 실제
+protocol은 `legacy-make`이고, 이 경로는 선언된 `makeTimeout: 67m`을 사용한다.
+typed make timeout 증거는 없어 당시 중단의 원인을 확정할 수 없다.
+자세한 정정은 ISSUE-41에 기록한다. 전체 native 게이트는 재시도 전이며,
+아래 최초 전달 상태를 전체 성공으로 바꾸지 않는다.
+
 ## 범위와 결정
 
 글로벌 `integration.readinessApproval`만 수동·자동을 선택한다. 기본값은
