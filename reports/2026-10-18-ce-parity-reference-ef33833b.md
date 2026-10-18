@@ -3,7 +3,8 @@
 ## 범위와 후보
 
 단일 후보는 clean source와 설치된 CE 0.10.13의
-`ef33833b542cbe84be842f8a77293e61bce449ea`다. 기존 참조는 `ad92901e`다.
+`ef33833b542cbe84be842f8a77293e61bce449ea`다. 착수 시 참조는 `ad92901e`였고,
+재배치 후 source의 참조는 후보의 조상인 `7140701a`였다. 후보는 바꾸지 않았다.
 parity reference pin·기계 캡처·계약 문서를 갱신한다. 설치된 CE 바이너리와
 워크스테이션 도구 pin, normalizer·시나리오·제품 구현은 변경하지 않는다.
 구현과 독립 검토 요구 등급은 `strong`이다.
@@ -67,3 +68,27 @@ DVA의 commit/full profile은 확인했지만 focused parity·CE unit 명령은 
 (`tasks/issue/54-resource-probe-deadline.md`, 당시 commit `6c490c89`)다.
 이 기록은 해당 수정의 채택·설치를 승인하거나 반복 대기를 해결했다고 주장하지 않는다.
 슬롯 소유자와 잠금을 보존하고 가용성을 확인한 뒤 원래 native 전달을 재시도한다.
+
+## 상류 변경과 충돌 해결
+
+두 번째 native 시도는 make check·make lint 모두 PASS였다.
+structured receipt의 resource wait는 175,787ms, validation은 787,370ms다.
+그러나 source가 `63c384ab`에서 TASK-289의 `abee75f2`로 이동해 post-gate freshness만
+실패했으며 통합·push·reclaim은 없었다. primary의
+`tmp/parity-ef33833b-finish-276ef244.*`에 원시 결과를 보존했다.
+
+`7140701a`가 `ef33833b`의 조상임을 Git으로 확인했다. 충돌 시 상류 제품 구현을
+수정하지 않았으며 golden은 상류에서 복원한 뒤 새 checkout provider로 12개를
+기계 캡처했다. fixture를 수작업으로 합치지 않았다. record 19.245초와 별도
+non-record 19.247초가 성공했고 CE·설치 gz-git 해시도 유지됐다.
+`config[0]` provider 진단은 보존됐으며 새 baseline 대비 decoded 39개 leaf는
+identity 37개와 literal physicalHost 2개다. 이전 39개(거절 문구 포함) 분석은
+재배치 전 source의 역사적 관측이다. 충돌 해결 독립 strong 검토는 PASS다.
+새 로그는 `tmp/parity-ef33833b-rebased-{record,verify}.log`, 구조 차이는
+`tmp/parity-ef33833b-rebased-decoded-diff.json`에 보존한다.
+
+참조 불일치의 소스 수정과 검증은 완료됐다. 실제 최종 전달 여부는 native
+receipt가 판정한다. 성공 receipt를 검증한 뒤 primary의
+`tmp/parity-ef33833b-final-native.json`으로 보존하며, 그 파일의 `DONE`,
+source push와 worktree·로컬·원격 task branch 제거 결과가 전달 완료 근거다.
+이 호스트 보조 증거는 source에 포함된 재사용 승인서가 아니다.

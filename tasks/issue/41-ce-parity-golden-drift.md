@@ -2,7 +2,8 @@
 
 ## ef33833b 후속 참조 채택 (2026-10-18)
 
-- 상태: 참조 갱신·집중 검증·독립 strong 검토 완료, native 전체 전달 게이트 대기.
+- 상태: resolved — 참조 정합화와 독립 strong 검토 완료. 최종 전달 판정은
+  native receipt가 소유하며, 아래 기록은 검증 당시의 관측이다.
 - clean CE 소스와 설치본이 모두
   `ef33833b542cbe84be842f8a77293e61bce449ea`로 일치하는 것을 확인했다.
   기존 `ad92901e` 참조와의 불일치는 짧은 사전 검증에서 재현했다.
@@ -17,6 +18,13 @@
 - 새 복구 성공 경로는 기존 12개 캡처 범위 밖이다. 소유 CE의 positive·위조
   증거·자원 잔존·비조상·dangling-link 회귀 검사는 0.493초에 성공했다.
   이 결과는 consumer capture나 전체 게이트 성공을 대신하지 않는다.
+- 검증 중 TASK-289가 source `abee75f2`에 반영돼 재배치했다. 그 참조
+  `7140701a`는 후보 `ef33833b`의 조상이다. 상류 제품 코드와 `config[0]` 진단을
+  보존하고 같은 후보로 12개를 새로 기계 캡처했다(19.245초). 별도 non-record
+  19.247초와 충돌 해결 strong 검토가 통과했다. 새 baseline 대비 decoded diff는
+  identity 37개·literal physicalHost 2개이며 status·종료·ref·정리는 불변이다.
+- 재배치 전 실제 make check·lint는 통과했으나, source 이동으로 native 통합은
+  거절됐다. 재배치 이후의 전달·정리 결과는 최종 native receipt로 확인한다.
 - raw 근거와 검토 범위는
   [채택 기록](../../reports/2026-10-18-ce-parity-reference-ef33833b.md)에 있다.
   과거 실패·해결 기록은 아래에 당시 관측으로 보존한다.
