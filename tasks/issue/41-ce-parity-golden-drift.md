@@ -1,5 +1,19 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 42363c6e 추가 채택 (2026-10-18)
+
+- 상태: 참조 정합화 검증 완료 — 최종 전달은 새 native receipt가 판정한다.
+- 사용자가 승인한 clean CE source·설치본은 full revision
+  `42363c6eb4213e496748f329365cb4293b97e850`이다. 공식 `make install_cli`와
+  소유 Go·Python 회귀 검사, 배포 전 독립 strong 검토를 확인했다.
+- 12개 기계 캡처 20.585초, 별도 전체 non-record 17.712초 성공. 직전
+  `8f7c2963` 대비 decoded 차이 37개는 CE identity뿐이다. 시나리오·normalizer와
+  상태·종료·권한·ref·push·cleanup 결과는 바꾸지 않았다.
+- issue resolve 거절·readiness cleanup 실패는 해당 12개에서 호출하지 않는다.
+  소유 회귀와 capture의 검증 범위를 구분하며 이전 전달 이력은 보존한다.
+- 현재 후보의 배포·검사·전달 경계는
+  [42363c6e 채택 기록](../../reports/2026-10-18-ce-parity-reference-42363c6e.md)을 따른다.
+
 ## 8f7c2963 추가 채택 (2026-10-18)
 
 - 상태: 참조 정합화 검증 완료 — 최종 전달은 native receipt로 확인한다.
