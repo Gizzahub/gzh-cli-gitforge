@@ -19,14 +19,17 @@ line has those lines run by every integrate probe, and the exit status is
 ignored (`check_make.go:477`), so the side effects stay silent. In this
 repository `check` → `verify-full` → `$(MAKE) quality-check` ran pieces of
 `test-install-atomic` on every probe from f02041dc until the release-gate
-fix routed that recipe through a variable.
+fix routed that recipe through a variable; the recursive `quality-check`
+sub-make itself still ran on every probe. Recipes that remake an included
+makefile run under `-n` as well.
 
 ## Reproduction
 
 1. In a scratch repository, declare `check:` with a recipe line
-   `$(MAKE) side-effect` where `side-effect:` touches a file.
+   `touch marker && $(MAKE) side`. The side effect must sit on the
+   recursive line itself: the sub-make inherits `-n` and only prints.
 1. Run any `gz-git integrate check` that reaches the pattern-rule probe.
-1. The file is created although the probe is documented as read-only.
+1. `marker` is created although the probe is documented as read-only.
 
 ## Expected vs Actual
 
@@ -47,22 +50,38 @@ fix routed that recipe through a variable.
 Resolved on 2026-10-20.
 
 - The probe (moved to `pkg/integrate/check_make_pattern.go`) keeps
-  `make -pn <target>` and adds `SHELL=<path of true>` on the command
-  line. make hands every recipe line, including `$(MAKE)` and `+` lines,
-  and every `$(shell ...)` call to `SHELL`, and `true` runs none of
-  them. The database dump and its "Implicit rule search" verdict are
-  unchanged, so the existing pattern-rule detection keeps its signal.
-- A command-line variable outranks the Makefile's own `SHELL`
-  assignment, target-specific ones included; only `override SHELL`
-  defeats it. When `true` is not on `PATH` the probe reports the
-  database as unreadable and the caller keeps its previous behavior.
+  `make -pn <target>` and loads, through `MAKEFILES`, a temporary file
+  holding the pattern-specific `%: SHELL := <path of true>`. Every
+  target's recipe lines, `$(MAKE)` and `+` lines and makefile remakes
+  included, go to `true`, which runs none of them.
+- `$(shell ...)` keeps the Makefile's own `SHELL`, so a Makefile that
+  declares targets under a `$(shell)` condition parses as it does for
+  the real `make <target>` that follows (which evaluates the same calls).
+  A first version overrode `SHELL` on the command line; review showed
+  that it empties `$(shell)` and flips such verdicts, dropping a
+  declared `check` from the report or, with a catch-all, restoring a
+  false `PASS make check`.
+- A pattern-rule verdict from a make that exited non-zero (an include it
+  could not remake, a missing target without a catch-all) is no verdict:
+  the probe returns `ok=false` and the real run decides through "No rule
+  to make target".
+- Known limits: a target-specific `SHELL` in the Makefile outranks the
+  pattern-specific value, so that target's recursive and `+` lines
+  still run under `-n`, as before this fix. When `true` is not on
+  `PATH` or the temporary file cannot be written, the probe reports the
+  database as unreadable and the caller keeps its previous behavior,
+  which reports a target a catch-all satisfies as PASS.
 - Checked by hand on GNU Make 3.81 (macOS) and 4.4.1 (golang:1.27
-  image): with the override no marker file appears and the verdicts
-  are `not been done` for a declared target and `has been done` for a
-  catch-all one; without it the `+` and `$(shell)` markers appear.
-- Verified by `TestMakePatternProbeRunsNoRecipe` (a declared target
-  with `$(MAKE)` and `+` lines, a `+` catch-all, and a `$(shell)`
-  assignment; asserts both verdicts and no marker). Replacing the
-  override with a no-op flag makes it fail on the `shell`, `plus` and
-  `catchall` markers. `TestMakeTargetMatchedByPatternRuleIsUndeclared`
+  image): no recipe marker appears; the `$(shell)`-conditional `check`
+  reads as declared with and without a catch-all; a catch-all repository
+  whose parse hinges on `$(shell)` reads as pattern-matched; the include
+  case exits 2.
+- Verified by `TestMakePatternProbeRunsNoRecipe` (a global
+  `SHELL := /bin/sh`, a `touch && $(MAKE)` line, a `+` line, a `+`
+  catch-all; asserts both verdicts, no recipe marker, and that
+  `$(shell)` ran) and `TestMakePatternProbeParsesLikeTheRealRun` (the
+  three `$(shell)` and exit-status shapes). Mutations: the command-line
+  override fails both tests, dropping the `MAKEFILES` guard fails the
+  recipe markers and the include case, and ignoring the exit status
+  fails the include case. `TestMakeTargetMatchedByPatternRuleIsUndeclared`
   moved to `check_make_pattern_test.go` unchanged.

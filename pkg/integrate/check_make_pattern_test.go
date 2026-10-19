@@ -49,9 +49,10 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 }
 
 // TestMakePatternProbeRunsNoRecipe pins ISSUE-59: make -n still runs recipe
-// lines that name $(MAKE) or start with +, and $(shell) while parsing. The
-// probe must read the database without running any of them, for a declared
-// target and for one a catch-all satisfies, and keep its verdict for both.
+// lines that name $(MAKE) or start with +. The probe must read the database
+// without running any of them, for a declared target and for one a catch-all
+// satisfies, and keep its verdict for both, whatever SHELL the Makefile sets
+// globally. $(shell) runs as it would for the real make that follows.
 func TestMakePatternProbeRunsNoRecipe(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the probe needs make and true on PATH")
@@ -59,8 +60,9 @@ func TestMakePatternProbeRunsNoRecipe(t *testing.T) {
 	dir := t.TempDir()
 	marker := func(name string) string { return filepath.Join(dir, name) }
 	writeRepoFile(t, dir, "Makefile",
-		"PARSED := $(shell touch "+marker("shell-ran")+")\n"+
-			"lint:\n\t$(MAKE) side\n\t+touch "+marker("plus-ran")+"\n\n"+
+		"SHELL := /bin/sh\n"+
+			"PARSED := $(shell touch "+marker("shell-ran")+")\n"+
+			"lint:\n\ttouch "+marker("make-ran")+" && $(MAKE) side\n\t+touch "+marker("plus-ran")+"\n\n"+
 			"side:\n\ttouch "+marker("side-ran")+"\n\n"+
 			"%:\n\t+touch "+marker("catchall-ran")+"\n")
 
@@ -76,9 +78,54 @@ func TestMakePatternProbeRunsNoRecipe(t *testing.T) {
 			t.Fatalf("%s: matched=%v ok=%v, want matched=%v ok=true", tc.target, matched, ok, tc.matched)
 		}
 	}
-	for _, name := range []string{"shell-ran", "plus-ran", "side-ran", "catchall-ran"} {
+	for _, name := range []string{"make-ran", "plus-ran", "side-ran", "catchall-ran"} {
 		if _, err := os.Stat(marker(name)); !os.IsNotExist(err) {
 			t.Errorf("probe ran a recipe: %s exists (stat err = %v)", name, err)
 		}
+	}
+	if _, err := os.Stat(marker("shell-ran")); err != nil {
+		t.Errorf("$(shell) must keep the Makefile's SHELL while parsing: %v", err)
+	}
+}
+
+// TestMakePatternProbeParsesLikeTheRealRun pins the verdicts that depend on
+// $(shell) and on make's exit status. A target declared only when a $(shell)
+// condition holds stays declared; a catch-all repository whose parse hinges on
+// $(shell) still reads as pattern-matched; and a pattern match from a failed
+// make (an include it cannot remake) is no verdict at all.
+func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the probe needs make and true on PATH")
+	}
+	for _, tc := range []struct {
+		name     string
+		makefile string
+		matched  bool
+		ok       bool
+	}{
+		{
+			name:     "check declared under a shell condition, with a catch-all",
+			makefile: "ifneq ($(shell echo yes),)\ncheck:\n\t@:\nendif\nlint:\n\t@:\n%:\n\t@:\n",
+			matched:  false, ok: true,
+		},
+		{
+			name:     "shell-guarded error, catch-all satisfies check",
+			makefile: "ifeq ($(shell echo yes),)\n$(error unreachable)\nendif\nlint:\n\t@:\n%:\n\t@:\n",
+			matched:  true, ok: true,
+		},
+		{
+			name:     "include whose remake recipe does not run",
+			makefile: "include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n",
+			matched:  true, ok: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeRepoFile(t, dir, "Makefile", tc.makefile)
+			matched, ok := makeTargetMatchedByPatternRule(context.Background(), dir, "check")
+			if matched != tc.matched || ok != tc.ok {
+				t.Fatalf("matched=%v ok=%v, want matched=%v ok=%v", matched, ok, tc.matched, tc.ok)
+			}
+		})
 	}
 }

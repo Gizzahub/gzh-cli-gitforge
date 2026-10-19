@@ -39,31 +39,57 @@ import (
 // entirely for others, so its presence says nothing.
 //
 // -n alone does not make the probe read-only. GNU make still runs recipe
-// lines that name $(MAKE) or start with +, and $(shell ...) while parsing, so
-// a gate graph with a recursive line would run part of itself on every probe.
-// SHELL is overridden on the command line with true: make hands every recipe
-// line and $(shell) call to it, and true runs nothing. A command-line variable
-// outranks the Makefile's own SHELL assignment unless that one uses override.
-// The database dump, and its implicit-search verdict, are unchanged.
+// lines that name $(MAKE) or start with +, and the recipes that remake an
+// included makefile, so a gate graph with a recursive line would run part of
+// itself on every probe. The probe therefore loads, through MAKEFILES, a
+// pattern-specific `%: SHELL := <path of true>`: every target's recipe lines
+// go to true, which runs none of them. $(shell ...) keeps the Makefile's own
+// SHELL, because a Makefile that chooses its targets with it must parse
+// exactly as the real `make <target>` that follows, which evaluates the same
+// calls anyway. A command-line SHELL would empty those calls and flip the
+// verdict, dropping a declared check from the report.
 //
-// ok is false when the database could not be read at all — make or true
-// missing, no makefile, a parse error. The caller then keeps its previous
-// behavior rather than treating an unreadable database as proof of absence.
+// A pattern-specific value outranks the Makefile's global SHELL but not a
+// target-specific one, so a target that sets its own SHELL still runs its
+// recursive and + lines under -n, as before this guard. When a pattern rule
+// matched but make failed (an included makefile it could not remake, a
+// missing target without a catch-all), the dump may come from a partial
+// parse, so ok is false and the real run decides through "No rule to make
+// target".
+//
+// ok is also false when the database could not be read at all — make or
+// true missing, the probe file not writable, no makefile, a parse error. The
+// caller then keeps its previous behavior, which reports a target a catch-all
+// satisfies as PASS, rather than treating an unreadable database as proof of
+// absence.
 func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (matched, ok bool) {
 	noop, err := exec.LookPath("true")
 	if err != nil {
 		return false, false
 	}
-	cmd := exec.CommandContext(ctx, "make", "-pn", "SHELL="+noop, target) // #nosec G204 -- validated against allowedMakeTargets by the caller
+	probeFile, err := os.CreateTemp("", "gz-git-make-probe-*.mk")
+	if err != nil {
+		return false, false
+	}
+	defer func() { _ = os.Remove(probeFile.Name()) }()
+	_, err = probeFile.WriteString("%: SHELL := " + noop + "\n")
+	if closeErr := probeFile.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return false, false
+	}
+	cmd := exec.CommandContext(ctx, "make", "-pn", target) // #nosec G204 -- validated against allowedMakeTargets by the caller
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "LC_ALL=C")
+	cmd.Env = append(os.Environ(), "MAKELEVEL=0", "MAKEFLAGS=", "MAKEFILES="+probeFile.Name(), "LC_ALL=C")
 	cmd.Env = hostSlotsHeldForChild(ctx, cmd.Env)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
-	// The exit status is deliberately ignored. -p prints the database even when
-	// the target cannot be made, and that dump is the entire point of the call.
-	_ = cmd.Run() //nolint:errcheck // intentional: -p dumps the rule database regardless of exit status
+	// -p prints the database even when the target cannot be made, and that
+	// dump is the entire point of the call; the exit status only qualifies a
+	// pattern-rule verdict below.
+	runErr := cmd.Run()
 
 	lines := strings.Split(buf.String(), "\n")
 	header := target + ":"
@@ -82,7 +108,7 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 				return false, true
 			}
 			if strings.HasPrefix(entry, "#  Implicit rule search has been done.") {
-				return true, true
+				return true, runErr == nil
 			}
 		}
 		// The entry exists but never states the verdict. Keep the caller's
