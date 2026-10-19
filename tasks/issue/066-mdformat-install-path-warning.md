@@ -34,3 +34,12 @@ throwaway `UV_TOOL_DIR`.
   install failures stay visible.
 - Actual: uv's PATH warning and `update-shell` advice appear on every fresh
   install.
+
+## Resolution
+
+Resolved on 2026-10-19. `install-mdformat` now calls
+`uv tool install --quiet`. A fresh install into an empty `bin/tools` printed
+only the target's own two lines. An unsatisfiable pin still printed uv's
+resolution error and the target exited 1. `--quiet` hides every uv warning,
+not only the PATH one; errors still print. The same change pinned the
+transitive dependencies (ISSUE-63) and added the Windows suffix (ISSUE-64).

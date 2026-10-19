@@ -1,0 +1,14 @@
+# Transitive dependencies of the pinned mdformat bundle in .make/tools.mk.
+# They decide rendering too, so a fresh install must not pick up a newer
+# release. install-mdformat passes this file to `uv tool install --constraints`
+# and reinstalls when the tool environment differs from any line below.
+# Resolved for mdformat 1.0.0, mdformat-gfm 1.0.0, mdformat-frontmatter 2.1.2
+# on Python 3.11+. The check only proves these lines; it does not detect a
+# package missing from the list. On Python 3.10 uv also installs tomli, which
+# only parses .mdformat.toml (this repository has none). Re-resolve the list
+# whenever a top-level version changes.
+markdown-it-py==4.2.0
+mdit-py-plugins==0.6.1
+mdurl==0.1.2
+ruamel-yaml==0.19.1
+wcwidth==0.9.2

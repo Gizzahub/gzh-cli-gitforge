@@ -29,3 +29,14 @@ gate on `ubuntu-latest` only, so no current job is affected.
   tools (uv's entry point is `.exe` on Windows), or the gate declares
   Windows unsupported.
 - Actual: the suffix is absent and the limitation is undeclared.
+
+## Resolution
+
+Resolved on 2026-10-19. `MDFORMAT` now appends `$(shell go env GOEXE)` like
+the Go tools. The new dependency check runs the tool venv's interpreter, which
+uv places at `Scripts/python.exe` on Windows and `bin/python` elsewhere.
+`MDFORMAT_PYTHON` picks the path from the same suffix.
+
+Not verified on a Windows host; no CI job runs the gate there. On macOS the
+paths are unchanged, so `quality-check-validate` still finds
+`bin/tools/mdformat" --check` in the gate graph.

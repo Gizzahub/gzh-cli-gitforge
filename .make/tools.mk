@@ -26,7 +26,8 @@ BENCHSTAT_VERSION ?= v0.0.0-20260929162123-406019bb8b68
 # formats tables itself, and mdformat-tables 1.0.0 requires mdformat<0.8, so
 # the tables plugin is gone. mdformat-frontmatter 2.1.2 (2026-05-23) keeps the
 # YAML header `ce task new` writes on every card; without it mdformat rewrites
-# that header into a heading.
+# that header into a heading. Their transitive dependencies are pinned in
+# .make/mdformat-constraints.txt; re-resolve that file when these change.
 MDFORMAT_VERSION ?= 1.0.0
 MDFORMAT_GFM_VERSION ?= 1.0.0
 MDFORMAT_FRONTMATTER_VERSION ?= 2.1.2
@@ -95,13 +96,25 @@ GOIMPORTS_VERSION_OK = go version -m "$(GOIMPORTS)" 2>/dev/null | \
 # under UV_TOOL_BIN_DIR; the developer's global tools are never written to.
 # `--version` lists the loaded plugins, so one call proves the pin and that the
 # install still runs. Plugin order in that line is not part of the contract.
-MDFORMAT := $(CURDIR)/bin/tools/mdformat
+# On Windows uv writes the entry point as mdformat.exe and the venv interpreter
+# as Scripts/python.exe instead of bin/python; GOEXE selects both, as it does
+# for the Go tools above.
+MDFORMAT := $(CURDIR)/bin/tools/mdformat$(shell go env GOEXE)
 MDFORMAT_TOOL_DIR := $(CURDIR)/bin/tools/python
+MDFORMAT_PYTHON := $(MDFORMAT_TOOL_DIR)/mdformat/$(if $(shell go env GOEXE),Scripts/python.exe,bin/python)
+MDFORMAT_CONSTRAINTS := $(CURDIR)/.make/mdformat-constraints.txt
 # Split the list at its delimiters and compare whole entries: a substring match
 # accepted an extra plugin and versions such as 1.0.0.post1.
 MDFORMAT_VERSION_OK = "$(MDFORMAT)" --version 2>/dev/null | \
 	awk -v core="mdformat $(MDFORMAT_VERSION)" -v a="mdformat-gfm $(MDFORMAT_GFM_VERSION)" -v b="mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION)" \
 	'NR == 1 && sub(/\)$$/, "") { n = split($$0, p, / \(|, /); ok = n == 3 && p[1] == core && ((p[2] == a && p[3] == b) || (p[2] == b && p[3] == a)) } END { exit !ok }'
+# `--version` names only the three top-level packages. The transitive ones in
+# the constraints file decide rendering too, so an install made before a pin
+# changed must not pass. Every non-comment line must be name==version; a loose
+# or malformed line, a missing package and an empty list all fail, and the
+# offending lines go to stderr. chr(35) is `#`, which make would read as a
+# comment.
+MDFORMAT_DEPS_OK = "$(MDFORMAT_PYTHON)" -I -c 'import sys, importlib.metadata as m; lines = [l for l in map(str.strip, open(sys.argv[1])) if l and l[0] != chr(35)]; got = lambda n: next((d.version for d in m.distributions(name=n)), None); pairs = [(l, l.split("==")) for l in lines]; bad = [l + (" (installed %s)" % got(p[0]) if len(p) == 2 else " (not name==version)") for l, p in pairs if len(p) != 2 or got(p[0]) != p[1]]; bad and print("mdformat dependency mismatch: " + "; ".join(bad), file=sys.stderr); sys.exit(not lines or bool(bad))' "$(MDFORMAT_CONSTRAINTS)"
 
 install-gofumpt: ## install the pinned gofumpt into bin/tools
 	@echo -e "$(CYAN)Ensuring gofumpt $(GOFUMPT_VERSION)...$(RESET)"
@@ -131,17 +144,22 @@ install-goimports: ## install the pinned goimports into bin/tools
 
 install-mdformat: ## install the pinned mdformat and its plugins into bin/tools
 	@echo -e "$(CYAN)Ensuring mdformat $(MDFORMAT_VERSION)...$(RESET)"
-	@if ! $(MDFORMAT_VERSION_OK); then \
+	@if ! { $(MDFORMAT_VERSION_OK) && $(MDFORMAT_DEPS_OK) 2>/dev/null; }; then \
 		command -v uv >/dev/null 2>&1 || { echo "uv is required to install mdformat (https://docs.astral.sh/uv/); offline with a warm uv cache, set UV_OFFLINE=1" >&2; exit 1; }; \
 		echo -e "$(YELLOW)Installing mdformat $(MDFORMAT_VERSION) into $(dir $(MDFORMAT))$(RESET)"; \
 		UV_TOOL_DIR="$(MDFORMAT_TOOL_DIR)" UV_TOOL_BIN_DIR="$(dir $(MDFORMAT))" \
-			uv tool install --force \
+			uv tool install --quiet --force \
+				--constraints "$(MDFORMAT_CONSTRAINTS)" \
 				--with "mdformat-gfm==$(MDFORMAT_GFM_VERSION)" \
 				--with "mdformat-frontmatter==$(MDFORMAT_FRONTMATTER_VERSION)" \
 				"mdformat==$(MDFORMAT_VERSION)" || exit 1; \
 	fi
 	@$(MDFORMAT_VERSION_OK) || { \
 		echo "mdformat at $(MDFORMAT) is not $(MDFORMAT_VERSION) with mdformat-gfm $(MDFORMAT_GFM_VERSION) and mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION); got: $$("$(MDFORMAT)" --version 2>&1 || echo 'not runnable')" >&2; \
+		exit 1; \
+	}
+	@$(MDFORMAT_DEPS_OK) || { \
+		echo "mdformat dependencies at $(MDFORMAT_PYTHON) do not match $(MDFORMAT_CONSTRAINTS)" >&2; \
 		exit 1; \
 	}
 
