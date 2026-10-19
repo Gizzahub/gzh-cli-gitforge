@@ -15,9 +15,10 @@ to the other trailers, for example
 release workflow collects these trailers into a "Deprecated" section of the
 release notes (`scripts/release-deprecations.sh`). A `Deprecated:` line in the
 middle of the body is not a trailer and is not collected. Keep each notice on
-one line, or indent its continuation lines: an unindented continuation line
-stops Git from reading the block as trailers, and the release only warns about
-it.
+one line, or indent its continuation lines. An unindented continuation line
+usually stops Git from reading the block as trailers, and the release only
+warns about it; next to a `Signed-off-by:` trailer, Git keeps the block and the
+notice is cut at its first line without a warning.
 
 This file only points to the release history. The hand-written record ends with
 v0.10.5; the table below links it.

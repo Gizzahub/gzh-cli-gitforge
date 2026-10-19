@@ -49,14 +49,20 @@ Resolved on 2026-10-20.
 - Deprecations are announced with a `Deprecated:` trailer in the commit
   message, next to the other trailers. GoReleaser's changelog groups read
   commit subjects only, so `scripts/release-deprecations.sh <tag>`
-  collects the trailers from the previous `v*.*.*` tag (or the whole
-  history for a first release) up to `<tag>` into a `## Deprecated` list.
+  collects the trailers from the previous `v*.*.*` release tag (or the
+  whole history for a first release) up to `<tag>` into a
+  `## Deprecated` list. A pre-release tag such as `v0.2.0-rc.1` does not
+  start the range, as in the workflow's newest-release check.
   A `Deprecated:` line in the middle of a body is not a trailer and is
   not collected. Indented continuation lines are joined (`unfold`). An
-  unindented continuation line makes Git reject the whole trailer block,
-  so the script warns (`::warning::`) when the range has more body lines
-  starting with `Deprecated:` than collected notices. `CHANGELOG.md`
-  states the rule with an example and the one-line or indented form.
+  unindented continuation line usually makes Git reject the whole
+  trailer block, so the script warns (`::warning::`) when the range has
+  more body lines starting with the key than collected notices; like
+  Git, the count ignores the key's case and spaces before the colon.
+  Known limit: next to a Git-generated trailer such as `Signed-off-by:`,
+  Git keeps the block and the notice is cut at its first line without a
+  warning. `CHANGELOG.md` states the rule, the one-line or indented
+  form, and that limit.
 - `.github/workflows/release.yml` gains a "Collect deprecation notices"
   step on both publish paths (tag push and VERSION bump). It runs the
   script for the release tag and passes `--release-footer=<file>` to
@@ -82,6 +88,11 @@ Resolved on 2026-10-20.
   with no trailers (empty output), a first release, and a missing tag
   (exit 1). Review follow-up: a `snapshot` tag inside the range must not
   start it, a folded trailer is one notice, and an unindented wrap is
-  not collected and warns. Mutations, each reverted: dropping `unfold`,
-  dropping `--match`, and always or never warning each fail a case. The workflow passes actionlint 1.7.12, GoReleaser v2.18.2
-  `check` passes, and its `release --help` lists `--release-footer`.
+  not collected and warns. A second review added an rc tag that must not
+  start the final release's range, and a collected lowercase
+  `deprecated:` key that must not cancel a dropped notice's warning.
+  Mutations, each reverted: dropping `unfold`, `--match` or
+  `--exclude`, counting only the exact `Deprecated:` form, and always or
+  never warning each fail a case. The workflow passes actionlint
+  1.7.12, GoReleaser v2.18.2 `check` passes, and its `release --help`
+  lists `--release-footer`.

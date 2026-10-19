@@ -51,6 +51,14 @@ commit 'fix: nothing deprecated'
 g tag v0.2.1
 commit "$(printf 'feat: unindented wrap\n\nDeprecated: Old.Thing; use\nNew.Thing\nModel: m-1')"
 g tag v0.2.2
+commit "$(printf 'feat: before rc\n\nDeprecated: Pre.Rc; use Post.Rc')"
+# 프리릴리스 태그는 정식 릴리스 범위의 시작이 아니다.
+g tag v0.3.0-rc.1
+# git 은 키의 대소문자를 가리지 않으므로 모인 소문자 키가 들여쓰지 않은
+# 연속 줄로 빠진 항목의 경고를 상쇄하면 안 된다.
+commit "$(printf 'feat: lower key\n\ndeprecated: Low.Key; use New.Key')"
+commit "$(printf 'feat: another wrap\n\nDeprecated: Lost.One; use\nFound.One')"
+g tag v0.3.0
 
 want_range='## Deprecated
 
@@ -63,6 +71,7 @@ check range 0 "$want_range" v0.2.0 1
 check none 0 '' v0.2.1
 check first 0 "$(printf '## Deprecated\n\n- OldFirst; use NewFirst')" v0.1.0
 check unindented-wrap 0 '' v0.2.2 1
+check rc-and-lower-key 0 "$(printf '## Deprecated\n\n- Pre.Rc; use Post.Rc\n- Low.Key; use New.Key')" v0.3.0 1
 check missing-tag 1 '' v9.9.9
 
 if [ "$failures" -ne 0 ]; then

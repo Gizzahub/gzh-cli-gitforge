@@ -20,7 +20,8 @@ git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null || {
 }
 
 # 첫 릴리스는 직전 태그가 없으므로 태그까지의 전체 이력을 본다.
-if prev=$(git describe --tags --abbrev=0 --match 'v*.*.*' "$TAG^" 2>/dev/null); then
+# v0.2.0-rc.1 같은 프리릴리스 태그는 범위의 시작이 아니다(release.yml 의 latest 판정과 같다).
+if prev=$(git describe --tags --abbrev=0 --match 'v*.*.*' --exclude 'v*-*' "$TAG^" 2>/dev/null); then
 	range="$prev..$TAG"
 else
 	range=$TAG
@@ -30,9 +31,11 @@ fi
 notices=$(git log --reverse --format='%(trailers:key=Deprecated,valueonly,unfold,separator=%x0A)' "$range" |
 	sed -e 's/^[[:space:]]*//' -e '/^$/d')
 
-# 들여쓰지 않은 연속 줄은 trailer 블록 전체를 무효로 만들어 조용히 빠진다.
-# 본문에서 "Deprecated:" 로 시작하는 줄이 모인 항목보다 많으면 경고만 한다.
-lines=$(git log --format='%B' "$range" | grep -c '^Deprecated:' || true)
+# 들여쓰지 않은 연속 줄은 대개 trailer 블록 전체를 무효로 만들어 조용히 빠진다.
+# (Signed-off-by 같은 git 생성 trailer 옆이면 블록은 남고 항목이 첫 줄에서 잘린다.)
+# 본문에서 키로 시작하는 줄이 모인 항목보다 많으면 경고만 한다. git 처럼
+# 키의 대소문자와 콜론 앞 공백을 가리지 않는다.
+lines=$(git log --format='%B' "$range" | grep -Eci '^deprecated[[:space:]]*:' || true)
 collected=$(printf '%s' "$notices" | grep -c '' || true)
 if [ "$lines" -gt "$collected" ]; then
 	echo "::warning::release-deprecations: $((lines - collected)) 'Deprecated:' line(s) in $range are not trailers and were not collected" >&2
