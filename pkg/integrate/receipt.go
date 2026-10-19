@@ -174,19 +174,24 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 	}
 	host := strings.TrimSpace(os.Getenv(callerHostEnv))
 	gitValue := func(key string) (string, error) {
-		// Exit 1 means the key is unset; the empty value then reaches the
-		// "not configured" refusal below instead of a raw Git failure.
+		// Exit 1 with nothing on stderr means the key is unset; the empty
+		// value then reaches the "not configured" refusal below instead of
+		// a raw Git failure. Git also exits 1 when it cannot read the file
+		// and only warns on stderr; that must not read as unconfigured.
 		res, err := exec.Run(ctx, ".", "config", "--global", "--includes", "--get", key)
 		if err != nil {
 			return "", fmt.Errorf("read global Git %s: %w", key, err)
 		}
-		switch res.ExitCode {
-		case 0:
+		stderr := strings.TrimSpace(res.Stderr)
+		switch {
+		case res.ExitCode == 0:
 			return strings.TrimSpace(res.Stdout), nil
-		case 1:
+		case res.ExitCode == 1 && stderr == "":
 			return "", nil
+		case res.Error != nil && stderr == "":
+			return "", fmt.Errorf("read global Git %s: exit %d: %w", key, res.ExitCode, res.Error)
 		default:
-			return "", fmt.Errorf("read global Git %s: exit %d: %s", key, res.ExitCode, strings.TrimSpace(res.Stderr))
+			return "", fmt.Errorf("read global Git %s: exit %d: %s", key, res.ExitCode, stderr)
 		}
 	}
 	if actor == "" {

@@ -24,7 +24,7 @@ func TestLegacyCleanupCERuntimeGuard(t *testing.T) {
 		"wrong_guard":     "CE runtime attestation binding was refused or changed",
 		"stale_pid":       "CE runtime attestation process identity changed",
 		"hash_changed":    "CE verifier digest changed",
-		"fail_after_step": "parse CE runtime attestation",
+		"fail_after_step": "runtime attestation after remove step 0: parse CE runtime attestation",
 	}
 	for _, mode := range []string{"allow", "malformed", "wrong_guard", "stale_pid", "hash_changed", "fail_after_step"} {
 		t.Run(mode, func(t *testing.T) {

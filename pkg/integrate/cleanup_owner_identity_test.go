@@ -4,10 +4,13 @@
 package integrate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 // clearCallerIdentity leaves the native identity chain empty: no actor or
@@ -50,4 +53,17 @@ func TestCleanupOnlyRetryRefusesUnconfiguredCaller(t *testing.T) {
 		}
 		f.assertResidualsIntact(t, wt)
 	})
+}
+
+// Git exits 1 both for an unset key and for a global config it cannot read;
+// only the second warns on stderr. An unreadable config must surface Git's
+// warning rather than ask the caller to configure what is already there.
+func TestResolveCallerOwnerReportsUnreadableGlobalConfig(t *testing.T) {
+	clearCallerIdentity(t)
+	t.Setenv("GIT_CONFIG_GLOBAL", t.TempDir())
+	_, err := ResolveCallerOwner(context.Background(), gitcmd.NewExecutor())
+	if err == nil || !strings.Contains(err.Error(), "read global Git ce.workActor") ||
+		strings.Contains(err.Error(), "not configured") {
+		t.Fatalf("err = %v, want Git's read failure for ce.workActor", err)
+	}
 }
