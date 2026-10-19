@@ -2,7 +2,7 @@
 id: ISSUE-73
 title: "Sync preview warns that a fetch-only sync may overwrite uncommitted changes"
 type: bug
-priority: P4
+priority: P3
 severity: low
 discovered-in: "foundation-devbox gz-git workspace adoption"
 discovered-at: 2026-10-20
@@ -21,8 +21,7 @@ Both preview paths ignore the strategy:
 
 - Detailed preview (`--dry-run` or verbose, `sync_command.go:269-279`):
   `analyzeRepoChanges` (`pkg/workspacecli/sync_command.go:1985-1997`) adds the
-  `ConflictTypeDirtyWorktree` conflict and `Local uncommitted changes may be
-  overwritten` for every `ActionUpdate` on a dirty working tree.
+  `ConflictTypeDirtyWorktree` conflict and `Local uncommitted changes may be overwritten` for every `ActionUpdate` on a dirty working tree.
   `action.Strategy` is available but not read.
 - Compact preview (plain `workspace sync`): `displayCompactSyncPreview` prints
   `has local changes (may be overwritten)` (`sync_command.go:2221-2228`).
