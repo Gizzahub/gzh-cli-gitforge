@@ -143,3 +143,19 @@ source `9d88a2b6`의 새 resource plan·Python 준비 기능과 cleanup 안전�
 `VERIFY_BASE=origin/master make verify-commit`은 CHANGELOG.md 영향으로
 full 확대(exit 3, Make exit 2)를 반환했다. 이것은 commit profile 통과가 아니며,
 native integrator의 전체 검사·baseline 판정·통합·push·회수가 남아 있다.
+
+## CE 42363c6e 실행의 실제 baseline 판정과 stale-base 거절
+
+후보 `ff4f680a`의 native 실행은 2026-10-19T07:47:59Z에 BLOCKED로 끝났다.
+[실제 CE 영수증](ce423-stale-base-refusal.json)은 source `9d88a2b6` 대비
+`make check`의 baseline failure non-worsening **3 → 3**, 변경 경로 진단 없음,
+`make lint` PASS를 기록한다. 진단 `make-check-2281117101.log`의 실패는 기존
+CE parity finish 두 시나리오의 processHost literal 차이와 그 상위 TestCEParity다.
+fixture·기대값·정규화는 변경하지 않았다. 자원 대기는 1h0m25.887s,
+실제 validation은 33m51.61s다.
+
+최종 freshness는 source가 `d0c1197bbe53af7eaee5cb3a68fb8b9b5d68d817`로 전진해
+FAIL이다. source push·worktree/local/remote branch 회수는 모두 false다.
+이 판정을 통합 성공으로 바꾸지 않는다. 새 source의 Go 1.27 CI 품질 검사 복구,
+release gate 이슈 기록, bin/tools mdformat 고정 변경을 보존해 재기준화한다.
+CE pin은 여전히 42363c6e이며 이번 source 전진은 새 CE 설치 승인이 아니다.
