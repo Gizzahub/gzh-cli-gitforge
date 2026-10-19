@@ -28,7 +28,6 @@ Git 실패 후 filesystem 삭제 차단과 진단 보강은 중복된다. 이번
 
 독립 strong 리뷰는 PASS, blocker 없음이다. 10/10 blob 일치와 실패 보존 경계를 확인했다.
 
-
 ## 실제 전달 결과와 mst 설치 차이
 
 후보 `846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8`의 CE finish는
@@ -49,7 +48,6 @@ native 재시도는 하지 않는다. 다음 전달 조건은 mst의 소스·관
 정합성을 지정 installer 절차로 해결한 뒤 현재 source와 후보를 재검증하는 것이다.
 이 문서는 tool 설치나 임시 PATH override를 승인·실행한 기록이 아니다.
 
-
 ## 승인된 mst 설치 반영 (2026-10-19)
 
 사용자 “승인. 진행시켜” 지시로 이미 source 통합된 `e1a4bb5a`의 지정
@@ -62,3 +60,16 @@ native 재시도는 하지 않는다. 다음 전달 조건은 mst의 소스·관
 Homebrew 관리본·mise 심·PATH는 변경하지 않았고 reclaim도 하지 않았다.
 실제 cleanup 안전성 후보는 아직 통합·설치되지 않았다. 새 설치본을 사용하는
 후속 native full·source push·회수 영수증 전에는 그 전달 완료를 주장하지 않는다.
+
+## 설치 후 native 전달 결과
+
+`0b178b3f`의 native finish는 2026-10-19T03:31:38Z BLOCKED로 종료했다.
+[원본 영수증](post-adoption-blocked.json)은 resource wait 29m2.284s,
+validation 17m39.737s를 기록한다. 후보 make lint는 통과했다. 후보 make check는
+`delivery.md`, `validation.md`, ISSUE-54의 Markdown format 오류로 종료했다.
+긴 Go 테스트는 기준선 비교에서 실행됐으며 후보의 검사 통과 증거가 아니다.
+기준선은 file:line 진단 2개를 반환했고, 후보 포맷 오류는 같은 형태가 아니어서
+non-worsening을 판정할 수 없었다. source push·회수는 실행되지 않았다.
+
+후보 문서만 저장소 지정 mdformat으로 보정하고 `make format-check`를 먼저 검증한다.
+체커·기대값·검사 범위는 바꾸지 않는다. 보정 후 native full 전달을 다시 판정해야 한다.

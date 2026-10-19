@@ -46,7 +46,6 @@ Primary checkout evidence: `tmp/resource-handoff-finish.json`,
 and `tmp/resource-handoff-installed.sha256`. This records mbp adoption only;
 no other host or published release is asserted. ISSUE-55 remains out of scope.
 
-
 ## mst adoption gap observed (2026-10-19)
 
 The existing source resolution and mbp installation verdict above remain unchanged.
@@ -59,7 +58,6 @@ change was performed. See [the delivery record](../../docs/task-reviews/readines
 and its raw BLOCKED receipt. Verify mst's managed declaration, designated installer,
 and resolved executable before another delivery attempt; do not reopen the corrected
 source defect or duplicate it as a new issue solely from this observation.
-
 
 ## mst approved adoption (2026-10-19)
 
