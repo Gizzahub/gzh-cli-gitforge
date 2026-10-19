@@ -59,6 +59,7 @@ type CheckOptions struct {
 	// means os.Stderr.
 	LockNotice           io.Writer
 	resourceWait         *time.Duration
+	readinessObservation *readinessObservation
 	resourceWaitObserver func(context.Context) error
 	resourceWaitError    *error
 	// preMutation is internal Run-only state. Check never writes it durably;
@@ -77,6 +78,20 @@ type validationDurationKey struct{}
 // withValidationDuration installs the accumulator Check owns for one report.
 func withValidationDuration(ctx context.Context, elapsed *time.Duration) context.Context {
 	return context.WithValue(ctx, validationDurationKey{}, elapsed)
+}
+
+// preparationDurationKey carries the preparation-time accumulator the same
+// way, because profiles run below helpers that only receive a context.
+type preparationDurationKey struct{}
+
+func withPreparationDuration(ctx context.Context, elapsed *time.Duration) context.Context {
+	return context.WithValue(ctx, preparationDurationKey{}, elapsed)
+}
+
+func accumulatePreparation(ctx context.Context, elapsed time.Duration) {
+	if acc, ok := ctx.Value(preparationDurationKey{}).(*time.Duration); ok && acc != nil {
+		*acc += elapsed
+	}
 }
 
 // accumulateValidation adds one measured gate run to Check's accumulator.
@@ -119,8 +134,18 @@ type CheckReport struct {
 	// for a declared high-load resource slot. Gate preparation, Git
 	// inspection, cleanup, push, and reclaim are outside it.
 	ValidationDuration time.Duration
-	PrepareProfile     string
-	PrepareInputs      string
+	// PreparationDuration is time spent inside preparation profiles after any
+	// slot was granted; the wait itself stays in ResourceWaitDuration.
+	PreparationDuration time.Duration
+	// PlanDuration is the slot-free plan-v1 runner span. PlanResource is
+	// what the runner asked for, PlanDigest binds it to the execution, and
+	// ResourceClass is what gz-git granted (high when the slot was held).
+	PlanDuration   time.Duration
+	PlanResource   string
+	PlanDigest     string
+	ResourceClass  string
+	PrepareProfile string
+	PrepareInputs  string
 	// Baselines records, for each legacy make target, whether the target
 	// baseline was measured and why. A source that passed is not compared
 	// with anything, so its record says the baseline was not measured
@@ -276,6 +301,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	// so a report always distinguishes "waited for the slot" from "ran the
 	// gate", including a zero for a gate that never launched a subprocess.
 	ctx = withValidationDuration(ctx, &report.ValidationDuration)
+	ctx = withPreparationDuration(ctx, &report.PreparationDuration)
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -772,6 +798,12 @@ func FormatCheck(r *CheckReport) string {
 	if r.ResourceWaitDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  resource wait — Duration=%s\n", r.ResourceWaitDuration.Round(time.Millisecond))
 	}
+	if r.PreparationDuration > 0 {
+		fmt.Fprintf(&b, "  INFO  preparation — Duration=%s\n", r.PreparationDuration.Round(time.Millisecond))
+	}
+	if r.PlanResource != "" {
+		fmt.Fprintf(&b, "  INFO  resource plan — Requested=%s Granted=%s PlanDigest=%s Duration=%s\n", r.PlanResource, r.ResourceClass, r.PlanDigest, r.PlanDuration.Round(time.Millisecond))
+	}
 	if r.ValidationDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  validation — Duration=%s\n", r.ValidationDuration.Round(time.Millisecond))
 	}
@@ -779,6 +811,9 @@ func FormatCheck(r *CheckReport) string {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
 		if r.GateMode == "contract-v1" {
 			fmt.Fprintf(&b, " ManifestPath=%s ContractDigest=%s ManifestOID=%s RunnerPath=%s RunnerOID=%s ReadinessTreeOID=%s Status=%s Duration=%s", r.ManifestPath, r.ContractDigest, r.ManifestOID, r.RunnerPath, r.RunnerOID, r.ReadinessTreeOID, r.ReadinessStatus, r.ReadinessDuration.Round(time.Millisecond))
+			if r.ResourceClass != "" {
+				fmt.Fprintf(&b, " ResourceClass=%s", r.ResourceClass)
+			}
 		}
 		b.WriteByte('\n')
 	}

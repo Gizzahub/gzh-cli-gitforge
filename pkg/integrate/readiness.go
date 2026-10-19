@@ -140,8 +140,14 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 	}
 	report.GateMode, report.ManifestPath, report.ContractDigest, report.ManifestOID = "contract-v1", target.ManifestPath, target.Digest, target.ManifestOID
 	report.RunnerPath, report.RunnerOID, report.ReadinessTreeOID = target.Decl.Runner, target.RunnerOID, target.TreeOID
+	var observed readinessObservation
+	opts.readinessObservation = &observed
 	result, duration, err := runContractWithResource(ctx, g, plan, target, resourceHighLoad, opts)
 	report.ReadinessStatus, report.ReadinessDuration = result.Status, duration
+	report.PlanDuration, report.PlanResource, report.PlanDigest, report.ResourceClass = observed.PlanDuration, observed.PlanResource, observed.PlanDigest, observed.ResourceClass
+	if observed.PrepareInputs != "" {
+		report.PrepareProfile, report.PrepareInputs = target.Decl.PrepareProfile, observed.PrepareInputs
+	}
 	if err != nil {
 		if errors.Is(err, errTargetMovedWhileWaiting) {
 			return CheckItem{Name: "readiness contract", Status: checkFail, Detail: err.Error()}
@@ -237,11 +243,11 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 			}
 		}
 	}
-	if err := g.worktreeAddDetach(ctx, targetDir, plan.TargetSHA); err != nil {
+	if err := addPreparedWorktree(ctx, g, targetDir, plan.TargetSHA, contract.Decl.PrepareProfile); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
 	defer func() { err = mergeCleanupError(ctx, err, g, targetDir) }()
-	if err := g.worktreeAddDetach(ctx, sourceDir, plan.BranchSHA); err != nil {
+	if err := addPreparedWorktree(ctx, g, sourceDir, plan.BranchSHA, contract.Decl.PrepareProfile); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
 	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
@@ -260,13 +266,12 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		}()
 		siblingEvidence = evidence
 	}
-	runnerEnv := readinessEnv(os.Environ())
+	observed := opts.observation()
+	runnerEnv, err := readinessRunnerEnv(ctx, g, plan, contract.Decl.PrepareProfile, root, targetDir, sourceDir, siblingLeases, opts, observed)
+	if err != nil {
+		return readinessResult{Status: "unavailable"}, 0, err
+	}
 	if contract.Decl.PrepareProfile != "" {
-		cargoTarget, prepareErr := prepareNDReadinessPair(ctx, g, plan, contract.Decl.PrepareProfile, root, targetDir, sourceDir, siblingLeases, opts)
-		if prepareErr != nil {
-			return readinessResult{Status: "unavailable"}, 0, prepareErr
-		}
-		runnerEnv = ndPreparationEnv(runnerEnv, cargoTarget)
 		siblingEvidence += "; preparation " + contract.Decl.PrepareProfile
 	}
 	runnerDir := targetDir
@@ -274,7 +279,11 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		runnerDir = sourceDir
 	}
 	runner := filepath.Join(runnerDir, filepath.FromSlash(contract.Decl.Runner))
-	if resourceHighLoad {
+	bind, planOut, err := selectReadinessResource(ctx, runner, targetDir, sourceDir, plan, runnerEnv, contract, resourceHighLoad, observed)
+	if err != nil {
+		return readinessResult{Status: "unavailable", stderr: planOut.stderr, failure: planOut.failure}, 0, err
+	}
+	if observed.ResourceClass == readinessResourceHigh {
 		waitStarted := time.Now()
 		runnerCtx, releaseSlot, acquireErr := holdMeasurementLock(ctx, g, opts)
 		if opts.resourceWait != nil {
@@ -289,7 +298,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		ctx = runnerCtx
 	}
 	started := time.Now()
-	result, err = executeReadinessWithEnvironment(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout, runnerEnv)
+	result, err = executeReadinessWithArgs(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, timeout, runnerEnv, bind)
 	duration = time.Since(started)
 	// ReadinessDuration keeps reporting the whole runner-execution span,
 	// while validation time accumulates inside it around the started process
@@ -316,9 +325,50 @@ func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sour
 }
 
 func executeReadinessWithEnvironment(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration, env []string) (readinessResult, error) {
+	return executeReadinessWithArgs(parent, runner, targetDir, sourceDir, sourceSHA, targetSHA, timeout, env, nil)
+}
+
+// executeReadinessWithArgs runs the json-v1 execution. extra carries only the
+// fixed plan-v1 binding arguments; it is never caller-controlled text.
+func executeReadinessWithArgs(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration, env, extra []string) (readinessResult, error) {
+	args := append([]string{"--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "json-v1"}, extra...)
+	// Validation time is the successfully started runner process alone,
+	// recorded immediately after Wait and before the output-limit checks
+	// and JSON decode. A Start failure never launched a process and
+	// adds exactly zero.
+	out, err := runReadinessProcess(parent, runner, targetDir, args, timeout, env, "contract_runner", func(elapsed time.Duration) { accumulateValidation(parent, elapsed) })
+	if err != nil {
+		return readinessResult{Status: "unavailable", stderr: out.stderr, failure: out.failure}, err
+	}
+	result, err := parseReadinessResult(out.stdout)
+	if err != nil {
+		return readinessResult{Status: "unavailable", stderr: out.stderr}, err
+	}
+	result.stderr = out.stderr
+	return result, nil
+}
+
+// planReadinessResources runs the slot-free plan-v1 invocation. Its time is
+// reported through elapsed, not as validation.
+func planReadinessResources(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, env []string, elapsed *time.Duration) (readinessPlanResult, readinessProcessOutput, error) {
+	args := []string{"--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "plan-v1"}
+	out, err := runReadinessProcess(parent, runner, targetDir, args, readinessPlanTimeout, env, "contract_plan", func(d time.Duration) { *elapsed += d })
+	if err != nil {
+		return readinessPlanResult{}, out, err
+	}
+	plan, err := parseReadinessPlan(out.stdout)
+	return plan, out, err
+}
+
+type readinessProcessOutput struct {
+	stdout, stderr []byte
+	failure        *ReadinessFailure
+}
+
+func runReadinessProcess(parent context.Context, runner, targetDir string, args []string, timeout time.Duration, env []string, stage string, record func(time.Duration)) (readinessProcessOutput, error) {
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, runner, "--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "json-v1") // #nosec G204 -- runner is target-owned, validated Git blob
+	cmd := exec.CommandContext(ctx, runner, args...) // #nosec G204 -- runner is target-owned, validated Git blob; fixed arguments
 	cmd.Dir = targetDir
 	cmd.Env = env
 	cmd.Env = hostSlotsHeldForChild(parent, cmd.Env)
@@ -335,42 +385,32 @@ func executeReadinessWithEnvironment(parent context.Context, runner, targetDir, 
 	runErr := cmd.Start()
 	if runErr == nil {
 		runErr = cmd.Wait()
-		// Validation time is the successfully started runner process alone,
-		// recorded immediately after Wait and before the output-limit checks
-		// and JSON decode. A Start failure never launched a process and
-		// adds exactly zero.
-		accumulateValidation(parent, time.Since(started))
+		record(time.Since(started))
 	}
 	elapsed := time.Since(started)
+	out := readinessProcessOutput{stderr: bytes.Clone(stderr.Bytes())}
 	if ctx.Err() == context.DeadlineExceeded && parent.Err() == nil {
-		return readinessResult{
-			Status: "unavailable",
-			stderr: bytes.Clone(stderr.Bytes()),
-			failure: &ReadinessFailure{
-				Stage:              "contract_runner",
-				Class:              "timeout",
-				BudgetMS:           int(timeout.Milliseconds()),
-				ElapsedMS:          int(elapsed.Milliseconds()),
-				LeafExitCode:       nil,
-				TerminationRequest: cancellation.snapshot(),
-			},
-		}, fmt.Errorf("runner timed out")
+		out.failure = &ReadinessFailure{
+			Stage:              stage,
+			Class:              "timeout",
+			BudgetMS:           int(timeout.Milliseconds()),
+			ElapsedMS:          int(elapsed.Milliseconds()),
+			LeafExitCode:       nil,
+			TerminationRequest: cancellation.snapshot(),
+		}
+		return out, fmt.Errorf("runner timed out")
 	}
 	if ctx.Err() != nil {
-		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, ctx.Err()
+		return out, ctx.Err()
 	}
 	if stdout.exceeded || stderr.exceeded {
-		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner output exceeded limit")
+		return out, fmt.Errorf("runner output exceeded limit")
 	}
 	if runErr != nil {
-		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, fmt.Errorf("runner failed: %s", boundedDetail(stderr.String()))
+		return out, fmt.Errorf("runner failed: %s", boundedDetail(stderr.String()))
 	}
-	result, err := parseReadinessResult(stdout.Bytes())
-	if err != nil {
-		return readinessResult{Status: "unavailable", stderr: bytes.Clone(stderr.Bytes())}, err
-	}
-	result.stderr = bytes.Clone(stderr.Bytes())
-	return result, nil
+	out.stdout = stdout.Bytes()
+	return out, nil
 }
 
 type limitedBuffer struct {

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -38,6 +39,10 @@ type RunReport struct {
 	// PreMutationOutcome is set only when this invocation durably recorded a
 	// verified refusal before it could enter the target push.
 	PreMutationOutcome *PreMutationOutcome
+	// IntegrationDuration spans revalidation, the target push and the local
+	// target fast-forward of a ready check. Reclaim is outside it, and the
+	// target lock wait precedes it.
+	IntegrationDuration time.Duration
 }
 
 const preMutationOutcomeWriteTimeout = 5 * time.Second
@@ -206,6 +211,9 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	if !check.Ready {
 		return report, fmt.Errorf("not ready")
 	}
+	started := time.Now()
+	stopIntegration := sync.OnceFunc(func() { report.IntegrationDuration = time.Since(started) })
+	defer stopIntegration()
 
 	dir := strings.TrimSpace(opts.RepoPath)
 	if dir == "" {
@@ -275,7 +283,9 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 	report.Integrated = true
 	report.SHA = sourceSHA
 	report.Printed = append(report.Printed, fmt.Sprintf("INTEGRATED %s (%s) -> %s/%s", check.Plan.Branch, sourceSHA, check.Plan.Remote, targetName))
-	if err := ffTargetWorktrees(ctx, exec, g, targetName, sourceSHA); err != nil {
+	ffErr := ffTargetWorktrees(ctx, exec, g, targetName, sourceSHA)
+	stopIntegration()
+	if err := ffErr; err != nil {
 		report.Reclaim.Failed = append(report.Reclaim.Failed, "fast-forward local target worktree: "+err.Error())
 		report.Printed = append(report.Printed, "RECLAIM incomplete: "+strings.Join(report.Reclaim.Failed, "; "))
 		return report, err

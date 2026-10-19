@@ -21,7 +21,11 @@ slot for each actual profile executor and its integrity checks. Worktree
 materialization and cleanup remain outside; the slot is released before Make.
 Absent or false leaves preparation light. A true declaration without a resolved
 profile does not acquire capacity, and readiness contracts do not execute legacy
-profiles. Controller-only profiles honor the repository declaration too. See
+`branch.prepareProfile`. A readiness contract may declare
+`branch.readiness.prepareProfile: infra-ops-python-uv-v1`; it prepares the
+source snapshot only, because the V1 runner receives one environment and
+validates `--source-dir`, and passes the owned `UV_PROJECT_ENVIRONMENT`,
+`VIRTUAL_ENV` and `UV_NO_SYNC=1` to the runner. Controller-only profiles honor the repository declaration too. See
 [integration resource scope](integrate-resources.md) for inheritance and waits.
 
 | Target declaration | Source declaration | Result                                                       |

@@ -26,10 +26,17 @@ type Readiness struct {
 	Runner         string `yaml:"runner" json:"runner"`
 	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
 	Timeout        string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	// ResourcePlan opts the runner into a slot-free planning invocation whose
+	// resource class decides whether the gate execution takes the host slot.
+	ResourcePlan string `yaml:"resourcePlan,omitempty" json:"resourcePlan,omitempty"`
 }
 
 // NDStackCheckedTestsV1 prepares the fixed ND checked-binding test units.
 const NDStackCheckedTestsV1 = "nd-stack-checked-tests-v1"
+
+// ReadinessResourcePlanV1 asks the runner for a plan-v1 resource class before
+// execution and binds the execution to the reported plan digest.
+const ReadinessResourcePlanV1 = "plan-v1"
 
 // DefaultReadinessTimeout preserves the execution budget of contracts without timeout.
 const DefaultReadinessTimeout = 15 * time.Minute
@@ -71,8 +78,11 @@ func ReadinessDigest(r Readiness) (string, error) {
 
 // ValidateReadiness validates the closed V1 contract.
 func ValidateReadiness(r Readiness) error {
-	if r.PrepareProfile != "" && r.PrepareProfile != NDStackCheckedTestsV1 {
+	if r.PrepareProfile != "" && r.PrepareProfile != NDStackCheckedTestsV1 && r.PrepareProfile != PrepareProfileInfraOpsPythonUVV1 {
 		return fmt.Errorf("unsupported branch.readiness.prepareProfile: %q", r.PrepareProfile)
+	}
+	if r.ResourcePlan != "" && r.ResourcePlan != ReadinessResourcePlanV1 {
+		return fmt.Errorf("unsupported branch.readiness.resourcePlan: %q", r.ResourcePlan)
 	}
 	if r.Version != 1 {
 		return fmt.Errorf("branch.readiness.version must be 1")
@@ -148,11 +158,11 @@ func parseReadinessJSON(data []byte) (Readiness, bool, error) {
 	if err != nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness must be an object")
 	}
-	if len(fields) < 2 || len(fields) > 4 || fields["version"] == nil || fields["runner"] == nil {
+	if len(fields) < 2 || len(fields) > 5 || fields["version"] == nil || fields["runner"] == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
 	}
 	for key := range fields {
-		if key != "version" && key != "runner" && key != "prepareProfile" && key != "timeout" {
+		if !readinessFieldAllowed(key) {
 			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
 		}
 	}
@@ -165,6 +175,9 @@ func parseReadinessJSON(data []byte) (Readiness, bool, error) {
 	}
 	if fields["timeout"] != nil && r.Timeout == "" {
 		return Readiness{}, false, fmt.Errorf("timeout must be a non-empty duration string")
+	}
+	if fields["resourcePlan"] != nil && r.ResourcePlan == "" {
+		return Readiness{}, false, fmt.Errorf("resourcePlan must be a non-empty plan ID")
 	}
 	return r, true, ValidateReadiness(r)
 }
@@ -232,12 +245,12 @@ func parseReadinessYAML(data []byte) (Readiness, bool, error) {
 	if node == nil {
 		return Readiness{}, false, nil
 	}
-	if node.Kind != yaml.MappingNode || len(node.Content) < 4 || len(node.Content) > 8 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
+	if node.Kind != yaml.MappingNode || len(node.Content) < 4 || len(node.Content) > 10 || mappingValue(node, "version") == nil || mappingValue(node, "runner") == nil {
 		return Readiness{}, false, fmt.Errorf("branch.readiness has unknown or missing fields")
 	}
 	for i := 0; i < len(node.Content); i += 2 {
 		key := node.Content[i].Value
-		if key != "version" && key != "runner" && key != "prepareProfile" && key != "timeout" {
+		if !readinessFieldAllowed(key) {
 			return Readiness{}, false, fmt.Errorf("unknown branch.readiness field: %s", key)
 		}
 	}
@@ -254,8 +267,16 @@ func parseReadinessYAML(data []byte) (Readiness, bool, error) {
 	return r, true, ValidateReadiness(r)
 }
 
+func readinessFieldAllowed(key string) bool {
+	switch key {
+	case "version", "runner", "prepareProfile", "timeout", "resourcePlan":
+		return true
+	}
+	return false
+}
+
 func validateReadinessYAMLStrings(node *yaml.Node) error {
-	for _, key := range []string{"prepareProfile", "timeout"} {
+	for _, key := range []string{"prepareProfile", "timeout", "resourcePlan"} {
 		if value := mappingValue(node, key); value != nil && (value.Tag != "!!str" || value.Value == "") {
 			return fmt.Errorf("%s must be a non-empty string", key)
 		}

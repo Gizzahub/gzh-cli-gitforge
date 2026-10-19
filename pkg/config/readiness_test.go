@@ -259,3 +259,46 @@ func TestLoadProjectConfigRejectsInvalidTimeoutBeforeDecoding(t *testing.T) {
 		}
 	}
 }
+
+func TestReadinessResourcePlanAndPythonUVProfile(t *testing.T) {
+	base := Readiness{Version: 1, Runner: ".gz-git/readiness/check"}
+	legacy, err := ReadinessDigest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned := base
+	planned.ResourcePlan = ReadinessResourcePlanV1
+	digest, err := ReadinessDigest(planned)
+	if err != nil || digest == legacy {
+		t.Fatalf("resourcePlan missing from contract digest: %s, %v", digest, err)
+	}
+	full := `version: 1
+    runner: .gz-git/readiness/check
+    prepareProfile: infra-ops-python-uv-v1
+    timeout: 30m
+    resourcePlan: plan-v1
+`
+	for _, tc := range []struct {
+		doc   string
+		json  bool
+		valid bool
+	}{
+		{"branch:\n  readiness:\n    " + full, false, true},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","prepareProfile":"infra-ops-python-uv-v1","timeout":"30m","resourcePlan":"plan-v1"}}}`, true, true},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","resourcePlan":"plan-v2"}}}`, true, false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","resourcePlan":""}}}`, true, false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","resourcePlan":null}}}`, true, false},
+		{`{"branch":{"readiness":{"version":1,"runner":".gz-git/readiness/check","resourcePlan":true}}}`, true, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    resourcePlan: true\n", false, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    resourcePlan: plan-v1\n    resourcePlan: plan-v1\n", false, false},
+		{"branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: familybook-ent-prepare-v1\n", false, false},
+	} {
+		got, present, err := ParseReadinessDocument([]byte(tc.doc), tc.json)
+		if (err == nil && present) != tc.valid {
+			t.Fatalf("valid=%v got present=%v err=%v for %s", tc.valid, present, err, tc.doc)
+		}
+		if tc.valid && (got.ResourcePlan != ReadinessResourcePlanV1 || got.PrepareProfile != PrepareProfileInfraOpsPythonUVV1) {
+			t.Fatalf("decoded %+v from %s", got, tc.doc)
+		}
+	}
+}

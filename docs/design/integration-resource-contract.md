@@ -47,7 +47,11 @@ profile. Source and target declarations are ORed. Each actual source or lazy
 baseline executor acquires and releases capacity separately, including its short
 integrity checks, while snapshotting and worktree creation/removal stay outside.
 This uses the existing admission and wait reporting, and preserves child claims.
-Absent profiles and readiness contracts do not acquire a preparation slot;
+Readiness contracts acquire it only for their own `prepareProfile`.
+A readiness contract declaring `resourcePlan: plan-v1` asks its runner for a
+slot-free light/high plan bound by a digest; a high plan or either static
+declaration takes the slot, and a plan can never drop a static declaration.
+Absent profiles do not acquire a preparation slot;
 malformed declarations still fail closed. Windows supports lock release
 and process-liveness checks, but directory fsync is unavailable and native crash
 durability has not been verified.

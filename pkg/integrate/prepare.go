@@ -266,7 +266,7 @@ func runPrepareProfile(parent context.Context, g gitRepo, dir, profile string, g
 
 func runPrepareProfileWithResource(ctx context.Context, g gitRepo, dir, profile string, inputs []prepareInput, guard preparedRefGuard, highLoad bool, opts CheckOptions) error {
 	if !highLoad {
-		return runPrepareProfileWithInputs(ctx, g, dir, profile, inputs, guard)
+		return measurePreparation(ctx, func() error { return runPrepareProfileWithInputs(ctx, g, dir, profile, inputs, guard) })
 	}
 	started := time.Now()
 	heldCtx, release, err := holdMeasurementLock(ctx, g, opts)
@@ -277,7 +277,15 @@ func runPrepareProfileWithResource(ctx context.Context, g gitRepo, dir, profile 
 		return err
 	}
 	defer release()
-	return runPrepareProfileWithInputs(heldCtx, g, dir, profile, inputs, guard)
+	return measurePreparation(heldCtx, func() error { return runPrepareProfileWithInputs(heldCtx, g, dir, profile, inputs, guard) })
+}
+
+// measurePreparation records one profile run after its slot was granted.
+func measurePreparation(ctx context.Context, run func() error) error {
+	started := time.Now()
+	err := run()
+	accumulatePreparation(ctx, time.Since(started))
+	return err
 }
 
 func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile string, inputs []prepareInput, guard preparedRefGuard) error {

@@ -76,7 +76,9 @@ func prepareNDReadinessPair(ctx context.Context, g gitRepo, plan TargetPlan, pro
 				return "", err
 			}
 		}
-		err = prepareNDReadinessSide(runCtx, g, side.dir, side.target, *lease, guard, cargoPrepareTimeout)
+		err = measurePreparation(runCtx, func() error {
+			return prepareNDReadinessSide(runCtx, g, side.dir, side.target, *lease, guard, cargoPrepareTimeout)
+		})
 		release()
 		if err != nil {
 			return "", fmt.Errorf("readiness preparation %s at %s: %w", profile, side.sha, err)
@@ -119,9 +121,8 @@ func prepareNDReadinessSide(parent context.Context, g gitRepo, dir, target strin
 		var output bytes.Buffer
 		cmd.Stdout = &limitedWriter{w: &output, n: 128 << 10}
 		cmd.Stderr = cmd.Stdout
-		started := time.Now()
+		// Build time is preparation, measured by the caller; not validation.
 		runErr := runPrepareCommand(cmd)
-		accumulateValidation(parent, time.Since(started))
 		integrityErr := errors.Join(before.verify(context.WithoutCancel(parent), g, dir), inspectSiblingLease(lease))
 		if runErr != nil || integrityErr != nil || ctx.Err() != nil {
 			return errors.Join(fmt.Errorf("project-cargo %s: %s", strings.Join(args, " "), strings.TrimSpace(output.String())), runErr, integrityErr, ctx.Err())

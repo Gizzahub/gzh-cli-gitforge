@@ -41,6 +41,16 @@ type RunProtocol struct {
 	// distinguishable from a missing field.
 	ResourceWaitDurationMS int `json:"resource_wait_duration_ms"`
 	ValidationDurationMS   int `json:"validation_duration_ms"`
+	// PlanDurationMS, PreparationDurationMS and IntegrationDurationMS finish
+	// the phase split: slot-free plan-v1 runner, preparation profiles after
+	// slot admission, and revalidation through the target push. They render
+	// even when zero, like the two fields above.
+	PlanDurationMS        int `json:"plan_duration_ms"`
+	PreparationDurationMS int `json:"preparation_duration_ms"`
+	IntegrationDurationMS int `json:"integration_duration_ms"`
+	// ResourceClass is the host-slot class the readiness runner was granted
+	// (light or high); absent outside contract mode.
+	ResourceClass string `json:"resource_class,omitempty"`
 	// ReadinessFailures carries typed timeout evidence captured at the process
 	// boundary. It is absent when every readiness subprocess finished within
 	// its budget, preserving the v1 success shape for existing consumers.
@@ -88,10 +98,14 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 		p.ReclaimDone = report.Reclaim.Done
 		p.ReclaimFailed = report.Reclaim.Failed
 		p.GitReclaim = report.Reclaim.GitProof
+		p.IntegrationDurationMS = int(report.IntegrationDuration.Milliseconds())
 		if report.Check != nil {
 			p.TargetRef = "refs/heads/" + targetBranchName(report.Check.Plan.Target, report.Check.Plan.Remote)
 			p.ResourceWaitDurationMS = int(report.Check.ResourceWaitDuration.Milliseconds())
 			p.ValidationDurationMS = int(report.Check.ValidationDuration.Milliseconds())
+			p.PlanDurationMS = int(report.Check.PlanDuration.Milliseconds())
+			p.PreparationDurationMS = int(report.Check.PreparationDuration.Milliseconds())
+			p.ResourceClass = report.Check.ResourceClass
 			p.ReadinessFailures = report.Check.ReadinessFailures
 		}
 		if report.Receipt == nil && report.Integrated {

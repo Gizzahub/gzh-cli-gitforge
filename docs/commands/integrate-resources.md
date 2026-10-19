@@ -28,6 +28,11 @@ readiness contract it covers the runner process only. Fetching, Git
 inspection, snapshotting and prepared-worktree creation/removal, push, and reclaim are
 outside the slot. Capacity remains one per host.
 
+A readiness contract may instead declare `resourcePlan: plan-v1`: the
+target-owned runner first classifies the selected checks as light or high
+without the slot, and only a high plan or a static `true` declaration takes it.
+See [readiness resource plan](integrate-resource-plan.md).
+
 `CheckReport.ResourceWaitDuration` records slot admission time separately from
 `ReadinessDuration`; waiting does not consume a runner timeout. A target-lock
 wait prints its common-directory and destination-ref ownership reason to the
@@ -98,8 +103,9 @@ baseline profile execution, then releases it before Make verification. The slot
 covers the executor and its integrity checks; snapshotting, worktree creation,
 and worktree cleanup remain outside. This declaration does not make Make gates
 high load. It also applies to an existing controller-only profile, but does not
-create a profile when none is resolved. Readiness runners do not execute legacy
-preparation and therefore do not acquire a preparation slot.
+create a profile when none is resolved. A readiness contract's own
+`prepareProfile` (`nd-stack-checked-tests-v1` or `infra-ops-python-uv-v1`)
+follows the same declaration for each prepared side.
 
 The key must be a strict boolean and is not inherited from profiles, parents, or
 workspace configuration. Malformed committed declarations fail closed even when

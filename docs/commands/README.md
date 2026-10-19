@@ -23,6 +23,8 @@ readiness contract.
 native readiness compilation profile for ND source-board bindings.
 [Integration preparation profiles](integrate-prepare-profile.md) describe
 repository-root fixed profiles and symmetric target/source preparation.
+[Readiness resource plan](integrate-resource-plan.md) lets a target-owned
+runner classify each run as light or high before the host slot is taken.
 
 [Per-check Make outcomes](integrate-make-outcome-report.md) describes the opt-in
 V1 comparison for failures without file:line diagnostics.
