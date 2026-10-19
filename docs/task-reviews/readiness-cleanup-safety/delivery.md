@@ -73,3 +73,23 @@ non-worsening을 판정할 수 없었다. source push·회수는 실행되지 �
 
 후보 문서만 저장소 지정 mdformat으로 보정하고 `make format-check`를 먼저 검증한다.
 체커·기대값·검사 범위는 바꾸지 않는다. 보정 후 native full 전달을 다시 판정해야 한다.
+
+## 최종 native 검사와 재기준화
+
+`a8a17a2b`의 검사는 resource wait 21m34.493s, validation 16m52.620s 후
+2026-10-19T04:11:54Z에 stale-base로 거절됐다. 원격 source가 `ed395f5d`로
+바뀌어 기준선 측정과 post-gate freshness를 완료하지 못했다.
+[원본 영수증](stale-base-refusal.json)을 보존한다. 후보 포맷 오류는 사라졌으나
+후보 make check 자체는 `tests/parity`의 installed CE `d7c88ff6` 대 goldens
+`42363c6e` 불일치로 종료했다. 단위 로그의 여러 PASS가 full PASS를 뜻하지 않는다.
+원본 진단은 `~/.local/state/gz-git/integrate/diagnostics/make-check-1127702178.log`다.
+기준선 비교 미완료이므로 non-worsening도 주장하지 않는다.
+
+깨끗한 pushed 작업을 원격 `ed395f5d`로 rebase했다. CHANGELOG의 양쪽 항목을
+모두 보존해 유일한 충돌을 해결했다. 다른 동작은 덮어쓰지 않았다. 원격이 이미
+0.10.5를 사용하므로 이번 후보는 patch 0.10.6으로 준비한다. 이전 0.10.5 기록은
+당시 후보의 역사적 버전이며 설치 승인 SHA e1a4bb5a는 변경하지 않았다.
+
+미해결 CE toolchain 불일치는 기존 [ISSUE-41](../../../tasks/issue/41-ce-parity-golden-drift.md)에
+연결한다. 기대값 재녹화·검사 약화·CE 자동 설치는 하지 않는다. CE 정합성 해결과
+현재 source 기준 native full·통합·push·회수 전까지 이 전달은 미완료다.

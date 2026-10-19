@@ -435,3 +435,20 @@ readiness runner 예산 후보의 최초 native 전달은 설치 CE `e8307aa4`�
 [원본 영수증](../../docs/task-reviews/readiness-runner-budget/first-finish.json)을 보존한다.
 이번에는 별도의 실행 잠금 테스트 진단이 source에 추가돼 native가 BLOCKED를 반환했다.
 parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 결과는 전달 성공이 아니다.
+
+## 2026-10-19 mst cleanup-safety delivery blocked
+
+`readiness-cleanup-safety-delivery` at `a8a17a2b` passed its prior formatting
+refusal but failed `tests/parity` before a complete native verdict: the installed
+CE identifies as `d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`, while all 12 committed
+capture toolchain identities require `42363c6eb4213e496748f329365cb4293b97e850`.
+The raw gate diagnostic is `~/.local/state/gz-git/integrate/diagnostics/make-check-1127702178.log`.
+The target concurrently moved from `e1a4bb5a` to `ed395f5d`, so baseline comparison
+and freshness were incomplete; the native finish receipt reports stale-base.
+See [the delivery evidence](../../docs/task-reviews/readiness-cleanup-safety/delivery.md).
+
+The gz-git e1a4bb5a installation approved in this session was completed and verified;
+it does not establish CE adoption. No parity fixtures, normalizer, runtime binding,
+or CE installation were changed to bypass this finding. Verify the owning CE
+source declaration and installed executable before any approved CE adoption or
+further native delivery. This is the existing ISSUE-41 drift, not a new issue.
