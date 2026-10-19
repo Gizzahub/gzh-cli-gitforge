@@ -20,9 +20,10 @@ device is invalid; an undeclared device gets one too.
 ce-agent-kit `internal/usecase/taskruntime/finish_reason.go` picks the
 recorded failure reason in this order: a stdout `FAIL ` line, a stderr
 `FAIL ` line, then the first non-empty stderr line. A failed integrate
-run whose output has no `FAIL ` line, such as a refused unconfirmed `--target` (exit 1, before
-any lock or notice), now records the provenance line as its one-line
-reason instead of the refusal. Where a notice already came first, such
+run whose output has no `FAIL ` line, such as a `--target` that is not the integration branch (exit 1,
+"target must be the integration branch ..."), now records the
+provenance line as its one-line reason instead of the refusal. With an
+uncontended target lock no other notice precedes that refusal. Where a notice already came first, such
 as the host lock wait notice, the provenance line replaces that notice. CE
 handles a stale base, exit 3 and exit 4 itself and is not affected
 there. The full stderr stays in the receipt diagnostics, so only the
@@ -31,12 +32,12 @@ summary misleads.
 ## Reproduction
 
 1. Build gz-git from a commit that contains the ISSUE-57 change.
-1. Run `gz-git integrate run` with an unconfirmed heuristic `--target`
-   through a path that records its first stderr line, as CE's
-   `finish_reason.go` does.
+1. Run `ce task run-finish` on a task whose `--target` gz-git refuses,
+   for example after `branch.integrationBranch` in `.gz-git.yaml` has
+   drifted from the run's recorded source branch.
 1. The recorded reason reads
-   `integrate-run failed: integrate: run device=...` rather than the
-   `--target` refusal.
+   `integrate-run failed: integrate: run device=...` rather than
+   `target must be the integration branch ...`.
 
 ## Expected vs Actual
 
