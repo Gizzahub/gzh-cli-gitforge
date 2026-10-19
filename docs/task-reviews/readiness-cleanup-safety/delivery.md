@@ -182,3 +182,12 @@ validation 15m43.538s이며 source push·회수는 모두 false다.
 원본 영수증·코드·리뷰를 보존하고 최신 source에 맞춘 clean/pushed 작업 브랜치를
 남긴다. 재개 시 현재 source와 실제 CE 상태를 다시 확인해 기존 native gate로 통합한다.
 정리 도구 source 통합·설치와 그에 종속된 CalcGlide 부모 기록 통합은 미완료다.
+
+## 권장안 승인 후 재개
+
+사용자의 재개 승인 후 CE 목록에서 다른 활성 통합 실행이 없음을 확인했다.
+source `49fe5547`에 재기준화했고 구현·테스트·버전 7개 blob은 `c9247854`와 동일하다.
+중간 source의 릴리스 노트 자동 생성 계약 때문에 CHANGELOG 충돌 두 건이 발생했다.
+새 source의 CHANGELOG를 그대로 유지해 해결했으며 변경 이유는 기존 커밋과 이 문서에 남긴다.
+source의 resource-plan 출력 수정·테스트와 나머지 변경은 보존했다.
+현재 관측은 미래 source 전진이 없다는 보장이 아니며 native freshness 검사를 그대로 적용한다.
