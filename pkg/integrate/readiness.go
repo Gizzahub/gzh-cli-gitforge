@@ -189,7 +189,7 @@ func readinessFailureDetailWithPath(detail string, stderr []byte) (renderedDetai
 }
 
 func runContractWithTimeout(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration) (result readinessResult, duration time.Duration, err error) {
-	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, false, CheckOptions{})
+	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, readinessPlanTimeout, false, CheckOptions{})
 }
 
 func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, resourceHighLoad bool, opts CheckOptions) (readinessResult, time.Duration, error) {
@@ -197,16 +197,16 @@ func runContractWithResource(ctx context.Context, g gitRepo, plan TargetPlan, co
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
-	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, resourceHighLoad, opts)
+	return runContractWithTimeoutResource(ctx, g, plan, contract, timeout, readinessPlanTimeout, resourceHighLoad, opts)
 }
 
-func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {
-	return runContractPair(ctx, g, plan, contract, timeout, resourceHighLoad, opts, false)
+func runContractWithTimeoutResource(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout, planTimeout time.Duration, resourceHighLoad bool, opts CheckOptions) (result readinessResult, duration time.Duration, err error) {
+	return runContractPair(ctx, g, plan, contract, timeout, planTimeout, resourceHighLoad, opts, false)
 }
 
 // runContractPair normally executes the target-owned runner. Only the explicit
 // globally authorized readiness-update workflow may select the candidate runner.
-func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout time.Duration, resourceHighLoad bool, opts CheckOptions, candidate bool) (result readinessResult, duration time.Duration, err error) {
+func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract readinessContract, timeout, planTimeout time.Duration, resourceHighLoad bool, opts CheckOptions, candidate bool) (result readinessResult, duration time.Duration, err error) {
 	targetSiblings, sourceSiblings, hasSiblings, err := resolveSiblingContractPair(ctx, g, plan)
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
@@ -279,7 +279,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		runnerDir = sourceDir
 	}
 	runner := filepath.Join(runnerDir, filepath.FromSlash(contract.Decl.Runner))
-	bind, planOut, err := selectReadinessResource(ctx, runner, targetDir, sourceDir, plan, runnerEnv, contract, resourceHighLoad, observed)
+	bind, planOut, err := selectReadinessResource(ctx, runner, targetDir, sourceDir, plan, runnerEnv, contract, resourceHighLoad, planTimeout, observed)
 	if err != nil {
 		return readinessResult{Status: "unavailable", stderr: planOut.stderr, failure: planOut.failure}, 0, err
 	}
@@ -350,9 +350,9 @@ func executeReadinessWithArgs(parent context.Context, runner, targetDir, sourceD
 
 // planReadinessResources runs the slot-free plan-v1 invocation. Its time is
 // reported through elapsed, not as validation.
-func planReadinessResources(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, env []string, elapsed *time.Duration) (readinessPlanResult, readinessProcessOutput, error) {
+func planReadinessResources(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration, env []string, elapsed *time.Duration) (readinessPlanResult, readinessProcessOutput, error) {
 	args := []string{"--source-dir", sourceDir, "--source-sha", sourceSHA, "--target-sha", targetSHA, "--result-format", "plan-v1"}
-	out, err := runReadinessProcess(parent, runner, targetDir, args, readinessPlanTimeout, env, "contract_plan", func(d time.Duration) { *elapsed += d })
+	out, err := runReadinessProcess(parent, runner, targetDir, args, timeout, env, "contract_plan", func(d time.Duration) { *elapsed += d })
 	if err != nil {
 		return readinessPlanResult{}, out, err
 	}

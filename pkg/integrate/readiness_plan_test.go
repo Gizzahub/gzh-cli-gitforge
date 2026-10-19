@@ -73,6 +73,7 @@ func TestReadinessResourcePlanSelectsSlot(t *testing.T) {
 		{"light plan runs without the slot", false, readinessResourceLight, "", readinessResourceLight},
 		{"high plan takes the slot", false, readinessResourceHigh, hostSlotName, readinessResourceHigh},
 		{"static high load cannot be lowered by a light plan", true, readinessResourceLight, hostSlotName, readinessResourceHigh},
+		{"static high load with a high plan takes the slot once", true, readinessResourceHigh, hostSlotName, readinessResourceHigh},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

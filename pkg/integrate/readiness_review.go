@@ -144,7 +144,7 @@ func measureReadinessUpdate(ctx context.Context, g gitRepo, p ReadinessUpdatePla
 	}
 	opts := CheckOptions{RepoPath: g.dir, Branch: p.SourceRef, Target: p.TargetRef, ExpectSource: p.SourceSHA, ExpectTarget: p.TargetSHA, LockNotice: notice}
 	opts.resourceWaitObserver = targetWaitObserver(g, plan, false, notice)
-	result, duration, runErr := runContractPair(ctx, g, plan, contract, timeout, heavy, opts, true)
+	result, duration, runErr := runContractPair(ctx, g, plan, contract, timeout, readinessPlanTimeout, heavy, opts, true)
 	// This local observation records actual execution, not an LLM assertion or
 	// reusable authorization. The remote one-use operation ref records apply.
 	common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")

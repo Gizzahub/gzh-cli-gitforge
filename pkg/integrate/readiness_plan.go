@@ -18,6 +18,8 @@ import (
 // to learn the resource class of the checks it is about to select. gz-git
 // never interprets repository paths: the runner owns the selection, gz-git
 // owns the slot decision and the binding between the plan and the execution.
+// readinessPlanTimeout is the production plan budget; like the execution
+// budget it is passed down as a parameter, so tests can shorten it.
 const (
 	readinessPlanTimeout    = 2 * time.Minute
 	readinessResourceLight  = "light"
@@ -56,10 +58,10 @@ func (o CheckOptions) observation() *readinessObservation {
 // runs after preparation, so it observes the same prepared inputs as the
 // execution it classifies, and before any slot is held. A static declaration
 // can only add the slot; a plan can never remove it.
-func selectReadinessResource(ctx context.Context, runner, targetDir, sourceDir string, plan TargetPlan, env []string, contract readinessContract, staticHighLoad bool, observed *readinessObservation) (bind []string, out readinessProcessOutput, err error) {
+func selectReadinessResource(ctx context.Context, runner, targetDir, sourceDir string, plan TargetPlan, env []string, contract readinessContract, staticHighLoad bool, planTimeout time.Duration, observed *readinessObservation) (bind []string, out readinessProcessOutput, err error) {
 	slotNeeded := staticHighLoad
 	if contract.Decl.ResourcePlan == config.ReadinessResourcePlanV1 {
-		planned, planOut, planErr := planReadinessResources(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, env, &observed.PlanDuration)
+		planned, planOut, planErr := planReadinessResources(ctx, runner, targetDir, sourceDir, plan.BranchSHA, plan.TargetSHA, planTimeout, env, &observed.PlanDuration)
 		if planErr != nil {
 			return nil, planOut, fmt.Errorf("resource plan: %w", planErr)
 		}
