@@ -32,6 +32,12 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Fixed
 
+- Pinned govulncheck v1.1.4 bundles x/tools v0.29.0, whose SSA builder panics on
+  the Go 1.27 linux standard library, so `security-deps` failed from the
+  2026-10-13 toolchain bump onward; v1.9.0 scans it. `quality-check-validate`
+  dry-runs graphs with `make -n`, which still executes lines naming `$(MAKE)`, so
+  `test-install-atomic` now reaches `install-publish` through a variable instead.
+
 - Host measurement lock wait notices end with `; host <name>` and the holder
   sidecar records `host`, from `GIT_WORK_HOST` or global Git `ce.workHost` with
   no hostname fallback; a malformed declaration shows `host invalid`. The lock

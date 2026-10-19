@@ -192,6 +192,7 @@ func TestApplyLocalBareFixtureCreatesIndependentBranches(t *testing.T) {
 func TestSeedApplyResumesEveryGitMutationStage(t *testing.T) {
 	for _, stage := range []string{"init", "remote", "add", "commit", "push"} {
 		t.Run(stage, func(t *testing.T) {
+			isolateGitIdentity(t)
 			root := canonicalTemp(t)
 			seed := filepath.Join(root, "seed")
 			bare := filepath.Join(root, "remote.git")

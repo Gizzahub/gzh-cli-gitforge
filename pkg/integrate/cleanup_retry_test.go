@@ -416,6 +416,10 @@ func TestCleanupOnlyRetryIdempotent(t *testing.T) {
 		}
 	})
 	t.Run("missing receipt creates nothing", func(t *testing.T) {
+		// Cleanup resolves the caller before reading the receipt; declare one
+		// so the result does not depend on the developer's environment.
+		t.Setenv("GZ_GIT_TASK_ACTOR", "claude")
+		t.Setenv("GIT_WORK_HOST", "testhost")
 		bare := testutil.TempGitRepoWithCommit(t)
 		common := gitOutput(t, bare, "rev-parse", "--path-format=absolute", "--git-common-dir")
 		executor := gitcmd.NewExecutor()

@@ -14,6 +14,11 @@ BINEXT := $(shell go env GOEXE)
 BINARY := $(executablename)$(BINEXT)
 INSTALL_SOURCE ?= $(BINARY)
 ATOMIC_INSTALL_REQUIRE_CROSSFS ?= 0
+# test-install-atomic publishes through this variable, never $(MAKE) directly:
+# make -n still runs a recipe line that names $(MAKE), so quality-check-validate's
+# make -n graph inspection would run the test with dry-run nested installs and
+# fail its assertions. A reference through another variable is only printed.
+ATOMIC_INSTALL_PUBLISH = $(MAKE) --no-print-directory install-publish
 GOBIN := $(shell go env GOBIN)
 GOPATH := $(shell go env GOPATH)
 HOST_GOCACHE := $(shell go env GOCACHE)
@@ -78,12 +83,12 @@ test-install-atomic: ## exercise atomic installer publication with fake executab
 	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; echo old' >"$$target"; chmod 0755 "$$target"; \
 	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; echo new' >"$$new"; chmod 0755 "$$new"; \
 	(trap 'exit 0' TERM; while :; do "$$target" --version >>"$$consumer" 2>&1 || { : >"$$failed"; exit 1; }; done) & consumer_pid="$$!"; \
-	$(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null; kill "$$consumer_pid"; wait "$$consumer_pid"; consumer_pid=""; \
+	$(ATOMIC_INSTALL_PUBLISH) BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null; kill "$$consumer_pid"; wait "$$consumer_pid"; consumer_pid=""; \
 	test "$$($$target --version)" = new; test ! -e "$$failed"; test -s "$$consumer"; ! grep -Ev '^(old|new)$$' "$$consumer"; test "$$(stat -c '%a' "$$target" 2>/dev/null || stat -f '%Lp' "$$target")" = 755; \
 	assert_no_stage; \
-	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; exit 9' >"$$bad"; chmod 0755 "$$bad"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$bad" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
-	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; kill -TERM "$$PPID"; sleep 1; echo new' >"$$term"; chmod 0755 "$$term"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$term" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
-	mv "$$target" "$$saved"; mkdir "$$target"; if $(MAKE) --no-print-directory install-publish BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >"$$refusal" 2>&1; then exit 1; fi; grep -F "Error: install target is a directory" "$$refusal" >/dev/null; rmdir "$$target"; mv "$$saved" "$$target"; test "$$($$target --version)" = new; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; exit 9' >"$$bad"; chmod 0755 "$$bad"; if $(ATOMIC_INSTALL_PUBLISH) BINARY="$(BINARY)" INSTALL_SOURCE="$$bad" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
+	printf '%s\n' '#!/bin/sh' 'test "$$1" = --version; kill -TERM "$$PPID"; sleep 1; echo new' >"$$term"; chmod 0755 "$$term"; if $(ATOMIC_INSTALL_PUBLISH) BINARY="$(BINARY)" INSTALL_SOURCE="$$term" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >/dev/null 2>&1; then exit 1; fi; test "$$($$target --version)" = new; assert_no_stage; \
+	mv "$$target" "$$saved"; mkdir "$$target"; if $(ATOMIC_INSTALL_PUBLISH) BINARY="$(BINARY)" INSTALL_SOURCE="$$new" BINDIR="$$bindir" INSTALL_AUDIT_WARN_ONLY=1 >"$$refusal" 2>&1; then exit 1; fi; grep -F "Error: install target is a directory" "$$refusal" >/dev/null; rmdir "$$target"; mv "$$saved" "$$target"; test "$$($$target --version)" = new; \
 	echo "atomic installer: staging is created inside destination bindir; source may be on another filesystem without affecting final rename"
 
 test-install-audit: test-install-atomic ## verify install audit and atomic publication regressions

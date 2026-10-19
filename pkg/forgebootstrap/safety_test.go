@@ -19,6 +19,17 @@ func canonicalTemp(t *testing.T) string {
 	return path
 }
 
+// isolateGitIdentity gives the seed commit a fixture author, so the test does
+// not depend on the developer's global identity, which a CI runner lacks.
+func isolateGitIdentity(t *testing.T) {
+	t.Helper()
+	config := filepath.Join(canonicalTemp(t), "gitconfig")
+	if err := os.WriteFile(config, []byte("[user]\n name = fixture\n email = fixture@example.invalid\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", config)
+}
+
 func TestSeedPlanBindsContentsAndRejectsArtifacts(t *testing.T) {
 	root := canonicalTemp(t)
 	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("first"), 0o600); err != nil {
@@ -797,6 +808,7 @@ func TestMaterializedResumePreservesSymlinkTargetsAndUserEdits(t *testing.T) {
 }
 
 func TestInitialSeedRemainsUnconfiguredAndCEIsCommitted(t *testing.T) {
+	isolateGitIdentity(t)
 	root := canonicalTemp(t)
 	seed := filepath.Join(root, "seed")
 	bare := filepath.Join(root, "remote.git")

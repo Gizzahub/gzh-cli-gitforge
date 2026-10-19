@@ -25,6 +25,9 @@ func TestLegacyCleanupCERuntimeGuard(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(primary, ".ce", "task-runtime.yaml"), []byte("schema_version: 1\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
+			// Without this the primary is dirty unless the developer's global
+			// gitignore happens to list .ce/, which a CI runner's does not.
+			excludeInClone(t, primary, ".ce/")
 			verifier := buildLegacyGuardVerifier(t)
 			guard := &LegacyRuntimeGuard{
 				SchemaVersion: legacyRuntimeGuardSchema, Capability: legacyRuntimeGuardCapability,

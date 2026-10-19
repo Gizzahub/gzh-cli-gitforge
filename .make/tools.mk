@@ -14,7 +14,11 @@ GCI_VERSION ?= v0.14.0
 # export data. Keep this immutable module version until a compatible stable
 # release is independently verified (never follow master/latest implicitly).
 GOSEC_VERSION ?= v2.29.1-0.20261009120814-7b1b5cebe007
-GOVULNCHECK_VERSION ?= v1.1.4
+# v1.1.4 bundles golang.org/x/tools v0.29.0, whose SSA builder panics on the
+# Go 1.27 linux standard library ("unexpected expr: *ast.KeyValueExpr").
+# v1.9.0 is the latest stable release (2026-10-11, x/tools v0.52.0), verified
+# on linux, darwin and windows.
+GOVULNCHECK_VERSION ?= v1.9.0
 # golang.org/x/perf publishes no release tags. This pseudo-version is the
 # resolved latest on 2026-10-01; benchstat must not follow a moving @latest.
 BENCHSTAT_VERSION ?= v0.0.0-20260929162123-406019bb8b68
