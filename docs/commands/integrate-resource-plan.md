@@ -22,10 +22,12 @@ unknown values fail closed.
 
 1. The contract's preparation profile, if any, runs first under its own
    `prepareHighLoad` rules.
-2. gz-git runs the runner once without the host slot, with the usual V1
+
+1. gz-git runs the runner once without the host slot, with the usual V1
    arguments except `--result-format plan-v1`. The plan invocation has a fixed
    2-minute budget and the same environment and worktrees as the execution.
-3. The runner prints exactly one object:
+
+1. The runner prints exactly one object:
 
    ```json
    {"version":1,"resource":"light","plan_digest":"<64 lowercase hex>","summary":"..."}
@@ -34,10 +36,12 @@ unknown values fail closed.
    `resource` is `light` or `high`. Unknown or missing fields, any other value,
    a nonzero exit, oversized output or a timeout make the check `unavailable`
    before the execution starts.
-4. The slot is taken when the plan is `high` **or** either committed side
+
+1. The slot is taken when the plan is `high` **or** either committed side
    declares `branch.resourceHighLoad: true`. A plan never removes a static
    declaration's slot.
-5. gz-git runs the execution with the V1 arguments plus
+
+1. gz-git runs the execution with the V1 arguments plus
    `--resource-class <granted> --plan-digest <digest>`, where `granted` is
    `high` if the slot is held and `light` otherwise.
 
@@ -62,8 +66,7 @@ fail-safe while both are true.
 
 ## Reporting
 
-The human check report adds `resource plan — Requested=… Granted=…
-PlanDigest=… Duration=…` and the provenance line carries `ResourceClass`.
+The human check report adds `resource plan — Requested=… Granted=… PlanDigest=… Duration=…` and the provenance line carries `ResourceClass`.
 `integrate run --json` adds `plan_duration_ms`, `preparation_duration_ms`,
 `integration_duration_ms` (always present) and `resource_class` (contract mode
 only), next to `resource_wait_duration_ms` and `validation_duration_ms`. Plan
