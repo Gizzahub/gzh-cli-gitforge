@@ -116,3 +116,30 @@ finish-explicit line183과 finish-noarg-single-active line260의 물리 processH
 native 비교로 판정해야 한다. 좁은 실패만으로 full non-worsening을 주장하지 않는다.
 원격 source는 준비 중 `9d88a2b6`으로 이동했으므로 새 기준의 resource-plan 변경과
 기존 cleanup 검증을 함께 보존해 재기준화하고 독립 검토를 받아야 한다.
+
+## resource-plan source 재기준화의 호환 검사
+
+source `9d88a2b6`의 새 resource plan·Python 준비 기능과 cleanup 안전성을 결합했다.
+유일한 readiness.go 충돌은 양쪽의 `addPreparedWorktree` 사용과 생성 SHA/물리 신원 캡처를
+모두 보존했다. 원격 source의 슬롯 분류·준비 환경·runner binding은 덮어쓰지 않는다.
+
+결합 직후 lint는 0 issues였으나 기존
+`TestReadinessPythonUVPreparesSourceEnvironment`가 6.56초에 RED였다.
+원인은 정상 준비 환경 `infra-ops-python-uv-v1/source/venv`가 남아 root 삭제가
+`directory not empty`로 거절된 것이다. 실패시 자료 보존은 작동했으나 정상 정리가
+새 profile과 호환되지 않았다. 전체 선택 실행은 exit 1(59.568s)이었다.
+
+수정은 준비 성공 직후 그 profile의 정확한 소유 container를 캡처하고, root 신원과
+등록 worktree 부재를 확인한 뒤 캡처된 경로/physical identity를 다시 검증해 정리하는
+범위로 제한한다. symlink·상위 경로 escape·동일 경로 교체·불명확한 부분 준비는
+거절하고 root를 보존한다. 전체 root 재귀 삭제나 기존 실패 경로 강제 삭제로 우회하지 않는다.
+구현 standard, 독립 안전성/충돌 리뷰 strong이며 최종 native 판정은 아직 미완료다.
+
+수정 후 cleanup·신원·profile cache·resource plan·Python UV·ND 준비를 결합한
+선택 회귀 검사는 exit 0(128.124s)이다. 새 테스트 helper 세 곳의 thelper 지적은
+수정했고 `golangci-lint run ./pkg/integrate/...`는 0 issues다.
+`make format-check`와 `git diff --check`도 exit 0이다.
+별도 strong 에이전트의 실제 diff/관련 경로 읽기 전용 검토는 blocker 없이 PASS다.
+`VERIFY_BASE=origin/master make verify-commit`은 CHANGELOG.md 영향으로
+full 확대(exit 3, Make exit 2)를 반환했다. 이것은 commit profile 통과가 아니며,
+native integrator의 전체 검사·baseline 판정·통합·push·회수가 남아 있다.

@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // readinessWorktreeIdentity binds the short-lived detached worktree to the
@@ -23,6 +25,104 @@ type readinessWorktreeIdentity struct {
 	directory LegacyFileIdentity
 	gitFile   LegacyFileIdentity
 	common    LegacyFileIdentity
+}
+
+// readinessCacheIdentity binds a preparation cache to the physical directory
+// created during this readiness invocation. Cleanup deliberately has no
+// pathname-only mode: a later directory at the same path is retained.
+type readinessCacheIdentity struct {
+	path      string
+	directory LegacyFileIdentity
+}
+
+// captureReadinessProfileCaches records only resources the closed preparation
+// profile created successfully. Unknown or partially prepared profiles have no
+// cleanup authority and therefore remain fail-closed at their caller.
+func captureReadinessProfileCaches(root, sourceDir, profile string) ([]readinessCacheIdentity, error) {
+	if profile != config.PrepareProfileInfraOpsPythonUVV1 {
+		return nil, nil
+	}
+	root = filepath.Clean(root)
+	container := filepath.Clean(filepath.Dir(infraOpsOwnedRoot(sourceDir)))
+	if !readinessPathWithin(root, container) {
+		return nil, fmt.Errorf("capture readiness cache %s: outside workspace root", boundedReadinessPath(container))
+	}
+	rootEntry, err := os.Lstat(root)
+	if err != nil {
+		return nil, fmt.Errorf("capture readiness workspace root %s: %w", boundedReadinessPath(root), err)
+	}
+	if rootEntry.Mode()&os.ModeSymlink != 0 || !rootEntry.IsDir() {
+		return nil, fmt.Errorf("capture readiness workspace root %s: unsupported directory type", boundedReadinessPath(root))
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, fmt.Errorf("canonicalize readiness workspace root %s: %w", boundedReadinessPath(root), err)
+	}
+	entry, err := os.Lstat(container)
+	if err != nil {
+		return nil, fmt.Errorf("capture readiness cache %s: %w", boundedReadinessPath(container), err)
+	}
+	if entry.Mode()&os.ModeSymlink != 0 || !entry.IsDir() {
+		return nil, fmt.Errorf("capture readiness cache %s: unsupported directory type", boundedReadinessPath(container))
+	}
+	canonicalContainer, err := filepath.EvalSymlinks(container)
+	if err != nil {
+		return nil, fmt.Errorf("canonicalize readiness cache %s: %w", boundedReadinessPath(container), err)
+	}
+	canonicalContainer = filepath.Clean(canonicalContainer)
+	if !readinessPathWithin(filepath.Clean(canonicalRoot), canonicalContainer) {
+		return nil, fmt.Errorf("capture readiness cache %s: canonical path escapes workspace root", boundedReadinessPath(container))
+	}
+	directory, err := legacyPhysicalIdentity(canonicalContainer, true)
+	if err != nil {
+		return nil, fmt.Errorf("capture readiness cache %s identity: %w", boundedReadinessPath(canonicalContainer), err)
+	}
+	return []readinessCacheIdentity{{path: canonicalContainer, directory: directory}}, nil
+}
+
+// removeReadinessCache removes exactly one previously captured cache. It
+// refuses symlink escapes and replacement directories before recursive removal.
+func removeReadinessCache(root string, identity readinessCacheIdentity) error {
+	root = filepath.Clean(root)
+	if identity.path == "" {
+		return fmt.Errorf("readiness cache identity is incomplete")
+	}
+	rootEntry, err := os.Lstat(root)
+	if err != nil {
+		return fmt.Errorf("verify readiness workspace root %s: %w", boundedReadinessPath(root), err)
+	}
+	if rootEntry.Mode()&os.ModeSymlink != 0 || !rootEntry.IsDir() {
+		return fmt.Errorf("verify readiness workspace root %s: unsupported directory type", boundedReadinessPath(root))
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("canonicalize readiness workspace root %s: %w", boundedReadinessPath(root), err)
+	}
+	entry, err := os.Lstat(identity.path)
+	if err != nil {
+		return fmt.Errorf("verify readiness cache %s: %w", boundedReadinessPath(identity.path), err)
+	}
+	if entry.Mode()&os.ModeSymlink != 0 || !entry.IsDir() {
+		return fmt.Errorf("verify readiness cache %s: unsupported directory type", boundedReadinessPath(identity.path))
+	}
+	canonicalPath, err := filepath.EvalSymlinks(identity.path)
+	if err != nil {
+		return fmt.Errorf("canonicalize readiness cache %s: %w", boundedReadinessPath(identity.path), err)
+	}
+	canonicalPath = filepath.Clean(canonicalPath)
+	if canonicalPath != filepath.Clean(identity.path) || !readinessPathWithin(filepath.Clean(canonicalRoot), canonicalPath) {
+		return fmt.Errorf("verify readiness cache %s: canonical path changed or escapes workspace root", boundedReadinessPath(identity.path))
+	}
+	if got, err := legacyPhysicalIdentity(canonicalPath, true); err != nil || got != identity.directory {
+		if err != nil {
+			return fmt.Errorf("verify readiness cache %s identity: %w", boundedReadinessPath(identity.path), err)
+		}
+		return fmt.Errorf("verify readiness cache %s: directory identity changed", boundedReadinessPath(identity.path))
+	}
+	if err := os.RemoveAll(canonicalPath); err != nil {
+		return fmt.Errorf("remove captured readiness cache %s: %w", boundedReadinessPath(identity.path), err)
+	}
+	return nil
 }
 
 func captureReadinessWorktree(ctx context.Context, g gitRepo, path, head string) (readinessWorktreeIdentity, error) {
@@ -142,11 +242,11 @@ func accumulateReadinessCleanup(ctx context.Context, g gitRepo, identity readine
 	return preserveRoot || cleanupErr != nil, errors.Join(current, cleanupErr)
 }
 
-func finishReadinessRoot(ctx context.Context, g gitRepo, root string, identity LegacyFileIdentity, siblings, preserve bool) error {
+func finishReadinessRoot(ctx context.Context, g gitRepo, root string, identity LegacyFileIdentity, siblings, preserve bool, caches ...readinessCacheIdentity) error {
 	if preserve {
 		return fmt.Errorf("retained readiness workspace after cleanup failure: %s", root)
 	}
-	if err := removeEmptyReadinessRoot(ctx, g, root, identity, siblings); err != nil {
+	if err := removeEmptyReadinessRoot(ctx, g, root, identity, siblings, caches...); err != nil {
 		return fmt.Errorf("cleanup readiness workspace: %w", err)
 	}
 	return nil
@@ -179,7 +279,7 @@ func boundedReadinessPath(path string) string {
 // cache directories after Git proves no worktree remains below the captured
 // root. It intentionally never recursively deletes a root after a worktree
 // cleanup failure.
-func removeEmptyReadinessRoot(parent context.Context, g gitRepo, root string, identity LegacyFileIdentity, siblings bool) error {
+func removeEmptyReadinessRoot(parent context.Context, g gitRepo, root string, identity LegacyFileIdentity, siblings bool, caches ...readinessCacheIdentity) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 30*time.Second)
 	defer cancel()
 	if got, err := legacyPhysicalIdentity(root, true); err != nil || got != identity {
@@ -206,6 +306,11 @@ func removeEmptyReadinessRoot(parent context.Context, g gitRepo, root string, id
 		}
 		if readinessPathWithin(canonicalRoot, canonicalTree) {
 			return fmt.Errorf("registered worktree remains below readiness workspace: %s", boundedReadinessPath(tree.Path))
+		}
+	}
+	for _, cache := range caches {
+		if err := removeReadinessCache(root, cache); err != nil {
+			return err
 		}
 	}
 	for _, name := range []string{"target-cargo", "source-cargo"} {

@@ -407,3 +407,139 @@ func TestReadinessCleanupRunCleansAfterParentCancellation(t *testing.T) {
 		t.Fatalf("cancellation leaked workspace roots: %v; err=%v", entries, err)
 	}
 }
+
+func TestReadinessProfileCacheCleanupRemovesOnlyCapturedContainer(t *testing.T) {
+	fx := readinessFixture(t)
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	container := filepath.Dir(infraOpsOwnedRoot(source))
+	if err := os.MkdirAll(filepath.Join(container, "source", "venv"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	caches, err := captureReadinessProfileCaches(root, source, infraOpsPythonUVV1)
+	if err != nil || len(caches) != 1 {
+		t.Fatalf("capture cache = %#v, %v", caches, err)
+	}
+	rootIdentity, err := legacyPhysicalIdentity(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := removeEmptyReadinessRoot(context.Background(), g, root, rootIdentity, false, caches...); err != nil {
+		t.Fatalf("remove captured cache and root: %v", err)
+	}
+	if _, err := os.Stat(container); !os.IsNotExist(err) {
+		t.Fatalf("captured cache container remains: %v", err)
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Fatalf("workspace root remains: %v", err)
+	}
+}
+
+func TestReadinessProfileCacheCleanupRefusesReplacementAndEscapes(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(t *testing.T, root, container string, cache readinessCacheIdentity)
+		want   string
+	}{
+		{
+			name: "same-path replacement",
+			mutate: func(t *testing.T, _, container string, _ readinessCacheIdentity) {
+				t.Helper()
+				if err := os.Rename(container, container+"-captured"); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(container, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: "directory identity changed",
+		},
+		{
+			name: "endpoint symlink",
+			mutate: func(t *testing.T, _, container string, _ readinessCacheIdentity) {
+				t.Helper()
+				if err := os.RemoveAll(container); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(t.TempDir(), container); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: "unsupported directory type",
+		},
+		{
+			name: "ancestor escapes workspace",
+			mutate: func(t *testing.T, root string, _ string, cache readinessCacheIdentity) {
+				t.Helper()
+				parent := filepath.Dir(cache.path)
+				backup := parent + "-captured"
+				if err := os.Rename(parent, backup); err != nil {
+					t.Fatal(err)
+				}
+				outside := t.TempDir()
+				if err := os.MkdirAll(filepath.Join(outside, filepath.Base(cache.path)), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(outside, parent); err != nil {
+					t.Fatal(err)
+				}
+			},
+			want: "canonical path changed or escapes workspace root",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			source := filepath.Join(root, "source-side", "source")
+			container := filepath.Dir(infraOpsOwnedRoot(source))
+			if err := os.MkdirAll(filepath.Join(container, "source", "venv"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			caches, err := captureReadinessProfileCaches(root, source, infraOpsPythonUVV1)
+			if err != nil || len(caches) != 1 {
+				t.Fatalf("capture cache = %#v, %v", caches, err)
+			}
+			tc.mutate(t, root, container, caches[0])
+			err = removeReadinessCache(root, caches[0])
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("cache cleanup = %v, want %q", err, tc.want)
+			}
+			if _, err := os.Lstat(container); err != nil {
+				t.Fatalf("replacement or escape was removed: %v", err)
+			}
+		})
+	}
+}
+
+func TestReadinessProfileCacheCleanupLeavesUncapturedDirectory(t *testing.T) {
+	fx := readinessFixture(t)
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	container := filepath.Dir(infraOpsOwnedRoot(source))
+	foreign := filepath.Join(root, "foreign")
+	if err := os.MkdirAll(filepath.Join(container, "source", "venv"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(foreign, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	caches, err := captureReadinessProfileCaches(root, source, infraOpsPythonUVV1)
+	if err != nil || len(caches) != 1 {
+		t.Fatalf("capture cache = %#v, %v", caches, err)
+	}
+	rootIdentity, err := legacyPhysicalIdentity(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = removeEmptyReadinessRoot(context.Background(), g, root, rootIdentity, false, caches...)
+	if err == nil || !strings.Contains(err.Error(), "directory not empty") {
+		t.Fatalf("foreign directory did not block root removal: %v", err)
+	}
+	if _, err := os.Stat(foreign); err != nil {
+		t.Fatalf("uncaptured foreign directory was removed: %v", err)
+	}
+	if _, err := os.Stat(container); !os.IsNotExist(err) {
+		t.Fatalf("captured cache was not removed: %v", err)
+	}
+}

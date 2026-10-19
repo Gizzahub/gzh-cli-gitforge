@@ -221,13 +221,14 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("capture readiness workspace identity %s (retained): %w", boundedReadinessPath(root), err)
 	}
 	preserveRoot := false
+	var caches []readinessCacheIdentity
 	defer func() {
 		if err != nil {
 			result.Status = "unavailable"
 		}
 	}()
 	defer func() {
-		err = errors.Join(err, finishReadinessRoot(ctx, g, root, rootIdentity, hasSiblings, preserveRoot))
+		err = errors.Join(err, finishReadinessRoot(ctx, g, root, rootIdentity, hasSiblings, preserveRoot, caches...))
 	}()
 	targetDir, sourceDir := filepath.Join(root, "target"), filepath.Join(root, "source")
 	if hasSiblings {
@@ -277,6 +278,11 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	observed := opts.observation()
 	runnerEnv, err := readinessRunnerEnv(ctx, g, plan, contract.Decl.PrepareProfile, root, targetDir, sourceDir, siblingLeases, opts, observed)
 	if err != nil {
+		return readinessResult{Status: "unavailable"}, 0, err
+	}
+	caches, err = captureReadinessProfileCaches(root, sourceDir, contract.Decl.PrepareProfile)
+	if err != nil {
+		preserveRoot = true
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
 	if contract.Decl.PrepareProfile != "" {
