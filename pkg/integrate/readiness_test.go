@@ -501,15 +501,15 @@ func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
 		t.Fatal(err)
 	}
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
-	if err := mergeCleanupError(context.Background(), nil, g, notRegistered); err == nil {
+	if err := mergeCleanupError(context.Background(), nil, g, notRegistered, readinessWorktreeIdentity{}); err == nil {
 		t.Fatal("unregistered cleanup path unexpectedly succeeded")
 	}
 	after := gitOutput(t, fx.Clone, "worktree", "list", "--porcelain")
 	if !strings.Contains(after, "/unrelated\n") {
 		t.Fatalf("readiness cleanup pruned unrelated metadata:\n%s", after)
 	}
-	if _, err := os.Stat(notRegistered); !os.IsNotExist(err) {
-		t.Fatalf("exact failed cleanup path remains: %v", err)
+	if _, err := os.Stat(notRegistered); err != nil {
+		t.Fatalf("unregistered cleanup path was not preserved: %v", err)
 	}
 	runGit(t, fx.Clone, "worktree", "prune", "--expire", "now")
 }

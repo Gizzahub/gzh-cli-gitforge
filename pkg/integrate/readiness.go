@@ -216,6 +216,10 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	if err != nil {
 		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("create isolated worktrees: %w", err)
 	}
+	rootIdentity, err := legacyPhysicalIdentity(root, true)
+	if err != nil {
+		return readinessResult{Status: "unavailable"}, 0, fmt.Errorf("capture readiness workspace identity %s (retained): %w", boundedReadinessPath(root), err)
+	}
 	preserveRoot := false
 	defer func() {
 		if err != nil {
@@ -223,13 +227,7 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 		}
 	}()
 	defer func() {
-		if preserveRoot {
-			err = errors.Join(err, fmt.Errorf("retained readiness workspace after sibling cleanup failure: %s", root))
-			return
-		}
-		if removeErr := os.RemoveAll(root); removeErr != nil {
-			err = errors.Join(err, fmt.Errorf("cleanup readiness workspace: %w", removeErr))
-		}
+		err = errors.Join(err, finishReadinessRoot(ctx, g, root, rootIdentity, hasSiblings, preserveRoot))
 	}()
 	targetDir, sourceDir := filepath.Join(root, "target"), filepath.Join(root, "source")
 	if hasSiblings {
@@ -246,11 +244,21 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	if err := addPreparedWorktree(ctx, g, targetDir, plan.TargetSHA, contract.Decl.PrepareProfile); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
-	defer func() { err = mergeCleanupError(ctx, err, g, targetDir) }()
+	targetIdentity, captureErr := captureReadinessWorktree(ctx, g, targetDir, plan.TargetSHA)
+	if captureErr != nil {
+		preserveRoot = true
+		return readinessResult{Status: "unavailable"}, 0, captureErr
+	}
+	defer func() { preserveRoot, err = accumulateReadinessCleanup(ctx, g, targetIdentity, err, preserveRoot) }()
 	if err := addPreparedWorktree(ctx, g, sourceDir, plan.BranchSHA, contract.Decl.PrepareProfile); err != nil {
 		return readinessResult{Status: "unavailable"}, 0, err
 	}
-	defer func() { err = mergeCleanupError(ctx, err, g, sourceDir) }()
+	sourceIdentity, captureErr := captureReadinessWorktree(ctx, g, sourceDir, plan.BranchSHA)
+	if captureErr != nil {
+		preserveRoot = true
+		return readinessResult{Status: "unavailable"}, 0, captureErr
+	}
+	defer func() { preserveRoot, err = accumulateReadinessCleanup(ctx, g, sourceIdentity, err, preserveRoot) }()
 	var siblingEvidence string
 	var siblingLeases []SiblingLease
 	if hasSiblings {
@@ -309,15 +317,11 @@ func runContractPair(ctx context.Context, g gitRepo, plan TargetPlan, contract r
 	return result, duration, err
 }
 
-func mergeCleanupError(parent context.Context, current error, g gitRepo, dir string) error {
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), 30*time.Second)
-	defer cancel()
-	if err := g.worktreeRemoveForce(cleanupCtx, dir); err != nil {
-		removeErr := fmt.Errorf("cleanup readiness worktree: %w", err)
-		fsErr := os.RemoveAll(dir)
-		return errors.Join(current, removeErr, fsErr)
+func mergeCleanupError(parent context.Context, current error, g gitRepo, dir string, identity readinessWorktreeIdentity) error {
+	if identity.path == "" {
+		return errors.Join(current, fmt.Errorf("cleanup readiness worktree %s: identity was not captured", boundedReadinessPath(dir)))
 	}
-	return current
+	return errors.Join(current, removeReadinessWorktree(parent, g, identity))
 }
 
 func executeReadinessWithTimeout(parent context.Context, runner, targetDir, sourceDir, sourceSHA, targetSHA string, timeout time.Duration) (readinessResult, error) {
