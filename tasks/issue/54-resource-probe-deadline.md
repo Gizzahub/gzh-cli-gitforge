@@ -45,3 +45,17 @@ Primary checkout evidence: `tmp/resource-handoff-finish.json`,
 `tmp/resource-handoff-native-receipt.json`, `tmp/resource-handoff-install.log`
 and `tmp/resource-handoff-installed.sha256`. This records mbp adoption only;
 no other host or published release is asserted. ISSUE-55 remains out of scope.
+
+
+## mst adoption gap observed (2026-10-19)
+
+The existing source resolution and mbp installation verdict above remain unchanged.
+On mst, `readiness-cleanup-safety-delivery` at `846b31e` was refused before either
+make gate measured: resource admission ended with `context deadline exceeded`
+after 22m15.878s. The active `~/go/bin/gz-git` build reports `abee75f2`, modified=false,
+which predates this correction. This establishes a host adoption gap, not proof that
+this specific timeout was caused by the five-second probe. No installer or PATH
+change was performed. See [the delivery record](../../docs/task-reviews/readiness-cleanup-safety/delivery.md)
+and its raw BLOCKED receipt. Verify mst's managed declaration, designated installer,
+and resolved executable before another delivery attempt; do not reopen the corrected
+source defect or duplicate it as a new issue solely from this observation.

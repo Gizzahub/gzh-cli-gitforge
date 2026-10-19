@@ -1,0 +1,173 @@
+{
+  "purpose": "delivery",
+  "task": "readiness-cleanup-safety-delivery",
+  "operation": "finish",
+  "status": "BLOCKED",
+  "owner": {
+    "actor": "codex",
+    "host": "mst",
+    "kind": "agent"
+  },
+  "branch": "dev/codex/mst/fix/readiness-cleanup-safety-delivery",
+  "worktree": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+  "reason": "integrate-run failed: make check — measurement unavailable: resource slot unavailable: acquire FIFO resource admission (default; per acquisition limit 1h0m0s); no gate measured: context deadline exceeded; post-operation evidence failed: verify task head is contained in source: exit 1",
+  "createdAt": "2026-10-19T02:13:11.878416Z",
+  "sourceHead": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8",
+  "sourceHeadBefore": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8",
+  "baseHead": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8",
+  "taskHead": "846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8",
+  "sourcePushed": false,
+  "worktreeRemoved": false,
+  "localBranchRemoved": false,
+  "remoteBranchRemoved": false,
+  "tool_version": "v0.10.0-288-gd7c88ff6",
+  "tool_revision": "d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d",
+  "diagnostics": [
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "status",
+        "--porcelain"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 0
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "@{u}"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 0,
+      "stdout": "origin/dev/codex/mst/fix/readiness-cleanup-safety-delivery\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "rev-list",
+        "--left-right",
+        "--count",
+        "@{u}...HEAD"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 0,
+      "stdout": "0\t0\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 0,
+      "stdout": "846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "rev-parse",
+        "--verify",
+        "refs/remotes/origin/master"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 0,
+      "stdout": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "merge-base",
+        "refs/remotes/origin/master",
+        "HEAD"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 0,
+      "stdout": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8\n"
+    },
+    {
+      "command": "gz-git",
+      "executable": "/Users/archmagece/go/bin/gz-git",
+      "args": [
+        "integrate",
+        "run",
+        "--target",
+        "origin/master"
+      ],
+      "cwd": "/Users/archmagece/myworktree/gzh-cli/gzh-cli-gitforge/codex__mst__fix__readiness-cleanup-safety-delivery",
+      "exitCode": 1,
+      "stdout": "integrate check: dev/codex/mst/fix/readiness-cleanup-safety-delivery  (target=origin/master, default=origin/master, integration=master (config[0]))\n\n  PASS  freshness — based on origin/master tip\n  PASS  merge-tree — no conflict with origin/master\n  WARN  cross-merge origin/dev/claude/mbp/feat/task-302 — cross conflict\n  WARN  cross-merge origin/dev/claude/mbp/feat/task-305-target-porcelain — cross conflict\n  WARN  cross-merge origin/dev/claude/mbp/test/task-306-parity-reference — cross conflict\n  WARN  cross-merge origin/dev/claude/mbp/test/task-318-native-parity-reclaim-successor — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/chore/go1272-stdlib-patch — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/docs/resource-slot-contract — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/feat/integration-expect-target — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/feat/ndstack-child-provision — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/feat/task-302-context-capability — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/issue-304-real-check-target — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/issue-310-current-source — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/issue-310-integration-preflight — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/issue332-version-injection-20261016 — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task-296-lock-wait-cap — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task302-bounded-successor — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task302-cleanup-acceptance — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task302-cleanup-contract-realigned — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task302-cleanup-contract-successor — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task302-final-cleanup-parity — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/fix/task325-final-verification — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/test/parity-quality-delivery — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/test/task-321-native-noarg-parity — cross conflict\n  WARN  cross-merge origin/dev/codex/mbp/test/task-321-parity-successor — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/docs/sibling-evidence-delivery — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/docs/sibling-provision-evidence — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/53-atomic-install-publication — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/python-uv-tracked-codes-layout — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/readiness-cleanup-preservation — cross conflict\n  PASS  cross-merge origin/dev/codex/mst/fix/readiness-cleanup-safety — no conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/task289-confirmed-target-delivery — cross conflict\n  PASS  cross-merge origin/dev/codex/mst/fix/task289-current-declaration — no conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/task289-heuristic-target — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/task289-profile-aware-delivery — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/fix/task296-expiry-exit — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/test/41-ce429-parity-reference — cross conflict\n  WARN  cross-merge origin/dev/codex/mst/test/ce-reference-current-adoption — cross conflict\n  PASS  working-tree — clean\n  PASS  push — pushed\n  WARN  readiness contract — legacy head-owned gate\n  FAIL  make check — measurement unavailable: resource slot unavailable: acquire FIFO resource admission (default; per acquisition limit 1h0m0s); no gate measured: context deadline exceeded\n  FAIL  make lint — measurement unavailable: resource slot unavailable: acquire FIFO resource admission (default; per acquisition limit 1h0m0s); no gate measured: context deadline exceeded\n  PASS  post-gate freshness — source and target unchanged\n  INFO  baseline make check — not measured: the source verdict compares nothing\n  INFO  baseline make lint — not measured: the source verdict compares nothing\n  INFO  resource wait — Duration=22m15.878s\n  INFO  readiness provenance — mode=legacy-make source=846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8 target=e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8\n\nNOT READY — 2 failure(s), 35 warning(s)\n\n",
+      "stderr": "integrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nintegrate: waiting for FIFO resource admission\nnot ready; record pre-mutation outcome: pre-mutation outcome is not bound to the current execution\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "ls-remote",
+        "--exit-code",
+        "--heads",
+        "origin",
+        "refs/heads/master"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 0,
+      "stdout": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8\trefs/heads/master\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "cat-file",
+        "-e",
+        "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8^{commit}"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 0
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "show-ref",
+        "--verify",
+        "--quiet",
+        "refs/heads/master"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 0
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "rev-list",
+        "--count",
+        "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8..refs/heads/master"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 0,
+      "stdout": "0\n"
+    },
+    {
+      "command": "git",
+      "executable": "/usr/bin/git",
+      "args": [
+        "merge-base",
+        "--is-ancestor",
+        "846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8",
+        "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8"
+      ],
+      "cwd": "/Users/archmagece/mydevbox/gzh-cli-devbox/gzh-cli-gitforge",
+      "exitCode": 1
+    }
+  ]
+}

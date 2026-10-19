@@ -27,3 +27,24 @@ Git 실패 후 filesystem 삭제 차단과 진단 보강은 중복된다. 이번
 요구했다. 이는 좁은 검사 PASS가 아니며 native full gate 결과를 기다려야 한다.
 
 독립 strong 리뷰는 PASS, blocker 없음이다. 10/10 blob 일치와 실패 보존 경계를 확인했다.
+
+
+## 실제 전달 결과와 mst 설치 차이
+
+후보 `846b31ed1ab9c6aa0c015c44c70f2fd2dfe838e8`의 CE finish는
+2026-10-19T02:13:11Z에 BLOCKED 종료했다. 원본은
+[delivery-blocked.json](delivery-blocked.json)에 보존한다. resource wait는
+22m15.878s였으며 make check/lint 모두 `no gate measured`다. 전체 검사 실패나
+통과로 바꾸지 않는다. source push와 worktree/로컬/원격 branch 회수는 모두 false다.
+
+실행된 mst `~/go/bin/gz-git`는 go build info상 `abee75f2`(modified=false)다.
+원격 source에 포함된 [ISSUE-54](../../../tasks/issue/54-resource-probe-deadline.md)의
+원격 관측 예산 수정 `a1c51c9f` 이전이다. 이 이슈의 지정 installer 적용은 mbp만
+입증하며 mst에는 미적용이다. 이번 timeout의 직접 원인이 그 5초 probe인지는
+원본 영수증만으로 확정하지 않는다. ISSUE-55의 별도 release-window 문제도
+이번 실패 원인으로 단정하지 않는다.
+
+이 실행은 깨끗한 pushed checkpoint와 BLOCKED 증거를 유지한다. 같은 조건의
+native 재시도는 하지 않는다. 다음 전달 조건은 mst의 소스·관리 선언·실행 파일
+정합성을 지정 installer 절차로 해결한 뒤 현재 source와 후보를 재검증하는 것이다.
+이 문서는 tool 설치나 임시 PATH override를 승인·실행한 기록이 아니다.
