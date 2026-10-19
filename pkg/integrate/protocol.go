@@ -64,7 +64,8 @@ type RunProtocol struct {
 }
 
 // ReadinessFailure identifies one readiness subprocess that exceeded its
-// declared budget. Nullable fields render as JSON null when a process was
+// budget: the contract's declared timeout, or the fixed 2-minute budget of
+// the resource plan (stage contract_plan). Nullable fields render as JSON null when a process was
 // killed before it could report an exit code or no cancellation request ran.
 type ReadinessFailure struct {
 	Stage              string              `json:"stage"`

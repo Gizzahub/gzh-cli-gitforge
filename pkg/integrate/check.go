@@ -801,8 +801,14 @@ func FormatCheck(r *CheckReport) string {
 	if r.PreparationDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  preparation — Duration=%s\n", r.PreparationDuration.Round(time.Millisecond))
 	}
-	if r.PlanResource != "" {
-		fmt.Fprintf(&b, "  INFO  resource plan — Requested=%s Granted=%s PlanDigest=%s Duration=%s\n", r.PlanResource, r.ResourceClass, r.PlanDigest, r.PlanDuration.Round(time.Millisecond))
+	if r.PlanResource != "" || r.PlanDuration > 0 {
+		// A failed plan has spent time but granted nothing; report it with
+		// dashes so the human report agrees with plan_duration_ms.
+		requested, granted, digest := r.PlanResource, r.ResourceClass, r.PlanDigest
+		if requested == "" {
+			requested, granted, digest = "-", "-", "-"
+		}
+		fmt.Fprintf(&b, "  INFO  resource plan — Requested=%s Granted=%s PlanDigest=%s Duration=%s\n", requested, granted, digest, r.PlanDuration.Round(time.Millisecond))
 	}
 	if r.ValidationDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  validation — Duration=%s\n", r.ValidationDuration.Round(time.Millisecond))

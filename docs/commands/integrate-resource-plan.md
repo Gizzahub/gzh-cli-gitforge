@@ -91,9 +91,14 @@ guard:
 ## Reporting
 
 The human check report adds `resource plan — Requested=… Granted=… PlanDigest=… Duration=…` and the provenance line carries `ResourceClass`.
+A plan that fails still prints the line, with `-` for the requested class, the
+granted class and the digest. A plan that exceeds its budget appears in
+`readiness_failures` with `stage` `contract_plan` and `budget_ms` `120000`.
 `integrate run --json` adds `plan_duration_ms`, `preparation_duration_ms`,
 `integration_duration_ms` (always present) and `resource_class` (contract mode
 only), next to `resource_wait_duration_ms` and `validation_duration_ms`. Plan
 time is neither validation nor resource wait. Preparation time excludes its
 slot wait. Integration time spans revalidation, the target push and local
-target fast-forward; reclaim and the target-lock wait are outside it.
+target fast-forward; reclaim and the target-lock wait are outside it. It is
+recorded even when revalidation refuses the landing, so a nonzero value with
+`integrated: false` is the time spent before that refusal.

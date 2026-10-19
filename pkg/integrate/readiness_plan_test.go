@@ -162,6 +162,16 @@ func TestReadinessResourcePlanSourceOnlyChangeFailsClosed(t *testing.T) {
 	}
 }
 
+func TestFormatCheckReportsFailedPlan(t *testing.T) {
+	out := FormatCheck(&CheckReport{PlanDuration: 1_500_000_000})
+	if !strings.Contains(out, "resource plan — Requested=- Granted=- PlanDigest=- Duration=1.5s") {
+		t.Fatalf("failed plan line missing:\n%s", out)
+	}
+	if out := FormatCheck(&CheckReport{}); strings.Contains(out, "resource plan") {
+		t.Fatalf("unplanned check must not print a plan line:\n%s", out)
+	}
+}
+
 func TestRunProtocolPhaseDurations(t *testing.T) {
 	report := &RunReport{IntegrationDuration: 7_000_000, Check: &CheckReport{PlanDuration: 3_000_000, PreparationDuration: 5_000_000, ResourceClass: readinessResourceLight}}
 	data, err := json.Marshal(BuildRunProtocol(report, nil, 0))
