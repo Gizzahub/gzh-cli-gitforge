@@ -118,13 +118,86 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			makefile: "include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n",
 			matched:  true, ok: false,
 		},
+		// make exits 0 here: the guard sends the remake to true and the
+		// catch-all satisfies check. The real run generates gen.mk first and
+		// finds check declared there.
+		{
+			name:     "generated include with a catch-all",
+			makefile: "include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
+			matched:  true, ok: false,
+		},
+		{
+			name:     "optional generated include with a catch-all",
+			makefile: "-include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
+			matched:  true, ok: false,
+		},
+		{
+			name:     "existing include with a catch-all",
+			makefile: "include lint.mk\nlint.mk:\n\t@:\n%:\n\t@:\n",
+			matched:  true, ok: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			writeRepoFile(t, dir, "Makefile", tc.makefile)
+			writeRepoFile(t, dir, "lint.mk", "lint:\n\t@:\n")
 			matched, ok := makeTargetMatchedByPatternRule(context.Background(), dir, "check")
 			if matched != tc.matched || ok != tc.ok {
 				t.Fatalf("matched=%v ok=%v, want matched=%v ok=%v", matched, ok, tc.matched, tc.ok)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "gen.mk")); !os.IsNotExist(err) {
+				t.Fatalf("probe ran the include's remake recipe: stat err = %v", err)
+			}
+		})
+	}
+}
+
+// TestMakePatternProbeKeepsCallerMakefiles pins that the caller's MAKEFILES
+// is read after the probe's guard, as the real run reads it: a check declared
+// there is declared, not a catch-all match.
+func TestMakePatternProbeKeepsCallerMakefiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the probe needs make and true on PATH")
+	}
+	dir := t.TempDir()
+	writeRepoFile(t, dir, "Makefile", "lint:\n\t@:\n%:\n\t@:\n")
+	writeRepoFile(t, dir, "extra.mk", "check:\n\t@:\n")
+	t.Setenv("MAKEFILES", filepath.Join(dir, "extra.mk"))
+	if matched, ok := makeTargetMatchedByPatternRule(context.Background(), dir, "check"); matched || !ok {
+		t.Fatalf("matched=%v ok=%v, want the check from the caller's MAKEFILES declared", matched, ok)
+	}
+}
+
+// TestMakePatternProbeTempFile pins the probe file's lifetime and path: it is
+// removed after the probe, and a path MAKEFILES would split on whitespace is
+// no verdict rather than a probe without its guard.
+func TestMakePatternProbeTempFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the probe needs make and true on PATH")
+	}
+	dir := t.TempDir()
+	writeRepoFile(t, dir, "Makefile", "lint:\n\t@:\n%:\n\t@:\n")
+	for _, tc := range []struct {
+		name    string
+		tmp     string
+		matched bool
+		ok      bool
+	}{
+		{name: "plain temp dir", tmp: "plain", matched: true, ok: true},
+		{name: "temp dir with a space", tmp: "with space", matched: false, ok: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tmp := filepath.Join(t.TempDir(), tc.tmp)
+			if err := os.Mkdir(tmp, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("TMPDIR", tmp)
+			if matched, ok := makeTargetMatchedByPatternRule(context.Background(), dir, "check"); matched != tc.matched || ok != tc.ok {
+				t.Fatalf("matched=%v ok=%v, want matched=%v ok=%v", matched, ok, tc.matched, tc.ok)
+			}
+			left, err := os.ReadDir(tmp)
+			if err != nil || len(left) != 0 {
+				t.Fatalf("probe file left behind: %v, %v", left, err)
 			}
 		})
 	}

@@ -65,12 +65,28 @@ Resolved on 2026-10-20.
   could not remake, a missing target without a catch-all) is no verdict:
   the probe returns `ok=false` and the real run decides through "No rule
   to make target".
+- A generated include with a catch-all (`include gen.mk` or
+  `-include gen.mk`, a `gen.mk:` rule that writes `check:`, and `%:`)
+  exits 0 under the guard: the remake goes to `true`, gen.mk never
+  exists, and the catch-all satisfies `check`. Re-review found that this
+  reported `SKIP make check: undefined` where master ran the check. The
+  dump marks it: an entry other than the goal reads
+  "File does not exist." and "Successfully updated.", which under the
+  guard is a recipe sent to `true`. Such a pattern-rule verdict is
+  `ok=false` as well. An existing include with a remake rule is not
+  marked and keeps its verdict.
+- The probe file goes first in `MAKEFILES` and the caller's own value
+  follows, so a target declared there stays declared. `MAKEFILES` is
+  split on whitespace, so a probe or `true` path that contains any is
+  `ok=false` instead of a probe without its guard.
 - Known limits: a target-specific `SHELL` in the Makefile outranks the
   pattern-specific value, so that target's recursive and `+` lines
   still run under `-n`, as before this fix. When `true` is not on
   `PATH` or the temporary file cannot be written, the probe reports the
   database as unreadable and the caller keeps its previous behavior,
-  which reports a target a catch-all satisfies as PASS.
+  which reports a target a catch-all satisfies as PASS. A catch-all with
+  file-less prerequisites (`%: force`) also reads as a remade missing
+  file, so its verdict is `ok=false` and the real run decides.
 - Checked by hand on GNU Make 3.81 (macOS) and 4.4.1 (golang:1.27
   image): no recipe marker appears; the `$(shell)`-conditional `check`
   reads as declared with and without a catch-all; a catch-all repository
@@ -85,3 +101,15 @@ Resolved on 2026-10-20.
   recipe markers and the include case, and ignoring the exit status
   fails the include case. `TestMakeTargetMatchedByPatternRuleIsUndeclared`
   moved to `check_make_pattern_test.go` unchanged.
+- Re-review follow-up, passing on GNU Make 3.81 and 4.4.1:
+  `TestMakePatternProbeParsesLikeTheRealRun` adds the `include` and
+  `-include` generated cases (`ok=false`, gen.mk never written) and an
+  existing include (`ok=true`); `TestMakePatternProbeKeepsCallerMakefiles`
+  declares `check` in the caller's `MAKEFILES`;
+  `TestMakePatternProbeTempFile` asserts the probe file is removed and a
+  `TMPDIR` with a space is `ok=false`. Mutations, each reverted: ignoring
+  the remade missing file fails both generated cases, dropping the
+  caller's `MAKEFILES` fails its test, dropping the whitespace check
+  fails the space case, skipping the removal fails the temp-file test,
+  and counting the goal itself as a remade file fails
+  `TestMakePatternProbeRunsNoRecipe`.
