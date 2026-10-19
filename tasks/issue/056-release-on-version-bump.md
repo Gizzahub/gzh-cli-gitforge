@@ -77,7 +77,7 @@ Resolved on 2026-10-19 in code; the operator step below is still open.
   attempt that finds the tag on its own commit publishes again when the
   tag is still the newest release; `release.mode: replace` makes that
   safe. Re-running an older release's run skips, so the cask never moves
-  back to an older version; publish such a version by hand if needed. A
+  back to an older version. A
   new CI run on master does not retry it, because a first attempt that
   finds the tag skips.
 - `make install` now runs `scripts/install-channel-guard.sh` before
