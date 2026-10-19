@@ -356,6 +356,16 @@ with fixed `--source-dir`, `--source-sha`, `--target-sha`, and
 measurement, malformed result, timeout, changed runner tree, or changed
 contract is never downgraded by `--allow-skipped-checks`.
 
+A contract has no baseline tolerance. Unlike the legacy Make gate, gz-git does
+not rerun the runner on the target to excuse failures that already exist there:
+`not_ready` blocks integration whether or not the target shares the failure.
+Keeping the target green is the consuming repository's job. Fix or revert a
+deterministic failure; treat a timing or contention failure at its cause (for
+example the slot from a [resource plan](../../commands/integrate-resource-plan.md));
+and if a known failure must be tolerated meanwhile, declare it in that
+repository's own test layer with an owning issue rather than in the runner's
+verdict logic. This is a design decision, recorded in gzh-cli-devbox ISSUE-351.
+
 V1 defaults to a 15-minute runner execution timeout. A target-owned
 `branch.readiness.timeout` may set a positive Go duration up to `2h` (for example
 `45m`). Omission preserves the existing contract digest. An explicit value is
