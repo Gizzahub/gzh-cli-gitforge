@@ -168,3 +168,17 @@ candidate 검사 뒤 baseline과 lint의 자원 입장 시점에 변경을 감�
 validation 15m43.538s이며 source push·회수는 모두 false다.
 기존 구현·리뷰·실패 영수증을 보존해 새 기준으로 재개하며, 원인은 기존
 `tasks/issue/061-concurrent-landing-reverify.md`에 이미 등록돼 있어 재발급하지 않는다.
+
+2026-10-19T09:09:34Z에도 [세 번째 stale-base 영수증](ce423-third-stale-base-refusal.json)이
+기록됐다. 후보 `4950bb74`에서 make check는 baseline non-worsening 3 → 3,
+변경 경로 진단 없음, make lint는 PASS였다. 그러나 source가 `c3175483`에서
+`d31dbad2eac230a1c87927d6fdee82b2772ee15f`로 전진해 최종 freshness가 FAIL이다.
+증분은 mdformat·v0.10.5 후속 ISSUE-63~65 문서 세 파일이다.
+자원 대기 17m39.189s, validation 20m1.851s이며 source push·회수는 모두 false다.
+
+동일 조건의 전체 검사 반복은 여기서 보류한다. 기존 ISSUE-61의 동시 통합 조건이
+실제 세 번 연속 확인됐으므로, 재개에는 다른 세션의 이 저장소 master 통합이
+이번 전달과 겹치지 않는 시간이 필요하다. 사용자에게 그 운영 조정을 요청했다.
+원본 영수증·코드·리뷰를 보존하고 최신 source에 맞춘 clean/pushed 작업 브랜치를
+남긴다. 재개 시 현재 source와 실제 CE 상태를 다시 확인해 기존 native gate로 통합한다.
+정리 도구 source 통합·설치와 그에 종속된 CalcGlide 부모 기록 통합은 미완료다.
