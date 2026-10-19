@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-19T02:43:26.767182+00:00",
+  "host": "mst",
+  "approvedSource": "e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8",
+  "authorization": "2026-10-19 user: 승인. 진행시켜 — install approved e1a4bb5a and retry delivery",
+  "installer": [
+    "make",
+    "install"
+  ],
+  "installerExitCode": 0,
+  "resolvedExecutable": "/Users/archmagece/go/bin/gz-git",
+  "version": "gz-git version 0.10.4",
+  "beforeSha256": "c4bc18c3fbc247c90439fa80fdcaae086cde6cbf0e791f5d056c9c1048336f8c",
+  "afterSha256": "09228f57ae8dfab486a5d0cbc05e4e2d7796ba3b5f0ecb0e1891847cdbbbf244",
+  "buildSettings": [
+    "build\t-buildmode=exe",
+    "build\t-compiler=gc",
+    "build\t-ldflags=\"-X main.version=0.10.4 -X github.com/gizzahub/gzh-cli-gitforge.Version=0.10.4 -X github.com/gizzahub/gzh-cli-gitforge.versionLinkerStamp=true -X github.com/gizzahub/gzh-cli-gitforge.GitCommit=e1a4bb5a -X github.com/gizzahub/gzh-cli-gitforge.BuildDate=2026-10-18T14:53:53Z\"",
+    "build\tDefaultGODEBUG=tracebacklabels=0,x509sslcertoverrideplatform=0",
+    "build\tCGO_ENABLED=1",
+    "build\tCGO_CFLAGS=",
+    "build\tCGO_CPPFLAGS=",
+    "build\tCGO_CXXFLAGS=",
+    "build\tCGO_LDFLAGS=",
+    "build\tGOARCH=arm64",
+    "build\tGOOS=darwin",
+    "build\tGOARM64=v8.0",
+    "build\tvcs=git",
+    "build\tvcs.revision=e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8",
+    "build\tvcs.time=2026-10-18T14:53:53Z",
+    "build\tvcs.modified=false"
+  ],
+  "installLog": "\u001b[36mBuilding gz-git...\u001b[0m\n\u001b[32mBuilt gz-git successfully\u001b[0m\n\u001b[36mInstalling gz-git 0.10.4 to /Users/archmagece/go/bin/gz-git\u001b[0m\ngz-git version 0.10.4\n\u001b[32m✅ Installed gz-git 0.10.4 to /Users/archmagece/go/bin/gz-git\u001b[0m\n\u001b[36mVerifying installation...\u001b[0m\ngz-git version 0.10.4\n\u001b[36mAuditing install path...\u001b[0m\n  OK: 셸이 고르는 'gz-git' 가 방금 설치한 파일이다\n  INFO: mise 디스패처 심이다 (삭제 대상이 아니다): /opt/homebrew/Cellar/mise/2026.10.10/bin/mise\n  INFO: Homebrew 관리본이다 (삭제 대상이 아니다): /opt/homebrew/Caskroom/gz-git/0.9.4/gz-git (0.9.4)\ninstall-path-audit: OK\n\u001b[32m🎉 Installation complete! Run 'gz-git --help' to get started.\u001b[0m\n",
+  "pathChanged": false,
+  "reclaim": false
+}

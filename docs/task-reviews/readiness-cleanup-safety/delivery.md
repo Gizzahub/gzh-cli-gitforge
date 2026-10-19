@@ -48,3 +48,17 @@ Git 실패 후 filesystem 삭제 차단과 진단 보강은 중복된다. 이번
 native 재시도는 하지 않는다. 다음 전달 조건은 mst의 소스·관리 선언·실행 파일
 정합성을 지정 installer 절차로 해결한 뒤 현재 source와 후보를 재검증하는 것이다.
 이 문서는 tool 설치나 임시 PATH override를 승인·실행한 기록이 아니다.
+
+
+## 승인된 mst 설치 반영 (2026-10-19)
+
+사용자 “승인. 진행시켜” 지시로 이미 source 통합된 `e1a4bb5a`의 지정
+`make install`을 별도 깨끗한 CE experiment에서 실행했다. exit 0이며
+`install-path-audit: OK`다. 셸 선택 경로 `~/go/bin/gz-git`의 go build info는
+해당 전체 SHA와 `vcs.modified=false`를 확인했다. 표시 version은 `0.10.4`로 동일하므로
+버전 문자열만으로 채택을 판정하지 않는다. [원본 설치 증거](mst-adoption.json)에
+전후 SHA-256, 실제 설치 로그, 빌드 설정, 승인 범위를 보존했다.
+
+Homebrew 관리본·mise 심·PATH는 변경하지 않았고 reclaim도 하지 않았다.
+실제 cleanup 안전성 후보는 아직 통합·설치되지 않았다. 새 설치본을 사용하는
+후속 native full·source push·회수 영수증 전에는 그 전달 완료를 주장하지 않는다.

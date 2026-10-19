@@ -59,3 +59,16 @@ change was performed. See [the delivery record](../../docs/task-reviews/readines
 and its raw BLOCKED receipt. Verify mst's managed declaration, designated installer,
 and resolved executable before another delivery attempt; do not reopen the corrected
 source defect or duplicate it as a new issue solely from this observation.
+
+
+## mst approved adoption (2026-10-19)
+
+The user explicitly approved installing integrated source `e1a4bb5a` and retrying
+the retained delivery. A clean CE experiment ran designated `make install` with
+exit 0 and `install-path-audit: OK`. The resolved `~/go/bin/gz-git` has VCS revision
+`e1a4bb5a5cf2dde41860ccd7e3b3b99238dae4d8`, modified=false; SHA-256 is
+`09228f57ae8dfab486a5d0cbc05e4e2d7796ba3b5f0ecb0e1891847cdbbbf244`.
+Version remains 0.10.4. [Installation evidence](../../docs/task-reviews/readiness-cleanup-safety/mst-adoption.json)
+preserves the audit and build settings. No PATH, Homebrew or mise changes occurred.
+This resolves the observed mst adoption gap; it does not retroactively identify
+the earlier timeout cause or prove the pending cleanup-safety delivery complete.
