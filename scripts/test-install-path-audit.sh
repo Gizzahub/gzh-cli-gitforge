@@ -359,11 +359,12 @@ out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gmissing/:$gp/bin:$gb:$
 check guard-missing-dir-refused 1 "install-channel-guard: REFUSED" "$?" "$out"
 
 # G8) make install 이 실제로 가드를 거친다 — 가드를 선행조건에서 빼면 잡혀야 한다.
-#     빌드 전에 거부되므로 GOBIN 에 아무것도 생기지 않는다.
+#     빌드 전에 거부되므로 GOBIN 에 아무것도 생기지 않는다. 바깥 make 의 BINDIR 이나
+#     -j 가 MAKEFLAGS 로 새어 들어오지 않도록 비우고 BINDIR 은 명령줄로 준다.
 repo_root=$(cd "$here/.." && pwd -P)
 mgobin="$tmpdir/make go bin"
 mkdir -p "$mgobin"
-out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$mgobin:$gp/bin:$gb:$PATH" GOBIN="$mgobin" BINDIR= make -C "$repo_root" --no-print-directory install 2>&1)
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$mgobin:$gp/bin:$gb:$PATH" GOBIN="$mgobin" MAKEFLAGS= make -C "$repo_root" --no-print-directory install BINDIR= 2>&1)
 check make-install-guarded 2 "install-channel-guard: REFUSED" "$?" "$out"
 if [ -e "$mgobin/gz-git" ]; then
 	echo "FAIL [make-install-guarded] 거부됐는데 GOBIN 에 설치됐다" >&2

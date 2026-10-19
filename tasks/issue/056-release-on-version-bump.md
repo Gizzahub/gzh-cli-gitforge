@@ -62,17 +62,24 @@ Resolved on 2026-10-19 in code; the operator step below is still open.
   An existing or older tag skips the release; a malformed `VERSION`
   fails the job. Manual `v*.*.*` tag pushes publish as before. Only
   runs that can publish join the `release` concurrency group, so a
-  failed CI run cannot cancel a waiting release. Pre-release tags such as
-  `v0.11.0-rc1` are ignored when finding the latest tag.
+  failed CI run cannot cancel a waiting release. A successful master CI
+  run that publishes nothing still joins the group and can cancel a
+  waiting manual-tag run; re-running that cancelled run publishes it.
+  Pre-release tags such as `v0.11.0-rc1` are ignored when finding the
+  latest tag. `workflow_run` uses the definition on master, so it takes
+  effect only after this commit lands.
+- The decision step was simulated locally on eleven cases: newer,
+  existing, older, 0.10.10 over 0.10.9, first tag, malformed, re-run of
+  its own tag, first attempt on its own tag, re-run on another commit,
+  an rc tag above the version, and a re-run of an older release.
 - Recovery: if GoReleaser fails after the tag is pushed (for example an
   expired `HOMEBREW_TAP_TOKEN`), re-run the failed Release run. A re-run
-  attempt that finds the tag on its own commit publishes again;
-  `release.mode: replace` makes that safe. A new CI run on master does
-  not retry it, because a first attempt that finds the tag skips. The decision
-  step was simulated locally on six cases (newer, existing, older,
-  0.10.10 over 0.10.9, first tag, malformed). `workflow_run` uses the
-  definition on master, so it takes effect only after this commit
-  lands.
+  attempt that finds the tag on its own commit publishes again when the
+  tag is still the newest release; `release.mode: replace` makes that
+  safe. Re-running an older release's run skips, so the cask never moves
+  back to an older version; publish such a version by hand if needed. A
+  new CI run on master does not retry it, because a first attempt that
+  finds the tag skips.
 - `make install` now runs `scripts/install-channel-guard.sh` before
   building. Without `BINDIR`, it refuses when Homebrew manages gz-git
   (Caskroom or Cellar under `brew --prefix`) and the GOBIN or
@@ -92,7 +99,9 @@ Resolved on 2026-10-19 in code; the operator step below is still open.
   GOBIN. Mutations that drop the shadow WARN label, the literal-path
   fallback, or the guard prerequisite are each caught.
 - v0.10.5 was tagged by hand on 2026-10-19 (ISSUE-65), so the first
-  automated release is 0.10.6 or later.
+  automated release is 0.10.6 or later. ISSUE-69 holds it, with any
+  manual tag push, until the ce-agent-kit fix that stops CE recording
+  the ISSUE-57 provenance line as a failure reason is installed.
 
 Operator step, after the first automated release: each device runs
 `brew upgrade gz-git` and removes its `~/go/bin/gz-git` (mst still has
