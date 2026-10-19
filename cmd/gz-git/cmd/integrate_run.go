@@ -142,6 +142,7 @@ func executionContextFromFlags() (execution integrate.ExecutionContext, supplied
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
+	printIntegrateProvenance(cmd)
 	expectTarget, err := expectedTargetFromFlag(cmd, integrateRunExpectTarget)
 	if err != nil {
 		return cliutil.NewExitError(2, err)

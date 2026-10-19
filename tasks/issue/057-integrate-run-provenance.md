@@ -41,3 +41,33 @@ from an older build looks the same as one with an undeclared device.
 - When the device is undeclared, add one line saying how to declare it.
 - Keep the per-notice label for pasted fragments.
 - The audit consumer change is tracked in ce-devenv.
+
+## Resolution
+
+Resolved on 2026-10-19.
+
+- `integrate check`, `integrate run`, `integrate cleanup` and
+  `integrate readiness update review|auto|run` print
+  `integrate: run device=<host> gz-git=<version>` as their first stderr
+  line. These are the subcommands that run gates or wait on host or
+  target locks, so their notices share the stream. `queue`, `receipt`,
+  `reconcile`, `bootstrap`, `provision` and `legacy-cleanup` print no
+  notices and are unchanged. Stdout is untouched: `--json` stays one
+  protocol document. The line ignores `--quiet`, like the lock notices
+  it attributes.
+- The device comes from `pkg/integrate` `resolveDeclaredDevice`
+  (`GIT_WORK_HOST`, then global `ce.workHost`, no hostname fallback).
+  The host-lock `; host <name>` label now uses the same function, so the
+  two cannot disagree. An absent or malformed name shows `undeclared`
+  or `invalid`, followed by one line naming `GIT_WORK_HOST=<name>` and
+  `git config --global ce.workHost <name>`.
+- The version is the `appVersion` that `cmd.Execute` receives from
+  `main.version` (ldflags, or the module version for `go install`),
+  passed to `integrate.WriteRunProvenance`; an unstamped build prints
+  `unknown`.
+- Verified by `TestFormatRunProvenance`, `TestDeviceIdentityLabel`,
+  `TestIntegrateCheckPrintsProvenanceFirst` (declared by env and by
+  global config, undeclared, invalid),
+  `TestIntegrateCleanupPrintsProvenance` and
+  `TestIntegrateRunJSONKeepsProvenanceOffStdout`, with an isolated
+  `HOME` and `GIT_CONFIG_GLOBAL`.

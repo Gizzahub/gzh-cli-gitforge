@@ -6,7 +6,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
 // integrateCmd groups queue, readiness, and integration commands.
@@ -35,4 +37,17 @@ Each repository and target ref retains its own Git target lock.`),
 
 func init() {
 	rootCmd.AddCommand(integrateCmd)
+}
+
+// printIntegrateProvenance writes the run provenance line before anything
+// else on the notice stream (stderr), so a captured log names the device and
+// the gz-git build that wrote it. It never goes to stdout: --json documents
+// stay one protocol document. It ignores --quiet like the lock notices it
+// attributes. Only the commands that run gates or wait on host or target
+// locks print it; read-only queries and plan files do not.
+func printIntegrateProvenance(cmd *cobra.Command) {
+	device := integrate.ResolveDevice(cmdContext(cmd), gitcmd.NewExecutor(), ".")
+	// A failed write to stderr has nowhere visible to go, and the line is
+	// display only; the run itself must not fail on it.
+	_ = integrate.WriteRunProvenance(cmd.ErrOrStderr(), device, appVersion)
 }

@@ -70,6 +70,7 @@ func init() {
 }
 
 func runIntegrateCleanup(cmd *cobra.Command, args []string) error {
+	printIntegrateProvenance(cmd)
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
 	if err != nil {

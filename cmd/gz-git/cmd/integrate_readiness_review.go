@@ -97,6 +97,7 @@ var integrateReadinessUpdatePolicyCmd = &cobra.Command{
 }
 
 func runReadinessUpdateReview(cmd *cobra.Command, automatic bool) error {
+	printIntegrateProvenance(cmd)
 	ctx, exec := cmdContext(cmd), gitcmd.NewExecutor()
 	issuer, err := resolveIssuer(ctx, exec, ".", readinessReviewIssuer)
 	if err != nil {

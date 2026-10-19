@@ -66,6 +66,7 @@ func init() {
 }
 
 func runIntegrateCheck(cmd *cobra.Command, args []string) error {
+	printIntegrateProvenance(cmd)
 	expectTarget, err := expectedTargetFromFlag(cmd, integrateCheckExpectTarget)
 	if err != nil {
 		return cliutil.NewExitError(2, err)

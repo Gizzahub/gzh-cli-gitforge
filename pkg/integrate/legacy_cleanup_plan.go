@@ -482,7 +482,7 @@ func validateOwner(owner OwnerIdentity) error {
 	if err := validateOpaqueToken(owner.Actor, "owner actor"); err != nil {
 		return err
 	}
-	if err := validateOpaqueToken(owner.Host, "owner host"); err != nil {
+	if err := validateHostName(owner.Host, "owner host"); err != nil {
 		return err
 	}
 	if owner.Kind != "agent" && owner.Kind != "human" {

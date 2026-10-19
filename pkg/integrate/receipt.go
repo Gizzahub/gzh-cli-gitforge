@@ -132,7 +132,7 @@ func (e *ExecutionContext) Validate() error {
 	if err := validateOpaqueToken(e.Owner.Actor, "owner-actor"); err != nil {
 		return err
 	}
-	if err := validateOpaqueToken(e.Owner.Host, "owner-host"); err != nil {
+	if err := validateHostName(e.Owner.Host, "owner-host"); err != nil {
 		return err
 	}
 	switch e.Owner.Kind {
@@ -198,8 +198,11 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 	if err := validateOpaqueToken(owner.Actor, "caller actor"); err != nil {
 		return OwnerIdentity{}, fmt.Errorf("caller identity is not configured: set %s for an agent, %s for a person, or global Git %s", callerActorEnvAgent, callerActorEnvHuman, callerActorGitKey)
 	}
-	if err := validateOpaqueToken(owner.Host, "caller host"); err != nil {
+	if owner.Host == "" {
 		return OwnerIdentity{}, fmt.Errorf("device identity is not configured: set %s or global Git %s", callerHostEnv, callerHostGitKey)
+	}
+	if err := validateHostName(owner.Host, "caller host"); err != nil {
+		return OwnerIdentity{}, fmt.Errorf("device identity is invalid: %w; set %s or global Git %s to a device name", err, callerHostEnv, callerHostGitKey)
 	}
 	return owner, nil
 }

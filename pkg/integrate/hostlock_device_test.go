@@ -83,7 +83,7 @@ func TestMeasurementLockRecordsDeclaredHost(t *testing.T) {
 	}
 }
 
-func TestDeclaredHostLockHost(t *testing.T) {
+func TestResolveDeclaredDevice(t *testing.T) {
 	global := filepath.Join(t.TempDir(), "gitconfig")
 	if err := os.WriteFile(global, []byte("[ce]\n\tworkHost = lab\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -101,16 +101,18 @@ func TestDeclaredHostLockHost(t *testing.T) {
 		{"bad host", "", true},    // malformed declaration is not repaired or guessed
 		{"-mbp", "", true},        // option-like value is refused
 		{"  mbp  ", "mbp", false}, // surrounding space is not part of the name
+		{"MBP", "", true},         // outside the device catalog grammar
+		{"m;x", "", true},         // a separator would split the notice field
 	} {
 		t.Setenv("GIT_WORK_HOST", tc.env)
-		if got, rejected := declaredHostLockHost(ctx, g); got != tc.want || rejected != tc.rejected {
-			t.Errorf("GIT_WORK_HOST=%q: host = %q rejected = %v, want %q rejected = %v", tc.env, got, rejected, tc.want, tc.rejected)
+		if got := resolveDeclaredDevice(ctx, g); got.Host != tc.want || got.Rejected != tc.rejected {
+			t.Errorf("GIT_WORK_HOST=%q: host = %q rejected = %v, want %q rejected = %v", tc.env, got.Host, got.Rejected, tc.want, tc.rejected)
 		}
 	}
 
 	t.Setenv("GIT_WORK_HOST", "")
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "missing"))
-	if got, rejected := declaredHostLockHost(ctx, g); got != "" || rejected {
-		t.Errorf("undeclared device: host = %q rejected = %v, want empty and not rejected (no hostname fallback)", got, rejected)
+	if got := resolveDeclaredDevice(ctx, g); got.Host != "" || got.Rejected {
+		t.Errorf("undeclared device: host = %q rejected = %v, want empty and not rejected (no hostname fallback)", got.Host, got.Rejected)
 	}
 }
