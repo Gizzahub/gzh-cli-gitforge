@@ -41,3 +41,28 @@ fix routed that recipe through a variable.
   fix: GNU make runs `$(MAKE)` and `+` lines under them too, and the
   "Implicit rule search" annotation only appears for targets make
   considered. Prove the choice with a recursive-line fixture.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- The probe (moved to `pkg/integrate/check_make_pattern.go`) keeps
+  `make -pn <target>` and adds `SHELL=<path of true>` on the command
+  line. make hands every recipe line, including `$(MAKE)` and `+` lines,
+  and every `$(shell ...)` call to `SHELL`, and `true` runs none of
+  them. The database dump and its "Implicit rule search" verdict are
+  unchanged, so the existing pattern-rule detection keeps its signal.
+- A command-line variable outranks the Makefile's own `SHELL`
+  assignment, target-specific ones included; only `override SHELL`
+  defeats it. When `true` is not on `PATH` the probe reports the
+  database as unreadable and the caller keeps its previous behavior.
+- Checked by hand on GNU Make 3.81 (macOS) and 4.4.1 (golang:1.27
+  image): with the override no marker file appears and the verdicts
+  are `not been done` for a declared target and `has been done` for a
+  catch-all one; without it the `+` and `$(shell)` markers appear.
+- Verified by `TestMakePatternProbeRunsNoRecipe` (a declared target
+  with `$(MAKE)` and `+` lines, a `+` catch-all, and a `$(shell)`
+  assignment; asserts both verdicts and no marker). Replacing the
+  override with a no-op flag makes it fail on the `shell`, `plus` and
+  `catchall` markers. `TestMakeTargetMatchedByPatternRuleIsUndeclared`
+  moved to `check_make_pattern_test.go` unchanged.
