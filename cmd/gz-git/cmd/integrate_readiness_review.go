@@ -26,6 +26,7 @@ var integrateReadinessUpdateReviewCmd = &cobra.Command{
 	Short: "Review and apply a readiness update in one interactive transaction",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		printIntegrateProvenance(cmd)
 		_, err := config.LoadReadinessApproval()
 		if err != nil {
 			return cliutil.NewExitError(2, err)
@@ -42,6 +43,7 @@ var integrateReadinessUpdateAutoCmd = &cobra.Command{
 	Short: "Apply a statement-bound readiness update when globally enabled",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		printIntegrateProvenance(cmd)
 		mode, err := config.LoadReadinessApproval()
 		if err != nil {
 			return cliutil.NewExitError(2, err)
@@ -64,6 +66,7 @@ var integrateReadinessUpdateRunCmd = &cobra.Command{
 	Short: "Apply a readiness update using the global approval mode",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		printIntegrateProvenance(cmd)
 		mode, err := config.LoadReadinessApproval()
 		if err != nil {
 			return cliutil.NewExitError(2, err)
@@ -97,7 +100,6 @@ var integrateReadinessUpdatePolicyCmd = &cobra.Command{
 }
 
 func runReadinessUpdateReview(cmd *cobra.Command, automatic bool) error {
-	printIntegrateProvenance(cmd)
 	ctx, exec := cmdContext(cmd), gitcmd.NewExecutor()
 	issuer, err := resolveIssuer(ctx, exec, ".", readinessReviewIssuer)
 	if err != nil {

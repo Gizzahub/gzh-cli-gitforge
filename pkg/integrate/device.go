@@ -20,12 +20,24 @@ import (
 // accepts exactly what the catalog can name and nothing a reader could split.
 var hostNamePattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
+// maxHostNameLen matches the opaque-token cap so no host field grows past
+// what other execution-context fields allow.
+const maxHostNameLen = 128
+
+// isHostName reports whether value is a device name within the length cap.
+func isHostName(value string) bool {
+	return len(value) <= maxHostNameLen && hostNamePattern.MatchString(value)
+}
+
 // validateHostName checks a declared device name against the catalog
 // grammar. Only host fields use it; execution ids, generations, and actors
 // stay opaque tokens.
 func validateHostName(value, name string) error {
 	if value == "" {
 		return fmt.Errorf("%w: %s is empty", ErrInvalidExecutionContext, name)
+	}
+	if len(value) > maxHostNameLen {
+		return fmt.Errorf("%w: %s is longer than %d characters", ErrInvalidExecutionContext, name, maxHostNameLen)
 	}
 	if !hostNamePattern.MatchString(value) {
 		return fmt.Errorf("%w: %s %q is not a device name (lowercase letters, digits, single hyphens)", ErrInvalidExecutionContext, name, value)
@@ -67,9 +79,10 @@ func (d DeviceIdentity) Declared() bool {
 }
 
 // resolveDeclaredDevice follows the caller-owner device chain (GIT_WORK_HOST,
-// then global Git ce.workHost) with no hostname fallback. It is the single
-// resolution behind both the run provenance line and the host-lock label,
-// so the two cannot disagree.
+// then global Git ce.workHost) with no hostname fallback. Within pkg/integrate
+// it is the single resolution behind both the run provenance line and the
+// host-lock label, so those two cannot disagree. Other packages (for example
+// internal/runtask, which normalizes case) may still resolve differently.
 func resolveDeclaredDevice(ctx context.Context, g gitRepo) DeviceIdentity {
 	host := strings.TrimSpace(os.Getenv(callerHostEnv))
 	if host == "" {
@@ -82,7 +95,7 @@ func resolveDeclaredDevice(ctx context.Context, g gitRepo) DeviceIdentity {
 	if host == "" {
 		return DeviceIdentity{}
 	}
-	if validateHostName(host, "host") != nil {
+	if !isHostName(host) {
 		return DeviceIdentity{Rejected: true}
 	}
 	return DeviceIdentity{Host: host}
@@ -96,14 +109,18 @@ func ResolveDevice(ctx context.Context, exec *gitcmd.Executor, dir string) Devic
 // FormatRunProvenance renders the line an integrate run prints before any
 // other notice, so a captured log names the device and the gz-git build that
 // wrote it. A log without the line comes from a build older than it. An
-// undeclared or invalid device adds one line saying how to declare it.
+// undeclared device adds one line saying how to declare it; an invalid one
+// adds one line saying the declared name must be fixed.
 func FormatRunProvenance(device DeviceIdentity, version string) string {
 	version = strings.TrimSpace(version)
 	if version == "" {
 		version = "unknown"
 	}
 	line := fmt.Sprintf("integrate: run device=%s gz-git=%s\n", device.Label(), version)
-	if !device.Declared() {
+	switch {
+	case device.Rejected:
+		line += fmt.Sprintf("integrate: the declared device name is invalid; fix %s or git config --global %s to lowercase letters, digits, single hyphens\n", callerHostEnv, callerHostGitKey)
+	case !device.Declared():
 		line += fmt.Sprintf("integrate: declare the device with %s=<name> or git config --global %s <name> (lowercase letters, digits, single hyphens)\n", callerHostEnv, callerHostGitKey)
 	}
 	return line

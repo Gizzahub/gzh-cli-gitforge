@@ -201,8 +201,8 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 	if owner.Host == "" {
 		return OwnerIdentity{}, fmt.Errorf("device identity is not configured: set %s or global Git %s", callerHostEnv, callerHostGitKey)
 	}
-	if err := validateHostName(owner.Host, "caller host"); err != nil {
-		return OwnerIdentity{}, fmt.Errorf("device identity is invalid: %w; set %s or global Git %s to a device name", err, callerHostEnv, callerHostGitKey)
+	if !isHostName(owner.Host) {
+		return OwnerIdentity{}, fmt.Errorf("device identity is invalid: host %q is not a device name (lowercase letters, digits, single hyphens, at most %d characters); set %s or global Git %s", owner.Host, maxHostNameLen, callerHostEnv, callerHostGitKey)
 	}
 	return owner, nil
 }

@@ -57,10 +57,16 @@ Resolved on 2026-10-19.
   it attributes.
 - The device comes from `pkg/integrate` `resolveDeclaredDevice`
   (`GIT_WORK_HOST`, then global `ce.workHost`, no hostname fallback).
-  The host-lock `; host <name>` label now uses the same function, so the
-  two cannot disagree. An absent or malformed name shows `undeclared`
-  or `invalid`, followed by one line naming `GIT_WORK_HOST=<name>` and
-  `git config --global ce.workHost <name>`.
+  The host-lock `; host <name>` label now uses the same function, so
+  within `pkg/integrate` the two cannot disagree. Other resolvers can:
+  `internal/runtask` lowercases `GIT_WORK_HOST` (see ISSUE-58). An
+  absent name shows `undeclared`, followed by one line naming
+  `GIT_WORK_HOST=<name>` and `git config --global ce.workHost <name>`.
+  A malformed name shows `invalid`, followed by one line saying the
+  declared name is invalid and must be fixed to the grammar.
+- The readiness `review`, `auto` and `run` commands print the line as
+  the first statement of their command, before the policy load, TTY,
+  `--expect-source` and `--statement` refusals.
 - The version is the `appVersion` that `cmd.Execute` receives from
   `main.version` (ldflags, or the module version for `go install`),
   passed to `integrate.WriteRunProvenance`; an unstamped build prints
@@ -68,6 +74,7 @@ Resolved on 2026-10-19.
 - Verified by `TestFormatRunProvenance`, `TestDeviceIdentityLabel`,
   `TestIntegrateCheckPrintsProvenanceFirst` (declared by env and by
   global config, undeclared, invalid),
-  `TestIntegrateCleanupPrintsProvenance` and
+  `TestIntegrateCleanupPrintsProvenance`,
+  `TestIntegrateReadinessPrintsProvenanceBeforeEarlyError` and
   `TestIntegrateRunJSONKeepsProvenanceOffStdout`, with an isolated
   `HOME` and `GIT_CONFIG_GLOBAL`.

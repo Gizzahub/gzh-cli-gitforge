@@ -18,12 +18,12 @@ import (
 // TestValidateHostNameCatalogGrammar pins host fields to the device catalog
 // grammar ^[a-z0-9]+(?:-[a-z0-9]+)*$ and nothing looser.
 func TestValidateHostNameCatalogGrammar(t *testing.T) {
-	for _, valid := range []string{"mbp", "mst", "a1-b2", "0", "lab-2-x"} {
+	for _, valid := range []string{"mbp", "mst", "a1-b2", "0", "lab-2-x", strings.Repeat("a", 128)} {
 		if err := validateHostName(valid, "host"); err != nil {
 			t.Errorf("validateHostName(%q) = %v, want nil", valid, err)
 		}
 	}
-	for _, invalid := range []string{"", "MBP", "Mbp", "m;x", "-a", "a-", "a--b", "mbé", "ホスト", "m bp", " mbp", "a_b", "a.b", "a/b", "mbp\n"} {
+	for _, invalid := range []string{"", "MBP", "Mbp", "m;x", "-a", "a-", "a--b", "mbé", "ホスト", "m bp", " mbp", "a_b", "a.b", "a/b", "mbp\n", strings.Repeat("a", 129)} {
 		err := validateHostName(invalid, "owner-host")
 		if err == nil {
 			t.Errorf("validateHostName(%q) = nil, want rejection", invalid)
@@ -75,6 +75,7 @@ func TestDeviceIdentityLabel(t *testing.T) {
 
 func TestFormatRunProvenance(t *testing.T) {
 	const hint = "integrate: declare the device with GIT_WORK_HOST=<name> or git config --global ce.workHost <name> (lowercase letters, digits, single hyphens)\n"
+	const invalidHint = "integrate: the declared device name is invalid; fix GIT_WORK_HOST or git config --global ce.workHost to lowercase letters, digits, single hyphens\n"
 	for _, tc := range []struct {
 		name    string
 		device  DeviceIdentity
@@ -83,7 +84,7 @@ func TestFormatRunProvenance(t *testing.T) {
 	}{
 		{"declared", DeviceIdentity{Host: "mst"}, "0.10.6", "integrate: run device=mst gz-git=0.10.6\n"},
 		{"undeclared", DeviceIdentity{}, "0.10.6", "integrate: run device=undeclared gz-git=0.10.6\n" + hint},
-		{"invalid", DeviceIdentity{Rejected: true}, "0.10.6", "integrate: run device=invalid gz-git=0.10.6\n" + hint},
+		{"invalid", DeviceIdentity{Rejected: true}, "0.10.6", "integrate: run device=invalid gz-git=0.10.6\n" + invalidHint},
 		{"unstamped build", DeviceIdentity{Host: "mbp"}, "", "integrate: run device=mbp gz-git=unknown\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -114,9 +115,16 @@ func TestResolveCallerOwnerHostGrammar(t *testing.T) {
 	if owner, err := ResolveCallerOwner(context.Background(), exec); err != nil || owner.Host != "mbp" {
 		t.Fatalf("declared host: owner = %+v err = %v", owner, err)
 	}
-	t.Setenv("GIT_WORK_HOST", "m;x")
-	if _, err := ResolveCallerOwner(context.Background(), exec); err == nil || !strings.Contains(err.Error(), "device identity is invalid") {
-		t.Fatalf("malformed host: err = %v, want invalid device identity", err)
+	for _, bad := range []string{"m;x", "MBP", strings.Repeat("a", 129)} {
+		t.Setenv("GIT_WORK_HOST", bad)
+		_, err := ResolveCallerOwner(context.Background(), exec)
+		if err == nil || !strings.HasPrefix(err.Error(), "device identity is invalid: host ") || !strings.Contains(err.Error(), "GIT_WORK_HOST") {
+			t.Fatalf("malformed host %q: err = %v, want invalid device identity", bad, err)
+		}
+		// The caller's own device is not an execution-context field.
+		if errors.Is(err, ErrInvalidExecutionContext) {
+			t.Fatalf("malformed host %q: err = %v, must not wrap ErrInvalidExecutionContext", bad, err)
+		}
 	}
 	t.Setenv("GIT_WORK_HOST", "")
 	if _, err := ResolveCallerOwner(context.Background(), exec); err == nil || !strings.Contains(err.Error(), "device identity is not configured") {

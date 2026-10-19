@@ -11,10 +11,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 )
 
 const integrateDeclareHint = "integrate: declare the device with GIT_WORK_HOST=<name> or git config --global ce.workHost <name> (lowercase letters, digits, single hyphens)\n"
+
+const integrateInvalidHint = "integrate: the declared device name is invalid; fix GIT_WORK_HOST or git config --global ce.workHost to lowercase letters, digits, single hyphens\n"
 
 // isolateIntegrateDevice keeps the developer's real ce.workHost out of the
 // test: HOME, XDG_STATE_HOME and the global Git config all point at temp
@@ -49,8 +53,8 @@ func TestIntegrateCheckPrintsProvenanceFirst(t *testing.T) {
 		{"env declared", "mst", "", "integrate: run device=mst gz-git=0.10.6\n"},
 		{"global declared", "", "mbp", "integrate: run device=mbp gz-git=0.10.6\n"},
 		{"undeclared", "", "", "integrate: run device=undeclared gz-git=0.10.6\n" + integrateDeclareHint},
-		{"invalid separator", "m;x", "", "integrate: run device=invalid gz-git=0.10.6\n" + integrateDeclareHint},
-		{"invalid uppercase", "", "MBP", "integrate: run device=invalid gz-git=0.10.6\n" + integrateDeclareHint},
+		{"invalid separator", "m;x", "", "integrate: run device=invalid gz-git=0.10.6\n" + integrateInvalidHint},
+		{"invalid uppercase", "", "MBP", "integrate: run device=invalid gz-git=0.10.6\n" + integrateInvalidHint},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			restore := setIntegrateCheckGlobals(t)
@@ -155,5 +159,45 @@ func TestIntegrateRunOwnerHostFlagUsesDeviceGrammar(t *testing.T) {
 		if got := cliutil.ExitCodeForError(err); got != 2 || err == nil || !strings.Contains(err.Error(), "owner-host") {
 			t.Fatalf("--owner-host %q: exit = %d err = %v, want exit 2 naming owner-host", host, got, err)
 		}
+	}
+}
+
+// TestIntegrateReadinessPrintsProvenanceBeforeEarlyError keeps the
+// provenance line first even when a readiness command refuses before any
+// update work: the isolated global policy is manual, so auto is disabled
+// and run has no terminal to prompt on.
+func TestIntegrateReadinessPrintsProvenanceBeforeEarlyError(t *testing.T) {
+	isolateIntegrateDevice(t, "mst", "")
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if stdinIsInteractive() {
+		t.Skip("stdin is a terminal; run has no early refusal to observe")
+	}
+	t.Chdir(t.TempDir())
+	for _, tc := range []struct {
+		name string
+		cmd  *cobra.Command
+		want string
+	}{
+		{"auto", integrateReadinessUpdateAutoCmd, "disabled by global integration.readinessApproval policy"},
+		{"run", integrateReadinessUpdateRunCmd, "requires an interactive terminal"},
+		{"review", integrateReadinessUpdateReviewCmd, "requires an interactive terminal"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			tc.cmd.SetOut(&stdout)
+			tc.cmd.SetErr(&stderr)
+			t.Cleanup(func() { tc.cmd.SetOut(nil); tc.cmd.SetErr(nil) })
+
+			err := tc.cmd.RunE(tc.cmd, nil)
+			if got := cliutil.ExitCodeForError(err); got != 2 || err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v (exit %d), want exit 2 containing %q", err, got, tc.want)
+			}
+			if want := "integrate: run device=mst gz-git=0.10.6\n"; !strings.HasPrefix(stderr.String(), want) {
+				t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+		})
 	}
 }
