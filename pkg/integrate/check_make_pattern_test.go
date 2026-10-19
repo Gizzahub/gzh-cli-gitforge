@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestMakeTargetMatchedByPatternRuleIsUndeclared pins the gitforge/gzh-cli
@@ -100,6 +102,7 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		makefile string
+		genOlder *bool // gen.mk exists, and is older than gen.in when true
 		matched  bool
 		ok       bool
 	}{
@@ -136,19 +139,70 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			makefile: "include lint.mk\nlint.mk:\n\t@:\n%:\n\t@:\n",
 			matched:  true, ok: true,
 		},
+		// gen.mk exists but is older than gen.in: the real run regenerates it
+		// and finds check declared there.
+		{
+			name:     "out-of-date generated include with a catch-all",
+			makefile: "-include gen.mk\ngen.mk: gen.in\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
+			genOlder: ptrTo(true),
+			matched:  true, ok: false,
+		},
+		{
+			name:     "up-to-date generated include with a catch-all",
+			makefile: "-include gen.mk\ngen.mk: gen.in\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
+			genOlder: ptrTo(false),
+			matched:  true, ok: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
 			writeRepoFile(t, dir, "Makefile", tc.makefile)
 			writeRepoFile(t, dir, "lint.mk", "lint:\n\t@:\n")
+			const genBefore = "lint2:\n"
+			if tc.genOlder != nil {
+				writeRepoFile(t, dir, "gen.mk", genBefore)
+				writeRepoFile(t, dir, "gen.in", "")
+				older, newer := time.Now().Add(-time.Hour), time.Now()
+				if !*tc.genOlder {
+					older, newer = newer, older
+				}
+				for name, at := range map[string]time.Time{"gen.mk": older, "gen.in": newer} {
+					if err := os.Chtimes(filepath.Join(dir, name), at, at); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
 			matched, ok := makeTargetMatchedByPatternRule(context.Background(), dir, "check")
 			if matched != tc.matched || ok != tc.ok {
 				t.Fatalf("matched=%v ok=%v, want matched=%v ok=%v", matched, ok, tc.matched, tc.ok)
 			}
-			if _, err := os.Stat(filepath.Join(dir, "gen.mk")); !os.IsNotExist(err) {
-				t.Fatalf("probe ran the include's remake recipe: stat err = %v", err)
+			got, err := os.ReadFile(filepath.Join(dir, "gen.mk"))
+			if tc.genOlder == nil && !os.IsNotExist(err) || tc.genOlder != nil && string(got) != genBefore {
+				t.Fatalf("probe ran the include's remake recipe: gen.mk = %q, err = %v", got, err)
 			}
 		})
+	}
+}
+
+func ptrTo[T any](v T) *T { return &v }
+
+// TestMakePatternProbeLoaded pins that the probe file counts as loaded only
+// when MAKEFILE_LIST names its exact path, as make 3.81 ("MAKEFILE_LIST :=  a")
+// and 4.x print it, and not an expansion of it.
+func TestMakePatternProbeLoaded(t *testing.T) {
+	for _, tc := range []struct {
+		dump string
+		want bool
+	}{
+		{dump: "MAKEFILE_LIST :=  /t/probe.mk Makefile", want: true},
+		{dump: "x\nMAKEFILE_LIST := /t/probe.mk Makefile gen.mk", want: true},
+		{dump: "MAKEFILE_LIST := /t/pro.mk Makefile", want: false},
+		{dump: "MAKEFILE_LIST := /t/probe.mk.old Makefile", want: false},
+		{dump: "Makefile", want: false},
+	} {
+		if got := probeLoaded(strings.Split(tc.dump, "\n"), "/t/probe.mk"); got != tc.want {
+			t.Errorf("probeLoaded(%q) = %v, want %v", tc.dump, got, tc.want)
+		}
 	}
 }
 
@@ -169,14 +223,15 @@ func TestMakePatternProbeKeepsCallerMakefiles(t *testing.T) {
 }
 
 // TestMakePatternProbeTempFile pins the probe file's lifetime and path: it is
-// removed after the probe, and a path MAKEFILES would split on whitespace is
-// no verdict rather than a probe without its guard.
+// removed after the probe, and a path MAKEFILES would split on whitespace or
+// expand is neither run, so the catch-all's + line never runs unguarded, nor
+// given a verdict.
 func TestMakePatternProbeTempFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the probe needs make and true on PATH")
 	}
 	dir := t.TempDir()
-	writeRepoFile(t, dir, "Makefile", "lint:\n\t@:\n%:\n\t@:\n")
+	writeRepoFile(t, dir, "Makefile", "lint:\n\t@:\n%:\n\t+touch RAN\n")
 	for _, tc := range []struct {
 		name    string
 		tmp     string
@@ -185,6 +240,8 @@ func TestMakePatternProbeTempFile(t *testing.T) {
 	}{
 		{name: "plain temp dir", tmp: "plain", matched: true, ok: true},
 		{name: "temp dir with a space", tmp: "with space", matched: false, ok: false},
+		{name: "temp dir with a dollar", tmp: "td$x", matched: false, ok: false},
+		{name: "temp dir with a wildcard", tmp: "td*", matched: false, ok: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tmp := filepath.Join(t.TempDir(), tc.tmp)
@@ -198,6 +255,9 @@ func TestMakePatternProbeTempFile(t *testing.T) {
 			left, err := os.ReadDir(tmp)
 			if err != nil || len(left) != 0 {
 				t.Fatalf("probe file left behind: %v, %v", left, err)
+			}
+			if _, err := os.Stat(filepath.Join(dir, "RAN")); !os.IsNotExist(err) {
+				t.Fatalf("probe ran the catch-all's + line: stat err = %v", err)
 			}
 		})
 	}

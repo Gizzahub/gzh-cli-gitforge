@@ -70,23 +70,29 @@ Resolved on 2026-10-20.
   exits 0 under the guard: the remake goes to `true`, gen.mk never
   exists, and the catch-all satisfies `check`. Re-review found that this
   reported `SKIP make check: undefined` where master ran the check. The
-  dump marks it: an entry other than the goal reads
-  "File does not exist." and "Successfully updated.", which under the
-  guard is a recipe sent to `true`. Such a pattern-rule verdict is
-  `ok=false` as well. An existing include with a remake rule is not
-  marked and keeps its verdict.
+  same holds when gen.mk exists but is older than its prerequisites: the
+  real run regenerates it. The probe runs `make --debug=b,m -pn`, and
+  any "Must remake target" line between "Updating makefiles" and
+  "Updating goal targets" means make remade a makefile under the guard,
+  so a pattern-rule verdict is `ok=false`. An up-to-date include, or an
+  existing one whose rule has no prerequisites, adds no line there,
+  because the real run does not remake it either, and keeps its verdict.
 - The probe file goes first in `MAKEFILES` and the caller's own value
-  follows, so a target declared there stays declared. `MAKEFILES` is
-  split on whitespace, so a probe or `true` path that contains any is
-  `ok=false` instead of a probe without its guard.
+  follows, so a target declared there stays declared. make splits
+  `MAKEFILES` on whitespace and expands `$` and wildcards in it, so a
+  probe or `true` path containing any of ` \t\n$*?[` is not run
+  (`ok=false`), and a dump whose `MAKEFILE_LIST` lacks the probe path is
+  `ok=false` too. No other character tried (`\ # % : ( ' " ~ = ; | & { ,`)
+  changes the path on 3.81 or 4.4.1, so that second check is a backstop
+  with no reachable test input; `probeLoaded` itself is unit-tested.
 - Known limits: a target-specific `SHELL` in the Makefile outranks the
   pattern-specific value, so that target's recursive and `+` lines
   still run under `-n`, as before this fix. When `true` is not on
   `PATH` or the temporary file cannot be written, the probe reports the
   database as unreadable and the caller keeps its previous behavior,
   which reports a target a catch-all satisfies as PASS. A catch-all with
-  file-less prerequisites (`%: force`) also reads as a remade missing
-  file, so its verdict is `ok=false` and the real run decides.
+  file-less prerequisites (`%: force`) remakes every makefile, so its
+  verdict is `ok=false` and the real run decides.
 - Checked by hand on GNU Make 3.81 (macOS) and 4.4.1 (golang:1.27
   image): no recipe marker appears; the `$(shell)`-conditional `check`
   reads as declared with and without a catch-all; a catch-all repository
@@ -113,3 +119,16 @@ Resolved on 2026-10-20.
   fails the space case, skipping the removal fails the temp-file test,
   and counting the goal itself as a remade file fails
   `TestMakePatternProbeRunsNoRecipe`.
+- Second re-review follow-up, passing on GNU Make 3.81 and 4.4.1: the
+  dump's "File does not exist." signal above missed an out-of-date
+  include and is replaced by the `--debug=m` trace.
+  `TestMakePatternProbeParsesLikeTheRealRun` adds an out-of-date
+  generated include (`ok=false`, gen.mk unchanged) and an up-to-date one
+  (`ok=true`); `TestMakePatternProbeTempFile` adds `TMPDIR` with `$` and
+  `*` and asserts the catch-all's `+touch` line never runs;
+  `TestMakePatternProbeLoaded` pins the `MAKEFILE_LIST` match on both
+  dump formats. Mutations, each reverted and each caught: ignoring the
+  trace, dropping `m` from `--debug`, matching the probe path as a
+  substring, dropping `$` or the wildcards from the pre-check, and
+  reading the trace past "Updating goal targets". Dropping the
+  `probeLoaded` call survives, as the pre-check covers every case.
