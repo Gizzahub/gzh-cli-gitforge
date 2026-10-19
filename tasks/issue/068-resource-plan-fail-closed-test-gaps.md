@@ -71,7 +71,9 @@ Resolved on 2026-10-20.
   through `runner output exceeded limit`. `limitedBuffer` embeds
   `bytes.Buffer`, so the exec copy uses its promoted `ReadFrom` and never
   calls the limiting `Write`. A 1 MiB + 1 byte runner output reaches the
-  parser in full. This defect is reported separately and not fixed here.
+  parser in full. This defect is ISSUE-70 and is not fixed here. The
+  oversized output is a valid light plan padded with whitespace, so
+  dropping every size bound would start the execution and fail the test.
 - `TestReadinessResourcePlanDuplicateJSONContractFailsClosed`: a
   `.gz-git.json` contract with `resourcePlan` repeated fails the
   readiness contract item with
