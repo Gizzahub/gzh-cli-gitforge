@@ -18,8 +18,16 @@ on:
 permissions:
   contents: write
 
+# Only runs that can publish share the release group. A group keeps one
+# pending run and cancels the older one, so a CI completion that publishes
+# nothing (failed CI, a pull request) must not join it and cancel a waiting
+# release.
 concurrency:
-  group: release
+  group: >-
+    ${{ (github.event_name == 'push' ||
+    (github.event.workflow_run.conclusion == 'success' &&
+    github.event.workflow_run.event == 'push')) &&
+    'release' || format('release-noop-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
@@ -53,12 +61,26 @@ jobs:
           exit 1
         fi
         tag="v$version"
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
         if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          # A re-run after a failed publish finds the tag it pushed itself.
+          # The release uses mode: replace, so publishing again is safe and
+          # is the only way the re-run can recover. A first attempt that
+          # finds the tag skips: a manual tag push publishes on its own.
+          if [ "$(git rev-parse "$tag^{commit}")" = "$HEAD_SHA" ] &&
+             [ "${GITHUB_RUN_ATTEMPT:-1}" -gt 1 ]; then
+            echo "$tag already tags this commit; re-run publishes it again"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           echo "$tag already exists; nothing to release"
           echo "publish=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        latest=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)
+        # Release tags only: a pre-release tag such as v0.11.0-rc1 sorts
+        # above v0.11.0 and would block that release.
+        latest=$(git tag --list 'v*.*.*' --sort=-v:refname |
+          grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
         if [ -n "$latest" ]; then
           highest=$(printf '%s\n%s\n' "$latest" "$tag" | sort -V | tail -n 1)
           if [ "$highest" != "$tag" ]; then

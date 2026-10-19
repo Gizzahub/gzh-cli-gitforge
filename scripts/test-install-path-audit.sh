@@ -132,6 +132,16 @@ if printf '%s' "$out" | grep -q 'FAIL'; then
 	failures=$((failures + 1))
 fi
 
+# 4b) WARN_ONLY 그림자 — 그림자 판정도 WARN 라벨로 보고한다. 4번의 PATH 순서는 중복만
+#     만들므로 그림자 라벨을 따로 잰다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" INSTALL_AUDIT_WARN_ONLY=1 PATH="$same_ver_shadow:$good:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
+rc=$?
+check warn-only-shadow 0 "WARN: 방금 설치한 파일이 실행되지 않는다" "$rc" "$out"
+if printf '%s' "$out" | grep -q 'FAIL'; then
+	echo "FAIL [warn-only-shadow-no-fail-label] WARN_ONLY 그림자 출력에 FAIL 라벨이 남았다" >&2
+	failures=$((failures + 1))
+fi
+
 # 5) 신원 미확인 — 이름만 같은 남의 파일은 RECLAIM 이 켜져 있어도 삭제하지 않는다.
 impostor="$tmpdir/impostor bin"
 make_impostor "$impostor"
@@ -341,6 +351,24 @@ mkdir -p "$gp6/bin"
 make_fake_brew "$gb6" "$gp6"
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gb6:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
 check guard-unmanaged 0 "" "$?" "$out"
+
+# G7) 설치 위치가 아직 없다 — 새 기기에서 셸 rc 가 ~/go/bin 을 PATH 에 먼저 넣어 둔
+#     경우다. cd 로 해석할 수 없어도 글자 그대로 비교해서 거부해야 한다.
+gmissing="$tmpdir/guard missing bin"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gmissing/:$gp/bin:$gb:$BASE_PATH" "$guard" gz-git "$gmissing" "" 2>&1)
+check guard-missing-dir-refused 1 "install-channel-guard: REFUSED" "$?" "$out"
+
+# G8) make install 이 실제로 가드를 거친다 — 가드를 선행조건에서 빼면 잡혀야 한다.
+#     빌드 전에 거부되므로 GOBIN 에 아무것도 생기지 않는다.
+repo_root=$(cd "$here/.." && pwd -P)
+mgobin="$tmpdir/make go bin"
+mkdir -p "$mgobin"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$mgobin:$gp/bin:$gb:$PATH" GOBIN="$mgobin" BINDIR= make -C "$repo_root" --no-print-directory install 2>&1)
+check make-install-guarded 2 "install-channel-guard: REFUSED" "$?" "$out"
+if [ -e "$mgobin/gz-git" ]; then
+	echo "FAIL [make-install-guarded] 거부됐는데 GOBIN 에 설치됐다" >&2
+	failures=$((failures + 1))
+fi
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2

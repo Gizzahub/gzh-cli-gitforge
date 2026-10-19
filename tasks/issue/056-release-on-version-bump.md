@@ -60,8 +60,15 @@ Resolved on 2026-10-19 in code; the operator step below is still open.
   GoReleaser in the same job. A tag pushed with `GITHUB_TOKEN` does not
   start another workflow, so a second tag-triggered run cannot happen.
   An existing or older tag skips the release; a malformed `VERSION`
-  fails the job. Manual `v*.*.*` tag pushes publish as before. A
-  `release` concurrency group serialises overlapping runs. The decision
+  fails the job. Manual `v*.*.*` tag pushes publish as before. Only
+  runs that can publish join the `release` concurrency group, so a
+  failed CI run cannot cancel a waiting release. Pre-release tags such as
+  `v0.11.0-rc1` are ignored when finding the latest tag.
+- Recovery: if GoReleaser fails after the tag is pushed (for example an
+  expired `HOMEBREW_TAP_TOKEN`), re-run the failed Release run. A re-run
+  attempt that finds the tag on its own commit publishes again;
+  `release.mode: replace` makes that safe. A new CI run on master does
+  not retry it, because a first attempt that finds the tag skips. The decision
   step was simulated locally on six cases (newer, existing, older,
   0.10.10 over 0.10.9, first tag, malformed). `workflow_run` uses the
   definition on master, so it takes effect only after this commit
@@ -77,8 +84,15 @@ Resolved on 2026-10-19 in code; the operator step below is still open.
   refused `~/go/bin` over `/opt/homebrew/Caskroom/gz-git`.
 - `install-path-audit.sh` labels findings `WARN` and ends with
   `install-path-audit: WARN` when `INSTALL_AUDIT_WARN_ONLY=1`.
-- `scripts/test-install-path-audit.sh` covers the WARN labels and six
-  guard cases.
+- The guard also compares literal paths, so a GOBIN or GOPATH/bin that
+  is on `PATH` but not yet created is refused too.
+- `scripts/test-install-path-audit.sh` covers the WARN labels (duplicate
+  and shadow) and eight guard cases, including a missing target
+  directory and `make install` itself refusing before anything lands in
+  GOBIN. Mutations that drop the shadow WARN label, the literal-path
+  fallback, or the guard prerequisite are each caught.
+- v0.10.5 was tagged by hand on 2026-10-19 (ISSUE-65), so the first
+  automated release is 0.10.6 or later.
 
 Operator step, after the first automated release: each device runs
 `brew upgrade gz-git` and removes its `~/go/bin/gz-git` (mst still has

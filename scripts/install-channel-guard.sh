@@ -36,14 +36,16 @@ for _m in "$prefix_abs/Caskroom/$BINARY" "$prefix_abs/Cellar/$BINARY"; do
 done
 [ -n "$managed" ] || exit 0
 
-target_abs=$(cd "$BINDIR_TARGET" 2>/dev/null && pwd -P) || target_abs=$BINDIR_TARGET
+# 아직 없는 디렉터리는 cd 로 해석할 수 없다. 새 기기에서 셸 rc 가 ~/go/bin 을 PATH 에
+# 먼저 넣어 둔 경우가 그렇다. 이때는 글자 그대로의 경로끼리 비교한다.
+target_abs=$(cd "$BINDIR_TARGET" 2>/dev/null && pwd -P) || target_abs=${BINDIR_TARGET%/}
 on_path=0
 _saved_ifs=$IFS
 IFS=:
 set -f
 for _d in $PATH; do
 	[ -n "$_d" ] || continue
-	_abs=$(cd "$_d" 2>/dev/null && pwd -P) || continue
+	_abs=$(cd "$_d" 2>/dev/null && pwd -P) || _abs=${_d%/}
 	if [ "$_abs" = "$target_abs" ]; then
 		on_path=1
 		break
