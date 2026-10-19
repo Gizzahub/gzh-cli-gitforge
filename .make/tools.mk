@@ -311,7 +311,6 @@ install-pre-commit-tools: ## install pre-commit and related tools
 install-docs-tools: ## install documentation tools
 	@echo -e "$(CYAN)Installing documentation tools...$(RESET)"
 	@go install golang.org/x/perf/cmd/benchstat@$(BENCHSTAT_VERSION)
-	@which git-chglog >/dev/null 2>&1 || echo -e "$(YELLOW)Consider installing git-chglog for changelog generation$(RESET)"
 	@which mkdocs >/dev/null 2>&1 || echo -e "$(YELLOW)Consider installing mkdocs for documentation: pip install mkdocs mkdocs-material$(RESET)"
 	@echo -e "$(GREEN)✅ Documentation tools installed$(RESET)"
 

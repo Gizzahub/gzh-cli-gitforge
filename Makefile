@@ -164,7 +164,6 @@ help-dev: ## show development workflow help
 	@echo -e "  $(CYAN)ci-local$(RESET)           Run full CI pipeline locally"
 	@echo -e "  $(CYAN)pr-check$(RESET)           Pre-PR submission check"
 	@echo -e "  $(CYAN)comments$(RESET)           Show all TODO/FIXME/NOTE comments in codebase"
-	@echo -e "  $(CYAN)changelog$(RESET)          Generate changelog"
 	@echo -e "  $(CYAN)docs-serve$(RESET)         Serve documentation locally"
 	@echo -e "  $(CYAN)dev-info$(RESET)           Show development environment information"
 

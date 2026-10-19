@@ -730,10 +730,10 @@ We use [Semantic Versioning](https://semver.org/):
 Maintainers will:
 
 1. Update version in relevant files
-1. Update CHANGELOG.md
 1. Tag release: `git tag -a v0.2.0 -m "Release v0.2.0"`
 1. Push tag: `git push origin v0.2.0`
-1. Create GitHub release with notes
+1. The release workflow runs GoReleaser, which publishes the GitHub release
+   with generated notes (`changelog.use: github`); CHANGELOG.md needs no entry
 1. Publish to pkg.go.dev (automatic)
 
 ______________________________________________________________________
@@ -808,7 +808,6 @@ ______________________________________________________________________
 Contributors are recognized in:
 
 - GitHub contributors page
-- CHANGELOG.md (for significant contributions)
 - Release notes
 
 ______________________________________________________________________

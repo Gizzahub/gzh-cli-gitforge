@@ -92,11 +92,11 @@ deps-graph: ## show module dependency graph
 
 .PHONY: docs-serve docs-build godoc docs-check
 
-# No changelog target on purpose. CHANGELOG.md is written by hand — each entry
-# explains why a change was made, which a generator cannot produce — and
-# `git-chglog -o CHANGELOG.md` overwrites rather than appends. The mechanical
-# per-release list already comes from .goreleaser.yaml (changelog.use: github).
-# See tasks/issue/24-make-changelog-overwrites-handwritten-log.md
+# No changelog target on purpose. Release notes come from .goreleaser.yaml
+# (changelog.use: github) on each tag, and CHANGELOG.md only points to them and
+# to the hand-written history in docs/changelog/. A local generator would
+# produce a second source. See tasks/issue/065-changelog-authorship-contract.md
+# and tasks/issue/24-make-changelog-overwrites-handwritten-log.md
 
 docs-serve: ## serve documentation locally (requires mkdocs)
 	@command -v mkdocs >/dev/null 2>&1 || { echo -e "$(RED)mkdocs not found. Install with: pip install mkdocs mkdocs-material$(RESET)"; exit 1; }

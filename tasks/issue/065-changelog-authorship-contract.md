@@ -33,3 +33,26 @@ entry the owner does not require.
 ## Scope
 
 - The owner chooses the contract; this card does not decide it.
+
+## Resolution
+
+Resolved on 2026-10-19. The owner chose generated notes as the source.
+
+- `CHANGELOG.md` states that GoReleaser publishes release notes into the
+  GitHub Releases. Agents must not add `[Unreleased]` entries and must not
+  hold a release for one. The file now only points to the history.
+- The former `[Unreleased]` entries moved verbatim to `docs/changelog/0.10.md`.
+  That file is the last hand-written record, covering v0.9.2 to v0.10.5.
+- `CONTRIBUTING.md` drops the "Update CHANGELOG.md" release step. The
+  `.make/dev.mk` comment states the new contract. The stale `changelog` help
+  line and the git-chglog hint are removed; no `changelog` target exists.
+- The release flow gets no new check. GoReleaser generates the notes on every
+  tag, so there is no hand-written entry left to verify.
+- `README.md` uses a release badge that tracks the latest GitHub Release, and
+  `docs/README.md` links the Releases page as the source of release notes.
+- The `docs/changelog/0.x.md` intros still send readers to `CHANGELOG.md` for
+  unreleased changes. They stay as written: `CHANGELOG.md` now opens with the
+  contract and forbids `[Unreleased]` entries, so the link leads to the right
+  rule.
+- The specs that still describe a CHANGELOG release step, and the release
+  archive file list, are tracked in ISSUE-67.
