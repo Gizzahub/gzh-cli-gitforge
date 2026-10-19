@@ -64,6 +64,30 @@ Only lower `branch.resourceHighLoad` in a separate commit after the planned
 runner has been verified on the target; the static flag remains the
 fail-safe while both are true.
 
+## Adoption
+
+`resourcePlan` needs gz-git v0.10.5 or later on every device that integrates
+into the target. Earlier parsers accept only `version`, `runner`,
+`prepareProfile` and `timeout`, so once the field is on the target they fail
+closed instead of ignoring it:
+
+- the integration check fails its `readiness contract` item with
+  `<manifest>: unknown branch.readiness field: resourcePlan`, so the branch
+  never lands;
+- commands that load the project config report
+  `invalid project readiness contract: unknown branch.readiness field: resourcePlan`.
+
+The contract carries no minimum-version field, so the rollout order is the
+guard:
+
+1. Install v0.10.5 or later on each integrating device and confirm with
+   `gz-git version`.
+1. Teach the runner `--result-format plan-v1` and the execution binding while
+   `branch.resourceHighLoad: true` is still set.
+1. Adopt the contract change with [readiness update](integrate-readiness-update.md).
+1. Lower `branch.resourceHighLoad` in a separate commit only after the planned
+   runner has been verified on the target.
+
 ## Reporting
 
 The human check report adds `resource plan — Requested=… Granted=… PlanDigest=… Duration=…` and the provenance line carries `ResourceClass`.

@@ -49,8 +49,12 @@ acquisition); this card covers the cost of any target move.
 
 ## Scope
 
-- Decide between merge-candidate verification (gate the rebased result
-  and land it if the target has not moved since), re-verifying only the
-  impact set between the old and new target, or serialising landings
-  through the existing host slot and queue. Owner decision.
-- Name the stale target in the Run-phase refusal.
+- Name the stale target in the Run-phase refusal (gitforge-owned).
+- Out of scope here: choosing between merge-candidate verification (gate
+  the rebased result and land it if the target has not moved since),
+  re-verifying only the impact set between the old and new target, or
+  serialising landings through the existing host slot and queue. Any of
+  them changes integration policy under ce-devenv ADR-0002, so the
+  decision belongs to ce-devenv ISSUE-041
+  (`tasks/issue/041-batch-integration-needs-decision.md`); gitforge
+  implements it after that decision.
