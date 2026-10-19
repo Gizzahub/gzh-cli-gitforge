@@ -21,7 +21,7 @@ from an older build looks the same as one with an undeclared device.
 ## Reproduction
 
 1. Run a high-load integrate gate and let `--lock-wait` expire.
-2. The expiry error (`pkg/integrate/hostlock.go:120`, `:149`, `:221`;
+1. The expiry error (`pkg/integrate/hostlock.go:120`, `:149`, `:221`;
    `pkg/integrate/admission.go:67`, `:77`, `:112`) names no device, and
    the log has no line naming the gz-git version.
 

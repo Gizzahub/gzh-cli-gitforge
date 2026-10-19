@@ -17,8 +17,7 @@ fmt: format-simplify
 
 # This target is deliberately source-non-mutating. It is the formatting leg of
 # the canonical quality gate; use format/format-simplify when files should change.
-format-check: install-gofumpt install-goimports ## check Go and changed Markdown formatting without modifying files
-	@command -v mdformat >/dev/null 2>&1 || { echo "mdformat is required (run: make install-format-tools)" >&2; exit 1; }
+format-check: install-gofumpt install-goimports install-mdformat ## check Go and changed Markdown formatting without modifying files
 	@echo -e "$(CYAN)Checking Go formatting...$(RESET)"
 	@GO_FILES=$$("$(GOFUMPT)" -l .); \
 	if [ -n "$$GO_FILES" ]; then \
@@ -33,7 +32,7 @@ format-check: install-gofumpt install-goimports ## check Go and changed Markdown
 	BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
 	FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD 2>/dev/null; git diff --name-only --diff-filter=ACMR HEAD; } | sed -n '/\.md$$/p' | sort -u); \
 	if [ -n "$$FILES" ]; then \
-		mdformat --check $$FILES; \
+		"$(MDFORMAT)" --check $$FILES; \
 	fi
 	@echo -e "$(GREEN)✅ Formatting checks passed!$(RESET)"
 
@@ -47,27 +46,27 @@ format-simplify: format-install-tools ## quick basic formatting with gofumpt, go
 	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
 		BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
 		FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD; git diff --name-only --diff-filter=ACMR HEAD; } | grep '\.md$$' | sort -u || true); \
-		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs mdformat; fi
+		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs "$(MDFORMAT)"; fi
 	@echo -e "$(GREEN)✅ Quick formatting complete!$(RESET)"
 
-format-md: ## format all markdown files with mdformat
+# bin/ holds mdformat's own venv, whose dependencies ship README.md files.
+format-md: install-mdformat ## format all markdown files with mdformat
 	@echo -e "$(CYAN)📝 Formatting markdown files...$(RESET)"
-	@find . -name "*.md" -type f -not -path "./vendor/*" -not -path "./.git/*" | xargs -r mdformat
+	@find . -name "*.md" -type f -not -path "./vendor/*" -not -path "./.git/*" -not -path "./bin/*" | xargs -r "$(MDFORMAT)"
 	@echo -e "$(GREEN)✅ Markdown formatting complete!$(RESET)"
 
-format-md-check: ## check markdown files that need formatting (read-only)
+format-md-check: install-mdformat ## check markdown files that need formatting (read-only)
 	@echo -e "$(CYAN)📋 Checking markdown formatting...$(RESET)"
-	@command -v mdformat >/dev/null 2>&1 || { echo "mdformat is required (run: make install-format-tools)" >&2; exit 1; }
 	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
 		BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
 		FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD; git diff --name-only --diff-filter=ACMR HEAD; } | grep '\.md$$' | sort -u || true); \
-		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs mdformat --check; fi
+		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs "$(MDFORMAT)" --check; fi
 
-format-md-diff: ## format only changed markdown files
+format-md-diff: install-mdformat ## format only changed markdown files
 	@echo -e "$(CYAN)🚀 Formatting changed markdown files...$(RESET)"
 	@CHANGED_FILES=$$(git diff --name-only --diff-filter=d HEAD | grep '\.md$$' || true); \
 	if [ -n "$$CHANGED_FILES" ]; then \
-		echo "$$CHANGED_FILES" | xargs -r mdformat; \
+		echo "$$CHANGED_FILES" | xargs -r "$(MDFORMAT)"; \
 		echo -e "$(GREEN)✅ Changed markdown files formatted!$(RESET)"; \
 	else \
 		echo -e "$(YELLOW)No markdown files changed$(RESET)"; \
@@ -447,6 +446,7 @@ quality-check-validate: ## validate quality workflow delegation and fail-closed 
 		printf '%s\n' "$$graph" | grep -Fq 'Canonical quality gate passed!'; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/gosec" ./...' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/govulncheck" ./...' || true)" -eq 1 ]; \
+		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'bin/tools/mdformat" --check' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'GOWORK=auto go list -mod=readonly -m all >/dev/null' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Fc 'go test -short --cover' || true)" -eq 1 ]; \
 		[ "$$(printf '%s\n' "$$graph" | grep -Ec 'go test -short -count=1 -timeout="30m".* ./tests/integration/\.\.\.' || true)" -eq 1 ]; \

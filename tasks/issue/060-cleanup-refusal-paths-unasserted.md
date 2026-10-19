@@ -26,7 +26,7 @@ declares an identity.
 
 1. Make the legacy guard checker accept every attestation; the four
    failure cases still pass whenever any earlier check fails.
-2. Make `ResolveCallerOwner` return a fixed owner when nothing is
+1. Make `ResolveCallerOwner` return a fixed owner when nothing is
    configured; no test fails.
 
 ## Expected vs Actual

@@ -38,6 +38,13 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
   dry-runs graphs with `make -n`, which still executes lines naming `$(MAKE)`, so
   `test-install-atomic` now reaches `install-publish` through a variable instead.
 
+- `format-check` ran whatever `mdformat` was on PATH, and the pinned plugins had
+  no frontmatter support, so it read the YAML header of each `ce task new` card
+  as a thematic break and heading and refused the card. mdformat now installs
+  into `bin/tools` like gofumpt, checked by its `--version` line, pinned to
+  mdformat 1.0.0, mdformat-gfm 1.0.0 (which formats tables, replacing
+  mdformat-tables) and mdformat-frontmatter 2.1.2.
+
 - Host measurement lock wait notices end with `; host <name>` and the holder
   sidecar records `host`, from `GIT_WORK_HOST` or global Git `ce.workHost` with
   no hostname fallback; a malformed declaration shows `host invalid`. The lock

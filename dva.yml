@@ -4,8 +4,8 @@ version: "0.1.44"
 # Only targets that install into ignored bin/tools belong to this local profile.
 provision:
   tools:
-    - step: Prepare project-local Go quality tools
-      run: make install-gofumpt install-goimports install-golangci-lint install-security-tools install-vuln-tools
+    - step: Prepare project-local quality tools
+      run: make install-gofumpt install-goimports install-mdformat install-golangci-lint install-security-tools install-vuln-tools
 
 interaction:
   quality-check:

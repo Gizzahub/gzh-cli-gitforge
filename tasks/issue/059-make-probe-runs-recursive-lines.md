@@ -25,8 +25,8 @@ fix routed that recipe through a variable.
 
 1. In a scratch repository, declare `check:` with a recipe line
    `$(MAKE) side-effect` where `side-effect:` touches a file.
-2. Run any `gz-git integrate check` that reaches the pattern-rule probe.
-3. The file is created although the probe is documented as read-only.
+1. Run any `gz-git integrate check` that reaches the pattern-rule probe.
+1. The file is created although the probe is documented as read-only.
 
 ## Expected vs Actual
 

@@ -22,16 +22,21 @@ GOVULNCHECK_VERSION ?= v1.9.0
 # golang.org/x/perf publishes no release tags. This pseudo-version is the
 # resolved latest on 2026-10-01; benchstat must not follow a moving @latest.
 BENCHSTAT_VERSION ?= v0.0.0-20260929162123-406019bb8b68
-MDFORMAT_VERSION ?= 0.7.22
-MDFORMAT_GFM_VERSION ?= 0.4.1
-MDFORMAT_TABLES_VERSION ?= 1.0.0
+# mdformat 1.0.0 is the latest stable release (2025-10-16). mdformat-gfm 1.0.0
+# formats tables itself, and mdformat-tables 1.0.0 requires mdformat<0.8, so
+# the tables plugin is gone. mdformat-frontmatter 2.1.2 (2026-05-23) keeps the
+# YAML header `ce task new` writes on every card; without it mdformat rewrites
+# that header into a heading.
+MDFORMAT_VERSION ?= 1.0.0
+MDFORMAT_GFM_VERSION ?= 1.0.0
+MDFORMAT_FRONTMATTER_VERSION ?= 2.1.2
 
 # ==============================================================================
 # Core Tool Installation
 # ==============================================================================
 
 .PHONY: install-tools install-quality-tools install-format-tools install-analysis-tools install-goreleaser
-.PHONY: install-gofumpt install-goimports install-govulncheck
+.PHONY: install-gofumpt install-goimports install-mdformat install-govulncheck
 .PHONY: install-golangci-lint install-pre-commit-tools install-docs-tools
 
 install-quality-tools: install-format-tools install-golangci-lint install-security-tools install-vuln-tools ## install the pinned tools required by quality-check
@@ -83,6 +88,21 @@ GOIMPORTS := $(CURDIR)/bin/tools/goimports$(shell go env GOEXE)
 GOIMPORTS_VERSION_OK = go version -m "$(GOIMPORTS)" 2>/dev/null | \
 	awk -v want="$$(go env GOVERSION)" 'NR == 1 { built = $$NF } $$1 == "mod" && $$2 == "$(GOIMPORTS_MODULE)" && $$3 == "$(GOIMPORTS_VERSION)" { found = 1 } END { exit !(found && built == want) }'
 
+# mdformat lives in bin/tools like the Go formatters, so a global install on
+# PATH cannot satisfy the gate. `command -v mdformat` used to: it accepted any
+# version with any plugin set, and a developer's mdformat-gfm 1.0.0 passed for
+# the pinned 0.4.1. uv puts the isolated venv under UV_TOOL_DIR and the launcher
+# under UV_TOOL_BIN_DIR; the developer's global tools are never written to.
+# `--version` lists the loaded plugins, so one call proves the pin and that the
+# install still runs. Plugin order in that line is not part of the contract.
+MDFORMAT := $(CURDIR)/bin/tools/mdformat
+MDFORMAT_TOOL_DIR := $(CURDIR)/bin/tools/python
+# Split the list at its delimiters and compare whole entries: a substring match
+# accepted an extra plugin and versions such as 1.0.0.post1.
+MDFORMAT_VERSION_OK = "$(MDFORMAT)" --version 2>/dev/null | \
+	awk -v core="mdformat $(MDFORMAT_VERSION)" -v a="mdformat-gfm $(MDFORMAT_GFM_VERSION)" -v b="mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION)" \
+	'NR == 1 && sub(/\)$$/, "") { n = split($$0, p, / \(|, /); ok = n == 3 && p[1] == core && ((p[2] == a && p[3] == b) || (p[2] == b && p[3] == a)) } END { exit !ok }'
+
 install-gofumpt: ## install the pinned gofumpt into bin/tools
 	@echo -e "$(CYAN)Ensuring gofumpt $(GOFUMPT_VERSION)...$(RESET)"
 	@mkdir -p "$(dir $(GOFUMPT))"
@@ -109,14 +129,28 @@ install-goimports: ## install the pinned goimports into bin/tools
 		exit 1; \
 	}
 
+install-mdformat: ## install the pinned mdformat and its plugins into bin/tools
+	@echo -e "$(CYAN)Ensuring mdformat $(MDFORMAT_VERSION)...$(RESET)"
+	@if ! $(MDFORMAT_VERSION_OK); then \
+		command -v uv >/dev/null 2>&1 || { echo "uv is required to install mdformat (https://docs.astral.sh/uv/); offline with a warm uv cache, set UV_OFFLINE=1" >&2; exit 1; }; \
+		echo -e "$(YELLOW)Installing mdformat $(MDFORMAT_VERSION) into $(dir $(MDFORMAT))$(RESET)"; \
+		UV_TOOL_DIR="$(MDFORMAT_TOOL_DIR)" UV_TOOL_BIN_DIR="$(dir $(MDFORMAT))" \
+			uv tool install --force \
+				--with "mdformat-gfm==$(MDFORMAT_GFM_VERSION)" \
+				--with "mdformat-frontmatter==$(MDFORMAT_FRONTMATTER_VERSION)" \
+				"mdformat==$(MDFORMAT_VERSION)" || exit 1; \
+	fi
+	@$(MDFORMAT_VERSION_OK) || { \
+		echo "mdformat at $(MDFORMAT) is not $(MDFORMAT_VERSION) with mdformat-gfm $(MDFORMAT_GFM_VERSION) and mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION); got: $$("$(MDFORMAT)" --version 2>&1 || echo 'not runnable')" >&2; \
+		exit 1; \
+	}
+
 # gci is not on the quality gate. format-check uses goimports. Only
 # format-strict calls gci, and that target is outside quality-check.
 # ensure-go-tool still refuses a version other than $(GCI_VERSION).
-install-format-tools: install-gofumpt install-goimports ## install advanced formatting tools
+install-format-tools: install-gofumpt install-goimports install-mdformat ## install advanced formatting tools
 	@echo -e "$(CYAN)Installing formatting tools...$(RESET)"
 	$(call ensure-go-tool,gci,github.com/daixiang0/gci,$(GCI_VERSION))
-	@command -v uv >/dev/null 2>&1 || { echo "uv is required to install mdformat" >&2; exit 1; }
-	@command -v mdformat >/dev/null 2>&1 || (echo "Installing mdformat $(MDFORMAT_VERSION)..." && uv tool install --with mdformat-gfm==$(MDFORMAT_GFM_VERSION) --with mdformat-tables==$(MDFORMAT_TABLES_VERSION) mdformat==$(MDFORMAT_VERSION))
 	@echo -e "$(GREEN)✅ All formatting tools installed!$(RESET)"
 
 install-analysis-tools: ## install code analysis tools

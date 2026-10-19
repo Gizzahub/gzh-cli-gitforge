@@ -23,7 +23,7 @@ the DevBox, and `install-path-audit` fails on every install.
 
 1. `git tag --sort=-v:refname | head -1` prints `v0.9.4`; `cat VERSION`
    prints `0.10.5`.
-2. Observed 2026-10-19 outside the DevBox: mbp runs `~/go/bin/gz-git`
+1. Observed 2026-10-19 outside the DevBox: mbp runs `~/go/bin/gz-git`
    0.10.5 with no cask installed; mst runs `~/go/bin/gz-git` 0.10.4,
    which shadows the cask's 0.9.4. Inside the DevBox both run
    `tmp/bin/gz-git` 0.10.5.

@@ -22,10 +22,10 @@ dva quality-check
 dva test-unit-quality
 ```
 
-`provision tools`는 기존 installer 중 ignored `bin/tools`에 Go 도구를 설치하는
-대상만 호출합니다. `make install-quality-tools`는 gci 또는 mdformat의 전역 설치도
-수행할 수 있어 이 로컬 profile에서 호출하지 않습니다. mdformat 등 외부 전제조건이
-없으면 해당 소유자의 설치 절차를 별도로 확인합니다. 전역 PATH·pin은 바꾸지 않습니다.
+`provision tools`는 기존 installer 중 ignored `bin/tools`에 도구를 설치하는
+대상만 호출합니다. mdformat도 uv로 `bin/tools`에 고정 설치되므로 여기에 포함되며,
+uv가 필요합니다. `make install-quality-tools`는 gci를 전역 GOPATH/bin에 설치할 수
+있어 이 로컬 profile에서 호출하지 않습니다. 전역 PATH·pin은 바꾸지 않습니다.
 준비 target은 기존 Makefile의 module 버전과 active Go 빌드 검증을 유지합니다.
 
 `dva quality-check`와 `dva test-unit-quality`는 원래 Make target과 입력 환경을
