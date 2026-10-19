@@ -124,7 +124,13 @@ check duplicate 1 "다른 버전의 'gz-git' 가 PATH 에 있다" "$?" "$out"
 
 # 4) WARN_ONLY — 같은 결함을 보고하되 실패시키지 않는다.
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" INSTALL_AUDIT_WARN_ONLY=1 PATH="$good:$shadow:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
-check warn-only 0 "install-path-audit: FAIL" "$?" "$out"
+rc=$?
+check warn-only 0 "install-path-audit: WARN" "$rc" "$out"
+check warn-only-label 0 "WARN: 다른 버전의 'gz-git' 가 PATH 에 있다" "$rc" "$out"
+if printf '%s' "$out" | grep -q 'FAIL'; then
+	echo "FAIL [warn-only-no-fail-label] WARN_ONLY 출력에 FAIL 라벨이 남았다" >&2
+	failures=$((failures + 1))
+fi
 
 # 5) 신원 미확인 — 이름만 같은 남의 파일은 RECLAIM 이 켜져 있어도 삭제하지 않는다.
 impostor="$tmpdir/impostor bin"
@@ -293,6 +299,48 @@ make_fake_brew "$b18" "$p18a"
 out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" RECLAIM=1 PATH="$good:$p18b/bin:$b18:$BASE_PATH" "$audit" gz-git "$good/gz-git" 2>&1)
 check brew-other-prefix-kept 1 "회수 보류: Homebrew 경로로 보이나" "$?" "$out"
 expect_file brew-other-prefix-kept "$p18b/Cellar/gz-git/0.9.0/bin/gz-git"
+
+# install-channel-guard.sh — BINDIR 없는 설치가 PATH 위에서 Homebrew 관리본과 경쟁하면
+# publish 전에 거부한다. 거부 조건의 세 요소(관리본, PATH, BINDIR 미지정)를 하나씩 뺀다.
+guard="$here/install-channel-guard.sh"
+gp="$tmpdir/guard prefix"
+gb="$tmpdir/guard brew cmd"
+gbin="$tmpdir/guard go bin"
+mkdir -p "$gbin"
+make_brew_prefix "$gp" 0.9.0 caskroom
+make_fake_brew "$gb" "$gp"
+
+# G1) cask 가 있고 설치 위치가 PATH 에 있으며 BINDIR 가 비었다 — 거부한다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gp/bin:$gb:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
+check guard-cask-refused 1 "install-channel-guard: REFUSED" "$?" "$out"
+
+# G2) BINDIR 를 명시하면 사용자가 위치를 고른 것이다 — 통과한다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gp/bin:$gb:$BASE_PATH" "$guard" gz-git "$gbin" "$gbin" 2>&1)
+check guard-explicit-bindir 0 "" "$?" "$out"
+
+# G3) 설치 위치가 PATH 에 없으면 경쟁하지 않는다 — make test-install 의 임시 GOBIN 경로다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gp/bin:$gb:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
+check guard-off-path 0 "" "$?" "$out"
+
+# G4) brew 가 없으면 보호할 관리본도 없다.
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gp/bin:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
+check guard-no-brew 0 "" "$?" "$out"
+
+# G5) formula(Cellar) 관리본도 같은 규칙이다.
+gp5="$tmpdir/guard5 prefix"
+gb5="$tmpdir/guard5 brew cmd"
+make_brew_prefix "$gp5" 0.9.0 cellar
+make_fake_brew "$gb5" "$gp5"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gp5/bin:$gb5:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
+check guard-cellar-refused 1 "install-channel-guard: REFUSED" "$?" "$out"
+
+# G6) brew 는 있지만 이 이름을 관리하지 않는다 — 통과한다.
+gp6="$tmpdir/guard6 prefix"
+gb6="$tmpdir/guard6 brew cmd"
+mkdir -p "$gp6/bin"
+make_fake_brew "$gb6" "$gp6"
+out=$(BASH_ENV="$AUDIT_BASH_ENV" ENV="$AUDIT_ENV" PATH="$gbin:$gb6:$BASE_PATH" "$guard" gz-git "$gbin" "" 2>&1)
+check guard-unmanaged 0 "" "$?" "$out"
 
 if [ "$failures" -ne 0 ]; then
 	echo "install-path-audit tests: $failures failed" >&2

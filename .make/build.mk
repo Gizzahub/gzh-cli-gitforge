@@ -49,7 +49,7 @@ endif
 # Build Targets
 # ==============================================================================
 
-.PHONY: build install install-publish test-install test-install-atomic test-install-audit install-git-plugin run bootstrap clean release-dry-run release-snapshot release-check deploy
+.PHONY: build install install-channel-guard install-publish test-install test-install-atomic test-install-audit install-git-plugin run bootstrap clean release-dry-run release-snapshot release-check deploy
 
 build: ## build golang binary
 	@printf "$(CYAN)Building %s...$(RESET)\n" "$(BINARY)"
@@ -57,8 +57,13 @@ build: ## build golang binary
 	@printf "$(GREEN)Built %s successfully$(RESET)\n" "$(BINARY)"
 
 
-install: build ## install golang binary
+install: install-channel-guard build ## install golang binary (development builds: set BINDIR; Homebrew owns the global copy)
 	@$(MAKE) --no-print-directory install-publish INSTALL_SOURCE="$(BINARY)"
+
+# Runs before build: an install without BINDIR into a PATH directory would
+# compete with a Homebrew-managed copy, so it is refused instead of audited.
+install-channel-guard:
+	@"$(CURDIR)$(SEP)scripts$(SEP)install-channel-guard.sh" "$(BINARY)" "$(INSTALL_BINDIR)" "$(strip $(BINDIR))"
 
 install-publish: ## publish a prebuilt binary atomically
 	@set -eu; \
@@ -289,7 +294,7 @@ build-info: ## show build information and current configuration
 	@echo ""
 	@echo -e "$(GREEN)🎯 Build Targets:$(RESET)"
 	@echo -e "  • $(CYAN)build$(RESET)               Build golang binary"
-	@echo -e "  • $(CYAN)install$(RESET)             Install golang binary to BINDIR, GOBIN, or GOPATH/bin"
+	@echo -e "  • $(CYAN)install$(RESET)             Install to BINDIR, GOBIN, or GOPATH/bin (no BINDIR: refused over a Homebrew copy on PATH)"
 	@echo -e "  • $(CYAN)run$(RESET)                 Run the application"
 	@echo -e "  • $(CYAN)bootstrap$(RESET)           Install build dependencies"
 	@echo -e "  • $(CYAN)clean$(RESET)               Clean up build artifacts"

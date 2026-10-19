@@ -1,34 +1,86 @@
 name: Release
 
+# Two entry points publish the same way:
+# - a pushed v*.*.* tag (manual release), and
+# - a CI run that passed on a master push. Its job tags the commit when
+#   VERSION names a release newer than every existing tag, then publishes in
+#   the same job. A tag pushed with GITHUB_TOKEN does not start another
+#   workflow, so a separate tag-triggered run would never happen.
 on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   goreleaser:
     name: GoReleaser
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v7
       with:
         fetch-depth: 0
+        ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
     - name: Fetch all tags
       run: git fetch --force --tags
 
+    - name: Tag a VERSION bump
+      id: release
+      if: github.event_name == 'workflow_run'
+      env:
+        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      run: |
+        version=$(tr -d '[:space:]' < VERSION)
+        if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "::error::VERSION is not MAJOR.MINOR.PATCH: '$version'"
+          exit 1
+        fi
+        tag="v$version"
+        if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+          echo "$tag already exists; nothing to release"
+          echo "publish=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        latest=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n 1)
+        if [ -n "$latest" ]; then
+          highest=$(printf '%s\n%s\n' "$latest" "$tag" | sort -V | tail -n 1)
+          if [ "$highest" != "$tag" ]; then
+            echo "$tag is not newer than $latest; nothing to release"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        fi
+        git tag "$tag" "$HEAD_SHA"
+        git push origin "refs/tags/$tag"
+        echo "Tagged $HEAD_SHA as $tag"
+        echo "publish=true" >> "$GITHUB_OUTPUT"
+
     - name: Set up Go
+      if: github.event_name == 'push' || steps.release.outputs.publish == 'true'
       uses: actions/setup-go@v7
       with:
         go-version: '1.27.2'
         cache: true
 
     - name: Run GoReleaser
+      if: github.event_name == 'push' || steps.release.outputs.publish == 'true'
       uses: goreleaser/goreleaser-action@v7
       with:
         distribution: goreleaser
@@ -41,6 +93,7 @@ jobs:
         HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
     - name: Upload artifacts
+      if: github.event_name == 'push' || steps.release.outputs.publish == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: dist

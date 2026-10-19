@@ -28,6 +28,14 @@ fi
 RECLAIM=${RECLAIM:-0}
 WARN_ONLY=${INSTALL_AUDIT_WARN_ONLY:-0}
 
+# 판정 라벨은 종료코드와 일치시킨다. WARN_ONLY 에서 FAIL 이라고 찍고 0 으로 끝나면
+# 로그를 읽는 사람이 실패를 무시하는 습관을 들인다.
+if [ "$WARN_ONLY" = "1" ]; then
+	VERDICT=WARN
+else
+	VERDICT=FAIL
+fi
+
 # 심링크를 따라가고 디렉터리를 물리 경로로 정규화한다. macOS 는 /var -> /private/var 처럼
 # 상위 디렉터리 자체가 심링크라 문자열 비교만으로는 같은 파일을 다르다고 판정한다.
 resolve() {
@@ -128,7 +136,7 @@ else
 		echo "  OK: 셸이 고르는 '$BINARY' 가 방금 설치한 파일이다"
 	else
 		shadowed=1
-		echo "  FAIL: 방금 설치한 파일이 실행되지 않는다"
+		echo "  $VERDICT: 방금 설치한 파일이 실행되지 않는다"
 		echo "        설치함: $installed_abs"
 		echo "        실행됨: $resolved_abs ($(identify "$resolved_abs" || echo '버전 확인 불가'))"
 		if [ -n "$canonical_abs" ] && [ "$resolved_abs" = "$canonical_abs" ]; then
@@ -178,12 +186,12 @@ while IFS= read -r dir; do
 		# 여러 다른 버전이 있을 수 있다. RECLAIM 이 하나를 지웠다고 나머지 실패를
 		# 잊지 않도록 개수로 집계한다.
 		divergent=$((divergent + 1))
-		echo "  FAIL: 다른 버전의 '$BINARY' 가 PATH 에 있다"
+		echo "  $VERDICT: 다른 버전의 '$BINARY' 가 PATH 에 있다"
 		echo "        $cand_abs ($cand_version) — 설치본은 ${installed_version:-확인불가}"
 		if [ "$RECLAIM" = "1" ]; then
 			case $cand_abs in
 			# brew 가 소유를 확인하지 못한 Homebrew 모양 경로(다른 prefix, brew 부재, --prefix
-			# 실패). 판정은 FAIL 그대로 두되 지우지는 않는다 — 경로 모양은 삭제를 보류하는
+			# 실패). 판정은 그대로 두되 지우지는 않는다 — 경로 모양은 삭제를 보류하는
 			# 데에만 쓰고 통과시키는 데에는 쓰지 않는다.
 			*/Caskroom/* | */Cellar/*)
 				echo "        회수 보류: Homebrew 경로로 보이나 brew 가 확인하지 않았다 — brew uninstall 로 정리하라"
@@ -212,7 +220,7 @@ if [ "$shadowed" -eq 0 ] && [ "$divergent" -eq 0 ]; then
 	exit 0
 fi
 
-echo "install-path-audit: FAIL"
+echo "install-path-audit: $VERDICT"
 echo "  해소 방법:"
 echo "    - $installed_dir 를 mise shim 및 다른 '$BINARY' 경로보다 PATH 앞에 둬라"
 echo "    - RECLAIM=1 make install  (mise·Homebrew 보호 경로를 제외한 신원이 확인된 다른 버전만 회수한다)"
