@@ -436,19 +436,19 @@ readiness runner 예산 후보의 최초 native 전달은 설치 CE `e8307aa4`�
 이번에는 별도의 실행 잠금 테스트 진단이 source에 추가돼 native가 BLOCKED를 반환했다.
 parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 결과는 전달 성공이 아니다.
 
-## 2026-10-19 mst cleanup-safety delivery blocked
+## 2026-10-19 mst cleanup-safety 전달 차단
 
-`readiness-cleanup-safety-delivery` at `a8a17a2b` passed its prior formatting
-refusal but failed `tests/parity` before a complete native verdict: the installed
-CE identifies as `d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`, while all 12 committed
-capture toolchain identities require `42363c6eb4213e496748f329365cb4293b97e850`.
-The raw gate diagnostic is `~/.local/state/gz-git/integrate/diagnostics/make-check-1127702178.log`.
-The target concurrently moved from `e1a4bb5a` to `ed395f5d`, so baseline comparison
-and freshness were incomplete; the native finish receipt reports stale-base.
-See [the delivery evidence](../../docs/task-reviews/readiness-cleanup-safety/delivery.md).
+`readiness-cleanup-safety-delivery`의 `a8a17a2b`는 앞선 포맷 오류를 해소했지만,
+최종 native 판정 전에 `tests/parity`에서 실패했다. 설치된 CE는
+`d7c88ff69dfdea6278e6ff87f5cbba80c7dc0d6d`이고, 커밋된 12개 캡처는 모두
+`42363c6eb4213e496748f329365cb4293b97e850`의 toolchain 신원을 요구한다.
+원본 게이트 진단은 `~/.local/state/gz-git/integrate/diagnostics/make-check-1127702178.log`다.
+같은 시점 target이 `e1a4bb5a`에서 `ed395f5d`로 이동해 기준선 비교와 freshness도
+완료하지 못했고, native finish 영수증은 stale-base를 반환했다.
+[전달 증거](../../docs/task-reviews/readiness-cleanup-safety/delivery.md)에 연결한다.
 
-The gz-git e1a4bb5a installation approved in this session was completed and verified;
-it does not establish CE adoption. No parity fixtures, normalizer, runtime binding,
-or CE installation were changed to bypass this finding. Verify the owning CE
-source declaration and installed executable before any approved CE adoption or
-further native delivery. This is the existing ISSUE-41 drift, not a new issue.
+이번 세션에서 승인된 gz-git e1a4bb5a 설치와 검증은 완료했다. 그것이 CE 채택을
+뜻하지는 않는다. 이 결과를 우회하기 위해 parity fixture, normalizer, runtime binding이나
+CE 설치를 바꾸지 않았다. 승인된 CE 채택 또는 후속 native 전달 전에 CE 소유 source
+선언과 실제 설치 실행 파일을 대조해야 한다. 새 이슈를 만들지 않고 기존 ISSUE-41의
+드리프트 관측으로 남긴다.
