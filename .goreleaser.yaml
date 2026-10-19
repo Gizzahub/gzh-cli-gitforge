@@ -78,7 +78,7 @@ archives:
       - README.md
       - LICENSE*
       - CHANGELOG*
-      - docs/changelog/0.8.md
+      - docs/changelog/*.md
 
 checksum:
   name_template: 'checksums.txt'

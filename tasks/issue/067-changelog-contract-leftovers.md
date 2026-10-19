@@ -41,3 +41,35 @@ places still assume the old contract:
 
 - Deciding where deprecation notices go now, such as commit bodies, release
   notes or a docs page, is part of this card.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- Deprecations are announced with a `Deprecated:` trailer in the commit
+  message, next to the other trailers. GoReleaser's changelog groups read
+  commit subjects only, so `scripts/release-deprecations.sh <tag>`
+  collects the trailers from the previous `v*.*.*` tag (or the whole
+  history for a first release) up to `<tag>` into a `## Deprecated` list.
+  A `Deprecated:` line in the middle of a body is not a trailer and is
+  not collected. `CHANGELOG.md` states the rule with an example.
+- `.github/workflows/release.yml` gains a "Collect deprecation notices"
+  step on both publish paths (tag push and VERSION bump). It runs the
+  script for the release tag and passes `--release-footer=<file>` to
+  GoReleaser only when the list is not empty. A script failure fails the
+  release before anything is published.
+- `docs/specs/60-library-publication.md`: the release workflow drops the
+  "Changelog Update" step, the deprecation step names the trailer, and
+  sections 3.1 and 3.2 carry a "Superseded" note, keeping the original
+  plan as history. `docs/specs/70-gzh-cli-integration.md`: the gitforge
+  v1.0.0 checklist asks for commit bodies and trailers instead of a
+  CHANGELOG update. The gzh-cli v1.0.0 checklist in the same spec is
+  left alone, because gzh-cli owns its own changelog contract.
+- `.goreleaser.yaml` ships `docs/changelog/*.md`, so every link in the
+  shipped `CHANGELOG.md` resolves inside the archive.
+- Verified by `make release-notes-test` (`scripts/test-release-deprecations.sh`,
+  now part of `quality-check`): a release range with three trailers in
+  two commits, a prose `Deprecated:` that must not be collected, a tag
+  with no trailers (empty output), a first release, and a missing tag
+  (exit 1). The workflow passes actionlint 1.7.12, GoReleaser v2.18.2
+  `check` passes, and its `release --help` lists `--release-footer`.

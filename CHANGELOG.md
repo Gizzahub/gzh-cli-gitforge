@@ -9,6 +9,13 @@ reason behind a change belongs in its commit body, which the generated list
 links to. Do not add `[Unreleased]` entries here, and do not hold a release for
 one.
 
+Announce a deprecation with a `Deprecated:` trailer in the commit message, next
+to the other trailers, for example
+`Deprecated: Client.Open; use Client.OpenContext, removal in v1.0.0`. The
+release workflow collects these trailers into a "Deprecated" section of the
+release notes (`scripts/release-deprecations.sh`). A `Deprecated:` line in the
+middle of the body is not a trailer and is not collected.
+
 This file only points to the release history. The hand-written record ends with
 v0.10.5; the table below links it.
 

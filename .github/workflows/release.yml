@@ -104,13 +104,27 @@ jobs:
         go-version: '1.27.2'
         cache: true
 
+    # GoReleaser's changelog groups read commit subjects only, so the
+    # Deprecated: trailers in commit bodies reach the notes as a footer.
+    - name: Collect deprecation notices
+      id: notes
+      if: github.event_name == 'push' || steps.release.outputs.publish == 'true'
+      env:
+        TAG: ${{ steps.release.outputs.tag || github.ref_name }}
+      run: |
+        footer="$RUNNER_TEMP/release-footer.md"
+        bash scripts/release-deprecations.sh "$TAG" > "$footer"
+        if [ -s "$footer" ]; then
+          echo "args=--release-footer=$footer" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Run GoReleaser
       if: github.event_name == 'push' || steps.release.outputs.publish == 'true'
       uses: goreleaser/goreleaser-action@v7
       with:
         distribution: goreleaser
         version: v2.18.2
-        args: release --clean
+        args: release --clean ${{ steps.notes.outputs.args }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Required for Homebrew tap updates

@@ -607,7 +607,7 @@ v1.0.0       → With Git integration (Phase 7.2)
 - [ ] No breaking API changes since v0.1.0
 - [ ] Performance benchmarks maintained
 - [ ] Documentation complete and accurate
-- [ ] CHANGELOG.md updated
+- [ ] Commit bodies carry the reason and any `Deprecated:` trailer (notes are generated)
 - [ ] Migration guide from v0.x to v1.0
 - [ ] GitHub release created
 - [ ] pkg.go.dev verified

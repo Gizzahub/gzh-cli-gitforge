@@ -339,7 +339,7 @@ pre-commit-update: ## update pre-commit hooks to latest versions
 # ==============================================================================
 
 .PHONY: quality quality-strict quality-fix quality-build quality-workspace-check quality-check-validate lint-all
-.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test
+.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test release-notes-test
 .NOTPARALLEL: quality-check verify-commit-affected
 
 # The base is a declared remote-tracking integration ref, not a guessed local
@@ -386,7 +386,7 @@ quality-workspace-check: ## verify workspace metadata in an isolated temporary c
 		echo -e "$(GREEN)✅ Tracked Go workspace metadata is clean!$(RESET)"
 
 quality-check: export GOWORK := off
-quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
+quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
 	@echo -e "$(GREEN)✅ Canonical quality gate passed!$(RESET)"
 
 quality: quality-check ## compatibility alias for the canonical quality gate
@@ -428,6 +428,9 @@ verify-release-steps:
 
 verification-selector-test: ## run isolated selector/profile regression fixtures
 	@/bin/bash scripts/test-verification-profile.sh
+
+release-notes-test: ## verify Deprecated: trailers are collected into release notes
+	@/bin/bash scripts/test-release-deprecations.sh
 
 quality-check-validate: ## validate quality workflow delegation and fail-closed commands
 	@set -eu; \
