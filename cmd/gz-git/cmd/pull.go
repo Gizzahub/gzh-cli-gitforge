@@ -17,6 +17,7 @@ var (
 	pullPrune    bool
 	pullTags     bool
 	pullStash    bool
+	pullPush     bool
 )
 
 // pullCmd represents the pull command for multi-repository operations.
@@ -44,6 +45,9 @@ var pullCmd = &cobra.Command{
   # Automatically stash local changes before pull
   gz-git pull --stash ~/projects
 
+  # Rebase, then push each repository whose rebase succeeded
+  gz-git pull --merge-strategy rebase --push ~/projects
+
   # Filter by pattern
   gz-git pull --include "myproject.*" ~/workspace`) + cliutil.ExitCodesBulkHelp(),
 	Args: cobra.MaximumNArgs(1),
@@ -61,6 +65,7 @@ func init() {
 	pullCmd.Flags().BoolVarP(&pullPrune, "prune", "p", false, "prune remote-tracking branches that no longer exist")
 	pullCmd.Flags().BoolVarP(&pullTags, "tags", "t", false, "fetch all tags from remote")
 	pullCmd.Flags().BoolVar(&pullStash, "stash", false, "automatically stash local changes before pull")
+	pullCmd.Flags().BoolVar(&pullPush, "push", false, "push each repository after a successful rebase pull (requires --merge-strategy rebase; never forces)")
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
@@ -83,6 +88,12 @@ func runPull(cmd *cobra.Command, args []string) error {
 		}
 		if verbose {
 			PrintConfigSources(cmd, effective)
+		}
+	}
+
+	if pullPush {
+		if err := validatePullPush(pullStrategy, pullFlags.Format, pullFlags.Watch); err != nil {
+			return err
 		}
 	}
 
@@ -151,7 +162,17 @@ func runPull(cmd *cobra.Command, args []string) error {
 		displayPullResults(result)
 	}
 
-	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
+	pullFailed := result.Summary[repository.StatusError]
+	if !pullPush {
+		return errPartialFailure(pullFailed, result.TotalProcessed)
+	}
+
+	pushFailed, pushProcessed, err := runPullPush(ctx, client, effective, opts, result)
+	if err != nil {
+		return err
+	}
+
+	return errPartialFailure(pullFailed+pushFailed, max(result.TotalProcessed, pushProcessed))
 }
 
 func runPullWatch(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {
