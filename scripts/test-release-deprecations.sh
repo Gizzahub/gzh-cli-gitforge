@@ -22,14 +22,16 @@ commit() {
 	g commit -q --allow-empty -m "$1"
 }
 
+# want_warn 은 경고 줄 수(0 또는 1)다.
 check() {
-	name=$1 want_rc=$2 want_out=$3 tag=$4
-	got_out=$(cd "$repo" && "$collect" "$tag" 2>/dev/null)
+	name=$1 want_rc=$2 want_out=$3 tag=$4 want_warn=${5:-0}
+	got_out=$(cd "$repo" && "$collect" "$tag" 2>"$tmpdir/err")
 	got_rc=$?
-	if [ "$got_rc" = "$want_rc" ] && [ "$got_out" = "$want_out" ]; then
+	got_warn=$(grep -c '^::warning::' "$tmpdir/err")
+	if [ "$got_rc" = "$want_rc" ] && [ "$got_out" = "$want_out" ] && [ "$got_warn" = "$want_warn" ]; then
 		echo "ok   [$name]"
 	else
-		echo "FAIL [$name] want rc=$want_rc out='$want_out' got rc=$got_rc out='$got_out'"
+		echo "FAIL [$name] want rc=$want_rc warn=$want_warn out='$want_out' got rc=$got_rc warn=$got_warn out='$got_out'"
 		failures=$((failures + 1))
 	fi
 }
@@ -40,20 +42,27 @@ commit "$(printf 'feat: first\n\nDeprecated: OldFirst; use NewFirst')"
 g tag v0.1.0
 commit "$(printf 'fix: prose only\n\nDeprecated: is mentioned here as prose.\n\nModel: m-1')"
 commit "$(printf 'feat: retire\n\nWhy it changes.\n\nDeprecated: Client.Open; use Client.OpenContext\nModel: m-1')"
+# v*.*.* 가 아닌 태그는 범위의 시작이 아니다.
+g tag snapshot
 commit "$(printf 'refactor: two\n\nDeprecated: --old-flag; use --new-flag\nDeprecated: sync run; use sync from-config')"
+commit "$(printf 'feat: folded\n\nDeprecated: Repo.Walk; use\n  Repo.WalkContext\nModel: m-1')"
 g tag v0.2.0
 commit 'fix: nothing deprecated'
 g tag v0.2.1
+commit "$(printf 'feat: unindented wrap\n\nDeprecated: Old.Thing; use\nNew.Thing\nModel: m-1')"
+g tag v0.2.2
 
 want_range='## Deprecated
 
 - Client.Open; use Client.OpenContext
 - --old-flag; use --new-flag
-- sync run; use sync from-config'
+- sync run; use sync from-config
+- Repo.Walk; use Repo.WalkContext'
 
-check range 0 "$want_range" v0.2.0
+check range 0 "$want_range" v0.2.0 1
 check none 0 '' v0.2.1
 check first 0 "$(printf '## Deprecated\n\n- OldFirst; use NewFirst')" v0.1.0
+check unindented-wrap 0 '' v0.2.2 1
 check missing-tag 1 '' v9.9.9
 
 if [ "$failures" -ne 0 ]; then

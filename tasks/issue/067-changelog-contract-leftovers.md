@@ -52,12 +52,21 @@ Resolved on 2026-10-20.
   collects the trailers from the previous `v*.*.*` tag (or the whole
   history for a first release) up to `<tag>` into a `## Deprecated` list.
   A `Deprecated:` line in the middle of a body is not a trailer and is
-  not collected. `CHANGELOG.md` states the rule with an example.
+  not collected. Indented continuation lines are joined (`unfold`). An
+  unindented continuation line makes Git reject the whole trailer block,
+  so the script warns (`::warning::`) when the range has more body lines
+  starting with `Deprecated:` than collected notices. `CHANGELOG.md`
+  states the rule with an example and the one-line or indented form.
 - `.github/workflows/release.yml` gains a "Collect deprecation notices"
   step on both publish paths (tag push and VERSION bump). It runs the
   script for the release tag and passes `--release-footer=<file>` to
-  GoReleaser only when the list is not empty. A script failure fails the
-  release before anything is published.
+  GoReleaser only when the list is not empty. A script failure stops the
+  job before GoReleaser publishes. On the VERSION path the tag is
+  already pushed by then; re-running the job publishes it, as the
+  existing re-run recovery in that step allows.
+- Merge commits stay in the range: a merge message does not copy the
+  trailers of the commits it merges, so they do not duplicate notices,
+  and a notice written in a merge message is still collected.
 - `docs/specs/60-library-publication.md`: the release workflow drops the
   "Changelog Update" step, the deprecation step names the trailer, and
   sections 3.1 and 3.2 carry a "Superseded" note, keeping the original
@@ -71,5 +80,8 @@ Resolved on 2026-10-20.
   now part of `quality-check`): a release range with three trailers in
   two commits, a prose `Deprecated:` that must not be collected, a tag
   with no trailers (empty output), a first release, and a missing tag
-  (exit 1). The workflow passes actionlint 1.7.12, GoReleaser v2.18.2
+  (exit 1). Review follow-up: a `snapshot` tag inside the range must not
+  start it, a folded trailer is one notice, and an unindented wrap is
+  not collected and warns. Mutations, each reverted: dropping `unfold`,
+  dropping `--match`, and always or never warning each fail a case. The workflow passes actionlint 1.7.12, GoReleaser v2.18.2
   `check` passes, and its `release --help` lists `--release-footer`.

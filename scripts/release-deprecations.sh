@@ -26,8 +26,17 @@ else
 	range=$TAG
 fi
 
-notices=$(git log --reverse --format='%(trailers:key=Deprecated,valueonly,separator=%x0A)' "$range" |
+# unfold 은 들여쓴 연속 줄을 한 항목으로 합친다.
+notices=$(git log --reverse --format='%(trailers:key=Deprecated,valueonly,unfold,separator=%x0A)' "$range" |
 	sed -e 's/^[[:space:]]*//' -e '/^$/d')
+
+# 들여쓰지 않은 연속 줄은 trailer 블록 전체를 무효로 만들어 조용히 빠진다.
+# 본문에서 "Deprecated:" 로 시작하는 줄이 모인 항목보다 많으면 경고만 한다.
+lines=$(git log --format='%B' "$range" | grep -c '^Deprecated:' || true)
+collected=$(printf '%s' "$notices" | grep -c '' || true)
+if [ "$lines" -gt "$collected" ]; then
+	echo "::warning::release-deprecations: $((lines - collected)) 'Deprecated:' line(s) in $range are not trailers and were not collected" >&2
+fi
 [ -n "$notices" ] || exit 0
 
 printf '## Deprecated\n\n'
