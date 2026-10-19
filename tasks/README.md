@@ -1,6 +1,6 @@
 # Tasks — gzh-cli-gitforge
 
-> Last Updated: 2026-10-17
+> Last Updated: 2026-10-20
 
 ## 구조
 
@@ -52,6 +52,8 @@ stdout/stderr 캡처의 선재 교착은 [ISSUE-51](issue/51-stdout-capture-pipe
 | 48  | python-uv-symmetric-preparation-gap                                  | Python/UV 범위 해결. source 9227bf3 및 infra-ops b7ad3178 실제 native full 수용·고정 입력·환경 전달·회수 확인. baseline Make는 미측정이며 GA4 문제 해결을 주장하지 않는다                                                                                       |
 | 52  | legacy-json-unbound-mutation-flags                                   | 0.10.2에서 기존 JSON 필드를 실제 호출 결과로 채운다. receipt 우선순위·schema 유지·실제 Git 회귀 검증 완료; 전달 판정은 verification-evidence-followup 영수증에 기록한다                                                                                         |
 | 53  | [atomic-install-publication](issue/53-atomic-install-publication.md) | checkout과 설치 디렉터리가 다른 파일시스템이면 직접 `mv`가 복사 경로를 사용해 실행 파일의 원자적 게시를 보장하지 못한다. destination staging은 미채택 후보이며 현재는 관측상 유휴 창에서만 설치하는 운영 완화다.                                                |
+| 56  | [workspace-status-scans-git-workspace-children](issue/56-workspace-status-scans-git-workspace-children.md) | `type: git` workspace의 `path`가 저장소 자체이면 `workspace status`가 하위 디렉터리만 스캔해 "no git repositories found in workspaces"로 실패한다. 같은 설정을 sync는 정상 계획한다. 등록만, 수정 미포함 |
+| 57  | [sync-preview-dirty-warning-ignores-fetch-strategy](issue/57-sync-preview-dirty-warning-ignores-fetch-strategy.md) | `strategy: fetch`에서도 dirty checkout에 "Local uncommitted changes may be overwritten"을 표시한다. 경고가 sync 전략을 보지 않는다. 등록만, 수정 미포함 |
 
 `v0.8.0`은 준비된 `VERSION`과 릴리스 노트 기준으로 2026-10-01 `9d7041c`에 발행됐다.
 발행 당시 보류 조건이던 탭 bootstrap·최초 Cask 게시·macOS 설치 검증은 이슈 28이 계속
