@@ -16,6 +16,16 @@ import (
 )
 
 func TestLegacyCleanupCERuntimeGuard(t *testing.T) {
+	// Each refusal must come from the guard check it targets. An earlier
+	// failure (such as a dirty primary) also refuses, and would otherwise
+	// pass every case without reaching the guard.
+	wantRefusal := map[string]string{
+		"malformed":       "parse CE runtime attestation",
+		"wrong_guard":     "CE runtime attestation binding was refused or changed",
+		"stale_pid":       "CE runtime attestation process identity changed",
+		"hash_changed":    "CE verifier digest changed",
+		"fail_after_step": "parse CE runtime attestation",
+	}
 	for _, mode := range []string{"allow", "malformed", "wrong_guard", "stale_pid", "hash_changed", "fail_after_step"} {
 		t.Run(mode, func(t *testing.T) {
 			plan, planPath, primary, task := legacySecurityPlan(t, true)
@@ -71,6 +81,9 @@ func TestLegacyCleanupCERuntimeGuard(t *testing.T) {
 			}
 			if err == nil {
 				t.Fatal("invalid CE attestation unexpectedly permitted cleanup")
+			}
+			if !strings.Contains(err.Error(), wantRefusal[mode]) {
+				t.Fatalf("refusal did not come from the guard: err = %v, want %q", err, wantRefusal[mode])
 			}
 			if mode == "fail_after_step" {
 				if _, statErr := os.Stat(task); !os.IsNotExist(statErr) {

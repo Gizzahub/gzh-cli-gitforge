@@ -174,11 +174,20 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 	}
 	host := strings.TrimSpace(os.Getenv(callerHostEnv))
 	gitValue := func(key string) (string, error) {
-		out, err := exec.RunOutput(ctx, ".", "config", "--global", "--includes", "--get", key)
+		// Exit 1 means the key is unset; the empty value then reaches the
+		// "not configured" refusal below instead of a raw Git failure.
+		res, err := exec.Run(ctx, ".", "config", "--global", "--includes", "--get", key)
 		if err != nil {
 			return "", fmt.Errorf("read global Git %s: %w", key, err)
 		}
-		return strings.TrimSpace(out), nil
+		switch res.ExitCode {
+		case 0:
+			return strings.TrimSpace(res.Stdout), nil
+		case 1:
+			return "", nil
+		default:
+			return "", fmt.Errorf("read global Git %s: exit %d: %s", key, res.ExitCode, strings.TrimSpace(res.Stderr))
+		}
 	}
 	if actor == "" {
 		configured, err := gitValue(callerActorGitKey)

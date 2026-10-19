@@ -36,3 +36,25 @@ declares an identity.
   asserts cleanup refuses an unconfigured caller and creates no
   evidence root.
 - Actual: both refusals are only implied.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- `TestLegacyCleanupCERuntimeGuard` now asserts each failure case's own
+  refusal: `parse CE runtime attestation` (malformed, fail_after_step),
+  `binding was refused or changed` (wrong_guard), `process identity changed` (stale_pid) and `CE verifier digest changed` (hash_changed).
+  Making the guard checker fail with "primary worktree is dirty" fails
+  all five; before, they passed.
+- New `TestCleanupOnlyRetryRefusesUnconfiguredCaller` clears
+  `GZ_GIT_TASK_ACTOR`, `GIT_WORK_ACTOR` and `GIT_WORK_HOST` and points
+  `GIT_CONFIG_GLOBAL` at an empty file. Without a prior run, cleanup
+  refuses and no evidence root appears; after a crashed run, it refuses
+  and the residuals stay intact. Returning a fixed owner for an empty
+  identity fails both subtests. The comment on
+  `TestCleanupOnlyRetryOwnerGuard` now points to it.
+- The test found a defect: `ResolveCallerOwner` treated an unset global
+  `ce.workActor` (`git config --get` exit 1) as a Git failure, so an
+  unconfigured caller got `read global Git ce.workActor: git command failed ... (exit code 1)` and never the "caller identity is not
+  configured: set ..." guidance. Exit 1 now reads as unset; other
+  non-zero exits still fail with the exit code and stderr.

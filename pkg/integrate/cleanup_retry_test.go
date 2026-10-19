@@ -21,7 +21,8 @@ import (
 
 // Cleanup is authorized by the caller resolving to the receipt's owner
 // through the native identity chain. A different actor, a different logical
-// host, or an unconfigured identity refuses without touching anything.
+// host refuses without touching anything; an unconfigured identity is
+// covered by TestCleanupOnlyRetryRefusesUnconfiguredCaller.
 func TestCleanupOnlyRetryOwnerGuard(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)
