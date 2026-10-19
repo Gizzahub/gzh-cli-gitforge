@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-19T06:01:32.642005+00:00",
+  "host": "mst",
+  "authorization": "2026-10-19 user 권장안으로 작업 진행해줘: CE423 adoption and retry",
+  "sourceCommit": "42363c6eb4213e496748f329365cb4293b97e850",
+  "sourceDescribe": "v0.10.0-289-g42363c6e",
+  "sourcePath": "/Users/archmagece/mywork/ce/ce-agent-kit/build/installation-sources/ce423-mst-20261019",
+  "sourceOwner": "/Users/archmagece/mywork/ce/ce-agent-kit",
+  "ownerValidation": "ce source validate of canonical owner succeeded before consumption-only clone",
+  "retention": "retain source clone while installed CLI embeds this path; no authoring or automatic cleanup",
+  "installer": [
+    "make",
+    "install_cli"
+  ],
+  "installerExitCode": 0,
+  "resolvedExecutable": "/Users/archmagece/go/bin/ce",
+  "beforeSha256": "c6b4d949916a617eac9569cc7cd26ad5fb6f5f9da98354fc1bf41c11d4e8834e",
+  "afterSha256": "c6e64cc8bb3cc9de0dee87a2c103227e02dd79fe41256ba8dd50bdb7152bde1c",
+  "buildSettings": [
+    "build\t-buildmode=exe",
+    "build\t-compiler=gc",
+    "build\t-trimpath=true",
+    "build\tCGO_ENABLED=1",
+    "build\tGOARCH=arm64",
+    "build\tGOOS=darwin",
+    "build\tGOARM64=v8.0",
+    "build\tvcs=git",
+    "build\tvcs.revision=42363c6eb4213e496748f329365cb4293b97e850",
+    "build\tvcs.time=2026-10-18T14:11:26Z",
+    "build\tvcs.modified=false"
+  ],
+  "embeddedSourceStringVerified": true,
+  "versionJson": {
+    "version": "0.10.13",
+    "revision": "42363c6eb4213e496748f329365cb4293b97e850",
+    "release": "v0.10.0",
+    "build": "289-g42363c6e",
+    "commitsAhead": 289,
+    "commit": "42363c6eb4213e496748f329365cb4293b97e850",
+    "dirty": false,
+    "describe": "v0.10.0-289-g42363c6e",
+    "capabilities": [
+      "ce.task.gate-doctor/v2"
+    ]
+  },
+  "installLog": "Building ce...\ngo build -v -trimpath -ldflags \"-s -w -X main.DefaultBuildRevision=42363c6eb4213e496748f329365cb4293b97e850 -X main.DefaultBuildDescribe=v0.10.0-289-g42363c6e\" -o ./build/ce ./cmd/ce\ngithub.com/archmagece/ce-agent-kit/cmd/ce\nInstalling ce to /Users/archmagece/go/bin...\n  Embedding plugin source: /Users/archmagece/mywork/ce/ce-agent-kit/build/installation-sources/ce423-mst-20261019\n  Embedding build revision: 42363c6eb4213e496748f329365cb4293b97e850\ngo install -trimpath -ldflags \"-s -w -X main.DefaultPluginSource=/Users/archmagece/mywork/ce/ce-agent-kit/build/installation-sources/ce423-mst-20261019 -X main.DefaultBuildRevision=42363c6eb4213e496748f329365cb4293b97e850 -X main.DefaultBuildDescribe=v0.10.0-289-g42363c6e\" ./cmd/ce\n",
+  "settingsSha256": {
+    "/Users/archmagece/.codex/config.toml": "a8b8346d5b28a338ff036c0ac97e6603c1e24e2be4579737f4e4d714e085017b",
+    "/Users/archmagece/.claude/settings.json": "be5768ba8346acfa0de0b9ed226196000ba9c6e053c2a355c83d3ff4a90d3961",
+    "/Users/archmagece/.config/opencode/opencode.json": "3a1689520689222b217d5107e8e7becc3fbbd2aae41dc086435cd6a941b650c1"
+  },
+  "settingsUnchanged": true,
+  "pluginInstallation": false,
+  "pathChanged": false,
+  "primaryHead": "d07e098f1d749402dfccc2ed1baec818fdb7fefd",
+  "sourceCloneProvenance": {
+    "owner": "codex/mst",
+    "task": "readiness-cleanup-safety-delivery",
+    "purpose": "user-approved consumption-only pinned CE installation source, no authoring",
+    "sourceRepository": "/Users/archmagece/mywork/ce/ce-agent-kit",
+    "sourceCommit": "42363c6eb4213e496748f329365cb4293b97e850",
+    "sourcePath": "/Users/archmagece/mywork/ce/ce-agent-kit/build/installation-sources/ce423-mst-20261019",
+    "createdAt": "2026-10-19T06:00:15.095646+00:00",
+    "retention": "retain while installed CE embeds this source path; never author, switch or discard automatically",
+    "describe": "v0.10.0-289-g42363c6e",
+    "tagProvenance": "v0.10.0 imported from validated owner; tag object IDs compared equal"
+  }
+}

@@ -93,3 +93,26 @@ non-worsening을 판정할 수 없었다. source push·회수는 실행되지 �
 미해결 CE toolchain 불일치는 기존 [ISSUE-41](../../../tasks/issue/41-ce-parity-golden-drift.md)에
 연결한다. 기대값 재녹화·검사 약화·CE 자동 설치는 하지 않는다. CE 정합성 해결과
 현재 source 기준 native full·통합·push·회수 전까지 이 전달은 미완료다.
+
+## CE 42363c6e 채택과 재전달 준비
+
+2026-10-19 사용자 “권장안으로 작업 진행해줘” 요청으로 CE 기준 설치를 실행했다.
+canonical 소유 source의 기본 master `d07e098f`는 보존하고, 지정 build 경로에
+소비 전용의 clean `42363c6e` clone을 만들었다. 원본 v0.10.0 태그 object도 대조해
+정확한 describe `v0.10.0-289-g42363c6e`를 확인한 뒤 `make install_cli` exit 0을
+검증했다. [CE 설치 증거](ce-adoption.json)에 승인·원본·고정 경로·실행 파일 해시·
+설치 로그·설정 해시를 보존한다. 설치본 revision은 전체 42363c6e SHA이며 dirty=false다.
+독립 strong 읽기 전용 검증은 PASS다. 플러그인·모델 설정·PATH는 바꾸지 않았다.
+
+설치용 source는 CLI에 경로가 기록되므로 설치본 사용 중 보존해야 하는 자원이다.
+경로는 `/Users/archmagece/mywork/ce/ce-agent-kit/build/installation-sources/ce423-mst-20261019`다.
+종료된 authoring worktree나 새 개발 source로 쓰지 않으며 자동 정리하지 않는다.
+
+동일 후보에서 non-record `go test ./tests/parity/... -count=1 -timeout=5m`을 실행해
+35.277초에 exit 1을 확인했다. CE version guard는 해소됐고 남은 차이는
+finish-explicit line183과 finish-noarg-single-active line260의 물리 processHost
+(MacBookPro 기대값 대 mst 관측) 두 건이다. 기존 ISSUE-41에 같은 host literal
+문제가 기록돼 있다. fixture/normalizer를 바꾸지 않고 최신 source의 실제 baseline과
+native 비교로 판정해야 한다. 좁은 실패만으로 full non-worsening을 주장하지 않는다.
+원격 source는 준비 중 `9d88a2b6`으로 이동했으므로 새 기준의 resource-plan 변경과
+기존 cleanup 검증을 함께 보존해 재기준화하고 독립 검토를 받아야 한다.

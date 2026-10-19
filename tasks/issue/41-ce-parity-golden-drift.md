@@ -452,3 +452,17 @@ parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 �
 CE 설치를 바꾸지 않았다. 승인된 CE 채택 또는 후속 native 전달 전에 CE 소유 source
 선언과 실제 설치 실행 파일을 대조해야 한다. 새 이슈를 만들지 않고 기존 ISSUE-41의
 드리프트 관측으로 남긴다.
+
+## 2026-10-19 mst CE 기준 설치 후 남은 host literal 차이
+
+사용자 권장안 실행 요청으로 지정 `make install_cli`를 통해 CE 전체 revision
+`42363c6eb4213e496748f329365cb4293b97e850`을 반영했다. clean/dirty=false와
+독립 strong 설치 검증 PASS를 [설치 증거](../../docs/task-reviews/readiness-cleanup-safety/ce-adoption.json)에
+남겼다. 플러그인·모델 설정·PATH는 변경하지 않았다.
+
+non-record parity는 35.277초 exit1이며 남은 두 차이는 finish-explicit line183과
+finish-noarg-single-active line260의 `processHost`다. 기대값은
+`CEui-MacBookPro.local`, mst 관측은 `CE-Mac-Studio.local`이다. 위 역사적 반대 방향
+관측과 같은 host literal 문제이며 새 이슈를 만들지 않는다. 이 결과로 현재 호스트의
+전체 baseline을 대신하거나 CE lifecycle의 foreign-host 보호 의미를 지우지 않는다.
+fixture 재녹화·normalizer 변경 없이 현재 source와 native non-worsening을 검증한다.
