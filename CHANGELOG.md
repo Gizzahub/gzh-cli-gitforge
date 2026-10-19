@@ -32,6 +32,12 @@ is to cut a release and move that line into `docs/changelog/`, not to write less
 
 ### Fixed
 
+- Host measurement lock wait notices end with `; host <name>` and the holder
+  sidecar records `host`, from `GIT_WORK_HOST` or global Git `ce.workHost` with
+  no hostname fallback; a malformed declaration shows `host invalid`. The lock
+  path is identical on every device, so a pasted mst notice was attributed to
+  another device's holder. Prepare patch 0.10.5.
+
 - Resource-wait target observations now use the remaining acquisition budget
   instead of a separate five-second deadline. Healthy slow remote refreshes no
   longer cancel finite or explicitly unbounded admission early; observation

@@ -48,15 +48,21 @@ var (
 
 // hostLockHolder is the sidecar content. It is for display only: whoever
 // reads it must already have failed to take the lock, or it may describe a
-// holder that is gone.
+// holder that is gone. Host is the declared device name (see
+// declaredHostLockHost); the lock path is the same on every device, so
+// without it a copied sidecar or notice cannot be tied to one.
 type hostLockHolder struct {
 	PID        int       `json:"pid"`
+	Host       string    `json:"host,omitempty"`
 	Repository string    `json:"repository"`
 	Worktree   string    `json:"worktree"`
 	Branch     string    `json:"branch"`
 	Command    string    `json:"command"`
 	WorkClass  string    `json:"work_class"`
 	StartedAt  time.Time `json:"started_at"`
+	// hostRejected marks a declared but malformed device name, so the notice
+	// can say it is invalid instead of reporting it as undeclared.
+	hostRejected bool
 }
 
 type hostLock struct {
@@ -144,8 +150,10 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 		}
 		if lastNotice.IsZero() || now.Sub(lastNotice) >= hostLockNoticeInterval {
 			lastNotice = now
-			fmt.Fprintf(notice, "integrate: waiting %s for the host measurement lock %s; %s\n",
-				now.Sub(start).Round(time.Second), path, describeHostLockHolder(sidecar))
+			// The device label trails the holder so readers that parse the
+			// earlier fields keep matching.
+			fmt.Fprintf(notice, "integrate: waiting %s for the host measurement lock %s; %s; %s\n",
+				now.Sub(start).Round(time.Second), path, describeHostLockHolder(sidecar), hostLockDeviceLabel(holder))
 			if err := observeHostLockWait(ctx, start, wait, limit, waitSource); err != nil {
 				_ = f.Close()
 				return nil, err
@@ -168,6 +176,39 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 		fmt.Fprintf(notice, "integrate: warning: write host measurement lock holder %s: %v\n", sidecar, err)
 	}
 	return &hostLock{file: f, sidecar: sidecar}, nil
+}
+
+// declaredHostLockHost follows the caller-owner device chain (GIT_WORK_HOST,
+// then global Git ce.workHost) with no hostname fallback. Unlike
+// ResolveCallerOwner it never fails: the name is for display, so a malformed
+// value is reported as rejected and never written as the host.
+func declaredHostLockHost(ctx context.Context, g gitRepo) (host string, rejected bool) {
+	host = strings.TrimSpace(os.Getenv(callerHostEnv))
+	if host == "" {
+		configured, err := g.output(ctx, "config", "--global", "--includes", "--get", callerHostGitKey)
+		if err != nil {
+			return "", false
+		}
+		host = strings.TrimSpace(configured)
+	}
+	if host == "" {
+		return "", false
+	}
+	if validateOpaqueToken(host, "host") != nil {
+		return "", true
+	}
+	return host, false
+}
+
+func hostLockDeviceLabel(holder hostLockHolder) string {
+	switch {
+	case holder.Host != "":
+		return "host " + holder.Host
+	case holder.hostRejected:
+		return "host invalid"
+	default:
+		return "host undeclared"
+	}
 }
 
 func hostLockWaitExpired(start time.Time, wait time.Duration) bool {
@@ -364,7 +405,8 @@ func holdMeasurementLock(ctx context.Context, g gitRepo, opts CheckOptions) (hel
 		}
 		return withHeldHostSlot(ctx), func() {}, nil
 	}
-	holder := hostLockHolder{Worktree: g.dir, Repository: g.dir, Branch: opts.Branch, Command: hostLockCommandCheck}
+	host, rejected := declaredHostLockHost(ctx, g)
+	holder := hostLockHolder{Host: host, hostRejected: rejected, Worktree: g.dir, Repository: g.dir, Branch: opts.Branch, Command: hostLockCommandCheck}
 	if common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir"); err == nil && common != "" {
 		if filepath.Base(common) == ".git" {
 			common = filepath.Dir(common)
