@@ -159,3 +159,12 @@ FAIL이다. source push·worktree/local/remote branch 회수는 모두 false다.
 이 판정을 통합 성공으로 바꾸지 않는다. 새 source의 Go 1.27 CI 품질 검사 복구,
 release gate 이슈 기록, bin/tools mdformat 고정 변경을 보존해 재기준화한다.
 CE pin은 여전히 42363c6e이며 이번 source 전진은 새 CE 설치 승인이 아니다.
+
+2026-10-19T08:26:45Z의 다음 실행도 [stale-base 영수증](ce423-second-stale-base-refusal.json)을
+남기고 BLOCKED로 끝났다. 후보 `618784c7`의 검사 중 source가 `d0c1197b`에서
+`c3175483`으로 전진했다. 이 source 증분은 동시 통합 비용 ISSUE-61·62 문서 두 파일이다.
+candidate 검사 뒤 baseline과 lint의 자원 입장 시점에 변경을 감지해 유효 판정을 얻지 못했다.
+이번 실행의 make check/lint를 PASS로 기록하지 않는다. 자원 대기 16m16.746s,
+validation 15m43.538s이며 source push·회수는 모두 false다.
+기존 구현·리뷰·실패 영수증을 보존해 새 기준으로 재개하며, 원인은 기존
+`tasks/issue/061-concurrent-landing-reverify.md`에 이미 등록돼 있어 재발급하지 않는다.
