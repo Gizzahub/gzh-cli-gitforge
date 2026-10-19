@@ -1,5 +1,5 @@
 ---
-id: ISSUE-67
+id: ISSUE-68
 title: "Resource plan fail-closed paths lack end-to-end tests"
 type: bug
 priority: P3
@@ -10,6 +10,9 @@ created: 2026-10-19
 ---
 
 ## Summary
+
+Registered as ISSUE-67 in 49fe5547, which collided with the CHANGELOG
+card landed concurrently in 7b630a23; renumbered to ISSUE-68.
 
 `pkg/integrate/readiness_plan_test.go` covers the resource plan end to end
 only for an invalid digest, plus parser cases. The code fails closed on the
