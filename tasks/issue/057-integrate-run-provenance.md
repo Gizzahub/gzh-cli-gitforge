@@ -59,7 +59,7 @@ Resolved on 2026-10-19.
   (`GIT_WORK_HOST`, then global `ce.workHost`, no hostname fallback).
   The host-lock `; host <name>` label now uses the same function, so
   within `pkg/integrate` the two cannot disagree. Other resolvers can:
-  `internal/runtask` lowercases `GIT_WORK_HOST` (see ISSUE-58). An
+  `internal/runtask` normalizes `GIT_WORK_HOST` (see ISSUE-58). An
   absent name shows `undeclared`, followed by one line naming
   `GIT_WORK_HOST=<name>` and `git config --global ce.workHost <name>`.
   A malformed name shows `invalid`, followed by one line saying the
@@ -67,6 +67,9 @@ Resolved on 2026-10-19.
 - The readiness `review`, `auto` and `run` commands print the line as
   the first statement of their command, before the policy load, TTY,
   `--expect-source` and `--statement` refusals.
+- Release dependency: CE `finish_reason.go` would record this line as
+  the failure reason of a run without a `FAIL ` line. Releases are held
+  until the CE fix is installed; see ISSUE-69.
 - The version is the `appVersion` that `cmd.Execute` receives from
   `main.version` (ldflags, or the module version for `go install`),
   passed to `integrate.WriteRunProvenance`; an unstamped build prints

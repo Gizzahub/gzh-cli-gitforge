@@ -85,7 +85,8 @@ Resolved on 2026-10-19.
   present. With the provenance line now first, CE would record it as
   the reason. The CE fix (skip `integrate: run device=` and the hint
   lines, or prefer the last stderr line) must ship before any gz-git
-  release that contains this change. It is not made here.
+  release that contains this change. It is not made here; the hold is
+  tracked as ISSUE-69.
 - Verified by `TestValidateHostNameCatalogGrammar` (accepts `mbp`,
   `mst`, `a1-b2`, 128 characters; rejects uppercase, `;`, leading,
   trailing and double hyphens, empty, non-ASCII, spaces and 129
