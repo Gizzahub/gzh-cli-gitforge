@@ -34,7 +34,9 @@ summary misleads.
 1. Build gz-git from a commit that contains the ISSUE-57 change.
 1. Run `ce task run-finish` on a task whose `--target` gz-git refuses,
    for example after `branch.integrationBranch` in `.gz-git.yaml` has
-   drifted from the run's recorded source branch.
+   drifted from the run's recorded source branch (a non-default branch;
+   a default-branch source is refused with "promoting onto the default
+   branch requires --release" instead).
 1. The recorded reason reads
    `integrate-run failed: integrate: run device=...` rather than
    `target must be the integration branch ...`.
