@@ -11,9 +11,10 @@ created: 2026-10-20
 
 ## Summary
 
-ISSUE-62 made 274 of the 491 top-level tests in `pkg/integrate` run in
-parallel, which cut the package's `-race` time by about a quarter. The
-other 217 stay sequential, and with them the package remains the
+ISSUE-62 made 274 of the 504 top-level tests in `pkg/integrate` run in
+parallel (271 of 500 on Linux and macOS, which skip four Windows-only
+tests), which cut the package's `-race` time by about a quarter. The
+other 229 stay sequential, and with them the package remains the
 critical path of `verify-full`. They stay sequential for reasons the
 tests cannot fix on their own:
 
@@ -26,7 +27,9 @@ tests cannot fix on their own:
   share the package-wide state directory that `TestMain` sets;
 - tests that write a script and then execute it can fail with
   `text file busy` on Linux when a parallel test forks while the file is
-  still open for writing.
+  still open for writing. That cause is separate from the environment:
+  committing the executables to the fixture repository, so Git checks
+  them out, would remove it without the injection below.
 
 ## Reproduction
 
@@ -37,7 +40,7 @@ top-level tests, and the ISSUE-62 commit message for the exclusion list.
 
 - Expected: `pkg/integrate` is no longer the single critical path of the
   race step, while keeping coverage and `-race`.
-- Actual: 217 tests still run one at a time.
+- Actual: 229 tests still run one at a time on Linux and macOS.
 
 ## Scope
 

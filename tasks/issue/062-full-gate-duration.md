@@ -90,15 +90,17 @@ tests:
 
 ## Resolution
 
-- `pkg/integrate` runs 274 of its 491 top-level tests in parallel, which
-  keeps coverage and `-race`. The commit message lists what stays
+- `pkg/integrate` has 504 top-level tests; 274 run in parallel, which
+  keeps coverage and `-race`. Four live in Windows-only files, three of
+  them parallel, so Linux and macOS run 271 of 500 in parallel. The commit message lists what stays
   sequential and why.
 - Independent review removed 32 tests from the first draft's 306: 30
-  that write a script and then execute it, which can fail with
-  `text file busy` on Linux when a parallel test forks while the file is
-  open for writing; `TestReadinessResourcePlanSelectsSlot`, which takes
+  that write an executable or build on `readinessFixture`, kept
+  sequential as a precaution because a script written and then executed
+  can fail with `text file busy` on Linux when a parallel test forks
+  while the file is open for writing; `TestReadinessResourcePlanSelectsSlot`, which takes
   the shared host-slot lock; and `TestMakeTargetBudget`, whose 3 s
   timing assertion is unsafe under parallel load.
-- The remaining 217 tests stay sequential because production code reads
+- The remaining 229 tests on Linux and macOS stay sequential because production code reads
   process-wide state; removing that is ISSUE-83. Capping concurrent full
   gates belongs to the landing policy (ISSUE-61, ce-devenv ISSUE-041).
