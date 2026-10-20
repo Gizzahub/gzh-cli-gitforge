@@ -82,6 +82,10 @@ func TestRulelessPathNamedLikeTargetIsUndeclared(t *testing.T) {
 		{name: "file", makefile: "lint:\n\t@:\n"},
 		{name: "directory", makefile: "lint:\n\t@:\n", dir: true},
 		{name: "file beside a declared recipe-less check", makefile: "check:\nlint:\n\t@:\n", defined: true},
+		// Make 4.4.1 prints a target-specific variable as "check: FOO = 1"
+		// above the entry; the probe must not take it as the entry (ISSUE-79).
+		{name: "file named by a target-specific variable", makefile: "check: FOO=1\nlint:\n\t@:\n"},
+		{name: "file beside a recipe-less check with a variable", makefile: "check: FOO=1\ncheck: lint\nlint:\n\t@:\n", defined: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -93,6 +97,31 @@ func TestRulelessPathNamedLikeTargetIsUndeclared(t *testing.T) {
 			} else {
 				writeRepoFile(t, dir, "check", "")
 			}
+			if check := runMakeTarget(context.Background(), dir, "check", 0); check.Defined != tc.defined {
+				t.Fatalf("Defined = %v, want %v (err=%v)\n%s", check.Defined, tc.defined, check.Err, check.Output)
+			}
+		})
+	}
+}
+
+// TestTargetVariableIsNotTheMakeEntry pins ISSUE-79: make 4.4.1 prints a
+// target-specific variable as "check: FOO = 1" just above check's entry.
+// Beside a catch-all, the probe read that line as the entry and reported
+// check declared, so the gate passed having run nothing. A check declared
+// with a recipe after or before the variable stays declared.
+func TestTargetVariableIsNotTheMakeEntry(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		makefile string
+		defined  bool
+	}{
+		{name: "catch-all", makefile: "check: FOO=1\nlint:\n\t@:\n%:\n\t@:\n"},
+		{name: "declared after the variable", makefile: "check: FOO=1\ncheck:\n\t@:\nlint:\n\t@:\n", defined: true},
+		{name: "declared before the variable", makefile: "check:\n\t@:\ncheck: FOO=1\nlint:\n\t@:\n", defined: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeRepoFile(t, dir, "Makefile", tc.makefile)
 			if check := runMakeTarget(context.Background(), dir, "check", 0); check.Defined != tc.defined {
 				t.Fatalf("Defined = %v, want %v (err=%v)\n%s", check.Defined, tc.defined, check.Err, check.Output)
 			}

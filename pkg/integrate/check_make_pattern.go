@@ -127,6 +127,13 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 		if line != header && !strings.HasPrefix(line, header+" ") {
 			continue
 		}
+		// An entry's own comment block follows it at once, each line "#  ".
+		// Make 4.4.1 prints a target-specific variable as "check: FOO = 1"
+		// just above the entry, followed by "# Not a target:", "# makefile
+		// (from ...)" or the entry itself, so that line is skipped (ISSUE-79).
+		if i+1 >= len(lines) || !strings.HasPrefix(lines[i+1], "#  ") {
+			continue
+		}
 		searched := false
 		for _, entry := range lines[i+1:] {
 			if !strings.HasPrefix(entry, "#") {
