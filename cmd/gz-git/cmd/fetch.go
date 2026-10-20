@@ -140,7 +140,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		displayFetchResults(result)
 	}
 
-	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
+	return errPartialFailure(syncFailures(result.Summary), result.TotalProcessed)
 }
 
 func runFetchWatch(ctx context.Context, client repository.Client, opts repository.BulkFetchOptions) error {

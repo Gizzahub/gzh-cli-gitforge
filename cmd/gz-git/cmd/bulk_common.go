@@ -143,6 +143,30 @@ func errPartialFailure(failed, total int) error {
 	return nil
 }
 
+// syncFailureStatuses are the outcomes that leave a repository unsynced and
+// need a person (D8 in docs/10-architecture/90-design-decisions.md).
+// Not-syncable outcomes (no remote, no upstream, skipped) are configuration
+// facts, not run failures, and are deliberately absent. So are the base-sync
+// statuses: the repository's own branch synced, and a base ref repair the
+// command offered must not report the requested sync as failed.
+var syncFailureStatuses = []string{
+	repository.StatusError,
+	repository.StatusConflict,
+	repository.StatusRebaseInProgress,
+	repository.StatusMergeInProgress,
+	repository.StatusAuthRequired,
+}
+
+// syncFailures counts the repositories a pull, fetch or update left unsynced,
+// for the partial-failure exit shared by the three commands.
+func syncFailures(summary map[string]int) int {
+	failed := 0
+	for _, status := range syncFailureStatuses {
+		failed += summary[status]
+	}
+	return failed
+}
+
 // CoreFormats contains formats supported by all commands.
 var CoreFormats = cliutil.CoreFormats
 

@@ -58,8 +58,8 @@ func TestPullPushEligible(t *testing.T) {
 	}
 }
 
-func TestPullPushFailedPulls(t *testing.T) {
-	result := &repository.BulkPullResult{Summary: map[string]int{
+func TestSyncFailures(t *testing.T) {
+	summary := map[string]int{
 		repository.StatusPulled:           3,
 		repository.StatusUpToDate:         2,
 		repository.StatusNoRemote:         1,
@@ -70,9 +70,13 @@ func TestPullPushFailedPulls(t *testing.T) {
 		repository.StatusRebaseInProgress: 1,
 		repository.StatusMergeInProgress:  1,
 		repository.StatusAuthRequired:     1,
-	}}
-	if got, want := pullPushFailedPulls(result), 5; got != want {
-		t.Errorf("pullPushFailedPulls = %d, want %d (not-syncable repositories are not failures)", got, want)
+		repository.StatusBaseBlocked:      1,
+		repository.StatusBaseFailed:       1,
+		repository.StatusBaseSynced:       1,
+		repository.StatusWouldPull:        1,
+	}
+	if got, want := syncFailures(summary), 5; got != want {
+		t.Errorf("syncFailures = %d, want %d (not-syncable repositories are not failures)", got, want)
 	}
 }
 

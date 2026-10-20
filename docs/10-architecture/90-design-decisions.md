@@ -407,6 +407,53 @@ exact failure mode already blocking `TASK-079`-class work.
   re-run without `--no-fetch`, a deliberate cost for taking the network dependency out of the
   finish step.
 
+#### D8: Unsynced Outcomes Fail Bulk Sync Commands (ISSUE-76)
+
+**Context**: `pull`, `fetch` and `update` counted only `error` toward the partial-failure
+exit (2). A repository that stopped on a conflict, an in-progress rebase or merge, or
+missing auth appeared in the issue list, yet the run exited 0. `pull --push` already
+counted those outcomes as failures, so the family had two contracts.
+
+**Decision**: `pull`, `fetch` and `update` exit 2 when any repository ends in one of these
+statuses. One helper (`syncFailures`) counts them for all three and for `pull --push`,
+which adds only its own push failures.
+
+| Counted as failure                              | Not a failure                                |
+| ----------------------------------------------- | -------------------------------------------- |
+| `error`                                         | `no-remote`, `no-upstream` (nothing to sync) |
+| `conflict` (including a stash restore conflict) | `skipped`, `up-to-date`, `would-*` (dry-run) |
+| `rebase-in-progress`, `merge-in-progress`       | `base-synced`, `base-blocked`, `base-failed` |
+| `auth-required`                                 |                                              |
+
+**Rationale**:
+
+- The exit code exists so scripts and CI can tell a clean run from one that left
+  repositories unsynced. Every counted outcome leaves a repository unsynced and needs a
+  person.
+- Base-sync statuses stay out: the repository's own branch synced, and a base ref repair
+  the command offered must not report the requested sync as failed
+  ([troubleshooting](../user/guides/troubleshooting.md#a-sync-that-failed-is-not-a-sync-that-was-blocked)).
+- Not-syncable outcomes are configuration facts, not run failures; failing on them would
+  keep every workspace with a local-only repository permanently red.
+- A consumer check before adoption found no caller that relies on exit 0 for these
+  outcomes: `handoff start` and gzh-cli use the library results directly.
+
+**Alternatives Considered**:
+
+- **Opt-in `--strict-exit`**: no contract break, but the safe behavior stays hidden and the
+  family keeps two rules. Rejected, since no consumer depends on exit 0.
+- **Distinct exit code (3) for unsynced**: more information, but a new code every caller
+  must learn. Deferred.
+- **Status quo**: scripts must parse JSON output to see unsynced repositories. Rejected.
+
+**Trade-offs**:
+
+- Incompatible change: a script that relied on exit 0 after a conflict now sees exit 2.
+  Released as a minor version (0.11.0).
+- `--watch` loops are unaffected; they do not exit per cycle.
+- `stash`, `switch`, `clean`, `diff` and other bulk commands keep `error`-only counting;
+  whether they follow is a separate decision.
+
 ______________________________________________________________________
 
 ## 13. Future Considerations

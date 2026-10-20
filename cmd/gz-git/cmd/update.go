@@ -146,7 +146,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		displayUpdateResults(result)
 	}
 
-	return errPartialFailure(result.Summary[repository.StatusError], result.TotalProcessed)
+	return errPartialFailure(syncFailures(result.Summary), result.TotalProcessed)
 }
 
 func runUpdateWatch(ctx context.Context, client repository.Client, opts repository.BulkUpdateOptions) error {

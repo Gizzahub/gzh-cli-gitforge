@@ -307,6 +307,11 @@ gz-git pull -d3; echo "EXIT=$?"
 | 1    | tool or configuration error (nothing ran) |
 | 2    | one or more repositories failed           |
 
+For `pull`, `fetch` and `update`, "failed" includes a repository left unsynced
+by a conflict, an in-progress rebase or merge, or missing auth, not only a git
+error (D8 in `docs/10-architecture/90-design-decisions.md`). Not-syncable
+repositories (no remote, no upstream, skipped) and base-sync statuses do not.
+
 `--dry-run` reports the same scan without touching anything, which is the
 cheapest way to confirm the command is finding your repositories at all.
 

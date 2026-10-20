@@ -42,3 +42,20 @@ failures for `pull`, `fetch` and `update` as a family. This is an exit-code
 contract change across bulk commands and belongs in a decision record
 before code. Not-syncable outcomes (no remote, no upstream, skipped) should
 stay non-failures either way, as in `pull --push`.
+
+## Resolution (2026-10-20)
+
+The user approved option A and the change is recorded as D8 in
+`docs/10-architecture/90-design-decisions.md`. A consumer check found no caller
+that relies on exit 0. `handoff start` and gzh-cli use library results, and no
+scripts call these commands.
+
+- `syncFailures` in `cmd/gz-git/cmd/bulk_common.go` counts `error`, `conflict`,
+  `rebase-in-progress`, `merge-in-progress` and `auth-required` for `pull`,
+  `fetch` and `update`. It replaces `pullPushFailedPulls`, so `pull --push`
+  counts pulls the same way.
+- Base-sync statuses stay non-failures, as already documented in the
+  troubleshooting guide.
+- `TestPullConflictExitsTwo` covers the change: it fails on the old counting
+  (exit 0) and passes now. Released as 0.11.0 (minor; incompatible exit-code
+  change).

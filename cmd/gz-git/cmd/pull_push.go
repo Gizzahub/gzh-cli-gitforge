@@ -41,19 +41,6 @@ func pullPushEligible(status string, dryRun bool) bool {
 	}
 }
 
-// pullPushFailedPulls counts the repositories --push meant to sync but could
-// not. Repositories that are not syncable by design (no remote, no upstream,
-// skipped) are not failures; a pull that stopped on a conflict, an in-progress
-// operation, missing auth or an error is, because the requested push did not
-// happen. Plain pull keeps its own exit semantics.
-func pullPushFailedPulls(result *repository.BulkPullResult) int {
-	return result.Summary[repository.StatusError] +
-		result.Summary[repository.StatusConflict] +
-		result.Summary[repository.StatusRebaseInProgress] +
-		result.Summary[repository.StatusMergeInProgress] +
-		result.Summary[repository.StatusAuthRequired]
-}
-
 // pullPushAccess narrows the workspace push access to repositories whose pull
 // was eligible, so the push batch reports every other repository as skipped.
 func pullPushAccess(result *repository.BulkPullResult, dryRun bool) func(string) (bool, string, error) {
@@ -108,7 +95,7 @@ func runPullPush(ctx context.Context, client repository.Client, effective *confi
 	}
 
 	// Repositories whose pull failed are skipped here and already counted by
-	// pullPushFailedPulls; a conflict found by the push's own state check
+	// syncFailures; a conflict found by the push's own state check
 	// (for example after a stash restore) is counted here.
 	failed = result.Summary[repository.StatusError] +
 		result.Summary[repository.StatusBlocked] +

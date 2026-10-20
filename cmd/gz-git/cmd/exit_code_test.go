@@ -127,6 +127,36 @@ func TestPullAllReposFailExitsTwo(t *testing.T) {
 	})
 }
 
+// TestPullConflictExitsTwo asserts a bulk pull that stops on a rebase
+// conflict exits 2 (D8): the repository is left unsynced, not merely listed.
+func TestPullConflictExitsTwo(t *testing.T) {
+	restore := setBulkTestGlobals(t)
+	defer restore()
+	origStrategy := pullStrategy
+	defer func() { pullStrategy = origStrategy }()
+
+	source := testutil.TempGitRepoWithCommit(t)
+	parent := t.TempDir()
+	dest := filepath.Join(parent, "repo")
+	runGit(t, ".", "clone", "--quiet", source, dest)
+
+	// Diverge both sides on the same line so the rebase cannot apply.
+	writeFile(t, source, "README.md", "upstream\n")
+	runGit(t, source, "commit", "--quiet", "-am", "upstream")
+	writeFile(t, dest, "README.md", "local\n")
+	runGit(t, dest, "commit", "--quiet", "-am", "local")
+
+	pullFlags.Depth = 1
+	pullStrategy = "rebase"
+
+	_ = captureStdout(t, func() {
+		err := runPull(pullCmd, []string{parent})
+		if got := cliutil.ExitCodeForError(err); got != cliutil.ExitPartialFailed {
+			t.Errorf("exit code = %d (err %v), want %d (conflict is a failure)", got, err, cliutil.ExitPartialFailed)
+		}
+	})
+}
+
 // TestConflictDetectExitCodes covers the grep-style contract: 0 clean, 1 found,
 // 2 execution error.
 func TestConflictDetectExitCodes(t *testing.T) {
