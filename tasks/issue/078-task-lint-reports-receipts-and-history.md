@@ -1,5 +1,5 @@
 ---
-id: ISSUE-74
+id: ISSUE-78
 title: "ce task lint fails on tasks/receipts/ and tasks/HISTORY.md"
 type: bug
 priority: P3
@@ -11,8 +11,8 @@ created: 2026-10-20
 
 ## Summary
 
-`ce task lint` exits non-zero on master (448be9b0), so the board cannot report
-CLEAN. Two paths cause it, and neither is a task card:
+`ce task lint` exits non-zero on origin/master (a7d72268), so the board cannot
+report CLEAN. Two paths cause it, and neither is a task card:
 
 - `tasks/receipts/TASK-012/done-review.json`, added in 71f1d441
   (2026-10-07), is a done-review receipt (`reviewed-card-sha256`,
@@ -35,7 +35,7 @@ STRAYS
 Error: 1 stray card(s); 2 structural issue(s); 0 stage diagnostic(s); 0 id parity issue(s); 0 duplicate id(s); 0 hidden in progress
 ```
 
-Run from the primary checkout on master 448be9b0.
+Reproduced on 448be9b0 and again on a7d72268.
 
 ## Expected vs Actual
 
@@ -46,15 +46,24 @@ Run from the primary checkout on master 448be9b0.
 
 ## Follow-up scope
 
-Decide where each file belongs and make `ce task lint` report CLEAN:
+Make `ce task lint` report CLEAN:
 
-- Receipt: no code, Makefile or script in this repository reads
-  `tasks/receipts/`; only the CE tooling that wrote it might. Confirm where
-  that tool expects done-review receipts. Then move the receipt there, or, if
-  a reader relies on the current path, declare `receipts` through
-  `ce-tasks.yaml` (`card-dialect: { zones: [...] }`).
-- History: move it out of `tasks/`, for example under `docs/`, and update the
-  links from `tasks/README.md`. Alternatively, record why the board must
-  tolerate it.
+- Receipt: keep it where it is and declare `receipts` as an auxiliary
+  directory in `ce-tasks.yaml` (`card-dialect: { aux-dirs: [receipts] }`).
+  - The path is already the one CE uses. `ce task cleanup` owns
+    `tasks/receipts/<ID>/`, and CE's task hygiene guide names tracked
+    `receipts/<TASK-ID>/*.json` as the `aux-dirs` case. ce-workbook's
+    `ce-tasks.yaml` declares the same.
+  - Do not follow the lint hint's `zones: [receipts]`. On a scratch copy it
+    adds a third issue (`declared zone "receipts" is a legacy parking zone`).
+    `aux-dirs: [receipts]` clears both structural issues.
+- History: move it out of `tasks/`, for example under `docs/`, and fix every
+  reference. Alternatively, record why the board must tolerate it. Moving it
+  breaks:
+  - `tasks/README.md:10` and `:20`;
+  - `docs/changelog/0.8.md:558`;
+  - `tasks/issue/19-tasks-readme-exceeds-doc-size-guideline.md:40`, `:52` and
+    `:64`;
+  - the relative `issue/...` and `README.md` links inside HISTORY.md itself.
 
 Registration only; no remediation is included here.
