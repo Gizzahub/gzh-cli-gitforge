@@ -154,11 +154,15 @@ func attestLegacyRuntime(ctx context.Context, p *LegacyCleanupPlan, guard *Legac
 	cmd.Dir = p.RepositoryRoot
 	var stdout, stderr boundedLegacyBuffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("CE runtime attestation failed: %w", err)
-	}
-	if stdout.overflow || stderr.overflow {
+	err := cmd.Run()
+	// Check the limit first: an overflowing Write ends the copy with
+	// io.ErrShortWrite, so Run fails too, and that failure would hide
+	// the cause.
+	if stdout.exceeded() || stderr.exceeded() {
 		return fmt.Errorf("CE runtime attestation exceeds output limit")
+	}
+	if err != nil {
+		return fmt.Errorf("CE runtime attestation failed: %w", err)
 	}
 	var result legacyCleanupAttestation
 	if err := strictSingleJSON(stdout.Bytes(), &result); err != nil {
@@ -179,26 +183,38 @@ func attestLegacyRuntime(ctx context.Context, p *LegacyCleanupPlan, guard *Legac
 	return nil
 }
 
+// boundedLegacyBuffer keeps at most legacyAttestationMaxOutput bytes. The
+// buffer is a named field, not embedded: an embedded bytes.Buffer promotes
+// ReadFrom, which os/exec's copy prefers over Write, and that path would
+// skip the limit entirely (ISSUE-77, as ISSUE-70 for limitedBuffer).
 type boundedLegacyBuffer struct {
-	mu sync.Mutex
-	bytes.Buffer
+	mu       sync.Mutex
+	buf      bytes.Buffer
 	overflow bool
 }
 
+// Write fails on overflow so the copy stops and the verifier's pipe is
+// closed; attestLegacyRuntime reports the limit, not the copy error.
 func (b *boundedLegacyBuffer) Write(data []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.Len()+len(data) > legacyAttestationMaxOutput {
+	if b.buf.Len()+len(data) > legacyAttestationMaxOutput {
 		b.overflow = true
-		return len(data), io.ErrShortWrite
+		return 0, io.ErrShortWrite
 	}
-	return b.Buffer.Write(data)
+	return b.buf.Write(data)
 }
 
 func (b *boundedLegacyBuffer) Bytes() []byte {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return append([]byte(nil), b.Buffer.Bytes()...)
+	return append([]byte(nil), b.buf.Bytes()...)
+}
+
+func (b *boundedLegacyBuffer) exceeded() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.overflow
 }
 
 func strictSingleJSON(data []byte, value any) error {

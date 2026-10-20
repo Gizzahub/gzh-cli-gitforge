@@ -4,8 +4,10 @@
 package integrate
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,8 +27,12 @@ func TestLegacyCleanupCERuntimeGuard(t *testing.T) {
 		"stale_pid":       "CE runtime attestation process identity changed",
 		"hash_changed":    "CE verifier digest changed",
 		"fail_after_step": "runtime attestation after remove step 0: parse CE runtime attestation",
+		// A valid attestation padded past the cap must still be refused
+		// (ISSUE-77): the stdout case parses as one JSON value.
+		"oversized_stdout": "CE runtime attestation exceeds output limit",
+		"oversized_stderr": "CE runtime attestation exceeds output limit",
 	}
-	for _, mode := range []string{"allow", "malformed", "wrong_guard", "stale_pid", "hash_changed", "fail_after_step"} {
+	for _, mode := range []string{"allow", "malformed", "wrong_guard", "stale_pid", "hash_changed", "fail_after_step", "oversized_stdout", "oversized_stderr"} {
 		t.Run(mode, func(t *testing.T) {
 			plan, planPath, primary, task := legacySecurityPlan(t, true)
 			if err := os.MkdirAll(filepath.Join(primary, ".ce"), 0o700); err != nil {
@@ -120,7 +126,7 @@ import ("encoding/json"; "fmt"; "os"; "os/exec"; "strconv"; "strings"; "time")
 func started(pid int) string { c:=exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "lstart="); c.Env=append(os.Environ(), "LC_ALL=C"); out,e:=c.Output(); if e!=nil { panic(e) }; at,e:=time.ParseInLocation(time.ANSIC, strings.TrimSpace(string(out)), time.Local); if e!=nil { panic(e) }; return at.UTC().Format(time.RFC3339Nano) }
 func parent(pid int) int { c:=exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "ppid="); c.Env=append(os.Environ(), "LC_ALL=C"); out,e:=c.Output(); if e!=nil { panic(e) }; value,e:=strconv.Atoi(strings.TrimSpace(string(out))); if e!=nil { panic(e) }; return value }
 func value(args []string, flag string) string { for i:=0;i+1<len(args);i++ { if args[i]==flag { return args[i+1] } }; panic("missing "+flag) }
-func main() { mode:=os.Getenv("LEGACY_GUARD_MODE"); if mode=="fail_after_step" { path:=os.Getenv("LEGACY_GUARD_COUNTER"); n:=0; if raw,e:=os.ReadFile(path);e==nil { n,_=strconv.Atoi(string(raw)) }; n++; _=os.WriteFile(path, []byte(strconv.Itoa(n)), 0600); if n>=3 { fmt.Print("{"); return } }; if mode=="malformed" { fmt.Print("{"); return }; provider:=os.Getppid(); ce:=parent(provider); guard:=json.RawMessage(os.Getenv("LEGACY_GUARD_JSON")); if mode=="wrong_guard" { guard=json.RawMessage([]byte("{}")) }; if mode=="stale_pid" { provider=1 }; result:=map[string]any{"schema_version":1,"capability":"ce-legacy-cleanup-attestation-v1","guard":guard,"plan_digest":value(os.Args,"--plan-digest"),"attempt":value(os.Args,"--attempt"),"ce_pid":ce,"ce_started_at":started(ce),"provider_pid":provider,"provider_started_at":started(os.Getppid()),"allowed":true}; if e:=json.NewEncoder(os.Stdout).Encode(result);e!=nil { panic(e) } }
+func main() { mode:=os.Getenv("LEGACY_GUARD_MODE"); if mode=="oversized_stderr" { fmt.Fprint(os.Stderr, strings.Repeat("x", 200<<10)) }; if mode=="fail_after_step" { path:=os.Getenv("LEGACY_GUARD_COUNTER"); n:=0; if raw,e:=os.ReadFile(path);e==nil { n,_=strconv.Atoi(string(raw)) }; n++; _=os.WriteFile(path, []byte(strconv.Itoa(n)), 0600); if n>=3 { fmt.Print("{"); return } }; if mode=="malformed" { fmt.Print("{"); return }; provider:=os.Getppid(); ce:=parent(provider); guard:=json.RawMessage(os.Getenv("LEGACY_GUARD_JSON")); if mode=="wrong_guard" { guard=json.RawMessage([]byte("{}")) }; if mode=="stale_pid" { provider=1 }; result:=map[string]any{"schema_version":1,"capability":"ce-legacy-cleanup-attestation-v1","guard":guard,"plan_digest":value(os.Args,"--plan-digest"),"attempt":value(os.Args,"--attempt"),"ce_pid":ce,"ce_started_at":started(ce),"provider_pid":provider,"provider_started_at":started(os.Getppid()),"allowed":true}; if e:=json.NewEncoder(os.Stdout).Encode(result);e!=nil { panic(e) }; if mode=="oversized_stdout" { fmt.Print(strings.Repeat(" ", 200<<10)) } }
 `
 	if err := os.WriteFile(source, []byte(program), 0o600); err != nil {
 		t.Fatal(err)
@@ -151,4 +157,23 @@ func TestLegacyRuntimeGuardRequiresCEDeclaration(t *testing.T) {
 		t.Fatal("runtime guard without CE declaration was accepted")
 	}
 	assertLegacyResourcesPresent(t, primary, task)
+}
+
+func TestBoundedLegacyBufferCapsCopiedOutput(t *testing.T) {
+	t.Parallel()
+	// io.Copy prefers the destination's ReaderFrom when the source has no
+	// WriterTo, as with the pipe os/exec copies a command's output from;
+	// the cap must hold on that path too (ISSUE-77). The struct hides
+	// bytes.Reader's WriteTo.
+	var buf boundedLegacyBuffer
+	src := struct{ io.Reader }{bytes.NewReader(make([]byte, 200<<10))}
+	if _, err := io.Copy(&buf, src); err == nil {
+		t.Fatal("copy past the cap succeeded")
+	}
+	if !buf.exceeded() {
+		t.Fatal("overflow was not recorded")
+	}
+	if got := len(buf.Bytes()); got > legacyAttestationMaxOutput {
+		t.Fatalf("buffer holds %d bytes, cap is %d", got, legacyAttestationMaxOutput)
+	}
 }

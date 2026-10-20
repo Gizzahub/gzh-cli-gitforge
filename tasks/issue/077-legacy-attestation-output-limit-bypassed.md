@@ -42,3 +42,21 @@ so the refusal decision is unchanged; memory use is unbounded.
   early and makes `cmd.Run` fail. Decide whether the overflow should be
   reported as the limit error rather than as a failed attestation, and
   assert the reason with a verifier that writes past the cap.
+
+## Resolution
+
+- `boundedLegacyBuffer` holds its `bytes.Buffer` as a named field, as
+  `limitedBuffer` does since ISSUE-70, so `os/exec`'s copy goes through
+  the capping `Write`. The cap also bounds what `strictSingleJSON`
+  reads.
+- Overflow is reported as the limit error. `Write` still fails on
+  overflow, which ends the copy and closes the verifier's pipe, so `Run`
+  fails too; `attestLegacyRuntime` checks the overflow before the `Run`
+  error, which would otherwise surface as `signal: broken pipe`.
+- Tests: `TestLegacyCleanupCERuntimeGuard` gains `oversized_stdout` (a
+  valid attestation padded with 200 KiB of whitespace) and
+  `oversized_stderr`, both refused with
+  `CE runtime attestation exceeds output limit`;
+  `TestBoundedLegacyBufferCapsCopiedOutput` copies 200 KiB through
+  `ReadFrom`. Restoring the embedded buffer fails both, and checking the
+  `Run` error first fails the two oversized cases.
