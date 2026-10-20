@@ -60,6 +60,14 @@ Resolved on 2026-10-21.
   child, which ISSUE-85 still planned, is now refused as well, since its
   orphan cleanup would delete the child's own directory. Siblings and
   descendants are planned as before.
+- The root plan also filters the planned forge repositories with
+  `keepActionsOffEnclosingConfigDirs` against the devbox, as children
+  already did (ISSUE-85). This drops a repository whose target reaches the
+  devbox through a symlink inside a sibling workspace
+  (`../sibling/devbox -> ../devbox`), which the workspace-level check
+  cannot see. The call site is in the command's `RunE` with no provider
+  seam, so this filter has no direct test; the helper itself is covered
+  by the ISSUE-85 tests.
 - Scope: forge workspaces only, as planned. Root git and config
   workspaces at an ancestor still plan; a git workspace there targets the
   ancestor directory itself rather than its subdirectories.
@@ -70,6 +78,9 @@ Resolved on 2026-10-21.
   does. Cases: `..`, the grandparent as an absolute path and a symlink to
   the parent are refused with no actions; `../sibling` is still planned.
   The base URL is unreachable and the context cancelled, so no network
-  is used.
+  is used. The grandparent is a directory the test owns.
+  `TestConfigPlannerRefusesChildForgeWorkspaceBetweenDevboxAndChild` plans
+  a child at `devbox/a/child` whose forge workspace is `..`, and asserts it
+  is refused with the new message and no actions.
 - Mutation: with the check disabled (`if false && ...`), the three
-  ancestor cases fail and the sibling case still passes.
+  ancestor cases and the child case fail; the sibling case still passes.

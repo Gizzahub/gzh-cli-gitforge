@@ -20,9 +20,10 @@ import (
 // still planned. The base URL is unreachable and the context is cancelled, so
 // a regression fails without reaching the network.
 func TestPlanForgeWorkspacesRefusesAncestorOfRootConfigDir(t *testing.T) {
-	parent := t.TempDir()
+	// The grandparent is owned by the test, not the shared temp directory.
+	parent := filepath.Join(t.TempDir(), "outer", "parent")
 	devbox := filepath.Join(parent, "devbox")
-	if err := os.Mkdir(devbox, 0o750); err != nil {
+	if err := os.MkdirAll(devbox, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	linkToParent := filepath.Join(t.TempDir(), "parent-link")
@@ -66,5 +67,36 @@ func TestPlanForgeWorkspacesRefusesAncestorOfRootConfigDir(t *testing.T) {
 				t.Fatalf("refused workspace still planned: actions=%d err=%v; output:\n%s", len(actions), err, out.String())
 			}
 		})
+	}
+}
+
+// TestConfigPlannerRefusesChildForgeWorkspaceBetweenDevboxAndChild covers the
+// child side of ISSUE-87: a child's forge workspace at a directory between the
+// devbox and the child does not reach the devbox, but contains the child's own
+// config directory, so it is refused rather than planned.
+func TestConfigPlannerRefusesChildForgeWorkspaceBetweenDevboxAndChild(t *testing.T) {
+	configDir := t.TempDir()
+	child := filepath.Join(configDir, "a", "child")
+	if err := os.MkdirAll(child, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	childConfig := "workspaces:\n  up:\n    path: ..\n    source:\n      provider: gitlab\n      org: self\n      baseURL: http://127.0.0.1:1\n"
+	if err := os.WriteFile(filepath.Join(child, DefaultConfigFile), []byte(childConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := &config.Config{ConfigPath: filepath.Join(configDir, DefaultConfigFile), Workspaces: map[string]*config.Workspace{
+		"child": {Path: filepath.Join("a", "child"), Sync: &config.SyncConfig{Recursive: true}},
+	}}
+
+	var out bytes.Buffer
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	actions, err := planConfigWorkspacesWithDryRun(ctx, cfg, configDir, &out, "", true)
+	if err != nil || len(actions) != 0 {
+		t.Fatalf("actions=%d err=%v; output:\n%s", len(actions), err, out.String())
+	}
+	if !strings.Contains(out.String(), "Skipping workspace 'up'") ||
+		!strings.Contains(out.String(), "contains the config directory") {
+		t.Fatalf("intermediate forge workspace not refused; output:\n%s", out.String())
 	}
 }

@@ -201,7 +201,9 @@ Config File Structure (Reference):
 						}
 						return err
 					}
-					allActions = append(allActions, forgeActions...)
+					// A forge repository reached through a symlink in a sibling
+					// workspace can still be the devbox (ISSUE-87).
+					allActions = append(allActions, keepActionsOffEnclosingConfigDirs(forgeActions, []string{configDir}, configDir, planOut)...)
 
 					// Get git workspace actions (type=git with URL)
 					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, nil, planOut, strategy, dryRun)
