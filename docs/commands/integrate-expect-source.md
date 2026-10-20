@@ -42,8 +42,8 @@ Capability detection: the flag appears in the `Flags:` section of
 
 An approved source SHA can still be behind the fetched integration target.
 `--expect-source` pins identity; it does not make the candidate current.
-Freshness failure returns NOT READY (`run` exits 1) before readiness runners,
-preparation, or Make gates. Nothing is pushed or reclaimed. Unexecuted gate rows
+Freshness failure returns NOT READY (`run` exits 1) before readiness runners
+or preparation. Nothing is pushed or reclaimed. Unexecuted gate rows
 are absent, not PASS, and validation / resource-wait durations remain zero.
 
 Refresh through the adopted repository lifecycle and review the new input before

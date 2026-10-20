@@ -27,7 +27,7 @@ gate remains required.
 
 ## Absolute Rules
 
-**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · A widened profile requires the full integration gate · The native integrator owns `make check` (`verify-full`); do not run it again immediately beforehand · Sanitize all git inputs · 80%+ test coverage for core logic
+**DO**: Use `gzh-cli-core` for utilities · Read `cmd/AGENTS_COMMON.md` before modifying · Run `VERIFY_BASE=origin/master make verify-commit` before every commit · A widened profile requires the full integration gate · `gz-git integrate` runs no repository code here (no readiness contract), so run `make check` (`verify-full`) yourself before integrating · Sanitize all git inputs · 80%+ test coverage for core logic
 
 **DON'T**: Use `sh -c` (command injection) · Concatenate user input into commands · Log credentials · Commit without security tests
 

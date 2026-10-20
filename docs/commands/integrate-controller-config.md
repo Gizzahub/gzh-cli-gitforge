@@ -23,32 +23,24 @@ to that same branch (for example `origin/develop` or `develop`). When
 empty pattern deliberately leaves the queue unfiltered. Controller resolution
 errors remain exit 2 even with `--quiet`.
 
-An explicit controller can select the closed `familybook-ent-v1` profile:
+The selected workspace entry must carry an `integration` block; an empty one
+marks it as the integration workspace:
 
 ```yaml
 workspaces:
   engine:
-    url: https://example.invalid/familybook-engine.git
+    url: https://example.invalid/engine.git
     branch:
       integrationBranch: develop
       taskPattern: dev/*
-    integration:
-      prepareProfile: familybook-ent-v1
+    integration: {}
 ```
 
-It runs `go generate ./ent` in isolated detached source and target worktrees
-with isolated Go caches before the existing Make gates. Generated output must
-be untracked and below `ent/generated`; any tracked mutation or other output
-fails the check. Each preparation receives a fixed five-minute budget so a
-cold isolated module cache can be populated. No shell command or timeout is
-configurable.
-
-This is not a sandbox: as with the legacy Make gate, the selected task branch
-is trusted to execute repository-owned code. The command receives an isolated
-HOME/XDG/Git configuration and no inherited credential or SSH-agent variables;
-the target worktree is measured and removed before source code is created.
-
-Repository-root declarations and the other fixed profile are described in
-[integration preparation profiles](integrate-prepare-profile.md). A controller
-declaration remains supported, but when the repository also declares a profile
-the values must agree.
+The controller binding supplies branch and reclaim policy only. gz-git does
+not build, execute, or lint repository code itself, so the controller cannot
+select a preparation step or a gate. The removed `integration.prepareProfile`
+(with its `familybook-ent-v1` profile) and `branch.makeTimeout` /
+`branch.prepareProfile` fail to load, naming the key and the controller file to
+delete it from. A repository that needs code-level verification declares a
+target-owned readiness contract instead; see
+[integration preparation profiles](integrate-prepare-profile.md).

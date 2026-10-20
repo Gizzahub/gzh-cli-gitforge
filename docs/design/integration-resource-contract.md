@@ -51,12 +51,12 @@ Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.
 An inherited `integrate` entry reuses the parent's host resource ownership,
 without publishing a new ticket or changing the holder sidecar. Git target
 ownership remains per repository and ref. Repository-root
-`branch.prepareHighLoad: true` independently classifies the resolved preparation
-profile. Source and target declarations are ORed. Each actual source or lazy
-baseline executor acquires and releases capacity separately, including its short
+`branch.prepareHighLoad: true` independently classifies a readiness contract's
+`prepareProfile`. Source and target declarations are ORed. Each prepared side's
+executor acquires and releases capacity separately, including its short
 integrity checks, while snapshotting and worktree creation/removal stay outside.
 This uses the existing admission and wait reporting, and preserves child claims.
-Readiness contracts acquire it only for their own `prepareProfile`.
+Without a readiness contract gz-git runs no repository code and takes no slot.
 A readiness contract declaring `resourcePlan: plan-v1` asks its runner for a
 slot-free light/high plan bound by a digest; a high plan or either static
 declaration takes the slot, and a plan can never drop a static declaration.

@@ -335,9 +335,11 @@ contract to the target in a separately approved bootstrap change, then rebase
 task branches onto that target. A task branch cannot introduce, remove, or
 weaken its own gate.
 
-Repositories where neither target nor source declares readiness keep the
-legacy head-owned Make gate and print an explicit warning. A source-only
-declaration fails with `bootstrap required`; once the target declares V1, every
+Where neither target nor source declares readiness, gz-git runs no repository
+code: the `readiness contract` row reports `none declared` and the git checks
+alone decide readiness (see
+[`integrate check` passes without running tests or lint](#integrate-check-passes-without-running-tests-or-lint)).
+A source-only declaration fails with `bootstrap required`; once the target declares V1, every
 source must carry the identical readiness declaration and runner tree.
 
 ```yaml
@@ -359,9 +361,9 @@ with fixed `--source-dir`, `--source-sha`, `--target-sha`, and
 
 `ready`, `not_ready`, and `unavailable` are the only statuses. An unavailable
 measurement, malformed result, timeout, changed runner tree, or changed
-contract is never downgraded by `--allow-skipped-checks`.
+contract is never downgraded; there is no flag that does so.
 
-A contract has no baseline tolerance. Unlike the legacy Make gate, gz-git does
+A contract has no baseline tolerance. gz-git does
 not rerun the runner on the target to excuse failures that already exist there:
 `not_ready` blocks integration whether or not the target shares the failure.
 Keeping the target green is the consuming repository's job. Fix or revert a
@@ -392,8 +394,7 @@ be overridden through a CLI flag, environment variable, profile, or global confi
 
 ## `integrate check` reports a failing gate without its output
 
-Failed legacy `make check` or `make lint` runs and failing target-owned
-readiness runners write their captured output to a local diagnostic file. The
+Failing target-owned readiness runners write their captured output to a local diagnostic file. The
 failing check row shows its absolute path. Files live under
 `${XDG_STATE_HOME}/gz-git/integrate/diagnostics/`, or
 `~/.local/state/gz-git/integrate/diagnostics/` when `XDG_STATE_HOME` is unset
@@ -418,27 +419,36 @@ missing or older binary must fail closed rather than falling back to repository
 configuration: controller mode binds the selected remote, declared integration
 branch, and optional task-pattern filter explicitly.
 
-## `integrate check` reports a lint baseline that is not there
+## `integrate check` passes without running tests or lint
 
-The lint gate can report hundreds of issues under a directory that no longer
-exists — typically the worktree a previous `integrate run` just reclaimed:
+gz-git does not build, execute, or lint repository code itself. Without a
+target-owned readiness contract the report shows
 
 ```text
-../../../worktrees/.../claude__mst__fix__push-stderr/pkg/repository/bulk_switch.go:318:92: ...
-237 issues:
+PASS  readiness contract — none declared; gz-git runs no repository code, git checks decide readiness
+INFO readiness provenance — mode=none source=... target=...
 ```
 
-golangci-lint caches analysis results keyed by absolute path, and the cache
-outlives the directory.
+and READY means only that the git checks passed: freshness, merge-tree,
+cross-merge, a clean working tree, a pushed source, and the post-gate
+revalidation. Run the repository's own checks (for example `make check`)
+yourself before integrating, or declare a readiness contract so the target
+runs them.
 
-The gate no longer does this. `integrate check` runs the lint target with a
-private `GOLANGCI_LINT_CACHE` that it creates and removes per run, and any
-diagnostic pointing outside the repository now fails the check by name instead
-of being counted as a pre-existing baseline. If you still see it, your
-installed binary predates that fix — see the next section.
+The legacy make gate, `--allow-skipped-checks`, and the repository-root keys
+`branch.makeTimeout`, `branch.makeOutcomeReport`, and `branch.prepareProfile`
+(and controller `integration.prepareProfile`) were removed without a fallback.
+A `.gz-git.yaml` that still declares one fails to load:
 
-Running `make lint` by hand is a different matter: it uses the shared cache,
-so a reclaimed worktree can still haunt it. Clear the cache and re-run:
+```text
+branch.makeTimeout was removed: gz-git no longer runs make; delete it from /repo/.gz-git.yaml
+```
+
+Delete the named key from that file.
+
+A manual `make lint` uses golangci-lint's shared cache, which is keyed by
+absolute path and outlives a reclaimed worktree, so it can report issues under
+a directory that no longer exists. Clear the cache and re-run:
 
 ```bash
 golangci-lint cache clean && GOWORK=off make lint

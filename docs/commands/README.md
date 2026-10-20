@@ -22,12 +22,10 @@ readiness contract.
 [ND checked-binding preparation](integrate-nd-preparation.md) describes the optional
 native readiness compilation profile for ND source-board bindings.
 [Integration preparation profiles](integrate-prepare-profile.md) describe
-repository-root fixed profiles and symmetric target/source preparation.
+the readiness contract's fixed preparation profiles and the removed
+legacy declarations.
 [Readiness resource plan](integrate-resource-plan.md) lets a target-owned
 runner classify each run as light or high before the host slot is taken.
-
-[Per-check Make outcomes](integrate-make-outcome-report.md) describes the opt-in
-V1 comparison for failures without file:line diagnostics.
 
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.

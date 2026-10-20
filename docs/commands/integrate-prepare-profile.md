@@ -1,119 +1,85 @@
 # Integration preparation profiles
 
-A repository may select a fixed preparation profile in its root `.gz-git.yaml`:
+gz-git does not build, execute, or lint repository code itself. Preparation
+exists only as part of a target-owned readiness contract, which selects one
+closed profile in `branch.readiness.prepareProfile`:
 
 ```yaml
 branch:
   integrationBranch: develop
-  prepareProfile: flow-taskchain-local-subprojects-v1
+  readiness:
+    version: 1
+    runner: .gz-git/readiness/check
+    prepareProfile: infra-ops-python-uv-v1
 ```
 
-`branch.prepareProfile` accepts only built-in profile IDs. It does not accept
-commands, paths, environment variables, or network endpoints. A profile from
-the source commit is compared with the target commit before either side runs.
-When a profile is declared or `branch.prepareHighLoad: true` is set, its root config file must
-be at most 64 KiB; configs without either declaration keep existing size behavior.
+The field accepts only built-in profile IDs. It does not accept commands,
+paths, environment variables, or network endpoints. It is part of the
+contract digest, so the target and source contracts must agree on it, and
+adopting or changing it goes through `gz-git integrate readiness update` or
+the first-bootstrap procedure. The supported profiles are:
+
+| Profile                     | Prepares                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------- |
+| `infra-ops-python-uv-v1`    | the source snapshot of the supported infra-ops layout (below)                             |
+| `nd-stack-checked-tests-v1` | the checked ND binding; see [ND checked-binding preparation](integrate-nd-preparation.md) |
+
+## Removed declarations
+
+The legacy make gate and its preparation path are gone. A declaration that
+still carries one of these keys fails to load with an error that names the key
+and the file to delete it from, for example
+`branch.prepareProfile was removed: gz-git no longer runs make; a readiness contract selects preparation with branch.readiness.prepareProfile; delete it from /repo/.gz-git.yaml`:
+
+- repository-root `branch.prepareProfile` (with its profiles
+  `flow-taskchain-local-subprojects-v1`, `cargo-workspace-v1`,
+  `pnpm-frozen-lockfile-v1` and `familybook-ent-v1`);
+- controller `integration.prepareProfile`;
+- `branch.makeTimeout` and `branch.makeOutcomeReport`.
+
+There is no fallback: delete the key from that repository's `.gz-git.yaml`.
+A repository that needs code-level verification declares a readiness
+contract; without one, the git checks alone decide readiness.
+
+## Resource class
 
 For a confirmed heavy profile, set repository-root `branch.prepareHighLoad: true`.
 This strict boolean is independent of `branch.resourceHighLoad`, which classifies
-verification gates. Either committed source or target opting in uses the host
+the readiness runner. Either committed source or target opting in uses the host
 slot for each actual profile executor and its integrity checks. Worktree
-materialization and cleanup remain outside; the slot is released before Make.
-Absent or false leaves preparation light. A true declaration without a resolved
-profile does not acquire capacity, and readiness contracts do not execute legacy
-`branch.prepareProfile`. A readiness contract may declare
-`branch.readiness.prepareProfile: infra-ops-python-uv-v1`; it prepares the
-source snapshot only, because the V1 runner receives one environment and
-validates `--source-dir`, and passes the owned `UV_PROJECT_ENVIRONMENT`,
-`VIRTUAL_ENV` and `UV_NO_SYNC=1` to the runner. Controller-only profiles honor the repository declaration too. See
-[integration resource scope](integrate-resources.md) for inheritance and waits.
+materialization and cleanup remain outside. Absent or false leaves preparation
+light. When `branch.prepareHighLoad: true` is set, its root config file must be
+at most 64 KiB. See [integration resource scope](integrate-resources.md) for
+inheritance and waits.
 
-| Target declaration | Source declaration | Result                                                       |
-| ------------------ | ------------------ | ------------------------------------------------------------ |
-| absent             | absent             | Existing legacy Make gate                                    |
-| absent             | supported profile  | Apply that built-in profile to both commits (first adoption) |
-| profile A          | absent             | Fail: declaration removed                                    |
-| profile A          | profile A          | Apply A to both commits                                      |
-| profile A          | profile B          | Fail: profile changed                                        |
-
-An explicit controller's `integration.prepareProfile` remains supported for
-existing callers. If both controller and repository declare a profile, their
-IDs must agree; a conflicting controller fails the check. A controller-only
-profile keeps the existing behavior.
-
-`flow-taskchain-local-subprojects-v1` prepares the two local child repositories
-needed by the flow-taskchain devbox Make gate: engine and mcp. It locates the
-root repository's registered primary checkout, then checks each child's
-primary checkout, canonical remote, clean tracked and untracked
-state, and symlink-free location. It captures each full HEAD object ID once,
-then reads that object's raw archive through a temporary bare repository whose
-object alternates point only to the child checkout. The temporary repository
-uses an isolated Git environment: no inherited Git configuration or attribute
-settings, filter drivers, replacement refs, lazy fetches, system or global
-configuration. It then copies the resulting archive into both detached root
-worktrees before measuring target and source sequentially. It performs no fetch
-or clone. The result reports the profile ID and object IDs used for that
-comparison.
-
-This is a comparison against the **local child HEAD snapshot at check time**.
-Those object IDs can differ from versioned CI pins and from a later check.
-The profile makes one target/source comparison symmetric; it does not claim
-that local child HEADs are pinned by the root repository. When a required
-child is missing, dirty, or has an unexpected remote, the check fails with a
-preparation error instead of treating the baseline as measurable.
+## Ref invariant
 
 Every profile is held to one ref invariant: preparation must not move the source ref, the target (bound as the exact ref it resolves to, so a remote-tracking target does not also bind a same-named local branch), or the prepared worktree's HEAD, which must stay detached at the same commit. Refs are compared by name and commit. The failure reads "bound ref moved during preparation (possibly by another session)" because a concurrent session can move a bound ref too. Other branches created or deleted meanwhile (by another session or a fetch --prune) are not a preparation change. Accepted trade-off: a ref outside the bound set that preparation itself creates, moves or deletes is not detected.
 
-`cargo-workspace-v1` runs its two steps in the inherited environment plus
-LC_ALL=C, CARGO_TERM_COLOR=never, and GIT_TERMINAL_PROMPT=0 — the same
-inherited environment the make probe measures under (the probe itself adds
-only MAKELEVEL, MAKEFLAGS, and LC_ALL=C) — because a prepared tree only
-helps if the probe later resolves the same registry, toolchain, and target
-directory the preparation built against. Isolating CARGO_HOME would relocate
-every dependency source path and force the probe to recompile the graph the
-preparation was supposed to hand it. The 30-minute ceiling bounds fetch plus
-a cold full-workspace check combined; a timeout fails the preparation instead
-of producing a silent baseline.
-
-`pnpm-frozen-lockfile-v1` runs `pnpm install --frozen-lockfile` with the pnpm
-on `PATH`, in the inherited environment plus CI=true, LC_ALL=C, and
-GIT_TERMINAL_PROMPT=0, so the probe later resolves the same pnpm and store. A
-lockfile that disagrees with `package.json` fails the preparation instead of
-re-resolving. Its only allowed output is ignored `node_modules/` directories,
-one per workspace package. The 10-minute ceiling is for a cold store.
-
-`familybook-ent-v1` remains the fixed Ent generation profile. Details and its
-controller example are in [controller-config integration](integrate-controller-config.md).
+## `infra-ops-python-uv-v1`
 
 `infra-ops-python-uv-v1` is a fixed, opt-in executor for the supported
-infra-ops layout. Its source commit must contain
-`scripts/worktree-env-inputs.json`, a schema-version-1 JSON document with the
-two ordered dependency names `sbkube` and `cloud-script-transformer` and their
-lowercase 40-character commit IDs. The manifest does not name remotes, paths,
-commands, registries, or environment variables. Those are fixed by this
-executor: it checks out both dependencies from their canonical remotes, runs
-`uv sync --frozen`, and runs frozen pnpm installation for
+infra-ops layout. It prepares the source snapshot only, because the V1 runner
+receives one environment and validates `--source-dir`. The source commit must
+contain `scripts/worktree-env-inputs.json`, a schema-version-1 JSON document
+with the two ordered dependency names `sbkube` and `cloud-script-transformer`
+and their lowercase 40-character commit IDs. The manifest does not name
+remotes, paths, commands, registries, or environment variables. Those are fixed
+by this executor: it checks out both dependencies from their canonical remotes,
+runs `uv sync --frozen`, and runs frozen pnpm installation for
 `library/ga4-admin` and `library/m365ctl`.
 
-Each detached source or target worktree receives its own environment. Child
-clones and the virtual environment live under the task-owned prepare root next
-to the worktree, while `codes/*` inside the worktree are links to those child
-clones. This avoids nested Git repositories that would prevent Git from
-removing the prepared worktree. The Make probes receive only that worktree's
+Child clones and the virtual environment live under the task-owned prepare root
+next to the source worktree, while `codes/*` inside the worktree are links to
+those child clones. This avoids nested Git repositories that would prevent Git
+from removing the prepared worktree. The runner receives only that worktree's
 `UV_PROJECT_ENVIRONMENT`, `VIRTUAL_ENV`, and `UV_NO_SYNC=1`; inherited UV
 variables are replaced only for this profile. The manifest blob and child
 commit IDs appear in preparation evidence and durable receipt provenance,
-alongside each commit's Python and pnpm lockfile blob IDs. Each commit uses its
-own manifest when present, so a source child-pin regression cannot be hidden by
-preparing the target with the same broken source pin. Only repository-owned
-first adoption (source declares the profile, target declares none and lacks
-the manifest) uses source inputs to bootstrap the target, visibly marked
-`target-input-mode=source-bootstrap`. A declared target profile without its
-manifest fails; controller-only selection cannot use this bridge. Initial
-adoption must preserve and verify the prior helper's pins. Missing tools, invalid project
-shape, unsafe paths, clone/fetch failures, lockfile failures, ref movement, or
-the 30-minute preparation ceiling fail preparation; there is no offline or
-ambient-venv fallback.
+alongside the source's Python and pnpm lockfile blob IDs. Missing tools,
+invalid project shape, unsafe paths, clone/fetch failures, lockfile failures,
+ref movement, or the 30-minute preparation ceiling fail preparation; there is
+no offline or ambient-venv fallback.
 Git dependency operations ignore global/system configuration, URL rewrites and
 checkout hooks while retaining SSH transport authentication. Existing output
 directories and symlink escapes are refused; preparation checks the created

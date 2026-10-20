@@ -23,8 +23,8 @@ light: the required gate still runs, without taking the host measurement slot.
 gz-git reads both committed source and target declarations; either `true`
 uses the slot. A working-tree edit cannot disable that protection.
 
-For a high-load legacy gate, each actual source or baseline `make check`/`make lint` subprocess holds the slot and releases it before the next probe. For a
-readiness contract it covers the runner process only. Fetching, Git
+gz-git runs no repository code without a readiness contract, so the slot only
+ever covers a readiness runner process. Fetching, Git
 inspection, snapshotting and prepared-worktree creation/removal, push, and reclaim are
 outside the slot. Capacity remains one per host.
 
@@ -96,20 +96,18 @@ have a distinct common-directory/target key. A child targeting the same local
 repository and branch waits for that target owner; host-slot inheritance does
 not grant Git mutation ownership.
 
-A repository can independently classify its resolved preparation profile with
+A repository can independently classify its readiness contract's
+`prepareProfile` (`nd-stack-checked-tests-v1` or `infra-ops-python-uv-v1`) with
 committed repository-root `branch.prepareHighLoad: true`. Either source or target
-being true acquires the same slot separately for each actual source or lazy
-baseline profile execution, then releases it before Make verification. The slot
-covers the executor and its integrity checks; snapshotting, worktree creation,
-and worktree cleanup remain outside. This declaration does not make Make gates
-high load. It also applies to an existing controller-only profile, but does not
-create a profile when none is resolved. A readiness contract's own
-`prepareProfile` (`nd-stack-checked-tests-v1` or `infra-ops-python-uv-v1`)
-follows the same declaration for each prepared side.
+being true acquires the same slot separately for each prepared side, then
+releases it before the runner starts. The slot covers the executor and its
+integrity checks; snapshotting, worktree creation, and worktree cleanup remain
+outside. This declaration does not make the runner high load, and it does not
+create a profile when the contract declares none.
 
 The key must be a strict boolean and is not inherited from profiles, parents, or
 workspace configuration. Malformed committed declarations fail closed even when
-no preparation executes. A manifest declaring a profile or `prepareHighLoad: true` is limited to
+no preparation executes. A manifest declaring `prepareHighLoad: true` is limited to
 64 KiB. Profile children receive the same preserved
 `HOST_SLOTS_HELD` list as gate children. Preparation admission uses the existing
 FIFO, cancellation, target-movement detection, and per-acquisition wait budget;

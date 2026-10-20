@@ -1,6 +1,6 @@
 # Reclaiming declared workspace clones
 
-A gate that needs `make prepare` runs `gz-git sync`, which clones the
+A readiness runner that needs `make prepare` runs `gz-git sync`, which clones the
 `workspaces:` entries of the repo-root `.gz-git.yaml` into ignored directories
 of the task worktree. `integrate run` reclaim used to refuse every ignored
 nested git repo, so such a repository ended each integration with reclaim
