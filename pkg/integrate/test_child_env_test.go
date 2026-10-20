@@ -3,11 +3,11 @@
 
 package integrate
 
-// Process helpers re-executed by readiness and make-process tests.
+// Process helpers re-executed by readiness and preparation-process tests.
 const (
-	readinessNestedHelperEnv = "READINESS_NESTED_HELPER"
-	readinessEscapeHelperEnv = "READINESS_ESCAPE_HELPER"
-	makeProcessHelperMode    = "GZH_MAKE_PROCESS_HELPER"
+	readinessNestedHelperEnv     = "READINESS_NESTED_HELPER"
+	readinessEscapeHelperEnv     = "READINESS_ESCAPE_HELPER"
+	preparationProcessHelperMode = "GZH_MAKE_PROCESS_HELPER"
 )
 
 // testBinaryChildEnvs mark re-executed copies of this test binary. A child
@@ -16,5 +16,5 @@ const (
 // not run there and every child would leak one (ISSUE-84).
 var testBinaryChildEnvs = []string{
 	hostLockChildEnv, admissionChildEnv, inheritedResourceChildEnv,
-	readinessNestedHelperEnv, readinessEscapeHelperEnv, makeProcessHelperMode,
+	readinessNestedHelperEnv, readinessEscapeHelperEnv, preparationProcessHelperMode,
 }

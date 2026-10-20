@@ -66,11 +66,11 @@ func TestSnapshotInfraOpsPythonUVInputsRejectsUnsafeManifestShapes(t *testing.T)
 	}
 }
 
-func TestInfraOpsMakeEnvironmentIsOwnedAndNotAmbient(t *testing.T) {
+func TestInfraOpsPreparationEnvironmentIsOwnedAndNotAmbient(t *testing.T) {
 	t.Setenv("UV_PROJECT_ENVIRONMENT", "/unsafe/live")
 	t.Setenv("VIRTUAL_ENV", "/unsafe/live")
-	ctx := withInfraOpsPrepareMakeEnv(context.Background(), "/tmp/root/source", "infra-ops-python-uv-v1")
-	got := strings.Join(prepareMakeEnv(ctx), "\n")
+	ctx := withInfraOpsPreparationEnv(context.Background(), "/tmp/root/source", "infra-ops-python-uv-v1")
+	got := strings.Join(preparationEnv(ctx), "\n")
 	if !strings.Contains(got, "/tmp/root/infra-ops-python-uv-v1/source/venv") || !strings.Contains(got, "UV_NO_SYNC=1") {
 		t.Fatalf("environment=%q", got)
 	}
@@ -79,11 +79,11 @@ func TestInfraOpsMakeEnvironmentIsOwnedAndNotAmbient(t *testing.T) {
 	}
 }
 
-func TestInfraOpsMakeEnvironmentDoesNotOverlayOtherProfiles(t *testing.T) {
+func TestInfraOpsPreparationEnvironmentDoesNotOverlayOtherProfiles(t *testing.T) {
 	t.Parallel()
 	for _, profile := range []string{"", "other-profile-v1"} {
-		ctx := withInfraOpsPrepareMakeEnv(context.Background(), "/tmp/root/source", profile)
-		if got := prepareMakeEnv(ctx); len(got) != 0 {
+		ctx := withInfraOpsPreparationEnv(context.Background(), "/tmp/root/source", profile)
+		if got := preparationEnv(ctx); len(got) != 0 {
 			t.Fatalf("profile %q unexpectedly changed make environment: %#v", profile, got)
 		}
 	}

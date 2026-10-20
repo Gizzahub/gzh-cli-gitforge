@@ -21,15 +21,15 @@ import (
 )
 
 const (
-	makeProcessChildPID   = "GZH_MAKE_PROCESS_CHILD_PID"
-	makeProcessParentGate = "GZH_MAKE_PROCESS_PARENT_GATE"
+	preparationProcessChildPID   = "GZH_MAKE_PROCESS_CHILD_PID"
+	preparationProcessParentGate = "GZH_MAKE_PROCESS_PARENT_GATE"
 )
 
-func TestMakeProcessTreeKillsDescendants(t *testing.T) {
+func TestPreparationProcessTreeKillsDescendants(t *testing.T) {
 	t.Parallel()
-	switch os.Getenv(makeProcessHelperMode) {
+	switch os.Getenv(preparationProcessHelperMode) {
 	case "parent":
-		runMakeProcessParentHelper(t)
+		runPreparationProcessParentHelper(t)
 		return
 	case "child":
 		time.Sleep(24 * time.Hour)
@@ -38,9 +38,9 @@ func TestMakeProcessTreeKillsDescendants(t *testing.T) {
 
 	pidFile := filepath.Join(t.TempDir(), "child.pid")
 	parentGate := filepath.Join(t.TempDir(), "parent-release")
-	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestMakeProcessTreeKillsDescendants$")
-	cmd.Env = append(os.Environ(), makeProcessHelperMode+"=parent", makeProcessChildPID+"="+pidFile, makeProcessParentGate+"="+parentGate)
-	processTree, err := newMakeProcessTree()
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestPreparationProcessTreeKillsDescendants$")
+	cmd.Env = append(os.Environ(), preparationProcessHelperMode+"=parent", preparationProcessChildPID+"="+pidFile, preparationProcessParentGate+"="+parentGate)
+	processTree, err := newPreparationProcessTree()
 	if err != nil {
 		t.Fatalf("create process tree: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestMakeProcessTreeKillsDescendants(t *testing.T) {
 		_ = cmd.Wait()
 		t.Fatalf("release parent helper: %v", err)
 	}
-	childPID := waitForMakeProcessChildPID(t, pidFile)
+	childPID := waitForPreparationProcessChildPID(t, pidFile)
 	childHandle, err := windows.OpenProcess(windows.SYNCHRONIZE, false, childPID)
 	if err != nil {
 		t.Fatalf("open child process before cancellation: %v", err)
@@ -76,7 +76,7 @@ func TestMakeProcessTreeKillsDescendants(t *testing.T) {
 	}
 }
 
-func TestMakeProcessTreeHandshakeWaitsForJobAttach(t *testing.T) {
+func TestPreparationProcessTreeHandshakeWaitsForJobAttach(t *testing.T) {
 	dir := t.TempDir()
 	gateRoot := filepath.Join(dir, "gate space % !")
 	if err := os.Mkdir(gateRoot, 0o700); err != nil {
@@ -91,7 +91,7 @@ func TestMakeProcessTreeHandshakeWaitsForJobAttach(t *testing.T) {
 	}
 	cmd := exec.CommandContext(context.Background(), "make", "-w", "check")
 	cmd.Env = append(withoutEnv(os.Environ(), "PATH"), "PATH="+dir)
-	processTree, err := newMakeProcessTree()
+	processTree, err := newPreparationProcessTree()
 	if err != nil {
 		t.Fatalf("create process tree: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestMakeProcessTreeHandshakeWaitsForJobAttach(t *testing.T) {
 	}
 }
 
-func TestMakeProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
+func TestPreparationProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "make-started")
@@ -142,7 +142,7 @@ func TestMakeProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
 	cmd := exec.CommandContext(context.Background(), "make", "-w", "check")
 	cmd.Env = append(withoutEnv(os.Environ(), "PATH"), "PATH="+dir)
 	cmd.WaitDelay = time.Second
-	processTree, err := newMakeProcessTree()
+	processTree, err := newPreparationProcessTree()
 	if err != nil {
 		t.Fatalf("create process tree: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestMakeProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
 	// A closed job makes attach fail. The failure handler must kill the waiting
 	// cmd.exe and, because release was never created, must never run make.
 	processTree.close()
-	if err := makeProcessAttachFailure(cmd, processTree, errors.New("simulated attach failure")); err == nil {
+	if err := preparationProcessAttachFailure(cmd, processTree, errors.New("simulated attach failure")); err == nil {
 		t.Fatal("attach failure must be reported")
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
@@ -165,15 +165,15 @@ func TestMakeProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
 	}
 }
 
-func runMakeProcessParentHelper(t *testing.T) {
-	pidFile := os.Getenv(makeProcessChildPID)
-	parentGate := os.Getenv(makeProcessParentGate)
+func runPreparationProcessParentHelper(t *testing.T) {
+	pidFile := os.Getenv(preparationProcessChildPID)
+	parentGate := os.Getenv(preparationProcessParentGate)
 	if pidFile == "" || parentGate == "" {
 		t.Fatal("missing parent helper paths")
 	}
-	waitForMakeProcessParentRelease(t, parentGate)
-	child := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestMakeProcessTreeKillsDescendants$")
-	child.Env = append(os.Environ(), makeProcessHelperMode+"=child")
+	waitForPreparationProcessParentRelease(t, parentGate)
+	child := exec.CommandContext(context.Background(), os.Args[0], "-test.run=^TestPreparationProcessTreeKillsDescendants$")
+	child.Env = append(os.Environ(), preparationProcessHelperMode+"=child")
 	if err := child.Start(); err != nil {
 		t.Fatalf("start child helper: %v", err)
 	}
@@ -185,7 +185,7 @@ func runMakeProcessParentHelper(t *testing.T) {
 	time.Sleep(24 * time.Hour)
 }
 
-func waitForMakeProcessParentRelease(t *testing.T, path string) {
+func waitForPreparationProcessParentRelease(t *testing.T, path string) {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
@@ -199,7 +199,7 @@ func waitForMakeProcessParentRelease(t *testing.T, path string) {
 	t.Fatal("parent helper was not released")
 }
 
-func waitForMakeProcessChildPID(t *testing.T, path string) uint32 {
+func waitForPreparationProcessChildPID(t *testing.T, path string) uint32 {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {

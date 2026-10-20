@@ -22,18 +22,18 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
-type prepareMakeEnvKey struct{}
+type preparationEnvKey struct{}
 
-func withInfraOpsPrepareMakeEnv(ctx context.Context, dir, profile string) context.Context {
+func withInfraOpsPreparationEnv(ctx context.Context, dir, profile string) context.Context {
 	if profile != config.PrepareProfileInfraOpsPythonUVV1 {
 		return ctx
 	}
 	environment := filepath.Join(infraOpsOwnedRoot(dir), "venv")
-	return context.WithValue(ctx, prepareMakeEnvKey{}, []string{"UV_PROJECT_ENVIRONMENT=" + environment, "VIRTUAL_ENV=" + environment, "UV_NO_SYNC=1"})
+	return context.WithValue(ctx, preparationEnvKey{}, []string{"UV_PROJECT_ENVIRONMENT=" + environment, "VIRTUAL_ENV=" + environment, "UV_NO_SYNC=1"})
 }
 
-func prepareMakeEnv(ctx context.Context) []string {
-	values, ok := ctx.Value(prepareMakeEnvKey{}).([]string)
+func preparationEnv(ctx context.Context) []string {
+	values, ok := ctx.Value(preparationEnvKey{}).([]string)
 	if !ok {
 		return nil
 	}

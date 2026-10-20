@@ -13,43 +13,45 @@ import (
 	"syscall"
 )
 
-type makeProcessTree struct {
+type preparationProcessTree struct {
 	mu       sync.Mutex
 	process  *os.Process
 	canceled bool
 }
 
-func newMakeProcessTree() (*makeProcessTree, error) { return &makeProcessTree{}, nil }
+func newPreparationProcessTree() (*preparationProcessTree, error) {
+	return &preparationProcessTree{}, nil
+}
 
-func (p *makeProcessTree) configure(cmd *exec.Cmd) error {
+func (p *preparationProcessTree) configure(cmd *exec.Cmd) error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	return nil
 }
 
-func (p *makeProcessTree) attach(process *os.Process) error {
+func (p *preparationProcessTree) attach(process *os.Process) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.process = process
 	if p.canceled {
-		return killMakeProcess(process)
+		return killPreparationProcess(process)
 	}
 	return nil
 }
 
-// cancel terminates the process group created for a make target so
+// cancel terminates the process group created for a preparation command so
 // recipe descendants cannot keep Cmd.Wait's stdout/stderr pipes open.
-func (p *makeProcessTree) cancel() error {
+func (p *preparationProcessTree) cancel() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.canceled = true
-	return killMakeProcess(p.process)
+	return killPreparationProcess(p.process)
 }
 
-func (p *makeProcessTree) close() {}
+func (p *preparationProcessTree) close() {}
 
-func (p *makeProcessTree) release() error { return nil }
+func (p *preparationProcessTree) release() error { return nil }
 
-func killMakeProcess(process *os.Process) error {
+func killPreparationProcess(process *os.Process) error {
 	if process == nil {
 		return os.ErrProcessDone
 	}

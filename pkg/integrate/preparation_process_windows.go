@@ -17,10 +17,10 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// makeProcessTree owns every process started by make. Closing or terminating
-// its Job Object also terminates recipe descendants, which Windows otherwise
-// leaves alive when only the direct make process is killed.
-type makeProcessTree struct {
+// preparationProcessTree owns every process a preparation command starts.
+// Closing or terminating its Job Object also terminates descendants, which
+// Windows otherwise leaves alive when only the direct child process is killed.
+type preparationProcessTree struct {
 	mu          sync.Mutex
 	job         windows.Handle
 	attached    bool
@@ -29,7 +29,7 @@ type makeProcessTree struct {
 	releasePath string
 }
 
-func newMakeProcessTree() (*makeProcessTree, error) {
+func newPreparationProcessTree() (*preparationProcessTree, error) {
 	job, err := windows.CreateJobObject(nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create Job Object: %w", err)
@@ -41,14 +41,14 @@ func newMakeProcessTree() (*makeProcessTree, error) {
 		_ = windows.CloseHandle(job)
 		return nil, fmt.Errorf("set Job Object limits: %w", err)
 	}
-	return &makeProcessTree{job: job}, nil
+	return &preparationProcessTree{job: job}, nil
 }
 
-// configure replaces direct make execution with a cmd.exe batch handshake.
+// configure replaces direct command execution with a cmd.exe batch handshake.
 // The batch file uses only cmd built-ins until release creates its marker, so
-// no make recipe descendant can exist before attach assigns cmd.exe to the Job
-// Object. Every process make creates after release then inherits that job.
-func (p *makeProcessTree) configure(cmd *exec.Cmd) error {
+// no command descendant can exist before attach assigns cmd.exe to the Job
+// Object. Every process the command creates after release then inherits that job.
+func (p *preparationProcessTree) configure(cmd *exec.Cmd) error {
 	launch, err := gatedLaunchLine(cmd)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func escapeBatchPath(path string) string {
 	return strings.ReplaceAll(path, "%", "%%")
 }
 
-func (p *makeProcessTree) attach(process *os.Process) error {
+func (p *preparationProcessTree) attach(process *os.Process) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.job == 0 {
@@ -143,7 +143,7 @@ func (p *makeProcessTree) attach(process *os.Process) error {
 	return nil
 }
 
-func (p *makeProcessTree) cancel() error {
+func (p *preparationProcessTree) cancel() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.canceled = true
@@ -153,7 +153,7 @@ func (p *makeProcessTree) cancel() error {
 	return windows.TerminateJobObject(p.job, 1)
 }
 
-func (p *makeProcessTree) close() {
+func (p *preparationProcessTree) close() {
 	p.mu.Lock()
 	if p.job != 0 {
 		_ = windows.CloseHandle(p.job)
@@ -167,7 +167,7 @@ func (p *makeProcessTree) close() {
 	}
 }
 
-func (p *makeProcessTree) release() error {
+func (p *preparationProcessTree) release() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.attached || p.canceled || p.releasePath == "" {

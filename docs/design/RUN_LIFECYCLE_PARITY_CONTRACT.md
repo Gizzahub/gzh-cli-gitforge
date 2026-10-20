@@ -661,6 +661,10 @@ only the native gate's measured baseline comparison can accept a proven
 non-worsening difference. Scenario statuses, ownership, refs, push and cleanup
 results must remain unchanged. Generation alone is not native acceptance.
 
+Note (2026-10-21): the native make gate and its measured baseline comparison
+were removed. This adoption record is kept as written; it no longer describes
+current `gz-git integrate` behavior.
+
 CE's `recover-requires-cleanup-failure` refusal now also names a bound native
 completion as an eligible recovery input. The fixture still has no such input:
 its refusal status and exit code remain unchanged. The new native-completion

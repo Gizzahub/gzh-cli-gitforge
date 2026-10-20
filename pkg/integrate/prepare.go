@@ -46,7 +46,7 @@ func runPrepareProfileWithInputs(parent context.Context, g gitRepo, dir, profile
 }
 
 func runPrepareCommand(cmd *exec.Cmd) error {
-	processTree, err := newMakeProcessTree()
+	processTree, err := newPreparationProcessTree()
 	if err != nil {
 		return fmt.Errorf("create preparation process tree: %w", err)
 	}
@@ -55,15 +55,15 @@ func runPrepareCommand(cmd *exec.Cmd) error {
 		return fmt.Errorf("configure preparation process tree: %w", err)
 	}
 	cmd.Cancel = processTree.cancel
-	cmd.WaitDelay = makeTargetWaitDelay
+	cmd.WaitDelay = preparationWaitDelay
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	if err := processTree.attach(cmd.Process); err != nil {
-		return makeProcessAttachFailure(cmd, processTree, err)
+		return preparationProcessAttachFailure(cmd, processTree, err)
 	}
 	if err := processTree.release(); err != nil {
-		return makeProcessAttachFailure(cmd, processTree, err)
+		return preparationProcessAttachFailure(cmd, processTree, err)
 	}
 	return cmd.Wait()
 }

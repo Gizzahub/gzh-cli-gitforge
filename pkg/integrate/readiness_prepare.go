@@ -45,9 +45,8 @@ func prepareReadinessPair(ctx context.Context, g gitRepo, plan TargetPlan, profi
 
 // prepareInfraOpsReadinessSource prepares only the source snapshot. The V1
 // runner validates --source-dir and receives one environment, so a prepared
-// target would be measured by nothing; the legacy baseline keeps its own
-// symmetric preparation. The owned root lands beside the source worktree,
-// inside the readiness workspace that runContractPair removes.
+// target would be measured by nothing. The owned root lands beside the
+// source worktree, inside the readiness workspace that runContractPair removes.
 func prepareInfraOpsReadinessSource(ctx context.Context, g gitRepo, plan TargetPlan, sourceDir string, opts CheckOptions) (env []string, evidence string, err error) {
 	profile := config.PrepareProfileInfraOpsPythonUVV1
 	inputs, err := snapshotInfraOpsPythonUVInputs(ctx, g, plan.BranchSHA)
@@ -70,7 +69,7 @@ func prepareInfraOpsReadinessSource(ctx context.Context, g gitRepo, plan TargetP
 		return nil, "", fmt.Errorf("readiness preparation %s at %s: %w", profile, plan.BranchSHA, err)
 	}
 	env = readinessEnv(os.Environ())
-	overlay := prepareMakeEnv(withInfraOpsPrepareMakeEnv(ctx, sourceDir, profile))
+	overlay := preparationEnv(withInfraOpsPreparationEnv(ctx, sourceDir, profile))
 	// The runner sees the same uv state the preparation used: caller values
 	// could otherwise point uv at a different project or environment.
 	for _, key := range []string{"UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV", "UV_NO_SYNC", "UV_CACHE_DIR", "UV_PROJECT"} {

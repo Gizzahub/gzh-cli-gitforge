@@ -16,7 +16,7 @@ func TestParsePrepareHighLoadDocumentStrict(t *testing.T) {
 		json, want bool
 		bad        bool
 	}{
-		{"absent", "branch:\n  prepareProfile: cargo-workspace-v1\n", false, false, false},
+		{"absent", "branch:\n  integrationBranch: develop\n", false, false, false},
 		{"yaml true", "branch:\n  prepareHighLoad: true\n", false, true, false},
 		{"json false", `{"branch":{"prepareHighLoad":false}}`, true, false, false},
 		{"json null", `{"branch":{"prepareHighLoad":null}}`, true, false, true},

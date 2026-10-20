@@ -12,10 +12,10 @@ import (
 	"testing"
 )
 
-func TestConfigureMakeProcessCreatesProcessGroup(t *testing.T) {
+func TestConfigurePreparationProcessCreatesProcessGroup(t *testing.T) {
 	t.Parallel()
 	cmd := exec.CommandContext(context.Background(), "sleep", "30")
-	processTree, err := newMakeProcessTree()
+	processTree, err := newPreparationProcessTree()
 	if err != nil {
 		t.Fatalf("create process tree: %v", err)
 	}
