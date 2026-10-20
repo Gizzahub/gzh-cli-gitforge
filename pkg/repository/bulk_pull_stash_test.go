@@ -16,6 +16,11 @@ import (
 // commit behind, where the remote commit rewrites README.md.
 func stashPullFixture(t *testing.T) (workspace, repoPath string) {
 	t.Helper()
+	// BulkPull runs git in this process, so isolate it from the user's global
+	// and system config: commit.gpgsign or a rebase hook there would turn the
+	// fixture's commits and the pull's rebase into unrelated failures.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 
 	tmpDir := t.TempDir()
 	remotePath := filepath.Join(tmpDir, "remote.git")
