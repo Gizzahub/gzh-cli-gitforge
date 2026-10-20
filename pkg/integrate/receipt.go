@@ -18,6 +18,7 @@ import (
 	"unicode"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/internal/workidentity"
 )
 
 // Durable integration evidence (TASK-302). A run that carries an execution
@@ -153,12 +154,14 @@ func (e *ExecutionContext) Validate() error {
 // GIT_WORK_HOST for the device), global Git config second (ce.workActor,
 // ce.workHost). There is no hostname fallback — a guessed host makes two
 // devices indistinguishable, so an unresolved host is an error.
+// internal/workidentity owns the names and the Git read, so the run lifecycle
+// records the same owner that cleanup later compares against.
 const (
-	callerActorEnvAgent = "GZ_GIT_TASK_ACTOR"
-	callerActorEnvHuman = "GIT_WORK_ACTOR"
-	callerHostEnv       = "GIT_WORK_HOST"
-	callerActorGitKey   = "ce.workActor"
-	callerHostGitKey    = "ce.workHost"
+	callerActorEnvAgent = workidentity.ActorEnvAgent
+	callerActorEnvHuman = workidentity.ActorEnvHuman
+	callerHostEnv       = workidentity.HostEnv
+	callerActorGitKey   = workidentity.ActorGitKey
+	callerHostGitKey    = workidentity.HostGitKey
 )
 
 // ResolveCallerOwner resolves the identity of the process asking for cleanup.
@@ -174,25 +177,14 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 	}
 	host := strings.TrimSpace(os.Getenv(callerHostEnv))
 	gitValue := func(key string) (string, error) {
-		// Exit 1 with nothing on stderr means the key is unset; the empty
-		// value then reaches the "not configured" refusal below instead of
-		// a raw Git failure. Git also exits 1 when it cannot read the file
-		// and only warns on stderr; that must not read as unconfigured.
-		res, err := exec.Run(ctx, ".", "config", "--global", "--includes", "--get", key)
+		res, err := exec.Run(ctx, ".", workidentity.GitConfigArgs(key)...)
 		if err != nil {
 			return "", fmt.Errorf("read global Git %s: %w", key, err)
 		}
-		stderr := strings.TrimSpace(res.Stderr)
-		switch {
-		case res.ExitCode == 0:
-			return strings.TrimSpace(res.Stdout), nil
-		case res.ExitCode == 1 && stderr == "":
-			return "", nil
-		case res.Error != nil && stderr == "":
-			return "", fmt.Errorf("read global Git %s: exit %d: %w", key, res.ExitCode, res.Error)
-		default:
-			return "", fmt.Errorf("read global Git %s: exit %d: %s", key, res.ExitCode, stderr)
-		}
+		// An unset key and an empty value both reach the "not configured"
+		// refusal below.
+		value, _, err := workidentity.ParseGitConfig(key, res.ExitCode, res.Stdout, res.Stderr)
+		return strings.TrimSpace(value), err
 	}
 	if actor == "" {
 		configured, err := gitValue(callerActorGitKey)

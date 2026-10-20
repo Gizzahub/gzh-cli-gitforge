@@ -67,3 +67,20 @@ func TestResolveCallerOwnerReportsUnreadableGlobalConfig(t *testing.T) {
 		t.Fatalf("err = %v, want Git's read failure for ce.workActor", err)
 	}
 }
+
+// ISSUE-71: two values are refused as the run lifecycle refuses them, rather
+// than resolving to the last one and passing an owner check the run itself
+// would never have recorded.
+func TestResolveCallerOwnerRefusesSeveralGlobalValues(t *testing.T) {
+	clearCallerIdentity(t)
+	t.Setenv("GIT_WORK_HOST", "mbp")
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(global, []byte("[ce]\n\tworkActor = alice\n\tworkActor = bob\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	owner, err := ResolveCallerOwner(context.Background(), gitcmd.NewExecutor())
+	if err == nil || !strings.Contains(err.Error(), "global Git ce.workActor must have exactly one value; found 2") {
+		t.Fatalf("ResolveCallerOwner = %+v, %v; want the several-values refusal", owner, err)
+	}
+}

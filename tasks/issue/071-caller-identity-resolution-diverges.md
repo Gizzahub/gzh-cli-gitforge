@@ -46,3 +46,31 @@ global Git and disagree on two inputs.
 - Make `ResolveCallerOwner` and `gitIdentity` share one resolution rule,
   or make one call the other. Add tests for a key with two values and
   for an unreadable `GIT_CONFIG_GLOBAL`, in both packages.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- New `internal/workidentity` owns the identity chain names, the Git
+  command (`config --global --includes --get-all <key>`) and how its
+  result is read. `ResolveCallerOwner` and `gitIdentity` both call it and
+  keep their own runner and normalization.
+- The shared rule: exit 1 with empty stderr is unset; any other non-zero
+  exit is an error carrying Git's stderr, so an unreadable global config
+  is reported in both paths; exit 0 with more than one value is refused
+  with `must have exactly one value`. A value set to the empty string is
+  returned as set, so `runtask` still refuses it as an invalid value and
+  integrate still reports the caller as not configured.
+- Tests: `TestParseGitConfig` covers the rule; the runtask
+  `TestResolveOwnerReadsGlobalGitLikeCleanup` and the integrate
+  `TestResolveCallerOwnerRefusesSeveralGlobalValues` with the existing
+  `TestResolveCallerOwnerReportsUnreadableGlobalConfig` cover both callers
+  with two values and an unreadable `GIT_CONFIG_GLOBAL`.
+- Mutation evidence, reverted before commit: `--get` in the shared
+  command, every exit 1 read as unset, an empty value read as unset in
+  `runtask`, and integrate keeping its own `--get` command each fail the
+  caller tests.
+- Left as is: `resolveDeclaredDevice` (`pkg/integrate/device.go`) still
+  reads `ce.workHost` with `--get` for the run provenance and host-lock
+  label. It authorizes nothing and degrades any failure to an undeclared
+  device, so it was outside this card.

@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
+
+	"github.com/gizzahub/gzh-cli-gitforge/internal/workidentity"
 )
 
 // hostResolutionError is deliberately limited to device identity faults so
@@ -23,33 +24,29 @@ func (e *hostResolutionError) Error() string { return e.reason }
 // ce.workActor setting. There is no per-user identity file to fall back to --
 // a value that only some checkouts can see is a value that silently differs
 // between two worktrees of the same repository.
+// internal/workidentity owns the names and the Git read, which integrate
+// cleanup shares to compare its caller with the owner recorded here.
 const (
-	actorEnvAgent = "GZ_GIT_TASK_ACTOR"
-	actorEnvHuman = "GIT_WORK_ACTOR"
-	hostEnv       = "GIT_WORK_HOST"
-	gitActorKey   = "ce.workActor"
-	gitHostKey    = "ce.workHost"
+	actorEnvAgent = workidentity.ActorEnvAgent
+	actorEnvHuman = workidentity.ActorEnvHuman
+	hostEnv       = workidentity.HostEnv
+	gitActorKey   = workidentity.ActorGitKey
+	gitHostKey    = workidentity.HostGitKey
 )
 
 func (s *Service) gitIdentity(ctx context.Context, gitKey string) (string, error) {
-	result, err := s.command(ctx, s.root, "git", "config", "--global", "--includes", "--get-all", gitKey)
+	result, err := s.command(ctx, s.root, "git", workidentity.GitConfigArgs(gitKey)...)
 	if err != nil {
 		return "", &identityError{result: result, err: fmt.Errorf("read Git work identity %s: %w", gitKey, err)}
 	}
-	if result.ExitCode == 1 {
+	raw, set, err := workidentity.ParseGitConfig(gitKey, result.ExitCode, result.Stdout, result.Stderr)
+	if err != nil {
+		return "", &identityError{result: result, err: err}
+	}
+	if !set {
 		return "", nil
 	}
-	if result.ExitCode != 0 {
-		return "", &identityError{result: result, err: fmt.Errorf("read Git work identity %s: %s", gitKey, strings.TrimSpace(result.Stderr))}
-	}
-	// Git terminates each configured value with one newline. Remove only that
-	// framing byte: trimming all whitespace would collapse a second empty value
-	// and turn an ambiguous declaration into an apparently unique one.
-	lines := strings.Split(strings.TrimSuffix(result.Stdout, "\n"), "\n")
-	if len(lines) != 1 {
-		return "", &identityError{result: result, err: fmt.Errorf("global Git %s must have exactly one value; found %d", gitKey, len(lines))}
-	}
-	value := normalize(lines[0])
+	value := normalize(raw)
 	if value == "" {
 		return "", &identityError{result: result, err: fmt.Errorf("global Git %s has an invalid value", gitKey)}
 	}
