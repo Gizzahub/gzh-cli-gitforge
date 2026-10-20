@@ -1793,6 +1793,23 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		return result
 	}
 
+	// Dry run - don't actually pull. This runs before the stash so a preview
+	// never moves local changes into the stash list.
+	if opts.DryRun {
+		if result.CommitsBehind > 0 {
+			result.Status = StatusWouldPull
+			result.Message = fmt.Sprintf("Would pull %d commit(s) from remote", result.CommitsBehind)
+		} else {
+			result.Status = StatusUpToDate
+			result.Message = "Already up to date"
+		}
+		if !status.IsClean && opts.Stash {
+			result.Message += "; would stash local changes first"
+		}
+		result.Duration = time.Since(startTime)
+		return result
+	}
+
 	// Handle local changes with stash
 	if !status.IsClean && opts.Stash {
 		stashArgs := []string{"stash", "push", "-m", "Auto-stash by gz-git pull"}
@@ -1810,19 +1827,6 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		}
 		result.Stashed = true
 		logger.Info("stashed local changes", "path", result.RelativePath)
-	}
-
-	// Dry run - don't actually pull
-	if opts.DryRun {
-		if result.CommitsBehind > 0 {
-			result.Status = StatusWouldPull
-			result.Message = fmt.Sprintf("Would pull %d commit(s) from remote", result.CommitsBehind)
-		} else {
-			result.Status = StatusUpToDate
-			result.Message = "Already up to date"
-		}
-		result.Duration = time.Since(startTime)
-		return result
 	}
 
 	// Capture HEAD commit before pull to detect actual changes
@@ -1906,10 +1910,12 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 		}
 		result.Duration = time.Since(startTime)
 
-		// Try to pop stash if we stashed earlier
+		// Restore stashed changes; a failed restore must stay visible.
 		if result.Stashed {
-			popArgs := []string{"stash", "pop"}
-			_, _ = c.executor.Run(ctx, repoPath, popArgs...) //nolint:errcheck // Best effort
+			if popErr := c.popPullStash(ctx, repoPath); popErr != nil {
+				result.Message += "; restoring stashed changes failed, the stash entry is kept"
+				result.Error = errors.Join(result.Error, popErr)
+			}
 		}
 
 		return result
@@ -1947,13 +1953,15 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 	}
 	result.Duration = time.Since(startTime)
 
-	// Pop stash if we stashed earlier
+	// Pop stash if we stashed earlier. The pull itself succeeded, but a failed
+	// restore leaves the working tree conflicted with the stash entry kept, so
+	// the repository is reported as a conflict rather than as pulled.
 	if result.Stashed {
-		popArgs := []string{"stash", "pop"}
-		popResult, err := c.executor.Run(ctx, repoPath, popArgs...)
-		if err != nil || popResult.ExitCode != 0 {
+		if popErr := c.popPullStash(ctx, repoPath); popErr != nil {
 			logger.Warn("failed to pop stash", "path", result.RelativePath)
-			// Don't fail the pull operation, just warn
+			result.Status = StatusConflict
+			result.Message += "; restoring stashed changes failed, the stash entry is kept"
+			result.Error = popErr
 		} else {
 			logger.Info("popped stashed changes", "path", result.RelativePath)
 		}
@@ -1965,6 +1973,19 @@ func (c *client) processPullRepository(ctx context.Context, rootDir, repoPath st
 	logger.Info("repository pulled", "path", result.RelativePath)
 
 	return result
+}
+
+// popPullStash restores the changes a pull stashed. git keeps the stash entry
+// when the pop fails, so the caller only has to report it.
+func (c *client) popPullStash(ctx context.Context, repoPath string) error {
+	popResult, err := c.executor.Run(ctx, repoPath, "stash", "pop")
+	if err != nil {
+		return fmt.Errorf("stash pop: %w", err)
+	}
+	if popResult.ExitCode != 0 {
+		return fmt.Errorf("stash pop exited with code %d: %s", popResult.ExitCode, strings.TrimSpace(popResult.Stderr))
+	}
+	return nil
 }
 
 // populatePullDirtyStatus checks and populates the dirty status fields in pull result.

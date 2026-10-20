@@ -172,7 +172,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return errPartialFailure(pullFailed+pushFailed, max(result.TotalProcessed, pushProcessed))
+	return errPartialFailure(pullPushFailedPulls(result)+pushFailed, max(result.TotalProcessed, pushProcessed))
 }
 
 func runPullWatch(ctx context.Context, client repository.Client, opts repository.BulkPullOptions) error {

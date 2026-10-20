@@ -109,7 +109,8 @@ gz-git pull --stash ~/projects
 1. Pull 수행
 1. `git stash pop` 실행 (자동 복원)
 
-**주의**: Stash pop 시 conflict 가능 → 수동 해결 필요
+**주의**: Stash pop 시 conflict 가능 → 수동 해결 필요. 이때 결과는 `conflict`로 표시되고 stash 항목은 남아 있다(`git stash list`로 확인).
+`--dry-run`과 함께 쓰면 stash하지 않고 "would stash"로만 알린다.
 
 ### Dirty Repo 처리 비교
 
@@ -129,6 +130,7 @@ gz-git pull --merge-strategy rebase --push ~/projects
 - push 대상: pull 결과가 `pulled` 또는 `up-to-date`인 repo. 앞선 로컬 커밋이 없으면 push 단계에서 up-to-date로 표시된다.
 - push 생략(skipped): conflict, rebase/merge 진행 중, 인증 실패, upstream 없음, 오류 등 그 외 모든 결과.
 - force push는 하지 않는다. rebase 뒤의 push는 fast-forward이며, 원격이 거부하면 실패로 보고되고 종료 코드에 반영된다.
+- 종료 코드: 동기화하려 했으나 못 한 repo(conflict, rebase/merge 진행 중, 인증 필요, 오류, 정책 차단)가 하나라도 있으면 2. remote·upstream이 없거나 제외된 repo는 실패로 세지 않는다. `--push` 없는 `pull`의 종료 코드는 그대로다.
 - `gz-git push`와 같은 push 정책(보호 브랜치 등)과 workspace push 권한을 그대로 적용한다.
 - `--merge-strategy rebase` 없이, 또는 `--format json`·`--watch`와 함께 쓰면 실행 전에 거부한다.
 - `--dry-run`과 함께 쓰면 pull과 push 모두 미리보기만 한다.
