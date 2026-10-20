@@ -171,7 +171,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 
 	// Display results (always output for JSON format, otherwise respect quiet flag)
 	if pushFlags.Format == "json" || !quiet {
-		displayPushResults(result)
+		displayPushResults(result, pushFlags.Format)
 	}
 
 	// A policy refusal is a failure, not a skip: the caller asked for a push
@@ -205,7 +205,7 @@ func executePush(ctx context.Context, client repository.Client, opts repository.
 
 	// Display results
 	if !quiet {
-		displayPushResults(result)
+		displayPushResults(result, pushFlags.Format)
 	}
 
 	return nil
@@ -220,7 +220,7 @@ func FormatPushUpstreamFixHint() string {
 	return "    → Fix: gz-git push -u (push and set upstream in one step)\n"
 }
 
-func displayPushResults(result *repository.BulkPushResult) {
+func displayPushResults(result *repository.BulkPushResult, format string) {
 	rows := make([]BulkRenderRow, 0, len(result.Repositories))
 	for _, repo := range result.Repositories {
 		rows = append(rows, BulkRenderRow{
@@ -242,14 +242,14 @@ func displayPushResults(result *repository.BulkPushResult) {
 		"error", "blocked", "no-remote", "no-upstream", "no-commits", "conflict",
 		"rebase-in-progress", "merge-in-progress",
 	)
-	if pushFlags.Format != "compact" {
+	if format != "compact" {
 		issueStatuses["auth-required"] = true
 	}
 
 	RenderBulkResults(os.Stdout, BulkRenderConfig{
 		Title:         "=== Push Results ===",
 		Verb:          "Pushed",
-		Format:        pushFlags.Format,
+		Format:        format,
 		Verbose:       verbose,
 		IssueStatuses: issueStatuses,
 		FormatStatus:  formatPushStatus,

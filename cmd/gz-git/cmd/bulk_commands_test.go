@@ -139,7 +139,7 @@ func TestDisplayFetchPullPushResults(t *testing.T) {
 			{RelativePath: "r1", Status: "nothing-to-push"},
 		},
 	}
-	captureStdout(t, func() { displayPushResults(pushRes) })
+	captureStdout(t, func() { displayPushResults(pushRes, pushFlags.Format) })
 }
 
 func TestDisplayCleanResults(t *testing.T) {

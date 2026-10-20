@@ -104,8 +104,7 @@ func runPullPush(ctx context.Context, client repository.Client, effective *confi
 	}
 
 	if !quiet {
-		pushFlags.Format = pullFlags.Format
-		displayPushResults(result)
+		displayPushResults(result, pullFlags.Format)
 	}
 
 	// Repositories whose pull failed are skipped here and already counted by
