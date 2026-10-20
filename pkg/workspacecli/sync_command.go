@@ -867,7 +867,10 @@ func splitNULConfigValues(raw []byte) ([]string, error) {
 }
 
 // createActionsFromFlatConfig converts flat config PlanRequest to Actions.
-// configDir is the directory containing the config file, used to filter out devbox itself.
+// configDir is the directory containing the config file. A relative
+// repository path is resolved against it, as workspace paths are, so the
+// devbox filter, the enclosing-config guard and the executor all see the
+// same target (ISSUE-86).
 func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []reposync.Action {
 	defaultStrategy := req.Options.DefaultStrategy
 	if defaultStrategy == "" {
@@ -882,6 +885,8 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 
 	actions := make([]reposync.Action, 0, len(req.Input.Repos))
 	for _, repo := range req.Input.Repos {
+		repo.TargetPath = resolveWorkspacePath(repo.TargetPath, configDir)
+
 		// CRITICAL: Skip if target path resolves to the devbox directory itself
 		// This prevents workspace sync from resetting the devbox repository
 		absTargetPath, err := filepath.Abs(repo.TargetPath)
