@@ -330,7 +330,9 @@ func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, chec
 	}
 	if targetSHA != check.Plan.TargetSHA {
 		if expectTarget == "" {
-			return "", "", "", fmt.Errorf("target branch changed during readiness; re-run check")
+			// Name both commits: a caller relaying only this line must still
+			// be able to tell a moved target from any other refusal (ISSUE-61).
+			return "", "", "", fmt.Errorf("target branch changed during readiness: %s is %s, readiness checked %s; rebase onto %s and re-run check", targetRef, targetSHA, check.Plan.TargetSHA, targetRef)
 		}
 		return "", "", "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, targetRef, targetSHA, check.Plan.TargetSHA)
 	}

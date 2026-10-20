@@ -58,3 +58,20 @@ acquisition); this card covers the cost of any target move.
   decision belongs to ce-devenv ISSUE-041
   (`tasks/issue/041-batch-integration-needs-decision.md`); gitforge
   implements it after that decision.
+
+## Findings
+
+- 2026-10-20: ISSUE-75's `run-finish` was refused five times in one day,
+  four of them for a stale base after other sessions landed and one for a
+  real format defect; each stale refusal cost a rebase and a full gate
+  rerun. Landings of ISSUE-71, ISSUE-72 and ISSUE-75 then went to master
+  by an operator push as a stopgap until landing gets faster; that is not
+  the intended workflow.
+- The Run-phase refusal from `revalidateCheckedRefsForExpectedTarget` now
+  names the target ref, its current commit and the commit readiness
+  checked, so the gz-git diagnostic carries the cause.
+- Still open: CE's `run-finish` reason classifies a stale base only for
+  the Check pass, so CE still reports the generic "integration did not
+  complete" after readiness (ce-agent-kit; gitforge's `internal/runtask`
+  mirrors that reference and follows it), and the policy choice under
+  ce-devenv ISSUE-041.

@@ -160,6 +160,12 @@ func TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch(t *testing.T) {
 	if err == nil || errors.Is(err, ErrTargetMismatch) {
 		t.Fatalf("legacy revalidation error = %v, want generic target movement", err)
 	}
+	moved := gitOutput(t, fx.Clone, "rev-parse", "HEAD")
+	for _, want := range []string{"target branch changed during readiness", fx.Remote + "/develop", moved, check.Plan.TargetSHA} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("legacy revalidation error = %v, want it to name %q", err, want)
+		}
+	}
 }
 
 func TestTargetMoveProofUsesOneExactPushEndpoint(t *testing.T) {
