@@ -171,8 +171,8 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			matched:  true, ok: false,
 		},
 		// ISSUE-75: make searches implicit rules for a declared target that
-		// has no recipe and is not .PHONY. Only a rule that matched leaves a
-		// stem, so these stay declared.
+		// has no recipe and is not .PHONY. Such a search leaves no stem and
+		// no "# Not a target:" line, so these stay declared.
 		{
 			name:     "recipe-less aggregate check",
 			makefile: "check: lint\nlint:\n\t@:\n",
