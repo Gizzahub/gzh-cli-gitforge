@@ -7,7 +7,7 @@
 ```
 tasks/
 ├── issue/       # 확인된 결함 / 후속 설계 필요 항목 (이 저장소가 소유)
-├── HISTORY.md   # 완료·감사 기록
+├── receipts/    # done-review 영수증 (ce-tasks.yaml aux-dirs)
 └── README.md    # 열린 항목 인덱스 (이 파일)
 ```
 
@@ -17,7 +17,7 @@ tasks/
 규약: **1파일 = 1작업**, `NN-kebab-case-title.md`, 인덱스 파일은 `README.md`/`INDEX.md`만.
 (`gzh-cli/tasks/` 규약 준용)
 
-완료·감사 기록: [HISTORY.md](HISTORY.md)
+완료·감사 기록: [docs/changelog/tasks-history.md](../docs/changelog/tasks-history.md)
 
 ______________________________________________________________________
 

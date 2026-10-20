@@ -67,3 +67,21 @@ Make `ce task lint` report CLEAN:
   - the relative `issue/...` and `README.md` links inside HISTORY.md itself.
 
 Registration only; no remediation is included here.
+
+## Resolution
+
+Resolved on 2026-10-20. `ce task lint` now reports
+`TASK LINT — CLEAN (3 dir(s), 84 card(s), ...)`.
+
+- Receipt: a root `ce-tasks.yaml` declares
+  `card-dialect: { aux-dirs: [receipts] }`. Lint lists `receipts/` as
+  `auxiliary` and both structural issues are gone. The receipt stays at
+  `tasks/receipts/TASK-012/`.
+- History: `tasks/HISTORY.md` moved to `docs/changelog/tasks-history.md`
+  with `git mv`. Its 23 relative links now point at `../../tasks/...`, and
+  each resolves. `tasks/README.md:10` and `:20` and `docs/changelog/0.8.md:558`
+  name the new path.
+- Card 19's mentions of `tasks/HISTORY.md` (`:40`, `:52`, `:64`) are left
+  as written. They record that card's own past state, not a live link.
+- `ce task validate --all` reports 55 failing cards here against 58 on the
+  primary checkout, so this change adds none.

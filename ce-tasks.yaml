@@ -1,0 +1,7 @@
+# CE task-board declaration for this repository (tracked, so it moves with a clone).
+# Only keys set here override CE's defaults.
+#
+# aux-dirs: directories under tasks/ that hold auxiliary files, not cards.
+# - receipts: tracked done-review receipts, tasks/receipts/<TASK-ID>/*.json (ISSUE-78)
+card-dialect:
+  aux-dirs: [receipts]
