@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`f66d06c117ad279cc1df2c60da09fcf416970809`**, installed as CE 0.10.14 with
+`f88f4331f2c09858778a747589a776bcb477346d`**, installed as CE 0.10.14 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.14 (`f66d06c1`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.14 (`f88f4331`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -578,7 +578,15 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
-The current clean `f66d06c1` reference (`370-gf66d06c1`) replaces `6baa7f9e`
+The current clean `f88f4331` reference (`403-gf88f4331`) replaces `f66d06c1`
+together with the removal of the legacy make gate. Normalized for CE identity,
+six fixtures change only in captured gz-git stdout: the readiness row now
+reports gate mode `none` instead of `legacy-make`, the `make check`/`make lint`
+and baseline rows are gone, and `integrate --help` describes the new gate.
+Exits, status, ownership, refs, push and cleanup are unchanged. Evidence is in
+`reports/2026-10-21-ce-parity-reference-f88f4331.md`.
+
+The prior clean `f66d06c1` reference (`370-gf66d06c1`) replaced `6baa7f9e`
 after the installed CE moved again. The twelve re-recorded fixtures differ from
 the `6baa7f9e` capture only in CE identity leaves (reference, toolchain and
 receipt `tool_version`); with those normalized every fixture is byte-identical.

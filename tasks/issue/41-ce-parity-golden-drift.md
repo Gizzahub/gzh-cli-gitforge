@@ -1,5 +1,14 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## f88f4331 추가 채택 (2026-10-21)
+
+- 설치 CE가 clean `f88f4331`(`403-gf88f4331`, 0.10.14)로 바뀌어 12개 golden이
+  CE identity 불일치로 다시 실패했다. 사용자 승인(최신 설치본 기준)대로 pin을
+  옮기고 legacy make 게이트 제거와 함께 재녹화했다.
+- CE identity를 정규화하면 6개는 바이트 동일하고, 6개는 gz-git stdout만 바뀐다
+  (gate mode `none`, make 행 제거, help 문구). 종료·상태·ref·push·cleanup은 같다.
+- 근거: [f88f4331 채택 기록](../../reports/2026-10-21-ce-parity-reference-f88f4331.md).
+
 ## f66d06c1 추가 채택 (2026-10-20)
 
 - 설치 CE가 clean `f66d06c1`(`370-gf66d06c1`, 0.10.14)로 바뀌어 12개 golden이
