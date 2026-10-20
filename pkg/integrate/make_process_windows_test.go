@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	makeProcessHelperMode = "GZH_MAKE_PROCESS_HELPER"
 	makeProcessChildPID   = "GZH_MAKE_PROCESS_CHILD_PID"
 	makeProcessParentGate = "GZH_MAKE_PROCESS_PARENT_GATE"
 )

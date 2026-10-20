@@ -36,8 +36,10 @@ const (
 // TestMain points the host measurement lock at a private directory, so no
 // test in this package ever takes, or waits on, this host's real lock.
 func TestMain(m *testing.M) {
-	if os.Getenv(hostLockChildEnv) != "" || os.Getenv(admissionChildEnv) != "" || os.Getenv(inheritedResourceChildEnv) != "" {
-		os.Exit(m.Run())
+	for _, env := range testBinaryChildEnvs {
+		if os.Getenv(env) != "" {
+			os.Exit(m.Run())
+		}
 	}
 	// A caller may itself inherit a real host slot. Package tests must never
 	// borrow it accidentally: each test owns an isolated state root and opts

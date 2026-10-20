@@ -27,7 +27,7 @@ func TestExecuteReadinessCancelLetsGateCleanNestedGroup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("READINESS_NESTED_HELPER", "1")
+	t.Setenv(readinessNestedHelperEnv, "1")
 	t.Setenv("READINESS_NESTED_PID", pidFile)
 	t.Setenv("READINESS_TEST_BINARY", binary)
 	runner := filepath.Join(dir, "runner")
@@ -54,7 +54,7 @@ func TestExecuteReadinessCancelLetsGateCleanNestedGroup(t *testing.T) {
 
 func TestReadinessNestedGroupHelper(t *testing.T) {
 	t.Parallel()
-	if os.Getenv("READINESS_NESTED_HELPER") != "1" {
+	if os.Getenv(readinessNestedHelperEnv) != "1" {
 		return
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM)

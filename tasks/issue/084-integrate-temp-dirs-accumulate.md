@@ -45,7 +45,9 @@ from reading the code and has not been reproduced.
    base `wt` also stays registered in the target repository's
    `git worktree list`.
 
-## Reproduction (cause 1)
+## Reproduction
+
+Cause 1, observed on this host.
 
 Each case ran with `TMPDIR` set to its own empty directory, so no concurrent
 run could add entries:
@@ -83,6 +85,27 @@ worktree.
 - On an integrate signal, clean up through `withInterruptCancel`, together with
   ISSUE-82.
 - Consider reclaiming stale `gz-git-integrate-*` directories at startup.
+
+## Progress (2026-10-20)
+
+- Cause 1 fixed: `TestMain` skips the state-dir setup in every re-executed
+  helper child (`testBinaryChildEnvs`, `pkg/integrate/test_child_env_test.go`),
+  so a child that ends in `os.Exit` or a kill has nothing to leak.
+  `TestHelperChildLeavesNoStateDir` (Unix) runs the nested-group helper with
+  a private `TMPDIR`, stops it with SIGTERM and asserts that no
+  `gz-git-integrate-state-*` directory remains; it fails if the nested helper
+  is dropped from the list.
+- The signal path is covered by ISSUE-82: `integrate run` and `check` cancel
+  on SIGINT/SIGTERM, so the deferred cleanups run.
+- `gz-git-make-probe-*.mk` (`makeTargetMatchedByPatternRule`,
+  `pkg/integrate/check_make_pattern.go`) is removed by a `defer` on every
+  return. It is left only when the process ends abruptly: an unhandled
+  signal before ISSUE-82, a SIGKILL, or a test-binary timeout. Nine such
+  files, written 2026-10-20 01:17, were observed in this host's `$TMPDIR`.
+  Their producing run was not identified.
+- Open: reclaiming stale `gz-git-integrate-*` and `gz-git-make-probe-*`
+  entries at startup. It needs a liveness rule for concurrent runs that share
+  `$TMPDIR`, which is a design decision.
 
 ## Related
 

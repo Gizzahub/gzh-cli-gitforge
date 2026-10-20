@@ -24,7 +24,7 @@ func TestExecuteReadinessWaitDelayBoundsEscapedPipe(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("READINESS_TEST_BINARY", binary)
-	t.Setenv("READINESS_ESCAPE_HELPER", "1")
+	t.Setenv(readinessEscapeHelperEnv, "1")
 	t.Setenv("READINESS_ESCAPE_PID_FILE", pidFile)
 	runner := filepath.Join(dir, "runner")
 	body := "#!/bin/sh\n\"$READINESS_TEST_BINARY\" -test.run=TestReadinessEscapedPipeHelper &\nwait\n"
@@ -58,7 +58,7 @@ func TestExecuteReadinessWaitDelayBoundsEscapedPipe(t *testing.T) {
 
 func TestReadinessEscapedPipeHelper(t *testing.T) {
 	t.Parallel()
-	if os.Getenv("READINESS_ESCAPE_HELPER") != "1" {
+	if os.Getenv(readinessEscapeHelperEnv) != "1" {
 		return
 	}
 	if err := syscall.Setpgid(0, 0); err != nil {
