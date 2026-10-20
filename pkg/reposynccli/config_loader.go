@@ -81,6 +81,7 @@ type workspacesConfig struct {
 type workspaceEntry struct {
 	Path       string        `yaml:"path"`
 	Type       string        `yaml:"type"` // forge, git, config
+	URL        string        `yaml:"url"`  // clone URL of a git workspace
 	Profile    string        `yaml:"profile"`
 	Source     *forgeSource  `yaml:"source"`
 	Sync       *syncSettings `yaml:"sync"`
@@ -582,14 +583,14 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 		case "config":
 			repos, err = l.loadConfigWorkspace(ctx, wsPath)
 			if err != nil {
-				// Config workspace might not exist yet
+				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, err)
 				continue
 			}
 
 		default: // "git" or unspecified
-			repos, err = scanGitRepos(wsPath)
+			repos, err = loadGitWorkspace(name, ws, wsPath, configDir)
 			if err != nil {
-				// Workspace might not exist yet
+				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, err)
 				continue
 			}
 		}
@@ -772,81 +773,6 @@ func expandEnvVar(s string) string {
 		return os.Getenv(varName)
 	}
 	return os.ExpandEnv(s)
-}
-
-// scanGitRepos scans a directory for git repositories (depth 1).
-func scanGitRepos(dir string) ([]reposync.RepoSpec, error) {
-	root, err := safefs.OpenRoot(dir)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = root.Close() }()
-
-	entries, err := root.ReadDir(".")
-	if err != nil {
-		return nil, err
-	}
-
-	var repos []reposync.RepoSpec
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		// Skip hidden directories
-		if strings.HasPrefix(entry.Name(), ".") {
-			continue
-		}
-
-		repoRel := entry.Name()
-		repoPath := filepath.Join(dir, repoRel)
-
-		// Check if it's a git repository
-		repoRoot, err := root.OpenRoot(repoRel)
-		if err != nil {
-			continue
-		}
-		if info, err := repoRoot.Stat(".git"); err == nil && info.IsDir() {
-			// Get remote URL if available
-			remoteURL := getGitRemoteURLAt(repoRoot, ".")
-
-			repos = append(repos, reposync.RepoSpec{
-				Name:       entry.Name(),
-				TargetPath: repoPath,
-				CloneURL:   remoteURL,
-			})
-		}
-		_ = repoRoot.Close()
-	}
-
-	return repos, nil
-}
-
-func getGitRemoteURLAt(root *safefs.Root, repoRel string) string {
-	configPath := filepath.Join(repoRel, ".git", "config")
-	data, err := root.ReadFile(configPath)
-	if err != nil {
-		return ""
-	}
-
-	// Simple parsing to find [remote "origin"] url
-	lines := strings.Split(string(data), "\n")
-	inOrigin := false
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == `[remote "origin"]` {
-			inOrigin = true
-			continue
-		}
-		if inOrigin {
-			if strings.HasPrefix(line, "[") {
-				break
-			}
-			if after, ok := strings.CutPrefix(line, "url = "); ok {
-				return after
-			}
-		}
-	}
-	return ""
 }
 
 // loadParentProfiles recursively loads parent configs and merges profiles.

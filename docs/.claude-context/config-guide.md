@@ -187,7 +187,12 @@ workspaces:
 ### Workspace Types
 
 - **`type: config`**: Directory with config file (enables recursive nesting)
-- **`type: git`**: Plain Git repository (leaf node, no config)
+- **`type: git`**: Plain Git repository (leaf node, no config). `path` is the
+  checkout itself and `url` its clone URL; `workspace sync` and
+  `workspace status` both treat it as one repository, and status reports a
+  declared but uncloned path as unreachable. Status alone still scans the
+  direct subdirectories of a `path` that exists but is not a repository, and
+  of the config directory itself (`path: .`), which sync never plans.
 
 ### Discovery Modes
 
