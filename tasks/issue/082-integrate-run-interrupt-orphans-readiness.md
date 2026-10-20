@@ -36,7 +36,9 @@ on a signal. gz-git has a helper for that, `withInterruptCancel`
 register their own handlers (`clone.go:99`, `bulk_common.go:458` for
 `RunBulkWatch`, `watch.go:140`). `integrate run` uses none of them.
 
-## Reproduction (observed, not synthetic)
+## Reproduction
+
+Observed, not synthetic.
 
 gz-git 0.10.5, singlepageweb-devbox, 2026-10-20 (times UTC+9):
 
@@ -73,8 +75,8 @@ gz-git 0.10.5, singlepageweb-devbox, 2026-10-20 (times UTC+9):
   the `check_make` baseline worktree. That issue asks for a recovery path for an
   already-orphaned worktree. This issue asks that interruption not orphan
   anything in the first place.
-- [ISSUE-74](074-readiness-cleanup-leaves-registration.md) (registered on a
-  pending branch; the link resolves once it lands): readiness cleanup fails
+- ISSUE-74 (`074-readiness-cleanup-leaves-registration.md`, registered on a
+  pending branch; not yet on master): readiness cleanup fails
   after a READY verdict without any signal. Same workspace, different trigger.
 - singlepageweb-devbox `troubleshooting/2026-10-20/02-run-finish-interrupt-orphans.md`
   (consumer record of the manual recovery).
@@ -89,3 +91,50 @@ and the readiness root are gone. Keep the push and reclaim phases'
 interruption semantics explicit, since CE relies on gz-git finishing them.
 
 Registration only; no remediation is included here.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- `integrate run` and `integrate check` wrap their command context in
+  `withInterruptCancel`. SIGINT or SIGTERM cancels readiness and make
+  probes, so the existing paths run: `cmd.Cancel` →
+  `killReadinessProcess` (TERM, grace, KILL) stops the runner group,
+  `mergeCleanupError` unregisters both readiness worktrees on a detached
+  context, and `os.RemoveAll` (or the `preserveRoot` report) handles the
+  root. `integrate check` exits 2 with `integrate check interrupted`
+  instead of reporting the killed gate as `not ready`.
+- `integrate.Run` has an explicit intent boundary just before the receipt
+  (or, without an execution context, the push). Before it, a canceled
+  context returns `ErrInterrupted` ("interrupted before the target push"),
+  exit 2, and records no pre-mutation outcome: a killed gate is neither
+  ready nor rejected, and the outcome's v1 phases stay unchanged. From the
+  boundary on, `Run` continues on `context.WithoutCancel`, so the receipt,
+  the push, the local fast-forward and reclaim finish. `withInterruptCancel`
+  handles only the first signal; a second one terminates gz-git at once.
+  The `integrate run` help text states both halves. Only cancellation is
+  an interrupt: an expired caller deadline keeps its lock-wait or
+  readiness classification and its pre-mutation outcome
+  (`TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires`).
+- The baseline make probe (`baselineAgainstTarget`) removed its worktree
+  with the caller's context, so a cancellation left the
+  `gz-git-integrate-base-*` registration behind. It now uses
+  `removePreparedWorktree`, which detaches the context and verifies the
+  registration is gone.
+- Tests (Unix):
+  - `TestIntegrateRunInterruptStopsReadinessGroupAndRemovesWorkspace`
+    sends SIGINT to the test process while a blocking runner and its
+    background child run, then asserts exit 2 with `ErrInterrupted`, both
+    processes gone, the readiness root removed and unregistered, and the
+    target unmoved.
+  - `TestIntegrateRunInterruptDuringPushFinishesIntegration` holds the
+    target push in an origin `pre-receive` hook, sends SIGINT, releases
+    the hook, and asserts a successful run, the moved target and
+    `RECLAIMED`. Removing the `WithoutCancel` line makes it fail with a
+    killed `git push`.
+  - `TestCheckCancelDuringBaselineUnregistersBaselineWorktree` cancels
+    Check during the baseline probe; it failed before the
+    `check_make.go` change.
+- Not covered here: the cleanup error of the baseline worktree is still
+  discarded, as before. ISSUE-84 keeps the startup reclaim of
+  `gz-git-integrate-*` directories and the test-helper `os.Exit` scope.

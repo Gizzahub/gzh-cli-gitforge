@@ -43,9 +43,30 @@ type RunReport struct {
 	// target fast-forward of a ready check. Reclaim is outside it, and the
 	// target lock wait precedes it.
 	IntegrationDuration time.Duration
+	// pastIntent marks that the run crossed its intent boundary, after which
+	// cancellation no longer applies.
+	pastIntent bool
 }
 
 const preMutationOutcomeWriteTimeout = 5 * time.Second
+
+// ErrInterrupted reports that the caller's context was canceled, by a signal
+// or otherwise, before the run reached its intent boundary. Nothing was
+// pushed, and an interrupted readiness gate is no verdict, so no pre-mutation
+// outcome is recorded for it. An expired deadline is not an interrupt: it
+// keeps its lock-wait or readiness classification.
+var ErrInterrupted = errors.New("interrupted before the target push")
+
+func canceledByCaller(ctx context.Context) bool {
+	return errors.Is(ctx.Err(), context.Canceled)
+}
+
+func interruptedBeforePush(ctx context.Context, err error) error {
+	if err == nil {
+		return fmt.Errorf("%w: %w", ErrInterrupted, context.Cause(ctx))
+	}
+	return fmt.Errorf("%w: %w: %w", ErrInterrupted, context.Cause(ctx), err)
+}
 
 // recordCurrentPreMutationOutcome gives the evidence write a bounded context
 // after the caller's lock-wait context has expired. Reusing the canceled
@@ -107,6 +128,11 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	defer lock.release()
 	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
+	if canceledByCaller(ctx) {
+		// Readiness stopped its runner group and removed its workspace on the
+		// way out; a killed gate is neither ready nor rejected.
+		return &RunReport{Check: check}, interruptedBeforePush(ctx, err)
+	}
 	if err != nil {
 		report := &RunReport{Check: check}
 		if recordErr := recordPreMutationCheckFailure(ctx, opts, check, report, err); recordErr != nil {
@@ -114,7 +140,7 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 		return report, err
 	}
-	report, err := runChecked(ctx, exec, opts, check)
+	report, err := runCheckedInterruptible(ctx, exec, opts, check)
 	if err != nil && check != nil && !check.Ready {
 		outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
 		if recordErr != nil {
@@ -197,6 +223,16 @@ func unconfirmedIntegrationTargetError(name string) error {
 	return fmt.Errorf("integration target %s is inferred from the remote HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", name, name)
 }
 
+// runCheckedInterruptible names a cancellation that stopped runChecked before
+// its intent boundary; past the boundary the context no longer applies.
+func runCheckedInterruptible(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, check *CheckReport) (*RunReport, error) {
+	report, err := runChecked(ctx, exec, opts, check)
+	if err != nil && canceledByCaller(ctx) && report != nil && !report.pastIntent && !errors.Is(err, ErrInterrupted) {
+		err = interruptedBeforePush(ctx, err)
+	}
+	return report, err
+}
+
 // runChecked continues an integration from an immutable readiness report.
 // It deliberately revalidates source, target, and contract provenance before
 // any push or reclaim action.
@@ -262,6 +298,19 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		}
 		return report, err
 	}
+	// The intent boundary. Before it a canceled context stops the run; past
+	// it the receipt, the push, the local fast-forward and reclaim finish
+	// regardless, because CE relies on gz-git completing them once intent is
+	// durable. The CLI handles only the first signal, so a second one still
+	// terminates the process.
+	if canceledByCaller(ctx) {
+		return report, interruptedBeforePush(ctx, nil)
+	}
+	if ctx.Err() != nil {
+		return report, fmt.Errorf("before the target push: %w", context.Cause(ctx))
+	}
+	ctx = context.WithoutCancel(ctx)
+	report.pastIntent = true
 	// Intent is durable before the push: a crash past this point leaves
 	// evidence cleanup can reconcile against the remote, never folklore.
 	if opts.Execution != nil {

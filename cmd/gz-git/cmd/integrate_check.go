@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -71,7 +72,8 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}
-	ctx := cmdContext(cmd)
+	ctx, cancel := withInterruptCancel(cmdContext(cmd))
+	defer cancel()
 	dir, err := os.Getwd()
 	if err != nil {
 		return cliutil.NewExitError(cliutil.ExitToolError, err)
@@ -96,6 +98,18 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		LockWaitSet:        cmd.Flags().Changed("lock-wait"),
 		LockNotice:         cmd.ErrOrStderr(),
 	})
+	if errors.Is(ctx.Err(), context.Canceled) {
+		// A killed readiness gate is no verdict; never report it as not ready.
+		// The error carries a retained readiness path if cleanup failed.
+		interrupted := fmt.Errorf("integrate check interrupted: %w", context.Cause(ctx))
+		if err != nil {
+			interrupted = fmt.Errorf("%w: %w", interrupted, err)
+		}
+		if !quiet {
+			fmt.Fprintln(cmd.ErrOrStderr(), interrupted)
+		}
+		return cliutil.NewExitError(2, interrupted)
+	}
 	if err != nil {
 		msg := err.Error()
 		if errors.Is(err, integrate.ErrSourceMismatch) || errors.Is(err, integrate.ErrTargetMismatch) {

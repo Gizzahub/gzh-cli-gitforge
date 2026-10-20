@@ -726,7 +726,9 @@ func baselineAgainstTarget(ctx context.Context, g gitRepo, plan TargetPlan, prob
 	if err := g.worktreeAddDetach(ctx, wt, plan.TargetSHA); err != nil {
 		return BaselineResult{}, makeProbe{}, fmt.Errorf("cannot build baseline worktree: %w", err)
 	}
-	defer func() { _ = g.worktreeRemoveForce(ctx, wt) }()
+	// Cleanup runs on a detached context: an interrupt cancels ctx, and the
+	// registration must not outlive the canceled probe.
+	defer func() { _ = removePreparedWorktree(ctx, g, wt, "") }() //nolint:errcheck // best-effort, as before; ISSUE-47 owns recovery
 
 	// The baseline is measured in a worktree checked out fresh at the target
 	// SHA and bootstrapped by nothing. With no controller profile the branch

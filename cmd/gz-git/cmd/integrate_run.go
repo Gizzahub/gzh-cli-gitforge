@@ -87,6 +87,13 @@ may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
 does not prove that no push occurred, and a receipt of any phase prevents a
 negative outcome from being reused for that execution.
 
+SIGINT or SIGTERM before the intent boundary (the receipt, or the push
+without an execution context) stops the readiness runner's process group,
+removes the readiness workspace, records no pre-mutation outcome, and exits 2
+with "interrupted before the target push". Past that boundary a signal is
+ignored and the push, local fast-forward and reclaim finish; only the first
+signal is handled, so a second one terminates gz-git at once.
+
 Engine: gz-git-integrate (Go)
 
 Exit Codes:
@@ -147,7 +154,11 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}
-	ctx := cmdContext(cmd)
+	// A signal cancels readiness and make probes so they stop their process
+	// groups and remove their workspaces; integrate.Run ignores it past the
+	// intent boundary.
+	ctx, cancel := withInterruptCancel(cmdContext(cmd))
+	defer cancel()
 	dir, err := os.Getwd()
 	if err != nil {
 		return cliutil.NewExitError(cliutil.ExitToolError, err)
@@ -217,7 +228,7 @@ func integrateRunExitCode(report *integrate.RunReport, err error) int {
 		return cliutil.ExitReclaimIncomplete
 	case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
 		return cliutil.ExitSourceMismatch
-	case errors.Is(err, integrate.ErrHostLockWait):
+	case errors.Is(err, integrate.ErrHostLockWait), errors.Is(err, integrate.ErrInterrupted):
 		return 2
 	case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
 		return 1
