@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
@@ -20,11 +21,14 @@ import (
 type recursiveSyncOpts struct {
 	MaxDepth int
 	Visited  map[string]bool // absolute paths already processed
-	Out      io.Writer
-	Depth    int
-	Strategy string
-	Parallel int
-	DryRun   bool
+	// Enclosing holds the config directories of the root and of every child
+	// above the one being synced; a child never plans one of them (ISSUE-85).
+	Enclosing []string
+	Out       io.Writer
+	Depth     int
+	Strategy  string
+	Parallel  int
+	DryRun    bool
 }
 
 // syncChildWorkspaces scans succeeded execution results for child workspaces
@@ -96,7 +100,7 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 	// Plan from flat config
 	var allActions []reposync.Action
 	if len(cfgData.Plan.Input.Repos) > 0 {
-		flatActions := createActionsFromFlatConfig(cfgData.Plan, childDir)
+		flatActions := keepActionsOffEnclosingConfigDirs(createActionsFromFlatConfig(cfgData.Plan, childDir), opts.Enclosing, childDir, opts.Out)
 		allActions = append(allActions, flatActions...)
 	}
 
@@ -110,14 +114,14 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 		if err := config.LoadWorkspaces(childDir, recursiveCfg, config.HybridMode); err == nil {
 			// This is the post-execution recursion: child syncs always run for
 			// real here, so the planners keep writing child configs.
-			forgeActions, fErr := planForgeWorkspaces(ctx, recursiveCfg, opts.Out, opts.Strategy, false, false)
+			forgeActions, fErr := planForgeWorkspaces(ctx, recursiveCfg, opts.Enclosing, opts.Out, opts.Strategy, false, false)
 			if fErr != nil {
 				fmt.Fprintf(opts.Out, "  ⚠️  Failed to plan forge workspaces: %v\n", fErr)
 			} else {
-				allActions = append(allActions, forgeActions...)
+				allActions = append(allActions, keepActionsOffEnclosingConfigDirs(forgeActions, opts.Enclosing, childDir, opts.Out)...)
 			}
 
-			gitActions, gErr := planGitWorkspaces(ctx, recursiveCfg, childDir, opts.Out, opts.Strategy, false)
+			gitActions, gErr := planGitWorkspaces(ctx, recursiveCfg, childDir, opts.Enclosing, opts.Out, opts.Strategy, false)
 			if gErr != nil {
 				fmt.Fprintf(opts.Out, "  ⚠️  Failed to plan git workspaces: %v\n", gErr)
 			} else {
@@ -164,6 +168,7 @@ func runChildSync(ctx context.Context, childDir string, opts recursiveSyncOpts) 
 	// Continue recursion into deeper children
 	childOpts := opts
 	childOpts.Depth = opts.Depth + 1
+	childOpts.Enclosing = append(slices.Clone(opts.Enclosing), absPath)
 	syncChildWorkspaces(ctx, execResult, childOpts)
 }
 

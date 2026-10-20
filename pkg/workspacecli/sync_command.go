@@ -193,7 +193,7 @@ Config File Structure (Reference):
 				// Discover workspaces (Hybrid mode)
 				if err := config.LoadWorkspaces(configDir, recursiveCfg, config.HybridMode); err == nil {
 					// Get forge actions
-					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, planOut, strategy, fullOutput, dryRun)
+					forgeActions, err := planForgeWorkspaces(ctx, recursiveCfg, nil, planOut, strategy, fullOutput, dryRun)
 					if err != nil {
 						if planSpinnerProgram != nil {
 							planSpinnerProgram.Send(planDoneMsg{})
@@ -204,7 +204,7 @@ Config File Structure (Reference):
 					allActions = append(allActions, forgeActions...)
 
 					// Get git workspace actions (type=git with URL)
-					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, planOut, strategy, dryRun)
+					gitActions, err := planGitWorkspaces(ctx, recursiveCfg, configDir, nil, planOut, strategy, dryRun)
 					if err != nil {
 						if planSpinnerProgram != nil {
 							planSpinnerProgram.Send(planDoneMsg{})
@@ -441,13 +441,14 @@ Config File Structure (Reference):
 					absConfigDir = configDir
 				}
 				rOpts := recursiveSyncOpts{
-					MaxDepth: recursiveDepth,
-					Visited:  map[string]bool{absConfigDir: true},
-					Out:      out,
-					Depth:    0,
-					Strategy: strategy,
-					Parallel: runOpts.Parallel,
-					DryRun:   false,
+					MaxDepth:  recursiveDepth,
+					Visited:   map[string]bool{absConfigDir: true},
+					Enclosing: []string{absConfigDir},
+					Out:       out,
+					Depth:     0,
+					Strategy:  strategy,
+					Parallel:  runOpts.Parallel,
+					DryRun:    false,
 				}
 				syncChildWorkspaces(ctx, execResult, rOpts)
 			}
@@ -908,7 +909,7 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 }
 
 // planForgeWorkspaces generates actions from recursive config workspaces.
-func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer, strategyOverrideStr string, fullOutput, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // forge workspace planning requires handling many config combinations
+func planForgeWorkspaces(ctx context.Context, cfg *config.Config, enclosing []string, out io.Writer, strategyOverrideStr string, fullOutput, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // forge workspace planning requires handling many config combinations
 	workspaces := config.GetForgeWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -947,6 +948,10 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		// Skip workspaces that point to the config directory itself
 		if pointsAtConfigDir(wsPath, configDir) || effectivePath == "." {
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
+			continue
+		}
+		if reachesEnclosingConfigDir(wsPath, enclosing) {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' reaches an enclosing config directory\n", name, effectivePath)
 			continue
 		}
 
@@ -1138,7 +1143,7 @@ func effectiveForgeWorkspacePatterns(cfg *config.Config, ws *config.Workspace) (
 }
 
 // planGitWorkspaces generates actions from git workspaces (type=git with URL).
-func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, out io.Writer, strategyOverrideStr string, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // git workspace planning requires handling hooks, branches, strategies, and config inheritance
+func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string, enclosing []string, out io.Writer, strategyOverrideStr string, dryRun bool) ([]reposync.Action, error) { //nolint:gocognit,gocyclo // git workspace planning requires handling hooks, branches, strategies, and config inheritance
 	workspaces := config.GetGitWorkspaces(cfg)
 	if len(workspaces) == 0 {
 		return nil, nil
@@ -1171,6 +1176,10 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 		// This prevents accidental reset of the devbox/orchestrator directory
 		if pointsAtConfigDir(wsPath, configDir) || effectivePath == "." {
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
+			continue
+		}
+		if reachesEnclosingConfigDir(wsPath, enclosing) {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' reaches an enclosing config directory\n", name, effectivePath)
 			continue
 		}
 
@@ -1339,6 +1348,7 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 		}
 
 		childConfigPath := filepath.Join(wsPath, DefaultConfigFile)
+		enclosing := []string{configDir}
 
 		// Check if child config exists (should have been created by ensureChildConfigs/configLink)
 		if _, err := os.Stat(childConfigPath); os.IsNotExist(err) {
@@ -1368,7 +1378,7 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 				cfgData.Plan.Options.DefaultStrategy = reposync.StrategyPull
 			}
 
-			childActions := keepActionsOffConfigDir(createActionsFromFlatConfig(cfgData.Plan, wsPath), configDir, name, out)
+			childActions := keepActionsOffEnclosingConfigDirs(createActionsFromFlatConfig(cfgData.Plan, wsPath), enclosing, name, out)
 			if ws.Access.IsReadOnly() {
 				markActionsReadOnly(childActions)
 			}
@@ -1388,20 +1398,20 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 
 		if childRecursiveCfg != nil {
 			if err := config.LoadWorkspaces(wsPath, childRecursiveCfg, config.HybridMode); err == nil {
-				forgeActions, fErr := planForgeWorkspaces(ctx, childRecursiveCfg, out, strategyOverrideStr, false, dryRun)
+				forgeActions, fErr := planForgeWorkspaces(ctx, childRecursiveCfg, enclosing, out, strategyOverrideStr, false, dryRun)
 				if fErr != nil {
 					return nil, fmt.Errorf("failed to plan forge workspaces in '%s': %w", name, fErr)
 				}
+				forgeActions = keepActionsOffEnclosingConfigDirs(forgeActions, enclosing, name, out)
 				if ws.Access.IsReadOnly() {
 					markActionsReadOnly(forgeActions)
 				}
 				allActions = append(allActions, forgeActions...)
 
-				gitActions, gErr := planGitWorkspaces(ctx, childRecursiveCfg, wsPath, out, strategyOverrideStr, dryRun)
+				gitActions, gErr := planGitWorkspaces(ctx, childRecursiveCfg, wsPath, enclosing, out, strategyOverrideStr, dryRun)
 				if gErr != nil {
 					return nil, fmt.Errorf("failed to plan git workspaces in '%s': %w", name, gErr)
 				}
-				gitActions = keepActionsOffConfigDir(gitActions, configDir, name, out)
 				if ws.Access.IsReadOnly() {
 					markActionsReadOnly(gitActions)
 				}

@@ -38,31 +38,56 @@ the CLI path (`gz-git workspace sync --dry-run`) was not run.
 
 ## Resolution
 
-Resolved on 2026-10-20.
+Resolved on 2026-10-20 and revised on 2026-10-21 after the independent
+review found that the first fix (d3eb76be) filtered after planning and
+missed two paths.
 
-- `planConfigWorkspacesWithDryRun` passes the child's flat-repository and
-  git-workspace actions through `keepActionsOffConfigDir`
-  (`pkg/workspacecli/self_sync_guard.go`). It drops any action whose target
-  reaches the root config directory, by the same `pointsAtConfigDir` check,
-  and prints
-  `Skipping '<repo>' in workspace '<child>': path '<target>' points to config directory`.
-  A target is resolved the way the executor resolves it.
-- Forge actions are not filtered: a forge workspace plans its repositories
-  under its own path, so no forge action's target is the workspace
-  directory itself, and the child's forge guard already compares the
-  workspace path.
-- Test: `TestConfigPlannerSkipsChildEntriesReachingConfigDir` covers a child
-  git workspace at `..`, a child git workspace at a symlink to the root, and
-  a child `repositories:` entry at that symlink; each keeps only the sibling
-  `member` and prints the warning.
-- Mutation evidence, from a scratch copy: removing the flat-repository
-  filter fails the `repositories` case, and removing the git-workspace
-  filter fails both git cases.
+- Each enclosing config directory is now refused where the child is
+  planned, before any hook, configLink or config write runs. The forge and
+  git planners take the config directories of the workspaces that recursed
+  into the one being planned (`enclosing`) and skip a workspace whose path
+  is one of them or an ancestor of one, with
+  `Skipping workspace '<name>': path '<path>' reaches an enclosing config directory`
+  (`reachesEnclosingConfigDir`, `pkg/workspacecli/self_sync_guard.go`).
+  Ancestors are refused because a forge workspace there plans orphan
+  deletes among its subdirectories, one of which holds the devbox.
+- Per-repository targets go through `keepActionsOffEnclosingConfigDirs`: a
+  child's `repositories:` entries, and a child's forge repositories and
+  orphan deletes, whose target is an enclosing config directory or an
+  ancestor of one.
+- Both recursion paths pass `enclosing`: `planConfigWorkspacesWithDryRun`
+  (the planning-time recursion) passes the root config directory, and
+  `runChildSync` (the `--recursive` sync after execution) passes the root
+  plus every child above the one being synced (`recursiveSyncOpts.Enclosing`).
+- The root config is planned with no enclosing directories, so root-level
+  behaviour is unchanged.
+- Tests (`pkg/workspacecli/self_sync_guard_test.go`):
+  - `TestReachesEnclosingConfigDir`: the enclosing dir, a symlink to it, an
+    enclosing dir named through a symlink, and an ancestor are refused; a
+    descendant, a sibling, and no enclosing dirs are not.
+  - `TestConfigPlannerSkipsChildEntriesReachingConfigDir`: a child git
+    workspace at `..`, at a symlink to the root, and at `../..`; a child
+    forge workspace at `..`; and a child `repositories:` entry at the
+    symlink. Each keeps only the sibling `member` and prints the warning.
+  - `TestConfigPlannerSkipsChildWorkspaceBeforeConfigLink`: in a real
+    (non-dry) run, a child git workspace at `..` with a configLink leaves the
+    root config untouched.
+  - `TestRunChildSyncSkipsWorkspaceReachingEnclosingConfigDir`: the
+    `--recursive` child sync skips a child git workspace at `..`.
+  - `TestKeepActionsOffEnclosingConfigDirs`: the per-repository filter
+    drops a target that is the devbox or its parent and keeps a sibling.
+- Mutation evidence, from the task worktree with each file restored after:
+  ignoring `enclosing` in the workspace guards, dropping the ancestor walk,
+  passing no `enclosing` from `runChildSync` to the git planner, and passing
+  none to the child flat filter each fail the tests.
+- Not covered by a test: the call that filters a child's forge actions.
+  No test seam stubs a forge provider, so removing that call passes; the
+  filter itself is covered directly.
 
-## Observation, not investigated
+## Follow-up
 
-A child config's `repositories:` entry with a relative `path` keeps it
-unresolved (`TargetPath: ".."`), and `filepath.Abs` resolves it against the
-process working directory, not the child directory. Whether the executor
-places such repositories relative to the child is not checked here; it is a
-candidate for a separate card.
+- [ISSUE-86](086-flat-repository-paths-resolve-against-cwd.md): a relative
+  `repositories:` path is placed relative to the process working directory,
+  not the config that lists it.
+- [ISSUE-87](087-root-forge-workspace-reaches-devbox.md): a root forge
+  workspace at an ancestor of the devbox can reset or delete the devbox.
