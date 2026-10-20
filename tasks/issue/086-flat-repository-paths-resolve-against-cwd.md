@@ -26,7 +26,18 @@ Derived from the code; not run end to end. A root devbox with
 `child/.gz-git.yaml` with `repositories: [{name: lib, url: <url>}]`. Run
 `gz-git workspace sync` from the root: the child's planned action has
 `TargetPath: "lib"`, so `lib` is cloned into the root, not into `child/`.
-The same holds for a root config synced from another directory.
+The same holds for a root config synced from another directory, and for
+the `--recursive` sync after execution (`runChildSync`,
+`pkg/workspacecli/sync_recursive.go`), which builds the child's flat
+actions the same way.
+
+## Fix note
+
+The per-repository guard (`keepActionsOffEnclosingConfigDirs`,
+`pkg/workspacecli/self_sync_guard.go`) resolves a relative target against
+the working directory on purpose, as the executor does. Rebase the paths
+once in the loader, not in the executor alone, or the guard and the
+executor will disagree about where a path points.
 
 ## Expected vs Actual
 

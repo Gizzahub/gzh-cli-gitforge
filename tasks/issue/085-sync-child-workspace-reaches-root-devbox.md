@@ -51,6 +51,11 @@ missed two paths.
   (`reachesEnclosingConfigDir`, `pkg/workspacecli/self_sync_guard.go`).
   Ancestors are refused because a forge workspace there plans orphan
   deletes among its subdirectories, one of which holds the devbox.
+- Behaviour change for child configs: an entry at any ancestor of an
+  enclosing config directory, such as `~` or the folder holding the devbox,
+  is now refused. When the devbox is named through a symlink, the directory
+  holding that symlink is refused too. Siblings and descendants are still
+  planned.
 - Per-repository targets go through `keepActionsOffEnclosingConfigDirs`: a
   child's `repositories:` entries, and a child's forge repositories and
   orphan deletes, whose target is an enclosing config directory or an
@@ -72,17 +77,24 @@ missed two paths.
   - `TestConfigPlannerSkipsChildWorkspaceBeforeConfigLink`: in a real
     (non-dry) run, a child git workspace at `..` with a configLink leaves the
     root config untouched.
-  - `TestRunChildSyncSkipsWorkspaceReachingEnclosingConfigDir`: the
-    `--recursive` child sync skips a child git workspace at `..`.
+  - `TestRunChildSyncSkipsEntriesReachingEnclosingConfigDir`: the
+    `--recursive` child sync skips a child git workspace at `..`, a child
+    forge workspace at `..`, and a `repositories:` entry at the root.
+  - `TestRunChildSyncPassesItsDirToGrandchildren`: a child that clones a
+    grandchild from a local origin passes its own directory down, so the
+    grandchild's workspace at `..` is skipped.
   - `TestKeepActionsOffEnclosingConfigDirs`: the per-repository filter
     drops a target that is the devbox or its parent and keeps a sibling.
 - Mutation evidence, from the task worktree with each file restored after:
   ignoring `enclosing` in the workspace guards, dropping the ancestor walk,
   passing no `enclosing` from `runChildSync` to the git planner, and passing
-  none to the child flat filter each fail the tests.
-- Not covered by a test: the call that filters a child's forge actions.
-  No test seam stubs a forge provider, so removing that call passes; the
-  filter itself is covered directly.
+  none to the child flat filter each fail the tests. After the second
+  review, passing none from `runChildSync` to its flat filter or to the
+  forge planner, and not appending the child to `Enclosing` for its
+  grandchildren, also fail the tests.
+- Not covered by a test: the calls that filter a child's forge actions
+  after planning. No test seam stubs a forge provider, so removing them
+  passes; the filter itself is covered directly.
 
 ## Follow-up
 
@@ -91,3 +103,5 @@ missed two paths.
   not the config that lists it.
 - [ISSUE-87](087-root-forge-workspace-reaches-devbox.md): a root forge
   workspace at an ancestor of the devbox can reset or delete the devbox.
+- [ISSUE-88](088-root-config-link-replaces-own-config.md): a root workspace
+  at the devbox with a configLink replaces the devbox's own config.

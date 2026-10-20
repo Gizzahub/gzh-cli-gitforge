@@ -34,7 +34,7 @@ stub and a real provider needs network. A root devbox `devbox/` whose
 `.gz-git.yaml` has
 `workspaces: {org: {path: .., source: {provider: <p>, org: <o>}, sync: {cleanupOrphans: true}}}`
 where `<o>` has no repository named `devbox`: the plan includes a delete of
-`../devbox`, the devbox itself.
+`<parent>/devbox`, the absolute path of the devbox itself.
 
 ## Expected vs Actual
 

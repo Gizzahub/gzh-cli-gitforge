@@ -300,17 +300,64 @@ func TestConfigPlannerSkipsChildWorkspaceBeforeConfigLink(t *testing.T) {
 	}
 }
 
-// TestRunChildSyncSkipsWorkspaceReachingEnclosingConfigDir covers the
+// TestRunChildSyncSkipsEntriesReachingEnclosingConfigDir covers the
 // post-execution recursion of ISSUE-85: a child synced after the root run
-// does not plan its workspace that reaches the root devbox.
-func TestRunChildSyncSkipsWorkspaceReachingEnclosingConfigDir(t *testing.T) {
+// does not plan a git workspace, a forge workspace or a repositories entry
+// that reaches the root devbox.
+func TestRunChildSyncSkipsEntriesReachingEnclosingConfigDir(t *testing.T) {
 	f := childWorkspaceFixture(t)
 	configDir, child, deadOrigin := f.configDir, f.child, f.deadOrigin
-	childConfig := "workspaces:\n  up:\n    type: git\n    path: ..\n    url: " + deadOrigin + "\n"
+
+	for _, tc := range []struct{ name, childConfig, warning string }{
+		{"git workspace dot-dot", "workspaces:\n  up:\n    type: git\n    path: ..\n    url: " + deadOrigin + "\n", "Skipping workspace 'up'"},
+		// The guard runs before the forge provider is created, so no network
+		// is reached.
+		{"forge workspace dot-dot", "workspaces:\n  up:\n    path: ..\n    source:\n      provider: gitlab\n      org: self\n", "Skipping workspace 'up'"},
+		{"repositories absolute", "repositories:\n  - name: up\n    url: " + deadOrigin + "\n    path: " + configDir + "\n", "Skipping 'up' in workspace '" + child + "'"},
+	} {
+		if err := os.WriteFile(filepath.Join(child, DefaultConfigFile), []byte(tc.childConfig), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		runChildSync(context.Background(), child, recursiveSyncOpts{
+			MaxDepth:  3,
+			Visited:   map[string]bool{configDir: true},
+			Enclosing: []string{configDir},
+			Out:       &out,
+		})
+		if !strings.Contains(out.String(), tc.warning) {
+			t.Errorf("%s: output lacks the enclosing-config warning:\n%s", tc.name, out.String())
+		}
+		if !strings.Contains(out.String(), "No repositories found in child workspace.") {
+			t.Errorf("%s: child sync planned an action for the devbox:\n%s", tc.name, out.String())
+		}
+	}
+}
+
+// TestRunChildSyncPassesItsDirToGrandchildren covers the depth-2 case of
+// ISSUE-85: child A clones grandchild B, and B's workspace at `..`, which is
+// A, is refused because A is passed down as an enclosing config directory.
+func TestRunChildSyncPassesItsDirToGrandchildren(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	f := childWorkspaceFixture(t)
+	configDir, child, deadOrigin := f.configDir, f.child, f.deadOrigin
+
+	seed := t.TempDir()
+	runGit(t, seed, "init", "-q")
+	grandchildConfig := "workspaces:\n  up:\n    type: git\n    path: ..\n    url: " + deadOrigin + "\n"
+	if err := os.WriteFile(filepath.Join(seed, DefaultConfigFile), []byte(grandchildConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, seed, "add", DefaultConfigFile)
+	runGit(t, seed, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "seed")
+	origin := filepath.Join(t.TempDir(), "b.git")
+	runGit(t, seed, "clone", "-q", "--bare", seed, origin)
+
+	childConfig := "workspaces:\n  b:\n    type: git\n    path: b\n    url: " + origin + "\n"
 	if err := os.WriteFile(filepath.Join(child, DefaultConfigFile), []byte(childConfig), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
 	var out bytes.Buffer
 	runChildSync(context.Background(), child, recursiveSyncOpts{
 		MaxDepth:  3,
@@ -318,10 +365,10 @@ func TestRunChildSyncSkipsWorkspaceReachingEnclosingConfigDir(t *testing.T) {
 		Enclosing: []string{configDir},
 		Out:       &out,
 	})
-	if !strings.Contains(out.String(), "Skipping workspace 'up'") {
-		t.Errorf("output lacks the enclosing-config warning:\n%s", out.String())
+	if !strings.Contains(out.String(), "Syncing child workspace: "+filepath.Join(child, "b")) {
+		t.Fatalf("grandchild was not synced:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "No repositories found in child workspace.") {
-		t.Errorf("child sync planned an action for the devbox:\n%s", out.String())
+	if !strings.Contains(out.String(), "Skipping workspace 'up'") {
+		t.Errorf("grandchild planned its workspace at the child:\n%s", out.String())
 	}
 }
