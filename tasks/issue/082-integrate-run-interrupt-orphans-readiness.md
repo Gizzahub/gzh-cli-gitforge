@@ -138,6 +138,10 @@ Resolved on 2026-10-20.
   - `TestCheckCancelDuringBaselineUnregistersBaselineWorktree` cancels
     Check during the baseline probe; it failed before the
     `check_make.go` change.
+- The parity goldens `doctor-active` and `discard-no-fetch` embed the
+  `integrate run --help` text through CE's doctor diagnostics, so they were
+  re-recorded against the same CE (`f66d06c1`). The only difference is the
+  new help paragraph.
 - Not covered here: the cleanup error of the baseline worktree is still
   discarded, as before. ISSUE-84 keeps the startup reclaim of
   `gz-git-integrate-*` directories and the test-helper `os.Exit` scope.
