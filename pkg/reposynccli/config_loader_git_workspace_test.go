@@ -5,6 +5,8 @@ package reposynccli
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -93,16 +95,51 @@ func TestGitWorkspaceMissingPath(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "no git repositories found in workspaces") {
 		t.Fatalf("Load without url = %v, want the empty-plan error", err)
 	}
-	if _, err := loadGitWorkspace("engine", &workspaceEntry{}, missing, configDir); err == nil ||
-		!strings.Contains(err.Error(), "does not exist and the workspace declares no url") {
-		t.Fatalf("loadGitWorkspace without url = %v, want the missing-path error", err)
+	if _, err := loadGitWorkspace("engine", &workspaceEntry{}, missing, configDir); err == nil {
+		t.Fatal("loadGitWorkspace without url on a missing path = nil error, want it reported")
+	}
+}
+
+// A path that cannot be read is reported, not taken for an empty one.
+func TestGitWorkspaceUnreadablePathIsReported(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a mode 000 directory")
+	}
+	locked := filepath.Join(t.TempDir(), "locked")
+	if err := os.Mkdir(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	ws := &workspaceEntry{URL: "git@example.com:team/engine.git"}
+	repos, err := loadGitWorkspace("engine", ws, filepath.Join(locked, "engine"), t.TempDir())
+	if err == nil || !errors.Is(err, fs.ErrPermission) {
+		t.Fatalf("loadGitWorkspace = %+v, %v; want a permission error", repos, err)
+	}
+}
+
+// Sync plans no type: git workspace without a url, so status keeps reading
+// such a path as a parent directory, as it always has.
+func TestGitWorkspaceWithoutURLKeepsScan(t *testing.T) {
+	configDir := t.TempDir()
+	clone := filepath.Join(t.TempDir(), "devbox")
+	mkGitDir(t, clone)
+	mkGitDir(t, filepath.Join(clone, "child"))
+
+	repos, err := loadGitWorkspaceConfig(t, configDir, "workspaces:\n"+
+		"  devbox:\n    type: git\n    path: "+clone+"\n")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(repos) != 1 || repos[0].Name != "child" {
+		t.Fatalf("repos = %+v, want the scanned child", repos)
 	}
 }
 
 // A directory that is not a repository keeps the parent-directory scan, and
-// so does the config directory itself even when it is a checkout: a devbox
-// whose `path: .` workspace lists its member clones must not collapse into
-// the devbox repository.
+// so does the config directory itself even when it is a checkout, however
+// its path is spelled: a devbox whose `path: .` workspace lists its member
+// clones must not collapse into the devbox repository.
 func TestGitWorkspaceKeepsParentDirectoryScan(t *testing.T) {
 	configDir := t.TempDir()
 	mkGitDir(t, configDir)
@@ -110,10 +147,15 @@ func TestGitWorkspaceKeepsParentDirectoryScan(t *testing.T) {
 	parent := filepath.Join(t.TempDir(), "repos")
 	mkGitDir(t, filepath.Join(parent, "alpha"))
 	mkGitDir(t, filepath.Join(parent, "beta"))
+	link := filepath.Join(t.TempDir(), "devbox-link")
+	if err := os.Symlink(configDir, link); err != nil {
+		t.Fatal(err)
+	}
 
 	repos, err := loadGitWorkspaceConfig(t, configDir, "workspaces:\n"+
 		"  self:\n    path: .\n"+
-		"  parent:\n    type: git\n    path: "+parent+"\n")
+		"  linked:\n    type: git\n    path: "+link+"\n    url: git@example.com:team/devbox.git\n"+
+		"  parent:\n    type: git\n    path: "+parent+"\n    url: git@example.com:team/repos.git\n")
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -121,7 +163,7 @@ func TestGitWorkspaceKeepsParentDirectoryScan(t *testing.T) {
 	for _, r := range repos {
 		names = append(names, r.Name)
 	}
-	if got := strings.Join(names, ","); got != "alpha,beta,member" {
-		t.Fatalf("repo names = %s, want alpha,beta,member", got)
+	if got := strings.Join(names, ","); got != "alpha,beta,member,member" {
+		t.Fatalf("repo names = %s, want alpha,beta,member,member", got)
 	}
 }

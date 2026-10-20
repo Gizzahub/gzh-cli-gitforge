@@ -5,7 +5,6 @@ package reposynccli
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,56 +15,50 @@ import (
 )
 
 // loadGitWorkspace resolves a `type: git` workspace the way workspace sync
-// plans it: the path is the checkout of one repository, named after the
-// workspace and cloned from its declared url.
+// plans it: a workspace that declares a url is the checkout of one
+// repository at its path, named after the workspace.
 //
-// Two shapes keep the depth-1 scan of the path's subdirectories. The config
-// directory itself, which sync refuses to plan as a repository, so a devbox
-// whose `path: .` workspace lists its member checkouts still does. And an
-// existing directory that is not a repository, the parent-directory form
-// this loader has always accepted.
+// Every other shape keeps the depth-1 scan of the path's subdirectories, as
+// sync plans none of them: a workspace without a url, the config directory
+// itself (so a devbox whose `path: .` workspace lists its member checkouts
+// still does), and an existing directory that is not a repository.
 //
-// A path that does not exist is still one repository when the workspace
-// declares a url, as sync would clone it there; status then reports it as
-// unreachable instead of dropping it. Without a url, and for any path that
-// cannot be read, the error is returned for the caller to report.
+// A declared path that does not exist is still one repository, as sync
+// would clone it there; status then reports it as unreachable instead of
+// dropping it. A path that cannot be read is returned as an error for the
+// caller to report.
 func loadGitWorkspace(name string, ws *workspaceEntry, wsPath, configDir string) ([]reposync.RepoSpec, error) {
-	if filepath.Clean(wsPath) == filepath.Clean(configDir) {
+	if ws.URL == "" || sameDir(wsPath, configDir) {
 		return scanGitRepos(wsPath)
 	}
-	_, err := os.Stat(filepath.Join(wsPath, ".git"))
-	switch {
-	case err == nil:
-		// .git is a directory in a clone and a file in a linked worktree;
-		// either way the path is a checkout.
-		url := ws.URL
-		if url == "" {
-			url = gitRemoteURL(wsPath)
-		}
-		return []reposync.RepoSpec{{Name: name, TargetPath: wsPath, CloneURL: url}}, nil
-	case !errors.Is(err, fs.ErrNotExist):
-		return nil, fmt.Errorf("stat %s: %w", filepath.Join(wsPath, ".git"), err)
+	one := []reposync.RepoSpec{{Name: name, TargetPath: wsPath, CloneURL: ws.URL}}
+	// .git is a directory in a clone and a file in a linked worktree;
+	// either way the path is a checkout.
+	if _, err := os.Stat(filepath.Join(wsPath, ".git")); err == nil {
+		return one, nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
 	}
 	if _, err := os.Stat(wsPath); errors.Is(err, fs.ErrNotExist) {
-		if ws.URL == "" {
-			return nil, fmt.Errorf("path %s does not exist and the workspace declares no url", wsPath)
-		}
-		return []reposync.RepoSpec{{Name: name, TargetPath: wsPath, CloneURL: ws.URL}}, nil
+		return one, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("stat %s: %w", wsPath, err)
+		return nil, err
 	}
 	return scanGitRepos(wsPath)
 }
 
-// gitRemoteURL reads the origin URL of the checkout at path, or returns ""
-// when it has none or its config cannot be read through the path's root.
-func gitRemoteURL(path string) string {
-	root, err := safefs.OpenRoot(path)
+// sameDir reports whether a and b name the same existing directory, however
+// each is spelled: relative, with a trailing slash, or through a symlink.
+func sameDir(a, b string) bool {
+	ai, err := os.Stat(a)
 	if err != nil {
-		return ""
+		return false
 	}
-	defer func() { _ = root.Close() }()
-	return getGitRemoteURLAt(root, ".")
+	bi, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(ai, bi)
 }
 
 // scanGitRepos scans a directory for git repositories (depth 1).
