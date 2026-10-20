@@ -16,11 +16,11 @@ The macOS user temp dir (`$TMPDIR`) on the mbp host had 223 leftover
 They were left by integrate runs and by package tests, and nothing reclaims
 them later.
 
-| Prefix | Count | Size | Created by |
-|---|---|---|---|
-| `gz-git-integrate-state-*` | 218 (mostly empty) | small | `TestMain`, `pkg/integrate/measurement_lock_test.go:49` |
-| `gz-git-integrate-prepare-*` | 4 (2026-10-18) | 17 GB, 1.9 GB, 24 MB, 24 MB | `pkg/integrate/prepare.go:137`, `:205` |
-| `gz-git-integrate-base-*` | 1 (2026-10-20 13:33) | 190 MB, `wt` still registered as a git worktree | `baselineAgainstTarget`, `pkg/integrate/check_make.go:720` |
+| Prefix                       | Count                | Size                                            | Created by                                                 |
+| ---------------------------- | -------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| `gz-git-integrate-state-*`   | 218 (mostly empty)   | small                                           | `TestMain`, `pkg/integrate/measurement_lock_test.go:49`    |
+| `gz-git-integrate-prepare-*` | 4 (2026-10-18)       | 17 GB, 1.9 GB, 24 MB, 24 MB                     | `pkg/integrate/prepare.go:137`, `:205`                     |
+| `gz-git-integrate-base-*`    | 1 (2026-10-20 13:33) | 190 MB, `wt` still registered as a git worktree | `baselineAgainstTarget`, `pkg/integrate/check_make.go:720` |
 
 No gz-git process was running when this inventory was taken, so none of these
 directories belonged to a live run.
@@ -35,7 +35,7 @@ directories belonged to a live run.
    (`readiness_waitdelay_unix_test.go:64-71`). Every such child therefore
    leaves one state dir behind. A suite that is killed, or a `go test -timeout`
    panic, leaks the parent's state dir the same way.
-2. **Prepare and base dirs on abnormal exit.** Normal returns clean up through
+1. **Prepare and base dirs on abnormal exit.** Normal returns clean up through
    `defer os.RemoveAll(root)` and `worktreeRemoveForce`. A signal or kill skips
    those defers, which is the same mechanism as
    [ISSUE-82](082-integrate-run-interrupt-orphans-readiness.md). The leaked
