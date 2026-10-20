@@ -32,6 +32,9 @@ V1 comparison for failures without file:line diagnostics.
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
 
+[Refresh under target lock](integrate-refresh-under-target-lock.md) explains the
+opt-in rebase of a stale task branch while `integrate run` holds the target lock.
+
 [Release promotion](integrate-release.md) explains how `--release` judges a
 remote-tracking integration ref as the source.
 

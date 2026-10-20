@@ -104,6 +104,30 @@ func TestIntegrateRunExplicitEmptyExpectedTargetExitsTwoBeforeEngine(t *testing.
 	}
 }
 
+func TestIntegrateRunRefreshUnderTargetLockRejectsPinnedTargetsBeforeEngine(t *testing.T) {
+	for _, args := range [][]string{
+		{"--refresh-under-target-lock", "--expect-target=0123456789abcdef0123456789abcdef01234567"},
+		{"--refresh-under-target-lock", "--expect-source=0123456789abcdef0123456789abcdef01234567"},
+		{"--refresh-under-target-lock", "--release"},
+	} {
+		t.Run(args[1], func(t *testing.T) {
+			restore := setIntegrateRunGlobals(t)
+			defer restore()
+			if err := integrateRunCmd.ParseFlags(args); err != nil {
+				t.Fatalf("ParseFlags(%v) = %v", args, err)
+			}
+			t.Chdir(t.TempDir())
+			err := runIntegrateRun(integrateRunCmd, nil)
+			if got := cliutil.ExitCodeForError(err); got != 2 {
+				t.Fatalf("exit code = %d, want 2; err=%v", got, err)
+			}
+			if err == nil || !strings.Contains(err.Error(), "--refresh-under-target-lock cannot be combined") {
+				t.Fatalf("error = %v, want usage rejection", err)
+			}
+		})
+	}
+}
+
 func TestIntegrateRunPushSucceededLocalTargetFailedExitsThree(t *testing.T) {
 	restore := setIntegrateRunGlobals(t)
 	defer restore()
@@ -153,6 +177,7 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	origNoFetch := integrateRunNoFetch
 	origExpectSource := integrateRunExpectSource
 	origExpectTarget := integrateRunExpectTarget
+	origRefresh := integrateRunRefresh
 	origExpectTargetChanged := integrateRunCmd.Flags().Lookup("expect-target").Changed
 	origQuiet := quiet
 	integrateRunTarget = ""
@@ -163,6 +188,7 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	integrateRunNoFetch = false
 	integrateRunExpectSource = ""
 	integrateRunExpectTarget = ""
+	integrateRunRefresh = false
 	integrateRunCmd.Flags().Lookup("expect-target").Changed = false
 	quiet = false
 	return func() {
@@ -174,6 +200,7 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 		integrateRunNoFetch = origNoFetch
 		integrateRunExpectSource = origExpectSource
 		integrateRunExpectTarget = origExpectTarget
+		integrateRunRefresh = origRefresh
 		integrateRunCmd.Flags().Lookup("expect-target").Changed = origExpectTargetChanged
 		quiet = origQuiet
 	}

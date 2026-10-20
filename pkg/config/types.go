@@ -272,6 +272,12 @@ type BranchConfig struct {
 	// PrepareHighLoad opts only declared preparation subprocesses into the host resource slot.
 	PrepareHighLoad bool `yaml:"prepareHighLoad,omitempty" json:"prepareHighLoad,omitempty"`
 
+	// RefreshUnderTargetLock opts into ADR-0003: a stale, clean, pushed task
+	// branch is rebased onto the target while integration holds the target
+	// lock. It is read only from the target commit's root declaration and
+	// takes effect only when the caller also passes --refresh-under-target-lock.
+	RefreshUnderTargetLock bool `yaml:"refreshUnderTargetLock,omitempty" json:"refreshUnderTargetLock,omitempty"`
+
 	// LockWait bounds a single high-load host-slot acquisition. It is read
 	// only from the repository-root declaration; "0" and "unbounded" mean
 	// unbounded, while an omitted key uses the command default.

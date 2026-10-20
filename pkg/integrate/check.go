@@ -156,6 +156,12 @@ type CheckReport struct {
 	// protocol data.
 	ReadinessFailures []ReadinessFailure
 	Controller        *controllerBinding
+	// StaleBase is set when freshness failed only because the source is
+	// behind the target tip, and TargetMovedAfterGates when every gate
+	// passed and only the target moved before READY. Run may refresh the
+	// task branch for either (ADR-0003); no other failure qualifies.
+	StaleBase             bool
+	TargetMovedAfterGates bool
 }
 
 // terminationRequestRecorder observes the Cmd.Cancel callback rather than
@@ -313,9 +319,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	}
 	addIntegrationTargetWarning(plan, add)
 
-	freshness := checkFreshness(ctx, g, plan)
+	freshness, behind := checkFreshness(ctx, g, plan)
 	add(freshness)
 	if freshness.Status == checkFail {
+		report.StaleBase = behind
 		// Freshness is a cheap prerequisite for every measurement below. Do
 		// not execute repository-owned readiness, preparation, or Make code
 		// against a source that cannot be integrated until it is refreshed.
@@ -352,6 +359,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 		if opts.ExpectTarget != "" && errors.Is(err, ErrTargetMismatch) {
 			return report, err
 		}
+		report.TargetMovedAfterGates = report.Failures == 0 && errors.Is(err, errTargetMovedDuringReadiness)
 		add(CheckItem{Name: "post-gate freshness", Status: checkFail, Detail: err.Error()})
 	} else {
 		add(CheckItem{Name: "post-gate freshness", Status: checkPass, Detail: "source and target unchanged"})
@@ -637,19 +645,21 @@ func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) 
 	return controller, nil
 }
 
-func checkFreshness(ctx context.Context, g gitRepo, plan TargetPlan) CheckItem {
+// checkFreshness also reports whether a failure means only that the source
+// is behind the target, as opposed to an unreadable history.
+func checkFreshness(ctx context.Context, g gitRepo, plan TargetPlan) (CheckItem, bool) {
 	mb, err := g.mergeBase(ctx, plan.BranchSHA, plan.TargetSHA)
 	if err != nil {
-		return CheckItem{Name: "freshness", Status: checkFail, Detail: err.Error()}
+		return CheckItem{Name: "freshness", Status: checkFail, Detail: err.Error()}, false
 	}
 	if mb == plan.TargetSHA {
-		return CheckItem{Name: "freshness", Status: checkPass, Detail: "based on " + plan.Target + " tip"}
+		return CheckItem{Name: "freshness", Status: checkPass, Detail: "based on " + plan.Target + " tip"}, false
 	}
 	n, err := g.revCount(ctx, mb+".."+plan.TargetSHA)
 	if err != nil {
-		return CheckItem{Name: "freshness", Status: checkFail, Detail: err.Error()}
+		return CheckItem{Name: "freshness", Status: checkFail, Detail: err.Error()}, false
 	}
-	return CheckItem{Name: "freshness", Status: checkFail, Detail: fmt.Sprintf("%d commits behind %s — git rebase %s", n, plan.Target, plan.Target)}
+	return CheckItem{Name: "freshness", Status: checkFail, Detail: fmt.Sprintf("%d commits behind %s — git rebase %s", n, plan.Target, plan.Target)}, true
 }
 
 func checkMergeTree(ctx context.Context, g gitRepo, plan TargetPlan) (clean bool, item CheckItem) {

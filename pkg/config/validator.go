@@ -124,6 +124,9 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		if p.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
 		}
+		if p.Branch.RefreshUnderTargetLock {
+			return fmt.Errorf("branch.refreshUnderTargetLock is allowed only in a repository-root project config")
+		}
 		if p.Branch.SiblingProvision != nil {
 			return fmt.Errorf("branch.siblingProvision is allowed only in a repository-root project config")
 		}
@@ -433,6 +436,9 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		if c.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
 		}
+		if c.Branch.RefreshUnderTargetLock {
+			return fmt.Errorf("branch.refreshUnderTargetLock is allowed only in a repository-root project config")
+		}
 	}
 
 	// Validate parent path if specified
@@ -609,6 +615,9 @@ func validateWorkspaceReadinessScope(ws *Workspace) error {
 		}
 		if ws.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
+		}
+		if ws.Branch.RefreshUnderTargetLock {
+			return fmt.Errorf("branch.refreshUnderTargetLock is allowed only in a repository-root project config")
 		}
 	}
 	return nil

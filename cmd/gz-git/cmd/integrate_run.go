@@ -34,6 +34,7 @@ var (
 	integrateRunOwnerHost        string
 	integrateRunOwnerKind        string
 	integrateRunJSON             bool
+	integrateRunRefresh          bool
 )
 
 var integrateRunCmd = &cobra.Command{
@@ -87,6 +88,21 @@ may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
 does not prove that no push occurred, and a receipt of any phase prevents a
 negative outcome from being reused for that execution.
 
+--refresh-under-target-lock (ADR-0003) lets a stale task branch be rebased
+onto the target tip while the run holds the target lock, but only when the
+target commit's .gz-git.yaml declares branch.refreshUnderTargetLock: true.
+The branch must be checked out in a clean, linked task worktree with no Git
+operation in progress, pushed to its tracking branch, and free of merge
+commits. A conflict or an emptied commit aborts the rebase and refuses (exit
+1); the rebased branch is lease-pushed against the checked commit before
+readiness runs again. A target that another writer moves after every gate
+passed is refreshed again, at most twice. --json then carries refreshes
+(reason, before_sha, after_sha, target_sha) and task_sha_before_refresh;
+task_sha is the refreshed head. A pre-mutation outcome is not recorded once a
+refresh happened. With an execution context, a rerun after a refresh fails
+--expect-source with exit 4 because the approved head was rewritten. Not
+allowed with --expect-target or --release.
+
 Engine: gz-git-integrate (Go)
 
 Exit Codes:
@@ -116,6 +132,7 @@ func init() {
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerHost, "owner-host", "", "logical device name (GIT_WORK_HOST / ce.workHost); never a hostname")
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerKind, "owner-kind", "", "owner kind: agent or human")
 	integrateRunCmd.Flags().BoolVar(&integrateRunJSON, "json", false, "print the machine JSON protocol document instead of the human report")
+	integrateRunCmd.Flags().BoolVar(&integrateRunRefresh, "refresh-under-target-lock", false, "rebase a stale task branch onto the target under the target lock when the target commit declares branch.refreshUnderTargetLock (ADR-0003)")
 }
 
 // executionContextFromFlags enforces the all-or-nothing rule: any context
@@ -146,6 +163,9 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	expectTarget, err := expectedTargetFromFlag(cmd, integrateRunExpectTarget)
 	if err != nil {
 		return cliutil.NewExitError(2, err)
+	}
+	if integrateRunRefresh && (expectTarget != "" || integrateRunExpectSource != "" || integrateRunRelease) {
+		return cliutil.NewExitError(2, fmt.Errorf("--refresh-under-target-lock cannot be combined with --expect-target, --expect-source or --release"))
 	}
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
@@ -181,7 +201,8 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			LockWaitSet:        cmd.Flags().Changed("lock-wait"),
 			LockNotice:         cmd.ErrOrStderr(),
 		},
-		Execution: executionContext,
+		Execution:              executionContext,
+		RefreshUnderTargetLock: integrateRunRefresh,
 	})
 	exit := integrateRunExitCode(report, err)
 	if err == nil && report != nil && report.Integrated && report.Reclaim.Incomplete() {

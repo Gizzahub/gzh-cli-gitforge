@@ -18,23 +18,28 @@ import (
 
 // RunProtocol is the integrate run --json document.
 type RunProtocol struct {
-	SchemaVersion       int              `json:"schema_version"`
-	Command             string           `json:"command"`
-	Integrated          bool             `json:"integrated"`
-	ExecutionID         string           `json:"execution_id"`
-	Generation          string           `json:"generation"`
-	Owner               *OwnerIdentity   `json:"owner,omitempty"`
-	TaskSHA             string           `json:"task_sha"`
-	TargetRef           string           `json:"target_ref"`
-	SourcePushed        bool             `json:"source_pushed"`
-	ReceiptPhase        string           `json:"receipt_phase"`
-	WorktreeRemoved     bool             `json:"worktree_removed"`
-	LocalBranchRemoved  bool             `json:"local_branch_removed"`
-	RemoteBranchRemoved bool             `json:"remote_branch_removed"`
-	ReclaimSkipped      string           `json:"reclaim_skipped"`
-	ReclaimDone         []string         `json:"reclaim_done"`
-	ReclaimFailed       []string         `json:"reclaim_failed"`
-	GitReclaim          *GitReclaimProof `json:"git_reclaim,omitempty"`
+	SchemaVersion int            `json:"schema_version"`
+	Command       string         `json:"command"`
+	Integrated    bool           `json:"integrated"`
+	ExecutionID   string         `json:"execution_id"`
+	Generation    string         `json:"generation"`
+	Owner         *OwnerIdentity `json:"owner,omitempty"`
+	TaskSHA       string         `json:"task_sha"`
+	// TaskSHABeforeRefresh and Refreshes appear only when ADR-0003 rebased
+	// the task branch under the target lock; task_sha is then the refreshed
+	// head that landed. Refreshes are reported even when the run refused.
+	TaskSHABeforeRefresh string           `json:"task_sha_before_refresh,omitempty"`
+	Refreshes            []TargetRefresh  `json:"refreshes,omitempty"`
+	TargetRef            string           `json:"target_ref"`
+	SourcePushed         bool             `json:"source_pushed"`
+	ReceiptPhase         string           `json:"receipt_phase"`
+	WorktreeRemoved      bool             `json:"worktree_removed"`
+	LocalBranchRemoved   bool             `json:"local_branch_removed"`
+	RemoteBranchRemoved  bool             `json:"remote_branch_removed"`
+	ReclaimSkipped       string           `json:"reclaim_skipped"`
+	ReclaimDone          []string         `json:"reclaim_done"`
+	ReclaimFailed        []string         `json:"reclaim_failed"`
+	GitReclaim           *GitReclaimProof `json:"git_reclaim,omitempty"`
 	// ResourceWaitDurationMS and ValidationDurationMS separate the check's
 	// slot-admission wait from its gate runtime as explicit integer
 	// milliseconds; both render even when zero, so an absent gate is
@@ -95,6 +100,10 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 	if report != nil {
 		p.Integrated = report.Integrated
 		p.TaskSHA = report.SHA
+		p.Refreshes = report.Refreshes
+		if len(report.Refreshes) > 0 {
+			p.TaskSHABeforeRefresh = report.Refreshes[0].BeforeSHA
+		}
 		p.ReclaimSkipped = report.Reclaim.Skipped
 		p.ReclaimDone = report.Reclaim.Done
 		p.ReclaimFailed = report.Reclaim.Failed

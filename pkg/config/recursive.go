@@ -390,6 +390,7 @@ func mergeParentConfig(child, parent *Config) {
 		// when a caller bypassed validation.
 		child.Branch.MakeOutcomeReport = nil
 		child.Branch.PrepareHighLoad = false
+		child.Branch.RefreshUnderTargetLock = false
 	} else if child.Branch != nil && parent.Branch != nil {
 		mergeParentBranchConfig(child.Branch, parent.Branch)
 	}

@@ -22,7 +22,15 @@ type RunOptions struct {
 	// keeps the legacy run behavior; present, it must be complete and valid,
 	// and the run records a receipt before it pushes.
 	Execution *ExecutionContext
+	// RefreshUnderTargetLock lets this run rebase a stale task branch under
+	// the target lock when the target commit also declares
+	// branch.refreshUnderTargetLock (ADR-0003). Both are required.
+	RefreshUnderTargetLock bool
 }
+
+// errTargetMovedDuringReadiness marks a target that another writer moved
+// while readiness held the local target lock.
+var errTargetMovedDuringReadiness = errors.New("target branch changed during readiness")
 
 // RunReport is the result of integrate run.
 type RunReport struct {
@@ -43,6 +51,9 @@ type RunReport struct {
 	// target fast-forward of a ready check. Reclaim is outside it, and the
 	// target lock wait precedes it.
 	IntegrationDuration time.Duration
+	// Refreshes lists the task-branch rebases this run performed under the
+	// target lock, in order. They are reported even when the run refuses.
+	Refreshes []TargetRefresh
 }
 
 const preMutationOutcomeWriteTimeout = 5 * time.Second
@@ -107,14 +118,15 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	defer lock.release()
 	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
+	check, refreshes, err := refreshUnderTargetLock(ctx, exec, &opts, check, err)
 	if err != nil {
-		report := &RunReport{Check: check}
-		if recordErr := recordPreMutationCheckFailure(ctx, opts, check, report, err); recordErr != nil {
-			return report, recordErr
-		}
-		return report, err
+		return checkRefusal(ctx, opts, check, refreshes, err)
 	}
 	report, err := runChecked(ctx, exec, opts, check)
+	if len(refreshes) > 0 {
+		attachRefreshes(report, check.Plan.Branch, refreshes)
+		return report, err
+	}
 	if err != nil && check != nil && !check.Ready {
 		outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
 		if recordErr != nil {
@@ -122,6 +134,19 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 		if report != nil {
 			report.PreMutationOutcome = outcome
+		}
+	}
+	return report, err
+}
+
+// checkRefusal reports a Check that ended the run before runChecked. A
+// refreshed run has no pre-mutation candidate: the candidate was bound to
+// the approved head, which is no longer the task head.
+func checkRefusal(ctx context.Context, opts RunOptions, check *CheckReport, refreshes []TargetRefresh, err error) (*RunReport, error) {
+	report := &RunReport{Check: check, Refreshes: refreshes}
+	if len(refreshes) == 0 {
+		if recordErr := recordPreMutationCheckFailure(ctx, opts, check, report, err); recordErr != nil {
+			return report, recordErr
 		}
 	}
 	return report, err
@@ -330,7 +355,7 @@ func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, chec
 	}
 	if targetSHA != check.Plan.TargetSHA {
 		if expectTarget == "" {
-			return "", "", "", fmt.Errorf("target branch changed during readiness; re-run check")
+			return "", "", "", fmt.Errorf("%w; re-run check", errTargetMovedDuringReadiness)
 		}
 		return "", "", "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, targetRef, targetSHA, check.Plan.TargetSHA)
 	}
