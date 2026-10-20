@@ -40,8 +40,8 @@ func (f CommandFactory) newStatusCmd() *cobra.Command {
   # Detailed output (show branches/divergence)
   gz-git workspace status --verbose`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Use reposynccli's loader directly for consistent behavior
-			loader := reposynccli.FileSpecLoader{}
+			// Use reposynccli's loader, placing paths where workspace sync does
+			loader := configDirSpecLoader{base: reposynccli.FileSpecLoader{}}
 			return reposynccli.RunStatus(cmd, opts, loader)
 		},
 	}

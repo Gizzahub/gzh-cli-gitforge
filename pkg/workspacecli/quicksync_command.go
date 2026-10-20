@@ -253,7 +253,7 @@ Auto-Init Behavior:
 					ScanDepth:  1,
 					SkipFetch:  true, // we just synced, skip remote fetch for speed
 				}
-				loader := reposynccli.FileSpecLoader{}
+				loader := configDirSpecLoader{base: reposynccli.FileSpecLoader{}}
 				if err := reposynccli.RunStatus(cmd, statusOpts, loader); err != nil {
 					// Non-fatal: status failure shouldn't undo the sync
 					fmt.Fprintf(out, "⚠️  Status check failed: %v\n", err)

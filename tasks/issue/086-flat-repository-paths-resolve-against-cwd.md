@@ -52,7 +52,7 @@ Resolved on 2026-10-21.
 - `createActionsFromFlatConfig` (`pkg/workspacecli/sync_command.go`) now
   resolves each repository's `TargetPath` with `resolveWorkspacePath`
   against the directory of the config that lists it, as workspace paths
-  are resolved. Absolute and `~/` paths keep their meaning. It is called
+  are resolved. Absolute paths are kept. It is called
   for the root config, for a child config while planning, and for the
   `--recursive` child sync (`runChildSync`), so all three are covered.
 - Place of the fix: the fix note asks for the loader. The rebase is done
@@ -60,24 +60,42 @@ Resolved on 2026-10-21.
   plans or executes reads those actions afterwards: the devbox filter in
   the same function, `keepActionsOffEnclosingConfigDirs`, the executor and
   `recordReadOnlyWorkspaceAccess`. They therefore agree on one absolute
-  target. `recordReadOnlyWorkspaceAccess` already joined a relative path
-  with the config directory, so before this change it recorded a
-  different directory than the executor used. The loader itself is
+  target. `recordReadOnlyWorkspaceAccess` and
+  `reconcileIntegrationParticipationExcept` already joined a relative
+  path with the config directory, so before this change they used a
+  different directory than the executor. The loader itself is
   unchanged: `config_loader_test.go` and `flat_loader_parity_test.go` pin
   its relative `TargetPath`, and `validate` reads it without placing
   anything.
-- Behaviour change: planned flat repositories now show an absolute path in
-  plan and dry-run output, and a flat entry and a forge entry for the same
-  directory are deduplicated, since both keys are now absolute.
-- Out of scope: `status` and `quicksync` load through
-  `reposynccli.FileSpecLoader`, a separate loader in another package; they
-  were not changed.
+- Behaviour changes:
+  - Planned flat repositories now show an absolute path in plan and
+    dry-run output.
+  - A `repositories:` path starting with `~/` is now expanded to the home
+    directory; before, the executor treated it as a directory named `~`
+    under the working directory.
+  - A flat entry and a forge or git workspace entry for the same directory
+    are now deduplicated, since both keys are absolute. The flat entry is
+    planned first, so it wins, and the dropped entry's workspace settings
+    (read-only access, integration branch) do not apply to that
+    directory. Before, both actions ran on the same directory.
+- `workspace status` and the `quicksync --check` health check load through
+  `reposynccli.FileSpecLoader`, which keeps paths relative. Sync now places
+  a relative path under the config directory, so they would have checked
+  the working directory instead. Both now load through
+  `configDirSpecLoader` (`pkg/workspacecli/status_loader.go`), which
+  resolves the paths the same way. `reposynccli` itself and the `sync`
+  command family that uses it are unchanged.
 - Tests (`pkg/workspacecli/flat_repository_path_test.go`):
   `TestFlatConfigResolvesRelativePathsAgainstConfigDir` checks that `lib`
-  and `deps/nested` are placed under the config directory and an absolute
-  path is kept. `TestConfigPlannerResolvesChildRepositoriesAgainstChildDir`
+  and `deps/nested` are placed under the config directory, an absolute
+  path is kept, `~/src/home` is expanded, and `.` is dropped as the
+  devbox. `TestConfigDirSpecLoaderPlacesPathsLikeSync` loads through the
+  status wrapper from another working directory and expects the same
+  paths as sync. `TestConfigPlannerResolvesChildRepositoriesAgainstChildDir`
   plans a child whose `lib` has no path and whose `up` is at `..`: `lib`
   is placed in the child, and `up`, the devbox seen from the child, is
   dropped by the enclosing-config guard.
-- Mutation: with the resolution line removed, both tests fail; before the
-  fix `up` resolved against the test's working directory and was planned.
+- Mutation: with the resolution line removed, both planner tests fail;
+  before the fix `up` resolved against the test's working directory and
+  was planned. With the wrapper's resolution removed, the status loader
+  test fails.
