@@ -31,13 +31,19 @@ import (
 // whole life without ever saying so.
 //
 // The rule database does answer it. `make -pn <target>` prints the target's
-// entry, which states outright whether make had to search implicit rules to
-// satisfy it: "Implicit rule search has been done." means a pattern rule
-// supplied the recipe, "has not been done." means the Makefile declared one.
+// entry, which states whether make searched implicit rules for it and, when
+// one matched, what it matched. "Implicit rule search has not been done."
+// means the Makefile declared a recipe. "has been done." alone does not mean
+// a pattern rule supplied one: make also searches for a declared target with
+// no recipe that is not .PHONY, such as an aggregate `check: lint test`, and
+// for one nothing declares. Only a rule that matched records the
+// "Implicit/static pattern stem:" line below it, with an empty stem for
+// .DEFAULT, so a searched entry is a pattern match only with that line.
 //
-// The neighboring "Implicit/static pattern stem:" line is not a usable signal.
-// It is printed with an empty stem for some declared targets and omitted
-// entirely for others, so its presence says nothing.
+// Read on its own, the stem line says nothing: declared targets print it
+// with an empty stem when they have a recipe and omit it when they do not.
+// A catch-all that supplies the recipe of a declared recipe-less target
+// still reads as a pattern match, since the stem is all the dump records.
 //
 // -n alone does not make the probe read-only. GNU make still runs recipe
 // lines that name $(MAKE) or start with +, and the recipes that remake an
@@ -116,6 +122,7 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 		if line != header && !strings.HasPrefix(line, header+" ") {
 			continue
 		}
+		searched := false
 		for _, entry := range lines[i+1:] {
 			if !strings.HasPrefix(entry, "#") {
 				break
@@ -125,11 +132,18 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 				return false, true
 			}
 			if strings.HasPrefix(entry, "#  Implicit rule search has been done.") {
+				searched = true
+				continue
+			}
+			if searched && strings.HasPrefix(entry, "#  Implicit/static pattern stem:") {
 				return true, runErr == nil && !remadeMakefile(lines)
 			}
 		}
-		// The entry exists but never states the verdict. Keep the caller's
-		// previous behavior rather than guessing from an unfamiliar dump.
+		// A search that left no stem found no rule: the target is declared
+		// without a recipe, or not declared at all, and the real run tells the
+		// two apart through "No rule to make target". An entry that never
+		// states the verdict keeps the caller's previous behavior the same way
+		// rather than guessing from an unfamiliar dump.
 		return false, true
 	}
 	return false, false

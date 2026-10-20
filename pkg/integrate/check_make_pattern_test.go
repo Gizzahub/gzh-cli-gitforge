@@ -50,6 +50,23 @@ func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
 	}
 }
 
+// TestRecipelessMakeTargetIsDeclared pins ISSUE-75 end to end: an aggregate
+// check with no recipe and no .PHONY line is a declared gate, so it runs and
+// its prerequisite's recipe runs with it.
+func TestRecipelessMakeTargetIsDeclared(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "lint-ran")
+	writeRepoFile(t, dir, "Makefile", "check: lint\nlint:\n\t@touch "+marker+"\n")
+
+	check := runMakeTarget(context.Background(), dir, "check", 0)
+	if !check.Defined || check.Err != nil {
+		t.Fatalf("recipe-less check must be Defined and pass (err=%v)\n%s", check.Err, check.Output)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("check's prerequisite did not run: %v", err)
+	}
+}
+
 // TestMakePatternProbeRunsNoRecipe pins ISSUE-59: make -n still runs recipe
 // lines that name $(MAKE) or start with +. The probe must read the database
 // without running any of them, for a declared target and for one a catch-all
@@ -116,10 +133,49 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			makefile: "ifeq ($(shell echo yes),)\n$(error unreachable)\nendif\nlint:\n\t@:\n%:\n\t@:\n",
 			matched:  true, ok: true,
 		},
+		// No rule matched check, so there is no pattern verdict to qualify;
+		// the real run generates gen.mk and finds check declared there.
 		{
 			name:     "include whose remake recipe does not run",
 			makefile: "include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n",
-			matched:  true, ok: false,
+			matched:  false, ok: true,
+		},
+		// ISSUE-75: make searches implicit rules for a declared target that
+		// has no recipe and is not .PHONY. Only a rule that matched leaves a
+		// stem, so these stay declared.
+		{
+			name:     "recipe-less aggregate check",
+			makefile: "check: lint\nlint:\n\t@:\n",
+			matched:  false, ok: true,
+		},
+		{
+			name:     "recipe-less check without prerequisites",
+			makefile: "check:\nlint:\n\t@:\n",
+			matched:  false, ok: true,
+		},
+		{
+			name:     "recipe-less aggregate check beside a .DEFAULT rule",
+			makefile: "check: lint\nlint:\n\t@:\n.DEFAULT:\n\t@:\n",
+			matched:  false, ok: true,
+		},
+		// Every catch-all form still leaves a stem: .DEFAULT an empty one.
+		{
+			name:     ".DEFAULT satisfies check",
+			makefile: "lint:\n\t@:\n.DEFAULT:\n\t@:\n",
+			matched:  true, ok: true,
+		},
+		{
+			name:     "empty-recipe catch-all satisfies check",
+			makefile: "lint:\n\t@:\n%: ;\n",
+			matched:  true, ok: true,
+		},
+		// Known limit: a catch-all that supplies the recipe of a declared
+		// recipe-less target reads as a pattern match, because the stem is
+		// all the dump records.
+		{
+			name:     "catch-all supplies the recipe of a recipe-less check",
+			makefile: "check: lint\nlint:\n\t@:\n%:\n\t@:\n",
+			matched:  true, ok: true,
 		},
 		// make exits 0 here: the guard sends the remake to true and the
 		// catch-all satisfies check. The real run generates gen.mk first and
