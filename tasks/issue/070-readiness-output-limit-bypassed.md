@@ -44,3 +44,24 @@ only memory use is unbounded.
   limit in both stages. Update the over-limit case in
   `readiness_plan_failclosed_test.go`, which pins the parser's reason
   today.
+
+## Resolution
+
+Resolved on 2026-10-20.
+
+- `limitedBuffer` holds its `bytes.Buffer` as a named field and exposes
+  only `Write`, `Bytes` and `String`, so no `ReadFrom` is promoted and
+  `io.Copy` in `os/exec` goes through the limiting `Write`. `Write` still
+  never fails: an overflowing runner keeps draining the pipe and ends by
+  itself or at its timeout, instead of blocking on a full pipe.
+- `TestExecuteReadiness_NonzeroAndOversizeFailUnavailable` moved to
+  `readiness_output_limit_test.go` and now asserts the reason. Its
+  oversize runners print a valid ready result and then 3 MiB of padding
+  on stdout or stderr, so only the capture limit can reject them; the
+  stderr case was accepted as ready before the fix. It also asserts the
+  captured stderr stays within `readinessMaxIO`.
+- `TestLimitedBufferCopyHonorsLimit` drives the buffer through `io.Copy`.
+- The plan-stage over-limit case in `readiness_plan_failclosed_test.go`
+  now expects `resource plan: runner output exceeded limit`.
+- Mutation evidence, reverted before commit: restoring the embedded
+  buffer fails all three tests.

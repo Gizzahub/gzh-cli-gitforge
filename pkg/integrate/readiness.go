@@ -413,23 +413,33 @@ func runReadinessProcess(parent context.Context, runner, targetDir string, args 
 	return out, nil
 }
 
+// limitedBuffer keeps at most limit bytes and records that more arrived.
+// The buffer is a named field, not embedded: an embedded bytes.Buffer
+// promotes ReadFrom, which os/exec's copy prefers over Write, and that
+// path would skip the limit entirely.
 type limitedBuffer struct {
-	bytes.Buffer
+	buf      bytes.Buffer
 	limit    int
 	exceeded bool
 }
 
+// Write never fails, so a runner that overflows keeps draining into the
+// pipe and ends by itself or by its timeout instead of blocking on it.
 func (b *limitedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > b.limit {
+	if b.buf.Len()+len(p) > b.limit {
 		b.exceeded = true
-		n := b.limit - b.Len()
+		n := b.limit - b.buf.Len()
 		if n > 0 {
-			_, _ = b.Buffer.Write(p[:n])
+			_, _ = b.buf.Write(p[:n])
 		}
 		return len(p), nil
 	}
-	return b.Buffer.Write(p)
+	return b.buf.Write(p)
 }
+
+func (b *limitedBuffer) Bytes() []byte { return b.buf.Bytes() }
+
+func (b *limitedBuffer) String() string { return b.buf.String() }
 
 func parseReadinessResult(data []byte) (readinessResult, error) {
 	if len(data) == 0 || len(data) > readinessMaxIO || !utf8.Valid(data) || bytes.IndexFunc(data, func(r rune) bool { return r < 0x20 && r != '\n' && r != '\r' && r != '\t' }) >= 0 {

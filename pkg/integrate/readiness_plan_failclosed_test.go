@@ -45,11 +45,9 @@ func TestReadinessResourcePlanFailuresFailClosed(t *testing.T) {
 	}{
 		{"nonzero plan exit", lightPlan + "  printf 'plan broke' >&2\n  exit 3", readinessPlanTimeout, "resource plan: runner failed: plan broke", false},
 		// A valid light plan padded past the limit with whitespace: dropping
-		// every size bound would start the execution. The capture buffer's
-		// limit is bypassed today (ISSUE-70: exec copies through the
-		// embedded bytes.Buffer.ReadFrom), so the parser's size bound is
-		// what rejects the plan; a fixed buffer reports "exceeded limit".
-		{"plan output over the limit", lightPlan + fmt.Sprintf("  head -c %d /dev/zero | tr '\\000' ' '\n  exit 0", readinessMaxIO), readinessPlanTimeout, "resource plan: runner emitted invalid plan JSON", false},
+		// every size bound would start the execution, and the capture limit
+		// rejects it before the parser's own size bound is reached.
+		{"plan output over the limit", lightPlan + fmt.Sprintf("  head -c %d /dev/zero | tr '\\000' ' '\n  exit 0", readinessMaxIO), readinessPlanTimeout, "resource plan: runner output exceeded limit", false},
 		{"plan timeout", lightPlan + "  sleep 30\n  exit 0", time.Second, "resource plan: runner timed out", true},
 		// The later key would win a lenient decode and lower a high plan.
 		{"duplicate plan keys", "  printf '{\"version\":1,\"resource\":\"high\",\"resource\":\"light\",\"plan_digest\":\"" + testPlanDigest + "\",\"summary\":\"s\"}'\n  exit 0", readinessPlanTimeout, "resource plan: runner result has duplicate or invalid fields", false},

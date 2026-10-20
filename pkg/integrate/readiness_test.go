@@ -514,25 +514,6 @@ func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
 	runGit(t, fx.Clone, "worktree", "prune", "--expire", "now")
 }
 
-func TestExecuteReadiness_NonzeroAndOversizeFailUnavailable(t *testing.T) {
-	dir := t.TempDir()
-	for _, tt := range []struct{ name, body string }{
-		{"nonzero", "#!/bin/sh\necho bad >&2\nexit 7\n"},
-		{"stdout", "#!/bin/sh\nyes x | head -c 1048577\n"},
-		{"stderr", "#!/bin/sh\nyes x | head -c 1048577 >&2\n"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			runner := filepath.Join(dir, tt.name)
-			if err := os.WriteFile(runner, []byte(tt.body), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := executeReadinessWithTimeout(context.Background(), runner, dir, dir, "a", "b", time.Second); err == nil {
-				t.Fatal("invalid runner accepted")
-			}
-		})
-	}
-}
-
 func TestPushFastForward_StaleLeaseRejects(t *testing.T) {
 	fx := readinessFixture(t)
 	checked := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
