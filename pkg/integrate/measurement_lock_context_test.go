@@ -18,7 +18,7 @@ import (
 func TestRunRecordsBoundOutcomeWhenHostLockWaitExpires(t *testing.T) {
 	fastHostLockPolling(t)
 	marker := filepath.Join(t.TempDir(), "gate-ran")
-	fx := measurementLockFixture(t, "@touch "+marker, "1m")
+	fx := measurementLockFixture(t, "touch "+marker, "1m")
 	execution := outcomeExecution(t, fx.Worktree, "pre-host-wait")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{

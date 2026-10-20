@@ -22,7 +22,6 @@ var (
 	integrateRunTarget           string
 	integrateRunDirectToDefault  bool
 	integrateRunRelease          bool
-	integrateRunAllowSkipped     bool
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
 	integrateRunExpectSource     string
@@ -111,7 +110,6 @@ func init() {
 	integrateRunCmd.Flags().StringVar(&integrateRunTarget, "target", "", "integration target (required when none can be resolved)")
 	integrateRunCmd.Flags().BoolVar(&integrateRunDirectToDefault, "direct-to-default", false, "allow targeting the default branch when no integration branch exists")
 	integrateRunCmd.Flags().BoolVar(&integrateRunRelease, "release", false, "promote the integration branch onto the default branch")
-	integrateRunCmd.Flags().BoolVar(&integrateRunAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
 	integrateRunCmd.Flags().DurationVar(&integrateRunLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
@@ -178,19 +176,18 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 
 	report, err := integrate.Run(ctx, gitcmd.NewExecutor(), integrate.RunOptions{
 		CheckOptions: integrate.CheckOptions{
-			RepoPath:           dir,
-			Branch:             branch,
-			Target:             integrateRunTarget,
-			DirectToDefault:    integrateRunDirectToDefault,
-			Release:            integrateRunRelease,
-			AllowSkippedChecks: integrateRunAllowSkipped,
-			ControllerConfig:   integrateRunControllerConfig,
-			NoFetch:            integrateRunNoFetch,
-			ExpectSource:       integrateRunExpectSource,
-			ExpectTarget:       expectTarget,
-			LockWait:           integrateRunLockWait,
-			LockWaitSet:        cmd.Flags().Changed("lock-wait"),
-			LockNotice:         cmd.ErrOrStderr(),
+			RepoPath:         dir,
+			Branch:           branch,
+			Target:           integrateRunTarget,
+			DirectToDefault:  integrateRunDirectToDefault,
+			Release:          integrateRunRelease,
+			ControllerConfig: integrateRunControllerConfig,
+			NoFetch:          integrateRunNoFetch,
+			ExpectSource:     integrateRunExpectSource,
+			ExpectTarget:     expectTarget,
+			LockWait:         integrateRunLockWait,
+			LockWaitSet:      cmd.Flags().Changed("lock-wait"),
+			LockNotice:       cmd.ErrOrStderr(),
 		},
 		Execution: executionContext,
 	})

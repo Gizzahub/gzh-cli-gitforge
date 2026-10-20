@@ -61,8 +61,3 @@ func killMakeProcess(process *os.Process) error {
 	}
 	return nil
 }
-
-func makeTerminationRequest() TerminationRequest {
-	signal := "SIGKILL"
-	return TerminationRequest{Method: "process_group", Signal: &signal}
-}

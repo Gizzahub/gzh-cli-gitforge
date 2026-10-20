@@ -229,14 +229,17 @@ type evidenceClaim struct {
 }
 
 type evidenceControllerProvenance struct {
-	Path           string   `json:"path"`
-	Digest         string   `json:"digest"`
-	Workspace      string   `json:"workspace"`
-	Remote         string   `json:"remote"`
-	RemoteURL      string   `json:"remote_url"`
-	Integration    []string `json:"integration"`
-	TaskPattern    []string `json:"task_pattern"`
-	PrepareProfile string   `json:"prepare_profile"`
+	Path        string   `json:"path"`
+	Digest      string   `json:"digest"`
+	Workspace   string   `json:"workspace"`
+	Remote      string   `json:"remote"`
+	RemoteURL   string   `json:"remote_url"`
+	Integration []string `json:"integration"`
+	TaskPattern []string `json:"task_pattern"`
+	// PrepareProfile is read-only history: receipts written while the
+	// controller integration.prepareProfile key existed carry it, and strict
+	// decoding must still accept them. New receipts leave it empty.
+	PrepareProfile string `json:"prepare_profile"`
 }
 
 type evidenceProvenance struct {

@@ -6,9 +6,6 @@ package integrate
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,68 +13,20 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
-// TestValidationDurationMeasuresLegacyAndContractRunners pins TASK-304's
+// TestValidationDurationMeasuresContractRunnersOnly pins TASK-304's
 // contract for CheckReport.ValidationDuration: the accumulator counts only
-// time spent inside real gate subprocesses — each legacy make invocation
-// (source and baseline alike) and each contract runner execution — never slot
-// admission, probe, or preparation time, and never fabricates a value for a
-// gate that launched nothing.
-func TestValidationDurationMeasuresLegacyAndContractRunners(t *testing.T) {
-	t.Run("legacy runner sums the source and baseline make runs of a failing gate", func(t *testing.T) {
-		// Both sides fail, so the source run and the baseline run both
-		// execute and both sleep: the second run exists only because the
-		// first failed, which is exactly the path a timing bug would lose.
+// time spent inside real gate subprocesses — each contract runner execution —
+// never slot admission, probe, or preparation time, and never fabricates a
+// value for a gate that launched nothing (gate mode none launches nothing).
+func TestValidationDurationMeasuresContractRunnersOnly(t *testing.T) {
+	t.Run("no readiness contract never launches a subprocess and stays zero", func(t *testing.T) {
+		// Gate mode none runs no repository code: even a Makefile that would
+		// sleep is never invoked, so validation time is exactly zero.
 		fx := testutil.TempWorktreeWithBareOrigin(t)
 		writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		writeRepoFile(t, fx.Clone, "checked.go", "package main\n")
-		writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15; echo 'checked.go'; exit 1\n")
+		writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15\n")
 		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "target check fails")
-		runGit(t, fx.Clone, "branch", "develop")
-		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-
-		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-		writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@sleep 0.15; echo 'task.go:1: broken'; exit 1\n")
-		runGit(t, fx.Worktree, "add", "Makefile")
-		runGit(t, fx.Worktree, "commit", "-m", "task check fails")
-		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-
-		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", AllowSkippedChecks: true,
-		})
-		if err != nil {
-			t.Fatalf("Check: %v", err)
-		}
-		if report.Ready {
-			t.Fatalf("a failing check gate must not be ready:\n%s", FormatCheck(report))
-		}
-		var checkBaseline *BaselineRecord
-		for i, record := range report.Baselines {
-			if record.Target == "check" {
-				checkBaseline = &report.Baselines[i]
-			}
-		}
-		if checkBaseline == nil || !checkBaseline.Measured {
-			t.Fatalf("the failing source check must have measured the target baseline: %+v", report.Baselines)
-		}
-		if report.ValidationDuration < 250*time.Millisecond {
-			t.Fatalf("validation duration = %s, want at least the two 150ms make runs (source + baseline)", report.ValidationDuration)
-		}
-		// Nothing declared the gate high load, so no slot was ever requested:
-		// the whole elapsed time is validation, and the wait stays exactly 0.
-		if report.ResourceWaitDuration != 0 {
-			t.Fatalf("resource wait = %s, want 0 without a high-load declaration", report.ResourceWaitDuration)
-		}
-	})
-
-	t.Run("legacy gate satisfied by a pattern rule never launches a subprocess and stays zero", func(t *testing.T) {
-		// The argument-guard catch-all satisfies check and lint through
-		// implicit rules, so the probe returns before any timed make run.
-		fx := testutil.TempWorktreeWithBareOrigin(t)
-		writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		writeRepoFile(t, fx.Clone, "Makefile", "%:\n\t@:\n")
-		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "catch-all gate")
+		runGit(t, fx.Clone, "commit", "-m", "makefile without contract")
 		runGit(t, fx.Clone, "branch", "develop")
 		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
@@ -87,13 +36,13 @@ func TestValidationDurationMeasuresLegacyAndContractRunners(t *testing.T) {
 		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 
 		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", AllowSkippedChecks: true,
+			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
 		})
 		if err != nil {
 			t.Fatalf("Check: %v", err)
 		}
-		if report.GateMode != "legacy-make" {
-			t.Fatalf("gate mode = %s, want legacy-make", report.GateMode)
+		if !report.Ready || report.GateMode != gateModeNone {
+			t.Fatalf("want a READY gate in mode none:\n%s", FormatCheck(report))
 		}
 		if report.ValidationDuration != 0 {
 			t.Fatalf("validation duration = %s, want exactly 0 when no gate subprocess ran", report.ValidationDuration)
@@ -207,46 +156,6 @@ func TestValidationDurationMeasuresLegacyAndContractRunners(t *testing.T) {
 		}
 		if validation, ok := doc["validation_duration_ms"].(float64); !ok || int(validation) != int(report.ValidationDuration.Milliseconds()) || validation <= 0 {
 			t.Fatalf("validation_duration_ms = %#v, want the run's nonzero %dms", doc["validation_duration_ms"], report.ValidationDuration.Milliseconds())
-		}
-	})
-
-	t.Run("a legacy make that never starts leaves validation exactly zero", func(t *testing.T) {
-		fx := testutil.TempWorktreeWithBareOrigin(t)
-		writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15\n")
-		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "declare gate")
-		runGit(t, fx.Clone, "branch", "develop")
-		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-		writeRepoFile(t, fx.Worktree, "task.txt", "task\n")
-		runGit(t, fx.Worktree, "add", "task.txt")
-		runGit(t, fx.Worktree, "commit", "-m", "task")
-		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-		// Only git stays resolvable: the pattern probe fails silently and the
-		// timed run reaches cmd.Start, which cannot launch make at all.
-		bin := t.TempDir()
-		git, err := exec.LookPath("git")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Symlink(git, filepath.Join(bin, "git")); err != nil {
-			t.Fatal(err)
-		}
-		t.Setenv("PATH", bin)
-		// No AllowSkippedChecks: a make that cannot even start must fail the
-		// gate outright, not downgrade to a skippable warning.
-		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
-		})
-		if err != nil {
-			t.Fatalf("Check: %v", err)
-		}
-		if report.Ready {
-			t.Fatalf("a gate whose make cannot start must not be ready:\n%s", FormatCheck(report))
-		}
-		if report.ValidationDuration != 0 {
-			t.Fatalf("validation duration = %s, want exactly 0 when no make process ever started", report.ValidationDuration)
 		}
 	})
 

@@ -11,15 +11,12 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
-const familybookEntPrepareV1 = "familybook-ent-v1"
-
 // controllerBinding is proof that an explicitly-selected controller file
 // selected this exact repository. Keeping path and bytes digest makes a
 // check-to-run controller change fail closed.
 type controllerBinding struct {
 	Path, Digest, Workspace, Remote, RemoteURL string
 	Integration, TaskPattern                   []string
-	PrepareProfile                             string
 }
 
 func resolveController(ctx context.Context, g gitRepo, path, branch string) (*controllerBinding, error) {
@@ -75,7 +72,7 @@ func resolveController(ctx context.Context, g gitRepo, path, branch string) (*co
 	if ws.Integration == nil {
 		return nil, fmt.Errorf("controller workspace %q has no integration policy", matched)
 	}
-	b := &controllerBinding{Path: doc.Path, Digest: doc.Digest, Workspace: matched, Remote: remote, RemoteURL: actual, Integration: append([]string(nil), ws.Branch.IntegrationBranch...), TaskPattern: append([]string(nil), ws.Branch.TaskPattern...), PrepareProfile: ws.Integration.PrepareProfile}
+	b := &controllerBinding{Path: doc.Path, Digest: doc.Digest, Workspace: matched, Remote: remote, RemoteURL: actual, Integration: append([]string(nil), ws.Branch.IntegrationBranch...), TaskPattern: append([]string(nil), ws.Branch.TaskPattern...)}
 	return b, nil
 }
 
@@ -87,7 +84,7 @@ func revalidateController(ctx context.Context, g gitRepo, check *CheckReport) er
 	if err != nil {
 		return err
 	}
-	if b.Path != check.Controller.Path || b.Digest != check.Controller.Digest || b.Workspace != check.Controller.Workspace || b.Remote != check.Controller.Remote || b.RemoteURL != check.Controller.RemoteURL || b.PrepareProfile != check.Controller.PrepareProfile || strings.Join(b.Integration, "\x00") != strings.Join(check.Controller.Integration, "\x00") || strings.Join(b.TaskPattern, "\x00") != strings.Join(check.Controller.TaskPattern, "\x00") {
+	if b.Path != check.Controller.Path || b.Digest != check.Controller.Digest || b.Workspace != check.Controller.Workspace || b.Remote != check.Controller.Remote || b.RemoteURL != check.Controller.RemoteURL || strings.Join(b.Integration, "\x00") != strings.Join(check.Controller.Integration, "\x00") || strings.Join(b.TaskPattern, "\x00") != strings.Join(check.Controller.TaskPattern, "\x00") {
 		return fmt.Errorf("controller config changed during readiness; re-run check")
 	}
 	return nil

@@ -14,18 +14,16 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
-func TestCheck_StaleFreshnessSkipsLegacyPreparationAndMake(t *testing.T) {
+// TestCheck_StaleFreshnessWithoutContractRunsNothing pins that a stale source
+// in a repository with no readiness contract fails freshness alone and never
+// reaches the gate stage, even when the repository carries a Makefile.
+func TestCheck_StaleFreshnessWithoutContractRunsNothing(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	marker := filepath.Join(t.TempDir(), "commands-ran")
-	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "cargo"), []byte("#!/bin/sh\nprintf cargo >> \"$MARKER\"\n"), 0o755); err != nil {
-		t.Fatalf("write cargo fixture: %v", err)
-	}
 	t.Setenv("MARKER", marker)
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	runGit(t, fx.Clone, "checkout", "-B", "develop")
-	writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  prepareProfile: cargo-workspace-v1\n")
+	writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
 	writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@printf check >> \"$$MARKER\"\nlint:\n\t@printf lint >> \"$$MARKER\"\n")
 	runGit(t, fx.Clone, "add", ".gz-git.yaml", "Makefile")
 	runGit(t, fx.Clone, "commit", "-m", "declare integration prerequisites")
@@ -56,7 +54,7 @@ func TestCheck_StaleFreshnessSkipsLegacyPreparationAndMake(t *testing.T) {
 		t.Fatalf("stale source must not record gate failures before any gate starts: %+v", report.ReadinessFailures)
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		t.Fatalf("stale source ran preparation or Make commands: stat marker = %v", err)
+		t.Fatalf("stale source ran repository commands: stat marker = %v", err)
 	}
 }
 

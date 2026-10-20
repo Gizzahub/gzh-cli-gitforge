@@ -30,7 +30,6 @@ func cloneReclaimFixture(t *testing.T, workspaces string) (fx *testutil.Worktree
 	writeFile(t, fx.Worktree, "task.txt", "task\n")
 	writeFile(t, fx.Worktree, ".gitignore", "ws-*/\n")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\nworkspaces:\n"+strings.ReplaceAll(workspaces, "%URL%", upstream))
-	writeGateMakefile(t, fx.Worktree)
 	runGit(t, fx.Worktree, "add", ".")
 	runGit(t, fx.Worktree, "commit", "-m", "task work")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")

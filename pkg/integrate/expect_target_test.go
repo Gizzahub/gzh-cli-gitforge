@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,15 +36,17 @@ func TestCheck_ExpectedTargetMismatchStopsBeforeGate(t *testing.T) {
 	}
 }
 
+// TestCheck_ExpectedTargetPostGateMovementIsRetryable moves the target from
+// inside a readiness runner, so post-gate revalidation sees a target that no
+// longer matches the expected SHA.
 func TestCheck_ExpectedTargetPostGateMovementIsRetryable(t *testing.T) {
-	t.Parallel()
-	fx := readyTaskFixture(t)
+	if !readinessRunnerSupported() {
+		t.Skip("contract runners are unsupported on Windows")
+	}
+	fx := readinessFixture(t)
+	runner := "#!/bin/sh\nset -e\ngit --git-dir=" + strconv.Quote(fx.Origin) + " update-ref refs/heads/develop \"$4\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
+	advanceReadinessTarget(t, fx, "", runner, "move target from runner")
 	before := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
-	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
-	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@git --git-dir="+fx.Origin+" update-ref refs/heads/develop "+source+"\n")
-	runGit(t, fx.Worktree, "add", "Makefile")
-	runGit(t, fx.Worktree, "commit", "-m", "move target from gate")
-	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
 
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", ExpectTarget: before,

@@ -112,14 +112,8 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		}
 	}
 	if p.Branch != nil {
-		if p.Branch.MakeOutcomeReport != nil {
-			return fmt.Errorf("branch.makeOutcomeReport is allowed only in a repository-root project config")
-		}
 		if p.Branch.Readiness != nil {
 			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if p.Branch.PrepareProfile != "" {
-			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
 		}
 		if p.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
@@ -190,16 +184,6 @@ func (v *Validator) ValidateProjectConfig(p *ProjectConfig) error {
 	if p.Branch != nil && p.Branch.Readiness != nil {
 		if err := ValidateReadiness(*p.Branch.Readiness); err != nil {
 			return fmt.Errorf("invalid readiness config: %w", err)
-		}
-	}
-	if p.Branch != nil && p.Branch.MakeOutcomeReport != nil {
-		if err := ValidateMakeOutcomeReport(*p.Branch.MakeOutcomeReport); err != nil {
-			return fmt.Errorf("invalid make outcome report config: %w", err)
-		}
-	}
-	if p.Branch != nil && p.Branch.PrepareProfile != "" {
-		if err := ValidatePrepareProfile(p.Branch.PrepareProfile); err != nil {
-			return fmt.Errorf("invalid preparation profile: %w", err)
 		}
 	}
 	if p.Branch != nil && p.Branch.SiblingProvision != nil {
@@ -421,14 +405,8 @@ func (v *Validator) ValidateConfig(c *Config) error {
 		return nil // nil config is valid (optional)
 	}
 	if c.Branch != nil {
-		if c.Branch.MakeOutcomeReport != nil {
-			return fmt.Errorf("branch.makeOutcomeReport is allowed only in a repository-root project config")
-		}
 		if c.Branch.Readiness != nil {
 			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if c.Branch.PrepareProfile != "" {
-			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
 		}
 		if c.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
@@ -598,14 +576,8 @@ func validateWorkspaceReadinessScope(ws *Workspace) error {
 		return fmt.Errorf("workspace is nil")
 	}
 	if ws.Branch != nil {
-		if ws.Branch.MakeOutcomeReport != nil {
-			return fmt.Errorf("branch.makeOutcomeReport is allowed only in a repository-root project config")
-		}
 		if ws.Branch.Readiness != nil {
 			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if ws.Branch.PrepareProfile != "" {
-			return fmt.Errorf("branch.prepareProfile is allowed only in a repository-root project config")
 		}
 		if ws.Branch.PrepareHighLoad {
 			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")

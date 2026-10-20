@@ -26,12 +26,23 @@ func TestIntegrateResourceWaitExpiryExitsTwo(t *testing.T) {
 	t.Setenv("HOST_SLOTS_HELD", "")
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fx := testutil.TempWorktreeWithBareOrigin(t)
-	runGit(t, fx.Clone, "branch", "develop")
+	// Only a high-load readiness contract takes the host measurement lock;
+	// gz-git runs no repository code without one.
+	runGit(t, fx.Clone, "checkout", "-b", "develop")
+	marker := filepath.Join(t.TempDir(), "gate-ran")
+	if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  lockWait: 50ms\n  taskPattern: dev/*\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
+	writeFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\ntouch '"+marker+"'\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n")
+	if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "declare high-load readiness")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-	marker := filepath.Join(t.TempDir(), "gate-ran")
-	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  lockWait: 50ms\n  taskPattern: dev/*\n")
-	writeFile(t, fx.Worktree, "Makefile", "check:\n\t@touch '"+marker+"'\nlint:\n\t@touch '"+marker+"'\n")
+	writeFile(t, fx.Worktree, "task.txt", "task\n")
 	runGit(t, fx.Worktree, "add", ".")
 	runGit(t, fx.Worktree, "commit", "-m", "expiry fixture")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")

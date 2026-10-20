@@ -14,12 +14,6 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
 )
 
-// headGuard binds only the HEAD of dir, for profile tests that have no plan.
-func headGuard(t *testing.T, dir string) preparedRefGuard {
-	t.Helper()
-	return preparedRefGuard{head: runGitInTest(t, dir, "rev-parse", "HEAD")}
-}
-
 // refGuardFixture is a repository whose bound refs are all present: source
 // "src" and the remote-tracking target origin/tgt, plus a local branch tgt of
 // the same name, a bystander branch and a bystander remote-tracking ref that
@@ -58,120 +52,9 @@ func newRefGuardFixture(t *testing.T, files map[string]string) refGuardFixture {
 	return refGuardFixture{dir: fx.Worktree, g: g, guard: guard}
 }
 
-// Shell fragments run inside the prepared directory by the fake tools. They
-// carry their own identity because the go profile isolates git configuration.
-const (
-	refsNewCommit = `new=$(GIT_AUTHOR_NAME=a GIT_AUTHOR_EMAIL=a@b GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@b git commit-tree -p HEAD -m moved 'HEAD^{tree}')`
-
-	refsUnrelatedChurn = `git branch created-meanwhile HEAD
-git branch -D bystander
-git update-ref -d refs/remotes/origin/bystander
-git update-ref refs/remotes/origin/created-meanwhile HEAD`
-)
-
-type refGuardProfile struct {
-	name    string
-	profile string
-	files   map[string]string
-	// install puts a fake tool on PATH that runs action after the profile's
-	// own legitimate output has been written.
-	install func(t *testing.T, action string)
-}
-
-func refGuardProfiles() []refGuardProfile {
-	return []refGuardProfile{
-		{
-			name:    "cargo",
-			profile: cargoWorkspacePrepareV1,
-			files:   map[string]string{".gitignore": "target/\n", "Cargo.toml": "[workspace]\nmembers = []\n"},
-			install: func(t *testing.T, action string) {
-				t.Helper()
-				t.Setenv("PATH", fakeCargo(t, "mkdir -p target\nif [ \"$1\" = fetch ]; then exit 0; fi\n"+action)+":"+os.Getenv("PATH"))
-			},
-		},
-		{
-			name:    "pnpm",
-			profile: pnpmFrozenLockfilePrepareV1,
-			files:   map[string]string{".gitignore": "node_modules/\n", "package.json": "{\"name\":\"fixture\",\"private\":true}\n"},
-			install: func(t *testing.T, action string) {
-				t.Helper()
-				bin := fakeCargo(t, "mkdir -p node_modules\n"+action)
-				if err := os.Rename(filepath.Join(bin, "cargo"), filepath.Join(bin, "pnpm")); err != nil {
-					t.Fatal(err)
-				}
-				t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
-			},
-		},
-		{
-			name:    "ent",
-			profile: familybookEntPrepareV1,
-			files:   map[string]string{".gitignore": "ent/generated/\n", "ent/.keep": ""},
-			install: func(t *testing.T, action string) {
-				t.Helper()
-				t.Setenv("PATH", fakeGo(t, "mkdir -p ent/generated\n"+action)+":"+os.Getenv("PATH"))
-			},
-		},
-	}
-}
-
-func TestPrepareProfilesTolerateUnrelatedRefChurn(t *testing.T) {
-	for _, p := range refGuardProfiles() {
-		t.Run(p.name, func(t *testing.T) {
-			fx := newRefGuardFixture(t, p.files)
-			p.install(t, refsUnrelatedChurn)
-			if err := runPrepareProfile(context.Background(), fx.g, fx.dir, p.profile, fx.guard); err != nil {
-				t.Fatalf("unrelated branch creation/deletion failed preparation: %v", err)
-			}
-			if got := runGitInTest(t, fx.dir, "branch", "--list", "created-meanwhile"); got == "" {
-				t.Fatal("fake tool did not create the unrelated branch; the test exercised nothing")
-			}
-		})
-	}
-}
-
-func TestPrepareProfilesRejectMovedBoundRefsAndHead(t *testing.T) {
-	cases := map[string]struct {
-		action string
-		want   string
-	}{
-		"source moved":        {refsNewCommit + "\ngit update-ref refs/heads/src \"$new\"", "refs/heads/src"},
-		"remote target moved": {refsNewCommit + "\ngit update-ref refs/remotes/origin/tgt \"$new\"", "refs/remotes/origin/tgt"},
-		"head reattached":     {"git checkout -q -B attached HEAD", "re-attached"},
-		"remote target gone":  {"git update-ref -d refs/remotes/origin/tgt", "refs/remotes/origin/tgt"},
-		"head moved":          {refsNewCommit + "\ngit update-ref --no-deref HEAD \"$new\"", "prepared worktree HEAD"},
-	}
-	for _, p := range refGuardProfiles() {
-		for name, tc := range cases {
-			t.Run(p.name+"/"+name, func(t *testing.T) {
-				fx := newRefGuardFixture(t, p.files)
-				p.install(t, tc.action)
-				err := runPrepareProfile(context.Background(), fx.g, fx.dir, p.profile, fx.guard)
-				if err == nil || !strings.Contains(err.Error(), tc.want) {
-					t.Fatalf("err = %v, want it to name %q", err, tc.want)
-				}
-			})
-		}
-	}
-}
-
-func TestPrepareProfilesTolerateLocalBranchOfRemoteTargetName(t *testing.T) {
-	// The plan's target is origin/tgt; a local tgt moving is not the target
-	// moving and must not fail preparation.
-	for _, p := range refGuardProfiles() {
-		t.Run(p.name, func(t *testing.T) {
-			fx := newRefGuardFixture(t, p.files)
-			p.install(t, refsNewCommit+"\ngit update-ref refs/heads/tgt \"$new\"")
-			if err := runPrepareProfile(context.Background(), fx.g, fx.dir, p.profile, fx.guard); err != nil {
-				t.Fatalf("unbound local branch moving failed preparation: %v", err)
-			}
-		})
-	}
-}
-
 func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
 	t.Parallel()
 	// A names-only snapshot cannot see this: every ref name is still there.
-	// This also stands in for the flow profile, which shares snapshot/verify.
 	fx := newRefGuardFixture(t, map[string]string{"f": "x\n"})
 	ctx := context.Background()
 	snap, err := fx.guard.snapshot(ctx, fx.g)

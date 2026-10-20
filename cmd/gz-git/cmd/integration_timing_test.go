@@ -6,6 +6,9 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -66,20 +69,26 @@ func TestIntegrationJSONSeparatesWaitAndValidation(t *testing.T) {
 		return value
 	}
 
-	t.Run("a legacy gate run reports validation milliseconds with an explicit zero wait", func(t *testing.T) {
+	t.Run("a readiness contract run reports validation milliseconds with an explicit zero wait", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("readiness contract runners are unsupported on Windows")
+		}
 		restore := setIntegrateRunGlobals(t)
 		defer restore()
 		restoreJSON := setJSONOutput(t)
 		defer restoreJSON()
 
 		fx := testutil.TempWorktreeWithBareOrigin(t)
-		writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		// A real no-op lint target: the legacy gate probes check and lint
-		// alike, so an undefined lint would leave readiness resting on the
-		// skipped-check path instead of reaching the integration itself.
-		writeFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15\nlint:\n\t@:\n")
+		if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
+		writeFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\nsleep 0.15\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n")
+		if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
+			t.Fatal(err)
+		}
 		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "declare gate")
+		runGit(t, fx.Clone, "commit", "-m", "declare readiness contract")
 		runGit(t, fx.Clone, "branch", "develop")
 		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
@@ -96,24 +105,24 @@ func TestIntegrationJSONSeparatesWaitAndValidation(t *testing.T) {
 			t.Fatalf("resource_wait_duration_ms = %v, want 0: no high-load declaration means no slot wait", wait)
 		}
 		if validation := timingField(t, doc, "validation_duration_ms"); validation < 100 {
-			t.Fatalf("validation_duration_ms = %v, want at least the gate's 150ms run", validation)
+			t.Fatalf("validation_duration_ms = %v, want at least the runner's 150ms run", validation)
 		}
 	})
 
-	t.Run("a gate that never ran renders both timing fields as explicit zero", func(t *testing.T) {
+	t.Run("no readiness contract integrates with both timing fields as explicit zero", func(t *testing.T) {
 		restore := setIntegrateRunGlobals(t)
 		defer restore()
 		restoreJSON := setJSONOutput(t)
 		defer restoreJSON()
 
-		// The catch-all guard satisfies check and lint through implicit
-		// rules, so the check is not ready and no gate subprocess ran; the
-		// protocol must still carry both fields as literal zeros.
+		// gz-git runs no repository code without a readiness contract: the
+		// Makefile below is inert, the git checks alone decide readiness, and
+		// the protocol must still carry both fields as literal zeros.
 		fx := testutil.TempWorktreeWithBareOrigin(t)
 		writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		writeFile(t, fx.Clone, "Makefile", "%:\n\t@:\n")
+		writeFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15\nlint:\n\t@false\n")
 		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "catch-all gate")
+		runGit(t, fx.Clone, "commit", "-m", "inert makefile")
 		runGit(t, fx.Clone, "branch", "develop")
 		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
@@ -123,11 +132,11 @@ func TestIntegrationJSONSeparatesWaitAndValidation(t *testing.T) {
 		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 
 		doc, exit := runJSON(t, fx)
-		if exit != 1 {
-			t.Fatalf("run exit = %d, want 1 (not ready): %v", exit, doc["error"])
+		if exit != 0 {
+			t.Fatalf("run exit = %d, want 0 (integrated on git checks alone): %v", exit, doc["error"])
 		}
-		if integrated, ok := doc["integrated"].(bool); !ok || integrated {
-			t.Fatalf("integrated = %#v, want false", doc["integrated"])
+		if integrated, ok := doc["integrated"].(bool); !ok || !integrated {
+			t.Fatalf("integrated = %#v, want true", doc["integrated"])
 		}
 		if wait := timingField(t, doc, "resource_wait_duration_ms"); wait != 0 {
 			t.Fatalf("resource_wait_duration_ms = %v, want an explicit 0", wait)

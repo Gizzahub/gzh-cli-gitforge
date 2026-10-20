@@ -35,6 +35,9 @@ func LoadControllerConfig(path string) (*ControllerConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read controller config: %w", err)
 	}
+	if err := rejectRemovedConfigKeys(raw, false, abs); err != nil {
+		return nil, err
+	}
 	var doc struct {
 		Workspaces map[string]*Workspace `yaml:"workspaces"`
 	}
@@ -56,11 +59,6 @@ func LoadControllerConfig(path string) (*ControllerConfig, error) {
 		}
 		if ws.Access != "" && ws.Access != WorkspaceAccessReadWrite && ws.Access != WorkspaceAccessReadOnly {
 			return nil, fmt.Errorf("controller workspace %q has invalid access %q", name, ws.Access)
-		}
-		if ws.Integration.PrepareProfile != "" {
-			if err := ValidatePrepareProfile(ws.Integration.PrepareProfile); err != nil {
-				return nil, fmt.Errorf("controller workspace %q: %w", name, err)
-			}
 		}
 		if ws.Branch == nil || len(ws.Branch.IntegrationBranch) != 1 {
 			return nil, fmt.Errorf("controller workspace %q requires exactly one branch.integrationBranch", name)

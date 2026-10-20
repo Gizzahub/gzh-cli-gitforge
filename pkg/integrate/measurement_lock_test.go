@@ -129,49 +129,71 @@ func fastHostLockPolling(t *testing.T) {
 	t.Cleanup(func() { hostLockPollInterval, hostLockNoticeInterval = poll, notice })
 }
 
-// measurementLockFixture is a task branch on develop whose check and lint
-// recipes are both recipe, with the declared make budget.
-func measurementLockFixture(t *testing.T, recipe, budget string) *testutil.WorktreeOrigin {
+// measurementLockReadiness is the high-load readiness declaration the
+// measurement-lock fixtures share; extra lines are appended under branch.
+func measurementLockReadiness(timeout, extra string) string {
+	return "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n" + extra +
+		"  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: " + timeout + "\n"
+}
+
+// measurementLockFixture is a task branch on develop whose target declares a
+// high-load readiness contract. Its runner runs script under sh -e and then
+// reports ready, within the declared readiness timeout. gz-git runs no
+// repository code without such a contract, so only a contract runner can
+// hold the host measurement lock.
+func measurementLockFixture(t *testing.T, script, timeout string) *testutil.WorktreeOrigin {
 	t.Helper()
+	if !readinessRunnerSupported() {
+		t.Skip("readiness runners are unsupported on this platform")
+	}
 	fx := testutil.TempWorktreeWithBareOrigin(t)
-	makefile := "check:\n\t" + recipe + "\nlint:\n\t" + recipe + "\n"
-	writeRepoFile(t, fx.Clone, "Makefile", makefile)
-	runGit(t, fx.Clone, "add", "Makefile")
-	runGit(t, fx.Clone, "commit", "-m", "gate")
-	runGit(t, fx.Clone, "branch", "develop")
+	runGit(t, fx.Clone, "checkout", "-b", "develop")
+	if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, fx.Clone, ".gz-git.yaml", measurementLockReadiness(timeout, ""))
+	writeRepoFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\nset -e\n"+script+"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n")
+	if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "declare high-load readiness")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "fetch", fx.Remote)
 	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", fx.Remote+"/develop")
-	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: "+budget+"\n  resourceHighLoad: true\n")
 	writeRepoFile(t, fx.Worktree, "task.txt", "task\n")
-	runGit(t, fx.Worktree, "add", ".gz-git.yaml", "task.txt")
+	runGit(t, fx.Worktree, "add", "task.txt")
 	runGit(t, fx.Worktree, "commit", "-m", "task")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 	return fx
 }
 
+// setMeasurementLockWait declares lockWait on the source side, where the
+// effective wait is resolved; the readiness contract itself is unchanged.
 func setMeasurementLockWait(t *testing.T, fx *testutil.WorktreeOrigin, wait string) {
 	t.Helper()
-	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: 1m\n  resourceHighLoad: true\n  lockWait: "+wait+"\n")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", measurementLockReadiness("1m", "  lockWait: "+wait+"\n"))
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
 	runGit(t, fx.Worktree, "commit", "-m", "configure lock wait")
 	runGit(t, fx.Worktree, "push")
 }
 
-func TestInheritedHostSlotPassesFromMakeToChildCheck(t *testing.T) {
+func TestInheritedHostSlotPassesFromRunnerToChildCheck(t *testing.T) {
 	fastHostLockPolling(t)
 	state := t.TempDir()
 	childMarker := filepath.Join(state, "child-ran")
 	record := filepath.Join(state, "held-slots")
-	child := measurementLockFixture(t, "@touch "+strconv.Quote(childMarker), "1m")
+	child := measurementLockFixture(t, "touch "+strconv.Quote(childMarker), "1m")
 	t.Setenv(inheritedResourceChildEnv, "1")
 	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_REPO", child.Worktree)
 	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_MARKER", childMarker)
 	t.Setenv("GZ_GIT_TEST_INHERITED_RESOURCE_RECORD", record)
 	// Existing names are retained once and the parent adds only the slot it
-	// actually holds for the make subprocess.
+	// actually holds for the runner subprocess.
 	t.Setenv(hostSlotsHeldEnv, "alpha, alpha")
-	parentRecipe := "@" + strconv.Quote(os.Args[0]) + " -test.run=^TestInheritedResourceChild$"
+	// The child's test output goes to stderr: the runner's stdout is its
+	// json-v1 result.
+	parentRecipe := strconv.Quote(os.Args[0]) + " -test.run=^TestInheritedResourceChild$ >&2"
 	parent := measurementLockFixture(t, parentRecipe, "1m")
 
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: parent.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
@@ -330,12 +352,12 @@ type checkResult struct {
 }
 
 // TestMeasurementLock runs two integrations of two different repositories at
-// once. Every make recipe claims one shared directory with an atomic mkdir
+// once. Every readiness runner claims one shared directory with an atomic mkdir
 // and fails with 9 if another measurement already holds it, so the runs are
 // both integrated only if no two measurements overlapped.
 func TestMeasurementLock(t *testing.T) {
 	busy := filepath.Join(t.TempDir(), "busy")
-	recipe := "@mkdir " + busy + " || exit 9; sleep 0.3; rmdir " + busy
+	recipe := "mkdir " + busy + " || exit 9; sleep 0.3; rmdir " + busy
 	fixtures := []*testutil.WorktreeOrigin{
 		measurementLockFixture(t, recipe, "1m"),
 		measurementLockFixture(t, recipe, "1m"),
@@ -373,12 +395,12 @@ func TestMeasurementLock(t *testing.T) {
 	}
 }
 
-// TestMeasurementLockBudget holds the lock longer than the declared make
-// budget. The waiting integration must still measure and pass: the budget
+// TestMeasurementLockBudget holds the lock longer than the declared readiness
+// timeout. The waiting integration must still measure and pass: the budget
 // clock starts when the lock is acquired.
 func TestMeasurementLockBudget(t *testing.T) {
 	fastHostLockPolling(t)
-	fx := measurementLockFixture(t, "@true", "1s")
+	fx := measurementLockFixture(t, "true", "1s")
 	lock := holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
 	const hold = 2500 * time.Millisecond
 	notice := &lockedBuffer{}
@@ -423,7 +445,7 @@ func TestMeasurementLockBudget(t *testing.T) {
 		t.Fatalf("no waiting notice:\n%s", notice.String())
 	}
 	if !report.Ready {
-		t.Fatalf("waiting %s for the lock was charged to the 1s make budget\n%s", hold, FormatCheck(report))
+		t.Fatalf("waiting %s for the lock was charged to the 1s readiness timeout\n%s", hold, FormatCheck(report))
 	}
 	if report.ResourceWaitDuration < time.Second {
 		t.Fatalf("resource wait = %s, want a separately reported held-slot delay", report.ResourceWaitDuration)
@@ -458,7 +480,7 @@ func TestMeasurementLockCrashHolderProcess(t *testing.T) {
 // lock, and the waiter proceeds.
 func TestMeasurementLockCrash(t *testing.T) {
 	fastHostLockPolling(t)
-	fx := measurementLockFixture(t, "@true", "1m")
+	fx := measurementLockFixture(t, "true", "1m")
 
 	child := exec.Command(os.Args[0], "-test.run=^TestMeasurementLockCrashHolderProcess$") //nolint:noctx // killed explicitly below
 	child.Env = append(os.Environ(), hostLockChildEnv+"=1")
@@ -530,7 +552,7 @@ func moveMeasurementTarget(t *testing.T, fx *testutil.WorktreeOrigin, name strin
 func TestMeasurementLockStopsWhenTargetMovesDuringOSWait(t *testing.T) {
 	fastHostLockPolling(t)
 	ran := filepath.Join(t.TempDir(), "gate-ran")
-	fx := measurementLockFixture(t, "@touch "+strconv.Quote(ran), "1m")
+	fx := measurementLockFixture(t, "touch "+strconv.Quote(ran), "1m")
 	lock := holdHostLockInProcess(t, "/elsewhere/repo", "dev/other")
 
 	notice := &lockedBuffer{}
@@ -554,14 +576,14 @@ func TestMeasurementLockStopsWhenTargetMovesDuringOSWait(t *testing.T) {
 	if r.err != nil {
 		t.Fatalf("Check: %v", r.err)
 	}
-	if r.report.Ready || !hasCheckDetail(r.report, "make check", checkFail, "target branch changed while waiting") {
+	if r.report.Ready || !hasCheckDetail(r.report, "readiness contract", checkFail, "target branch changed while waiting") {
 		t.Fatalf("target movement during a resource wait must require revalidation:\n%s", FormatCheck(r.report))
 	}
 	if r.report.ResourceWaitDuration <= 0 {
 		t.Fatalf("target movement lost resource wait duration: %s", r.report.ResourceWaitDuration)
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("make gate started after target movement: %v", err)
+		t.Fatalf("readiness runner started after target movement: %v", err)
 	}
 	lock.release()
 }
@@ -573,7 +595,7 @@ func TestMeasurementLockStopsWhenTargetMovesDuringOSWait(t *testing.T) {
 func TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission(t *testing.T) {
 	fastHostLockPolling(t)
 	ran := filepath.Join(t.TempDir(), "gate-ran")
-	fx := measurementLockFixture(t, "@touch "+strconv.Quote(ran), "1m")
+	fx := measurementLockFixture(t, "touch "+strconv.Quote(ran), "1m")
 	dir, err := hostSlotsDir()
 	if err != nil {
 		t.Fatal(err)
@@ -600,7 +622,7 @@ func TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission(t *testing.T) {
 		if r.err != nil {
 			t.Fatalf("Check: %v", r.err)
 		}
-		if r.report.Ready || !hasCheckDetail(r.report, "make check", checkFail, "target branch changed while waiting") {
+		if r.report.Ready || !hasCheckDetail(r.report, "readiness contract", checkFail, "target branch changed while waiting") {
 			t.Fatalf("target movement during FIFO admission must require revalidation:\n%s", FormatCheck(r.report))
 		}
 		if r.report.ResourceWaitDuration <= 0 {
@@ -610,7 +632,7 @@ func TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission(t *testing.T) {
 		t.Fatal("Check did not stop after target movement during FIFO admission")
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("make gate started after target movement: %v", err)
+		t.Fatalf("readiness runner started after target movement: %v", err)
 	}
 	tickets, err := liveAdmissionTickets(dir)
 	if err != nil || len(tickets) != 1 {
@@ -619,7 +641,7 @@ func TestMeasurementLockStopsWhenTargetMovesDuringFIFOAdmission(t *testing.T) {
 }
 
 func TestTargetWaitObserverTreatsDeletedTargetAsMovement(t *testing.T) {
-	fx := measurementLockFixture(t, "@true", "1m")
+	fx := measurementLockFixture(t, "true", "1m")
 	gitExecutor := gitcmd.NewExecutor()
 	g := newGitRepo(gitExecutor, fx.Worktree)
 	plan, err := resolveTarget(context.Background(), g, gitExecutor, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
@@ -636,7 +658,7 @@ func TestTargetWaitObserverTreatsDeletedTargetAsMovement(t *testing.T) {
 }
 
 func TestTargetWaitObserverContinuesAfterOneFetchFailure(t *testing.T) {
-	fx := measurementLockFixture(t, "@true", "1m")
+	fx := measurementLockFixture(t, "true", "1m")
 	runner := gitcmd.NewExecutor()
 	g := newGitRepo(runner, fx.Worktree)
 	plan, err := resolveTarget(context.Background(), g, runner, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
@@ -675,7 +697,7 @@ func TestTargetWaitObserverContinuesAfterOneFetchFailure(t *testing.T) {
 }
 
 func TestTargetWaitObserverTreatsNonFastForwardTargetAsMovement(t *testing.T) {
-	fx := measurementLockFixture(t, "@true", "1m")
+	fx := measurementLockFixture(t, "true", "1m")
 	gitExecutor := gitcmd.NewExecutor()
 	g := newGitRepo(gitExecutor, fx.Worktree)
 	plan, err := resolveTarget(context.Background(), g, gitExecutor, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
@@ -714,11 +736,11 @@ func TestResourceWaitObserverCannotExtendFiniteAcquisitionBudget(t *testing.T) {
 }
 
 // TestMeasurementLockWait gives up on a held lock after --lock-wait. Both
-// commands must fail, name the holder, and run no make target.
+// commands must fail, name the holder, and start no readiness runner.
 func TestMeasurementLockWait(t *testing.T) {
 	fastHostLockPolling(t)
 	ran := filepath.Join(t.TempDir(), "ran")
-	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	fx := measurementLockFixture(t, "touch "+ran, "1m")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	opts := CheckOptions{
 		RepoPath:   fx.Worktree,
@@ -729,17 +751,17 @@ func TestMeasurementLockWait(t *testing.T) {
 
 	checkReport, checkErr := Check(context.Background(), gitcmd.NewExecutor(), opts)
 	runReport, runErr := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
-	if !errors.Is(checkErr, ErrHostLockWait) || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "make check", checkFail, "resource slot") {
+	if !errors.Is(checkErr, ErrHostLockWait) || checkReport == nil || checkReport.Ready || !hasCheckDetail(checkReport, "readiness contract", checkFail, "host measurement lock wait expired") {
 		t.Fatalf("check = %#v, %v; want a not-ready resource-slot report", checkReport, checkErr)
 	}
-	if !hasCheckDetailParts(checkReport, "make check", checkFail, "300ms", "flag", "per acquisition", "no gate measured") {
+	if !hasCheckDetailParts(checkReport, "readiness contract", checkFail, "300ms", "flag", "per acquisition", "no gate measured") {
 		t.Fatalf("check lock-wait diagnostic:\n%s", FormatCheck(checkReport))
 	}
 	if runErr == nil || runReport == nil || runReport.Check == nil || runReport.Check.Ready {
 		t.Fatalf("run = %#v, %v; want not-ready after resource wait", runReport, runErr)
 	}
 	if _, err := os.Stat(ran); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("a make target ran without the lock (stat %s: %v)", ran, err)
+		t.Fatalf("a readiness runner ran without the lock (stat %s: %v)", ran, err)
 	}
 }
 
@@ -766,11 +788,11 @@ func TestEffectiveLockWaitPrecedence(t *testing.T) {
 func TestMeasurementLockConfiguredWait(t *testing.T) {
 	fastHostLockPolling(t)
 	ran := filepath.Join(t.TempDir(), "ran")
-	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	fx := measurementLockFixture(t, "touch "+ran, "1m")
 	setMeasurementLockWait(t, fx, "50ms")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "repository config", "per acquisition", "no gate measured") {
+	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "readiness contract", checkFail, "50ms", "repository config", "per acquisition", "no gate measured") {
 		t.Fatalf("configured Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
@@ -784,10 +806,10 @@ func TestMeasurementLockDefaultWait(t *testing.T) {
 	defaultHostLockWait = 50 * time.Millisecond
 	t.Cleanup(func() { defaultHostLockWait = oldDefault })
 	ran := filepath.Join(t.TempDir(), "ran")
-	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	fx := measurementLockFixture(t, "touch "+ran, "1m")
 	holdHostLockInProcess(t, "/holder/repo", "dev/holder/branch")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard})
-	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "make check", checkFail, "50ms", "default", "per acquisition", "no gate measured") {
+	if !errors.Is(err, ErrHostLockWait) || report == nil || report.Ready || !hasCheckDetailParts(report, "readiness contract", checkFail, "50ms", "default", "per acquisition", "no gate measured") {
 		t.Fatalf("default Check = %#v, %v", report, err)
 	}
 	if _, statErr := os.Stat(ran); !errors.Is(statErr, os.ErrNotExist) {
@@ -820,7 +842,7 @@ func TestMeasurementLockExplicitZeroOutlivesConfigAndDefault(t *testing.T) {
 	defaultHostLockWait = 20 * time.Millisecond
 	t.Cleanup(func() { defaultHostLockWait = oldDefault })
 	ran := filepath.Join(t.TempDir(), "ran")
-	fx := measurementLockFixture(t, "@touch "+ran, "1m")
+	fx := measurementLockFixture(t, "touch "+ran, "1m")
 	setMeasurementLockWait(t, fx, "10ms")
 	lock := holdHostLockInProcess(t, "/holder", "holder")
 	released := make(chan struct{})
@@ -844,7 +866,7 @@ func TestMeasurementLockExplicitZeroOutlivesConfigAndDefault(t *testing.T) {
 // fabricated target deletion when the observer's admission budget expires.
 func TestTargetWaitObserverDeadlinePreservesResourceWaitDiagnostic(t *testing.T) {
 	fastHostLockPolling(t)
-	fx := measurementLockFixture(t, "@true", "1m")
+	fx := measurementLockFixture(t, "true", "1m")
 	runner := gitcmd.NewExecutor()
 	plan, err := resolveTarget(context.Background(), newGitRepo(runner, fx.Worktree), runner, CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}})
 	if err != nil {
@@ -859,7 +881,7 @@ func TestTargetWaitObserverDeadlinePreservesResourceWaitDiagnostic(t *testing.T)
 	for _, stage := range []string{"ls-remote", "fetch", "rev-parse"} {
 		t.Run(stage, func(t *testing.T) {
 			wrapper := filepath.Join(t.TempDir(), "git")
-			script := "#!/bin/sh\nif [ \"$1\" = " + prepareScopeQuote(stage) + " ]; then exec sleep 2; fi\nexec " + prepareScopeQuote(realGit) + " \"$@\"\n"
+			script := "#!/bin/sh\nif [ \"$1\" = " + shellSingleQuoteForTest(stage) + " ]; then exec sleep 2; fi\nexec " + shellSingleQuoteForTest(realGit) + " \"$@\"\n"
 			if err := os.WriteFile(wrapper, []byte(script), 0o700); err != nil {
 				t.Fatal(err)
 			}
@@ -871,4 +893,9 @@ func TestTargetWaitObserverDeadlinePreservesResourceWaitDiagnostic(t *testing.T)
 			}
 		})
 	}
+}
+
+// shellSingleQuoteForTest quotes value as one POSIX shell word.
+func shellSingleQuoteForTest(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }

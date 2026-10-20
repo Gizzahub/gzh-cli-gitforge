@@ -22,8 +22,7 @@ func TestLoadControllerConfigAllowsNonControllerWorkspace(t *testing.T) {
     branch:
       integrationBranch: develop
       taskPattern: dev/*/*/*
-    integration:
-      prepareProfile: familybook-ent-v1
+    integration: {}
 `)
 	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatal(err)

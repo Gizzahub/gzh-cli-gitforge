@@ -22,7 +22,6 @@ var (
 	integrateCheckTarget           string
 	integrateCheckDirectToDefault  bool
 	integrateCheckRelease          bool
-	integrateCheckAllowSkipped     bool
 	integrateCheckControllerConfig string
 	integrateCheckNoFetch          bool
 	integrateCheckExpectSource     string
@@ -40,6 +39,9 @@ var integrateCheckCmd = &cobra.Command{
   gz-git integrate check --target origin/main --direct-to-default
 
 This is read-only. It never pushes and never reclaims.
+gz-git builds, executes and lints no repository code on its own. A target-owned
+readiness contract (.gz-git/readiness) runs the repository's checks; without
+one the gate mode is "none" and the git checks alone decide READY.
 Run a bare check from a task-branch worktree, not from the target checkout.
 
 Engine: gz-git-integrate (Go)
@@ -58,7 +60,6 @@ func init() {
 	integrateCheckCmd.Flags().StringVar(&integrateCheckTarget, "target", "", "integration target (required when none can be resolved)")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckDirectToDefault, "direct-to-default", false, "allow targeting the default branch when no integration branch exists")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckRelease, "release", false, "promote the integration branch onto the default branch")
-	integrateCheckCmd.Flags().BoolVar(&integrateCheckAllowSkipped, "allow-skipped-checks", false, "allow a repo with no check/lint gate, downgrade SKIPPED CHECK banners to warnings, and downgrade an unmeasurable baseline comparison to a warning")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "resolve the target from local tracking refs without fetching")
 	integrateCheckCmd.Flags().DurationVar(&integrateCheckLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
@@ -84,19 +85,18 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	report, err := integrate.Check(ctx, gitcmd.NewExecutor(), integrate.CheckOptions{
-		RepoPath:           dir,
-		Branch:             branch,
-		Target:             integrateCheckTarget,
-		DirectToDefault:    integrateCheckDirectToDefault,
-		Release:            integrateCheckRelease,
-		AllowSkippedChecks: integrateCheckAllowSkipped,
-		ControllerConfig:   integrateCheckControllerConfig,
-		NoFetch:            integrateCheckNoFetch,
-		ExpectSource:       integrateCheckExpectSource,
-		ExpectTarget:       expectTarget,
-		LockWait:           integrateCheckLockWait,
-		LockWaitSet:        cmd.Flags().Changed("lock-wait"),
-		LockNotice:         cmd.ErrOrStderr(),
+		RepoPath:         dir,
+		Branch:           branch,
+		Target:           integrateCheckTarget,
+		DirectToDefault:  integrateCheckDirectToDefault,
+		Release:          integrateCheckRelease,
+		ControllerConfig: integrateCheckControllerConfig,
+		NoFetch:          integrateCheckNoFetch,
+		ExpectSource:     integrateCheckExpectSource,
+		ExpectTarget:     expectTarget,
+		LockWait:         integrateCheckLockWait,
+		LockWaitSet:      cmd.Flags().Changed("lock-wait"),
+		LockNotice:       cmd.ErrOrStderr(),
 	})
 	if errors.Is(ctx.Err(), context.Canceled) {
 		// A killed readiness gate is no verdict; never report it as not ready.

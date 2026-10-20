@@ -250,22 +250,6 @@ func (g gitRepo) isAncestor(ctx context.Context, ancestor, tip string) (bool, er
 	return res.ExitCode == 0, nil
 }
 
-func (g gitRepo) lsTreeNames(ctx context.Context, sha string) ([]string, error) {
-	out, err := g.output(ctx, "ls-tree", "-r", "--name-only", sha)
-	if err != nil {
-		return nil, err
-	}
-	return splitNonEmpty(out), nil
-}
-
-func (g gitRepo) diffNames(ctx context.Context, a, b string) ([]string, error) {
-	out, err := g.output(ctx, "diff", "--name-only", a, b)
-	if err != nil {
-		return nil, err
-	}
-	return splitNonEmpty(out), nil
-}
-
 type treeEntry struct {
 	Mode string
 	Type string

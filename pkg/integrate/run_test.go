@@ -490,7 +490,6 @@ func TestRun_ReclaimPreservesSiblingTaskWorktreeAndParent(t *testing.T) {
 	runGit(t, fx.Clone, "worktree", "add", "-b", branchA, worktreeA, "develop")
 	writeFile(t, worktreeA, "task-a.txt", "task a\n")
 	writeRepoFile(t, worktreeA, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\n")
-	writeGateMakefile(t, worktreeA)
 	runGit(t, worktreeA, "add", ".")
 	runGit(t, worktreeA, "commit", "-m", "task a")
 	runGit(t, worktreeA, "push", "-u", fx.Remote, "HEAD")
@@ -640,7 +639,6 @@ func runFixtureForBranch(t *testing.T, branch, pattern string) *testutil.Worktre
 		body += "  taskPattern: " + pattern + "\n"
 	}
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", body)
-	writeGateMakefile(t, fx.Worktree)
 	runGit(t, fx.Worktree, "add", ".")
 	runGit(t, fx.Worktree, "commit", "-m", "task work")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")

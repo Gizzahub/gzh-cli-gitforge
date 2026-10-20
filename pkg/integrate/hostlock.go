@@ -262,14 +262,7 @@ func describeHostLockHolder(sidecar string) string {
 	return "held by " + strings.Join(parts, ", ")
 }
 
-// resourceScope marks gate subprocesses that explicitly opted into host
-// capacity. It is request-scoped; no process environment is mutated.
-type resourceScope struct {
-	g    gitRepo
-	opts CheckOptions
-}
 type (
-	resourceScopeKey        struct{}
 	heldHostSlotKey         struct{}
 	resourceWaitObserverKey struct{}
 )
@@ -295,26 +288,6 @@ func observeResourceWait(ctx context.Context, remaining time.Duration, bounded b
 	probeCtx, cancel := context.WithTimeout(ctx, remaining)
 	defer cancel()
 	return observer(probeCtx)
-}
-
-func withResourceScope(ctx context.Context, g gitRepo, opts CheckOptions) context.Context {
-	return context.WithValue(ctx, resourceScopeKey{}, resourceScope{g: g, opts: opts})
-}
-
-func holdScopedMeasurementLock(ctx context.Context) (context.Context, func(), error) {
-	scope, ok := ctx.Value(resourceScopeKey{}).(resourceScope)
-	if !ok {
-		return ctx, func() {}, nil
-	}
-	started := time.Now()
-	heldCtx, release, err := holdMeasurementLock(ctx, scope.g, scope.opts)
-	if scope.opts.resourceWait != nil {
-		*scope.opts.resourceWait += time.Since(started)
-	}
-	if err != nil {
-		return ctx, nil, err
-	}
-	return heldCtx, release, nil
 }
 
 func withHeldHostSlot(ctx context.Context) context.Context {

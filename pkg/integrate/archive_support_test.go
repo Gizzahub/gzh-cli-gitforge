@@ -18,181 +18,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
-func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *testing.T) {
-	t.Parallel()
-	devbox := flowTaskchainFixture(t)
-	inputs, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(inputs) != 2 || !fullObjectID(inputs[0].OID) || !fullObjectID(inputs[1].OID) {
-		t.Fatalf("inputs = %#v", inputs)
-	}
-
-	// A later checkout change cannot change the archive bytes already captured.
-	writeFile(t, filepath.Join(devbox, "flow-taskchain-engine"), "snapshot.txt", "later\n")
-	runGitInTest(t, filepath.Join(devbox, "flow-taskchain-engine"), "add", "snapshot.txt")
-	runGitInTest(t, filepath.Join(devbox, "flow-taskchain-engine"), "commit", "-m", "later")
-	prepared := t.TempDir()
-	runGitInTest(t, prepared, "init")
-	setFlowFixtureGitIdentity(t, prepared)
-	writeFile(t, prepared, "tracked", "base\n")
-	runGitInTest(t, prepared, "add", "tracked")
-	runGitInTest(t, prepared, "commit", "-m", "base")
-	if err := prepareFlowTaskchainLocalSubprojects(context.Background(), newGitRepo(gitcmd.NewExecutor(), prepared), prepared, inputs, preparedRefGuard{}); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(filepath.Join(prepared, "flow-taskchain-engine", "snapshot.txt"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != "original\n" {
-		t.Fatalf("prepared tree used changed checkout: %q", data)
-	}
-}
-
-func TestFlowTaskchainPrepareRejectsMovedRefGuard(t *testing.T) {
-	t.Parallel()
-	// The flow profile extracts archives, so no tool can move a ref from
-	// inside it; the guard is instead armed so that verification must fail
-	// at the same point a moved ref or HEAD would.
-	devbox := flowTaskchainFixture(t)
-	inputs, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases := map[string]struct {
-		guard func(head string) preparedRefGuard
-		want  string
-	}{
-		"head moved":       {guard: func(string) preparedRefGuard { return preparedRefGuard{head: strings.Repeat("a", 40)} }, want: "prepared worktree HEAD"},
-		"head re-attached": {guard: func(head string) preparedRefGuard { return preparedRefGuard{head: head, detached: true} }, want: "re-attached"},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			prepared := t.TempDir()
-			runGitInTest(t, prepared, "init")
-			setFlowFixtureGitIdentity(t, prepared)
-			writeFile(t, prepared, "tracked", "base\n")
-			runGitInTest(t, prepared, "add", "tracked")
-			runGitInTest(t, prepared, "commit", "-m", "base")
-			head := runGitInTest(t, prepared, "rev-parse", "HEAD")
-			g := newGitRepo(gitcmd.NewExecutor(), prepared)
-			err := prepareFlowTaskchainLocalSubprojects(context.Background(), g, prepared, inputs, tc.guard(head))
-			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Fatalf("err = %v, want it to contain %q", err, tc.want)
-			}
-		})
-	}
-}
-
-func TestFlowTaskchainPrepareUsesPrimaryFromLinkedTaskWorktree(t *testing.T) {
-	t.Parallel()
-	devbox := flowTaskchainFixture(t)
-	task := filepath.Join(t.TempDir(), "task")
-	runGitInTest(t, devbox, "worktree", "add", "-b", "dev/actor/feat/task", task)
-	g := newGitRepo(gitcmd.NewExecutor(), task)
-	sha := strings.TrimSpace(runGitInTest(t, task, "rev-parse", "HEAD"))
-	prepared, err := prepareLegacySource(context.Background(), g, TargetPlan{BranchSHA: sha, TargetSHA: sha}, flowTaskchainLocalSubprojectsV1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(prepared.evidence(), "flow-taskchain-engine@") || !strings.Contains(prepared.evidence(), "flow-taskchain-mcp@") {
-		t.Fatalf("missing snapshot evidence: %q", prepared.evidence())
-	}
-	if err := prepared.cleanup(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestFlowTaskchainPrepareRejectsDirtySymlinkAndWrongRemote(t *testing.T) {
-	t.Parallel()
-	devbox := flowTaskchainFixture(t)
-	engine := filepath.Join(devbox, "flow-taskchain-engine")
-
-	writeFile(t, engine, "untracked", "x")
-	if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "dirty") {
-		t.Fatalf("dirty checkout err=%v", err)
-	}
-	if err := os.Remove(filepath.Join(engine, "untracked")); err != nil {
-		t.Fatal(err)
-	}
-	runGitInTest(t, engine, "remote", "set-url", "origin", "https://example.invalid/wrong.git")
-	if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "non-canonical fetch") {
-		t.Fatalf("wrong fetch err=%v", err)
-	}
-	runGitInTest(t, engine, "remote", "set-url", "origin", flowTaskchainSubprojects[0].remote)
-	runGitInTest(t, engine, "remote", "set-url", "--push", "origin", "https://example.invalid/wrong.git")
-	if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "non-canonical push") {
-		t.Fatalf("wrong push err=%v", err)
-	}
-	runGitInTest(t, engine, "remote", "set-url", "--push", "origin", flowTaskchainSubprojects[0].remote)
-	runGitInTest(t, engine, "remote", "set-url", "--add", "origin", "https://example.invalid/second.git")
-	if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "exactly one") {
-		t.Fatalf("multiple fetch remotes err=%v", err)
-	}
-}
-
-func TestFlowTaskchainSnapshotAllowsOnlyUntrackedRuntimeArtifacts(t *testing.T) {
-	t.Parallel()
-	t.Run("allows runtime artifacts with NUL-delimited paths", func(t *testing.T) {
-		devbox := flowTaskchainFixture(t)
-		engine := filepath.Join(devbox, "flow-taskchain-engine")
-		for _, name := range []string{
-			".ce/audit/events.jsonl",
-			"nested/.ce/heartbeat/events.jsonl",
-			"nested/.ce/heartbeat/state.json",
-			"nested/.ce/heartbeat/sessions/session-name.json",
-			".omo/run-continuation/ses_snapshot.json",
-		} {
-			if err := os.MkdirAll(filepath.Dir(filepath.Join(engine, name)), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			writeFile(t, engine, name, "runtime\n")
-		}
-		if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	for _, test := range []struct {
-		name string
-		edit func(t *testing.T, engine string)
-	}{
-		{
-			name: "unknown untracked path",
-			edit: func(t *testing.T, engine string) {
-				t.Helper()
-				writeFile(t, engine, "unexpected.txt", "x")
-			},
-		},
-		{
-			name: "tracked edit",
-			edit: func(t *testing.T, engine string) {
-				t.Helper()
-				writeFile(t, engine, "snapshot.txt", "changed\n")
-			},
-		},
-		{
-			name: "staged edit",
-			edit: func(t *testing.T, engine string) {
-				t.Helper()
-				writeFile(t, engine, "snapshot.txt", "changed\n")
-				runGitInTest(t, engine, "add", "snapshot.txt")
-			},
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			devbox := flowTaskchainFixture(t)
-			test.edit(t, filepath.Join(devbox, "flow-taskchain-engine"))
-			if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err == nil || !strings.Contains(err.Error(), "dirty") {
-				t.Fatalf("snapshot err=%v", err)
-			}
-		})
-	}
-}
-
-func TestFlowSnapshotStatusCleanRejectsMalformedOrDirtyRecords(t *testing.T) {
+func TestStatusCleanExceptUntrackedRejectsMalformedOrDirtyRecords(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {
 		name   string
@@ -208,8 +34,8 @@ func TestFlowSnapshotStatusCleanRejectsMalformedOrDirtyRecords(t *testing.T) {
 		{name: "staged allowed path", status: "A  .ce/audit/events.jsonl\x00"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if got := flowSnapshotStatusClean(test.status); got != test.clean {
-				t.Fatalf("flowSnapshotStatusClean(%q) = %t, want %t", test.status, got, test.clean)
+			if got := statusCleanExceptUntracked(test.status, isCELogRuntimeArtifactPath); got != test.clean {
+				t.Fatalf("statusCleanExceptUntracked(%q) = %t, want %t", test.status, got, test.clean)
 			}
 		})
 	}
@@ -236,7 +62,7 @@ func TestGitArchiveUsesRecordedOIDWithoutReplaceRefs(t *testing.T) {
 	t.Parallel()
 	repo := t.TempDir()
 	runGitInTest(t, repo, "init")
-	setFlowFixtureGitIdentity(t, repo)
+	setArchiveFixtureGitIdentity(t, repo)
 	writeFile(t, repo, "payload.txt", "source-oid-content\n")
 	runGitInTest(t, repo, "add", "payload.txt")
 	runGitInTest(t, repo, "commit", "-m", "original")
@@ -308,7 +134,7 @@ func TestGitArchiveDoesNotRunChildOrAmbientFilters(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repo := t.TempDir()
 			runGitInTest(t, repo, "init")
-			setFlowFixtureGitIdentity(t, repo)
+			setArchiveFixtureGitIdentity(t, repo)
 			writeFile(t, repo, ".gitattributes", "payload.txt filter=repro\n")
 			writeFile(t, repo, "payload.txt", "raw blob\n")
 			runGitInTest(t, repo, "add", ".gitattributes", "payload.txt")
@@ -356,40 +182,6 @@ func archiveFile(t *testing.T, archive []byte, want string) string {
 	}
 	t.Fatalf("%s absent from archive", want)
 	return ""
-}
-
-func TestFlowTaskchainPrepareRejectsSubprojectSymlink(t *testing.T) {
-	t.Parallel()
-	devbox := flowTaskchainFixture(t)
-	engine := filepath.Join(devbox, "flow-taskchain-engine")
-	outside := filepath.Join(t.TempDir(), "engine")
-	if err := os.Rename(engine, outside); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(outside, engine); err != nil {
-		t.Fatal(err)
-	}
-	_, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1)
-	if err == nil || !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("subproject symlink err=%v", err)
-	}
-}
-
-func TestFlowTaskchainSnapshotDisablesRepositoryFsmonitor(t *testing.T) {
-	devbox := flowTaskchainFixture(t)
-	engine := filepath.Join(devbox, "flow-taskchain-engine")
-	marker := filepath.Join(t.TempDir(), "fsmonitor-ran")
-	hook := filepath.Join(t.TempDir(), "fsmonitor")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	runGitInTest(t, engine, "config", "core.fsmonitor", hook)
-	if _, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		t.Fatalf("repository fsmonitor ran: %v", err)
-	}
 }
 
 func TestExtractGitArchiveRejectsEscapesAndLinks(t *testing.T) {
@@ -592,34 +384,7 @@ func (r *cancelAfterFirstRead) Read(data []byte) (int, error) {
 	return n, err
 }
 
-func flowTaskchainFixture(t *testing.T) string {
-	t.Helper()
-	home := t.TempDir()
-	devbox := filepath.Join(home, "mydevbox", flowTaskchainDevboxName)
-	if err := os.MkdirAll(devbox, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	runGitInTest(t, devbox, "init")
-	setFlowFixtureGitIdentity(t, devbox)
-	writeFile(t, devbox, "Makefile", "check:\n\t@true\nlint:\n\t@true\n")
-	runGitInTest(t, devbox, "add", "Makefile")
-	runGitInTest(t, devbox, "commit", "-m", "root")
-	for _, spec := range flowTaskchainSubprojects {
-		child := filepath.Join(devbox, spec.name)
-		if err := os.Mkdir(child, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		runGitInTest(t, child, "init")
-		setFlowFixtureGitIdentity(t, child)
-		writeFile(t, child, "snapshot.txt", "original\n")
-		runGitInTest(t, child, "add", "snapshot.txt")
-		runGitInTest(t, child, "commit", "-m", "snapshot")
-		runGitInTest(t, child, "remote", "add", "origin", spec.remote)
-	}
-	return devbox
-}
-
-func setFlowFixtureGitIdentity(t *testing.T, repo string) {
+func setArchiveFixtureGitIdentity(t *testing.T, repo string) {
 	t.Helper()
 	runGitInTest(t, repo, "config", "user.name", "Test Fixture")
 	runGitInTest(t, repo, "config", "user.email", "fixture@example.invalid")

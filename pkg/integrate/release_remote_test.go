@@ -15,9 +15,9 @@ import (
 
 // releaseRemoteFixture is the CE run-release shape: the primary checkout is
 // on the default branch, and the release source is the remote-tracking
-// integration ref, which is never checked out and has no upstream. Its gate
-// passes only in a tree carrying develop-only content, so a make run in the
-// live default-branch checkout fails.
+// integration ref, which is never checked out and has no upstream. It
+// declares no readiness contract, so its Makefile (which would fail in the
+// live default-branch checkout) is never run and the git rows decide.
 func releaseRemoteFixture(t *testing.T) *testutil.WorktreeOrigin {
 	t.Helper()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
@@ -57,7 +57,7 @@ func TestCheck_ReleaseFromRemoteRefIgnoresHeadAndUpstream(t *testing.T) {
 	if !report.Ready {
 		t.Fatalf("want READY, got\n%s", FormatCheck(report))
 	}
-	want := map[string]string{"working-tree": checkPass, "push": checkPass, "make check": checkPass}
+	want := map[string]string{"working-tree": checkPass, "push": checkPass, "readiness contract": checkPass}
 	for _, item := range report.Items {
 		if status, ok := want[item.Name]; ok {
 			if item.Status != status {

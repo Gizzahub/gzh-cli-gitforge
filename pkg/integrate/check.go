@@ -26,15 +26,23 @@ const (
 	checkSkip = "SKIP"
 )
 
+// Gate modes recorded in CheckReport.GateMode and the readiness provenance
+// row. gateModeNone means neither side declares a readiness contract: gz-git
+// builds, executes, and lints no repository code, and the git checks alone
+// decide readiness.
+const (
+	gateModeContractV1 = "contract-v1"
+	gateModeNone       = "none"
+)
+
 // CheckOptions configures a read-only readiness check.
 type CheckOptions struct {
-	RepoPath           string
-	Branch             string
-	Target             string
-	DirectToDefault    bool
-	Release            bool
-	AllowSkippedChecks bool
-	IntegrationConfig  []string
+	RepoPath          string
+	Branch            string
+	Target            string
+	DirectToDefault   bool
+	Release           bool
+	IntegrationConfig []string
 	// ControllerConfig is an explicit devbox/controller file. It is never
 	// discovered from ancestors and never inherits repository readiness.
 	ControllerConfig string
@@ -71,8 +79,8 @@ type CheckOptions struct {
 
 // validationDurationKey carries Check's validation-time accumulator. Unlike
 // the resource wait, gate runtime is measured on paths that never see
-// CheckOptions (baseline make probes), so the accumulator travels on the
-// context every gate already receives.
+// CheckOptions (runner helpers), so the accumulator travels on the context
+// every gate already receives.
 type validationDurationKey struct{}
 
 // withValidationDuration installs the accumulator Check owns for one report.
@@ -129,8 +137,8 @@ type CheckReport struct {
 	ReadinessDuration    time.Duration
 	ResourceWaitDuration time.Duration
 	// ValidationDuration records the time actually spent inside gate
-	// subprocesses — contract runner executions and each legacy
-	// make check/lint invocation — separately from the time spent waiting
+	// subprocesses — contract runner executions — separately from the time
+	// spent waiting
 	// for a declared high-load resource slot. Gate preparation, Git
 	// inspection, cleanup, push, and reclaim are outside it.
 	ValidationDuration time.Duration
@@ -146,11 +154,6 @@ type CheckReport struct {
 	ResourceClass  string
 	PrepareProfile string
 	PrepareInputs  string
-	// Baselines records, for each legacy make target, whether the target
-	// baseline was measured and why. A source that passed is not compared
-	// with anything, so its record says the baseline was not measured
-	// instead of leaving the absence unexplained.
-	Baselines []BaselineRecord
 	// ReadinessFailures contains only typed subprocess timeouts. Human
 	// CheckItem.Detail remains diagnostic prose and is never parsed back into
 	// protocol data.
@@ -184,61 +187,11 @@ func (r *terminationRequestRecorder) snapshot() *TerminationRequest {
 	return &observed
 }
 
-func (r *CheckReport) recordMakeTimeout(stage string, probe makeProbe, diagnosticPath *string) {
-	if !probe.TimedOut {
-		return
-	}
-	r.ReadinessFailures = append(r.ReadinessFailures, ReadinessFailure{
-		Stage:              stage,
-		Class:              "timeout",
-		BudgetMS:           int(probe.Budget.Milliseconds()),
-		ElapsedMS:          int(probe.Elapsed.Milliseconds()),
-		LeafExitCode:       nil,
-		TerminationRequest: probe.TerminationRequest,
-		DiagnosticPath:     diagnosticPath,
-	})
-}
-
 func (r *CheckReport) recordReadinessFailure(failure *ReadinessFailure) {
 	if failure == nil {
 		return
 	}
 	r.ReadinessFailures = append(r.ReadinessFailures, *failure)
-}
-
-// BaselineRecord states whether one make target's baseline was measured.
-type BaselineRecord struct {
-	Target   string
-	Measured bool
-	Reason   string
-}
-
-const (
-	baselineSkippedSourcePassed = "not measured: source passed"
-	baselineSkippedUndefined    = "not measured: make target undefined"
-	baselineSkippedSourceAlone  = "not measured: the source verdict compares nothing"
-	baselineMeasuredSourceFail  = "measured: source failed"
-	baselineMeasuredOutcomes    = "measured: outcome report declared"
-)
-
-// baselineRecordFor names why the baseline was or was not measured for
-// probe. needed is the negation of judgeMakeWithoutBaseline's decision, so
-// the record cannot disagree with what was actually run.
-func baselineRecordFor(probe makeProbe, needed bool) BaselineRecord {
-	record := BaselineRecord{Target: probe.Target, Measured: needed}
-	switch {
-	case needed && probe.Err == nil:
-		record.Reason = baselineMeasuredOutcomes
-	case needed:
-		record.Reason = baselineMeasuredSourceFail
-	case !probe.Defined:
-		record.Reason = baselineSkippedUndefined
-	case probe.Err == nil && !probe.Skipped && !probe.TimedOut && probe.Unavailable == "" && probe.ToolCrash == "" && probe.MissingCD == "":
-		record.Reason = baselineSkippedSourcePassed
-	default:
-		record.Reason = baselineSkippedSourceAlone
-	}
-	return record
 }
 
 // Check answers whether the branch can land on the target.
@@ -317,13 +270,13 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	add(freshness)
 	if freshness.Status == checkFail {
 		// Freshness is a cheap prerequisite for every measurement below. Do
-		// not execute repository-owned readiness, preparation, or Make code
+		// not execute repository-owned readiness or preparation code
 		// against a source that cannot be integrated until it is refreshed.
 		report.Ready = false
 		return report, nil
 	}
 
-	resourceHighLoad, prepareHighLoad, err := resourceDeclarationsForPlan(ctx, g, plan)
+	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -339,12 +292,8 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 
 	contractItem := checkReadinessContractWithResource(ctx, g, plan, report, resourceHighLoad, opts)
 	add(contractItem)
-	switch report.GateMode {
-	case "contract-v1":
-		// The contract runner deliberately replaces every head-owned Makefile.
-	case "legacy-make":
-		checkLegacyMake(ctx, g, plan, controller, opts.AllowSkippedChecks, resourceHighLoad, prepareHighLoad, opts, report, add)
-	}
+	// Without a contract (gateModeNone) gz-git runs no repository code: the
+	// git checks above and the post-gate revalidation below decide READY.
 	// A high-load gate may run long enough for either ref to move. The target
 	// lock protects local ownership, not a remote writer, so fetch and compare
 	// again before reporting READY. Run repeats this check before its lease push.
@@ -401,114 +350,6 @@ func configureMeasurementOptions(g gitRepo, plan TargetPlan, report *CheckReport
 	}
 	opts.resourceWaitObserver = targetWaitObserver(g, plan, opts.NoFetch, opts.LockNotice)
 	return opts
-}
-
-func resourceDeclarationsForPlan(ctx context.Context, g gitRepo, plan TargetPlan) (gate, prepare bool, err error) {
-	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
-	if err != nil {
-		return false, false, err
-	}
-	prepareHighLoad, err := prepareHighLoadForPlan(ctx, g, plan)
-	if err != nil {
-		return false, false, err
-	}
-	return resourceHighLoad, prepareHighLoad, nil
-}
-
-func checkLegacyMake(ctx context.Context, g gitRepo, plan TargetPlan, controller *controllerBinding, allowSkipped, resourceHighLoad, prepareHighLoad bool, opts CheckOptions, report *CheckReport, add func(CheckItem)) {
-	if plan.HeadSHA != plan.BranchSHA && !plan.releasesRemoteRef() {
-		add(CheckItem{Name: "make", Status: checkFail, Detail: "HEAD is not the branch; cannot run tests"})
-		return
-	}
-	decl, err := config.LoadRepoRootTaskPattern(g.dir)
-	if err != nil {
-		add(CheckItem{Name: "make budget", Status: checkFail, Detail: err.Error()})
-		return
-	}
-	budget := resolveMakeBudget(decl.MakeTimeout)
-	outcomes, err := resolveMakeOutcomePolicy(ctx, g, plan)
-	if err != nil {
-		add(CheckItem{Name: "make outcome declaration", Status: checkFail, Detail: err.Error()})
-		return
-	}
-	profile, err := resolvePrepareProfile(ctx, g, plan, controller)
-	if err != nil {
-		add(CheckItem{Name: "prepare declaration", Status: checkFail, Detail: err.Error()})
-		return
-	}
-	if resourceHighLoad {
-		ctx = withResourceScope(ctx, g, opts)
-	}
-	prepared, err := prepareLegacySourceWithResource(ctx, g, plan, profile, prepareHighLoad, opts)
-	if err != nil {
-		add(CheckItem{Name: "prepare", Status: checkFail, Detail: err.Error()})
-		return
-	}
-	report.PrepareProfile = profile
-	if profile != "" {
-		report.PrepareInputs = prepared.evidence()
-		add(CheckItem{Name: "prepare profile", Status: checkPass, Detail: report.PrepareInputs})
-	}
-	// The source is measured first, for every target. The target baseline is
-	// then measured only for the make targets whose verdict reads it, so a
-	// source that passes never prepares the target at all.
-	targets := []string{"check", "lint"}
-	probes := make(map[string]makeProbe, len(targets))
-	var needed []string
-	for _, target := range targets {
-		probeCtx := withInfraOpsPrepareMakeEnv(ctx, prepared.source, profile)
-		probe := prepared.annotateProbe(probeCtx, runMakeTargetWithOutcomes(probeCtx, prepared.source, target, budget, outcomes.source.Includes(target)))
-		probe.OutcomesComparable = outcomes.target.Includes(target)
-		probes[target] = probe
-		_, decided := judgeMakeWithoutBaseline(probe, allowSkipped)
-		if !decided {
-			needed = append(needed, target)
-		}
-		report.Baselines = append(report.Baselines, baselineRecordFor(probe, !decided))
-	}
-	baseline, baselineErr := prepared.measureBaseline(ctx, plan, needed, budget, outcomes.target)
-	cleanupErr := prepared.cleanup(ctx)
-	declared := 0
-	for _, target := range targets {
-		probe := probes[target]
-		item, decided := judgeMakeWithoutBaseline(probe, allowSkipped)
-		switch {
-		case decided:
-		case baselineErr != nil:
-			// A baseline that could not even be prepared is not a verdict
-			// about the target commit, and never a pass for the source.
-			item = CheckItem{Name: "make " + target, Status: checkFail, Detail: "prepare baseline: " + baselineErr.Error()}
-		case baseline[target].Target != "":
-			report.recordMakeTimeout("legacy_make_"+target+"_target", baseline[target], nil)
-			item = judgeMakeAgainstProbe(ctx, g, plan, probe, allowSkipped, baseline[target], budget)
-		default:
-			// A pristine target baseline is measured inside the legacy judge.
-			// Keep the typed probe it returns so a target timeout survives the
-			// human verdict without parsing its reason text.
-			var targetProbe makeProbe
-			item, targetProbe = judgeMakeLegacyMeasured(ctx, g, plan, probe, allowSkipped, budget)
-			report.recordMakeTimeout("legacy_make_"+target+"_target", targetProbe, nil)
-		}
-		var diagnosticPath *string
-		item, diagnosticPath = saveLegacyMakeDiagnosticWithPath(item, probe)
-		report.recordMakeTimeout("legacy_make_"+target+"_source", probe, diagnosticPath)
-		if item.Status != checkSkip {
-			declared++
-			add(item)
-		}
-	}
-	if cleanupErr != nil {
-		add(CheckItem{Name: "prepare cleanup", Status: checkFail, Detail: cleanupErr.Error()})
-	}
-	if declared == 0 {
-		status := checkFail
-		detail := "undefined — this repo declares no integration gate"
-		if allowSkipped {
-			status = checkWarn
-			detail += "; allowed by --allow-skipped-checks"
-		}
-		add(CheckItem{Name: "make check/lint", Status: status, Detail: detail})
-	}
 }
 
 // targetWaitObserver refreshes only the resolved destination while a declared
@@ -570,42 +411,8 @@ func refreshWaitingTarget(ctx context.Context, g gitRepo, plan TargetPlan, notic
 	return true, nil
 }
 
-func resourceWaitFailureDetail(err error) string {
-	if errors.Is(err, errTargetMovedWhileWaiting) {
-		return err.Error()
-	}
-	return "resource slot unavailable: " + err.Error()
-}
-
 func targetMovedWhileWaiting(err error) bool {
 	return errors.Is(err, errTargetMovedWhileWaiting)
-}
-
-// saveLegacyMakeDiagnostic preserves branch Make output after the prepared
-// worktree is removed, even when baseline comparison downgrades a failed
-// source measurement to WARN. Baseline output is never passed here: it
-// explains the comparison, while this diagnostic is the failed branch run the
-// operator needs to inspect.
-func saveLegacyMakeDiagnostic(item CheckItem, probe makeProbe) CheckItem {
-	item, _ = saveLegacyMakeDiagnosticWithPath(item, probe)
-	return item
-}
-
-func saveLegacyMakeDiagnosticWithPath(item CheckItem, probe makeProbe) (savedItem CheckItem, diagnosticPath *string) {
-	savedItem = item
-	// Semantic FAIL can follow rc=0 (for example, a removed outcome ID).
-	// Keep that established evidence as well as failed probes downgraded to WARN.
-	if probe.Output == "" || (savedItem.Status != checkFail && probe.Err == nil && !probe.TimedOut) {
-		return savedItem, nil
-	}
-	path, err := writeDiagnostic("make-"+probe.Target, []byte(probe.Output))
-	if err != nil {
-		savedItem.Detail += "; diagnostic save failed: " + err.Error()
-		return savedItem, nil
-	}
-	savedItem.Detail += "; diagnostic: " + path
-	diagnosticPath = &path
-	return savedItem, diagnosticPath
 }
 
 func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) (*controllerBinding, error) {
@@ -792,9 +599,6 @@ func FormatCheck(r *CheckReport) string {
 	for _, item := range r.Items {
 		fmt.Fprintf(&b, "  %s  %s — %s\n", item.Status, item.Name, item.Detail)
 	}
-	for _, record := range r.Baselines {
-		fmt.Fprintf(&b, "  INFO  baseline make %s — %s\n", record.Target, record.Reason)
-	}
 	if r.ResourceWaitDuration > 0 {
 		fmt.Fprintf(&b, "  INFO  resource wait — Duration=%s\n", r.ResourceWaitDuration.Round(time.Millisecond))
 	}
@@ -815,7 +619,7 @@ func FormatCheck(r *CheckReport) string {
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
-		if r.GateMode == "contract-v1" {
+		if r.GateMode == gateModeContractV1 {
 			fmt.Fprintf(&b, " ManifestPath=%s ContractDigest=%s ManifestOID=%s RunnerPath=%s RunnerOID=%s ReadinessTreeOID=%s Status=%s Duration=%s", r.ManifestPath, r.ContractDigest, r.ManifestOID, r.RunnerPath, r.RunnerOID, r.ReadinessTreeOID, r.ReadinessStatus, r.ReadinessDuration.Round(time.Millisecond))
 			if r.ResourceClass != "" {
 				fmt.Fprintf(&b, " ResourceClass=%s", r.ResourceClass)

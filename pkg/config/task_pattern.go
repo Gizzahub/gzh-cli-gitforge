@@ -27,14 +27,6 @@ const factNoDeclaration = "no declaration"
 type TaskPatternDecl struct {
 	Patterns          []string
 	IntegrationBranch BranchList
-	// MakeOutcomeReport is the strictly parsed repo-root declaration. Nil
-	// means the key is absent; consumers must not discover it through merged
-	// configuration.
-	MakeOutcomeReport *MakeOutcomeReport
-	// MakeTimeout is the declared branch.makeTimeout, already parsed. Zero
-	// means the key is absent and the consumer applies its built-in default;
-	// a present-but-invalid value never gets here because the load fails.
-	MakeTimeout time.Duration
 	// ResourceHighLoad is true only when the repository-root declaration
 	// explicitly opts its integration verification into the shared host slot.
 	ResourceHighLoad bool
@@ -49,10 +41,8 @@ type TaskPatternDecl struct {
 type rootBranchDecl struct {
 	patterns         []string
 	integration      []string
-	makeTimeout      string
 	resourceHighLoad bool
 	lockWait         string
-	outcomeReport    *MakeOutcomeReport
 }
 
 // LoadRepoRootTaskPattern stats only <repoRoot>/.gz-git.{yaml,yml,json}.
@@ -90,7 +80,7 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, nil
 	}
 
-	rootDecl, err := readRootBranchDecl(fsRoot, filepath.Base(path))
+	rootDecl, err := readRootBranchDecl(fsRoot, filepath.Base(path), path)
 	if err != nil {
 		return decl, err
 	}
@@ -98,10 +88,6 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, err
 	}
 
-	budget, err := parseMakeTimeout(rootDecl.makeTimeout, path)
-	if err != nil {
-		return decl, err
-	}
 	lockWait, lockWaitSet, err := parseLockWait(rootDecl.lockWait, path)
 	if err != nil {
 		return decl, err
@@ -109,11 +95,9 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 
 	decl.Patterns = append([]string(nil), rootDecl.patterns...)
 	decl.IntegrationBranch = append(BranchList(nil), rootDecl.integration...)
-	decl.MakeTimeout = budget
 	decl.ResourceHighLoad = rootDecl.resourceHighLoad
 	decl.LockWait = lockWait
 	decl.LockWaitSet = lockWaitSet
-	decl.MakeOutcomeReport = rootDecl.outcomeReport
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
 		decl.Facts = append(decl.Facts, factNoDeclaration)
@@ -151,7 +135,10 @@ func statRepoRootConfig(root *safefs.Root, rootPath string) (string, error) {
 	return "", nil
 }
 
-func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) {
+// readRootBranchDecl reads the declaration at path relative to root;
+// fullPath names it in errors. A declaration that still carries a removed key
+// fails the load and names the file the key must be deleted from.
+func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDecl, error) {
 	var decl rootBranchDecl
 	data, err := root.ReadFile(path)
 	if err != nil {
@@ -159,15 +146,14 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	if err := rejectRemovedConfigKeys(data, ext == ".json", fullPath); err != nil {
+		return decl, err
+	}
 	decl.resourceHighLoad, err = ParseResourceHighLoadDocument(data, ext == ".json")
 	if err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
 	decl.lockWait, err = parseRepoRootLockWaitDocument(data, ext == ".json")
-	if err != nil {
-		return decl, fmt.Errorf("parse %s: %w", path, err)
-	}
-	parsedOutcome, err := ParseMakeOutcomeReportDocument(data, ext == ".json")
 	if err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
@@ -183,14 +169,12 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 			} else {
 				decl.patterns = fields.patterns
 				decl.integration = fields.integration
-				decl.makeTimeout = fields.makeTimeout
 				decl.lockWait = fields.lockWait
 			}
 			if err != nil {
 				return decl, err
 			}
 		}
-		decl.outcomeReport = parsedOutcome
 		return decl, nil
 	}
 
@@ -203,16 +187,14 @@ func readRootBranchDecl(root *safefs.Root, path string) (rootBranchDecl, error) 
 	if file.Branch != nil {
 		decl.patterns = append([]string(nil), file.Branch.TaskPattern...)
 		decl.integration = append([]string(nil), file.Branch.IntegrationBranch...)
-		decl.makeTimeout = file.Branch.MakeTimeout
 		decl.lockWait = file.Branch.LockWait
 	}
-	decl.outcomeReport = parsedOutcome
 	return decl, nil
 }
 
 type jsonBranchFields struct {
 	patterns, integration []string
-	makeTimeout, lockWait string
+	lockWait              string
 }
 
 func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
@@ -220,12 +202,7 @@ func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return jsonBranchFields{}, err
 	}
-	var timeoutValue, patternsValue, integrationValue any
-	if field, ok := m["makeTimeout"]; ok {
-		if err := json.Unmarshal(field, &timeoutValue); err != nil {
-			return jsonBranchFields{}, err
-		}
-	}
+	var patternsValue, integrationValue any
 	if field, ok := m["taskPattern"]; ok {
 		if err := json.Unmarshal(field, &patternsValue); err != nil {
 			return jsonBranchFields{}, err
@@ -236,15 +213,11 @@ func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
 			return jsonBranchFields{}, err
 		}
 	}
-	timeout, err := decodeJSONMakeTimeout(timeoutValue)
-	if err != nil {
-		return jsonBranchFields{}, err
-	}
 	wait, err := decodeJSONLockWait(m["lockWait"], m["lockWait"] != nil)
 	if err != nil {
 		return jsonBranchFields{}, err
 	}
-	return jsonBranchFields{patterns: coerceStringList(patternsValue), integration: coerceStringList(integrationValue), makeTimeout: timeout, lockWait: wait}, nil
+	return jsonBranchFields{patterns: coerceStringList(patternsValue), integration: coerceStringList(integrationValue), lockWait: wait}, nil
 }
 
 func decodeJSONLockWait(raw json.RawMessage, present bool) (string, error) {
@@ -621,45 +594,6 @@ func rejectAliasedPrepareHighLoad(branch *yaml.Node) (bool, error) {
 	return false, nil
 }
 
-// decodeJSONMakeTimeout reads the declared branch.makeTimeout from a decoded
-// JSON branch object. Absent means the default applies; anything present must
-// be a string, so a numeric duration cannot slip past the parser that the
-// YAML path would have rejected.
-func decodeJSONMakeTimeout(v any) (string, error) {
-	switch t := v.(type) {
-	case nil:
-		return "", nil
-	case string:
-		return t, nil
-	default:
-		return "", fmt.Errorf("branch.makeTimeout must be a string")
-	}
-}
-
-// parseMakeTimeout turns the declared branch.makeTimeout string into the
-// budget the integrate package consumes. Absent means zero — the caller
-// applies its built-in default — while anything present must be a positive
-// Go duration. A value that cannot be honored fails the load instead of
-// silently falling back to the default, because a repository that declares a
-// budget its gate cannot meet would otherwise run under the very ceiling the
-// declaration was written to lift.
-func parseMakeTimeout(raw, path string) (time.Duration, error) {
-	if raw == "" {
-		return 0, nil
-	}
-	if strings.TrimSpace(raw) != raw {
-		return 0, fmt.Errorf("%s: branch.makeTimeout %q must not have surrounding whitespace", path, raw)
-	}
-	budget, err := time.ParseDuration(raw)
-	if err != nil {
-		return 0, fmt.Errorf("%s: branch.makeTimeout %q: %w", path, raw, err)
-	}
-	if budget <= 0 {
-		return 0, fmt.Errorf("%s: branch.makeTimeout %q must be positive", path, raw)
-	}
-	return budget, nil
-}
-
 // parseLockWait accepts "0" and "unbounded" as explicit unbounded waits.
 // The boolean keeps that choice distinct from an omitted declaration.
 func parseLockWait(raw, path string) (time.Duration, bool, error) {
@@ -773,7 +707,7 @@ func reportNonRootTaskPatternAt(root *safefs.Root, rootPath, rel string, decl *T
 		if filepath.Dir(entryPath) == rootPath {
 			continue
 		}
-		if nested, err := readRootBranchDecl(root, entryRel); err == nil && len(nested.patterns) > 0 {
+		if nested, err := readRootBranchDecl(root, entryRel, entryPath); err == nil && len(nested.patterns) > 0 {
 			decl.Facts = append(decl.Facts, "ignored non-root taskPattern: "+entryPath)
 		}
 	}

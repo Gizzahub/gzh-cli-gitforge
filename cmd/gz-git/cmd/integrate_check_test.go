@@ -15,10 +15,15 @@ import (
 
 func TestIntegrateCheckHelp(t *testing.T) {
 	cmd := findCommand(t, rootCmd, "integrate", "check")
-	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config"} {
+	for _, name := range []string{"target", "direct-to-default", "release", "controller-config"} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("integrate check missing --%s", name)
 		}
+	}
+	// The legacy make gate and its skip escape hatch are gone: gz-git runs no
+	// repository code, so there is no skipped check left to allow.
+	if cmd.Flags().Lookup("allow-skipped-checks") != nil {
+		t.Errorf("integrate check still exposes the removed --allow-skipped-checks")
 	}
 	if !strings.Contains(cmd.Long, "Engine: gz-git-integrate (Go)") {
 		t.Errorf("integrate check help missing engine identifier:\n%s", cmd.Long)
@@ -88,7 +93,6 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	origTarget := integrateCheckTarget
 	origDirect := integrateCheckDirectToDefault
 	origRelease := integrateCheckRelease
-	origSkip := integrateCheckAllowSkipped
 	origController := integrateCheckControllerConfig
 	origNoFetch := integrateCheckNoFetch
 	origExpectSource := integrateCheckExpectSource
@@ -98,7 +102,6 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 	integrateCheckTarget = ""
 	integrateCheckDirectToDefault = false
 	integrateCheckRelease = false
-	integrateCheckAllowSkipped = false
 	integrateCheckControllerConfig = ""
 	integrateCheckNoFetch = false
 	integrateCheckExpectSource = ""
@@ -109,7 +112,6 @@ func setIntegrateCheckGlobals(t *testing.T) func() {
 		integrateCheckTarget = origTarget
 		integrateCheckDirectToDefault = origDirect
 		integrateCheckRelease = origRelease
-		integrateCheckAllowSkipped = origSkip
 		integrateCheckControllerConfig = origController
 		integrateCheckNoFetch = origNoFetch
 		integrateCheckExpectSource = origExpectSource

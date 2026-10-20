@@ -167,12 +167,6 @@ func (p *makeProcessTree) close() {
 	}
 }
 
-func makeTerminationRequest() TerminationRequest {
-	// Windows cancellation terminates the Job Object; it does not issue a
-	// POSIX signal, so signal remains explicitly empty in the JSON object.
-	return TerminationRequest{Method: "job_object", Signal: nil}
-}
-
 func (p *makeProcessTree) release() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()

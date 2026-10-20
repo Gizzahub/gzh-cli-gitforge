@@ -11,190 +11,21 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
 const (
-	flowTaskchainLocalSubprojectsV1           = "flow-taskchain-local-subprojects-v1"
-	flowTaskchainDevboxName                   = "flow-taskchain-devbox"
-	flowTaskchainArchiveLimit           int64 = 256 << 20
-	flowTaskchainArchiveInitOutputLimit       = 64 << 10
-	flowTaskchainArchiveEntryLimit            = 100000
+	siblingArchiveLimit           int64 = 256 << 20
+	siblingArchiveInitOutputLimit       = 64 << 10
+	siblingArchiveEntryLimit            = 100000
 )
 
 type prepareInput struct {
 	Name string
 	OID  string
 	data []byte
-}
-
-var flowTaskchainSubprojects = []struct {
-	name   string
-	remote string
-}{
-	{"flow-taskchain-engine", "ssh://git@gitlab.polypia.net:2224/scripton-flow/taskchain/flow-taskchain-engine.git"},
-	{"flow-taskchain-mcp", "ssh://git@gitlab.polypia.net:2224/scripton-flow/taskchain/flow-taskchain-mcp.git"},
-}
-
-// snapshotPrepareInputs obtains every mutable input once, before either
-// prepared worktree exists. The archives are commit objects, so extracting the
-// same bytes into target and source cannot observe later checkout changes.
-func snapshotPrepareInputs(ctx context.Context, selected gitRepo, profile string) ([]prepareInput, error) {
-	if profile == familybookEntPrepareV1 {
-		return nil, nil
-	}
-	if profile == cargoWorkspacePrepareV1 || profile == pnpmFrozenLockfilePrepareV1 {
-		return nil, nil
-	}
-	if profile == infraOpsPythonUVV1 {
-		sha, err := selected.headSHA(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return snapshotInfraOpsPythonUVInputs(ctx, selected, sha)
-	}
-	if profile != flowTaskchainLocalSubprojectsV1 {
-		return nil, fmt.Errorf("unsupported preparation profile %q", profile)
-	}
-	ctx, cancel := context.WithTimeout(ctx, prepareProfileTimeout)
-	defer cancel()
-	root, err := primaryFlowTaskchainDevbox(ctx, selected)
-	if err != nil {
-		return nil, err
-	}
-	if err := rejectPathSymlinks(root); err != nil {
-		return nil, fmt.Errorf("canonical devbox: %w", err)
-	}
-	inputs := make([]prepareInput, 0, len(flowTaskchainSubprojects))
-	for _, spec := range flowTaskchainSubprojects {
-		child := filepath.Join(root, spec.name)
-		input, err := snapshotFlowSubproject(ctx, selected.exec, child, spec.name, spec.remote)
-		if err != nil {
-			return nil, err
-		}
-		inputs = append(inputs, input)
-	}
-	return inputs, nil
-}
-
-func snapshotPrepareInputsAt(ctx context.Context, selected gitRepo, profile, sourceSHA string) ([]prepareInput, error) {
-	if profile == infraOpsPythonUVV1 {
-		return snapshotInfraOpsPythonUVInputs(ctx, selected, sourceSHA)
-	}
-	return snapshotPrepareInputs(ctx, selected, profile)
-}
-
-func primaryFlowTaskchainDevbox(ctx context.Context, selected gitRepo) (string, error) {
-	if err := rejectPathSymlinks(selected.dir); err != nil {
-		return "", err
-	}
-	common, err := selected.output(ctx, "rev-parse", "--git-common-dir")
-	if err != nil {
-		return "", fmt.Errorf("selected repository common git directory: %w", err)
-	}
-	if !filepath.IsAbs(common) {
-		common = filepath.Join(selected.dir, common)
-	}
-	common = filepath.Clean(common)
-	root := filepath.Dir(common)
-	if filepath.Base(root) != flowTaskchainDevboxName {
-		return "", fmt.Errorf("profile requires primary %s checkout", flowTaskchainDevboxName)
-	}
-	if err := rejectPathSymlinks(root); err != nil {
-		return "", err
-	}
-	// Git reports a physical path on some platforms while temporary roots can
-	// enter through an OS-owned alias such as /var. Normalize that platform
-	// alias once; user-controlled root and child entries are still checked with
-	// Lstat before use below.
-	root, err = filepath.EvalSymlinks(root)
-	if err != nil {
-		return "", fmt.Errorf("resolve primary checkout: %w", err)
-	}
-	primary := newGitRepo(selected.exec, root)
-	actual, err := primary.toplevel(ctx)
-	if err != nil || actual != root {
-		if err != nil {
-			return "", fmt.Errorf("primary checkout: %w", err)
-		}
-		return "", fmt.Errorf("primary checkout resolves to %s", actual)
-	}
-	primaryCommon, err := primary.output(ctx, "rev-parse", "--git-common-dir")
-	if err != nil {
-		return "", err
-	}
-	if !filepath.IsAbs(primaryCommon) {
-		primaryCommon = filepath.Join(root, primaryCommon)
-	}
-	if filepath.Clean(primaryCommon) != filepath.Join(root, ".git") {
-		return "", fmt.Errorf("%s is not the primary common checkout", flowTaskchainDevboxName)
-	}
-	worktrees, err := primary.output(ctx, "worktree", "list", "--porcelain")
-	if err != nil {
-		return "", err
-	}
-	registered := false
-	for _, line := range strings.Split(worktrees, "\n") {
-		if strings.TrimPrefix(line, "worktree ") == root {
-			registered = true
-			break
-		}
-	}
-	if !registered {
-		return "", fmt.Errorf("primary %s checkout is not registered", flowTaskchainDevboxName)
-	}
-	return root, nil
-}
-
-func snapshotFlowSubproject(ctx context.Context, executor *gitcmd.Executor, child, name, wantRemote string) (prepareInput, error) {
-	if err := rejectPathSymlinks(child); err != nil {
-		return prepareInput{}, fmt.Errorf("%s: %w", name, err)
-	}
-	g := newGitRepo(executor, child)
-	root, err := g.toplevel(ctx)
-	if err != nil || root != child {
-		if err != nil {
-			return prepareInput{}, fmt.Errorf("%s is not the registered primary checkout: %w", name, err)
-		}
-		return prepareInput{}, fmt.Errorf("%s checkout resolves to %s", name, root)
-	}
-	common, err := g.output(ctx, "rev-parse", "--git-common-dir")
-	if err != nil {
-		return prepareInput{}, fmt.Errorf("%s common git directory: %w", name, err)
-	}
-	if !filepath.IsAbs(common) {
-		common = filepath.Join(child, common)
-	}
-	if filepath.Clean(common) != filepath.Join(child, ".git") {
-		return prepareInput{}, fmt.Errorf("%s is not the primary common checkout", name)
-	}
-	if err := requireCanonicalRemote(ctx, g, name, wantRemote); err != nil {
-		return prepareInput{}, err
-	}
-	status, err := isolatedGitRawOutput(ctx, g, "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if err != nil {
-		return prepareInput{}, fmt.Errorf("%s status: %w", name, err)
-	}
-	if !flowSnapshotStatusClean(status) {
-		return prepareInput{}, fmt.Errorf("%s checkout is dirty", name)
-	}
-	oid, ok, err := g.revParse(ctx, "HEAD")
-	if err != nil || !ok || !fullObjectID(oid) {
-		if err != nil {
-			return prepareInput{}, fmt.Errorf("%s HEAD: %w", name, err)
-		}
-		return prepareInput{}, fmt.Errorf("%s HEAD is not a full object ID", name)
-	}
-	archive, err := gitArchive(ctx, g, oid)
-	if err != nil {
-		return prepareInput{}, fmt.Errorf("archive %s: %w", name, err)
-	}
-	return prepareInput{Name: name, OID: oid, data: archive}, nil
 }
 
 func requireCanonicalRemote(ctx context.Context, g gitRepo, name, want string) error {
@@ -229,7 +60,7 @@ func requireCanonicalRemote(ctx context.Context, g gitRepo, name, want string) e
 }
 
 func gitArchive(ctx context.Context, g gitRepo, oid string) ([]byte, error) {
-	return gitArchiveWithLimit(ctx, g, oid, flowTaskchainArchiveLimit)
+	return gitArchiveWithLimit(ctx, g, oid, siblingArchiveLimit)
 }
 
 func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64) ([]byte, error) {
@@ -248,13 +79,13 @@ func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64
 	if err := os.MkdirAll(filepath.Join(home, "xdg"), 0o700); err != nil {
 		return nil, fmt.Errorf("create archive environment: %w", err)
 	}
-	objects, err := flowArchiveObjectDirectory(g.dir)
+	objects, err := archiveObjectDirectory(g.dir)
 	if err != nil {
 		return nil, err
 	}
 	bare := filepath.Join(scratch, "archive.git")
 	env := isolatedArchiveGitEnv(home)
-	init, overflow, err := g.exec.RunWithOutputLimitCleanEnv(ctx, scratch, env, flowTaskchainArchiveInitOutputLimit, "init", "--bare", "--template=", bare)
+	init, overflow, err := g.exec.RunWithOutputLimitCleanEnv(ctx, scratch, env, siblingArchiveInitOutputLimit, "init", "--bare", "--template=", bare)
 	if err != nil {
 		return nil, fmt.Errorf("initialize archive repository: %w", err)
 	}
@@ -284,7 +115,7 @@ func gitArchiveWithLimit(ctx context.Context, g gitRepo, oid string, limit int64
 	return data, nil
 }
 
-func flowArchiveObjectDirectory(dir string) (string, error) {
+func archiveObjectDirectory(dir string) (string, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return "", fmt.Errorf("resolve archive checkout: %w", err)
@@ -348,14 +179,6 @@ func isolatedGitEnv() []string {
 	}
 }
 
-// flowSnapshotStatusClean admits only untracked runtime records that can be
-// regenerated outside the snapshot. The isolated status deliberately bypasses
-// user excludes, so tracked changes and every other untracked path remain
-// evidence that the checkout cannot be snapshotted safely.
-func flowSnapshotStatusClean(status string) bool {
-	return statusCleanExceptUntracked(status, isFlowRuntimeArtifactPath)
-}
-
 // statusCleanExceptUntracked accepts only complete NUL-delimited untracked
 // records admitted by the operation's explicit runtime-metadata policy.
 func statusCleanExceptUntracked(status string, allowPath func(string) bool) bool {
@@ -384,16 +207,6 @@ func statusCleanExceptUntracked(status string, allowPath func(string) bool) bool
 	return true
 }
 
-func isFlowRuntimeArtifactPath(name string) bool {
-	if name == "" || path.Clean(name) != name || strings.HasPrefix(name, "/") {
-		return false
-	}
-	if relative := strings.TrimPrefix(name, ".omo/run-continuation/"); relative != name {
-		return relative != "" && !strings.Contains(relative, "/") && strings.HasSuffix(relative, ".json")
-	}
-	return isCELogRuntimeArtifactPath(name)
-}
-
 func isCELogRuntimeArtifactPath(name string) bool {
 	parts := strings.Split(name, "/")
 	for index, part := range parts {
@@ -413,34 +226,6 @@ func isCELogRuntimeArtifactPath(name string) bool {
 	return false
 }
 
-func prepareFlowTaskchainLocalSubprojects(ctx context.Context, g gitRepo, dir string, inputs []prepareInput, guard preparedRefGuard) error {
-	before, err := guard.snapshot(ctx, g)
-	if err != nil {
-		return err
-	}
-	ctx, cancel := context.WithTimeout(ctx, prepareProfileTimeout)
-	defer cancel()
-	if len(inputs) != len(flowTaskchainSubprojects) {
-		return fmt.Errorf("flow-taskchain preparation has incomplete snapshot")
-	}
-	if err := rejectPathSymlinks(dir); err != nil {
-		return err
-	}
-	for i, spec := range flowTaskchainSubprojects {
-		input := inputs[i]
-		if input.Name != spec.name || len(input.data) == 0 {
-			return fmt.Errorf("flow-taskchain preparation has invalid snapshot for %s", spec.name)
-		}
-		if err := extractGitArchive(ctx, filepath.Join(dir, spec.name), input.data); err != nil {
-			return fmt.Errorf("extract %s@%s: %w", input.Name, input.OID, err)
-		}
-	}
-	if err := before.verify(ctx, g, dir); err != nil {
-		return err
-	}
-	return validateFlowTaskchainPreparedStatus(ctx, dir)
-}
-
 func fullObjectID(oid string) bool {
 	if len(oid) != 40 && len(oid) != 64 {
 		return false
@@ -451,34 +236,6 @@ func fullObjectID(oid string) bool {
 		}
 	}
 	return true
-}
-
-func validateFlowTaskchainPreparedStatus(ctx context.Context, dir string) error {
-	cmd := exec.CommandContext(ctx, "git", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching") // #nosec G204 -- fixed closed profile.
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), isolatedGitEnv()...)
-	raw, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("inspect prepared tree: %w", err)
-	}
-	for _, record := range bytes.Split(raw, []byte{0}) {
-		if len(record) == 0 {
-			continue
-		}
-		if len(record) < 4 {
-			return fmt.Errorf("invalid preparation status")
-		}
-		state, name := string(record[:2]), filepath.ToSlash(string(record[3:]))
-		if (state == "??" && isFlowPreparedPath(name)) || (state == "!!" && (name == "flow-taskchain-engine/" || name == "flow-taskchain-mcp/")) {
-			continue
-		}
-		return fmt.Errorf("preparation changed forbidden path: %s", name)
-	}
-	return nil
-}
-
-func isFlowPreparedPath(name string) bool {
-	return strings.HasPrefix(name, "flow-taskchain-engine/") || strings.HasPrefix(name, "flow-taskchain-mcp/")
 }
 
 func extractGitArchive(ctx context.Context, destination string, data []byte) (err error) {
@@ -508,7 +265,7 @@ func extractGitArchive(ctx context.Context, destination string, data []byte) (er
 			return err
 		}
 		entries++
-		if entries > flowTaskchainArchiveEntryLimit {
+		if entries > siblingArchiveEntryLimit {
 			return fmt.Errorf("archive has too many entries")
 		}
 		header, err := reader.Next()
@@ -590,7 +347,7 @@ func createArchiveDirectory(name, archiveName string) error {
 }
 
 func extractArchiveFile(ctx context.Context, name string, header *tar.Header, reader io.Reader) error {
-	if header.Size < 0 || header.Size > flowTaskchainArchiveLimit {
+	if header.Size < 0 || header.Size > siblingArchiveLimit {
 		return fmt.Errorf("archive file %q has invalid size", header.Name)
 	}
 	if err := os.MkdirAll(filepath.Dir(name), 0o750); err != nil {

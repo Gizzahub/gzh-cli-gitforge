@@ -17,6 +17,12 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
+// ndPrepareTimeout bounds one cargo workspace compilation of a sibling
+// snapshot. Compiling the dependencies IS the preparation, and its artifact
+// (the workspace target/ directory) is what makes the later runner a
+// measurement of the branch rather than of an empty cache.
+const ndPrepareTimeout = 30 * time.Minute
+
 // ndPreparationEnv fixes the build cache for this snapshot. Startup/Git overrides
 // are sanitized identically for preparation and the target-owned runner.
 func ndPreparationEnv(env []string, target string) []string {
@@ -77,7 +83,7 @@ func prepareNDReadinessPair(ctx context.Context, g gitRepo, plan TargetPlan, pro
 			}
 		}
 		err = measurePreparation(runCtx, func() error {
-			return prepareNDReadinessSide(runCtx, g, side.dir, side.target, *lease, guard, cargoPrepareTimeout)
+			return prepareNDReadinessSide(runCtx, g, side.dir, side.target, *lease, guard, ndPrepareTimeout)
 		})
 		release()
 		if err != nil {

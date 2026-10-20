@@ -189,14 +189,13 @@ func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidencePr
 	if check != nil {
 		if c := check.Controller; c != nil {
 			p.Controller = &evidenceControllerProvenance{
-				Path:           c.Path,
-				Digest:         c.Digest,
-				Workspace:      c.Workspace,
-				Remote:         c.Remote,
-				RemoteURL:      c.RemoteURL,
-				Integration:    append([]string(nil), c.Integration...),
-				TaskPattern:    append([]string(nil), c.TaskPattern...),
-				PrepareProfile: c.PrepareProfile,
+				Path:        c.Path,
+				Digest:      c.Digest,
+				Workspace:   c.Workspace,
+				Remote:      c.Remote,
+				RemoteURL:   c.RemoteURL,
+				Integration: append([]string(nil), c.Integration...),
+				TaskPattern: append([]string(nil), c.TaskPattern...),
 			}
 		}
 	}

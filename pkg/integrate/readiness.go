@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -123,8 +124,8 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: err.Error()}
 	}
 	if !targetPresent && !sourcePresent {
-		report.GateMode = "legacy-make"
-		return CheckItem{Name: "readiness contract", Status: checkWarn, Detail: "legacy head-owned gate"}
+		report.GateMode = gateModeNone
+		return CheckItem{Name: "readiness contract", Status: checkPass, Detail: "none declared; gz-git runs no repository code, git checks decide readiness"}
 	}
 	if !targetPresent {
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "bootstrap required: target has no readiness contract"}
@@ -138,7 +139,7 @@ func checkReadinessContractWithResource(ctx context.Context, g gitRepo, plan Tar
 	if !readinessRunnerSupported() {
 		return CheckItem{Name: "readiness contract", Status: checkFail, Detail: "measurement unavailable: contract runners are unsupported on Windows"}
 	}
-	report.GateMode, report.ManifestPath, report.ContractDigest, report.ManifestOID = "contract-v1", target.ManifestPath, target.Digest, target.ManifestOID
+	report.GateMode, report.ManifestPath, report.ContractDigest, report.ManifestOID = gateModeContractV1, target.ManifestPath, target.Digest, target.ManifestOID
 	report.RunnerPath, report.RunnerOID, report.ReadinessTreeOID = target.Decl.Runner, target.RunnerOID, target.TreeOID
 	var observed readinessObservation
 	opts.readinessObservation = &observed
@@ -504,6 +505,9 @@ func validSummary(s string) bool {
 	}
 	return true
 }
+
+// ansiEscape matches one CSI escape sequence in subprocess output.
+var ansiEscape = regexp.MustCompile(`\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]`)
 
 func boundedDetail(s string) string {
 	s = strings.Map(func(r rune) rune {

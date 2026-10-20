@@ -197,8 +197,7 @@ func TestCheck_IntegrationUpstreamWithSlashRemoteAndBranch(t *testing.T) {
 			runGit(t, fx.Clone, "push", remote, tt.integration)
 			runGit(t, fx.Worktree, "checkout", "-B", branch, remote+"/"+tt.integration)
 			writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: "+tt.integration+"\n")
-			writeGateMakefile(t, fx.Worktree)
-			runGit(t, fx.Worktree, "add", ".gz-git.yaml", "Makefile")
+			runGit(t, fx.Worktree, "add", ".gz-git.yaml")
 			runGit(t, fx.Worktree, "commit", "-m", "declare policy")
 			runGit(t, fx.Worktree, "push", "-u", remote, "HEAD:refs/heads/"+branch)
 			runGit(t, fx.Worktree, "branch", "--set-upstream-to", remote+"/"+tt.integration, branch)
@@ -221,9 +220,27 @@ func TestCheck_IntegrationUpstreamWithSlashRemoteAndBranch(t *testing.T) {
 	}
 }
 
-func TestCheck_NoGateFails(t *testing.T) {
-	t.Parallel()
-	fx := readyTaskFixtureNoGate(t)
+// TestCheck_NoContractRunsNoRepositoryCode pins the owner decision that
+// gz-git builds, executes, and lints no repository code by itself. The
+// fixture carries a Makefile whose targets would fail, and a make on PATH
+// that records any invocation. Without a readiness contract the gate mode is
+// "none", the contract row passes, and the git checks alone decide READY.
+func TestCheck_NoContractRunsNoRepositoryCode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake make on PATH is a POSIX shell script")
+	}
+	fx := readyTaskFixture(t)
+	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@false\nlint:\n\t@false\n")
+	runGit(t, fx.Worktree, "add", "Makefile")
+	runGit(t, fx.Worktree, "commit", "-m", "failing make targets")
+	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
+	bin := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "make-invoked")
+	if err := os.WriteFile(filepath.Join(bin, "make"), []byte("#!/bin/sh\necho \"$@\" >> '"+marker+"'\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath: fx.Worktree,
 		Branch:   "dev/actor/feat/task",
@@ -231,82 +248,47 @@ func TestCheck_NoGateFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Check: %v", err)
 	}
-	if report.Ready {
-		t.Fatalf("no gate must not be READY:\n%s", FormatCheck(report))
-	}
-	found := false
-	for _, item := range report.Items {
-		if item.Name == "make check/lint" && item.Status == checkFail {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("expected make check/lint FAIL:\n%s", FormatCheck(report))
-	}
-}
-
-func TestCheck_NoGateAllowedWhenSkippedFlag(t *testing.T) {
-	t.Parallel()
-	fx := readyTaskFixtureNoGate(t)
-	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-		RepoPath:           fx.Worktree,
-		Branch:             "dev/actor/feat/task",
-		AllowSkippedChecks: true,
-	})
-	if err != nil {
-		t.Fatalf("Check: %v", err)
-	}
 	if !report.Ready {
-		t.Fatalf("want READY with --allow-skipped-checks, got\n%s", FormatCheck(report))
+		t.Fatalf("no-contract repository must be READY on git checks alone:\n%s", FormatCheck(report))
 	}
-	found := false
+	if report.GateMode != gateModeNone {
+		t.Fatalf("GateMode = %q, want %q", report.GateMode, gateModeNone)
+	}
+	if !hasCheckDetail(report, "readiness contract", checkPass, "gz-git runs no repository code") {
+		t.Fatalf("readiness contract row must pass and say no repository code runs:\n%s", FormatCheck(report))
+	}
 	for _, item := range report.Items {
-		if item.Name == "make check/lint" && item.Status == checkWarn {
-			found = true
+		if strings.HasPrefix(item.Name, "make") {
+			t.Fatalf("no make row may exist, got %+v", item)
 		}
 	}
-	if !found {
-		t.Fatalf("expected make check/lint WARN:\n%s", FormatCheck(report))
+	if got := FormatCheck(report); !strings.Contains(got, "readiness provenance — mode=none ") {
+		t.Fatalf("provenance must name mode=none:\n%s", got)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		data, _ := os.ReadFile(marker)
+		t.Fatalf("make was invoked (%v): %s", statErr, data)
 	}
 }
 
-func TestCheck_BaselineMissingCDFailsWithPreciseReason(t *testing.T) {
+// TestCheck_NoContractStillFailsGitChecks shows the git checks keep their
+// authority without a gate: an unpushed source is NOT READY.
+func TestCheck_NoContractStillFailsGitChecks(t *testing.T) {
 	t.Parallel()
-	fx := testutil.TempWorktreeWithBareOrigin(t)
-	runGit(t, fx.Clone, "checkout", "-B", "develop")
-	writeRepoFile(t, fx.Clone, "foo.py", "import pathlib\n")
-	writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@true\nlint:\n\t@cd missing-component && true\n")
-	writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-	runGit(t, fx.Clone, "add", ".")
-	runGit(t, fx.Clone, "commit", "-m", "add target gate")
-	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-
-	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@true\nlint:\n\t@printf 'F401 unused import\\n --> foo.py:1:1\\n'\n\t@false\n")
-	runGit(t, fx.Worktree, "add", "Makefile")
-	runGit(t, fx.Worktree, "commit", "-m", "change lint runner")
-	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-
+	fx := readyTaskFixture(t)
+	writeFile(t, fx.Worktree, "unpushed.txt", "x\n")
+	runGit(t, fx.Worktree, "add", "unpushed.txt")
+	runGit(t, fx.Worktree, "commit", "-m", "unpushed")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-		RepoPath:           fx.Worktree,
-		Branch:             "dev/actor/feat/task",
-		AllowSkippedChecks: true,
+		RepoPath: fx.Worktree,
+		Branch:   "dev/actor/feat/task",
 	})
 	if err != nil {
 		t.Fatalf("Check: %v", err)
 	}
-	if report.Ready {
-		t.Fatalf("missing baseline component must not be READY:\n%s", FormatCheck(report))
+	if report.Ready || !hasCheckDetail(report, "push", checkFail, "upstream differs") {
+		t.Fatalf("unpushed source must fail the push check:\n%s", FormatCheck(report))
 	}
-	for _, item := range report.Items {
-		if item.Name == "make lint" {
-			if item.Status != checkFail || !strings.Contains(item.Detail, "baseline make lint did not run") || !strings.Contains(item.Detail, "missing-component") {
-				t.Fatalf("make lint = %+v", item)
-			}
-			return
-		}
-	}
-	t.Fatalf("make lint result missing:\n%s", FormatCheck(report))
 }
 
 func TestCheck_StaleTargetFailsFreshness(t *testing.T) {
@@ -358,46 +340,6 @@ func TestCheck_DirectToDefaultWithoutIntegration(t *testing.T) {
 	}
 }
 
-func TestCheck_ExhaustedLintLockIsMeasurementUnavailableOnBranchAndBaseline(t *testing.T) {
-	t.Parallel()
-	t.Run("branch", func(t *testing.T) {
-		fx := readyTaskFixture(t)
-		writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@true\nlint:\n\t@printf '%s\\n' 'Error: parallel golangci-lint is running'; false\n")
-		runGit(t, fx.Worktree, "add", "Makefile")
-		runGit(t, fx.Worktree, "commit", "-m", "lock lint")
-		runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
-		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", AllowSkippedChecks: true})
-		if err != nil {
-			t.Fatalf("Check: %v", err)
-		}
-		if report.Ready || !hasCheckDetail(report, "make lint", checkFail, "measurement unavailable") {
-			t.Fatalf("branch lock must be NOT READY:\n%s", FormatCheck(report))
-		}
-	})
-	t.Run("baseline", func(t *testing.T) {
-		fx := testutil.TempWorktreeWithBareOrigin(t)
-		runGit(t, fx.Clone, "branch", "develop")
-		runGit(t, fx.Clone, "checkout", "develop")
-		writeRepoFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
-		writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t@true\nlint:\n\t@printf '%s\\n' 'Error: parallel golangci-lint is running'; false\n")
-		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "locked target lint")
-		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-		writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@true\nlint:\n\t@printf '%s\\n' 'task.go:1: broken'; false\n")
-		runGit(t, fx.Worktree, "add", "Makefile")
-		runGit(t, fx.Worktree, "commit", "-m", "task lint failure")
-		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-		report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", AllowSkippedChecks: true})
-		if err != nil {
-			t.Fatalf("Check: %v", err)
-		}
-		if report.Ready || !hasCheckDetail(report, "make lint", checkFail, "measurement unavailable: baseline") {
-			t.Fatalf("baseline lock must be NOT READY:\n%s", FormatCheck(report))
-		}
-	})
-}
-
 func hasCheckDetail(report *CheckReport, name, status, detail string) bool {
 	for _, item := range report.Items {
 		if item.Name == name && item.Status == status && strings.Contains(item.Detail, detail) {
@@ -408,16 +350,6 @@ func hasCheckDetail(report *CheckReport, name, status, detail string) bool {
 }
 
 func readyTaskFixture(t *testing.T) *testutil.WorktreeOrigin {
-	t.Helper()
-	fx := readyTaskFixtureNoGate(t)
-	writeGateMakefile(t, fx.Worktree)
-	runGit(t, fx.Worktree, "add", "Makefile")
-	runGit(t, fx.Worktree, "commit", "-m", "declare check gate")
-	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
-	return fx
-}
-
-func readyTaskFixtureNoGate(t *testing.T) *testutil.WorktreeOrigin {
 	t.Helper()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "branch", "develop")
@@ -433,11 +365,6 @@ func readyTaskFixtureNoGate(t *testing.T) *testutil.WorktreeOrigin {
 	return fx
 }
 
-func writeGateMakefile(t *testing.T, dir string) {
-	t.Helper()
-	writeRepoFile(t, dir, "Makefile", "check:\n\t@true\n")
-}
-
 func writeRepoFile(t *testing.T, dir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
@@ -445,76 +372,10 @@ func writeRepoFile(t *testing.T, dir, name, body string) {
 	}
 }
 
-// TestCheck_MakeTimeoutReportsBudgetNotRC0 reproduces the observed gate
-// failure end to end: a repository declares its make budget, one side of the
-// comparison outlives it, and the verdict must name the budget instead of an
-// exit code the killed make never produced (ce-devenv ISSUE-012).
-func TestCheck_MakeTimeoutReportsBudgetNotRC0(t *testing.T) {
-	cases := []struct {
-		name, base, branch, want, stage string
-		wantDiagnostic                  bool
-	}{
-		{"branch exceeds the budget while the target passes", "@true", "@printf 'branch timeout\\n'; sleep 30", "exceeded 2s", "legacy_make_check_source", true},
-		{"baseline exceeds the budget while the branch fails", "@printf 'baseline timeout\\n'; sleep 30", "@exit 1", "baseline unmeasurable", "legacy_make_check_target", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("XDG_STATE_HOME", t.TempDir())
-			fx := makeTimeoutFixture(t, tc.base, tc.branch)
-			report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-				RepoPath: fx.Worktree,
-				Branch:   "dev/actor/feat/task",
-			})
-			if err != nil {
-				t.Fatalf("Check: %v", err)
-			}
-			if report.Ready {
-				t.Fatalf("a timed-out gate must not be READY\n%s", FormatCheck(report))
-			}
-			if !hasCheckDetail(report, "make check", checkFail, tc.want) || !hasCheckDetail(report, "make check", checkFail, "exceeded 2s") {
-				t.Fatalf("make check must fail naming %q and the 2s budget\n%s", tc.want, FormatCheck(report))
-			}
-			if hasCheckDetail(report, "make check", checkFail, "rc=0") {
-				t.Fatalf("timeout rendered as rc=0\n%s", FormatCheck(report))
-			}
-			if len(report.ReadinessFailures) != 1 {
-				t.Fatalf("timeout failures = %+v, want one typed record", report.ReadinessFailures)
-			}
-			failure := report.ReadinessFailures[0]
-			if failure.Stage != tc.stage || failure.Class != "timeout" || failure.BudgetMS != 2000 || failure.ElapsedMS <= 0 || failure.LeafExitCode != nil {
-				t.Fatalf("timeout failure = %+v, want stage=%s class=timeout budget=2000 elapsed>0 and null leaf exit", failure, tc.stage)
-			}
-			if runtime.GOOS != "windows" && (failure.TerminationRequest == nil || failure.TerminationRequest.Method != "process_group" || failure.TerminationRequest.Signal == nil || *failure.TerminationRequest.Signal != "SIGKILL") {
-				t.Fatalf("termination request = %+v, want Unix process-group SIGKILL request", failure.TerminationRequest)
-			}
-			if runtime.GOOS == "windows" && (failure.TerminationRequest == nil || failure.TerminationRequest.Method != "job_object" || failure.TerminationRequest.Signal != nil) {
-				t.Fatalf("termination request = %+v, want Windows Job Object request with null signal", failure.TerminationRequest)
-			}
-			wantSaved := tc.wantDiagnostic && runtime.GOOS != "windows"
-			if !wantSaved {
-				if failure.DiagnosticPath != nil {
-					t.Fatalf("baseline timeout diagnostic path = %q, want null", *failure.DiagnosticPath)
-				}
-				return
-			}
-			if failure.DiagnosticPath == nil {
-				t.Fatal("branch timeout diagnostic path = nil, want saved branch output")
-			}
-			info, statErr := os.Stat(*failure.DiagnosticPath)
-			if statErr != nil {
-				t.Fatalf("stat saved timeout diagnostic %q: %v", *failure.DiagnosticPath, statErr)
-			}
-			if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
-				t.Fatalf("saved timeout diagnostic mode = %o, want 600", info.Mode().Perm())
-			}
-		})
-	}
-}
-
 func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
 	t.Parallel()
 	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{
-		Items: []CheckItem{{Name: "make check", Status: checkFail, Detail: "ordinary failure"}},
+		Items: []CheckItem{{Name: "readiness contract", Status: checkFail, Detail: "ordinary failure"}},
 	}}, nil, 1)
 	if protocol.ReadinessFailures != nil {
 		t.Fatalf("non-timeout failures = %+v, want omitted readiness failures", protocol.ReadinessFailures)
@@ -537,9 +398,9 @@ func TestBuildRunProtocolTimeoutFailuresKeepNullableFieldsAndAllEntries(t *testi
 	signal := "SIGKILL"
 	request := &TerminationRequest{Method: "process_group", Signal: &signal}
 	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{ReadinessFailures: []ReadinessFailure{
-		{Stage: "legacy_make_check_source", Class: "timeout", BudgetMS: 20, ElapsedMS: 21, TerminationRequest: request},
-		{Stage: "legacy_make_lint_target", Class: "timeout", BudgetMS: 30, ElapsedMS: 31},
-		{Stage: "legacy_make_check_target", Class: "timeout", BudgetMS: 40, ElapsedMS: 41, TerminationRequest: &TerminationRequest{Method: "job_object"}},
+		{Stage: "contract_runner", Class: "timeout", BudgetMS: 20, ElapsedMS: 21, TerminationRequest: request},
+		{Stage: "contract_plan", Class: "timeout", BudgetMS: 30, ElapsedMS: 31},
+		{Stage: "contract_runner", Class: "timeout", BudgetMS: 40, ElapsedMS: 41, TerminationRequest: &TerminationRequest{Method: "job_object"}},
 	}}}, nil, 1)
 	data, err := json.Marshal(protocol)
 	if err != nil {
@@ -594,21 +455,4 @@ func protocolFailureObject(t *testing.T, raw any) map[string]any {
 		t.Fatalf("protocol object = %#v, want JSON object", raw)
 	}
 	return object
-}
-
-func makeTimeoutFixture(t *testing.T, baseRecipe, branchRecipe string) *testutil.WorktreeOrigin {
-	t.Helper()
-	fx := testutil.TempWorktreeWithBareOrigin(t)
-	writeRepoFile(t, fx.Clone, "Makefile", "check:\n\t"+baseRecipe+"\n")
-	runGit(t, fx.Clone, "add", "Makefile")
-	runGit(t, fx.Clone, "commit", "-m", "baseline gate")
-	runGit(t, fx.Clone, "branch", "develop")
-	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t"+branchRecipe+"\n")
-	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  makeTimeout: 2s\n")
-	runGit(t, fx.Worktree, "add", "Makefile", ".gz-git.yaml")
-	runGit(t, fx.Worktree, "commit", "-m", "task gate")
-	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-	return fx
 }

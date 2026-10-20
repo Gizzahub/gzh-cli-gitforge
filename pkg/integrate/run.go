@@ -387,7 +387,7 @@ func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, chec
 		}
 		return "", "", "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, targetRef, targetSHA, check.Plan.TargetSHA)
 	}
-	if check.GateMode != "contract-v1" {
+	if check.GateMode != gateModeContractV1 {
 		return sourceSHA, targetSHA, targetName, nil
 	}
 	targetContract, present, err := loadReadinessContract(ctx, g, targetSHA)

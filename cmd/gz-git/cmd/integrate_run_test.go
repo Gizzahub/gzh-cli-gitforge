@@ -18,10 +18,15 @@ import (
 
 func TestIntegrateRunHelp(t *testing.T) {
 	cmd := findCommand(t, rootCmd, "integrate", "run")
-	for _, name := range []string{"target", "direct-to-default", "release", "allow-skipped-checks", "controller-config"} {
+	for _, name := range []string{"target", "direct-to-default", "release", "controller-config"} {
 		if cmd.Flags().Lookup(name) == nil {
 			t.Errorf("integrate run missing --%s", name)
 		}
+	}
+	// The legacy make gate and its skip escape hatch are gone: gz-git runs no
+	// repository code, so there is no skipped check left to allow.
+	if cmd.Flags().Lookup("allow-skipped-checks") != nil {
+		t.Errorf("integrate run still exposes the removed --allow-skipped-checks")
 	}
 	if !strings.Contains(cmd.Long, "Engine: gz-git-integrate (Go)") {
 		t.Errorf("integrate run help missing engine identifier:\n%s", cmd.Long)
@@ -148,7 +153,6 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	origTarget := integrateRunTarget
 	origDirect := integrateRunDirectToDefault
 	origRelease := integrateRunRelease
-	origSkip := integrateRunAllowSkipped
 	origController := integrateRunControllerConfig
 	origNoFetch := integrateRunNoFetch
 	origExpectSource := integrateRunExpectSource
@@ -158,7 +162,6 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 	integrateRunTarget = ""
 	integrateRunDirectToDefault = false
 	integrateRunRelease = false
-	integrateRunAllowSkipped = false
 	integrateRunControllerConfig = ""
 	integrateRunNoFetch = false
 	integrateRunExpectSource = ""
@@ -169,7 +172,6 @@ func setIntegrateRunGlobals(t *testing.T) func() {
 		integrateRunTarget = origTarget
 		integrateRunDirectToDefault = origDirect
 		integrateRunRelease = origRelease
-		integrateRunAllowSkipped = origSkip
 		integrateRunControllerConfig = origController
 		integrateRunNoFetch = origNoFetch
 		integrateRunExpectSource = origExpectSource

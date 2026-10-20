@@ -52,7 +52,7 @@ func collectSiblingRootInstructions(ctx context.Context, data []byte) (map[strin
 			return nil, err
 		}
 		entries++
-		if entries > flowTaskchainArchiveEntryLimit {
+		if entries > siblingArchiveEntryLimit {
 			return nil, fmt.Errorf("sibling archive has too many entries")
 		}
 		if err := validateSiblingArchiveEntry(header); err != nil {
@@ -104,7 +104,7 @@ func siblingInstructionTargets(ctx context.Context, data []byte) (map[string]boo
 			return nil, err
 		}
 		entries++
-		if entries > flowTaskchainArchiveEntryLimit {
+		if entries > siblingArchiveEntryLimit {
 			return nil, fmt.Errorf("sibling archive has too many entries")
 		}
 		if err := validateSiblingArchiveEntry(header); err != nil {
@@ -135,7 +135,7 @@ func siblingInstructionTargets(ctx context.Context, data []byte) (map[string]boo
 }
 
 func rewriteSiblingArchive(ctx context.Context, data []byte, regular map[string]siblingInstruction) ([]byte, error) {
-	return rewriteSiblingArchiveWithLimit(ctx, data, regular, flowTaskchainArchiveLimit)
+	return rewriteSiblingArchiveWithLimit(ctx, data, regular, siblingArchiveLimit)
 }
 
 func rewriteSiblingArchiveWithLimit(ctx context.Context, data []byte, regular map[string]siblingInstruction, limit int64) ([]byte, error) {
@@ -199,7 +199,7 @@ func writeSiblingInstructionAlias(writer *tar.Writer, header *tar.Header, target
 }
 
 func validateSiblingArchiveEntry(header *tar.Header) error {
-	if header.Size < 0 || header.Size > flowTaskchainArchiveLimit {
+	if header.Size < 0 || header.Size > siblingArchiveLimit {
 		return fmt.Errorf("sibling archive entry %q has invalid size", header.Name)
 	}
 	return nil

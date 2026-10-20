@@ -74,7 +74,7 @@ func TestCheck_TimeoutOnlySourceChangeFailsClosed(t *testing.T) {
 }
 
 func TestCheck_BootstrapFailureDoesNotRunHeadMake(t *testing.T) {
-	fx := readyTaskFixtureNoGate(t)
+	fx := readyTaskFixture(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, ".gz-git", "readiness"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -100,15 +100,15 @@ func TestCheck_BootstrapFailureDoesNotRunHeadMake(t *testing.T) {
 	}
 }
 
-func TestCheck_AbsentContractsUseLegacyMake(t *testing.T) {
+func TestCheck_AbsentContractsUseNoneMode(t *testing.T) {
 	t.Parallel()
 	fx := readyTaskFixture(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Ready || report.GateMode != "legacy-make" || !hasCheckDetail(report, "readiness contract", checkWarn, "legacy head-owned gate") || !hasCheckDetail(report, "make check", checkPass, "ok") {
-		t.Fatalf("expected legacy gate behavior:\n%s", FormatCheck(report))
+	if !report.Ready || report.GateMode != gateModeNone || !hasCheckDetail(report, "readiness contract", checkPass, "none declared") {
+		t.Fatalf("expected none gate mode:\n%s", FormatCheck(report))
 	}
 }
 
@@ -173,21 +173,6 @@ func TestCheck_MalformedTargetDoesNotRunHeadMake(t *testing.T) {
 	}
 	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 		t.Fatalf("head Make ran: %v", err)
-	}
-}
-
-func TestCheck_AllowSkippedCannotDowngradeUnavailableContract(t *testing.T) {
-	fx := readinessFixture(t)
-	runner := "#!/bin/sh\nprintf '{\"version\":1,\"status\":\"unavailable\",\"summary\":\"dependency offline\"}'\n"
-	advanceReadinessTarget(t, fx, "", runner, "make readiness unavailable")
-	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", IntegrationConfig: []string{"develop"}, AllowSkippedChecks: true,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if report.Ready || !hasCheckDetail(report, "readiness contract", checkFail, "measurement unavailable") {
-		t.Fatalf("allow-skipped downgraded contract failure:\n%s", FormatCheck(report))
 	}
 }
 

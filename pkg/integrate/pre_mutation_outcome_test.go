@@ -66,11 +66,11 @@ func TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires(t *testing.T) {
 
 func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
 	t.Parallel()
-	fx := readyTaskFixture(t)
-	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@false\n")
-	runGit(t, fx.Worktree, "add", "Makefile")
-	runGit(t, fx.Worktree, "commit", "-m", "reject readiness")
-	runGit(t, fx.Worktree, "push", fx.Remote, "HEAD")
+	if !readinessRunnerSupported() {
+		t.Skip("contract runners are unsupported on Windows")
+	}
+	fx := readinessFixture(t)
+	advanceReadinessTarget(t, fx, "", "#!/bin/sh\nprintf '{\"version\":1,\"status\":\"not_ready\",\"summary\":\"rejected\"}'\n", "reject readiness")
 	execution := outcomeExecution(t, fx.Worktree, "pre-readiness-reject")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
 		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,

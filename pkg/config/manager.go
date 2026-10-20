@@ -21,6 +21,11 @@ func unmarshalFile(path string, v any) error {
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".json" || ext == ".yaml" || ext == ".yml" {
+		if err := rejectRemovedConfigKeys(data, ext == ".json", path); err != nil {
+			return err
+		}
+	}
 	// Validate the raw project contract before null/unknown fields can be lost
 	// by decoding into the public struct.
 	if _, project := v.(*ProjectConfig); project && (ext == ".json" || ext == ".yaml" || ext == ".yml") {

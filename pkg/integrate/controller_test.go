@@ -20,13 +20,13 @@ func TestResolveControllerRequiresUniqueCanonicalWorkspaceMatch(t *testing.T) {
 	remoteOut := runGitInTest(t, fx.Worktree, "remote", "get-url", "origin")
 	remoteURL := strings.TrimSpace(remoteOut)
 	path := filepath.Join(t.TempDir(), "devbox.yaml")
-	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine:\n    url: %q\n    branch:\n      integrationBranch: develop\n      taskPattern: dev/*\n    integration:\n      prepareProfile: familybook-ent-v1\n", remoteURL))
+	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine:\n    url: %q\n    branch:\n      integrationBranch: develop\n      taskPattern: dev/*\n    integration: {}\n", remoteURL))
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	b, err := resolveController(context.Background(), g, path, "feature/worktree")
 	if err != nil {
 		t.Fatalf("resolveController: %v", err)
 	}
-	if b.Workspace != "engine" || b.Integration[0] != "develop" || b.PrepareProfile != familybookEntPrepareV1 {
+	if b.Workspace != "engine" || b.Integration[0] != "develop" {
 		t.Fatalf("unexpected binding: %#v", b)
 	}
 	if got := targetBranchName("origin/develop", b.Remote); got != "develop" {
@@ -67,7 +67,7 @@ func TestResolveControllerRejectsDifferentFetchAndPushEndpoints(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remoteURL := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
 	path := filepath.Join(t.TempDir(), "devbox.yaml")
-	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop}, integration: {prepareProfile: familybook-ent-v1}}\n", remoteURL+"-push"))
+	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop}, integration: {}}\n", remoteURL+"-push"))
 	runGitInTest(t, fx.Worktree, "remote", "set-url", "--push", "origin", remoteURL+"-push")
 	_, err := resolveController(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), path, "feature/worktree")
 	if err == nil || !strings.Contains(err.Error(), "different fetch and push endpoints") {
@@ -80,13 +80,13 @@ func TestRevalidateControllerRejectsDigestRace(t *testing.T) {
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remote := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
 	path := filepath.Join(t.TempDir(), "controller.yaml")
-	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop}, integration: {prepareProfile: familybook-ent-v1}}\n", remote))
+	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop}, integration: {}}\n", remote))
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	b, err := resolveController(context.Background(), g, path, "feature/worktree")
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop, taskPattern: dev/*}, integration: {prepareProfile: familybook-ent-v1}}\n", remote))
+	writeFile(t, filepath.Dir(path), filepath.Base(path), fmt.Sprintf("workspaces:\n  engine: {url: %q, branch: {integrationBranch: develop, taskPattern: dev/*}, integration: {}}\n", remote))
 	if err := revalidateController(context.Background(), g, &CheckReport{Controller: b, Plan: TargetPlan{Branch: "feature/worktree"}}); err == nil || !strings.Contains(err.Error(), "changed during readiness") {
 		t.Fatalf("race = %v", err)
 	}

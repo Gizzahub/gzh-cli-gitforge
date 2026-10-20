@@ -69,6 +69,10 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 		return nil, fmt.Errorf("failed to read config %s: %w", absConfigPath, err)
 	}
 
+	if err := rejectRemovedConfigKeys(data, false, absConfigPath); err != nil {
+		return nil, err
+	}
+
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config %s: %w", absConfigPath, err)
@@ -388,7 +392,6 @@ func mergeParentConfig(child, parent *Config) {
 		// Target-owned declarations are accepted only from a repository-root
 		// project config. Do not let a raw parent document propagate them even
 		// when a caller bypassed validation.
-		child.Branch.MakeOutcomeReport = nil
 		child.Branch.PrepareHighLoad = false
 	} else if child.Branch != nil && parent.Branch != nil {
 		mergeParentBranchConfig(child.Branch, parent.Branch)

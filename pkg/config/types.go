@@ -232,11 +232,6 @@ type BranchConfig struct {
 	// Load it only via LoadRepoRootTaskPattern — never findConfigUpward.
 	TaskPattern BranchList `yaml:"taskPattern,omitempty"`
 
-	// PrepareProfile selects a closed integration preparation profile. It is
-	// preserved on a repository-root project config, but must never be
-	// inherited or merged from a parent, profile, or workspace configuration.
-	PrepareProfile string `yaml:"prepareProfile,omitempty" json:"prepareProfile,omitempty"`
-
 	// SiblingProvision declares local sibling snapshots required by relative
 	// path dependencies. It is root-only and never inherited from a profile.
 	SiblingProvision *SiblingProvision `yaml:"siblingProvision,omitempty" json:"siblingProvision,omitempty"`
@@ -245,22 +240,6 @@ type BranchConfig struct {
 	// preserved here for project-config round trips but must never be inherited
 	// or merged from a parent, profile, workspace, or global configuration.
 	Readiness *Readiness `yaml:"readiness,omitempty" json:"readiness,omitempty"`
-
-	// MakeOutcomeReport declares the closed V1 outcome-report targets a
-	// repository allows its legacy Make gate to produce. It is preserved for
-	// repository-root project-config round trips, but is read only from the
-	// repo-root declaration and never inherited or merged from shared config.
-	MakeOutcomeReport *MakeOutcomeReport `yaml:"makeOutcomeReport,omitempty" json:"makeOutcomeReport,omitempty"`
-
-	// MakeTimeout bounds one `make check`/`make lint` probe of the legacy
-	// integration gate, declared as a Go duration string ("90m", "1h30m").
-	// Like IntegrationBranch and TaskPattern it is read only from the
-	// repo-root file (LoadRepoRootTaskPattern) and never inherited or merged
-	// from a parent, profile, workspace, or global configuration: a budget
-	// declared in a shared layer would silently change every repository's
-	// gate. Empty means the built-in default; pkg/config rejects a value it
-	// cannot parse or a non-positive one when loading the declaration.
-	MakeTimeout string `yaml:"makeTimeout,omitempty" json:"makeTimeout,omitempty"`
 
 	// ResourceHighLoad opts this repository's integration verification into the
 	// host-wide high-load resource slot. It is deliberately false by default:
@@ -809,12 +788,11 @@ type Workspace struct {
 	ChildConfigMode ChildConfigMode `yaml:"childConfigMode,omitempty"`
 }
 
-// IntegrationControl is deliberately small: it selects a closed preparation
-// profile, while branch.integrationBranch and branch.taskPattern on the same
-// workspace remain the target and reclaim declarations.
-type IntegrationControl struct {
-	PrepareProfile string `yaml:"prepareProfile,omitempty"`
-}
+// IntegrationControl marks a controller workspace as an integration target.
+// It carries no fields: branch.integrationBranch and branch.taskPattern on the
+// same workspace remain the target and reclaim declarations, and the removed
+// integration.prepareProfile key is rejected when the controller loads.
+type IntegrationControl struct{}
 
 // WorkspaceAccess describes the remote-write contract for a workspace.
 type WorkspaceAccess string

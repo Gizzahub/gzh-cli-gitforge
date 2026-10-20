@@ -112,29 +112,6 @@ func snapshotInfraOpsPythonUVInputs(ctx context.Context, g gitRepo, sourceSHA st
 	return inputs, nil
 }
 
-func snapshotInfraOpsTargetInputs(ctx context.Context, g gitRepo, plan TargetPlan, source []prepareInput) ([]prepareInput, string, error) {
-	_, present, err := g.treeEntry(ctx, plan.TargetSHA, infraOpsInputsPath)
-	if err != nil {
-		return nil, "", err
-	}
-	if present {
-		inputs, err := snapshotInfraOpsPythonUVInputs(ctx, g, plan.TargetSHA)
-		return inputs, "target-input-mode=commit-manifest", err
-	}
-	sourceProfile, sourcePresent, err := loadCommitPrepareProfile(ctx, g, plan.BranchSHA)
-	if err != nil {
-		return nil, "", err
-	}
-	_, targetPresent, err := loadCommitPrepareProfile(ctx, g, plan.TargetSHA)
-	if err != nil {
-		return nil, "", err
-	}
-	if sourcePresent && sourceProfile == infraOpsPythonUVV1 && !targetPresent {
-		return append([]prepareInput(nil), source...), "target-input-mode=source-bootstrap", nil
-	}
-	return nil, "", fmt.Errorf("target manifest is missing outside repository-owned first adoption")
-}
-
 func snapshotPrepareLockInputs(ctx context.Context, g gitRepo, profile, sha, side string) ([]prepareInput, error) {
 	if profile != infraOpsPythonUVV1 {
 		return nil, nil
@@ -308,12 +285,16 @@ func prepareInfraOpsEnvironments(ctx context.Context, dir, ownedRoot string) err
 	return nil
 }
 
+// infraOpsPnpmInstallTimeout bounds the frozen-lockfile install. Dependency
+// installation is network-bound and slower than a profile's other steps.
+const infraOpsPnpmInstallTimeout = 10 * time.Minute
+
 func runInfraOpsPnpmFrozenInstall(ctx context.Context, dir string) error {
-	runCtx, cancel := context.WithTimeout(ctx, pnpmPrepareTimeout)
+	runCtx, cancel := context.WithTimeout(ctx, infraOpsPnpmInstallTimeout)
 	defer cancel()
 	if err := runInfraOpsCommand(runCtx, dir, []string{"CI=true", "LC_ALL=C", "GIT_TERMINAL_PROMPT=0"}, "pnpm", "install", "--frozen-lockfile"); err != nil {
 		if runCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil {
-			return fmt.Errorf("pnpm install --frozen-lockfile exceeded %s", pnpmPrepareTimeout)
+			return fmt.Errorf("pnpm install --frozen-lockfile exceeded %s", infraOpsPnpmInstallTimeout)
 		}
 		return err
 	}

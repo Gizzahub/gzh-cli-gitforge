@@ -30,17 +30,30 @@ func TestEngineBridgeResourceExpiryRetainsReport(t *testing.T) {
 			t.Fatalf("git %v: %s: %v", args, out, err)
 		}
 	}
-	git(fx.Clone, "branch", "develop")
-	git(fx.Clone, "push", "-u", fx.Remote, "develop")
-	git(fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
+	// Only a high-load readiness contract takes the host measurement lock;
+	// gz-git runs no repository code without one.
+	git(fx.Clone, "checkout", "-b", "develop")
 	marker := filepath.Join(t.TempDir(), "gate-ran")
+	if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	for name, content := range map[string]string{
-		".gz-git.yaml": "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  lockWait: 200ms\n",
-		"Makefile":     "check:\n\t@touch '" + marker + "'\nlint:\n\t@touch '" + marker + "'\n",
+		".gz-git.yaml":            "branch:\n  integrationBranch: develop\n  resourceHighLoad: true\n  lockWait: 200ms\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n",
+		".gz-git/readiness/check": "#!/bin/sh\ntouch '" + marker + "'\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n",
 	} {
-		if err := os.WriteFile(filepath.Join(fx.Worktree, name), []byte(content), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(fx.Clone, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(fx.Clone, "add", ".")
+	git(fx.Clone, "commit", "-m", "declare high-load readiness")
+	git(fx.Clone, "push", "-u", fx.Remote, "develop")
+	git(fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
+	if err := os.WriteFile(filepath.Join(fx.Worktree, "task.txt"), []byte("task\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 	git(fx.Worktree, "add", ".")
 	git(fx.Worktree, "commit", "-m", "resource expiry fixture")
@@ -62,7 +75,7 @@ func TestEngineBridgeResourceExpiryRetainsReport(t *testing.T) {
 	}
 	bridge := engineIntegrate{}
 	check, err := bridge.Check(context.Background(), fx.Worktree, false)
-	if err != nil || check.ExitCode != 2 || !strings.Contains(check.Stdout, "resource slot") || !strings.Contains(check.Stdout, "no gate measured") {
+	if err != nil || check.ExitCode != 2 || !strings.Contains(check.Stdout, "host measurement lock wait expired") || !strings.Contains(check.Stdout, "no gate measured") {
 		t.Fatalf("check=%+v err=%v", check, err)
 	}
 	run, err := bridge.Run(context.Background(), fx.Worktree, false)

@@ -125,8 +125,8 @@ func TestSiblingSourceStatusCleanFailsClosed(t *testing.T) {
 		})
 	}
 	for _, name := range []string{".ce/task-runtime.yaml", ".agent-mesh/checkpoints/session.checkpoint.json"} {
-		if flowSnapshotStatusClean("?? " + name + "\x00") {
-			t.Fatalf("flow policy widened for %s", name)
+		if statusCleanExceptUntracked("?? "+name+"\x00", isCELogRuntimeArtifactPath) {
+			t.Fatalf("CE log runtime policy widened for %s", name)
 		}
 	}
 }

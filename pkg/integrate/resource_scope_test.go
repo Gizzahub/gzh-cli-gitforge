@@ -24,7 +24,7 @@ func TestLightGateDoesNotWaitForHighLoadSlot(t *testing.T) {
 	state := t.TempDir()
 	started := filepath.Join(state, "heavy-started")
 	release := filepath.Join(state, "release-heavy")
-	heavy := measurementLockFixture(t, "@touch "+strconv.Quote(started)+"; while [ ! -f "+strconv.Quote(release)+" ]; do sleep 0.05; done", "1m")
+	heavy := measurementLockFixture(t, "touch "+strconv.Quote(started)+"; while [ ! -f "+strconv.Quote(release)+" ]; do sleep 0.05; done", "1m")
 	light := readyTaskFixture(t)
 
 	heavyDone := make(chan checkResult, 1)

@@ -272,9 +272,10 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	repo := filepath.Join(root, "repo")
 	sb.git("", "init", "-q", "-b", "master", "repo")
 	write(t, filepath.Join(repo, "README.md"), "parity sandbox\n")
-	// The integration gate: gz-git integrate check fails a gate-less repo,
-	// and run-finish drives that check. A trivial target is the smallest
-	// repo that can reach DONE.
+	// gz-git runs no repository code: without a readiness contract the
+	// gate mode is "none" and the git checks alone decide readiness. The
+	// Makefile stays in the fixture as inert content that proves exactly
+	// that; nothing on the run-finish path invokes it.
 	write(t, filepath.Join(repo, "Makefile"), "check:\n\t@echo sandbox gate ok\nlint:\n\t@echo sandbox lint ok\n")
 	// The branch declaration is runtime-tool-agnostic: both CE and the port
 	// read the integration branch and task pattern from it.
