@@ -16,17 +16,21 @@ for the root config's own workspaces before planning. It resolves each
 workspace path and, when `configLink` is set, replaces
 `<path>/.gz-git.yaml` with a symlink. It has no self-sync guard, so a
 workspace whose path is the devbox itself replaces the devbox's own
-config before the planner's self-sync guard runs.
+config. With `sync.recursive: true` this happens before the planner's
+self-sync guard runs; without it, no planner picks the workspace up and
+no guard runs at all.
 
 ## Reproduction
 
-Derived from the code by the reviewer, following the CLI's loading order
-(flat load, `LoadConfigRecursive`, then `ensureChildConfigs`); not run end
-to end. A root `.gz-git.yaml` with
+Reproduced at function level by the reviewer on 6edfd2d6, following the
+CLI's loading order: `FileSpecLoader.Load`, `config.LoadConfigRecursive`,
+then `ensureChildConfigsWithDryRun` with dry run off. The CLI itself was
+not run. A root `.gz-git.yaml` with
 `workspaces: {self: {path: ., configLink: shared.yaml}}`, or with `path`
 set to a symlink to the root. The workspace defaults to type git with no
-URL, so it is not skipped. A real `gz-git workspace sync` replaces the
-devbox's `.gz-git.yaml` with a symlink to `shared.yaml`.
+URL, so it is not skipped. The devbox's `.gz-git.yaml` became a symlink
+to `shared.yaml` for both `path: .` and a path that is a symlink to the
+root.
 
 ## Expected vs Actual
 

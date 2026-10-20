@@ -310,9 +310,9 @@ func TestRunChildSyncSkipsEntriesReachingEnclosingConfigDir(t *testing.T) {
 
 	for _, tc := range []struct{ name, childConfig, warning string }{
 		{"git workspace dot-dot", "workspaces:\n  up:\n    type: git\n    path: ..\n    url: " + deadOrigin + "\n", "Skipping workspace 'up'"},
-		// The guard runs before the forge provider is created, so no network
-		// is reached.
-		{"forge workspace dot-dot", "workspaces:\n  up:\n    path: ..\n    source:\n      provider: gitlab\n      org: self\n", "Skipping workspace 'up'"},
+		// The guard runs before the forge provider is created; the base URL
+		// is unreachable so a regression fails without reaching the network.
+		{"forge workspace dot-dot", "workspaces:\n  up:\n    path: ..\n    source:\n      provider: gitlab\n      org: self\n      baseURL: http://127.0.0.1:1\n", "Skipping workspace 'up'"},
 		{"repositories absolute", "repositories:\n  - name: up\n    url: " + deadOrigin + "\n    path: " + configDir + "\n", "Skipping 'up' in workspace '" + child + "'"},
 	} {
 		if err := os.WriteFile(filepath.Join(child, DefaultConfigFile), []byte(tc.childConfig), 0o644); err != nil {
@@ -325,7 +325,7 @@ func TestRunChildSyncSkipsEntriesReachingEnclosingConfigDir(t *testing.T) {
 			Enclosing: []string{configDir},
 			Out:       &out,
 		})
-		if !strings.Contains(out.String(), tc.warning) {
+		if !strings.Contains(out.String(), tc.warning) || !strings.Contains(out.String(), "reaches an enclosing config directory") {
 			t.Errorf("%s: output lacks the enclosing-config warning:\n%s", tc.name, out.String())
 		}
 		if !strings.Contains(out.String(), "No repositories found in child workspace.") {
