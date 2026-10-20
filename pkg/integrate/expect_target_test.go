@@ -161,10 +161,10 @@ func TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch(t *testing.T) {
 		t.Fatalf("legacy revalidation error = %v, want generic target movement", err)
 	}
 	moved := gitOutput(t, fx.Clone, "rev-parse", "HEAD")
-	for _, want := range []string{"target branch changed during readiness", fx.Remote + "/develop", moved, check.Plan.TargetSHA} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("legacy revalidation error = %v, want it to name %q", err, want)
-		}
+	ref := fx.Remote + "/develop"
+	want := "target branch changed during readiness: " + ref + " is " + moved + ", readiness checked " + check.Plan.TargetSHA + "; rebase onto " + ref + " and re-run check"
+	if err.Error() != want {
+		t.Fatalf("legacy revalidation error = %q, want %q", err, want)
 	}
 }
 

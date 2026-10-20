@@ -67,9 +67,19 @@ acquisition); this card covers the cost of any target move.
   rerun. Landings of ISSUE-71, ISSUE-72 and ISSUE-75 then went to master
   by an operator push as a stopgap until landing gets faster; that is not
   the intended workflow.
-- The Run-phase refusal from `revalidateCheckedRefsForExpectedTarget` now
+- `revalidateCheckedRefsForExpectedTarget` (`pkg/integrate/run.go`) now
   names the target ref, its current commit and the commit readiness
-  checked, so the gz-git diagnostic carries the cause.
+  checked, instead of the unnamed wording quoted in the Summary. The same
+  text reaches both places a moved target is reported: the Check pass's
+  post-gate freshness item (`pkg/integrate/check.go`, the usual case,
+  since `Run` re-runs the check after the gate) and the Run-pass refusal
+  in the short window after that re-check. When the remote-tracking ref
+  is gone and the local target was read instead, the message names the
+  local ref. Test:
+  `TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch` compares
+  the whole message, so swapped commits fail it. Independent review: PASS
+  WITH WARNINGS; the ref fallback, the exact assertion and this wording
+  are its follow-up.
 - Still open: CE's `run-finish` reason classifies a stale base only for
   the Check pass, so CE still reports the generic "integration did not
   complete" after readiness (ce-agent-kit; gitforge's `internal/runtask`

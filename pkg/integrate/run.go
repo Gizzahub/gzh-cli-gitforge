@@ -327,6 +327,7 @@ func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, chec
 		if !ok {
 			return "", "", "", fmt.Errorf("target ref not found after fetch: %s", check.Plan.Target)
 		}
+		targetRef = check.Plan.Target
 	}
 	if targetSHA != check.Plan.TargetSHA {
 		if expectTarget == "" {
