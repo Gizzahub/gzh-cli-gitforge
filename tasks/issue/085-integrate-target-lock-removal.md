@@ -53,15 +53,19 @@ integrations belongs to the caller/orchestrator, not to gz-git.
   → reclaim). Concurrent runs must not wait on each other. When the target
   moves, the run must refuse with the conflict/stale-target reason
   (rebase needed, or the conflicting paths) instead of waiting.
+
 - Decide case by case what replaces the other `acquireTargetLock` callers:
+
   - `cleanup.go:114`
   - `legacy_cleanup_apply.go:107`
   - `task_resource_fence.go:42` (`task-resource:<branch>`)
 
   Keep only what protects gz-git's own on-disk state from corruption. Nothing
   may wait on another integration's gate.
+
 - Update `docs/design/integration-resource-contract.md` and the integrate docs
   so they state the reporting-only contract.
+
 - Remove the tests that pin waiting behavior, and add a test where two
   concurrent runs on one target never block: the second fails fast with an
   actionable reason.
