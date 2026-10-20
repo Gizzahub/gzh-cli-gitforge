@@ -1963,14 +1963,10 @@ func buildSyncSummary(actions []reposync.Action) syncSummary {
 // analyzeRepoChanges performs detailed analysis of changes for a repository.
 // Returns nil if repository doesn't exist yet (new clone) or analysis fails.
 // updateTouchesWorktree reports whether an update action can change the
-// working tree. Only the fetch strategy leaves it alone, so local changes are
-// a risk for every other strategy, including an unset one.
+// working tree. Only the fetch strategy leaves it alone; the executor runs an
+// unset Action.Strategy as reset, so that case keeps the warning too.
 func updateTouchesWorktree(action reposync.Action) bool {
-	strategy := action.Strategy
-	if strategy == "" {
-		strategy = action.Repo.Strategy
-	}
-	return strategy != reposync.StrategyFetch
+	return action.Strategy != reposync.StrategyFetch
 }
 
 func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChanges, error) { //nolint:unparam // error is always nil; kept for consistent error-return interface

@@ -47,3 +47,13 @@ omit them or report the dirty state as information. Extend
 :193-198, :267, :287) with a fetch-strategy case for both preview paths.
 
 Registration only; no remediation is included here.
+
+## Resolution
+
+Fixed in `a16d4659`. `updateTouchesWorktree` derives the warning from the
+planned `Action.Strategy`, which every planner fills with the effective value
+and which the executor runs as reset when unset. Fetch drops the dirty-worktree conflict
+and warning from both preview paths; every other strategy, including an unset
+one, keeps them. `TestSyncPreviewDirtyWarningFollowsStrategy` covers fetch,
+pull, and reset on a real dirty repository for both paths, and fails on the
+previous code.
