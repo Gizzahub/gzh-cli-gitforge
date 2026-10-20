@@ -14,6 +14,7 @@ import (
 )
 
 func TestFetchPrunePassesNoTags(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "args")
 	script := filepath.Join(dir, "git")
@@ -39,6 +40,7 @@ func TestFetchPrunePassesNoTags(t *testing.T) {
 }
 
 func TestFetchPruneFailureNamesNoTags(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	script := filepath.Join(dir, "git")
 	const body = "#!/bin/sh\necho refused >&2\nexit 1\n"

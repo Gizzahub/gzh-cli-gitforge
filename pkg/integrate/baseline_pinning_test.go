@@ -23,6 +23,7 @@ import (
 // test lives in exactly how ls-tree's failure and its empty output are told
 // apart.
 func TestValidateBootstrapContractEntryDistinguishesTreeErrorFromAbsence(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	writeRepoFile(t, fx.Clone, "other.txt", "x\n")
 	runGit(t, fx.Clone, "add", "other.txt")
@@ -78,6 +79,7 @@ func TestValidateBootstrapContractEntryDistinguishesTreeErrorFromAbsence(t *test
 // judgeMakeAgainstProbe by hand, and hard-coding false there broke no test at
 // all -- the escape hatch would simply have stopped working.
 func TestCheck_BaselineUnmeasurableCheckReportGatesUnlessAllowed(t *testing.T) {
+	t.Parallel()
 	// The target tip's own check fails without emitting a single file:line
 	// token, so there is no baseline to compare the branch against.
 	const targetMakefile = "check:\n\t@echo 'boom, no diagnostics here'; exit 1\n"
@@ -137,6 +139,7 @@ func TestCheck_BaselineUnmeasurableCheckReportGatesUnlessAllowed(t *testing.T) {
 // being turned into a warn. A fourth status added later would otherwise arrive
 // as a silent pass, since Ready counts failures only.
 func TestBaselineCheckItemUnknownVerdictFailsClosed(t *testing.T) {
+	t.Parallel()
 	item := baselineCheckItem("make check", BaselineResult{
 		Status: BaselineStatus(99),
 		Reason: "invented",

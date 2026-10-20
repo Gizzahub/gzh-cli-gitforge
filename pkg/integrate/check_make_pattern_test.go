@@ -19,6 +19,7 @@ import (
 // the probe was marked Defined, so the integration gate reported
 // "PASS make check" for a gate that did not exist.
 func TestMakeTargetMatchedByPatternRuleIsUndeclared(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "catchall-ran")
 	writeRepoFile(t, dir, "Makefile",
@@ -105,6 +106,7 @@ func TestRulelessPathNamedLikeTargetIsUndeclared(t *testing.T) {
 // satisfies, and keep its verdict for both, whatever SHELL the Makefile sets
 // globally. $(shell) runs as it would for the real make that follows.
 func TestMakePatternProbeRunsNoRecipe(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("the probe needs make and true on PATH")
 	}
@@ -145,6 +147,7 @@ func TestMakePatternProbeRunsNoRecipe(t *testing.T) {
 // $(shell) still reads as pattern-matched; and a pattern match from a failed
 // make (an include it cannot remake) is no verdict at all.
 func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("the probe needs make and true on PATH")
 	}
@@ -282,6 +285,7 @@ func ptrTo[T any](v T) *T { return &v }
 // when MAKEFILE_LIST names its exact path, as make 3.81 ("MAKEFILE_LIST :=  a")
 // and 4.x print it, and not an expansion of it.
 func TestMakePatternProbeLoaded(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		dump string
 		want bool

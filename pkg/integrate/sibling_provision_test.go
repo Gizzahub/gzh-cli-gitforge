@@ -32,6 +32,7 @@ func siblingFixture(t *testing.T) (*testutil.WorktreeOrigin, config.SiblingDepen
 }
 
 func TestProvisionSiblingReleasesOnlyUnchangedOwnedArchive(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	root := filepath.Join(t.TempDir(), "gitrump-ee", "task")
 	if err := os.MkdirAll(root, 0o755); err != nil {
@@ -53,6 +54,7 @@ func TestProvisionSiblingReleasesOnlyUnchangedOwnedArchive(t *testing.T) {
 }
 
 func TestProvisionSiblingAdmitsOnlyUntrackedRuntimeMetadataOutsideArchive(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	metadata := []string{
 		".ce/task-runtime.yaml",
@@ -89,6 +91,7 @@ func TestProvisionSiblingAdmitsOnlyUntrackedRuntimeMetadataOutsideArchive(t *tes
 }
 
 func TestSiblingSourceStatusCleanFailsClosed(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, status string
 		clean        bool
@@ -129,6 +132,7 @@ func TestSiblingSourceStatusCleanFailsClosed(t *testing.T) {
 }
 
 func TestProvisionSiblingStillRejectsSourceChangesAndStagedMetadata(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"unknown untracked", "tracked source", "staged metadata"} {
 		t.Run(name, func(t *testing.T) {
 			fx, dep := siblingFixture(t)
@@ -152,6 +156,7 @@ func TestProvisionSiblingStillRejectsSourceChangesAndStagedMetadata(t *testing.T
 }
 
 func TestProvisionSiblingRefusesCollisionAndTamperedRelease(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	root := filepath.Join(t.TempDir(), "gitrump-ee", "task")
 	if err := os.MkdirAll(root, 0o755); err != nil {
@@ -181,6 +186,7 @@ func TestProvisionSiblingRefusesCollisionAndTamperedRelease(t *testing.T) {
 }
 
 func TestProvisionSiblingRefusesStaleSourceTip(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	runGitInTest(t, fx.Clone, "commit", "--allow-empty", "-m", "unpublished")
 	root := filepath.Join(t.TempDir(), "gitrump-ee", "task")
@@ -193,6 +199,7 @@ func TestProvisionSiblingRefusesStaleSourceTip(t *testing.T) {
 }
 
 func TestDiscoverSiblingPrimaryUsesDeclaredNestedWorkspace(t *testing.T) {
+	t.Parallel()
 	dependency, dep := siblingFixture(t)
 	primary := testutil.TempWorktreeWithBareOrigin(t)
 	source := filepath.Join(primary.Clone, dep.Name)
@@ -216,6 +223,7 @@ func TestDiscoverSiblingPrimaryUsesDeclaredNestedWorkspace(t *testing.T) {
 }
 
 func TestDiscoverSiblingPrimaryKeepsAdjacentCompatibility(t *testing.T) {
+	t.Parallel()
 	dependency, dep := siblingFixture(t)
 	primary := testutil.TempWorktreeWithBareOrigin(t)
 	source := filepath.Join(filepath.Dir(primary.Clone), dep.Name)
@@ -238,6 +246,7 @@ func TestDiscoverSiblingPrimaryKeepsAdjacentCompatibility(t *testing.T) {
 }
 
 func TestDiscoverSiblingPrimaryDoesNotFallbackFromPresentAdjacentPath(t *testing.T) {
+	t.Parallel()
 	dependency, dep := siblingFixture(t)
 	primary := testutil.TempWorktreeWithBareOrigin(t)
 	nested := filepath.Join(primary.Clone, dep.Name)
@@ -257,6 +266,7 @@ func TestDiscoverSiblingPrimaryDoesNotFallbackFromPresentAdjacentPath(t *testing
 }
 
 func TestDiscoverSiblingPrimaryRejectsMismatchedOrSymlinkedNestedWorkspace(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink setup is platform-dependent")
 	}

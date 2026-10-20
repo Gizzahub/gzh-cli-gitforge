@@ -18,6 +18,7 @@ import (
 const validInfraOpsInputs = `{"schema_version":1,"dependencies":[{"name":"sbkube","revision":"d41f830288d12206c0a07107ed75137656e35135"},{"name":"cloud-script-transformer","revision":"6bec7323ede79cf477f5b4c945b8e29d33721502"}]}`
 
 func TestSnapshotInfraOpsPythonUVInputsUsesPinnedSourceCommit(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
@@ -41,6 +42,7 @@ func TestSnapshotInfraOpsPythonUVInputsUsesPinnedSourceCommit(t *testing.T) {
 }
 
 func TestSnapshotInfraOpsPythonUVInputsRejectsUnsafeManifestShapes(t *testing.T) {
+	t.Parallel()
 	for name, manifest := range map[string]string{
 		"trailing object":    validInfraOpsInputs + `{}`,
 		"trailing garbage":   validInfraOpsInputs + `garbage`,
@@ -78,6 +80,7 @@ func TestInfraOpsMakeEnvironmentIsOwnedAndNotAmbient(t *testing.T) {
 }
 
 func TestSnapshotInfraOpsTargetInputsRejectsMissingManifestOutsideFirstAdoption(t *testing.T) {
+	t.Parallel()
 	for _, targetDeclared := range []bool{false, true} {
 		t.Run(map[bool]string{false: "controller-only", true: "declared-target"}[targetDeclared], func(t *testing.T) {
 			fx := testutil.TempWorktreeWithBareOrigin(t)
@@ -111,6 +114,7 @@ func TestSnapshotInfraOpsTargetInputsRejectsMissingManifestOutsideFirstAdoption(
 }
 
 func TestInfraOpsMakeEnvironmentDoesNotOverlayOtherProfiles(t *testing.T) {
+	t.Parallel()
 	for _, profile := range []string{"", cargoWorkspacePrepareV1} {
 		ctx := withInfraOpsPrepareMakeEnv(context.Background(), "/tmp/root/source", profile)
 		if got := prepareMakeEnv(ctx); len(got) != 0 {
@@ -120,6 +124,7 @@ func TestInfraOpsMakeEnvironmentDoesNotOverlayOtherProfiles(t *testing.T) {
 }
 
 func TestInfraOpsGitRejectsTruncatedEvidence(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	writeFile(t, fx.Worktree, "large", strings.Repeat("x", (128<<10)+1))
 	runGitInTest(t, fx.Worktree, "add", ".")
@@ -189,6 +194,7 @@ func TestPrepareInfraOpsPythonUVCreatesSeparateOwnedEnvironmentsAndCleansUp(t *t
 }
 
 func TestPrepareInfraOpsPythonUVRejectsUnsafeProjectBeforeTools(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.Symlink(root, filepath.Join(root, "pyproject.toml")); err != nil {
 		t.Fatal(err)
@@ -329,6 +335,7 @@ func TestInfraOpsTargetManifestDoesNotHideChildPinRegression(t *testing.T) {
 }
 
 func TestPrepareInfraOpsPythonUVRejectsPreexistingNodeResourceBeforeTools(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	inputs := []prepareInput{{Name: "manifest", OID: strings.Repeat("a", 40)}, {Name: "sbkube", OID: strings.Repeat("b", 40)}, {Name: "cloud-script-transformer", OID: strings.Repeat("c", 40)}}
 	writeInfraOpsFixture(t, fx.Worktree, inputs)
@@ -382,6 +389,7 @@ func TestInfraOpsGitIgnoresTransportRewriteAndCheckoutHooks(t *testing.T) {
 }
 
 func TestInfraOpsPreparationReceiptRetainsInputsAcrossRetry(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	check := &CheckReport{PrepareProfile: infraOpsPythonUVV1, PrepareInputs: "infra-ops-python-uv-v1 manifest@" + strings.Repeat("a", 40) + " sbkube@" + strings.Repeat("b", 40) + " source:uv.lock@" + strings.Repeat("c", 40)}
 	r := seedCASReceipt("prepare-provenance", "refs/heads/master")

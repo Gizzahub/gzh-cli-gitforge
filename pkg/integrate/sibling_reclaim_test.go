@@ -14,6 +14,7 @@ import (
 )
 
 func TestRun_ReclaimRetainsTaskUntilTamperedSiblingLeaseIsRepaired(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	dependency, dep := siblingFixture(t)
 	lease, err := ProvisionSibling(context.Background(), fx.Worktree, dependency.Clone, dep)

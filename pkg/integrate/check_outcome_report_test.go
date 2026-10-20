@@ -20,6 +20,7 @@ func writeOutcomeReport(t *testing.T, content string) string {
 }
 
 func TestReadMakeOutcomeReportRejectsMalformedInputs(t *testing.T) {
+	t.Parallel()
 	valid := `{"version":1,"target":"check","complete":true,"checks":[{"id":"unit","outcome":"pass"}]}`
 	for _, test := range []struct {
 		name    string
@@ -49,6 +50,7 @@ func TestReadMakeOutcomeReportRejectsMalformedInputs(t *testing.T) {
 }
 
 func TestReadMakeOutcomeReportRejectsInvalidUTF8OversizeAndSymlink(t *testing.T) {
+	t.Parallel()
 	t.Run("invalid UTF-8", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "outcome.json")
 		if err := os.WriteFile(path, []byte{0xff}, 0o600); err != nil {
@@ -85,6 +87,7 @@ func report(checks ...makeCheckOutcome) *makeOutcomeReport {
 }
 
 func TestCompareMakeOutcomes(t *testing.T) {
+	t.Parallel()
 	pass := makeCheckOutcome{ID: "unit", Outcome: "pass"}
 	fail := makeCheckOutcome{ID: "unit", Outcome: "fail"}
 	for _, test := range []struct {
@@ -110,6 +113,7 @@ func TestCompareMakeOutcomes(t *testing.T) {
 }
 
 func TestReadMakeOutcomeReportAcceptsFailureWithNonzeroExit(t *testing.T) {
+	t.Parallel()
 	content := `{"version":1,"target":"lint","complete":true,"checks":[{"id":"unit","outcome":"pass"},{"id":"lint","outcome":"fail"}]}`
 	got, err := readMakeOutcomeReport(writeOutcomeReport(t, content), "lint", 7)
 	if err != nil {

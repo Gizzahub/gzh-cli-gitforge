@@ -18,6 +18,7 @@ const (
 // never part of the "nothing changed beyond branch.readiness" claim: it landed
 // on a protected branch under a check that had not read it.
 func TestOnlyReadinessAdditionMultiDocumentIsRejected(t *testing.T) {
+	t.Parallel()
 	t.Run("payload hidden in the source", func(t *testing.T) {
 		neu := sourceContract + "---\nhooks:\n  evil: ./x\n"
 		err := onlyReadinessAddition([]byte(targetContract), []byte(neu))
@@ -52,6 +53,7 @@ func TestOnlyReadinessAdditionMultiDocumentIsRejected(t *testing.T) {
 // test exists to keep that delegation from being replaced by a local shape
 // check that would reopen the hole.
 func TestNewContractIsMinimalMultiDocumentIsRejected(t *testing.T) {
+	t.Parallel()
 	neu := "branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/run.sh\n---\nhooks:\n  evil: ./x\n"
 	if err := newContractIsMinimal([]byte(neu)); err == nil {
 		t.Fatal("new contract with a second document accepted")

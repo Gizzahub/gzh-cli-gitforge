@@ -21,6 +21,7 @@ func siblingContractYAML(remote, revision string) string {
 }
 
 func TestResolveSiblingContractCommitOwnership(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
@@ -52,6 +53,7 @@ func TestResolveSiblingContractCommitOwnership(t *testing.T) {
 }
 
 func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX readiness runner")
 	}

@@ -55,6 +55,7 @@ func TestPrepareLegacyTrees_SourceBeforeTargetAndNoRegistrationRemains(t *testin
 }
 
 func TestPreparedLegacyWithoutControllerDoesNotAnnotateProbe(t *testing.T) {
+	t.Parallel()
 	p, err := prepareLegacySource(context.Background(), gitRepo{dir: t.TempDir()}, TargetPlan{}, "")
 	if err != nil {
 		t.Fatal(err)
@@ -90,6 +91,7 @@ func TestRunPrepareProfileRejectsFailuresAndForbiddenOutput(t *testing.T) {
 }
 
 func TestRunPrepareProfileRejectsEntSymlink(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	outside := t.TempDir()
 	if err := os.Symlink(outside, filepath.Join(fx.Worktree, "ent")); err != nil {

@@ -12,6 +12,7 @@ import (
 )
 
 func TestReadLegacyEvidenceRejectsUnknownAndMalformedShape(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	valid := legacyEvidence{SchemaVersion: 1, OriginalReceiptSHA256: strings.Repeat("a", 64), SingleCommandDiagnostics: legacyDiagnostic{Command: "/bin/gz", Executable: "/bin/gz", ExecutableSHA256: strings.Repeat("b", 64), Cwd: "/tmp", Args: []string{"integrate", "run"}, ExitCode: 1, Stdout: "{}"}}
 	b, err := json.Marshal(valid)
@@ -49,6 +50,7 @@ func TestReadLegacyEvidenceRejectsUnknownAndMalformedShape(t *testing.T) {
 }
 
 func TestReconcileLegacyPreMutationWritesOnlyBoundNegativeAndRejectsPriorReceipt(t *testing.T) {
+	t.Parallel()
 	artifact := os.Getenv("GZ_GIT_LEGACY_TEST_ARTIFACT")
 	if artifact == "" {
 		t.Skip("GZ_GIT_LEGACY_TEST_ARTIFACT is required for retained-artifact integration coverage")
@@ -115,6 +117,7 @@ func TestReconcileLegacyPreMutationWritesOnlyBoundNegativeAndRejectsPriorReceipt
 }
 
 func TestValidateLegacyRunRejectsSyntheticPositiveAndWrongContext(t *testing.T) {
+	t.Parallel()
 	o := LegacyReconcileOptions{Target: "develop", Execution: &ExecutionContext{ExecutionID: "run-1", Generation: "g1", Owner: OwnerIdentity{Actor: "codex", Host: "host", Kind: "agent"}, ExpectSource: strings.Repeat("a", 40)}}
 	args := []string{"integrate", "run", "--target", "develop", "--expect-source", o.Execution.ExpectSource, "--execution-id", "run-1", "--generation", "g1", "--owner-actor", "codex", "--owner-host", "host", "--owner-kind", "agent", "--json"}
 	run := legacyRun{SchemaVersion: 1, Command: "integrate-run", TargetRef: "refs/heads/develop", ReclaimDone: nil, ReclaimFailed: nil, ExitCode: 1, Error: "not ready"}
@@ -145,6 +148,7 @@ func TestValidateLegacyRunRejectsSyntheticPositiveAndWrongContext(t *testing.T) 
 }
 
 func TestReconciledOutcomeRejectsPartialProvenance(t *testing.T) {
+	t.Parallel()
 	o := &PreMutationOutcome{SchemaVersion: 1, Capability: preMutationOutcomeCapability, ExecutionID: "run-1", Generation: "g1", Owner: OwnerIdentity{Actor: "codex", Host: "host", Kind: "agent"}, RepositoryCommonDir: "/tmp/git", TaskBranch: "feature/x", TaskSHA: strings.Repeat("a", 40), ExpectedSource: strings.Repeat("a", 40), TargetRef: "refs/heads/develop", PreMutation: true, Phase: preMutationPhaseReadinessRejected, ReasonClass: "not_ready", ReconciledReceiptSHA256: strings.Repeat("a", 64)}
 	if err := o.validate(); err == nil {
 		t.Fatal("partial reconciliation provenance accepted")
@@ -152,6 +156,7 @@ func TestReconciledOutcomeRejectsPartialProvenance(t *testing.T) {
 }
 
 func TestRecordPreMutationOutcomeRetainsReconciledProvenance(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	exec := outcomeExecution(t, fx.Worktree, "reconciled-preserved")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
@@ -189,6 +194,7 @@ func TestRecordPreMutationOutcomeRetainsReconciledProvenance(t *testing.T) {
 }
 
 func TestValidateLockedRepositoryBindingRejectsReplacement(t *testing.T) {
+	t.Parallel()
 	if err := validateLockedRepositoryBinding("/repo", "/repo/.git", "/repo", "/repo", "/repo/.git"); err != nil {
 		t.Fatalf("unchanged binding: %v", err)
 	}

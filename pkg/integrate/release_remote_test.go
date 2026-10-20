@@ -48,6 +48,7 @@ func releaseRemoteOptions(fx *testutil.WorktreeOrigin) CheckOptions {
 }
 
 func TestCheck_ReleaseFromRemoteRefIgnoresHeadAndUpstream(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), releaseRemoteOptions(fx))
 	if err != nil {
@@ -71,6 +72,7 @@ func TestCheck_ReleaseFromRemoteRefIgnoresHeadAndUpstream(t *testing.T) {
 }
 
 func TestCheck_ReleaseFromRemoteRefStillRequiresCleanCheckout(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	writeRepoFile(t, fx.Clone, "README.md", "dirty\n")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), releaseRemoteOptions(fx))
@@ -89,6 +91,7 @@ func TestCheck_ReleaseFromRemoteRefStillRequiresCleanCheckout(t *testing.T) {
 }
 
 func TestCheck_ReleaseFromLocalBranchStillRequiresHead(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	runGit(t, fx.Clone, "branch", "develop", fx.Remote+"/develop")
 	opts := releaseRemoteOptions(fx)
@@ -114,6 +117,7 @@ func TestCheck_ReleaseFromLocalBranchStillRequiresHead(t *testing.T) {
 }
 
 func TestRun_ReleaseFromRemoteRefFastForwardsDefaultAndKeepsIntegration(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: releaseRemoteOptions(fx)})
 	if err != nil {
@@ -136,6 +140,7 @@ func TestRun_ReleaseFromRemoteRefFastForwardsDefaultAndKeepsIntegration(t *testi
 }
 
 func TestCheck_ExpectSourceMismatchStopsBeforeMeasurement(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	opts := releaseRemoteOptions(fx)
 	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
@@ -146,6 +151,7 @@ func TestCheck_ExpectSourceMismatchStopsBeforeMeasurement(t *testing.T) {
 }
 
 func TestRun_ExpectSourceMismatchPushesNothing(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	before := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
 	opts := releaseRemoteOptions(fx)
@@ -164,6 +170,7 @@ func TestRun_ExpectSourceMismatchPushesNothing(t *testing.T) {
 // the fetch advances to the expected commit passes, and readiness measures
 // that same commit.
 func TestCheck_ExpectSourceComparesTheFetchedCommit(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	runGit(t, fx.Worktree, "checkout", "-B", "develop", fx.Remote+"/develop")
 	writeRepoFile(t, fx.Worktree, "later.txt", "later\n")
@@ -189,6 +196,7 @@ func TestCheck_ExpectSourceComparesTheFetchedCommit(t *testing.T) {
 }
 
 func TestRun_ExpectSourceMatchIntegrates(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	opts := releaseRemoteOptions(fx)
 	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/develop"))
@@ -202,6 +210,7 @@ func TestRun_ExpectSourceMatchIntegrates(t *testing.T) {
 }
 
 func TestNormalizeExpectSource(t *testing.T) {
+	t.Parallel()
 	sha1 := strings.Repeat("a", 40)
 	for raw, want := range map[string]string{
 		sha1:                    sha1,
@@ -226,6 +235,7 @@ func TestNormalizeExpectSource(t *testing.T) {
 }
 
 func TestCheck_ReleaseRejectsLocalBranchShadowingRemoteRef(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	runGit(t, fx.Clone, "branch", fx.Remote+"/develop", "HEAD")
 	_, err := Check(context.Background(), gitcmd.NewExecutor(), releaseRemoteOptions(fx))
@@ -237,6 +247,7 @@ func TestCheck_ReleaseRejectsLocalBranchShadowingRemoteRef(t *testing.T) {
 // A fetch that moves the source while run's readiness is measuring is still
 // reported as a source mismatch, not as a generic revalidation error.
 func TestRun_ExpectSourceMovedDuringReadinessIsAMismatch(t *testing.T) {
+	t.Parallel()
 	fx := releaseRemoteFixture(t)
 	opts := releaseRemoteOptions(fx)
 	opts.ExpectSource = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/develop"))

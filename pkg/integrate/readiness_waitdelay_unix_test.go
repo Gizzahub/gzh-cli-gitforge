@@ -57,6 +57,7 @@ func TestExecuteReadinessWaitDelayBoundsEscapedPipe(t *testing.T) {
 }
 
 func TestReadinessEscapedPipeHelper(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("READINESS_ESCAPE_HELPER") != "1" {
 		return
 	}

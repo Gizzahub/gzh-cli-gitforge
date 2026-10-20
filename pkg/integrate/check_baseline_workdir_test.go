@@ -15,6 +15,7 @@ import (
 // make is at the repository root, a diagnostic is root-relative as printed and
 // must not be relocated to somewhere a suffix happens to match.
 func TestExtractLocationsUsesToolWorkingDirectory(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 
 	t.Run("sub-make directory attributes an otherwise undecidable diagnostic", func(t *testing.T) {
@@ -60,6 +61,7 @@ func TestExtractLocationsUsesToolWorkingDirectory(t *testing.T) {
 // cleanly on both sides of the comparison hard-failed the branch that touched
 // the file. This repository has such a file, so the fixture is not synthetic.
 func TestRootLevelTestFileSkipDoesNotBlockBranch(t *testing.T) {
+	t.Parallel()
 	// The interleaved "=== CONT" clears the pending buffer before the
 	// "--- SKIP" trailer arrives, so suppressGoTestVerboseNoise cannot blank
 	// this line. It reaches attribution exactly as a real diagnostic would.
@@ -96,6 +98,7 @@ func TestRootLevelTestFileSkipDoesNotBlockBranch(t *testing.T) {
 // unique on its own; only the combination was impossible, and nothing was
 // looking at the combination.
 func TestLiftRejectsMutuallyExclusiveWorkingDirectories(t *testing.T) {
+	t.Parallel()
 	tracked := []string{"apps/api/lib/foo.ex", "apps/web/lib/bar.ex"}
 	// No WorkDir: this is the no-evidence path, where lifting is still allowed
 	// in principle. It must be refused here for the different reason that the

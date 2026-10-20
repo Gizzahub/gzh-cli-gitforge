@@ -140,12 +140,14 @@ func TestRunMakeTarget_LintLockWithDiagnosticDoesNotRetryOrSkip(t *testing.T) {
 }
 
 func TestGolangciLintLocked_RejectsOtherFailureOutput(t *testing.T) {
+	t.Parallel()
 	if golangciLintLocked("Error: parallel golangci-lint is running\nother tool failed\n") {
 		t.Fatal("lock text mixed with another failure must not be retried or skipped")
 	}
 }
 
 func TestGolangciLintLocked_ObservedMakeOutputWithANSI(t *testing.T) {
+	t.Parallel()
 	output := "\x1b[36mRunning golangci-lint...\x1b[0m\n" +
 		"GOWORK=off golangci-lint run ./...\n" +
 		"golangci-lint run ./...\n" +
@@ -157,6 +159,7 @@ func TestGolangciLintLocked_ObservedMakeOutputWithANSI(t *testing.T) {
 }
 
 func TestGolangciLintLocked_MakeWrapperTargets(t *testing.T) {
+	t.Parallel()
 	for _, line := range []string{
 		"make[1]: *** [Makefile:165: lint] Error 3",
 		"make[2]: *** [.make/quality.mk:165: lint-check] Error 3",
@@ -183,6 +186,7 @@ func TestGolangciLintLocked_MakeWrapperTargets(t *testing.T) {
 }
 
 func TestWaitForRetry_ContextCancellationWins(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := waitForRetry(ctx, time.Second); !errors.Is(err, context.Canceled) {
@@ -227,6 +231,7 @@ func TestRunMakeTarget_LintCancellationDuringFinalLockAttemptIsNotUnavailable(t 
 }
 
 func TestForeignDiagnosticLocations(t *testing.T) {
+	t.Parallel()
 	got := foreignDiagnosticLocations("../old-worktree/pkg/check.go:12: stale\n./local/file.go:3: allowed\nlocal/other.go:4: allowed\nsubdir/../../outside.go:8: stale\n././../other-outside.go:9: stale\n/absolute/path.go:10: stale\n")
 	want := []string{"../old-worktree/pkg/check.go:12", "././../other-outside.go:9", "/absolute/path.go:10", "subdir/../../outside.go:8"}
 	if !bytes.Equal([]byte(strings.Join(got, "\n")), []byte(strings.Join(want, "\n"))) {
@@ -240,6 +245,7 @@ func TestForeignDiagnosticLocations(t *testing.T) {
 }
 
 func TestLexicallyForeignDiagnosticPath_PreservesLegacyAndSlashForms(t *testing.T) {
+	t.Parallel()
 	for _, path := range []string{"../old-worktree/pkg/x.go", "./../old-worktree/pkg/x.go", "subdir/../../outside.go", "/absolute/x.go"} {
 		if !isLexicallyForeignDiagnosticPath(path) {
 			t.Fatalf("%q must be lexically foreign", path)
@@ -251,6 +257,7 @@ func TestLexicallyForeignDiagnosticPath_PreservesLegacyAndSlashForms(t *testing.
 }
 
 func TestForeignDiagnosticLocationsForProbe_AllowsOnlyCapturedGoRootSrc(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	work := filepath.Join(root, "work")
 	goRoot := filepath.Join(root, "go-real")
@@ -317,6 +324,7 @@ func TestForeignDiagnosticLocationsForProbe_AllowsOnlyCapturedGoRootSrc(t *testi
 }
 
 func TestAnnotateControllerPreparedProbe_DiscoveryFailureLeavesNoAllowance(t *testing.T) {
+	t.Parallel()
 	probe := annotateControllerPreparedProbe(context.Background(), makeProbe{
 		WorkDir: filepath.Join(t.TempDir(), "does-not-exist"),
 		Output:  "/outside/file.go:1: diagnostic",
@@ -330,6 +338,7 @@ func TestAnnotateControllerPreparedProbe_DiscoveryFailureLeavesNoAllowance(t *te
 }
 
 func TestFreezeGoRootDiagnosticApprovals_ResolvesSymlinksBeforeDotDotAndSurvivesTargetRemoval(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	outerWork := filepath.Join(root, "outer", "work")
 	innerWork := filepath.Join(root, "inner", "work")
@@ -410,6 +419,7 @@ func TestFreezeGoRootDiagnosticApprovals_ResolvesSymlinksBeforeDotDotAndSurvives
 }
 
 func TestAnnotateControllerPreparedProbe_CapturesCanonicalGoRootSrc(t *testing.T) {
+	t.Parallel()
 	probe := annotateControllerPreparedProbe(context.Background(), makeProbe{WorkDir: t.TempDir()})
 	if !probe.ControllerPrepared {
 		t.Fatal("controller preparation marker was not retained")
@@ -426,6 +436,7 @@ func TestAnnotateControllerPreparedProbe_CapturesCanonicalGoRootSrc(t *testing.T
 }
 
 func TestExtractLocationsForProbe_ExcludesAllowedGoRootLocationsFromCounts(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	work := filepath.Join(root, "work")
 	src := filepath.Join(root, "goroot", "src")
@@ -464,6 +475,7 @@ func TestExtractLocationsForProbe_ExcludesAllowedGoRootLocationsFromCounts(t *te
 }
 
 func TestForeignDiagnosticLocationsForProbe_TargetAndSourceKeepDistinctAllowances(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	makeProbeFor := func(name string) (makeProbe, string) {
 		work := filepath.Join(root, name, "work")
@@ -500,6 +512,7 @@ func TestForeignDiagnosticLocationsForProbe_TargetAndSourceKeepDistinctAllowance
 }
 
 func TestJudgeMake_ForeignBranchDiagnosticFailsDespiteSuccessfulExit(t *testing.T) {
+	t.Parallel()
 	item := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 		Target:  "lint",
 		Defined: true,
@@ -511,6 +524,7 @@ func TestJudgeMake_ForeignBranchDiagnosticFailsDespiteSuccessfulExit(t *testing.
 }
 
 func TestJudgeMake_CheckAllowsForeignDiagnosticOutput(t *testing.T) {
+	t.Parallel()
 	item := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 		Target:  "check",
 		Defined: true,
@@ -522,6 +536,7 @@ func TestJudgeMake_CheckAllowsForeignDiagnosticOutput(t *testing.T) {
 }
 
 func TestJudgeMake_MissingCDFailsEvenWhenSkippedChecksAreAllowed(t *testing.T) {
+	t.Parallel()
 	for _, allowSkipped := range []bool{false, true} {
 		item := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 			Target:    "lint",
@@ -535,6 +550,7 @@ func TestJudgeMake_MissingCDFailsEvenWhenSkippedChecksAreAllowed(t *testing.T) {
 }
 
 func TestJudgeMake_UnavailableFailsBeforeBaselineEvenWhenSkippedChecksAreAllowed(t *testing.T) {
+	t.Parallel()
 	for _, allowSkipped := range []bool{false, true} {
 		item := judgeMakeLegacy(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 			Target: "lint", Defined: true, Unavailable: "golangci-lint lock persisted after 3 attempts",
@@ -546,6 +562,7 @@ func TestJudgeMake_UnavailableFailsBeforeBaselineEvenWhenSkippedChecksAreAllowed
 }
 
 func TestJudgeMakeAgainstProbeRejectsBaselineMissingCD(t *testing.T) {
+	t.Parallel()
 	item := judgeMakeAgainstProbe(context.Background(), gitRepo{}, TargetPlan{}, makeProbe{
 		Target: "lint", Defined: true, Err: errors.New("branch lint failed"), Code: 1,
 	}, false, makeProbe{
@@ -557,6 +574,7 @@ func TestJudgeMakeAgainstProbeRejectsBaselineMissingCD(t *testing.T) {
 }
 
 func TestMissingCD(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		out  string
@@ -610,6 +628,7 @@ func TestMissingCD(t *testing.T) {
 }
 
 func TestForeignDiagnosticError_InvalidatesBranchAndBaseline(t *testing.T) {
+	t.Parallel()
 	output := "../deleted-worktree/pkg/check.go:12: stale\n"
 	for _, scope := range []string{"branch", "baseline"} {
 		err := foreignDiagnosticError(scope, output)
@@ -636,6 +655,7 @@ const panicLintOutput = "Running golangci-lint...\n" +
 	"make: *** [lint] Error 2\n"
 
 func TestToolCrashSignature_DistinguishesCrashFromFindings(t *testing.T) {
+	t.Parallel()
 	if got := toolCrashSignature(panicLintOutput); !strings.HasPrefix(got, "panic: runtime error:") {
 		t.Fatalf("panic output signature = %q", got)
 	}
@@ -651,6 +671,7 @@ func TestToolCrashSignature_DistinguishesCrashFromFindings(t *testing.T) {
 }
 
 func TestToolCrashSignature_SurvivesANSIColouring(t *testing.T) {
+	t.Parallel()
 	colored := "\x1b[36mRunning golangci-lint...\x1b[0m\n\x1b[31mfatal error: concurrent map writes\x1b[0m\n"
 	if got := toolCrashSignature(colored); got != "fatal error: concurrent map writes" {
 		t.Fatalf("ANSI-wrapped crash signature = %q", got)
@@ -661,6 +682,7 @@ func TestToolCrashSignature_SurvivesANSIColouring(t *testing.T) {
 // regression this change exists for. Both judge paths must reach the crash
 // verdict before the foreign-diagnostic classifier consumes the stack frames.
 func TestJudgeMake_CrashIsReportedAsToolFailureNotForeignDiagnostics(t *testing.T) {
+	t.Parallel()
 	probe := makeProbe{
 		Target:    "lint",
 		Defined:   true,
@@ -692,6 +714,7 @@ func TestJudgeMake_CrashIsReportedAsToolFailureNotForeignDiagnostics(t *testing.
 }
 
 func TestRunMakeTarget_CrashIsNotRetriedAsALock(t *testing.T) {
+	t.Parallel()
 	// golangciLintLocked already returns false once any location token appears,
 	// so a panic could never be classified as a lock; pin that the crash flag
 	// short-circuits the retry loop independently of that coincidence.
@@ -704,6 +727,7 @@ func TestRunMakeTarget_CrashIsNotRetriedAsALock(t *testing.T) {
 }
 
 func TestCrashOutputTail_KeepsLastNonEmptyLines(t *testing.T) {
+	t.Parallel()
 	tail := crashOutputTail(panicLintOutput, 3)
 	lines := strings.Split(tail, "\n")
 	if len(lines) != 3 {
@@ -828,6 +852,7 @@ func TestSaveLegacyMakeDiagnostic_SkipsSuccessAndBaselineOnlyOutput(t *testing.T
 }
 
 func TestSaveLegacyMakeDiagnosticWithPathEmptyOutputIsNil(t *testing.T) {
+	t.Parallel()
 	item := CheckItem{Name: "make check", Status: checkFail, Detail: "timed out"}
 	got, path := saveLegacyMakeDiagnosticWithPath(item, makeProbe{Target: "check"})
 	if got != item || path != nil {

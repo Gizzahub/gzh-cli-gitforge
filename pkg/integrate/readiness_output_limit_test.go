@@ -14,6 +14,7 @@ import (
 )
 
 func TestExecuteReadiness_NonzeroAndOversizeFailUnavailable(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	// The oversize runners print a valid ready result first and then 3 MiB,
 	// so only the capture limit can reject them: whitespace padding keeps

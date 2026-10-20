@@ -20,6 +20,7 @@ import (
 // local repository and the checked target SHA as the push lease.
 // See TASK-221.
 func TestRun_NoFetchFinishIntegratesWithoutFetch(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
 		CheckOptions: CheckOptions{
@@ -50,6 +51,7 @@ func TestRun_NoFetchFinishIntegratesWithoutFetch(t *testing.T) {
 // absent from the local clone; it must not silently fall back to the stale
 // local integration branch.
 func TestCheck_NoFetchMissingTargetTrackingRefFails(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	// Remove the remote-tracking ref without touching the remote itself:
 	// exactly what a fetch-less clone looks like.
@@ -72,6 +74,7 @@ func TestCheck_NoFetchMissingTargetTrackingRefFails(t *testing.T) {
 // re-fetched, so under --no-fetch it stays stale relative to the remote.
 // Against that staleness, the lease push must refuse and run must fail closed.
 func TestRun_NoFetchStaleTargetRefusesLease(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 
 	// Simulate a target that moved remotely after the local snapshot:
@@ -110,6 +113,7 @@ func TestRun_NoFetchStaleTargetRefusesLease(t *testing.T) {
 // fast-forward push would recreate that later tip. --no-fetch must refuse on
 // the lease instead, and leave the remote at the ancestor.
 func TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	ancestor := gitOutput(t, fx.Origin, "rev-parse", "refs/heads/develop")
 
@@ -159,6 +163,7 @@ func TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor(t *testing.T) {
 // probe, because that probe is itself a network read --no-fetch forbids.
 // See TASK-221.
 func TestReclaimRemoteBranch_NoFetchUnverifiableFailsClosed(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -211,6 +216,7 @@ func TestReclaimRemoteBranch_NoFetchUnverifiableFailsClosed(t *testing.T) {
 // remote branch still exists. Failing open here would leave the remote task
 // branch undeleted while reclaim reports success. See TASK-221 F1.
 func TestReclaimRemoteBranch_NoFetchMissingTrackingRefFailsClosed(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -243,6 +249,7 @@ func TestReclaimRemoteBranch_NoFetchMissingTrackingRefFailsClosed(t *testing.T) 
 // not regress the fetch-allowed path: a missing local tracking ref still
 // means "nothing to reclaim" when a fetch could have kept it current.
 func TestReclaimRemoteBranch_FetchedMissingTrackingRefSkips(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")

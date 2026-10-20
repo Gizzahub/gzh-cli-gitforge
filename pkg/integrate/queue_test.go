@@ -18,6 +18,7 @@ import (
 )
 
 func TestCollectQueue_EmptyIsSuccess(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 	report, err := CollectQueue(context.Background(), gitcmd.NewExecutor(), QueueOptions{
 		RepoPath: dir,
@@ -36,6 +37,7 @@ func TestCollectQueue_EmptyIsSuccess(t *testing.T) {
 }
 
 func TestCollectQueue_ExcludesBaseAndIntegration(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 	runGit(t, dir, "branch", "develop")
 	runGit(t, dir, "checkout", "-b", "feat/task")
@@ -67,6 +69,7 @@ func TestCollectQueue_ExcludesBaseAndIntegration(t *testing.T) {
 }
 
 func TestCollectQueue_LoadsDeclaredIntegrationBranch(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 	writeFile(t, dir, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
 	runGit(t, dir, "branch", "develop")
@@ -96,6 +99,7 @@ func TestCollectQueue_LoadsDeclaredIntegrationBranch(t *testing.T) {
 }
 
 func TestCollectQueue_ControllerUsesDeclaredRemoteBaseAndTaskPattern(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "checkout", "-b", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
@@ -138,6 +142,7 @@ func TestCollectQueue_ControllerUsesDeclaredRemoteBaseAndTaskPattern(t *testing.
 }
 
 func TestCollectQueue_ControllerRejectsDifferentBase(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remoteURL := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", fx.Remote))
 	controller := filepath.Join(t.TempDir(), "devbox.yaml")
@@ -155,6 +160,7 @@ func TestCollectQueue_ControllerRejectsDifferentBase(t *testing.T) {
 }
 
 func TestResolveQueueBase_ControllerRejectsOtherRemoteSpellings(t *testing.T) {
+	t.Parallel()
 	controller := &controllerBinding{Integration: []string{"develop"}}
 	for _, base := range []string{"other/develop", "refs/remotes/other/develop", "refs/remotes/origin/other/develop"} {
 		t.Run(base, func(t *testing.T) {
@@ -167,6 +173,7 @@ func TestResolveQueueBase_ControllerRejectsOtherRemoteSpellings(t *testing.T) {
 }
 
 func TestResolveQueueBase_ControllerAcceptsOnlyDeclaredSpellings(t *testing.T) {
+	t.Parallel()
 	controller := &controllerBinding{Integration: []string{"develop"}}
 	for _, base := range []string{"develop", "refs/heads/develop", "origin/develop", "refs/remotes/origin/develop"} {
 		t.Run(base, func(t *testing.T) {
@@ -179,6 +186,7 @@ func TestResolveQueueBase_ControllerAcceptsOnlyDeclaredSpellings(t *testing.T) {
 }
 
 func TestCollectQueue_ControllerAcceptsQualifiedDeclaredBase(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "checkout", "-b", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
@@ -202,6 +210,7 @@ func TestCollectQueue_ControllerAcceptsQualifiedDeclaredBase(t *testing.T) {
 }
 
 func TestCollectQueue_ControllerEmptyTaskPatternLeavesRefsUnfiltered(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "checkout", "-b", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
@@ -224,6 +233,7 @@ func TestCollectQueue_ControllerEmptyTaskPatternLeavesRefsUnfiltered(t *testing.
 }
 
 func TestCollectQueueRefs_PreservesRemoteProvenance(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	external := cloneForRemoteQueueTest(t, fx.Origin)
 	runGit(t, external, "checkout", "-b", "dev/remote-only")
@@ -243,6 +253,7 @@ func TestCollectQueueRefs_PreservesRemoteProvenance(t *testing.T) {
 }
 
 func TestCollectQueueRefs_DeduplicatesOnlyIdenticalLocalAndRemote(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Worktree, "checkout", "-b", "dev/same")
 	writeFile(t, fx.Worktree, "same.txt", "same\n")
@@ -260,6 +271,7 @@ func TestCollectQueueRefs_DeduplicatesOnlyIdenticalLocalAndRemote(t *testing.T) 
 }
 
 func TestCollectQueueRefs_KeepsDivergentLocalAndRemote(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Worktree, "checkout", "-b", "dev/divergent")
 	writeFile(t, fx.Worktree, "divergent.txt", "remote\n")
@@ -282,6 +294,7 @@ func TestCollectQueueRefs_KeepsDivergentLocalAndRemote(t *testing.T) {
 }
 
 func TestCollectQueueRefs_SlashContainingRemoteAndLocalPrefixCollision(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOriginRemote(t, "team/upstream")
 	external := cloneForRemoteQueueTest(t, fx.Origin)
 	runGit(t, external, "checkout", "-b", "dev/remote")
@@ -304,6 +317,7 @@ func TestCollectQueueRefs_SlashContainingRemoteAndLocalPrefixCollision(t *testin
 }
 
 func TestCollectQueue_ControllerFormatsLocalRemotePrefixCollisionDistinctly(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOriginRemote(t, "team/upstream")
 	external := cloneForRemoteQueueTest(t, fx.Origin)
 	runGit(t, external, "checkout", "-b", "dev/collision")
@@ -354,6 +368,7 @@ func cloneForRemoteQueueTest(t *testing.T, origin string) string {
 }
 
 func TestCollectQueue_BaseReleaseKeepsSlash(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	dir := fx.Clone
 	runGit(t, dir, "checkout", "-b", "release/2.0")
@@ -375,6 +390,7 @@ func TestCollectQueue_BaseReleaseKeepsSlash(t *testing.T) {
 }
 
 func TestCollectQueueRefs_LegacyHeadsFullBaseExcludesDivergentLocalAndRemote(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "checkout", "main")
 	writeFile(t, fx.Clone, "local-main.txt", "local main\n")
@@ -396,6 +412,7 @@ func TestCollectQueueRefs_LegacyHeadsFullBaseExcludesDivergentLocalAndRemote(t *
 }
 
 func TestCollectQueueRefs_LegacyRemoteFullBaseExcludesDivergentLocalAndRemote(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	external := cloneForRemoteQueueTest(t, fx.Origin)
 	writeFile(t, external, "remote-main.txt", "remote main\n")
@@ -428,6 +445,7 @@ func assertLegacyFullBaseExcluded(t *testing.T, refs []queueRef, remote string) 
 }
 
 func TestCollectQueue_ReportsFreshnessConflictAge(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 
 	runGit(t, dir, "checkout", "-b", "feat/conflict")
@@ -484,6 +502,7 @@ func TestCollectQueue_ReportsFreshnessConflictAge(t *testing.T) {
 }
 
 func TestCollectQueue_MissingBaseIsReportable(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 	report, err := CollectQueue(context.Background(), gitcmd.NewExecutor(), QueueOptions{
 		RepoPath: dir,
@@ -501,6 +520,7 @@ func TestCollectQueue_MissingBaseIsReportable(t *testing.T) {
 }
 
 func TestFormatQueue_EmptyTable(t *testing.T) {
+	t.Parallel()
 	out := FormatQueue(&QueueReport{Base: "main", ExpiryDays: 7})
 	if !strings.Contains(out, "BRANCH") || !strings.Contains(out, "base=main") {
 		t.Fatalf("format missing headers:\n%s", out)

@@ -14,6 +14,7 @@ import (
 )
 
 func TestSiblingInstructionAliasesCannotEscapeArchive(t *testing.T) {
+	t.Parallel()
 	for _, target := range []string{"AGENTS.md", "../outside", "missing.md"} {
 		t.Run(target, func(t *testing.T) {
 			var input bytes.Buffer
@@ -62,6 +63,7 @@ func TestSiblingInstructionAliasesCannotEscapeArchive(t *testing.T) {
 }
 
 func TestSiblingNestedInstructionAliasesMaterializeOwnDirectoryTarget(t *testing.T) {
+	t.Parallel()
 	input := siblingInstructionArchive(
 		t,
 		siblingArchiveEntry{name: "one/AGENTS.md", body: []byte("one\n"), mode: 0o640},
@@ -97,6 +99,7 @@ func TestSiblingNestedInstructionAliasesMaterializeOwnDirectoryTarget(t *testing
 }
 
 func TestSiblingNestedInstructionAliasesRejectUnsafeOrShadowedForms(t *testing.T) {
+	t.Parallel()
 	regular := siblingArchiveEntry{name: "nested/AGENTS.md", body: []byte("instructions\n"), mode: 0o644}
 	for _, tc := range []struct {
 		name    string
@@ -121,6 +124,7 @@ func TestSiblingNestedInstructionAliasesRejectUnsafeOrShadowedForms(t *testing.T
 }
 
 func TestSiblingInstructionAliasMaterializationCannotExpandArchiveBeyondLimit(t *testing.T) {
+	t.Parallel()
 	input := siblingInstructionArchive(
 		t,
 		siblingArchiveEntry{name: "nested/AGENTS.md", body: bytes.Repeat([]byte("x"), 80), mode: 0o644},
@@ -137,6 +141,7 @@ func TestSiblingInstructionAliasMaterializationCannotExpandArchiveBeyondLimit(t 
 }
 
 func TestSiblingInstructionSizeLimitAppliesOnlyToAliasTargetsAndRootCompatibility(t *testing.T) {
+	t.Parallel()
 	overLimit := bytes.Repeat([]byte("x"), int(siblingInstructionFileLimit)+1)
 	for _, name := range []string{"nested/AGENTS.md", "nested/CLAUDE.md", "nested/GEMINI.md"} {
 		t.Run("unaliased "+name, func(t *testing.T) {
@@ -164,6 +169,7 @@ func TestSiblingInstructionSizeLimitAppliesOnlyToAliasTargetsAndRootCompatibilit
 }
 
 func TestProvisionSiblingMaterializesNestedInstructionAliasesAndReleases(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	for _, file := range []struct {
 		name, body string
@@ -251,6 +257,7 @@ func siblingInstructionArchive(t *testing.T, entries ...siblingArchiveEntry) []b
 }
 
 func TestSiblingExactPinDoesNotSwitchThePrimarySource(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	pinned := strings.TrimSpace(runGitInTest(t, fx.Clone, "rev-parse", "HEAD"))
 	writeFile(t, fx.Worktree, "payload.txt", "new tip\n")
@@ -281,6 +288,7 @@ func TestSiblingExactPinDoesNotSwitchThePrimarySource(t *testing.T) {
 }
 
 func TestSiblingReleaseRefusesModeChangesAndMalformedIDs(t *testing.T) {
+	t.Parallel()
 	fx, dep := siblingFixture(t)
 	root := filepath.Join(t.TempDir(), "task")
 	if err := os.Mkdir(root, 0o700); err != nil {

@@ -169,6 +169,7 @@ func TestPrepareProfilesTolerateLocalBranchOfRemoteTargetName(t *testing.T) {
 }
 
 func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
+	t.Parallel()
 	// A names-only snapshot cannot see this: every ref name is still there.
 	// This also stands in for the flow profile, which shares snapshot/verify.
 	fx := newRefGuardFixture(t, map[string]string{"f": "x\n"})
@@ -188,6 +189,7 @@ func TestPreparedRefSnapshotDetectsMovedRefWithUnchangedNames(t *testing.T) {
 }
 
 func TestNewPreparedRefGuardBindsOnlyPlanRefs(t *testing.T) {
+	t.Parallel()
 	fx := newRefGuardFixture(t, map[string]string{"f": "x\n"})
 	ctx := context.Background()
 	// A remote-tracking target binds only that ref, even though a local

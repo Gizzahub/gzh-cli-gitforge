@@ -15,6 +15,7 @@ import (
 )
 
 func TestRunEvidenceDiscoveryFailurePreservesNoIntent(t *testing.T) {
+	t.Parallel()
 	// A real failing executable exercises the existing executor error path.
 	// This unit fixture neither shadows Git nor substitutes an acceptance engine.
 	failing, err := exec.LookPath("false")

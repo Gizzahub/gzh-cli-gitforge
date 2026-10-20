@@ -16,6 +16,7 @@ import (
 )
 
 func TestCheck_ExpectedTargetMismatchStopsBeforeGate(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	marker := filepath.Join(t.TempDir(), "gate-ran")
 	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@touch "+marker+"\n")
@@ -35,6 +36,7 @@ func TestCheck_ExpectedTargetMismatchStopsBeforeGate(t *testing.T) {
 }
 
 func TestCheck_ExpectedTargetPostGateMovementIsRetryable(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	before := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -55,6 +57,7 @@ func TestCheck_ExpectedTargetPostGateMovementIsRetryable(t *testing.T) {
 }
 
 func TestExpectedTargetAndSourceKeepDifferentRoles(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
 	target := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
@@ -67,12 +70,14 @@ func TestExpectedTargetAndSourceKeepDifferentRoles(t *testing.T) {
 }
 
 func TestNormalizeExpectTargetRejectsAbbreviations(t *testing.T) {
+	t.Parallel()
 	if _, err := NormalizeExpectTarget("deadbeef"); !errors.Is(err, ErrInvalidExpectTarget) {
 		t.Fatalf("NormalizeExpectTarget() error = %v, want ErrInvalidExpectTarget", err)
 	}
 }
 
 func TestPushFastForwardClassifiesOnlyMovedTargetAsRetryable(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	checked := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -102,6 +107,7 @@ func TestPushFastForwardClassifiesOnlyMovedTargetAsRetryable(t *testing.T) {
 }
 
 func TestLeaseRejectionRetainsExistingIntentReceipt(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	exec := gitcmd.NewExecutor()
 	ctx := context.Background()
@@ -146,6 +152,7 @@ func TestLeaseRejectionRetainsExistingIntentReceipt(t *testing.T) {
 }
 
 func TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	check, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task"})
 	if err != nil || !check.Ready {
@@ -191,6 +198,7 @@ func TestLegacyTargetMovementNamesTheLocalTargetItRead(t *testing.T) {
 }
 
 func TestTargetMoveProofUsesOneExactPushEndpoint(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	expected := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
@@ -214,6 +222,7 @@ func TestTargetMoveProofUsesOneExactPushEndpoint(t *testing.T) {
 }
 
 func TestExpectedTargetPushSuppressesFollowTagsOnLeaseRejection(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
 	checked := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
@@ -231,6 +240,7 @@ func TestExpectedTargetPushSuppressesFollowTagsOnLeaseRejection(t *testing.T) {
 }
 
 func TestExpectedTargetPushRejectsMirrorRemoteBeforePush(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
 	checked := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
@@ -245,6 +255,7 @@ func TestExpectedTargetPushRejectsMirrorRemoteBeforePush(t *testing.T) {
 }
 
 func TestTargetMoveProofRejectsAlreadyAcceptedSource(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	expected := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
@@ -263,6 +274,7 @@ func TestTargetMoveProofRejectsAlreadyAcceptedSource(t *testing.T) {
 // run with the exact opt-in argument list, then proves the classification is
 // bound to the recorded source SHA and refs/heads/<target> alone.
 func TestExpectedTargetPorcelainLeaseIsBoundToExactRef(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	ctx := context.Background()
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
@@ -307,6 +319,7 @@ func TestExpectedTargetPorcelainLeaseIsBoundToExactRef(t *testing.T) {
 // stderr never proves, and spoofed, partial, malformed, other-ref, accepted,
 // mixed, and policy/remote/transport shapes never earn the retryable exit.
 func TestExpectedTargetPorcelainRejectsAmbiguousOutput(t *testing.T) {
+	t.Parallel()
 	const source = "8d635ba34957c594544fc393f79316b9f51b965a"
 	const other = "1111111111111111111111111111111111111111"
 	const targetRef = "refs/heads/develop"

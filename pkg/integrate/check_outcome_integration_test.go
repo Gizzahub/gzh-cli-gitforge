@@ -18,6 +18,7 @@ import (
 )
 
 func TestMakeOutcomeEnvironmentCase(t *testing.T) {
+	t.Parallel()
 	env := []string{"OTHER=1", makeOutcomeReportEnv + "=stale", strings.ToLower(makeOutcomeReportEnv) + "=also-stale", makeOutcomeReportEnv + "_OTHER=keep"}
 	for _, insensitive := range []bool{false, true} {
 		got := withoutEnvCase(env, makeOutcomeReportEnv, insensitive)
@@ -96,6 +97,7 @@ func TestCheck_MakeOutcomeReports(t *testing.T) {
 }
 
 func TestMakeOutcomeExecutionCannotRescueIncompleteRuns(t *testing.T) {
+	t.Parallel()
 	for _, recipe := range []string{"@true", "@echo SKIPPED CHECK: incomplete", "@sleep 5", "@echo 'panic: checker died'; exit 1"} {
 		t.Run(recipe, func(t *testing.T) {
 			dir := t.TempDir()

@@ -17,6 +17,7 @@ import (
 )
 
 func TestMakeOutcomeOpenRejectsReplacedPaths(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"fifo", "symlink"} {
 		t.Run(kind, func(t *testing.T) {
 			dir := t.TempDir()

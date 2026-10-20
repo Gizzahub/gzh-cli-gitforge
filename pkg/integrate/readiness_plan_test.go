@@ -19,6 +19,7 @@ import (
 const testPlanDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 func TestParseReadinessPlan(t *testing.T) {
+	t.Parallel()
 	valid := `{"version":1,"resource":"light","plan_digest":"` + testPlanDigest + `","summary":"two checks"}`
 	plan, err := parseReadinessPlan([]byte(valid))
 	if err != nil || plan.Resource != readinessResourceLight || plan.PlanDigest != testPlanDigest {
@@ -60,6 +61,7 @@ func planManifest(staticHighLoad bool) string {
 }
 
 func TestReadinessResourcePlanSelectsSlot(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -105,6 +107,7 @@ func TestReadinessResourcePlanSelectsSlot(t *testing.T) {
 }
 
 func TestReadinessResourcePlanInvalidFailsClosed(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -125,6 +128,7 @@ func TestReadinessResourcePlanInvalidFailsClosed(t *testing.T) {
 }
 
 func TestReadinessWithoutResourcePlanPassesNoBinding(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -149,6 +153,7 @@ func TestReadinessWithoutResourcePlanPassesNoBinding(t *testing.T) {
 }
 
 func TestReadinessResourcePlanSourceOnlyChangeFailsClosed(t *testing.T) {
+	t.Parallel()
 	fx := readinessFixture(t)
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", planManifest(false))
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
@@ -164,6 +169,7 @@ func TestReadinessResourcePlanSourceOnlyChangeFailsClosed(t *testing.T) {
 }
 
 func TestFormatCheckReportsFailedPlan(t *testing.T) {
+	t.Parallel()
 	out := FormatCheck(&CheckReport{PlanDuration: 1_500_000_000})
 	if !strings.Contains(out, "resource plan — Requested=- Granted=- PlanDigest=- Duration=1.5s") {
 		t.Fatalf("failed plan line missing:\n%s", out)
@@ -174,6 +180,7 @@ func TestFormatCheckReportsFailedPlan(t *testing.T) {
 }
 
 func TestRunProtocolPhaseDurations(t *testing.T) {
+	t.Parallel()
 	report := &RunReport{IntegrationDuration: 7_000_000, Check: &CheckReport{PlanDuration: 3_000_000, PreparationDuration: 5_000_000, ResourceClass: readinessResourceLight}}
 	data, err := json.Marshal(BuildRunProtocol(report, nil, 0))
 	if err != nil {

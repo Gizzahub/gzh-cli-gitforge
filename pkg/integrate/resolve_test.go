@@ -12,6 +12,7 @@ import (
 )
 
 func TestResolveFromFacts_CorpusABCD(t *testing.T) {
+	t.Parallel()
 	// Rows match tests/conformance/testdata/integration-branch-corpus.tsv.
 	// A: undeclared follows upstream HEAD (develop) without assuming origin.
 	// B: a local develop without remote HEAD does not participate.
@@ -59,6 +60,7 @@ func TestResolveFromFacts_CorpusABCD(t *testing.T) {
 }
 
 func TestResolveFromFacts_UndeclaredFollowsDefaultHead(t *testing.T) {
+	t.Parallel()
 	got := ResolveFromFacts(Facts{
 		Refs: []string{
 			"refs/remotes/origin/master",
@@ -73,6 +75,7 @@ func TestResolveFromFacts_UndeclaredFollowsDefaultHead(t *testing.T) {
 }
 
 func TestResolveFromFacts_DeclaredDevelopNotOverriddenByMasterHead(t *testing.T) {
+	t.Parallel()
 	got := ResolveFromFacts(Facts{
 		Config:      []string{"develop"},
 		Refs:        []string{"refs/remotes/origin/master", "refs/remotes/origin/develop"},
@@ -85,6 +88,7 @@ func TestResolveFromFacts_DeclaredDevelopNotOverriddenByMasterHead(t *testing.T)
 }
 
 func TestNormalizeName_KeepsReleaseSlash(t *testing.T) {
+	t.Parallel()
 	got := NormalizeName("release/2.0", []string{"origin"})
 	if got != "release/2.0" {
 		t.Fatalf("NormalizeName(release/2.0) = %q, want release/2.0", got)
@@ -118,6 +122,7 @@ func TestNormalizeName_KeepsReleaseSlash(t *testing.T) {
 }
 
 func TestResolveIntegrationBranch_UsesOriginHeadNotDevelop(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "branch", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
@@ -132,6 +137,7 @@ func TestResolveIntegrationBranch_UsesOriginHeadNotDevelop(t *testing.T) {
 }
 
 func TestResolveIntegrationBranch_EmptyOriginHeadIsNone(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "remote", "set-head", fx.Remote, "--delete")
 	runGit(t, fx.Clone, "branch", "develop")
@@ -146,6 +152,7 @@ func TestResolveIntegrationBranch_EmptyOriginHeadIsNone(t *testing.T) {
 }
 
 func TestUpstreamTargetsIntegration(t *testing.T) {
+	t.Parallel()
 	resolution := Resolution{Participates: true, Name: "release/2.0", Source: "config[0]"}
 	tests := []struct {
 		name     string
@@ -175,6 +182,7 @@ func TestUpstreamTargetsIntegration(t *testing.T) {
 }
 
 func TestResolveIntegrationBranch_MissingIsReportable(t *testing.T) {
+	t.Parallel()
 	dir := testutil.TempGitRepoWithCommit(t)
 	got, err := ResolveIntegrationBranch(context.Background(), gitcmd.NewExecutor(), dir, nil)
 	if err != nil {

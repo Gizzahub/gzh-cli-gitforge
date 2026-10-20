@@ -19,6 +19,7 @@ import (
 )
 
 func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *testing.T) {
+	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	inputs, err := snapshotPrepareInputs(context.Background(), newGitRepo(gitcmd.NewExecutor(), devbox), flowTaskchainLocalSubprojectsV1)
 	if err != nil {
@@ -51,6 +52,7 @@ func TestFlowTaskchainPrepareSnapshotsOnlyCanonicalCleanPrimaryCheckouts(t *test
 }
 
 func TestFlowTaskchainPrepareRejectsMovedRefGuard(t *testing.T) {
+	t.Parallel()
 	// The flow profile extracts archives, so no tool can move a ref from
 	// inside it; the guard is instead armed so that verification must fail
 	// at the same point a moved ref or HEAD would.
@@ -85,6 +87,7 @@ func TestFlowTaskchainPrepareRejectsMovedRefGuard(t *testing.T) {
 }
 
 func TestFlowTaskchainPrepareUsesPrimaryFromLinkedTaskWorktree(t *testing.T) {
+	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	task := filepath.Join(t.TempDir(), "task")
 	runGitInTest(t, devbox, "worktree", "add", "-b", "dev/actor/feat/task", task)
@@ -103,6 +106,7 @@ func TestFlowTaskchainPrepareUsesPrimaryFromLinkedTaskWorktree(t *testing.T) {
 }
 
 func TestFlowTaskchainPrepareRejectsDirtySymlinkAndWrongRemote(t *testing.T) {
+	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	engine := filepath.Join(devbox, "flow-taskchain-engine")
 
@@ -130,6 +134,7 @@ func TestFlowTaskchainPrepareRejectsDirtySymlinkAndWrongRemote(t *testing.T) {
 }
 
 func TestFlowTaskchainSnapshotAllowsOnlyUntrackedRuntimeArtifacts(t *testing.T) {
+	t.Parallel()
 	t.Run("allows runtime artifacts with NUL-delimited paths", func(t *testing.T) {
 		devbox := flowTaskchainFixture(t)
 		engine := filepath.Join(devbox, "flow-taskchain-engine")
@@ -188,6 +193,7 @@ func TestFlowTaskchainSnapshotAllowsOnlyUntrackedRuntimeArtifacts(t *testing.T) 
 }
 
 func TestFlowSnapshotStatusCleanRejectsMalformedOrDirtyRecords(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name   string
 		status string
@@ -227,6 +233,7 @@ func TestGitArchiveStopsAtConfiguredLimit(t *testing.T) {
 }
 
 func TestGitArchiveUsesRecordedOIDWithoutReplaceRefs(t *testing.T) {
+	t.Parallel()
 	repo := t.TempDir()
 	runGitInTest(t, repo, "init")
 	setFlowFixtureGitIdentity(t, repo)
@@ -352,6 +359,7 @@ func archiveFile(t *testing.T, archive []byte, want string) string {
 }
 
 func TestFlowTaskchainPrepareRejectsSubprojectSymlink(t *testing.T) {
+	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	engine := filepath.Join(devbox, "flow-taskchain-engine")
 	outside := filepath.Join(t.TempDir(), "engine")
@@ -368,6 +376,7 @@ func TestFlowTaskchainPrepareRejectsSubprojectSymlink(t *testing.T) {
 }
 
 func TestFlowTaskchainSnapshotDisablesRepositoryFsmonitor(t *testing.T) {
+	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	engine := filepath.Join(devbox, "flow-taskchain-engine")
 	marker := filepath.Join(t.TempDir(), "fsmonitor-ran")
@@ -385,6 +394,7 @@ func TestFlowTaskchainSnapshotDisablesRepositoryFsmonitor(t *testing.T) {
 }
 
 func TestExtractGitArchiveRejectsEscapesAndLinks(t *testing.T) {
+	t.Parallel()
 	for name, archive := range map[string][]byte{
 		"escape": tarArchive(t, "../outside", "x", 0),
 		"link":   tarArchive(t, "link", "", tar.TypeSymlink),
@@ -400,6 +410,7 @@ func TestExtractGitArchiveRejectsEscapesAndLinks(t *testing.T) {
 }
 
 func TestExtractGitArchiveAllowsOnlyRootClaudeAliases(t *testing.T) {
+	t.Parallel()
 	destination := filepath.Join(t.TempDir(), "child")
 	archive := tarArchiveEntries(
 		t,
@@ -431,6 +442,7 @@ func TestExtractGitArchiveAllowsOnlyRootClaudeAliases(t *testing.T) {
 // The harness campaign made AGENTS.md the regular file, with CLAUDE.md and
 // GEMINI.md as symlinks to it; flow-taskchain-engine and -mcp ship that layout.
 func TestExtractGitArchiveAllowsRootAgentsCanonicalAliases(t *testing.T) {
+	t.Parallel()
 	destination := filepath.Join(t.TempDir(), "child")
 	archive := tarArchiveEntries(
 		t,
@@ -460,6 +472,7 @@ func TestExtractGitArchiveAllowsRootAgentsCanonicalAliases(t *testing.T) {
 }
 
 func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
+	t.Parallel()
 	for name, archive := range map[string][]byte{
 		"missing Claude target": tarArchiveEntries(t, tarEntry{name: "AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}),
 		"nested alias":          tarArchiveEntries(t, tarEntry{name: "nested/AGENTS.md", link: "CLAUDE.md", kind: tar.TypeSymlink}, tarEntry{name: "CLAUDE.md", body: "instructions\n"}),
@@ -484,6 +497,7 @@ func TestExtractGitArchiveRejectsOtherSymlinks(t *testing.T) {
 // link, and when the target is regular the already-extracted file refuses the
 // symlink. A regular file arriving after the alias must not write through it.
 func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct {
 		archive []byte
 		check   func(error) bool
@@ -537,6 +551,7 @@ func TestExtractGitArchiveRejectsAliasShadowingRegularTarget(t *testing.T) {
 }
 
 func TestExtractGitArchiveCancelsAndCleansDestination(t *testing.T) {
+	t.Parallel()
 	destination := filepath.Join(t.TempDir(), "child")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -550,6 +565,7 @@ func TestExtractGitArchiveCancelsAndCleansDestination(t *testing.T) {
 }
 
 func TestCopyArchiveFileChecksCancellationBetweenChunks(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	source := &cancelAfterFirstRead{reader: bytes.NewReader(bytes.Repeat([]byte{'x'}, 64<<10)), cancel: cancel}
 	var destination bytes.Buffer

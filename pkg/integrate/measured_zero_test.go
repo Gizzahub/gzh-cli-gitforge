@@ -35,6 +35,7 @@ import (
 // baseline genuinely cannot run. Pinning only B would let exactly that
 // through, and re-collapsing the two states is the bug.
 func TestMeasuredZeroIsNotSkippable(t *testing.T) {
+	t.Parallel()
 	// The branch's check emits one file:line either way, so the branch side
 	// is held constant and the target tip's failure shape is the only
 	// variable between the two fixtures.

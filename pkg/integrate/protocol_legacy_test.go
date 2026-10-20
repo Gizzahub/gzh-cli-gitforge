@@ -6,6 +6,7 @@ package integrate
 import "testing"
 
 func TestBuildRunProtocolLegacyMutationOutcomes(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name   string
 		report *RunReport

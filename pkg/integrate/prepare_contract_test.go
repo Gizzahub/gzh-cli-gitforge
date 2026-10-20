@@ -13,6 +13,7 @@ import (
 )
 
 func TestResolvePrepareProfileCommitOwnership(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
@@ -53,6 +54,7 @@ func TestResolvePrepareProfileCommitOwnership(t *testing.T) {
 }
 
 func TestLoadCommitPrepareProfilePreservesLargeLegacyManifest(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	padding := strings.Repeat("# legacy comment\n", 5000)
@@ -74,6 +76,7 @@ func TestLoadCommitPrepareProfilePreservesLargeLegacyManifest(t *testing.T) {
 }
 
 func TestPrepareHighLoadForPlanUsesEitherCommittedDeclaration(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	base := strings.TrimSpace(runGitInTest(t, fx.Worktree, "rev-parse", "HEAD"))
@@ -97,6 +100,7 @@ func TestPrepareHighLoadForPlanUsesEitherCommittedDeclaration(t *testing.T) {
 }
 
 func TestPrepareHighLoadDeclarationSizeLimit(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
 	padding := strings.Repeat("# padding\n", 8000)

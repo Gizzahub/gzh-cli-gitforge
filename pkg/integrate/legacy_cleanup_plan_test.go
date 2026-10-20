@@ -49,6 +49,7 @@ func validLegacyCleanupPlanForTest(t *testing.T) *LegacyCleanupPlan {
 }
 
 func TestLegacyCleanupPlanRejectsForeignMovedAndTargetFacts(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		mutate func(*LegacyCleanupPlan)
@@ -79,6 +80,7 @@ func TestLegacyCleanupPlanRejectsForeignMovedAndTargetFacts(t *testing.T) {
 }
 
 func TestLegacyCleanupPlanBindsRuntimeGuardIntoDigest(t *testing.T) {
+	t.Parallel()
 	p := validLegacyCleanupPlanForTest(t)
 	p.RuntimeGuard = &LegacyRuntimeGuard{
 		SchemaVersion:      legacyRuntimeGuardSchema,
@@ -109,6 +111,7 @@ func TestLegacyCleanupPlanBindsRuntimeGuardIntoDigest(t *testing.T) {
 }
 
 func TestLegacyRuntimeGuardRejectsMissingAttempt(t *testing.T) {
+	t.Parallel()
 	p := validLegacyCleanupPlanForTest(t)
 	p.RuntimeGuard = &LegacyRuntimeGuard{
 		SchemaVersion: legacyRuntimeGuardSchema, Capability: legacyRuntimeGuardCapability,

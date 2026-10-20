@@ -20,6 +20,7 @@ import (
 )
 
 func TestRun_NoPatternSkipsReclaim(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
 		CheckOptions: CheckOptions{
@@ -52,6 +53,7 @@ func TestRun_NoPatternSkipsReclaim(t *testing.T) {
 }
 
 func TestRun_RefusesHeuristicTargetBeforeGateOrPush(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
 	marker := filepath.Join(t.TempDir(), "gate-ran")
@@ -77,6 +79,7 @@ func TestRun_RefusesHeuristicTargetBeforeGateOrPush(t *testing.T) {
 }
 
 func TestRun_HeuristicTargetAllowsExplicitConfirmation(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
@@ -95,6 +98,7 @@ func TestRun_HeuristicTargetAllowsExplicitConfirmation(t *testing.T) {
 }
 
 func TestRun_HeuristicTargetAllowsControllerDeclaration(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch: {}\n")
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
@@ -116,6 +120,7 @@ func TestRun_HeuristicTargetAllowsControllerDeclaration(t *testing.T) {
 }
 
 func TestRun_HeuristicTargetPreservesExpectationMismatch(t *testing.T) {
+	t.Parallel()
 	for name, opts := range map[string]CheckOptions{
 		"source": {ExpectSource: strings.Repeat("0", 40)},
 		"target": {ExpectTarget: strings.Repeat("0", 40)},
@@ -142,6 +147,7 @@ func TestRun_HeuristicTargetPreservesExpectationMismatch(t *testing.T) {
 }
 
 func TestRun_HeuristicTargetUsesBoundSourceApproval(t *testing.T) {
+	t.Parallel()
 	for _, mismatched := range []bool{true, false} {
 		t.Run(map[bool]string{true: "bound-mismatch", false: "bound-approval-overrides-option"}[mismatched], func(t *testing.T) {
 			fx := runFixture(t, "")
@@ -336,6 +342,7 @@ func TestRun_ControllerRecheckedBeforeGateAfterTargetLockWait(t *testing.T) {
 }
 
 func TestRun_ReclaimIncompleteWhenMultipleWorktrees(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	extra := filepath.Join(t.TempDir(), "extra")
 	runGit(t, fx.Clone, "worktree", "add", "--force", extra, "dev/actor/feat/task")
@@ -387,6 +394,7 @@ func TestRun_ReclaimIncompleteWhenMultipleWorktrees(t *testing.T) {
 }
 
 func TestRun_ReclaimsMatchingPattern(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{
 		CheckOptions: CheckOptions{
@@ -440,6 +448,7 @@ func TestRun_ReclaimsMatchingPattern(t *testing.T) {
 }
 
 func TestRun_ProtectedTaskPatternIntegratesWithoutReclaim(t *testing.T) {
+	t.Parallel()
 	for _, branch := range []string{"hotfix/urgent", "release/1.0"} {
 		t.Run(branch, func(t *testing.T) {
 			fx := runFixtureForBranch(t, branch, strings.Split(branch, "/")[0]+"/*")
@@ -465,6 +474,7 @@ func TestRun_ProtectedTaskPatternIntegratesWithoutReclaim(t *testing.T) {
 }
 
 func TestRun_ReclaimPreservesSiblingTaskWorktreeAndParent(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "branch", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
@@ -534,6 +544,7 @@ func TestRun_ReclaimPreservesSiblingTaskWorktreeAndParent(t *testing.T) {
 }
 
 func TestReclaimRemoteBranch_LeaseRefusesMovedTip(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	oldSHA := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -563,6 +574,7 @@ func TestReclaimRemoteBranch_LeaseRefusesMovedTip(t *testing.T) {
 }
 
 func TestReclaimRemoteBranch_AlreadyDeleted(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -594,6 +606,7 @@ func TestReclaimRemoteBranch_AlreadyDeleted(t *testing.T) {
 }
 
 func TestReclaimRemoteBranch_EmptyTaskSHARefusesDelete(t *testing.T) {
+	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 

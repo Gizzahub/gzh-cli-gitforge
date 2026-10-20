@@ -27,6 +27,7 @@ const (
 )
 
 func TestMakeProcessTreeKillsDescendants(t *testing.T) {
+	t.Parallel()
 	switch os.Getenv(makeProcessHelperMode) {
 	case "parent":
 		runMakeProcessParentHelper(t)
@@ -132,6 +133,7 @@ func TestMakeProcessTreeHandshakeWaitsForJobAttach(t *testing.T) {
 }
 
 func TestMakeProcessTreeAttachFailureDoesNotReleaseMake(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "make-started")
 	makeCmd := filepath.Join(dir, "make.cmd")

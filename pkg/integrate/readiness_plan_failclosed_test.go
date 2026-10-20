@@ -30,6 +30,7 @@ func failingPlanRunner(planRecord, execRecord, planBody string) string {
 // to an unavailable result before the execution starts, each with its own
 // reason. The plan budget is injected the same way the execution budget is.
 func TestReadinessResourcePlanFailuresFailClosed(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -88,6 +89,7 @@ func TestReadinessResourcePlanFailuresFailClosed(t *testing.T) {
 // contract form: a repeated resourcePlan key rejects the contract before any
 // runner invocation, plan or execution.
 func TestReadinessResourcePlanDuplicateJSONContractFailsClosed(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -117,6 +119,7 @@ func TestReadinessResourcePlanDuplicateJSONContractFailsClosed(t *testing.T) {
 // ND contract: the six project-cargo builds are preparation, the plan is its
 // own span, and validation is the started execution process alone.
 func TestNDBuildTimeIsPreparationNotValidation(t *testing.T) {
+	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}

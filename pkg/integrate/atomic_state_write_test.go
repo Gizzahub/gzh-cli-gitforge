@@ -15,6 +15,7 @@ import (
 // A write/execute-only parent permits temp creation and rename but refuses
 // the read-only directory open used by the final durability sync.
 func TestAtomicStateWriteFailureAfterRenameLeavesNewDocument(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
 	if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {

@@ -32,6 +32,7 @@ import (
 // baselineAgainstTarget, BaselineInput, unmeasurableReason. The end-to-end
 // subtest below is the one that holds all five at once.
 func TestPrepareSymmetry(t *testing.T) {
+	t.Parallel()
 	t.Run("no controller profile stamps the live working directory", func(t *testing.T) {
 		// c == nil returns before any git or filesystem work, so a bare
 		// temp dir is enough and this stays a unit test.

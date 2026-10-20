@@ -13,6 +13,7 @@ import (
 )
 
 func TestConfigureMakeProcessCreatesProcessGroup(t *testing.T) {
+	t.Parallel()
 	cmd := exec.CommandContext(context.Background(), "sleep", "30")
 	processTree, err := newMakeProcessTree()
 	if err != nil {

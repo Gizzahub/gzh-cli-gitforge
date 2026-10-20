@@ -15,6 +15,7 @@ import (
 )
 
 func TestBeginRunEvidenceRejectsPushEndpointReplay(t *testing.T) {
+	t.Parallel()
 	repo := testutil.TempGitRepoWithCommit(t)
 	decoy := filepath.Join(t.TempDir(), "decoy.git")
 	runGit(t, repo, "clone", "--bare", repo, decoy)
@@ -45,6 +46,7 @@ func TestBeginRunEvidenceRejectsPushEndpointReplay(t *testing.T) {
 }
 
 func TestReceiptV1IsReadableButCannotBeRewritten(t *testing.T) {
+	t.Parallel()
 	common := t.TempDir()
 	r := seedCASReceipt("legacy-read", "refs/heads/develop")
 	r.RepositoryCommonDir = common
@@ -66,6 +68,7 @@ func TestReceiptV1IsReadableButCannotBeRewritten(t *testing.T) {
 }
 
 func TestReceiptLookupBindsExecutionAndCanonicalCommonDirectory(t *testing.T) {
+	t.Parallel()
 	common := t.TempDir()
 	r := seedCASReceipt("lookup-binding", "refs/heads/develop")
 	r.SchemaVersion = receiptSchemaVersion
@@ -109,6 +112,7 @@ func TestReceiptLookupBindsExecutionAndCanonicalCommonDirectory(t *testing.T) {
 }
 
 func TestReceiptIdentityIncludesEndpointAndProvenance(t *testing.T) {
+	t.Parallel()
 	base := seedCASReceipt("identity-binding", "refs/heads/develop")
 	base.SchemaVersion = receiptSchemaVersion
 	base.TargetBeforeSHA = "1111111111111111111111111111111111111111"

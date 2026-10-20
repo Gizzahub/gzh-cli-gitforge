@@ -56,6 +56,7 @@ func runCloneReclaim(t *testing.T, fx *testutil.WorktreeOrigin) *RunReport {
 }
 
 func TestRun_ReclaimRemovesDeclaredCleanWorkspaceClone(t *testing.T) {
+	t.Parallel()
 	fx, clone := cloneReclaimFixture(t, declaredWsA)
 	report := runCloneReclaim(t, fx)
 	if report.Reclaim.Incomplete() {
@@ -76,6 +77,7 @@ func TestRun_ReclaimRemovesDeclaredCleanWorkspaceClone(t *testing.T) {
 }
 
 func TestRun_ReclaimRefusesNestedRepoThatIsNotProvablyDisposable(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		workspaces string
 		mutate     func(t *testing.T, clone string)
@@ -290,6 +292,7 @@ func excludeInClone(t *testing.T, clone, pattern string) {
 }
 
 func TestRun_ReclaimDeletesIgnoredNonRepoFilesWithTheClone(t *testing.T) {
+	t.Parallel()
 	// Policy: ignored files that are not repos go with the clone, as
 	// `git worktree remove` already does for the parent's ignored files.
 	fx, clone := cloneReclaimFixture(t, declaredWsA)
@@ -305,6 +308,7 @@ func TestRun_ReclaimDeletesIgnoredNonRepoFilesWithTheClone(t *testing.T) {
 }
 
 func TestRun_ReclaimAcceptsUninitializedSubmodulePathWithoutRepository(t *testing.T) {
+	t.Parallel()
 	fx, clone := cloneReclaimFixture(t, declaredWsA)
 	src := testutil.TempGitRepoWithCommit(t)
 	sha := runGitInTest(t, src, "rev-parse", "HEAD")
@@ -324,6 +328,7 @@ func TestRun_ReclaimAcceptsUninitializedSubmodulePathWithoutRepository(t *testin
 }
 
 func TestRun_ReclaimAcceptsLocalBranchAtPushedCommit(t *testing.T) {
+	t.Parallel()
 	// No upstream is fine when every commit is already on a remote.
 	fx, clone := cloneReclaimFixture(t, declaredWsA)
 	runGit(t, clone, "branch", "no-upstream")
@@ -334,6 +339,7 @@ func TestRun_ReclaimAcceptsLocalBranchAtPushedCommit(t *testing.T) {
 }
 
 func TestRun_ReclaimVerificationIsAllOrNothing(t *testing.T) {
+	t.Parallel()
 	fx, cloneA := cloneReclaimFixture(t, declaredWsA+"  ws-b:\n    url: %URL%\n    type: git\n")
 	url := runGitInTest(t, cloneA, "config", "--get", "remote.origin.url")
 	cloneB := filepath.Join(fx.Worktree, "ws-b")
@@ -351,6 +357,7 @@ func TestRun_ReclaimVerificationIsAllOrNothing(t *testing.T) {
 }
 
 func TestRemoveVerifiedCloneRefusesSymlinkedParent(t *testing.T) {
+	t.Parallel()
 	taskWT := t.TempDir()
 	outside := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(outside, "ws-a"), 0o755); err != nil {
@@ -370,6 +377,7 @@ func TestRemoveVerifiedCloneRefusesSymlinkedParent(t *testing.T) {
 }
 
 func TestRemoveVerifiedCloneRemovesPlainPath(t *testing.T) {
+	t.Parallel()
 	taskWT := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(taskWT, "ws-a"), 0o755); err != nil {
 		t.Fatal(err)
@@ -383,6 +391,7 @@ func TestRemoveVerifiedCloneRemovesPlainPath(t *testing.T) {
 }
 
 func TestNormalizeCloneURL(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string]string{
 		"ssh://git@host:22/a/b.git":  "ssh://git@host:22/a/b",
 		"https://host/a/b.git/":      "https://host/a/b",

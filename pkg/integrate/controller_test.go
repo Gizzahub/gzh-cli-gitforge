@@ -15,6 +15,7 @@ import (
 )
 
 func TestResolveControllerRequiresUniqueCanonicalWorkspaceMatch(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remoteOut := runGitInTest(t, fx.Worktree, "remote", "get-url", "origin")
 	remoteURL := strings.TrimSpace(remoteOut)
@@ -50,6 +51,7 @@ func TestResolveControllerRequiresUniqueCanonicalWorkspaceMatch(t *testing.T) {
 }
 
 func TestResolveControllerRejectsMatchedWorkspaceWithoutIntegrationPolicy(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remoteURL := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
 	path := filepath.Join(t.TempDir(), "devbox.yaml")
@@ -61,6 +63,7 @@ func TestResolveControllerRejectsMatchedWorkspaceWithoutIntegrationPolicy(t *tes
 }
 
 func TestResolveControllerRejectsDifferentFetchAndPushEndpoints(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remoteURL := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
 	path := filepath.Join(t.TempDir(), "devbox.yaml")
@@ -73,6 +76,7 @@ func TestResolveControllerRejectsDifferentFetchAndPushEndpoints(t *testing.T) {
 }
 
 func TestRevalidateControllerRejectsDigestRace(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	remote := strings.TrimSpace(runGitInTest(t, fx.Worktree, "remote", "get-url", "origin"))
 	path := filepath.Join(t.TempDir(), "controller.yaml")

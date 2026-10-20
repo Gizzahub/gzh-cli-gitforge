@@ -13,6 +13,7 @@ import (
 )
 
 func TestInfraOpsCodesLayoutPreservesOnlyTrackedRegularBoundary(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"tracked", "tracked executable", "untracked", "symlink", "symlink checkout as regular", "directory", "unknown tracked file", "existing child"} {
 		t.Run(kind, func(t *testing.T) {
 			fx := testutil.TempWorktreeWithBareOrigin(t)

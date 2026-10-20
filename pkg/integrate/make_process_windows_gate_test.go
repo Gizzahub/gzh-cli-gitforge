@@ -12,6 +12,7 @@ import (
 )
 
 func TestGatedLaunchLineRunsNonMakeCommandsByPath(t *testing.T) {
+	t.Parallel()
 	cmd := &exec.Cmd{Path: `C:\tools\pnpm.cmd`, Args: []string{"pnpm", "install", "--frozen-lockfile"}}
 	launch, err := gatedLaunchLine(cmd)
 	if err != nil {

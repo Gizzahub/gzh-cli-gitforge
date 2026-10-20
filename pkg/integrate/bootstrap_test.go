@@ -14,6 +14,7 @@ import (
 )
 
 func TestOnlyReadinessAddition(t *testing.T) {
+	t.Parallel()
 	old := []byte("branch:\n  integrationBranch: master\n  taskPattern: dev/*\n")
 	good := []byte("branch:\n  integrationBranch: master\n  taskPattern: dev/*\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
 	if err := onlyReadinessAddition(old, good); err != nil {
@@ -26,6 +27,7 @@ func TestOnlyReadinessAddition(t *testing.T) {
 }
 
 func TestBootstrapPlanExpiryAndShape(t *testing.T) {
+	t.Parallel()
 	if _, err := time.Parse(time.RFC3339Nano, "2026-01-01T00:00:00Z"); err != nil {
 		t.Fatal(err)
 	}
@@ -134,6 +136,7 @@ func TestBootstrapApplyRejectsConfirmationExpiryAndFieldDrift(t *testing.T) {
 }
 
 func TestCanonicalPushEndpointCredentialForms(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		in      string
 		wantErr bool
@@ -480,6 +483,7 @@ func TestBootstrapAllowsNewContractAddition(t *testing.T) {
 // bootstrap lands on a protected branch outside the normal gate, and a wholly
 // new file offers no diff to prove innocuous.
 func TestBootstrapNewContractShapeIsConstrained(t *testing.T) {
+	t.Parallel()
 	good := []byte("branch:\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
 	if err := newContractIsMinimal(good); err != nil {
 		t.Fatalf("expected a branch-only contract with readiness to be accepted: %v", err)

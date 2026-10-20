@@ -11,6 +11,7 @@ import (
 )
 
 func TestBaselineSameCountDifferentSetsPass(t *testing.T) {
+	t.Parallel()
 	// Mandatory DECISION-004 fixture:
 	//   - baseline and branch location SETS differ
 	//   - counts are equal
@@ -50,6 +51,7 @@ func TestBaselineSameCountDifferentSetsPass(t *testing.T) {
 }
 
 func TestSetDiffWouldRejectMandatoryFixture(t *testing.T) {
+	t.Parallel()
 	// Inverted helper: documents that set-diff rejects the fixture the
 	// real gate must accept.
 	base := []string{"a.go:1", "b.go:2"}
@@ -63,6 +65,7 @@ func TestSetDiffWouldRejectMandatoryFixture(t *testing.T) {
 }
 
 func TestEvaluateBaseline_CountIncreaseFails(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},
@@ -73,6 +76,7 @@ func TestEvaluateBaseline_CountIncreaseFails(t *testing.T) {
 }
 
 func TestEvaluateBaseline_ChangedPathFails(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"feat/new.go:4", "a.go:1"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},
@@ -84,6 +88,7 @@ func TestEvaluateBaseline_ChangedPathFails(t *testing.T) {
 }
 
 func TestEvaluateBaseline_NoLocationsFails(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: nil,
 		BaseLocations:   []string{"a.go:1"},
@@ -94,6 +99,7 @@ func TestEvaluateBaseline_NoLocationsFails(t *testing.T) {
 }
 
 func TestExtractLocations_NormalizesPrefix(t *testing.T) {
+	t.Parallel()
 	out := `../other-checkout/internal/script/js_engine.go:193: oops
 internal/script/js_engine.go:200: other`
 	got := ExtractLocations(out, []string{"internal/script/js_engine.go"})
@@ -103,6 +109,7 @@ internal/script/js_engine.go:200: other`
 }
 
 func TestEvaluateBaseline_ForeignLocationsAreRejectedBeforeNormalization(t *testing.T) {
+	t.Parallel()
 	output := "../deleted-worktree/internal/script/js_engine.go:193: stale\n./internal/script/js_engine.go:200: local\n"
 	if got := foreignDiagnosticLocations(output); len(got) != 1 {
 		t.Fatalf("foreign locations = %v", got)
@@ -113,6 +120,7 @@ func TestEvaluateBaseline_ForeignLocationsAreRejectedBeforeNormalization(t *test
 }
 
 func TestExtractLocations_LabelPrefixedLine(t *testing.T) {
+	t.Parallel()
 	// infra-ops's scripts/link-check.sh and scripts/task-index-check.sh emit
 	// "TAG<spaces>path:line: message" instead of a bare "path:line" prefix.
 	// Without label stripping this line never matches locationLine, so
@@ -134,6 +142,7 @@ func TestExtractLocations_LabelPrefixedLine(t *testing.T) {
 }
 
 func TestExtractLocations_RuffFullOutput(t *testing.T) {
+	t.Parallel()
 	out := "F401 [*] `pathlib` imported but unused\n" +
 		" --> scripts/source_to_instruction.py:2:8\n" +
 		"  |\n" +
@@ -146,6 +155,7 @@ func TestExtractLocations_RuffFullOutput(t *testing.T) {
 }
 
 func TestExtractLocations_AriadneOxcFixtures(t *testing.T) {
+	t.Parallel()
 	// Real, captured rolldown/oxc (vite 8 / rolldown 1.2.5) build failure:
 	// three [UNLOADABLE_DEPENDENCY] errors, each with an ariadne-style
 	// "╭─[ path:line:col ]" frame opener instead of a leading "path:line".
@@ -184,6 +194,7 @@ func TestExtractLocations_AriadneOxcFixtures(t *testing.T) {
 }
 
 func TestForeignDiagnosticLocations_RuffFullOutput(t *testing.T) {
+	t.Parallel()
 	output := " --> ../other-worktree/check.py:3:7\n" +
 		" --> /absolute/check.py:4:2\n" +
 		" --> ./local/check.py:5:1\n"
@@ -206,6 +217,7 @@ func TestForeignDiagnosticLocations_RuffFullOutput(t *testing.T) {
 // of failures.
 
 func TestExtractLocations_GoTestVerboseSkipBlockNotCounted(t *testing.T) {
+	t.Parallel()
 	out := "=== RUN   TestFoo\n" +
 		"    foo_test.go:10: skipping: not applicable in this environment\n" +
 		"--- SKIP: TestFoo (0.00s)\n" +
@@ -218,6 +230,7 @@ func TestExtractLocations_GoTestVerboseSkipBlockNotCounted(t *testing.T) {
 }
 
 func TestExtractLocations_GoTestVerboseFailBlockCounted(t *testing.T) {
+	t.Parallel()
 	out := "=== RUN   TestBar\n" +
 		"    bar_test.go:20: got 1, want 2\n" +
 		"    bar_test.go:21: additional context\n" +
@@ -243,6 +256,7 @@ func TestExtractLocations_GoTestVerboseFailBlockCounted(t *testing.T) {
 }
 
 func TestExtractLocations_GoTestVerboseMixedRunOnlyCountsFail(t *testing.T) {
+	t.Parallel()
 	out := "=== RUN   TestFoo\n" +
 		"=== RUN   TestFoo/skip_case\n" +
 		"    foo_test.go:10: skipping: not applicable\n" +
@@ -278,6 +292,7 @@ func TestExtractLocations_GoTestVerboseMixedRunOnlyCountsFail(t *testing.T) {
 // to run hit the "no file:line diagnostics" rule, and a branch that did run was
 // read as "count increased (0 -> N)". Neither says anything about the branch.
 func TestEvaluateBaseline_UnmeasurableBaselineIsNotFail(t *testing.T) {
+	t.Parallel()
 	t.Run("branch also produced nothing", func(t *testing.T) {
 		got := EvaluateBaseline(BaselineInput{BranchLocations: nil, BaseLocations: nil})
 		if got.Status != BaselineUnmeasurable {
@@ -319,6 +334,7 @@ func TestEvaluateBaseline_UnmeasurableBaselineIsNotFail(t *testing.T) {
 // comparison would imply. The contrast case keeps a measured baseline behaving
 // exactly as before.
 func TestEvaluateBaseline_BaselineZeroIsNotClean(t *testing.T) {
+	t.Parallel()
 	unmeasured := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"lib/a.ex:1"},
 		BaseLocations:   nil,
@@ -351,6 +367,7 @@ func TestEvaluateBaseline_BaselineZeroIsNotClean(t *testing.T) {
 // its former name said otherwise, which is how it read as a duplicate of the
 // two empty-base tests above rather than as the changed-path guard it is.
 func TestEvaluateBaseline_UnrelatedChangedPathsDoNotDecideAnUnmeasuredBaseline(t *testing.T) {
+	t.Parallel()
 	for _, changed := range [][]string{nil, {"Makefile"}, {"mix.exs"}} {
 		got := EvaluateBaseline(BaselineInput{
 			BranchLocations: []string{"lib/a.ex:1", "lib/b.ex:2"},
@@ -370,6 +387,7 @@ func TestEvaluateBaseline_UnrelatedChangedPathsDoNotDecideAnUnmeasuredBaseline(t
 // repositories the new status exists for. It must fail unless the operator
 // explicitly downgrades it, the same contract every other skipped check has.
 func TestBaselineUnmeasurableGatesUnlessAllowed(t *testing.T) {
+	t.Parallel()
 	verdict := BaselineResult{Status: BaselineUnmeasurable, Reason: "target tip emitted nothing"}
 
 	blocking := baselineCheckItem("make check", verdict, false)
@@ -401,6 +419,7 @@ func TestBaselineUnmeasurableGatesUnlessAllowed(t *testing.T) {
 // the path down to foo.ex, which matches no entry in the changed-path set —
 // the changed-paths rule could not fire at all on such a repository.
 func TestNormalizeTrackedPathPrefixLift(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{
 		"apps/api/lib/foo.ex",
 		"apps/api/lib/bar.ex",
@@ -433,6 +452,7 @@ func TestNormalizeTrackedPathPrefixLift(t *testing.T) {
 // a clean t.Skip message into a hard rule (a) failure for any branch that
 // touched that test file. This test fails on that revision.
 func TestNormalizeTrackedPathBareBaseNameIsNotLifted(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{
 		"pkg/integrate/check_baseline_test.go",
 		"cmd/gz-git/main.go",
@@ -454,6 +474,7 @@ func TestNormalizeTrackedPathBareBaseNameIsNotLifted(t *testing.T) {
 // merely edited a_test.go would be blocked by a test that skipped cleanly on
 // both sides of the comparison.
 func TestExtractLocationsGoTestSkipDoesNotBlockChangedTestFile(t *testing.T) {
+	t.Parallel()
 	out := `=== RUN   TestA
 === PAUSE TestA
 === RUN   TestB
@@ -516,6 +537,7 @@ func TestExtractLocationsGoTestSkipDoesNotBlockChangedTestFile(t *testing.T) {
 // file the branch may never have touched. The path is left unmatched instead,
 // which is what the old code did for every such input anyway.
 func TestNormalizeTrackedPathPrefixAmbiguityIsNotGuessed(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{
 		"apps/api/lib/foo.ex",
 		"apps/web/lib/foo.ex",
@@ -550,6 +572,7 @@ func TestNormalizeTrackedPathPrefixAmbiguityIsNotGuessed(t *testing.T) {
 // src/dist/bundle.js reaches rule (a) and hard-fails the branch, which is the
 // same false block this change set removed elsewhere.
 func TestNormalizeTrackedPathLiftsBeforeStripping(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{"apps/api/lib/foo.ex"})
 
 	// The artifact keeps its own name instead of borrowing the source's.
@@ -569,6 +592,7 @@ func TestNormalizeTrackedPathLiftsBeforeStripping(t *testing.T) {
 // the card reports: a cd-ing Makefile's output, the repository's tracked set,
 // and the changed-path set the branch actually produced.
 func TestExtractLocationsPrefixLiftFeedsChangedPathRule(t *testing.T) {
+	t.Parallel()
 	out := "lib/foo.ex:12: warning: variable \"x\" is unused\n"
 	tracked := []string{"apps/api/lib/foo.ex", "apps/api/mix.exs"}
 
@@ -594,6 +618,7 @@ func TestExtractLocationsPrefixLiftFeedsChangedPathRule(t *testing.T) {
 // duplicate silently costing a lift would be indistinguishable from a genuine
 // ambiguity refusal.
 func TestNormalizeTrackedPathDuplicateTrackedEntryStillLifts(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{
 		"apps/api/lib/foo.ex",
 		"apps/api/lib/foo.ex",
@@ -608,6 +633,7 @@ func TestNormalizeTrackedPathDuplicateTrackedEntryStillLifts(t *testing.T) {
 // cleaning must not manufacture a directory component that would make it
 // liftable.
 func TestNormalizeTrackedPathCleansBeforeMatching(t *testing.T) {
+	t.Parallel()
 	tracked := newTrackedIndex([]string{"apps/api/lib/foo.ex"})
 	for _, spelling := range []string{
 		"lib/foo.ex",
@@ -631,6 +657,7 @@ func TestNormalizeTrackedPathCleansBeforeMatching(t *testing.T) {
 // which made any file already carrying a warning unmodifiable — the input says
 // outright that nothing worsened.
 func TestEvaluateBaselinePreexistingDiagnosticOnChangedPathIsNotHarm(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1"},
 		BaseLocations:   []string{"a.go:1"},
@@ -659,6 +686,7 @@ func TestEvaluateBaselinePreexistingDiagnosticOnChangedPathIsNotHarm(t *testing.
 // diagnostic the branch genuinely added on a path it changed is still harm,
 // and the reason must name that one rather than the pre-existing neighbor.
 func TestEvaluateBaselineNewDiagnosticOnChangedPathStillFails(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "a.go:9"},
 		BaseLocations:   []string{"a.go:1"},
@@ -693,6 +721,7 @@ func TestEvaluateBaselineNewDiagnosticOnChangedPathStillFails(t *testing.T) {
 // was new and had to re-run the checker by hand. The locations were in the
 // function's hands the whole time.
 func TestEvaluateBaseline_CountIncreaseNamesTheNewLocations(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},
@@ -711,6 +740,7 @@ func TestEvaluateBaseline_CountIncreaseNamesTheNewLocations(t *testing.T) {
 // A location the baseline already carried is not news. Listing it would send
 // the reader to a line that was failing before the branch existed.
 func TestEvaluateBaseline_CountIncreaseOmitsPreexistingLocations(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "b.go:2", "c.go:3"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},
@@ -730,6 +760,7 @@ func TestEvaluateBaseline_CountIncreaseOmitsPreexistingLocations(t *testing.T) {
 // say how many it left out, or the FAIL line is exactly as unscannable as
 // before the cap existed.
 func TestEvaluateBaseline_CountIncreaseCapsTheList(t *testing.T) {
+	t.Parallel()
 	branch := make([]string, 0, 16)
 	branch = append(branch, "a.go:1")
 	for i := 1; i <= 15; i++ {
@@ -764,6 +795,7 @@ func TestEvaluateBaseline_CountIncreaseCapsTheList(t *testing.T) {
 // three places are new, and those three are what the reader has to go fix.
 // Reporting only the arithmetic hides two of them.
 func TestEvaluateBaseline_CountIncreaseListsEveryNewLocationNotJustTheDelta(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "d.go:4", "e.go:5", "f.go:6"},
 		BaseLocations:   []string{"a.go:1", "b.go:2", "c.go:3"},
@@ -785,6 +817,7 @@ func TestEvaluateBaseline_CountIncreaseListsEveryNewLocationNotJustTheDelta(t *t
 // wording. The count rule must not be the one that speaks when a changed path
 // carries a new diagnostic, or the operator gets the weaker message.
 func TestEvaluateBaseline_ChangedPathVerdictStillOutranksTheCountVerdict(t *testing.T) {
+	t.Parallel()
 	got := EvaluateBaseline(BaselineInput{
 		BranchLocations: []string{"a.go:1", "b.go:2", "touched.go:9"},
 		BaseLocations:   []string{"a.go:1", "b.go:2"},

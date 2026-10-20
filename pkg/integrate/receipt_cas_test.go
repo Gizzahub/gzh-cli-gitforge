@@ -38,6 +38,7 @@ func seedCASReceipt(executionID, targetRef string) *Receipt {
 // exactly one winner: the per-execution write lock plus the create-vs-
 // existing check means every loser fails instead of overwriting the winner.
 func TestReceiptCreateCollisionExactlyOneWinner(t *testing.T) {
+	t.Parallel()
 	common := t.TempDir()
 	const workers = 8
 	start := make(chan struct{})
@@ -93,6 +94,7 @@ func TestReceiptCreateCollisionExactlyOneWinner(t *testing.T) {
 // writer advanced, and the refused CAS must leave its in-memory receipt —
 // revision and claim included — exactly as supplied.
 func TestReceiptUpdateStaleRevisionRefused(t *testing.T) {
+	t.Parallel()
 	common := t.TempDir()
 	if err := createReceipt(context.Background(), common, seedCASReceipt("exec-stale", "refs/heads/develop")); err != nil {
 		t.Fatalf("seed create: %v", err)
@@ -139,6 +141,7 @@ func TestReceiptUpdateStaleRevisionRefused(t *testing.T) {
 // A create that finds an existing receipt refuses — reporting a replay when
 // the identity differs — and never mutates the candidate.
 func TestReceiptCreateVsExistingRefused(t *testing.T) {
+	t.Parallel()
 	t.Run("different identity reports replay", func(t *testing.T) {
 		common := t.TempDir()
 		if err := createReceipt(context.Background(), common, seedCASReceipt("exec-exists", "refs/heads/develop")); err != nil {
@@ -176,6 +179,7 @@ func TestReceiptCreateVsExistingRefused(t *testing.T) {
 // the atomic identity check stop the loser. The loser must fail with
 // ErrEvidenceReplay before run ever reaches a push.
 func TestBeginRunEvidenceConcurrentCollision(t *testing.T) {
+	t.Parallel()
 	repo := testutil.TempGitRepoWithCommit(t)
 	// A context intent requires one concrete push endpoint before its CAS.
 	// This fixture never pushes; use its existing repository as that endpoint.
@@ -242,6 +246,7 @@ func TestBeginRunEvidenceConcurrentCollision(t *testing.T) {
 // cleanupRereadGuard is the after-lock re-read gate: the receipt must still
 // name the exact locked target and carry an unchanged immutable identity.
 func TestCleanupRereadGuard(t *testing.T) {
+	t.Parallel()
 	locked := seedCASReceipt("exec-guard", "refs/heads/develop")
 	t.Run("changed worktree refuses", func(t *testing.T) {
 		moved := seedCASReceipt("exec-guard", "refs/heads/develop")

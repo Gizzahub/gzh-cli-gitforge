@@ -127,6 +127,7 @@ func TestRunGitReclaimDistinctPushEndpoint(t *testing.T) {
 }
 
 func TestPushEndpointEmptyRewritePrefix(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"insteadOf", "pushInsteadOf"} {
 		t.Run(kind, func(t *testing.T) {
 			repo := testutil.TempGitRepoWithCommit(t)

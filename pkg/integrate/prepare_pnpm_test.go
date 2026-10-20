@@ -67,6 +67,7 @@ func TestPreparePnpmFrozenLockfileRejectsFailuresAndForbiddenOutput(t *testing.T
 }
 
 func TestIsNodeModulesPath(t *testing.T) {
+	t.Parallel()
 	for path, want := range map[string]bool{
 		"node_modules/x":           true,
 		"packages/a/node_modules/": true,

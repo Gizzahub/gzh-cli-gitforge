@@ -53,6 +53,7 @@ func TestExecuteReadinessCancelLetsGateCleanNestedGroup(t *testing.T) {
 }
 
 func TestReadinessNestedGroupHelper(t *testing.T) {
+	t.Parallel()
 	if os.Getenv("READINESS_NESTED_HELPER") != "1" {
 		return
 	}

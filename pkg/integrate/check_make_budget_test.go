@@ -18,6 +18,7 @@ import (
 // slow repository can raise the ceiling in its own declaration instead of
 // being killed by the built-in one.
 func TestMakeTargetBudget(t *testing.T) {
+	t.Parallel()
 	t.Run("zero configured keeps the built-in default", func(t *testing.T) {
 		if got := resolveMakeBudget(0); got != makeTargetTimeout {
 			t.Fatalf("resolveMakeBudget(0) = %s, want the built-in default %s", got, makeTargetTimeout)
@@ -58,6 +59,7 @@ func TestMakeTargetBudget(t *testing.T) {
 // the cause away; a baseline killed the same way left a truncated output to
 // be counted as if it were a finished measurement.
 func TestMakeTimeoutIsNotMaskedAsRC0(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	timedOut := func(side string) makeProbe {
 		return makeProbe{

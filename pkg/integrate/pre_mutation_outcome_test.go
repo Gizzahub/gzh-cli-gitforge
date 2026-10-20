@@ -65,6 +65,7 @@ func TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires(t *testing.T) {
 }
 
 func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@false\n")
 	runGit(t, fx.Worktree, "add", "Makefile")
@@ -83,6 +84,7 @@ func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
 }
 
 func TestMalformedContextAndExistingReceiptCannotProduceSafeOutcome(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	_, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{RepoPath: fx.Worktree}, Execution: &ExecutionContext{ExecutionID: "partial"}})
 	if !errors.Is(err, ErrInvalidExecutionContext) {
@@ -161,6 +163,7 @@ func TestSameExecutionCannotRecordNegativeWhileAnotherRunOwnsIt(t *testing.T) {
 }
 
 func TestExistingPushedReceiptSuppressesStaleNegativeOutcome(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	execution := outcomeExecution(t, fx.Worktree, "pushed-receipt-wins")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)

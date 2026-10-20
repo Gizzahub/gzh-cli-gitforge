@@ -17,6 +17,7 @@ import (
 )
 
 func TestCheck_UndeclaredTargetsOriginHead(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath: fx.Worktree,
@@ -40,6 +41,7 @@ func TestCheck_UndeclaredTargetsOriginHead(t *testing.T) {
 }
 
 func TestCheck_HeuristicTargetWithRenamedRemote(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Worktree, "remote", "rename", "origin", "upstream")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "feature/worktree"})
@@ -56,6 +58,7 @@ func TestCheck_HeuristicTargetWithRenamedRemote(t *testing.T) {
 }
 
 func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath: fx.Worktree,
@@ -73,6 +76,7 @@ func TestCheck_ReadyWhenFreshCleanPushed(t *testing.T) {
 }
 
 func TestCheck_IntegrationUpstreamHasSafeRemediation(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	branch := "dev/actor/feat/task"
 	runGit(t, fx.Worktree, "branch", "--set-upstream-to", fx.Remote+"/develop", branch)
@@ -103,6 +107,7 @@ func TestCheck_IntegrationUpstreamHasSafeRemediation(t *testing.T) {
 }
 
 func TestCheck_IntegrationUpstreamUsesExplicitRefspecWhenTaskRefMissing(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"upstream", "tracking"} {
 		t.Run(mode, func(t *testing.T) {
 			fx := readyTaskFixture(t)
@@ -148,6 +153,7 @@ func TestCheck_IntegrationUpstreamUsesExplicitRefspecWhenTaskRefMissing(t *testi
 }
 
 func TestCheck_IntegrationUpstreamDetectedWhenSHAsMatch(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	branch := "dev/actor/feat/task"
 	// Advance the fixture's integration ref to the task tip so a SHA-first
@@ -171,6 +177,7 @@ func TestCheck_IntegrationUpstreamDetectedWhenSHAsMatch(t *testing.T) {
 }
 
 func TestCheck_IntegrationUpstreamWithSlashRemoteAndBranch(t *testing.T) {
+	t.Parallel()
 	for _, tt := range []struct {
 		name        string
 		remote      string
@@ -215,6 +222,7 @@ func TestCheck_IntegrationUpstreamWithSlashRemoteAndBranch(t *testing.T) {
 }
 
 func TestCheck_NoGateFails(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixtureNoGate(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath: fx.Worktree,
@@ -238,6 +246,7 @@ func TestCheck_NoGateFails(t *testing.T) {
 }
 
 func TestCheck_NoGateAllowedWhenSkippedFlag(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixtureNoGate(t)
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
 		RepoPath:           fx.Worktree,
@@ -262,6 +271,7 @@ func TestCheck_NoGateAllowedWhenSkippedFlag(t *testing.T) {
 }
 
 func TestCheck_BaselineMissingCDFailsWithPreciseReason(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "checkout", "-B", "develop")
 	writeRepoFile(t, fx.Clone, "foo.py", "import pathlib\n")
@@ -300,6 +310,7 @@ func TestCheck_BaselineMissingCDFailsWithPreciseReason(t *testing.T) {
 }
 
 func TestCheck_StaleTargetFailsFreshness(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	// Advance develop after the task branch was created.
 	runGit(t, fx.Clone, "checkout", "develop")
@@ -330,6 +341,7 @@ func TestCheck_StaleTargetFailsFreshness(t *testing.T) {
 }
 
 func TestCheck_DirectToDefaultWithoutIntegration(t *testing.T) {
+	t.Parallel()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
@@ -347,6 +359,7 @@ func TestCheck_DirectToDefaultWithoutIntegration(t *testing.T) {
 }
 
 func TestCheck_ExhaustedLintLockIsMeasurementUnavailableOnBranchAndBaseline(t *testing.T) {
+	t.Parallel()
 	t.Run("branch", func(t *testing.T) {
 		fx := readyTaskFixture(t)
 		writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@true\nlint:\n\t@printf '%s\\n' 'Error: parallel golangci-lint is running'; false\n")
@@ -499,6 +512,7 @@ func TestCheck_MakeTimeoutReportsBudgetNotRC0(t *testing.T) {
 }
 
 func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
+	t.Parallel()
 	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{
 		Items: []CheckItem{{Name: "make check", Status: checkFail, Detail: "ordinary failure"}},
 	}}, nil, 1)
@@ -519,6 +533,7 @@ func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
 }
 
 func TestBuildRunProtocolTimeoutFailuresKeepNullableFieldsAndAllEntries(t *testing.T) {
+	t.Parallel()
 	signal := "SIGKILL"
 	request := &TerminationRequest{Method: "process_group", Signal: &signal}
 	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{ReadinessFailures: []ReadinessFailure{

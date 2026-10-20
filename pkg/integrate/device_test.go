@@ -18,6 +18,7 @@ import (
 // TestValidateHostNameCatalogGrammar pins host fields to the device catalog
 // grammar ^[a-z0-9]+(?:-[a-z0-9]+)*$ and nothing looser.
 func TestValidateHostNameCatalogGrammar(t *testing.T) {
+	t.Parallel()
 	for _, valid := range []string{"mbp", "mst", "a1-b2", "0", "lab-2-x", strings.Repeat("a", 128)} {
 		if err := validateHostName(valid, "host"); err != nil {
 			t.Errorf("validateHostName(%q) = %v, want nil", valid, err)
@@ -38,6 +39,7 @@ func TestValidateHostNameCatalogGrammar(t *testing.T) {
 // TestHostFieldsUseCatalogGrammar covers each host field: the run owner, the
 // legacy cleanup plan owner, and only the host. Actor stays an opaque token.
 func TestHostFieldsUseCatalogGrammar(t *testing.T) {
+	t.Parallel()
 	sha := strings.Repeat("a", 40)
 	ctx := ExecutionContext{ExecutionID: "Run_42", Generation: "G.7", Owner: OwnerIdentity{Actor: "Claude_Agent", Host: "mbp", Kind: "agent"}, ExpectSource: sha}
 	if err := ctx.Validate(); err != nil {
@@ -56,6 +58,7 @@ func TestHostFieldsUseCatalogGrammar(t *testing.T) {
 }
 
 func TestDeviceIdentityLabel(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		device DeviceIdentity
 		want   string
