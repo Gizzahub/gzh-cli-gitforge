@@ -120,18 +120,8 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 	if !probeLoaded(lines, probeFile.Name()) {
 		return false, false
 	}
-	header := target + ":"
-	for i, line := range lines {
-		// Entries begin at column zero; recipe lines are tab-indented, so a
-		// recipe that echoes "check:" cannot be mistaken for an entry.
-		if line != header && !strings.HasPrefix(line, header+" ") {
-			continue
-		}
-		// An entry's own comment block follows it at once, each line "#  ".
-		// Make 4.4.1 prints a target-specific variable as "check: FOO = 1"
-		// just above the entry, followed by "# Not a target:", "# makefile
-		// (from ...)" or the entry itself, so that line is skipped (ISSUE-79).
-		if i+1 >= len(lines) || !strings.HasPrefix(lines[i+1], "#  ") {
+	for i := range lines {
+		if !isMakeEntry(lines, i, target) {
 			continue
 		}
 		searched := false
@@ -167,6 +157,22 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 		return false, true
 	}
 	return false, false
+}
+
+// isMakeEntry reports whether lines[i] is target's entry in a -p dump.
+//
+// Entries begin at column zero; recipe lines are tab-indented, so a recipe
+// that echoes "check:" cannot be mistaken for an entry. An entry's own
+// comment block follows it at once, each line "#  ". Make 4.4.1 prints a
+// target-specific variable as "check: FOO = 1" just above the entry,
+// followed by "# Not a target:", "# makefile (from ...)" or the entry
+// itself, so that line is not an entry (ISSUE-79).
+func isMakeEntry(lines []string, i int, target string) bool {
+	header := target + ":"
+	if lines[i] != header && !strings.HasPrefix(lines[i], header+" ") {
+		return false
+	}
+	return i+1 < len(lines) && strings.HasPrefix(lines[i+1], "#  ")
 }
 
 // probeLoaded reports whether the dump's MAKEFILE_LIST names the probe file,

@@ -45,3 +45,22 @@ combination was not run.
   block, so a target-specific variable line is skipped.
 - Cover a file named `check` with only a target-specific variable, and
   the same beside a catch-all, on make 3.81 and 4.4.1.
+
+## Resolution
+
+- Make 4.4.1 prints a target-specific variable as `check: FOO = 1` just
+  above the target's entry, followed by `# Not a target:`, by
+  `# makefile (from ...)`, or by the entry itself; make 3.81 prints it
+  inside the entry as `# FOO = 1`. An entry's own comment block always
+  follows it at once with `#  ` lines, so
+  `makeTargetMatchedByPatternRule` now skips a header line without one.
+- The catch-all combination the Reproduction inferred was run: on make
+  4.4.1 the variable line sits directly above the entry that records the
+  catch-all's stem, and the probe reported check declared.
+- Tests: `TestRulelessPathNamedLikeTargetIsUndeclared` gains a file
+  named only by a variable (undeclared) and one beside a recipe-less
+  check with a variable (declared); `TestTargetVariableIsNotTheMakeEntry`
+  covers the catch-all (undeclared) and a check declared before and
+  after its variable (declared). All pass on make 3.81 and on make 4.4.1
+  (`golang:1.27` image); on 4.4.1 the previous probe fails the file and
+  catch-all cases.
