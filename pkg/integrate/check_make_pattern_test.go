@@ -148,6 +148,12 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			matched:  true, ok: false,
 		},
 		{
+			name:     "out-of-date generated include after parse-time output that mimics the trace",
+			makefile: "$(info Updating goal targets)\n-include gen.mk\ngen.mk: gen.in\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
+			genOlder: ptrTo(true),
+			matched:  true, ok: false,
+		},
+		{
 			name:     "up-to-date generated include with a catch-all",
 			makefile: "-include gen.mk\ngen.mk: gen.in\n\techo 'check:' > gen.mk\nlint:\n\t@:\n%:\n\t@:\n",
 			genOlder: ptrTo(false),

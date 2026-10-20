@@ -156,7 +156,9 @@ func remadeMakefile(lines []string) bool {
 		switch {
 		case strings.HasPrefix(line, "Updating makefiles"):
 			updating = true
-		case strings.HasPrefix(line, "Updating goal targets"):
+		// Parse-time output such as $(info) comes first on the same stream,
+		// so only a terminator inside the trace ends it.
+		case updating && strings.HasPrefix(line, "Updating goal targets"):
 			return false
 		case updating && strings.HasPrefix(strings.TrimLeft(line, " "), "Must remake target "):
 			return true

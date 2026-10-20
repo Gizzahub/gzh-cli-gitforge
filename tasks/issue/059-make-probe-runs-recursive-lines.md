@@ -92,7 +92,13 @@ Resolved on 2026-10-20.
   database as unreadable and the caller keeps its previous behavior,
   which reports a target a catch-all satisfies as PASS. A catch-all with
   file-less prerequisites (`%: force`) remakes every makefile, so its
-  verdict is `ok=false` and the real run decides.
+  verdict is `ok=false` and the real run decides. The same holds where
+  the catch-all or an include rule's prerequisites remake a makefile the
+  real run leaves unchanged: an optional include of a missing file with
+  no rule of its own (`-include .env`, `-include deps.d`, which the
+  catch-all "remakes"), an include rule whose only missing prerequisite
+  is order-only (`gen.mk: | gdir`), and `.PHONY: gen.mk` on 3.81. Those
+  shapes get no verdict, and the caller keeps its previous PASS.
 - Checked by hand on GNU Make 3.81 (macOS) and 4.4.1 (golang:1.27
   image): no recipe marker appears; the `$(shell)`-conditional `check`
   reads as declared with and without a catch-all; a catch-all repository
@@ -132,3 +138,9 @@ Resolved on 2026-10-20.
   substring, dropping `$` or the wildcards from the pre-check, and
   reading the trace past "Updating goal targets". Dropping the
   `probeLoaded` call survives, as the pre-check covers every case.
+- Third re-review (PASS with warnings, 24 shapes on both versions,
+  including caller-`MAKEFILES`, nested, pattern-rule, double-colon and
+  subdirectory generated includes) found that a parse-time
+  `$(info Updating goal targets)` ended the trace before it began. The
+  terminator now counts only inside the trace; the table adds that
+  case, and accepting the terminator outside the trace fails it.
