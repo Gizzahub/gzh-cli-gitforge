@@ -52,7 +52,7 @@ func TestHelperChildLeavesNoStateDir(t *testing.T) {
 // state dir. The next suite reclaims a dir whose owner has exited and keeps
 // every dir it cannot prove dead.
 func TestReclaimDeadTestStateDirs(t *testing.T) {
-	exited := exec.Command("/bin/sh", "-c", "exit 0")
+	exited := exec.CommandContext(t.Context(), "/bin/sh", "-c", "exit 0")
 	if err := exited.Run(); err != nil {
 		t.Fatal(err)
 	}
