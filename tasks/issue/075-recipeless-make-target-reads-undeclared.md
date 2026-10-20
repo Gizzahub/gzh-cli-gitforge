@@ -1,5 +1,5 @@
 ---
-id: ISSUE-72
+id: ISSUE-75
 title: "A declared make target without a recipe reads as undeclared"
 type: bug
 priority: P2
