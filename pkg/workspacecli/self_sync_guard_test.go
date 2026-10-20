@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
 // selfSyncFixture returns a config directory and a symlink that reaches it
@@ -59,6 +60,23 @@ func TestPointsAtConfigDirMatchesFileIdentity(t *testing.T) {
 		if got := pointsAtConfigDir(tc.wsPath, tc.configDir); got != tc.want {
 			t.Errorf("%s: pointsAtConfigDir(%q, %q) = %t, want %t", tc.name, tc.wsPath, tc.configDir, got, tc.want)
 		}
+	}
+}
+
+// TestFlatConfigSkipsSymlinkToConfigDir covers the root repositories list,
+// whose default strategy is reset: a repository whose path is a symlink to
+// the config directory is dropped, and a sibling is still planned.
+func TestFlatConfigSkipsSymlinkToConfigDir(t *testing.T) {
+	configDir, link := selfSyncFixture(t)
+	sibling := filepath.Join(filepath.Dir(configDir), "member")
+	req := reposync.PlanRequest{Input: reposync.PlanInput{Repos: []reposync.RepoSpec{
+		{Name: "self", CloneURL: "https://example.invalid/self.git", TargetPath: link},
+		{Name: "member", CloneURL: "https://example.invalid/member.git", TargetPath: sibling},
+	}}}
+
+	actions := createActionsFromFlatConfig(req, configDir)
+	if len(actions) != 1 || actions[0].Repo.Name != "member" {
+		t.Fatalf("createActionsFromFlatConfig() = %+v, want only member", actions)
 	}
 }
 

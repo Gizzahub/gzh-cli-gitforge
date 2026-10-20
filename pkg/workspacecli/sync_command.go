@@ -885,7 +885,7 @@ func createActionsFromFlatConfig(req reposync.PlanRequest, configDir string) []r
 		if err != nil {
 			absTargetPath = repo.TargetPath
 		}
-		if absTargetPath == absConfigDir {
+		if pointsAtConfigDir(absTargetPath, absConfigDir) {
 			// Skip devbox directory itself
 			continue
 		}

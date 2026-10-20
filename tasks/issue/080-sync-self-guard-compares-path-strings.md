@@ -45,21 +45,32 @@ the sync tests. Registration only; no remediation is included here.
 
 ## Resolution
 
-- The three guards (forge, git and config planners in
-  `pkg/workspacecli/sync_command.go`) call `pointsAtConfigDir`
-  (`pkg/workspacecli/self_sync_guard.go`), which keeps the string match
-  and adds `os.SameFile`, so a symlink or relative spelling of the config
-  directory is skipped with the self-sync warning. A workspace path that
-  does not exist yet cannot be the config directory and is still planned.
+- The three workspace guards (forge, git and config planners in
+  `pkg/workspacecli/sync_command.go`) and a fourth guard the card did not
+  count, in `createActionsFromFlatConfig`, which filters the root
+  `repositories:` list (default strategy `reset`), call
+  `pointsAtConfigDir` (`pkg/workspacecli/self_sync_guard.go`). It keeps
+  the string match and adds `os.SameFile`, so a symlink to the config
+  directory, or a spelling that differs only in case on a case-insensitive
+  volume, is skipped. Relative spellings were already caught: the config
+  directory is absolute and `filepath.Join` cleans the workspace path. A
+  workspace path that does not exist yet cannot be the config directory
+  and is still planned.
   The helper sits in its own file instead of growing `sync_command.go`;
   `sameDir` in `pkg/reposynccli` stays unexported.
 - Tests: `TestPointsAtConfigDirMatchesFileIdentity` (same string, symlink,
   relative config directory, `.` segment, sibling, missing path) and
   `TestSyncPlannersSkipSymlinkToConfigDir`, which runs each planner on a
-  symlink to a devbox whose config lists a member.
+  symlink to a devbox whose config lists a member, and
+  `TestFlatConfigSkipsSymlinkToConfigDir` for the root list.
 - Mutation evidence, reverted before commit: restoring the string
-  comparison at any one of the three guards fails the planner test for
-  that planner. The first cut of the test missed the config planner
-  mutant, because that planner also skips a path without a child config;
-  the fixture now writes the devbox config and the assertion names the
-  self-sync reason.
+  comparison at any one of the four guards fails the test for that guard.
+  The first cut of the test missed the config planner mutant, because that
+  planner also skips a path without a child config; the fixture now writes
+  the devbox config and the assertion names the self-sync reason.
+- Independent review (PASS WITH WARNINGS) follow-up: the fourth guard
+  above, and the wording about relative spellings. The review also noted
+  that the recursive planners compare a child workspace only with the
+  child directory, so a child `path: ..` reaching the root devbox is not
+  compared with the root; that predates this card and is not reproduced
+  here.
