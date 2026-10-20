@@ -64,3 +64,21 @@ that.
 
 This is a design choice for the repository owner. Registration only; no
 remediation is included here.
+
+## Resolution
+
+Resolved on 2026-10-20: the owner chose to keep the declaration untracked.
+
+- `.gitignore` now has one `.ce/` rule. Its comment gives 929d0d92's reason
+  (machine-local absolute `worktree-roots`) and names what tracking it again
+  would need. The dead re-include block (old lines 98-104) is gone.
+  `git check-ignore -v .ce/task-runtime.yaml` still reports the single
+  `.ce/` rule, and `git ls-files .ce` stays empty, so git's behavior is
+  unchanged.
+- Facts drifted since registration: the local declaration is now schema 4,
+  with `worktree-roots` under `~/worktrees/foundation/gzh-cli-gitforge` for
+  both hosts. It is still machine-local, so the reason holds.
+- Tracking it again (rootless schema 5) depends on a
+  `gzh-cli-gitforge: foundation` entry in ce-devenv's global
+  `task-runtime-defaults.yaml` for every host. That is ce-devenv's change to
+  make, not this repository's.
