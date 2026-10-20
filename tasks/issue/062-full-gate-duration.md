@@ -71,3 +71,34 @@ took about 9 minutes of wall-clock time (08:41 to 08:50).
 - Candidate cuts, in order of evidence: run `pkg/integrate` tests in
   parallel or split the package, then cap concurrent full gates. Both
   keep coverage and `-race`.
+
+2026-10-20, parallel top-level tests (`GOWORK=off go test -mod=readonly -race -count=1 ./pkg/integrate/`), base `50d24d30` and the change run
+alternately on the same machine, a first draft that parallelised 306
+tests:
+
+| Round | Base (s) | Change (s) | Load average |
+| ----- | -------- | ---------- | ------------ |
+| 1     | 749      | 552        | 14 to 16     |
+| 2     | 635      | 461        | 5 to 11      |
+
+- The change cut the package's race time by 26 to 27 percent in both
+  rounds. The machine was not idle, so absolute times are above the idle
+  534 s; the ratio is the result.
+- The landed set is 274 tests (see Resolution). `-race -count=2` of the
+  package with it passed with no data race and no failure in 1022 s,
+  under concurrent lint and test load.
+
+## Resolution
+
+- `pkg/integrate` runs 274 of its 491 top-level tests in parallel, which
+  keeps coverage and `-race`. The commit message lists what stays
+  sequential and why.
+- Independent review removed 32 tests from the first draft's 306: 30
+  that write a script and then execute it, which can fail with
+  `text file busy` on Linux when a parallel test forks while the file is
+  open for writing; `TestReadinessResourcePlanSelectsSlot`, which takes
+  the shared host-slot lock; and `TestMakeTargetBudget`, whose 3 s
+  timing assertion is unsafe under parallel load.
+- The remaining 217 tests stay sequential because production code reads
+  process-wide state; removing that is ISSUE-83. Capping concurrent full
+  gates belongs to the landing policy (ISSUE-61, ce-devenv ISSUE-041).

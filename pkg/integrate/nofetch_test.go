@@ -163,7 +163,6 @@ func TestRun_NoFetchLeaseRefusesRemoteRewoundToAncestor(t *testing.T) {
 // probe, because that probe is itself a network read --no-fetch forbids.
 // See TASK-221.
 func TestReclaimRemoteBranch_NoFetchUnverifiableFailsClosed(t *testing.T) {
-	t.Parallel()
 	fx := runFixture(t, "dev/*")
 	task := "dev/actor/feat/task"
 	sha := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")

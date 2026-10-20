@@ -61,7 +61,6 @@ func planManifest(staticHighLoad bool) string {
 }
 
 func TestReadinessResourcePlanSelectsSlot(t *testing.T) {
-	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -107,7 +106,6 @@ func TestReadinessResourcePlanSelectsSlot(t *testing.T) {
 }
 
 func TestReadinessResourcePlanInvalidFailsClosed(t *testing.T) {
-	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -128,7 +126,6 @@ func TestReadinessResourcePlanInvalidFailsClosed(t *testing.T) {
 }
 
 func TestReadinessWithoutResourcePlanPassesNoBinding(t *testing.T) {
-	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("readiness runners are unsupported on this platform")
 	}
@@ -153,7 +150,6 @@ func TestReadinessWithoutResourcePlanPassesNoBinding(t *testing.T) {
 }
 
 func TestReadinessResourcePlanSourceOnlyChangeFailsClosed(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", planManifest(false))
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")

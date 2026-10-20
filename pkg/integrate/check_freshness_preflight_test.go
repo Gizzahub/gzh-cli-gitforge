@@ -61,7 +61,6 @@ func TestCheck_StaleFreshnessSkipsLegacyPreparationAndMake(t *testing.T) {
 }
 
 func TestCheck_StaleFreshnessSkipsContractRunner(t *testing.T) {
-	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("contract runners are unsupported on Windows")
 	}

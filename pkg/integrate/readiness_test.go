@@ -19,7 +19,6 @@ import (
 )
 
 func TestCheck_ContractUsesTargetRunnerNotHeadMakefile(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	writeRepoFile(t, fx.Worktree, "Makefile", "check:\n\t@false\n")
 	runGit(t, fx.Worktree, "add", "Makefile")
@@ -38,7 +37,6 @@ func TestCheck_ContractUsesTargetRunnerNotHeadMakefile(t *testing.T) {
 }
 
 func TestCheck_ContractChangeFailsClosed(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, ".gz-git", "readiness"), 0o755); err != nil {
 		t.Fatal(err)
@@ -60,7 +58,6 @@ func TestCheck_ContractChangeFailsClosed(t *testing.T) {
 }
 
 func TestCheck_TimeoutOnlySourceChangeFailsClosed(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    timeout: 30ms\n")
 	runGit(t, fx.Worktree, "add", ".gz-git.yaml")
@@ -77,7 +74,6 @@ func TestCheck_TimeoutOnlySourceChangeFailsClosed(t *testing.T) {
 }
 
 func TestCheck_BootstrapFailureDoesNotRunHeadMake(t *testing.T) {
-	t.Parallel()
 	fx := readyTaskFixtureNoGate(t)
 	if err := os.MkdirAll(filepath.Join(fx.Worktree, ".gz-git", "readiness"), 0o755); err != nil {
 		t.Fatal(err)
@@ -117,7 +113,6 @@ func TestCheck_AbsentContractsUseLegacyMake(t *testing.T) {
 }
 
 func TestCheck_TargetContractSourceAbsentDoesNotRunHeadMake(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	sentinel := filepath.Join(t.TempDir(), "make-ran")
 	if err := os.Remove(filepath.Join(fx.Worktree, ".gz-git.yaml")); err != nil {
@@ -140,7 +135,6 @@ func TestCheck_TargetContractSourceAbsentDoesNotRunHeadMake(t *testing.T) {
 }
 
 func TestCheck_MalformedSourceDoesNotRunHeadMake(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	sentinel := filepath.Join(t.TempDir(), "make-ran")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  readiness:\n    version: 2\n    runner: .gz-git/readiness/check\n")
@@ -161,7 +155,6 @@ func TestCheck_MalformedSourceDoesNotRunHeadMake(t *testing.T) {
 }
 
 func TestCheck_MalformedTargetDoesNotRunHeadMake(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	advanceReadinessTarget(t, fx,
 		"branch:\n  integrationBranch: develop\n  readiness:\n    version: 2\n    runner: .gz-git/readiness/check\n",
@@ -184,7 +177,6 @@ func TestCheck_MalformedTargetDoesNotRunHeadMake(t *testing.T) {
 }
 
 func TestCheck_AllowSkippedCannotDowngradeUnavailableContract(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	runner := "#!/bin/sh\nprintf '{\"version\":1,\"status\":\"unavailable\",\"summary\":\"dependency offline\"}'\n"
 	advanceReadinessTarget(t, fx, "", runner, "make readiness unavailable")
@@ -312,7 +304,6 @@ func TestParseReadinessResult_Statuses(t *testing.T) {
 }
 
 func TestLoadReadinessContract_RejectsManifestAndRunnerForms(t *testing.T) {
-	t.Parallel()
 	for _, mode := range []string{"manifest-oversize", "runner-nonexec", "runner-missing"} {
 		t.Run(mode, func(t *testing.T) {
 			fx := readinessFixture(t)
@@ -342,7 +333,6 @@ func TestLoadReadinessContract_RejectsManifestAndRunnerForms(t *testing.T) {
 }
 
 func TestLoadReadinessContract_LegacyManifestFormsRemainAbsent(t *testing.T) {
-	t.Parallel()
 	for _, mode := range []string{"shorthand-oversize", "symlink"} {
 		t.Run(mode, func(t *testing.T) {
 			fx := readinessFixture(t)
@@ -371,7 +361,6 @@ func TestLoadReadinessContract_LegacyManifestFormsRemainAbsent(t *testing.T) {
 }
 
 func TestExecuteReadinessWithTimeoutAndEnv(t *testing.T) {
-	t.Parallel()
 	dir := t.TempDir()
 	runner := filepath.Join(dir, "runner")
 	if err := os.WriteFile(runner, []byte("#!/bin/sh\nsleep 2\n"), 0o755); err != nil {
@@ -480,7 +469,6 @@ func TestRunContractTimeoutCleansDetachedWorktrees(t *testing.T) {
 }
 
 func TestExecuteReadinessParentDeadlineDoesNotInventRunnerBudgetTimeout(t *testing.T) {
-	t.Parallel()
 	if !readinessRunnerSupported() {
 		t.Skip("contract runners are unsupported on Windows")
 	}
@@ -500,7 +488,6 @@ func TestExecuteReadinessParentDeadlineDoesNotInventRunnerBudgetTimeout(t *testi
 }
 
 func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	unrelated := filepath.Join(t.TempDir(), "unrelated")
 	runGit(t, fx.Clone, "worktree", "add", "--detach", unrelated, "develop")
@@ -531,7 +518,6 @@ func TestMergeCleanupErrorDoesNotPruneUnrelatedWorktrees(t *testing.T) {
 }
 
 func TestPushFastForward_StaleLeaseRejects(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	checked := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
 	source := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
@@ -551,7 +537,6 @@ func TestPushFastForward_StaleLeaseRejects(t *testing.T) {
 }
 
 func TestRunChecked_TargetMovedStopsBeforeIntegrationAndReclaim(t *testing.T) {
-	t.Parallel()
 	fx := readinessFixture(t)
 	opts := RunOptions{CheckOptions: CheckOptions{
 		RepoPath:          fx.Worktree,

@@ -376,7 +376,6 @@ func TestFlowTaskchainPrepareRejectsSubprojectSymlink(t *testing.T) {
 }
 
 func TestFlowTaskchainSnapshotDisablesRepositoryFsmonitor(t *testing.T) {
-	t.Parallel()
 	devbox := flowTaskchainFixture(t)
 	engine := filepath.Join(devbox, "flow-taskchain-engine")
 	marker := filepath.Join(t.TempDir(), "fsmonitor-ran")

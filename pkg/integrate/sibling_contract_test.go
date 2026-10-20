@@ -53,7 +53,6 @@ func TestResolveSiblingContractCommitOwnership(t *testing.T) {
 }
 
 func TestReadinessSiblingSnapshotsAndMissingSourceCleanup(t *testing.T) {
-	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX readiness runner")
 	}
