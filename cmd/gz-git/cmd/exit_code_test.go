@@ -139,6 +139,8 @@ func TestPullConflictExitsTwo(t *testing.T) {
 	parent := t.TempDir()
 	dest := filepath.Join(parent, "repo")
 	runGit(t, ".", "clone", "--quiet", source, dest)
+	runGit(t, dest, "config", "user.email", "test@example.com")
+	runGit(t, dest, "config", "user.name", "Test User")
 
 	// Diverge both sides on the same line so the rebase cannot apply.
 	writeFile(t, source, "README.md", "upstream\n")

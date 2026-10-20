@@ -433,6 +433,9 @@ which adds only its own push failures.
 - Base-sync statuses stay out: the repository's own branch synced, and a base ref repair
   the command offered must not report the requested sync as failed
   ([troubleshooting](../user/guides/troubleshooting.md#a-sync-that-failed-is-not-a-sync-that-was-blocked)).
+- `skipped` stays out for every command, including `update` skipping a repository with
+  uncommitted changes: the skip is the dirty-tree policy working as configured, and the
+  row stays in the issue list for the person to see.
 - Not-syncable outcomes are configuration facts, not run failures; failing on them would
   keep every workspace with a local-only repository permanently red.
 - A consumer check before adoption found no caller that relies on exit 0 for these
