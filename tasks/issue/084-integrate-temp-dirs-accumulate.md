@@ -88,13 +88,17 @@ worktree.
 
 ## Progress (2026-10-20)
 
-- Cause 1 fixed: `TestMain` skips the state-dir setup in every re-executed
-  helper child (`testBinaryChildEnvs`, `pkg/integrate/test_child_env_test.go`),
-  so a child that ends in `os.Exit` or a kill has nothing to leak.
-  `TestHelperChildLeavesNoStateDir` (Unix) runs the nested-group helper with
-  a private `TMPDIR`, stops it with SIGTERM and asserts that no
-  `gz-git-integrate-state-*` directory remains; it fails if the nested helper
-  is dropped from the list.
+- Cause 1, child half fixed: `TestMain` skips the state-dir setup in every
+  re-executed helper child (`testBinaryChildEnvs`,
+  `pkg/integrate/test_child_env_test.go`), so a child that ends in `os.Exit`
+  or a kill has nothing to leak. `TestHelperChildLeavesNoStateDir` (darwin,
+  linux) runs the nested-group helper with a private `TMPDIR`, stops it with
+  SIGTERM and asserts that no `gz-git-integrate-state-*` directory remains;
+  it fails if the nested helper is dropped from the list. It guards only
+  that one entry.
+- Cause 1, parent half open: the suite's own state dir is still removed
+  only after `m.Run()` returns, so a killed suite or a `go test -timeout`
+  panic leaves it. That waits on the startup-reclaim decision below.
 - The signal path is covered by ISSUE-82: `integrate run` and `check` cancel
   on SIGINT/SIGTERM, so the deferred cleanups run.
 - `gz-git-make-probe-*.mk` (`makeTargetMatchedByPatternRule`,
