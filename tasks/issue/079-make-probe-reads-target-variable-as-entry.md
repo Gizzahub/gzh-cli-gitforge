@@ -24,9 +24,9 @@ same, so this predates ISSUE-75.
 
 1. Write a Makefile with `check: FOO=1` and `lint:` followed by a `@:`
    recipe line, and create an empty file named `check` beside it.
-2. Run the probe under GNU make 4.4.1: it reports Defined, and
+1. Run the probe under GNU make 4.4.1: it reports Defined, and
    `make check` prints `Nothing to be done for 'check'`.
-3. Under GNU make 3.81 the same Makefile reports undefined.
+1. Under GNU make 3.81 the same Makefile reports undefined.
 
 By the same reading, a target-specific variable beside a catch-all `%:`
 is expected to let an undeclared `check` pass silently on 4.4.1; that
