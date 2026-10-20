@@ -72,14 +72,16 @@ acquisition); this card covers the cost of any target move.
   checked, instead of the unnamed wording quoted in the Summary. The same
   text reaches both places a moved target is reported: the Check pass's
   post-gate freshness item (`pkg/integrate/check.go`, the usual case,
-  since `Run` re-runs the check after the gate) and the Run-pass refusal
-  in the short window after that re-check. When the remote-tracking ref
-  is gone and the local target was read instead, the message names the
-  local ref. Test:
+  since `Check` fetches and compares both refs again after its gate) and
+  the Run-pass refusal in the short window between that re-check and the
+  lease push. When the remote-tracking ref is gone and the local target
+  was read instead, the message names the local ref. Tests:
   `TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch` compares
-  the whole message, so swapped commits fail it. Independent review: PASS
-  WITH WARNINGS; the ref fallback, the exact assertion and this wording
-  are its follow-up.
+  the whole message, so swapped commits fail it;
+  `TestLegacyTargetMovementNamesTheLocalTargetItRead` covers the fallback
+  for a target named without its remote, and fails when the fallback keeps
+  naming the remote ref. Independent review: PASS WITH WARNINGS; the ref
+  fallback test and this wording are its follow-up.
 - Still open: CE's `run-finish` reason classifies a stale base only for
   the Check pass, so CE still reports the generic "integration did not
   complete" after readiness (ce-agent-kit; gitforge's `internal/runtask`

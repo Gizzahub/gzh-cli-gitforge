@@ -168,6 +168,28 @@ func TestLegacyTargetMovementDoesNotBecomeExpectedTargetMismatch(t *testing.T) {
 	}
 }
 
+// TestLegacyTargetMovementNamesTheLocalTargetItRead covers the fallback:
+// for a target named without its remote, revalidation reads the
+// remote-tracking ref first; with that ref gone it reads the local branch,
+// and the refusal must name that branch, not the missing remote one.
+func TestLegacyTargetMovementNamesTheLocalTargetItRead(t *testing.T) {
+	fx := readyTaskFixture(t)
+	check, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{RepoPath: fx.Worktree, Branch: "dev/actor/feat/task"})
+	if err != nil || !check.Ready {
+		t.Fatalf("Check() = %#v, %v", check, err)
+	}
+	check.Plan.Target = "develop"
+	runGit(t, fx.Worktree, "update-ref", "refs/heads/develop", check.Plan.TargetSHA)
+	runGit(t, fx.Worktree, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/develop")
+	moved := gitOutput(t, fx.Worktree, "commit-tree", "-p", check.Plan.TargetSHA, "-m", "move local target", check.Plan.TargetSHA+"^{tree}")
+	runGit(t, fx.Worktree, "update-ref", "refs/heads/develop", moved)
+	_, _, _, err = revalidateCheckedRefs(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Worktree), check, true)
+	want := "target branch changed during readiness: develop is " + moved + ", readiness checked " + check.Plan.TargetSHA + "; rebase onto develop and re-run check"
+	if err == nil || err.Error() != want {
+		t.Fatalf("legacy revalidation error = %v, want %q", err, want)
+	}
+}
+
 func TestTargetMoveProofUsesOneExactPushEndpoint(t *testing.T) {
 	fx := runFixture(t, "")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
