@@ -74,3 +74,31 @@ func TestEnsureChildConfigsSkipsWorkspaceAtConfigDir(t *testing.T) {
 		})
 	}
 }
+
+// TestEnsureChildConfigsSkipsBootstrapAtConfigDir covers the bootstrap
+// branch of ISSUE-88: a root loaded from a file other than .gz-git.yaml with
+// a workspace at `path: .` and no configLink must not get a bootstrap
+// .gz-git.yaml written into the devbox. Dry run must preview the skip, not
+// the write.
+func TestEnsureChildConfigsSkipsBootstrapAtConfigDir(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "root.yaml"), []byte("workspaces:\n  self:\n    path: .\n"), 0o600); err != nil {
+			t.Fatalf("write config: %v", err)
+		}
+		cfg, err := config.LoadConfigRecursive(root, "root.yaml")
+		if err != nil {
+			t.Fatalf("LoadConfigRecursive: %v", err)
+		}
+		var out bytes.Buffer
+		if err := ensureChildConfigsWithDryRun(&out, cfg, dryRun); err != nil {
+			t.Fatalf("dryRun=%v: ensureChildConfigsWithDryRun: %v", dryRun, err)
+		}
+		if _, err := os.Lstat(filepath.Join(root, DefaultConfigFile)); !os.IsNotExist(err) {
+			t.Fatalf("dryRun=%v: bootstrap config written into the devbox (err=%v); output:\n%s", dryRun, err, out.String())
+		}
+		if !strings.Contains(out.String(), "points to config directory") || strings.Contains(out.String(), "bootstrap") {
+			t.Fatalf("dryRun=%v: want only the self-sync warning; output:\n%s", dryRun, out.String())
+		}
+	}
+}

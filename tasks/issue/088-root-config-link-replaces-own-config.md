@@ -57,6 +57,12 @@ Resolved on 2026-10-21.
   `config.LoadConfigRecursive` as the CLI does, then runs
   `ensureChildConfigsWithDryRun` with dry run off. Cases: `path: .` and a
   symlink to the root. It asserts the devbox config is still the original
-  regular file and the warning is printed.
+  regular file and the warning is printed. `TestEnsureChildConfigsSkipsBootstrapAtConfigDir`
+  covers the bootstrap branch: a root loaded from `root.yaml` with a
+  workspace at `path: .` and no configLink gets no `.gz-git.yaml`, and
+  dry run prints the skip instead of the bootstrap preview.
 - Mutation: with the guard disabled (`if false && ...`), both cases fail
-  with "devbox config was replaced by a symlink".
+  with "devbox config was replaced by a symlink", and the bootstrap test
+  fails with "bootstrap config written into the devbox".
+- Found in review, out of scope: a `type: config` workspace at its own
+  config directory crashes the loader (ISSUE-89).
