@@ -79,9 +79,9 @@ Resolved on 2026-10-20. `ce task lint` now reports
   `tasks/receipts/TASK-012/`.
 - History: `tasks/HISTORY.md` moved to `docs/changelog/tasks-history.md`
   with `git mv`. Its 23 relative links now point at `../../tasks/...`, and
-  each resolves. `tasks/README.md:10` and `:20` and `docs/changelog/0.8.md:558`
-  name the new path.
+  each resolves. `tasks/README.md:20` and `docs/changelog/0.8.md:558` name
+  the new path; `tasks/README.md:10` now lists `receipts/` in the tree.
 - Card 19's mentions of `tasks/HISTORY.md` (`:40`, `:52`, `:64`) are left
   as written. They record that card's own past state, not a live link.
-- `ce task validate --all` reports 55 failing cards here against 58 on the
-  primary checkout, so this change adds none.
+- `ce task validate --all`: no card fails here that passes without this
+  commit.

@@ -272,7 +272,7 @@ git이 전부 거부해도 `✓ Deleted N` + exit 0이 나왔다. 패키지 `run
 항상 보호 브랜치를 걸러낸다.
 
 **19**: `tasks/README.md`가 10KB 가이드라인을 2배 초과 → 완료·감사 기록을 이 파일
-(`HISTORY.md`)으로 분리. README에는 구조·Open Issues 인덱스만 유지.
+(`HISTORY.md`, 현 `docs/changelog/tasks-history.md`)으로 분리. README에는 구조·Open Issues 인덱스만 유지.
 
 ______________________________________________________________________
 
