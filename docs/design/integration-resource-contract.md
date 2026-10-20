@@ -41,7 +41,11 @@ admission; position N of M; head ticket sequence S, pid P, repository R, branch
 B, command C, queued T, age A; host <name>`, so a log reader can reconstruct the
 wait as it does for the host measurement lock notice. Tickets record repository,
 branch and command as optional fields; a ticket written before they existed
-renders them as `unknown`.
+renders them as `unknown`; `queued` and `age` are `unknown` when the head
+ticket has no `created_at`. A turn that finds the admission lock busy observes no
+queue, so the notice repeats the newest queue seen earlier. Only before the first
+successful turn does it read `queue unknown (not observed)` in place of the
+position and head ticket fields.
 
 ## Current boundaries
 

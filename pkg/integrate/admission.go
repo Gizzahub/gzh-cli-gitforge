@@ -66,6 +66,9 @@ func acquireAdmissionAs(ctx context.Context, dir string, holder hostLockHolder, 
 	start := time.Now()
 	var lastNotice time.Time
 	var ticketPath string
+	// lastQueue is the newest queue a turn observed. A turn that finds the
+	// admission lock busy sees none, so notices fall back to this snapshot.
+	var lastQueue []queuedTicket
 	acquired := false
 	defer func() {
 		if !acquired && ticketPath != "" {
@@ -89,6 +92,9 @@ func acquireAdmissionAs(ctx context.Context, dir string, holder hostLockHolder, 
 		if admissionWaitExpired(start, wait) {
 			return nil, fmt.Errorf("%w after %s; admission ticket canceled", ErrHostLockWait, wait)
 		}
+		if queue != nil {
+			lastQueue = queue
+		}
 		if first {
 			acquired = true
 			return func() { warnAdmissionCleanup(ctx, notice, dir, ticketPath) }, nil
@@ -99,7 +105,7 @@ func acquireAdmissionAs(ctx context.Context, dir string, holder hostLockHolder, 
 			// The device label trails the queue description, as in the host
 			// measurement lock notice.
 			fmt.Fprintf(notice, "integrate: waiting %s for FIFO resource admission; %s; %s\n",
-				now.Sub(start).Round(time.Second), describeAdmissionQueue(queue, ticketPath, now), hostLockDeviceLabel(holder))
+				now.Sub(start).Round(time.Second), describeAdmissionQueue(lastQueue, ticketPath, now), hostLockDeviceLabel(holder))
 			if err := observeAdmissionWait(ctx, start, wait); err != nil {
 				return nil, err
 			}

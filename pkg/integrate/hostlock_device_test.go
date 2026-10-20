@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -202,5 +203,103 @@ func TestAdmissionTicketBackwardCompatible(t *testing.T) {
 	}
 	if got := describeAdmissionQueue(tickets, "", time.Date(2026, 10, 18, 0, 1, 0, 0, time.UTC)); !strings.Contains(got, "repository unknown") || !strings.Contains(got, "age 1m0s") {
 		t.Fatalf("describe = %q", got)
+	}
+}
+
+// syncBuffer lets a test read notices while the waiter is still writing.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) lines() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return strings.SplitAfter(b.buf.String(), "\n")
+}
+
+// TestAdmissionNoticeKeepsLastQueueWhenLockBusy proves a notice that lands
+// while another waiter holds the admission lock still names the head ticket
+// seen earlier, and that "not observed" appears only before the first turn.
+func TestAdmissionNoticeKeepsLastQueueWhenLockBusy(t *testing.T) {
+	fastHostLockPolling(t)
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, admissionTicketsDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	created := time.Now().UTC().Add(-time.Minute)
+	for _, seq := range []uint64{4, 5} {
+		if _, err := writeAdmissionTicket(dir, admissionTicket{Sequence: seq, PID: os.Getpid(), CreatedAt: created, Repository: "/r/head", Branch: "b", Command: "check"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Position 3: two live tickets already ahead.
+	busy, err := os.OpenFile(filepath.Join(dir, admissionLockName), os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer busy.Close()
+	if locked, err := tryLockFile(busy); err != nil || !locked {
+		t.Fatalf("hold admission lock: locked=%v err=%v", locked, err)
+	}
+
+	var notice syncBuffer
+	done := make(chan error, 1)
+	go func() {
+		_, err := acquireAdmissionAs(context.Background(), dir, hostLockHolder{Host: "mst"}, 1500*time.Millisecond, &notice)
+		done <- err
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for len(notice.lines()) < 2 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if first := notice.lines()[0]; !strings.Contains(first, "queue unknown (not observed); host mst\n") {
+		t.Fatalf("first notice %q, want fallback before any observation", first)
+	}
+	if err := unlockFile(busy); err != nil {
+		t.Fatal(err)
+	}
+	// Let the waiter observe the queue once, then hold the lock again.
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		ls := notice.lines()
+		if len(ls) > 1 && strings.Contains(ls[len(ls)-2], "position 3 of 3; head ticket sequence 4") {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if locked, err := tryLockFile(busy); err != nil || !locked {
+		t.Fatalf("re-hold admission lock: locked=%v err=%v", locked, err)
+	}
+	// A notice after the re-hold must reuse the cached queue. Release before
+	// the wait expires so ticket cleanup is not stalled on this lock.
+	n := len(notice.lines())
+	deadline = time.Now().Add(2 * time.Second)
+	for len(notice.lines()) <= n && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err := unlockFile(busy); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; !errors.Is(err, ErrHostLockWait) {
+		t.Fatalf("err = %v, want ErrHostLockWait", err)
+	}
+	var observed bool
+	for _, l := range notice.lines() {
+		switch {
+		case strings.Contains(l, "position 3 of 3; head ticket sequence 4"):
+			observed = true
+		case observed && strings.Contains(l, "queue unknown"):
+			t.Fatalf("notice %q lost the observed queue", l)
+		}
+	}
+	if !observed {
+		t.Fatalf("no notice named position 3: %q", notice.lines())
 	}
 }
