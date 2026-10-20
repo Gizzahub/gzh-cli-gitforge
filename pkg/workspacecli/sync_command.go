@@ -1368,7 +1368,7 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 				cfgData.Plan.Options.DefaultStrategy = reposync.StrategyPull
 			}
 
-			childActions := createActionsFromFlatConfig(cfgData.Plan, wsPath)
+			childActions := keepActionsOffConfigDir(createActionsFromFlatConfig(cfgData.Plan, wsPath), configDir, name, out)
 			if ws.Access.IsReadOnly() {
 				markActionsReadOnly(childActions)
 			}
@@ -1401,6 +1401,7 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 				if gErr != nil {
 					return nil, fmt.Errorf("failed to plan git workspaces in '%s': %w", name, gErr)
 				}
+				gitActions = keepActionsOffConfigDir(gitActions, configDir, name, out)
 				if ws.Access.IsReadOnly() {
 					markActionsReadOnly(gitActions)
 				}
