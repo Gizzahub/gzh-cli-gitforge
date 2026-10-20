@@ -1693,6 +1693,14 @@ func ensureChildConfigsWithDryRun(out io.Writer, cfg *config.Config, dryRun bool
 		configDir := filepath.Dir(cfg.ConfigPath)
 		wsPath := resolveWorkspacePath(ws.Path, configDir)
 
+		// A workspace that is the config directory must not have its config
+		// linked or bootstrapped: that would replace the devbox's own config
+		// before, or without, any planner self-sync guard (ISSUE-88).
+		if pointsAtConfigDir(wsPath, configDir) {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, ws.Path)
+			continue
+		}
+
 		// If configLink is set, create symlink instead of bootstrap config.
 		// configLink 명시 = 사용자의 명시적 의도이므로, 기존 파일이 user-maintained여도
 		// 에러로 중단하지 않고 경고만 출력한 뒤 symlink로 교체한다.

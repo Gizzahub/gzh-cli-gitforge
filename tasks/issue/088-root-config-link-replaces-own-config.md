@@ -37,3 +37,26 @@ root.
 - Expected: a workspace that is the config directory is skipped with the
   self-sync warning before any config write.
 - Actual: the devbox's own config is replaced by a symlink.
+
+## Resolution
+
+Resolved on 2026-10-21.
+
+- `ensureChildConfigsWithDryRun` now skips a workspace whose resolved path
+  is the config directory before the configLink or bootstrap branch runs,
+  with
+  `Skipping workspace '<name>': path '<path>' points to config directory (self-sync not allowed)`.
+  It uses `pointsAtConfigDir`, which compares file identity, so both
+  `path: .` and a path that is a symlink to the config directory are
+  caught. The loader has already made `path` absolute at this point, so a
+  string check for `.` would miss both.
+- Scope: the config directory itself. An ancestor of the root config
+  directory is ISSUE-87.
+- Test (`pkg/workspacecli/child_config_self_guard_test.go`):
+  `TestEnsureChildConfigsSkipsWorkspaceAtConfigDir` loads the config with
+  `config.LoadConfigRecursive` as the CLI does, then runs
+  `ensureChildConfigsWithDryRun` with dry run off. Cases: `path: .` and a
+  symlink to the root. It asserts the devbox config is still the original
+  regular file and the warning is printed.
+- Mutation: with the guard disabled (`if false && ...`), both cases fail
+  with "devbox config was replaced by a symlink".
