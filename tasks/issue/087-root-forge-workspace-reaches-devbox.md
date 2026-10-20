@@ -41,3 +41,35 @@ where `<o>` has no repository named `devbox`: the plan includes a delete of
 - Expected: no action of the root config targets the devbox or a
   directory containing it.
 - Actual: the devbox can be planned for reset or delete.
+
+## Resolution
+
+Resolved on 2026-10-21.
+
+- `planForgeWorkspaces` (`pkg/workspacecli/sync_command.go`) now skips a
+  forge workspace whose path is an ancestor of the config directory being
+  planned, with
+  `Skipping workspace '<name>': path '<path>' contains the config directory`.
+  It reuses `reachesEnclosingConfigDir` with that config directory, so a
+  symlink to an ancestor is refused too. The check runs at every level,
+  the root included, after the existing self-sync and enclosing checks, so
+  the ISSUE-85 message for a child entry reaching the devbox is unchanged.
+- Behaviour change for the root config: a forge workspace at `..`, `~` or
+  any other ancestor of the devbox is no longer planned. For a child
+  config, a forge workspace at a directory between the devbox and the
+  child, which ISSUE-85 still planned, is now refused as well, since its
+  orphan cleanup would delete the child's own directory. Siblings and
+  descendants are planned as before.
+- Scope: forge workspaces only, as planned. Root git and config
+  workspaces at an ancestor still plan; a git workspace there targets the
+  ancestor directory itself rather than its subdirectories.
+- Test (`pkg/workspacecli/root_forge_ancestor_guard_test.go`):
+  `TestPlanForgeWorkspacesRefusesAncestorOfRootConfigDir` loads a root
+  config at `<parent>/devbox` with `cleanupOrphans: true` and calls
+  `planForgeWorkspaces` with no enclosing directories, as the root plan
+  does. Cases: `..`, the grandparent as an absolute path and a symlink to
+  the parent are refused with no actions; `../sibling` is still planned.
+  The base URL is unreachable and the context cancelled, so no network
+  is used.
+- Mutation: with the check disabled (`if false && ...`), the three
+  ancestor cases fail and the sibling case still passes.

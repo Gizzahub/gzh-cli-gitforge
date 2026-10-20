@@ -954,6 +954,14 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, enclosing []st
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' reaches an enclosing config directory\n", name, effectivePath)
 			continue
 		}
+		// A forge workspace at an ancestor of the config directory would plan
+		// the directory holding the config as one of its repositories or as an
+		// orphan to delete, so it is refused at every level, the root
+		// included (ISSUE-87).
+		if reachesEnclosingConfigDir(wsPath, []string{configDir}) {
+			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' contains the config directory\n", name, effectivePath)
+			continue
+		}
 
 		fmt.Fprintf(out, "Planning nested workspace '%s' (%s/%s)...\n", name, ws.Source.Provider, ws.Source.Org)
 
