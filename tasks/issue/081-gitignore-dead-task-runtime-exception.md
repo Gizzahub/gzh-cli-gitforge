@@ -14,7 +14,8 @@ created: 2026-10-20
 `.gitignore` has two blocks for `.ce/` that contradict each other. On
 origin/master (d0a34735):
 
-- Lines 98-104 come from fddf29df (2026-10-01). The comment says
+- Lines 98-104 come from fddf29df (2026-10-01), which kept the older `.ce/`
+  at line 101 (ad8b9684) and wrapped it. The comment says
   `.ce/task-runtime.yaml` is a repository contract and is tracked. The block
   re-includes the file with `!/.ce/`, `/.ce/*` and `!/.ce/task-runtime.yaml`.
 - Lines 105-107 come from 929d0d92 (2026-10-08, "stop tracking
@@ -52,10 +53,13 @@ that.
 
 - Keep it untracked: delete lines 98-104 and keep the bare `.ce/` with a
   comment pointing to 929d0d92's reason.
-- Track it again: newer declaration schemas can take worktree placement from
-  the global `task-runtime-defaults.yaml`, which removes the absolute-path
-  reason 929d0d92 gave. That needs a declaration with no machine-local paths
-  and a `repository-layouts` entry for this repository. Neither exists today.
+- Track it again: a rootless schema 5 declaration takes worktree placement
+  from the global `~/.config/ce/task-runtime-defaults.yaml` ("Rootless schema
+  5 repositories need only their catalog id-to-family map"), which removes the
+  absolute-path reason 929d0d92 gave. That needs a declaration with no
+  machine-local paths and a family mapping for this repository on every host:
+  mst's `repository-layouts` does not list it, and mbp has no
+  `repository-layouts`, only `default-family: misc`. Neither exists today.
   Then delete lines 105-107 and update the comment.
 
 This is a design choice for the repository owner. Registration only; no
