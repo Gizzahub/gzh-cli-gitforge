@@ -1,5 +1,14 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## f66d06c1 추가 채택 (2026-10-20)
+
+- 설치 CE가 clean `f66d06c1`(`370-gf66d06c1`, 0.10.14)로 바뀌어 12개 golden이
+  CE identity 불일치로 다시 실패했다. 사용자 승인 계획대로 pin을 옮기고
+  재녹화했다.
+- CE identity를 정규화하면 12개 모두 바이트 동일하다. 시나리오·normalizer·
+  상태·종료·권한·ref·push·cleanup은 바뀌지 않았다. non-record parity PASS.
+- 근거: [f66d06c1 채택 기록](../../reports/2026-10-20-ce-parity-reference-f66d06c1.md).
+
 ## Resolution (2026-10-20)
 
 - 사용자 승인안 A: integrate stderr의 `gz-git=<version>`을 harness가 `gz-git=<VER>`로

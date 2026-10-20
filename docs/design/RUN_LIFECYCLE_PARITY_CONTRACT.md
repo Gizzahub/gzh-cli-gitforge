@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`6baa7f9e9f89370052320b047c116587ffff76b8`**, installed as CE 0.10.13 with
+`f66d06c117ad279cc1df2c60da09fcf416970809`**, installed as CE 0.10.14 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.13 (`6baa7f9e`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.14 (`f66d06c1`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -578,7 +578,15 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
-The current clean `6baa7f9e` reference resolves ISSUE-41. The installed CE
+The current clean `f66d06c1` reference (`370-gf66d06c1`) replaces `6baa7f9e`
+after the installed CE moved again. The twelve re-recorded fixtures differ from
+the `6baa7f9e` capture only in CE identity leaves (reference, toolchain and
+receipt `tool_version`); with those normalized every fixture is byte-identical.
+The scenarios, normalizer, status, exits, ownership, refs, push and cleanup
+are unchanged. Evidence is in
+`reports/2026-10-20-ce-parity-reference-f66d06c1.md`.
+
+The prior clean `6baa7f9e` reference resolves ISSUE-41. The installed CE
 moved from `42363c6e` to `6baa7f9e` (`345-g6baa7f9e`), and CE's integrate run
 now prints `integrate: run device=<host> gz-git=<version>` on stderr. The
 sandbox links the host's gz-git, so the harness masks that release as
