@@ -27,9 +27,17 @@ which was also wrong, so this is not a regression.
 ## Reproduction
 
 Derived from the code during the ISSUE-86 review; not run end to end. A
-devbox with `workspaces: {child: {type: config, path: child}}` and
-`child/.gz-git.yaml` listing `repositories: [{name: lib, url: <url>}]`.
-After `gz-git workspace sync`, `lib` is at `child/lib`. `gz-git workspace status` reports `lib` missing, because it looks at `<devbox>/lib`.
+devbox with
+`workspaces: {child: {type: config, path: child, sync: {recursive: true}}}`
+and `child/.gz-git.yaml` listing `repositories: [{name: lib, url: <url>}]`.
+Workspace sync only plans config workspaces with `sync.recursive` set
+(`pkg/config/recursive.go`). After `gz-git workspace sync`, `lib` is at
+`child/lib`. `gz-git workspace status` reports `lib` missing, because it
+looks at `<devbox>/lib`.
+
+Without `sync.recursive`, sync skips the child, but the reposynccli loader
+still lists `lib` for status. That is a separate mismatch between what
+status and sync consider part of the devbox.
 
 ## Fix note
 
