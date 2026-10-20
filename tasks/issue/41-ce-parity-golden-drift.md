@@ -1,5 +1,15 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## Resolution (2026-10-20)
+
+- 사용자 승인안 A: integrate stderr의 `gz-git=<version>`을 harness가 `gz-git=<VER>`로
+  마스킹한다. 이제 gz-git 릴리스만으로는 golden이 무효화되지 않는다.
+- 참조를 설치 CE clean `6baa7f9e`(`345-g6baa7f9e`)로 옮기고 12개를 재녹화했다.
+  차이는 CE identity와 finish 두 시나리오의 마스킹된 stderr 줄뿐이다.
+- non-record parity 검증 PASS. 근거:
+  [채택 기록](../../reports/2026-10-20-ce-parity-reference-6baa7f9e.md). 최종 전달
+  판정은 native `run-finish` 영수증이 소유한다.
+
 ## 42363c6e 추가 채택 (2026-10-18)
 
 - 상태: 참조 정합화 검증 완료 — 최종 전달은 새 native receipt가 판정한다.

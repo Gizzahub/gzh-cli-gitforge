@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`42363c6eb4213e496748f329365cb4293b97e850`**, installed as CE 0.10.13 with
+`6baa7f9e9f89370052320b047c116587ffff76b8`**, installed as CE 0.10.13 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -48,7 +48,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.13 (`42363c6e`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.13 (`6baa7f9e`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -578,13 +578,24 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
-The current clean `42363c6e` reference follows a separate user-approved adoption
+The current clean `6baa7f9e` reference resolves ISSUE-41. The installed CE
+moved from `42363c6e` to `6baa7f9e` (`345-g6baa7f9e`), and CE's integrate run
+now prints `integrate: run device=<host> gz-git=<version>` on stderr. The
+sandbox links the host's gz-git, so the harness masks that release as
+`gz-git=<VER>`; a gz-git release alone no longer invalidates the fixtures. The
+twelve re-recorded fixtures differ from the `42363c6e` capture in CE identity
+leaves plus that masked stderr line in the two finish scenarios. Status, exits,
+ownership, refs, push and cleanup remain unchanged. The prior captures below
+retain their original reference and scope. Evidence is in
+`reports/2026-10-20-ce-parity-reference-6baa7f9e.md`.
+
+The prior clean `42363c6e` reference follows a separate user-approved adoption
 of the two subsequent owner fixes. Unsupported issue-resolution frontmatter now
 fails before writes or success output. The readiness evidence consumer emits a
 verdict only after expectation-directory cleanup succeeds. Neither operation is
 called by the twelve lifecycle scenarios; owning regression tests verify them
-separately. The prior captures below retain their original reference and scope.
-Current adoption evidence is in `reports/2026-10-18-ce-parity-reference-42363c6e.md`.
+separately.
+Its adoption evidence is in `reports/2026-10-18-ce-parity-reference-42363c6e.md`.
 
 The prior clean `8f7c2963` reference was adopted after a separate user decision
 when the installed CE and source moved beyond `ef33833b` during integration.

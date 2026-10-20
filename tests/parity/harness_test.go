@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "42363c6eb4213e496748f329365cb4293b97e850"
+	pinnedCECommit = "6baa7f9e9f89370052320b047c116587ffff76b8"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -156,6 +156,9 @@ var (
 	// wt remove summaries report the reclaimed worktree's byte size, which
 	// tracks the length of the sandbox paths inside fixture files.
 	sizeRe = regexp.MustCompile(`(\d+ files? · )[0-9.]+ ?(B|kB|MB|GB)`)
+	// gz-git names its own build on every integrate run. The sandbox links
+	// the host's gz-git, so its release must not pin the CE reference.
+	gzGitVersionRe = regexp.MustCompile(`\bgz-git=[^\s\\"]+`)
 )
 
 // normalizer rewrites volatile fields into stable placeholders. The full
@@ -195,6 +198,7 @@ func (n *normalizer) norm(s string) string {
 	s = tsRe.ReplaceAllString(s, "<TS>")
 	s = pidRe.ReplaceAllString(s, "pid=<PID>")
 	s = sizeRe.ReplaceAllString(s, "${1}<SIZE> ${2}")
+	s = gzGitVersionRe.ReplaceAllString(s, "gz-git=<VER>")
 	s = durationRe.ReplaceAllStringFunc(s, func(field string) string {
 		parts := durationRe.FindStringSubmatch(field)
 		if len(parts) != 3 {
