@@ -4,11 +4,9 @@
 # first '*' marks a task-branch namespace, so agent/* also covers
 # agent/<task>/<agent-id> and dev/*/*/*/* covers
 # dev/<actor>/<host>/<type>/<slug>.
+# No readiness contract is declared, so `gz-git integrate` runs no repository
+# code here: run `make check` yourself before integrating.
 branch:
-  # The real check gate runs long unit/integration tests; use host FIFO capacity.
-  resourceHighLoad: true
-  # Provisional full-gate ceiling: 60m verification plus cleanup/TERM headroom.
-  makeTimeout: 67m
   integrationBranch:
     - master
   taskPattern:
