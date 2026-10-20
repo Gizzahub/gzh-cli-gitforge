@@ -96,9 +96,7 @@ worktree.
   SIGTERM and asserts that no `gz-git-integrate-state-*` directory remains;
   it fails if the nested helper is dropped from the list. It guards only
   that one entry.
-- Cause 1, parent half open: the suite's own state dir is still removed
-  only after `m.Run()` returns, so a killed suite or a `go test -timeout`
-  panic leaves it. That waits on the startup-reclaim decision below.
+- Cause 1, parent half: see Resolution.
 - The signal path is covered by ISSUE-82: `integrate run` and `check` cancel
   on SIGINT/SIGTERM, so the deferred cleanups run.
 - `gz-git-make-probe-*.mk` (`makeTargetMatchedByPatternRule`,
@@ -107,9 +105,39 @@ worktree.
   signal before ISSUE-82, a SIGKILL, or a test-binary timeout. Nine such
   files, written 2026-10-20 01:17, were observed in this host's `$TMPDIR`.
   Their producing run was not identified.
-- Open: reclaiming stale `gz-git-integrate-*` and `gz-git-make-probe-*`
-  entries at startup. It needs a liveness rule for concurrent runs that share
-  `$TMPDIR`, which is a design decision.
+- Startup reclaim of production leftovers was decided against here; see
+  Resolution.
+
+## Resolution
+
+Resolved on 2026-10-20, with the owner's decision to reclaim test state
+only and move the production case to
+[ISSUE-47](47-interrupted-baseline-worktree-recovery.md).
+
+- Cause 1, parent half: `TestMain` names the suite's state dir
+  `gz-git-integrate-state-<pid>-<random>` and, before creating it, removes
+  every such dir whose owner pid has exited (`reclaimDeadTestStateDirs`,
+  `pkg/integrate/test_state_reclaim_test.go`). A dir is kept when its name
+  has no pid (the older naming), when the owner is alive, or when liveness
+  cannot be read; a reused pid keeps the dir until that process exits.
+  `processAlive` is the package's existing liveness check.
+- Test: `TestReclaimDeadTestStateDirs` (darwin, linux) seeds a dead-pid
+  dir, live-pid dirs (parent and self), an old-style name, a non-numeric
+  pid, an unrelated prefix and a matching regular file; only the dead-pid
+  dir is removed. Mutation evidence from a scratch copy: dropping the
+  liveness check, or never removing, each fails the test. A run of
+  `go test -run '^$'` with a private `TMPDIR` holding a dead-pid dir and an
+  old-style dir removed the first and kept the second.
+- Cause 2 and the make-probe files: an integrate run interrupted by
+  SIGINT or SIGTERM now cleans up through its defers (ISSUE-82). A SIGKILL
+  still leaves prepare, base and make-probe entries. Reclaiming those at
+  startup needs an ownership and liveness contract for concurrent runs that
+  share `$TMPDIR`, which belongs with the baseline-worktree recovery gap in
+  ISSUE-47; the scope moved there.
+- Host leftovers: 17 old-style state dirs and 9 make-probe files from
+  2026-10-20 predated every live gz-git and test process on this host and
+  were removed by exact name (`rmdir` for the dirs). Two entries owned by
+  runs that were live at the time were kept.
 
 ## Related
 

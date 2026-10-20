@@ -48,7 +48,8 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "clear inherited host slots for tests:", err)
 		os.Exit(1)
 	}
-	state, err := os.MkdirTemp("", "gz-git-integrate-state-")
+	reclaimDeadTestStateDirs(os.TempDir())
+	state, err := newTestStateDir()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "create test state dir:", err)
 		os.Exit(1)
