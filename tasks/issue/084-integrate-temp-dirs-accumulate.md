@@ -18,7 +18,7 @@ them later.
 
 | Prefix                       | Count                | Size                                            | Created by                                                 |
 | ---------------------------- | -------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| `gz-git-integrate-state-*`   | 218 (mostly empty)   | small                                           | `TestMain`, `pkg/integrate/measurement_lock_test.go:49`    |
+| `gz-git-integrate-state-*`   | 218 (mostly empty)   | small                                           | `TestMain`, `pkg/integrate/test_state_reclaim_test.go:21`  |
 | `gz-git-integrate-prepare-*` | 4 (2026-10-18)       | 17 GB, 1.9 GB, 24 MB, 24 MB                     | `pkg/integrate/prepare.go:137`, `:205`                     |
 | `gz-git-integrate-base-*`    | 1 (2026-10-20 13:33) | 190 MB, `wt` still registered as a git worktree | `baselineAgainstTarget`, `pkg/integrate/check_make.go:720` |
 
@@ -127,10 +127,19 @@ only and move the production case to
   dir is removed. Mutation evidence from a scratch copy: dropping the
   liveness check, or never removing, each fails the test. A run of
   `go test -run '^$'` with a private `TMPDIR` holding a dead-pid dir and an
-  old-style dir removed the first and kept the second.
+  old-style dir removed the first and kept the second. Liveness is read in
+  the caller's pid namespace, so suites in separate containers that share
+  one `TMPDIR` can remove each other's live state dir; that costs a test
+  flake, not data.
 - Cause 2 and the make-probe files: an integrate run interrupted by
   SIGINT or SIGTERM now cleans up through its defers (ISSUE-82). A SIGKILL
-  still leaves prepare, base and make-probe entries. Reclaiming those at
+  still leaves every temp root `pkg/integrate` removes only by defer:
+  `gz-git-integrate-prepare-*`, `gz-git-integrate-base-*` and
+  `gz-git-readiness-*` (both with registered worktrees),
+  `gz-git-make-outcome-*`, `gz-git-integrate-golangci-lint-*`,
+  `gz-git-integrate-go-env-*`, `gzh-git-archive-*`,
+  `gz-git-integrate-make-gate-*` (Windows) and `gz-git-make-probe-*.mk`.
+  Reclaiming those at
   startup needs an ownership and liveness contract for concurrent runs that
   share `$TMPDIR`, which belongs with the baseline-worktree recovery gap in
   ISSUE-47; the scope moved there.

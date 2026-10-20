@@ -54,8 +54,11 @@ ISSUE-34의 baseline prepare 문제와는 별도다.
 [ISSUE-84](084-integrate-temp-dirs-accumulate.md)는 테스트 상태 디렉터리만
 회수하고 닫았다. SIGINT/SIGTERM으로 중단된 integrate 실행은 ISSUE-82 이후 defer로
 정리되지만, SIGKILL이나 테스트 바이너리 timeout으로 끝난 실행은 여전히
-`gz-git-integrate-prepare-*`, `gz-git-integrate-base-*`(등록된 `wt` 포함),
-`gz-git-make-probe-*.mk`를 `$TMPDIR`에 남긴다. 같은 `$TMPDIR`를 공유하는 동시 실행이
+`pkg/integrate`가 defer로만 지우는 임시 루트를 모두 `$TMPDIR`에 남긴다.
+`gz-git-integrate-prepare-*`, `gz-git-integrate-base-*`와 `gz-git-readiness-*`(둘 다
+등록된 worktree 포함), `gz-git-make-outcome-*`, `gz-git-integrate-golangci-lint-*`,
+`gz-git-integrate-go-env-*`, `gzh-git-archive-*`, `gz-git-integrate-make-gate-*`(Windows),
+`gz-git-make-probe-*.mk`가 해당한다. 같은 `$TMPDIR`를 공유하는 동시 실행이
 있으므로 시작 시 회수는 소유·생존 판정 계약이 먼저 필요하다. 이 공백을 본 이슈의
 회수 계약과 함께 다룬다.
 

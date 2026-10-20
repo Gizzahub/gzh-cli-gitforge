@@ -25,7 +25,9 @@ func newTestStateDir() (string, error) {
 // process has exited, and returns the names it removed. A dir is kept when
 // its name carries no pid (the naming before ISSUE-84), when the owner is
 // alive, or when its liveness cannot be read. A pid reused by an unrelated
-// process keeps the dir until that process exits too.
+// process keeps the dir until that process exits too. Liveness is read in
+// this process's pid namespace, so a suite in another container sharing
+// TMPDIR looks dead.
 func reclaimDeadTestStateDirs(tmp string) []string {
 	entries, err := os.ReadDir(tmp)
 	if err != nil {

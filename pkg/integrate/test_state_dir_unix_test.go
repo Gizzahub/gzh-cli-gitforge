@@ -64,7 +64,7 @@ func TestReclaimDeadTestStateDirs(t *testing.T) {
 		testStatePrefix + strconv.Itoa(os.Getpid()) + "-3":  false,
 		testStatePrefix + "1190862848":                      false,
 		testStatePrefix + "x-4":                             false,
-		"other-" + strconv.Itoa(deadPID) + "-5":             false,
+		strconv.Itoa(deadPID) + "-5":                        false,
 	}
 	for name := range names {
 		if err := os.Mkdir(filepath.Join(tmp, name), 0o700); err != nil {
