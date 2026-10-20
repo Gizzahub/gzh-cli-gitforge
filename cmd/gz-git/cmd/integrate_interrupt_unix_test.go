@@ -74,6 +74,7 @@ func TestIntegrateRunInterruptDuringPushFinishesIntegration(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(hooks, "pre-receive"), []byte(hook), 0o755); err != nil { // #nosec G306 -- test hook must be executable
 		t.Fatal(err)
 	}
+	canceled := watchInterruptNotice(t)
 	run := startInterruptibleRun(t)
 	deadline := time.Now().Add(60 * time.Second)
 	for {
@@ -91,8 +92,13 @@ func TestIntegrateRunInterruptDuringPushFinishesIntegration(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	signalSelf(t)
-	// Give the handler time to cancel the command context before the push
-	// is allowed to complete.
+	// The handler prints its notice immediately before canceling; wait for
+	// it, then give the cancellation time to reach a still-cancelable push.
+	select {
+	case <-canceled:
+	case <-time.After(30 * time.Second):
+		t.Fatal("interrupt handler never ran")
+	}
 	time.Sleep(300 * time.Millisecond)
 	if err := os.WriteFile(release, nil, 0o600); err != nil {
 		t.Fatal(err)
@@ -180,6 +186,49 @@ func (r *interruptibleRun) wait(t *testing.T, limit time.Duration) error {
 	}
 }
 
+// watchInterruptNotice routes os.Stderr through a pipe until the run is over
+// and reports when withInterruptCancel announces the cancellation. It must
+// run before startInterruptibleRun so the handler goroutine reads the swapped
+// os.Stderr without a data race; its cleanup runs after the run finished.
+func watchInterruptNotice(t *testing.T) <-chan struct{} {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := os.Stderr
+	os.Stderr = w
+	notice := make(chan struct{})
+	drained := make(chan struct{})
+	go func(seen chan struct{}) {
+		defer close(drained)
+		var buf bytes.Buffer
+		chunk := make([]byte, 512)
+		for {
+			n, readErr := r.Read(chunk)
+			buf.Write(chunk[:n])
+			if seen != nil && strings.Contains(buf.String(), "Interrupted, canceling") {
+				close(seen)
+				seen = nil
+			}
+			if readErr != nil {
+				return
+			}
+		}
+	}(notice)
+	t.Cleanup(func() {
+		os.Stderr = old
+		_ = w.Close()
+		<-drained
+		_ = r.Close()
+	})
+	return notice
+}
+
+// signalSelf sends SIGINT to the whole test process. That is safe only while
+// an integrate run has registered its handler (the callers wait for a marker
+// the run produces first) and because t.Chdir keeps these tests serial; a
+// SIGINT with no handler registered would end the test binary.
 func signalSelf(t *testing.T) {
 	t.Helper()
 	if err := syscall.Kill(os.Getpid(), syscall.SIGINT); err != nil {

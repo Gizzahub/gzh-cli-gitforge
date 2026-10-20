@@ -80,6 +80,17 @@ func recordCurrentPreMutationOutcome(ctx context.Context, capture *preMutationCa
 // Run fast-forwards the target and reclaims the task branch.
 // Reclaim only matches declared taskPattern. No pattern → reclaim nothing.
 func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunReport, error) {
+	report, err := run(ctx, exec, opts)
+	// A cancellation that stopped any step before the intent boundary, a
+	// fence or run-lock wait included, is an interrupt; past the boundary the
+	// context no longer applies.
+	if err != nil && canceledByCaller(ctx) && (report == nil || !report.pastIntent) && !errors.Is(err, ErrInterrupted) {
+		err = interruptedBeforePush(ctx, err)
+	}
+	return report, err
+}
+
+func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunReport, error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
 	}
@@ -140,8 +151,8 @@ func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 		return report, err
 	}
-	report, err := runCheckedInterruptible(ctx, exec, opts, check)
-	if err != nil && check != nil && !check.Ready {
+	report, err := runChecked(ctx, exec, opts, check)
+	if err != nil && check != nil && !check.Ready && !canceledByCaller(ctx) {
 		outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
 		if recordErr != nil {
 			return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
@@ -221,16 +232,6 @@ func rejectHeuristicRunPlan(plan TargetPlan, opts CheckOptions) error {
 
 func unconfirmedIntegrationTargetError(name string) error {
 	return fmt.Errorf("integration target %s is inferred from the remote HEAD; declare branch.integrationBranch in the repository .gz-git.yaml, pass --controller-config, or confirm with --target %s --direct-to-default", name, name)
-}
-
-// runCheckedInterruptible names a cancellation that stopped runChecked before
-// its intent boundary; past the boundary the context no longer applies.
-func runCheckedInterruptible(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, check *CheckReport) (*RunReport, error) {
-	report, err := runChecked(ctx, exec, opts, check)
-	if err != nil && canceledByCaller(ctx) && report != nil && !report.pastIntent && !errors.Is(err, ErrInterrupted) {
-		err = interruptedBeforePush(ctx, err)
-	}
-	return report, err
 }
 
 // runChecked continues an integration from an immutable readiness report.

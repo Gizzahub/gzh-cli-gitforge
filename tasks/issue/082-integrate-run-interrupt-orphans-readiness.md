@@ -115,7 +115,10 @@ Resolved on 2026-10-20.
   The `integrate run` help text states both halves. Only cancellation is
   an interrupt: an expired caller deadline keeps its lock-wait or
   readiness classification and its pre-mutation outcome
-  (`TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires`).
+  (`TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires`). `Run` applies
+  the classification at every exit before the boundary, so a signal during
+  the task-fence or execution run-lock wait is `ErrInterrupted` too, and a
+  cancellation never records a `readiness_rejected` outcome.
 - The baseline make probe (`baselineAgainstTarget`) removed its worktree
   with the caller's context, so a cancellation left the
   `gz-git-integrate-base-*` registration behind. It now uses
