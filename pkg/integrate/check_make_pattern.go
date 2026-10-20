@@ -36,14 +36,18 @@ import (
 // means the Makefile declared a recipe. "has been done." alone does not mean
 // a pattern rule supplied one: make also searches for a declared target with
 // no recipe that is not .PHONY, such as an aggregate `check: lint test`, and
-// for one nothing declares. Only a rule that matched records the
+// for one nothing declares. A rule that matched records the
 // "Implicit/static pattern stem:" line below it, with an empty stem for
-// .DEFAULT, so a searched entry is a pattern match only with that line.
+// .DEFAULT, so a searched entry is a pattern match only with that line. A
+// searched entry without it is undeclared only when make printed "# Not a
+// target:" above it, which it does for a file or directory nothing declares.
 //
 // Read on its own, the stem line says nothing: declared targets print it
 // with an empty stem when they have a recipe and omit it when they do not.
-// A catch-all that supplies the recipe of a declared recipe-less target
-// still reads as a pattern match, since the stem is all the dump records.
+// The stem is all the dump records, so a declared recipe-less target still
+// reads as a pattern match when a catch-all supplies its recipe, and on make
+// 4.4.1 also when it is a recipe-less static pattern rule (`check: %: %.x`)
+// or names a $$ prerequisite under .SECONDEXPANSION.
 //
 // -n alone does not make the probe read-only. GNU make still runs recipe
 // lines that name $(MAKE) or start with +, and the recipes that remake an
@@ -65,10 +69,11 @@ import (
 // MAKEFILE_LIST lacks the probe path gives no verdict: either way there was
 // no guard.
 //
-// When a pattern rule matched, the dump may still not describe the real run,
-// so ok is false and the real run decides through "No rule to make target":
-//   - make failed (an included makefile it could not remake, a missing target
-//     without a catch-all), so the dump may come from a partial parse;
+// When a pattern rule matched, or the entry is not a target, the dump may
+// still not describe the real run, so ok is false and the real run decides
+// through "No rule to make target":
+//   - make failed (an included makefile it could not remake), so the dump
+//     may come from a partial parse;
 //   - make remade a makefile before reading the goal, as its --debug=m trace
 //     states. The guard sent that recipe to true, so an included makefile
 //     that is missing or older than its prerequisites was not generated; the
@@ -139,11 +144,19 @@ func makeTargetMatchedByPatternRule(ctx context.Context, dir, target string) (ma
 				return true, runErr == nil && !remadeMakefile(lines)
 			}
 		}
-		// A search that left no stem found no rule: the target is declared
-		// without a recipe, or not declared at all, and the real run tells the
-		// two apart through "No rule to make target". An entry that never
-		// states the verdict keeps the caller's previous behavior the same way
-		// rather than guessing from an unfamiliar dump.
+		// A search that left no stem found no rule. make prints "# Not a
+		// target:" above an entry nothing declares; a file or directory named
+		// like the target then makes the real run print "Nothing to be done"
+		// and exit 0 without "No rule to make target", so the entry is
+		// undeclared here, qualified as a pattern match is.
+		if searched && i > 0 && lines[i-1] == "# Not a target:" {
+			return true, runErr == nil && !remadeMakefile(lines)
+		}
+		// Otherwise the target is declared without a recipe, or not declared
+		// with no file in the way, and the real run tells the two apart
+		// through "No rule to make target". An entry that never states the
+		// verdict keeps the caller's previous behavior the same way rather
+		// than guessing from an unfamiliar dump.
 		return false, true
 	}
 	return false, false

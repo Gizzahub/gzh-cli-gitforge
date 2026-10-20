@@ -67,6 +67,38 @@ func TestRecipelessMakeTargetIsDeclared(t *testing.T) {
 	}
 }
 
+// TestRulelessPathNamedLikeTargetIsUndeclared keeps a file or directory named
+// check from passing a gate nothing declares: make prints "Nothing to be
+// done" and exits 0 for it, never "No rule to make target". A declared
+// recipe-less check beside the same file stays declared.
+func TestRulelessPathNamedLikeTargetIsUndeclared(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		makefile string
+		dir      bool
+		defined  bool
+	}{
+		{name: "file", makefile: "lint:\n\t@:\n"},
+		{name: "directory", makefile: "lint:\n\t@:\n", dir: true},
+		{name: "file beside a declared recipe-less check", makefile: "check:\nlint:\n\t@:\n", defined: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeRepoFile(t, dir, "Makefile", tc.makefile)
+			if tc.dir {
+				if err := os.Mkdir(filepath.Join(dir, "check"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				writeRepoFile(t, dir, "check", "")
+			}
+			if check := runMakeTarget(context.Background(), dir, "check", 0); check.Defined != tc.defined {
+				t.Fatalf("Defined = %v, want %v (err=%v)\n%s", check.Defined, tc.defined, check.Err, check.Output)
+			}
+		})
+	}
+}
+
 // TestMakePatternProbeRunsNoRecipe pins ISSUE-59: make -n still runs recipe
 // lines that name $(MAKE) or start with +. The probe must read the database
 // without running any of them, for a declared target and for one a catch-all
@@ -133,12 +165,10 @@ func TestMakePatternProbeParsesLikeTheRealRun(t *testing.T) {
 			makefile: "ifeq ($(shell echo yes),)\n$(error unreachable)\nendif\nlint:\n\t@:\n%:\n\t@:\n",
 			matched:  true, ok: true,
 		},
-		// No rule matched check, so there is no pattern verdict to qualify;
-		// the real run generates gen.mk and finds check declared there.
 		{
 			name:     "include whose remake recipe does not run",
 			makefile: "include gen.mk\ngen.mk:\n\techo 'check:' > gen.mk\nlint:\n\t@:\n",
-			matched:  false, ok: true,
+			matched:  true, ok: false,
 		},
 		// ISSUE-75: make searches implicit rules for a declared target that
 		// has no recipe and is not .PHONY. Only a rule that matched leaves a

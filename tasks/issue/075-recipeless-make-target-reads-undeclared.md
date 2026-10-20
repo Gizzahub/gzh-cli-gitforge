@@ -54,16 +54,26 @@ Resolved on 2026-10-20.
   an undeclared target with no rule leave none, so they return
   `matched=false ok=true` and the real run tells them apart through
   `No rule to make target`.
+- A searched entry without a stem that make prints under `# Not a target:` is undeclared, qualified as a stem verdict is. Both make
+  versions print that line for a file or directory nothing declares, for
+  which the real run prints `Nothing to be done` and exits 0. Without it
+  such a path would pass `make check` having run nothing; before this
+  change the probe read it as a pattern match.
 - `TestMakePatternProbeParsesLikeTheRealRun` gains the recipe-less cases,
-  `.DEFAULT` and `%: ;`. The included-makefile case whose remake recipe
-  does not run now reads as no match (`false, true`): no rule matched
-  `check`, and the real run still generates `gen.mk` and finds it there.
+  `.DEFAULT` and `%: ;`.
 - `TestRecipelessMakeTargetIsDeclared` runs `check: lint` end to end:
   `Defined` is true and the prerequisite's recipe runs.
-- Known limit, unchanged from before: a catch-all that supplies the recipe
-  of a declared recipe-less target still reads as a pattern match, since
-  the stem is all the dump records. That case is pinned as such.
+  `TestRulelessPathNamedLikeTargetIsUndeclared` covers a `check` file and
+  directory with no rule, and a declared recipe-less `check` beside the
+  file.
+- Known limits, unchanged from before: a declared recipe-less target
+  still reads as a pattern match when a catch-all supplies its recipe
+  (pinned in the test), and on make 4.4.1 also when it is a recipe-less
+  static pattern rule (`check: %: %.x`) or names a `$$` prerequisite under
+  `.SECONDEXPANSION`, since make records a stem for both.
 - Mutation evidence, reverted before commit: treating `has been done.` as
-  a match again, dropping the `searched` guard on the stem line, dropping
-  the run qualification of a stem verdict, and returning no verdict for a
-  searched entry without a stem each fail the probe tests.
+  a match again, dropping the run qualification of a stem verdict,
+  returning no verdict for a searched entry without a stem, and ignoring
+  `# Not a target:` each fail the probe tests. Dropping the `searched`
+  guard on the stem line survives: in every dump observed, `has not been done.` returns before a stem line can be read, so the guard only defends
+  against an unfamiliar dump order.
