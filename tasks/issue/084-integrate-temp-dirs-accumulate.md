@@ -25,7 +25,10 @@ them later.
 No gz-git process was running when this inventory was taken, so none of these
 directories belonged to a live run.
 
-## Causes (from reading the code; not yet reproduced)
+## Causes
+
+Cause 1 was reproduced on 2026-10-20 (see Reproduction below). Cause 2 comes
+from reading the code and has not been reproduced.
 
 1. **State dirs from test helpers.** `TestMain` creates the state dir and
    removes it only after `m.Run()` returns. Helper tests that the suite re-runs
@@ -41,6 +44,22 @@ directories belonged to a live run.
    [ISSUE-82](082-integrate-run-interrupt-orphans-readiness.md). The leaked
    base `wt` also stays registered in the target repository's
    `git worktree list`.
+
+## Reproduction (cause 1)
+
+Each case ran with `TMPDIR` set to its own empty directory, so no concurrent
+run could add entries:
+`TMPDIR=<empty dir> GOWORK=off go test -count=1 -run '<pattern>' ./pkg/integrate/`.
+Every run passed.
+
+| `-run` pattern                                         | `gz-git-integrate-state-*` left behind |
+| ------------------------------------------------------ | -------------------------------------- |
+| `^$` (control: no tests, `TestMain` only)              | 0                                      |
+| `^TestExecuteReadinessCancelLetsGateCleanNestedGroup$` | 1                                      |
+| `^TestExecuteReadinessWaitDelayBoundsEscapedPipe$`     | 1                                      |
+
+The parent's own state dir is removed. The one left behind belongs to the
+child test binary that exits through `os.Exit`.
 
 ## Expected vs Actual
 
