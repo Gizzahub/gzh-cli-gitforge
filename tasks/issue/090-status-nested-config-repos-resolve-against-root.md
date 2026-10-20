@@ -29,8 +29,7 @@ which was also wrong, so this is not a regression.
 Derived from the code during the ISSUE-86 review; not run end to end. A
 devbox with `workspaces: {child: {type: config, path: child}}` and
 `child/.gz-git.yaml` listing `repositories: [{name: lib, url: <url>}]`.
-After `gz-git workspace sync`, `lib` is at `child/lib`. `gz-git workspace
-status` reports `lib` missing, because it looks at `<devbox>/lib`.
+After `gz-git workspace sync`, `lib` is at `child/lib`. `gz-git workspace status` reports `lib` missing, because it looks at `<devbox>/lib`.
 
 ## Fix note
 
