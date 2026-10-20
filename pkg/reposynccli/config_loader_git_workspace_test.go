@@ -154,7 +154,6 @@ func TestGitWorkspaceKeepsParentDirectoryScan(t *testing.T) {
 
 	repos, err := loadGitWorkspaceConfig(t, configDir, "workspaces:\n"+
 		"  self:\n    path: .\n"+
-		"  linked:\n    type: git\n    path: "+link+"\n    url: git@example.com:team/devbox.git\n"+
 		"  parent:\n    type: git\n    path: "+parent+"\n    url: git@example.com:team/repos.git\n")
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -163,7 +162,17 @@ func TestGitWorkspaceKeepsParentDirectoryScan(t *testing.T) {
 	for _, r := range repos {
 		names = append(names, r.Name)
 	}
-	if got := strings.Join(names, ","); got != "alpha,beta,member,member" {
-		t.Fatalf("repo names = %s, want alpha,beta,member,member", got)
+	if got := strings.Join(names, ","); got != "alpha,beta,member" {
+		t.Fatalf("repo names = %s, want alpha,beta,member", got)
+	}
+
+	// Loaded alone, so dedup by target path does not hide a collapse.
+	repos, err = loadGitWorkspaceConfig(t, configDir, "workspaces:\n"+
+		"  linked:\n    type: git\n    path: "+link+"\n    url: git@example.com:team/devbox.git\n")
+	if err != nil {
+		t.Fatalf("Load through symlink: %v", err)
+	}
+	if len(repos) != 1 || repos[0].Name != "member" {
+		t.Fatalf("repos through symlink = %+v, want the scanned member", repos)
 	}
 }

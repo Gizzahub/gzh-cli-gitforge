@@ -190,10 +190,11 @@ workspaces:
 - **`type: git`**: Plain Git repository (leaf node, no config). With a `url`,
   `path` is the checkout itself: `workspace sync` and `workspace status` both
   treat it as one repository, and status reports a declared but uncloned
-  path as unreachable. Sync plans nothing else; status reads every other
-  shape as a parent directory and lists its direct subdirectories that are
-  repositories. That covers a workspace without a `url`, a `path` that exists
-  but is not a repository, and the config directory itself. An omitted
+  path as unreachable. Sync skips a workspace without a `url` and the config
+  directory itself. Status reads those, and a `path` that exists but is not
+  a repository (which sync still plans as one when it has a `url`), as a
+  parent directory and lists its direct subdirectories that are
+  repositories. An omitted
   `path` differs: sync clones into `<config dir>/<name>`, status scans the
   config directory, which lists the same checkout once it is cloned there.
 

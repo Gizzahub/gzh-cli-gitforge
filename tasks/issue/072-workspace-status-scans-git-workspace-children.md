@@ -105,6 +105,11 @@ Registration only; no remediation is included here.
     symlinked config directory. Seven mutations (the four above, plus
     collapsing without a url, the string guard, and swallowing a read
     error) each fail the tests.
+- Re-review (PASS WITH WARNINGS) follow-up: the config guide now says sync
+  plans an existing non-repository path that has a `url`, and the symlink
+  case loads alone so target-path dedup cannot hide a collapse. Sync's own
+  self-sync guard has the same string comparison; it is registered as
+  ISSUE-80.
 - End to end, on a config naming the gzh-cli-gitforge and gzh-cli-core
   checkouts as `type: git` workspaces, the prior binary fails with
   `no git repositories found in workspaces` and the fixed one reports
