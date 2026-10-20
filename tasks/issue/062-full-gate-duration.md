@@ -92,15 +92,17 @@ tests:
 
 - `pkg/integrate` has 504 top-level tests; 274 run in parallel, which
   keeps coverage and `-race`. Four live in Windows-only files, three of
-  them parallel, so Linux and macOS run 271 of 500 in parallel. The commit message lists what stays
-  sequential and why.
-- Independent review removed 32 tests from the first draft's 306: 30
-  that write an executable or build on `readinessFixture`, kept
-  sequential as a precaution because a script written and then executed
-  can fail with `text file busy` on Linux when a parallel test forks
-  while the file is open for writing; `TestReadinessResourcePlanSelectsSlot`, which takes
-  the shared host-slot lock; and `TestMakeTargetBudget`, whose 3 s
-  timing assertion is unsafe under parallel load.
-- The remaining 229 tests on Linux and macOS stay sequential because production code reads
-  process-wide state; removing that is ISSUE-83. Capping concurrent full
+  them parallel, so Linux and macOS run 271 of 500 in parallel. The
+  commit message lists what stays sequential and why.
+- Independent review removed 32 tests from the first draft's 306. 29
+  write an executable or build on `readinessFixture`, kept sequential as
+  a precaution because a script written and then executed can fail with
+  `text file busy` on Linux when a parallel test forks while the file is
+  open for writing. `TestAtomicStateWriteFailureAfterRenameLeavesNewDocument`
+  changes a directory's permissions. `TestReadinessResourcePlanSelectsSlot`
+  takes the shared host-slot lock, and `TestMakeTargetBudget` has a 3 s
+  timing assertion that is unsafe under parallel load.
+- The remaining 229 tests on Linux and macOS stay sequential, those 32
+  among them; most read process-wide state, and ISSUE-83 lists the
+  reasons and the work to remove them. Capping concurrent full
   gates belongs to the landing policy (ISSUE-61, ce-devenv ISSUE-041).
