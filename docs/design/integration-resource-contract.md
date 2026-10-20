@@ -36,6 +36,13 @@ requires another check; no gate is started or source rewritten. A transient fetc
 failure produces one warning and does not abandon admission. Refreshing respects
 cancellation and the remaining resource wait budget.
 
+Each FIFO wait notice reads `integrate: waiting <elapsed> for FIFO resource
+admission; position N of M; head ticket sequence S, pid P, repository R, branch
+B, command C, queued T, age A; host <name>`, so a log reader can reconstruct the
+wait as it does for the host measurement lock notice. Tickets record repository,
+branch and command as optional fields; a ticket written before they existed
+renders them as `unknown`.
+
 ## Current boundaries
 
 Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.

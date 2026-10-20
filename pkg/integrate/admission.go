@@ -24,10 +24,16 @@ const (
 	admissionCleanupWait = 5 * time.Second
 )
 
+// admissionTicket is the queue entry. Repository, Branch and Command are
+// display-only and optional: tickets written before they existed parse with
+// them empty and are rendered as unknown, never guessed.
 type admissionTicket struct {
-	Sequence  uint64    `json:"sequence"`
-	PID       int       `json:"pid"`
-	CreatedAt time.Time `json:"created_at"`
+	Sequence   uint64    `json:"sequence"`
+	PID        int       `json:"pid"`
+	CreatedAt  time.Time `json:"created_at"`
+	Repository string    `json:"repository,omitempty"`
+	Branch     string    `json:"branch,omitempty"`
+	Command    string    `json:"command,omitempty"`
 }
 type queuedTicket struct {
 	admissionTicket
@@ -35,6 +41,13 @@ type queuedTicket struct {
 }
 
 func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notice io.Writer) (func(), error) {
+	return acquireAdmissionAs(ctx, dir, hostLockHolder{}, wait, notice)
+}
+
+// acquireAdmissionAs queues holder's identity on its ticket and names it, the
+// elapsed wait and the head of the queue in each wait notice, so a log reader
+// can reconstruct the wait the way it does for the host measurement lock.
+func acquireAdmissionAs(ctx context.Context, dir string, holder hostLockHolder, wait time.Duration, notice io.Writer) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -66,7 +79,7 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		if admissionWaitExpired(start, wait) {
 			return nil, fmt.Errorf("%w after %s; admission ticket canceled", ErrHostLockWait, wait)
 		}
-		first, err := admissionTurn(lockFile, dir, &ticketPath)
+		first, queue, err := admissionTurn(lockFile, dir, holder, &ticketPath)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +96,10 @@ func acquireAdmission(ctx context.Context, dir string, wait time.Duration, notic
 		now := time.Now()
 		if lastNotice.IsZero() || now.Sub(lastNotice) >= hostLockNoticeInterval {
 			lastNotice = now
-			fmt.Fprintf(notice, "integrate: waiting for FIFO resource admission\n")
+			// The device label trails the queue description, as in the host
+			// measurement lock notice.
+			fmt.Fprintf(notice, "integrate: waiting %s for FIFO resource admission; %s; %s\n",
+				now.Sub(start).Round(time.Second), describeAdmissionQueue(queue, ticketPath, now), hostLockDeviceLabel(holder))
 			if err := observeAdmissionWait(ctx, start, wait); err != nil {
 				return nil, err
 			}
@@ -114,10 +130,12 @@ func observeAdmissionWait(ctx context.Context, start time.Time, wait time.Durati
 	return err
 }
 
-func admissionTurn(lockFile *os.File, dir string, ticketPath *string) (first bool, err error) {
+// admissionTurn returns whether this waiter heads the queue, plus the live
+// queue it observed, which is nil when the lock was busy.
+func admissionTurn(lockFile *os.File, dir string, holder hostLockHolder, ticketPath *string) (first bool, queue []queuedTicket, err error) {
 	locked, err := tryLockFile(lockFile)
 	if err != nil || !locked {
-		return false, err
+		return false, nil, err
 	}
 	defer func() {
 		if unlockErr := unlockFile(lockFile); unlockErr != nil && err == nil {
@@ -127,18 +145,52 @@ func admissionTurn(lockFile *os.File, dir string, ticketPath *string) (first boo
 	if *ticketPath == "" {
 		seq, err := nextAdmissionSequence(dir)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
-		*ticketPath, err = writeAdmissionTicket(dir, admissionTicket{Sequence: seq, PID: os.Getpid(), CreatedAt: time.Now().UTC()})
+		*ticketPath, err = writeAdmissionTicket(dir, admissionTicket{
+			Sequence: seq, PID: os.Getpid(), CreatedAt: time.Now().UTC(),
+			Repository: holder.Repository, Branch: holder.Branch, Command: holder.Command,
+		})
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 	}
 	tickets, err := liveAdmissionTickets(dir)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
-	return len(tickets) > 0 && tickets[0].path == *ticketPath, nil
+	return len(tickets) > 0 && tickets[0].path == *ticketPath, tickets, nil
+}
+
+// describeAdmissionQueue names this waiter's position and the head ticket.
+// Fields an older ticket never recorded read "unknown".
+func describeAdmissionQueue(queue []queuedTicket, ticketPath string, now time.Time) string {
+	if len(queue) == 0 {
+		return "queue unknown (not observed)"
+	}
+	position := "unknown"
+	for i, t := range queue {
+		if t.path == ticketPath {
+			position = strconv.Itoa(i + 1)
+		}
+	}
+	head := queue[0]
+	age := "unknown"
+	queued := "unknown"
+	if !head.CreatedAt.IsZero() {
+		age = now.Sub(head.CreatedAt).Round(time.Second).String()
+		queued = head.CreatedAt.UTC().Format(time.RFC3339)
+	}
+	return fmt.Sprintf("position %s of %d; head ticket sequence %d, pid %d, repository %s, branch %s, command %s, queued %s, age %s",
+		position, len(queue), head.Sequence, head.PID,
+		admissionField(head.Repository), admissionField(head.Branch), admissionField(head.Command), queued, age)
+}
+
+func admissionField(v string) string {
+	if v == "" {
+		return "unknown"
+	}
+	return v
 }
 
 func nextAdmissionSequence(dir string) (uint64, error) {

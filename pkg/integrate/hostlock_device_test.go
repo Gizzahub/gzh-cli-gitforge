@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -114,5 +115,92 @@ func TestResolveDeclaredDevice(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "missing"))
 	if got := resolveDeclaredDevice(ctx, g); got.Host != "" || got.Rejected {
 		t.Errorf("undeclared device: host = %q rejected = %v, want empty and not rejected (no hostname fallback)", got.Host, got.Rejected)
+	}
+}
+
+// TestAdmissionNoticeNamesWaitHeadAndDevice keeps an admission wait
+// reconstructable from output: elapsed time, the head ticket and the device.
+func TestAdmissionNoticeNamesWaitHeadAndDevice(t *testing.T) {
+	fastHostLockPolling(t)
+	created := time.Now().UTC().Add(-90 * time.Second)
+
+	for _, tc := range []struct {
+		name   string
+		head   admissionTicket
+		waiter hostLockHolder
+		want   []string
+	}{
+		{
+			name:   "full head ticket",
+			head:   admissionTicket{Sequence: 7, PID: os.Getpid(), CreatedAt: created, Repository: "/r/head", Branch: "head-branch", Command: "check"},
+			waiter: hostLockHolder{Host: "mst", Repository: "/r/waiter", Branch: "waiter"},
+			want: []string{
+				"integrate: waiting ", " for FIFO resource admission; position 2 of 2; head ticket sequence 7, pid ",
+				", repository /r/head, branch head-branch, command check, queued " + created.Format(time.RFC3339) + ", age 1m",
+			},
+		},
+		{
+			name:   "old ticket without identity fields",
+			head:   admissionTicket{Sequence: 7, PID: os.Getpid(), CreatedAt: created},
+			waiter: hostLockHolder{Host: "mst"},
+			want:   []string{", repository unknown, branch unknown, command unknown, queued " + created.Format(time.RFC3339)},
+		},
+		{
+			name:   "old ticket without created_at",
+			head:   admissionTicket{Sequence: 7, PID: os.Getpid()},
+			waiter: hostLockHolder{Host: "mst"},
+			want:   []string{", queued unknown, age unknown; host mst\n"},
+		},
+		{
+			name:   "undeclared device",
+			head:   admissionTicket{Sequence: 7, PID: os.Getpid(), CreatedAt: created},
+			waiter: hostLockHolder{},
+			want:   []string{"; host undeclared\n"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, admissionTicketsDir), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := writeAdmissionTicket(dir, tc.head); err != nil {
+				t.Fatal(err)
+			}
+			var notice bytes.Buffer
+			_, err := acquireAdmissionAs(context.Background(), dir, tc.waiter, 120*time.Millisecond, &notice)
+			if !errors.Is(err, ErrHostLockWait) {
+				t.Fatalf("err = %v, want ErrHostLockWait", err)
+			}
+			line := strings.SplitAfter(notice.String(), "\n")[0]
+			if !strings.HasSuffix(line, "\n") || !strings.Contains(line, "; host ") {
+				t.Fatalf("notice %q does not end with a host label", line)
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(line, w) {
+					t.Fatalf("notice %q missing %q", line, w)
+				}
+			}
+		})
+	}
+}
+
+// TestAdmissionTicketBackwardCompatible proves a ticket written before the
+// identity fields existed still parses as a queue member.
+func TestAdmissionTicketBackwardCompatible(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, admissionTicketsDir), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(dir, admissionTicketsDir, "00000000000000000003-"+strconv.Itoa(os.Getpid())+".json")
+	legacy := `{"sequence":3,"pid":` + strconv.Itoa(os.Getpid()) + `,"created_at":"2026-10-18T00:00:00Z"}`
+	if err := os.WriteFile(name, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tickets, err := liveAdmissionTickets(dir)
+	if err != nil || len(tickets) != 1 || tickets[0].Repository != "" {
+		t.Fatalf("tickets = %+v, err = %v", tickets, err)
+	}
+	if got := describeAdmissionQueue(tickets, "", time.Date(2026, 10, 18, 0, 1, 0, 0, time.UTC)); !strings.Contains(got, "repository unknown") || !strings.Contains(got, "age 1m0s") {
+		t.Fatalf("describe = %q", got)
 	}
 }

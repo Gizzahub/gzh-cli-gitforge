@@ -109,7 +109,7 @@ func acquireHostLockWithSource(ctx context.Context, holder hostLockHolder, wait 
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- shared host-slot convention; the lock file holds no data
 		return nil, fmt.Errorf("create host measurement lock directory: %w", err)
 	}
-	releaseTicket, err := acquireAdmission(ctx, dir, wait, notice)
+	releaseTicket, err := acquireAdmissionAs(ctx, dir, holder, wait, notice)
 	if err != nil {
 		return nil, fmt.Errorf("acquire FIFO resource admission (%s; per acquisition limit %s); no gate measured: %w", waitSource, limit, err)
 	}
