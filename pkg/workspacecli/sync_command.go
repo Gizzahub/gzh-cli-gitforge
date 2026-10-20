@@ -1962,6 +1962,17 @@ func buildSyncSummary(actions []reposync.Action) syncSummary {
 
 // analyzeRepoChanges performs detailed analysis of changes for a repository.
 // Returns nil if repository doesn't exist yet (new clone) or analysis fails.
+// updateTouchesWorktree reports whether an update action can change the
+// working tree. Only the fetch strategy leaves it alone, so local changes are
+// a risk for every other strategy, including an unset one.
+func updateTouchesWorktree(action reposync.Action) bool {
+	strategy := action.Strategy
+	if strategy == "" {
+		strategy = action.Repo.Strategy
+	}
+	return strategy != reposync.StrategyFetch
+}
+
 func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChanges, error) { //nolint:unparam // error is always nil; kept for consistent error-return interface
 	changes := &RepoChanges{
 		RepoName: action.Repo.Name,
@@ -1987,7 +1998,7 @@ func analyzeRepoChanges(ctx context.Context, action reposync.Action) (*RepoChang
 		isDirty, err := isWorkingTreeDirty(ctx, action.Repo.TargetPath)
 		if err != nil {
 			changes.Warnings = append(changes.Warnings, fmt.Sprintf("Failed to check working tree: %v", err))
-		} else if isDirty {
+		} else if isDirty && updateTouchesWorktree(action) {
 			changes.Conflicts = append(changes.Conflicts, ConflictInfo{
 				ConflictType: ConflictTypeDirtyWorktree,
 				LocalChanges: true,
@@ -2223,7 +2234,7 @@ func displayCompactSyncPreview(ctx context.Context, out io.Writer, s syncSummary
 			switch {
 			case err != nil:
 				fmt.Fprintf(out, "  ⚠  %-28s  could not be checked for local changes: %v\n", action.Repo.Name, err)
-			case isDirty:
+			case isDirty && updateTouchesWorktree(action):
 				fmt.Fprintf(out, "  ⚠  %-28s  has local changes (may be overwritten)\n", action.Repo.Name)
 			}
 		}

@@ -6,6 +6,9 @@ package workspacecli
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -355,6 +358,46 @@ func TestDisplayFileList(t *testing.T) {
 				if bytes.Contains([]byte(output), []byte(notWant)) {
 					t.Errorf("output should not contain %q, got:\n%s", notWant, output)
 				}
+			}
+		})
+	}
+}
+
+func TestSyncPreviewDirtyWarningFollowsStrategy(t *testing.T) {
+	repo := initSyncParticipationRepo(t)
+	if err := os.WriteFile(filepath.Join(repo, "README"), []byte("dirty\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		strategy reposync.Strategy
+		wantWarn bool
+	}{
+		{reposync.StrategyFetch, false},
+		{reposync.StrategyPull, true},
+		{reposync.StrategyReset, true},
+	} {
+		t.Run(string(tt.strategy), func(t *testing.T) {
+			action := reposync.Action{
+				Repo:     reposync.RepoSpec{Name: "dirty-repo", TargetPath: repo},
+				Type:     reposync.ActionUpdate,
+				Strategy: tt.strategy,
+			}
+
+			changes, err := analyzeRepoChanges(t.Context(), action)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotWarn := slices.Contains(changes.Warnings, "Local uncommitted changes may be overwritten")
+			if gotWarn != tt.wantWarn {
+				t.Errorf("detailed warning = %v, want %v (warnings %v)", gotWarn, tt.wantWarn, changes.Warnings)
+			}
+
+			var buf bytes.Buffer
+			displayCompactSyncPreview(t.Context(), &buf, syncSummary{Update: 1, Total: 1}, []reposync.Action{action})
+			gotCompact := strings.Contains(buf.String(), "has local changes")
+			if gotCompact != tt.wantWarn {
+				t.Errorf("compact warning = %v, want %v, got:\n%s", gotCompact, tt.wantWarn, buf.String())
 			}
 		})
 	}
