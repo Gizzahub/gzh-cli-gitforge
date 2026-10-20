@@ -20,11 +20,14 @@ type configDirSpecLoader struct {
 }
 
 func (l configDirSpecLoader) Load(ctx context.Context, path string) (reposynccli.ConfigData, error) {
-	data, err := l.base.Load(ctx, path)
-	if err != nil {
-		return data, err
-	}
+	// The base loader joins workspace paths with the config's directory as
+	// given, so it gets an absolute path: a relative one would come back
+	// relative to the working directory and be joined twice below.
 	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return reposynccli.ConfigData{}, err
+	}
+	data, err := l.base.Load(ctx, absPath)
 	if err != nil {
 		return data, err
 	}

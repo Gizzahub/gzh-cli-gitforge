@@ -110,3 +110,37 @@ func TestConfigDirSpecLoaderPlacesPathsLikeSync(t *testing.T) {
 		}
 	}
 }
+
+// TestConfigDirSpecLoaderAcceptsRelativeConfigPath covers `status -c` with a
+// relative path that names a directory: a workspaces config's paths are
+// already joined with that directory by the base loader, so they must not
+// be joined with it again.
+func TestConfigDirSpecLoaderAcceptsRelativeConfigPath(t *testing.T) {
+	root := t.TempDir()
+	devbox := filepath.Join(root, "devbox")
+	sub := filepath.Join(devbox, "sub")
+	if err := os.MkdirAll(sub, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := "workspaces:\n  ws:\n    type: git\n    path: ws\n    url: https://example.invalid/ws.git\n"
+	if err := os.WriteFile(filepath.Join(devbox, DefaultConfigFile), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct{ cwd, configPath string }{
+		{root, filepath.Join("devbox", DefaultConfigFile)},
+		{sub, filepath.Join("..", DefaultConfigFile)},
+	} {
+		t.Chdir(tc.cwd)
+		data, err := configDirSpecLoader{base: reposynccli.FileSpecLoader{}}.Load(context.Background(), tc.configPath)
+		if err != nil {
+			t.Fatalf("%s: Load: %v", tc.configPath, err)
+		}
+		if len(data.Plan.Input.Repos) != 1 {
+			t.Fatalf("%s: repos = %+v, want 1", tc.configPath, data.Plan.Input.Repos)
+		}
+		if got, want := data.Plan.Input.Repos[0].TargetPath, filepath.Join(devbox, "ws"); got != want {
+			t.Errorf("%s from %s: TargetPath = %q, want %q", tc.configPath, tc.cwd, got, want)
+		}
+	}
+}

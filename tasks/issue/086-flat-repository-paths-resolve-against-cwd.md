@@ -79,23 +79,36 @@ Resolved on 2026-10-21.
     (read-only access, integration branch) do not apply to that
     directory. Before, both actions ran on the same directory.
 - `workspace status` and the `quicksync --check` health check load through
-  `reposynccli.FileSpecLoader`, which keeps paths relative. Sync now places
-  a relative path under the config directory, so they would have checked
-  the working directory instead. Both now load through
-  `configDirSpecLoader` (`pkg/workspacecli/status_loader.go`), which
-  resolves the paths the same way. `reposynccli` itself and the `sync`
-  command family that uses it are unchanged.
+  `reposynccli.FileSpecLoader`, which keeps a flat `repositories:` path
+  relative. Sync now places it under the config directory, so they would
+  have checked the working directory instead. Both now load through
+  `configDirSpecLoader` (`pkg/workspacecli/status_loader.go`). It passes
+  the base loader an absolute config path, so workspace entries, which
+  that loader joins with the config's directory, come back absolute, and
+  it resolves any remaining relative path against the config directory.
+  `workspace status --format json` therefore reports an absolute `path`
+  for flat repositories. `reposynccli` itself and the `sync` command
+  family that uses it are unchanged.
+- Found out of scope and registered as ISSUE-90: a nested `type: config`
+  workspace's relative repositories come back from the base loader
+  relative to the nested config, so status resolves them against the
+  top-level config directory, not where sync places them. Before this
+  change they resolved against the working directory, so it is not a
+  regression.
 - Tests (`pkg/workspacecli/flat_repository_path_test.go`):
   `TestFlatConfigResolvesRelativePathsAgainstConfigDir` checks that `lib`
   and `deps/nested` are placed under the config directory, an absolute
   path is kept, `~/src/home` is expanded, and `.` is dropped as the
   devbox. `TestConfigDirSpecLoaderPlacesPathsLikeSync` loads through the
   status wrapper from another working directory and expects the same
-  paths as sync. `TestConfigPlannerResolvesChildRepositoriesAgainstChildDir`
+  paths as sync. `TestConfigDirSpecLoaderAcceptsRelativeConfigPath` loads a
+  workspaces config through a relative `-c` that names a directory, from
+  above and from below the devbox, and expects the workspace path once. `TestConfigPlannerResolvesChildRepositoriesAgainstChildDir`
   plans a child whose `lib` has no path and whose `up` is at `..`: `lib`
   is placed in the child, and `up`, the devbox seen from the child, is
   dropped by the enclosing-config guard.
 - Mutation: with the resolution line removed, both planner tests fail;
   before the fix `up` resolved against the test's working directory and
   was planned. With the wrapper's resolution removed, the status loader
-  test fails.
+  test fails; with the base loader given the relative path again, the
+  relative `-c` test fails.
