@@ -38,6 +38,13 @@ foundation-devbox with a dirty `airflow-dags` checkout, excerpt of
   ↓ airflow-dags (update)
 ```
 
+## Expected vs Actual
+
+- Expected: under the fetch strategy the preview does not warn that local
+  changes may be overwritten, because fetch never touches the working tree.
+- Actual: both preview paths print the overwrite warning for every dirty
+  checkout.
+
 ## Follow-up scope
 
 Derive the dirty-worktree conflict and both warnings from the effective

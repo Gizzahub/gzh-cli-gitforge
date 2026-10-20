@@ -44,6 +44,12 @@ Exit 1. task-manager-devbox's config has the same shape and fails the same
 way. `gz-git workspace sync --dry-run` on the same config plans all five
 repositories.
 
+## Expected vs Actual
+
+- Expected: `workspace status` reports the five repositories that
+  `workspace sync` plans from the same config.
+- Actual: it exits 1 with `no git repositories found in workspaces`.
+
 ## Follow-up scope
 
 Make the status loader agree with sync's interpretation of `type: git`
