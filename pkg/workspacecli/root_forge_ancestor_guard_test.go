@@ -17,7 +17,7 @@ import (
 // TestPlanForgeWorkspacesRefusesAncestorOfRootConfigDir pins ISSUE-87: the
 // root config's forge planner skips a workspace at an ancestor of the devbox,
 // whose repositories or orphans would include the devbox, while a sibling is
-// still planned. The base URL is unreachable and the context is cancelled, so
+// still planned. The base URL is unreachable and the context is canceled, so
 // a regression fails without reaching the network.
 func TestPlanForgeWorkspacesRefusesAncestorOfRootConfigDir(t *testing.T) {
 	// The grandparent is owned by the test, not the shared temp directory.
