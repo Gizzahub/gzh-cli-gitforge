@@ -274,15 +274,32 @@ func TestAdmissionNoticeKeepsLastQueueWhenLockBusy(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if locked, err := tryLockFile(busy); err != nil || !locked {
-		t.Fatalf("re-hold admission lock: locked=%v err=%v", locked, err)
+	// The waiter's turn holds the lock briefly; retry until it is free.
+	held := false
+	deadline = time.Now().Add(2 * time.Second)
+	for !held && time.Now().Before(deadline) {
+		var err error
+		if held, err = tryLockFile(busy); err != nil {
+			t.Fatalf("re-hold admission lock: %v", err)
+		}
+		if !held {
+			time.Sleep(time.Millisecond)
+		}
+	}
+	if !held {
+		t.Fatal("re-hold admission lock: not acquired before deadline")
 	}
 	// A notice after the re-hold must reuse the cached queue. Release before
 	// the wait expires so ticket cleanup is not stalled on this lock.
+	// lines() ends with an empty element after the last newline, so the next
+	// notice lands at index n-1.
 	n := len(notice.lines())
 	deadline = time.Now().Add(2 * time.Second)
 	for len(notice.lines()) <= n && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
+	}
+	if ls := notice.lines(); len(ls) <= n || !strings.Contains(ls[n-1], "position 3 of 3; head ticket sequence 4") {
+		t.Fatalf("notice after re-hold = %q, want cached position 3 of 3 queue", ls)
 	}
 	if err := unlockFile(busy); err != nil {
 		t.Fatal(err)
