@@ -204,7 +204,8 @@ install-analysis-tools: ## install code analysis tools
 # by an older Go reads a stdlib its go/types cannot parse and dies mid-analysis
 # instead of reporting findings.
 #
-# The active pin is v2.14.0. It follows the v2.13.1 resolution below; the
+# The active pin is v2.15.0, the release verified in family CI under go1.27.3
+# (v2.13.1 cannot read Go 1.27 export data). It follows the v2.13.1 resolution below; the
 # repository-owned binary remains required even when mise selects the same
 # release, because the gate verifies both the module version and the active Go
 # toolchain embedded in that binary. (ISSUE-295)
@@ -220,7 +221,7 @@ install-analysis-tools: ## install code analysis tools
 # of the cache being wiped: a wipe is machine-wide, one-shot, and the ghosts
 # return with the next reclaimed worktree. gzh-cli, gzh-cli-quality and
 # gzh-cli-package-manager already pinned v2.13.1 at that time. (TASK-162)
-GOLANGCI_LINT_VERSION ?= v2.14.0
+GOLANGCI_LINT_VERSION ?= v2.15.0
 GOLANGCI_LINT_MODULE := github.com/golangci/golangci-lint/v2
 GOLANGCI_LINT_INSTALL ?= $(GOLANGCI_LINT_MODULE)/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 GOLANGCI_LINT_DIR := $(CURDIR)/bin/tools
@@ -359,8 +360,8 @@ install-docs-tools: ## install documentation tools
 # official compatibility commit 7b1b5cebe007d62fb58eacb90fc571112939ec30, whose
 # module retains a Go 1.26.0 floor and whose x/tools v0.51.0 supports that format.
 # This is an untagged upstream commit, not a stable release or local fork.
-# The installed build/scan toolchain is Go 1.27.2. The runtime contract verifies
-# the active compiler, the Go 1.26.9/1.27.2 build-and-scan fixture matrix, and
+# The installed build/scan toolchain is Go 1.27.3. The runtime contract verifies
+# the active compiler, the Go 1.26.9/1.27.3 build-and-scan fixture matrix, and
 # the explicit full-scan comparison against the historical baseline in
 # scripts/test-gosec-toolchain-contract.sh.
 GOSEC_MODULE := github.com/securego/gosec/v2

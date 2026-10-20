@@ -1,7 +1,7 @@
 #!/bin/bash
 # test-gosec-toolchain-contract.sh: gosec 핀의 Go 툴체인 계약을 검증한다
 # 용도: (기본 모드) .make/tools.mk 의 GOSEC 핀과 bin/tools 바이너리의 module pin
-#       일치, 설치된 고정 컴파일러(go1.26.9, go1.27.2) 각각으로 재빌드한 identity,
+#       일치, 설치된 고정 컴파일러(go1.26.9, go1.27.3) 각각으로 재빌드한 identity,
 #       pkg/gitsettings 최소 스캔을 검증한다. (--full-security-no-regression 모드)
 #       현재 핀과 기준 핀 v2.22.10 을 go1.26.9 로 각각 private tmp 에 빌드해 같은
 #       소스에서 make security-code GOSEC=<binary> 와 gosec -fmt=json ./... 를
@@ -24,7 +24,7 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$repo"
 
 GO_FLOOR_VER="1.26.9"
-GO_NEXT_VER="1.27.2"
+GO_NEXT_VER="1.27.3"
 BASELINE_PIN="v2.22.10"
 ISSUE_CARD="tasks/issue/40-gosec-go127-export-data.md"
 RECEIPT_START="<!-- TASK-270 receipt:start -->"
@@ -203,13 +203,13 @@ if [ "$mode" = "default" ]; then
 	run_minimal "$b126" "$GO_FLOOR_ROOT" "$tmp/min-126-126"
 	validate_scan "minimal: gosec(1.26.9-built) x scan-go(1.26.9)" "$RC_" "$tmp/min-126-126.json" "$tmp/min-126-126.stderr"
 	run_minimal "$b126" "$GO_NEXT_ROOT" "$tmp/min-126-127"
-	validate_scan "minimal: gosec(1.26.9-built) x scan-go(1.27.2)" "$RC_" "$tmp/min-126-127.json" "$tmp/min-126-127.stderr"
+	validate_scan "minimal: gosec(1.26.9-built) x scan-go(1.27.3)" "$RC_" "$tmp/min-126-127.json" "$tmp/min-126-127.stderr"
 	run_minimal "$b127" "$GO_FLOOR_ROOT" "$tmp/min-127-126"
-	validate_scan "minimal: gosec(1.27.2-built) x scan-go(1.26.9)" "$RC_" "$tmp/min-127-126.json" "$tmp/min-127-126.stderr"
+	validate_scan "minimal: gosec(1.27.3-built) x scan-go(1.26.9)" "$RC_" "$tmp/min-127-126.json" "$tmp/min-127-126.stderr"
 	run_minimal "$b127" "$GO_NEXT_ROOT" "$tmp/min-127-127"
-	validate_scan "minimal: gosec(1.27.2-built) x scan-go(1.27.2)" "$RC_" "$tmp/min-127-127.json" "$tmp/min-127-127.stderr"
+	validate_scan "minimal: gosec(1.27.3-built) x scan-go(1.27.3)" "$RC_" "$tmp/min-127-127.json" "$tmp/min-127-127.stderr"
 
-	info "summary: pin=$gosec_module $pin; bin/tools pin OK; identities OK (go1.26.9, go1.27.2); 4 minimal scan cells OK"
+	info "summary: pin=$gosec_module $pin; bin/tools pin OK; identities OK (go1.26.9, go1.27.3); 4 minimal scan cells OK"
 	info "PASS: default mode"
 	exit 0
 fi
