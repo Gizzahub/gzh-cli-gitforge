@@ -25,7 +25,8 @@ func (e *hostResolutionError) Error() string { return e.reason }
 // a value that only some checkouts can see is a value that silently differs
 // between two worktrees of the same repository.
 // internal/workidentity owns the names and the Git read, which integrate
-// cleanup shares to compare its caller with the owner recorded here.
+// cleanup shares, so both accept and refuse the same configuration; the
+// normalization below is this package's own.
 const (
 	actorEnvAgent = workidentity.ActorEnvAgent
 	actorEnvHuman = workidentity.ActorEnvHuman

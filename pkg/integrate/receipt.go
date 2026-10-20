@@ -155,7 +155,8 @@ func (e *ExecutionContext) Validate() error {
 // ce.workHost). There is no hostname fallback — a guessed host makes two
 // devices indistinguishable, so an unresolved host is an error.
 // internal/workidentity owns the names and the Git read, so the run lifecycle
-// records the same owner that cleanup later compares against.
+// and cleanup accept and refuse the same configuration. Each still normalizes
+// the value its own way: runtask lowercases it, cleanup only trims it.
 const (
 	callerActorEnvAgent = workidentity.ActorEnvAgent
 	callerActorEnvHuman = workidentity.ActorEnvHuman
@@ -180,6 +181,11 @@ func ResolveCallerOwner(ctx context.Context, exec *gitcmd.Executor) (OwnerIdenti
 		res, err := exec.Run(ctx, ".", workidentity.GitConfigArgs(key)...)
 		if err != nil {
 			return "", fmt.Errorf("read global Git %s: %w", key, err)
+		}
+		// The executor reports a git it could not start, or one a timeout
+		// killed, as exit -1 with the cause in res.Error rather than err.
+		if res.ExitCode < 0 && res.Error != nil {
+			return "", fmt.Errorf("read global Git %s: %w", key, res.Error)
 		}
 		// An unset key and an empty value both reach the "not configured"
 		// refusal below.

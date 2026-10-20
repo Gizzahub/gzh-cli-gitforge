@@ -84,3 +84,13 @@ func TestResolveCallerOwnerRefusesSeveralGlobalValues(t *testing.T) {
 		t.Fatalf("ResolveCallerOwner = %+v, %v; want the several-values refusal", owner, err)
 	}
 }
+
+func TestResolveCallerOwnerKeepsCauseWhenGitCannotStart(t *testing.T) {
+	clearCallerIdentity(t)
+	t.Setenv("GIT_WORK_HOST", "mbp")
+	missing := filepath.Join(t.TempDir(), "no-such-git")
+	owner, err := ResolveCallerOwner(context.Background(), gitcmd.NewExecutor(gitcmd.WithGitBinary(missing)))
+	if err == nil || !strings.Contains(err.Error(), "read global Git ce.workActor: ") || !strings.Contains(err.Error(), "no-such-git") {
+		t.Fatalf("ResolveCallerOwner = %+v, %v; want the start failure with its cause", owner, err)
+	}
+}

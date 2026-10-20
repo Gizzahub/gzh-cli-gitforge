@@ -74,3 +74,11 @@ Resolved on 2026-10-20.
   reads `ce.workHost` with `--get` for the run provenance and host-lock
   label. It authorizes nothing and degrades any failure to an undeclared
   device, so it was outside this card.
+- Review follow-up: integrate keeps the cause when git cannot start or a
+  timeout kills it, which the executor reports as exit -1 in
+  `Result.Error`; `TestResolveCallerOwnerKeepsCauseWhenGitCannotStart`
+  fails without that branch. The comments now say the two callers share
+  the read, not the normalization: `runtask` lowercases, cleanup trims.
+- Outside this repository: ce-agent-kit `taskruntime/identity.go` keeps
+  the old rule (every exit 1 unset). A session in that repository owns
+  that candidate.
