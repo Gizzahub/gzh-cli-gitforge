@@ -1,0 +1,123 @@
+// Copyright (c) 2025 Gizzahub
+// SPDX-License-Identifier: MIT
+
+package workspacecli
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
+)
+
+// selfSyncFixture returns a config directory and a symlink that reaches it
+// through another spelling.
+func selfSyncFixture(t *testing.T) (configDir, link string) {
+	t.Helper()
+	root := t.TempDir()
+	configDir = filepath.Join(root, "devbox")
+	if err := os.Mkdir(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link = filepath.Join(root, "devbox-link")
+	if err := os.Symlink(configDir, link); err != nil {
+		t.Fatal(err)
+	}
+	return configDir, link
+}
+
+func TestPointsAtConfigDirMatchesFileIdentity(t *testing.T) {
+	configDir, link := selfSyncFixture(t)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relConfigDir, err := filepath.Rel(cwd, configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sibling := filepath.Join(filepath.Dir(configDir), "sibling")
+	if err := os.Mkdir(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name, wsPath, configDir string
+		want                    bool
+	}{
+		{"same string", configDir, configDir, true},
+		{"symlink to config dir", link, configDir, true},
+		{"relative config dir", configDir, relConfigDir, true},
+		{"trailing dot segment", filepath.Join(configDir, "."), configDir, true},
+		{"sibling directory", sibling, configDir, false},
+		{"missing workspace", filepath.Join(configDir, "absent"), configDir, false},
+	} {
+		if got := pointsAtConfigDir(tc.wsPath, tc.configDir); got != tc.want {
+			t.Errorf("%s: pointsAtConfigDir(%q, %q) = %t, want %t", tc.name, tc.wsPath, tc.configDir, got, tc.want)
+		}
+	}
+}
+
+// TestSyncPlannersSkipSymlinkToConfigDir covers each planner's guard: a
+// workspace reaching the config directory through a symlink is skipped
+// with the self-sync warning and plans nothing.
+func TestSyncPlannersSkipSymlinkToConfigDir(t *testing.T) {
+	configDir, link := selfSyncFixture(t)
+	configPath := filepath.Join(configDir, DefaultConfigFile)
+	deadOrigin := filepath.Join(filepath.Dir(configDir), "no-such-origin.git")
+	// The devbox config lists a member, so a planner that reads the config
+	// directory as a workspace plans it instead of skipping for a missing config.
+	devboxConfig := "repositories:\n  - name: member\n    url: " + deadOrigin + "\n"
+	if err := os.WriteFile(configPath, []byte(devboxConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		name string
+		ws   *config.Workspace
+		plan func(cfg *config.Config, out *bytes.Buffer) (int, error)
+	}{
+		{
+			name: "git",
+			ws:   &config.Workspace{Type: config.WorkspaceTypeGit, URL: deadOrigin, Path: link},
+			plan: func(cfg *config.Config, out *bytes.Buffer) (int, error) {
+				actions, err := planGitWorkspaces(ctx, cfg, configDir, out, "", true)
+				return len(actions), err
+			},
+		},
+		{
+			name: "config",
+			ws:   &config.Workspace{Path: link, Sync: &config.SyncConfig{Recursive: true}},
+			plan: func(cfg *config.Config, out *bytes.Buffer) (int, error) {
+				actions, err := planConfigWorkspacesWithDryRun(ctx, cfg, configDir, out, "", true)
+				return len(actions), err
+			},
+		},
+		{
+			name: "forge",
+			ws:   &config.Workspace{Path: link, Source: &config.ForgeSource{Provider: "gitlab", Org: "self"}},
+			plan: func(cfg *config.Config, out *bytes.Buffer) (int, error) {
+				actions, err := planForgeWorkspaces(ctx, cfg, out, "", false, true)
+				return len(actions), err
+			},
+		},
+	} {
+		cfg := &config.Config{ConfigPath: configPath, Workspaces: map[string]*config.Workspace{"self": tc.ws}}
+		var out bytes.Buffer
+		n, err := tc.plan(cfg, &out)
+		if err != nil {
+			t.Fatalf("%s planner: %v\n%s", tc.name, err, out.String())
+		}
+		if n != 0 {
+			t.Errorf("%s planner planned %d actions for a symlink to the config directory\n%s", tc.name, n, out.String())
+		}
+		if !strings.Contains(out.String(), "Skipping workspace 'self': path '"+link+"' points to config directory") {
+			t.Errorf("%s planner output lacks the self-sync warning:\n%s", tc.name, out.String())
+		}
+	}
+}

@@ -945,7 +945,7 @@ func planForgeWorkspaces(ctx context.Context, cfg *config.Config, out io.Writer,
 		wsPath := resolveWorkspacePath(effectivePath, configDir)
 
 		// Skip workspaces that point to the config directory itself
-		if wsPath == configDir || effectivePath == "." {
+		if pointsAtConfigDir(wsPath, configDir) || effectivePath == "." {
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
 			continue
 		}
@@ -1169,7 +1169,7 @@ func planGitWorkspaces(ctx context.Context, cfg *config.Config, configDir string
 
 		// Skip workspaces that point to the config directory itself
 		// This prevents accidental reset of the devbox/orchestrator directory
-		if wsPath == configDir || effectivePath == "." {
+		if pointsAtConfigDir(wsPath, configDir) || effectivePath == "." {
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory (self-sync not allowed)\n", name, effectivePath)
 			continue
 		}
@@ -1333,7 +1333,7 @@ func planConfigWorkspacesWithDryRun(ctx context.Context, cfg *config.Config, con
 		wsPath := resolveWorkspacePath(effectivePath, configDir)
 
 		// Skip workspaces that point to the config directory itself
-		if wsPath == configDir || effectivePath == "." {
+		if pointsAtConfigDir(wsPath, configDir) || effectivePath == "." {
 			fmt.Fprintf(out, "⚠️  Skipping workspace '%s': path '%s' points to config directory\n", name, effectivePath)
 			continue
 		}
