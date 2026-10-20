@@ -141,3 +141,21 @@ func TestProviderMetadataCanonicalizesOnlyGZGitVersion(t *testing.T) {
 		t.Fatalf("invalid diagnostic or reason was normalized: %s", invalid)
 	}
 }
+
+func TestIntegrateRunVersionIsMasked(t *testing.T) {
+	n := newNormalizer(t.TempDir())
+	for raw, want := range map[string]string{
+		"integrate: run device=mbp gz-git=0.10.6\n":                  "integrate: run device=mbp gz-git=<VER>\n",
+		`"stderr":"integrate: run device=mbp gz-git=0.11.0+dirty\n"`: `"stderr":"integrate: run device=mbp gz-git=<VER>\n"`,
+		`\"integrate: run device=mbp gz-git=0.9.5-0.2026\\n\"`:       `\"integrate: run device=mbp gz-git=<VER>\\n\"`,
+	} {
+		if got := n.norm(raw); got != want {
+			t.Errorf("norm(%q) = %q, want %q", raw, got, want)
+		}
+	}
+	for _, raw := range []string{`{"gz-git":"0.10.6"}`, "gz-git version 0.10.6", "ungz-git=0.10.6"} {
+		if got := n.norm(raw); got != raw {
+			t.Errorf("non-provenance text changed: %q -> %q", raw, got)
+		}
+	}
+}
