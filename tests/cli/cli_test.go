@@ -55,6 +55,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	if err := isolateHome(testDir); err != nil {
+		_ = os.RemoveAll(testDir)
+		fmt.Fprintf(os.Stderr, "failed to isolate HOME: %v\n", err)
+		os.Exit(1)
+	}
+
 	code := m.Run()
 	if err := os.RemoveAll(testDir); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to remove CLI test directory: %v\n", err)
