@@ -8,10 +8,10 @@ it is not supplied, the source is discovered adjacent to the registered primary
 checkout. The source must be clean, primary, and have the declared canonical
 remote; `source-tip` must equal its local `origin/<sourceBranch>` tracking tip.
 
-As observed with official build `b323`, an undeclared `name` in `--source` is
-currently ignored and acquire falls back to the declared sibling. Do not treat
-that form as arbitrary source selection; this known limitation is tracked in
-`tasks/issue/49-undeclared-sibling-source-override.md`.
+A `--source` name that matches no declared sibling is a usage error (exit 2):
+acquire stops before provisioning anything, and the message names each unknown
+name and lists the declared ones. `--source` selects a source only for a
+declared sibling; it never adds one.
 
 The command prints an opaque lease ID. `inspect --json` lists unchanged leases
 bound to the current task root and reports `RESUMABLE` for a retained lease; it

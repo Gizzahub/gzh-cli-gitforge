@@ -1,6 +1,6 @@
 # ISSUE: 선언되지 않은 sibling `--source` 이름이 무시되어 선언된 source를 획득한다
 
-- status: open
+- status: resolved (2026-10-22 — 아래 Resolution)
 - priority: P2
 - category: integration/provisioning
 - created_at: 2026-10-14
@@ -47,3 +47,15 @@ sibling 이름만 조회하고, map에 남은 선언되지 않은 이름을 거�
 - `/Users/archmagece/mycache/tmp/gzh-cli-quality.5wDebO/ee-native-sibling-invalid.json`
 - `/Users/archmagece/mycache/tmp/gzh-cli-quality.5wDebO/ee-native-sibling-invalid.log`
 - `/Users/archmagece/mycache/tmp/gzh-cli-quality.5wDebO/ee-native-sibling-pre-audit-release.json`
+
+## Resolution
+
+Resolved on 2026-10-22 by `fix(integrate): reject a --source name no declared sibling matches`.
+
+- `integrateProvisionAcquireCmd.RunE`(`cmd/gz-git/cmd/integrate_provision.go`)는 선언된
+  sibling에 없는 `--source` 이름을 provisioning 전에 exit 2 usage 오류로 거부한다. 메시지는
+  알 수 없는 이름과 선언된 이름을 모두 적는다.
+- `--source`를 받는 서브커맨드는 `acquire` 하나다.
+- `TestProvisionCLIAcquireRejectsUndeclaredSourceName`이 exit 2, 메시지, snapshot·lease 부재를
+  검사하며, 수정 전 코드에서는 실패한다(독립 리뷰에서 확인).
+- `docs/commands/integrate-sibling-provision.md`의 "무시된다" 제한 설명을 새 계약으로 바꿨다.
