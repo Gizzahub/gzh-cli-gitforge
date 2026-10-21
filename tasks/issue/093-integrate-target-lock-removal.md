@@ -92,3 +92,24 @@ integrations belongs to the caller/orchestrator, not to gz-git.
 - ISSUE-55 (resource slot release window) is obsolete since b8b4cccc.
   ISSUE-057 and ISSUE-069 (target-lock notices in the provenance stream)
   assume the lock exists. Revisit them once it is removed.
+
+## Resolution
+
+Resolved on 2026-10-22 by `feat(integrate): remove the target lock; detect and report, never wait` and `fix(integrate): name the Windows lock holder and retry flock on EINTR`.
+
+- `integrate run` takes no target lock. Concurrent runs on one target are not ordered: the exact-lease push lets one
+  land, and every other run refuses at once, naming the target, the commit it checked, the current commit and the
+  rebase to do. The refusal without `--expect-target` names the stale target too (ISSUE-61's gitforge item).
+- The remaining locks only protect gz-git's own on-disk state (the reclaim of one task's worktree and branches, and the
+  receipt write, which also covers the intent registration marker). A held lock refuses with
+  `integration resource is busy`, names the holder and exits 2; nothing waits. Unix retries `flock` on EINTR only.
+  Windows locks a byte past the holder record so another process can read who holds it.
+- The waiting tests are gone. New tests cover two concurrent runs (the second fails fast with an actionable reason) and
+  `validateOwnedCheckPlan` refusing a changed source, target, declaration file, integration branch or controller.
+- The design doc and the integrate, prepare-profile and troubleshooting docs state the reporting-only contract.
+- Not verified: no native Windows run of the lock change (`GOOS=windows go vet` only).
+- Follow-up: the parity goldens `doctor-active.json` and `discard-no-fetch.json` still embed the old integrate help
+  ("waits for it until the lock is free"). They are recorded through the installed ce and gz-git, so they can be
+  re-recorded only after a release with this change is installed; `make test-parity` is opt-in and outside `make check`.
+- ISSUE-057 and ISSUE-069 assumed the lock; ISSUE-069 is closed, and CE consumers of the retired `target_lock_wait`
+  phase and `LockNotice` fields should be checked when ce-agent-kit adopts this release.
