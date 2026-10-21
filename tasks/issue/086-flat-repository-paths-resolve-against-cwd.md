@@ -89,7 +89,7 @@ Resolved on 2026-10-21.
   `workspace status --format json` therefore reports an absolute `path`
   for flat repositories. `reposynccli` itself and the `sync` command
   family that uses it are unchanged.
-- Found out of scope and registered as ISSUE-90: a nested `type: config`
+- Found out of scope and registered as ISSUE-96: a nested `type: config`
   workspace's relative repositories come back from the base loader
   relative to the nested config, so status resolves them against the
   top-level config directory, not where sync places them. Before this

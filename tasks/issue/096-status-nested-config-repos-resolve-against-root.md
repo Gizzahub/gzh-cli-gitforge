@@ -1,5 +1,5 @@
 ---
-id: ISSUE-90
+id: ISSUE-96
 title: "`workspace status` places a nested config workspace's relative repositories under the root config"
 type: bug
 priority: P3
