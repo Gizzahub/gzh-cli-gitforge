@@ -1,3 +1,5 @@
+//go:build parity
+
 // Target-mode plumbing: running the same fixtures against the gz-git port.
 //
 // PARITY_TARGET=gz-git (or GZ_GIT_BIN) switches the suite from re-running CE

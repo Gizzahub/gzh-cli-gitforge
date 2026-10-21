@@ -1,5 +1,18 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## 기본 게이트 분리 (2026-10-21)
+
+- 원인: `tests/parity`가 build tag 없이 `./...`에 포함돼 `make check`·`make quick`·
+  `go test ./...`가 설치 CE와 pin이 다르면 `TestMain`에서 exit 1로 끝났다. 다른
+  저장소의 CE 배포가 무관한 gitforge 변경의 게이트를 깨고, 재고정 커밋만이 해법이었다
+  (2026-09 이후 parity 커밋 26개).
+- 조치(사용자 승인): parity 파일에 `//go:build parity`를 붙이고 `make test-parity`로만
+  실행한다. golangci-lint는 `build-tags: [parity]`로 계속 검사한다. pin은 golden이
+  어떤 CE를 기술하는지의 기록으로 남고, 새 CE 채택은 `make test-parity`를 돌린 뒤의
+  의도적인 재녹화다.
+- 계약 문서 §7의 과거 채택 이력은 `docs/design/RUN_LIFECYCLE_PARITY_ADOPTIONS.md`로
+  옮겼다(원문 유지). 계약 문서는 현재 참조 하나만 기술한다.
+
 ## c6d5bf84 추가 채택 (2026-10-21)
 
 - 설치 CE가 clean `c6d5bf84`(`412-gc6d5bf84`, 0.10.14)로 바뀌어 golden이 다시

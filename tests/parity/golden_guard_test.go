@@ -1,3 +1,5 @@
+//go:build parity
+
 // Guard for the CE parity fixtures. A plain verify run executes the
 // installed ce against goldens captured from a specific ce build; when
 // the host toolchain has moved on, every scenario fails with an opaque
@@ -103,8 +105,8 @@ func guardGoldenToolchain() {
 	sort.Strings(stale)
 	fmt.Printf(`parity: ce toolchain drift — installed build %s does not match the committed goldens:
 %s
-re-record with: PARITY_RECORD=1 go test ./tests/parity/...
-(or: go test ./tests/parity/ -record) and commit the refreshed fixtures with the re-pinned reference.
+re-record with: PARITY_RECORD=1 go test -tags=parity ./tests/parity/...
+(or: go test -tags=parity ./tests/parity/ -record) and commit the refreshed fixtures with the re-pinned reference.
 `,
 		installed, strings.Join(stale, "\n"))
 	os.Exit(1)

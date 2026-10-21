@@ -1,10 +1,13 @@
+//go:build parity
+
 // Package parity pins the CE `ce task run-*` lifecycle behavior as the
 // reference for the gz-git port, per ce-agent-kit ADR-0055 and the
 // run-lifecycle row of docs/00-product/11-task-migration-ledger.md.
 //
 // Golden files under testdata/golden are machine-captured from the CE
-// binary (PARITY_RECORD=1), never hand-written. A plain `go test` run
-// re-executes every scenario against the CE binary and diffs the
+// binary (PARITY_RECORD=1), never hand-written. The suite is built only
+// with -tags=parity (make test-parity), so the installed CE never decides the
+// default gates. A verify run re-executes every scenario against the CE binary and diffs the
 // normalized result against the committed goldens. See
 // docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md for the contract itself.
 package parity
@@ -567,7 +570,7 @@ func runScenario(t *testing.T, sc scenario) {
 	}
 	want, err := os.ReadFile(goldenPath) //nolint:gosec // committed fixture path
 	if err != nil {
-		t.Fatalf("golden %s missing; re-record with PARITY_RECORD=1 (or -record) go test ./tests/parity/...: %v", goldenPath, err)
+		t.Fatalf("golden %s missing; re-record with PARITY_RECORD=1 (or -record) go test -tags=parity ./tests/parity/...: %v", goldenPath, err)
 	}
 	got, err := json.MarshalIndent(golden, "", "  ")
 	must(t, err)

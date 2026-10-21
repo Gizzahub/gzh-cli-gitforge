@@ -132,6 +132,7 @@ help-test: ## show testing help
 	@echo -e "  $(CYAN)test-unit$(RESET)          Run only unit tests (exclude integration/e2e)"
 	@echo -e "  $(CYAN)test-integration$(RESET)   Run Docker-based integration tests"
 	@echo -e "  $(CYAN)test-e2e$(RESET)           Run End-to-End test scenarios"
+	@echo -e "  $(CYAN)test-parity$(RESET)        Run CE parity fixtures (opt-in, needs installed ce)"
 	@echo -e "  $(CYAN)test-all$(RESET)           Run all tests (unit, integration, e2e)"
 	@echo -e "  $(CYAN)cover$(RESET)              Display test coverage"
 	@echo -e "  $(CYAN)cover-html$(RESET)         Generate HTML coverage report"

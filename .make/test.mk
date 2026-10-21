@@ -27,7 +27,7 @@ VERIFY_GO_FULL_PACKAGE_TIMEOUT ?= 30m
 # Testing Targets
 # ==============================================================================
 
-.PHONY: test test-unit test-unit-quality test-affected coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
+.PHONY: test test-unit test-unit-quality test-affected coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-parity test-all
 .PHONY: cover cover-html cover-report bench test-coverage test-docker
 
 test: clean build ## run all tests with coverage (requires binary for integration tests)
@@ -117,6 +117,14 @@ test-e2e-only: ## run only e2e tests with build tag
 		echo -e "$(YELLOW)No e2e tests found$(RESET)"; \
 	fi
 	@echo -e "$(GREEN)✅ E2E tests completed$(RESET)"
+
+# The parity suite runs the installed ce against goldens captured from one CE
+# build, so it fails whenever another CE is installed. It stays out of the
+# default gates; adopting a new CE reference is a deliberate run of this target.
+test-parity: ## run the CE run-lifecycle parity fixtures against the installed ce
+	@echo -e "$(CYAN)Running CE parity fixtures...$(RESET)"
+	GOWORK=off go test -tags=parity -count=1 ./tests/parity/...
+	@echo -e "$(GREEN)✅ CE parity fixtures completed$(RESET)"
 
 test-integration: ## run Docker-based integration tests (alias for test-docker)
 	@echo -e "$(CYAN)Running Docker integration tests...$(RESET)"
