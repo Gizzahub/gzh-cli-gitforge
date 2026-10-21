@@ -65,4 +65,4 @@ Resolved on 2026-10-21.
   with "devbox config was replaced by a symlink", and the bootstrap test
   fails with "bootstrap config written into the devbox".
 - Found in review, out of scope: a `type: config` workspace at its own
-  config directory crashes the loader (ISSUE-89).
+  config directory crashes the loader (ISSUE-95).

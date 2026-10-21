@@ -1,5 +1,5 @@
 ---
-id: ISSUE-89
+id: ISSUE-95
 title: "a config workspace at its own config directory crashes the loader with a stack overflow"
 type: bug
 priority: P3
