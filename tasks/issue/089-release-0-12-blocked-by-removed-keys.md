@@ -37,15 +37,15 @@ below until their owners delete the keys.
 Scan of primary checkouts on mbp, 2026-10-21 (task worktrees inherit the same
 lines on their branches):
 
-| Repository | Removed keys |
-| --- | --- |
-| `~/mydevbox/cwrapper-devbox` | `branch.makeTimeout: 90m` |
-| `~/mydevbox/familybook-devbox` (workspace `familybook-engine-fiber`) | `integration.prepareProfile: familybook-ent-v1` |
-| `~/mydevbox/flow-taskchain-devbox` | `branch.prepareProfile: flow-taskchain-local-subprojects-v1` |
-| `~/mydevbox/scripton-nd-stack-devbox` | `branch.makeTimeout: 45m` |
-| `~/mydevbox/sigdock-idp-devbox/sigdock-idp-rs` | `branch.makeTimeout`, `branch.prepareProfile: cargo-workspace-v1` |
-| `~/mydevbox/task-manager-devbox/taskchain-task-manager` | `branch.makeTimeout: "45m"` |
-| `~/mywork/iac/infra-ops` | `branch.makeTimeout: 52m`, `branch.prepareProfile: infra-ops-python-uv-v1` |
+| Repository                                                           | Removed keys                                                               |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `~/mydevbox/cwrapper-devbox`                                         | `branch.makeTimeout: 90m`                                                  |
+| `~/mydevbox/familybook-devbox` (workspace `familybook-engine-fiber`) | `integration.prepareProfile: familybook-ent-v1`                            |
+| `~/mydevbox/flow-taskchain-devbox`                                   | `branch.prepareProfile: flow-taskchain-local-subprojects-v1`               |
+| `~/mydevbox/scripton-nd-stack-devbox`                                | `branch.makeTimeout: 45m`                                                  |
+| `~/mydevbox/sigdock-idp-devbox/sigdock-idp-rs`                       | `branch.makeTimeout`, `branch.prepareProfile: cargo-workspace-v1`          |
+| `~/mydevbox/task-manager-devbox/taskchain-task-manager`              | `branch.makeTimeout: "45m"`                                                |
+| `~/mywork/iac/infra-ops`                                             | `branch.makeTimeout: 52m`, `branch.prepareProfile: infra-ops-python-uv-v1` |
 
 `resourceHighLoad` and `prepareHighLoad` still load. Without a readiness
 contract they no longer guard any code run.
