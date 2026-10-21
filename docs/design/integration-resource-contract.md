@@ -53,9 +53,12 @@ command refuses with `ErrResourceBusy` (exit 2), names the holder's recorded
 - **Execution run lock** (`<receipt>.run`). Two invocations of one execution
   ID must not run at once, so one cannot record a pre-push refusal while the
   other reaches intent or pushes.
-- **Receipt write lock.** It covers only the read-compare-write of a receipt
-  or outcome file, takes no other lock while held, and therefore stays a
-  short blocking acquisition; the receipt revision is the CAS.
+- **Receipt write lock.** It covers the read-compare-write of a receipt or
+  outcome file and, when a run first records intent, the registration marker
+  that binds the task worktree to the execution (one `git rev-parse` and one
+  file write). It takes no other lock while held and waits for no other
+  command, and therefore stays a short blocking acquisition; the receipt
+  revision is the CAS.
 
 Cleanup re-reads its receipt after taking the task fence and refuses with
 `ErrEvidenceReplay` when the target ref or any immutable field changed since
@@ -76,8 +79,8 @@ its first read.
 ## Current boundaries
 
 The task fence is per repository and task branch; other repositories and
-unrelated task branches have independent keys. On Windows the holder record
-may be unreadable while the lock is held, and the refusal then names "an
-unidentified process". Windows supports lock release and process-liveness
-checks, but directory fsync is unavailable and native crash durability has
-not been verified.
+unrelated task branches have independent keys. On Windows the lock covers a
+byte far past the holder record, so the record stays readable and the refusal
+names the holder there too; this has not been exercised on native Windows.
+Windows supports lock release and process-liveness checks, but directory
+fsync is unavailable and native crash durability has not been verified.

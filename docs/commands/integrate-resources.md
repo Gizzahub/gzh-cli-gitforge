@@ -22,9 +22,11 @@ target branch changed before the push: origin/develop is 4f1c…, readiness chec
 
 A run that starts after the other landed reports it earlier, as a failed
 `freshness` row (`1 commits behind origin/develop — git rebase origin/develop`)
-or a failed revalidation with the wording above. With `--expect-target` the
-refusal is a target mismatch (exit 4):
-`target origin/develop is 4f1c…, expected 9a0e…; rebase onto origin/develop and re-run check`.
+or a failed revalidation:
+`target branch changed during readiness: origin/develop is 4f1c…, readiness checked 9a0e…; rebase onto origin/develop and re-run check`.
+With `--expect-target` both refusals are a target mismatch (exit 4). The
+revalidation says `target origin/develop is 4f1c…, expected 9a0e…`; only the
+lease refusal adds `; rebase onto origin/develop and re-run check`.
 
 ## Local fences
 

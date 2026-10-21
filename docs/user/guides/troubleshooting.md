@@ -380,9 +380,10 @@ A config that still declares one fails to load:
 branch.readiness was removed: gz-git no longer builds, runs, or lints repository code; verification belongs to the task runtime (CE `ce task gate` and the repository's own checks), which must pass before gz-git is called; delete it from /repo/.gz-git.yaml
 ```
 
-Delete the named key from that file. Git-mutation locks wait until the lock is
-free or the command is interrupted (see
-[integration resource scope](../../commands/integrate-resources.md)).
+Delete the named key from that file. gz-git never waits for a lock: a command
+that finds another gz-git process holding the same task or execution refuses
+at once with `integration resource is busy`, names the holder, and exits 2
+(see [integration resource scope](../../commands/integrate-resources.md)).
 
 A manual `make lint` uses golangci-lint's shared cache, which is keyed by
 absolute path and outlives a reclaimed worktree, so it can report issues under

@@ -15,8 +15,10 @@ fallback:
   `HOST_SLOTS_HELD`, and the runner diagnostic files.
 
 The `--lock-wait` flag is removed with `branch.lockWait`: its bound applied
-only to the host slot. Git-mutation locks wait until the lock is free or the
-command is interrupted.
+only to the host slot. gz-git never waits for a lock: a command that finds
+another gz-git process holding the same task or execution refuses at once with
+`integration resource is busy`, names the holder, and exits 2 (see
+[integration resource scope](integrate-resources.md)).
 
 Verification belongs to the task runtime (CE `ce task gate` and the
 repository's own checks), which must pass before gz-git is called.
