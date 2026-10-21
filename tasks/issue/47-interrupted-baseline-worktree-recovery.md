@@ -7,6 +7,16 @@
 - owner: `gzh-cli-gitforge/pkg/integrate`
 - discovered-in: ce-devenv `codex-default-state-isolation` delivery
 
+## Update (2026-10-22)
+
+ee40ef50 deleted `pkg/integrate/check_make.go` and the baseline worktree, so
+the original recovery case no longer exists. The only remaining integrate
+temp root in non-test code is `MkdirTemp("", "gzh-git-archive-*")` at
+`pkg/integrate/archive_support.go:67`, removed only by defer, so it can leak
+on SIGKILL. The remaining scope narrows to reclaiming that archive scratch
+directory under an ownership and liveness check, or closing this card if
+that is not worth it (owner decision).
+
 ## 관측 증거
 
 ce-devenv의 installer archive pipe 교착 때문에 `ce task run-finish`의 task 검사와

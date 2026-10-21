@@ -1,6 +1,6 @@
 # ISSUE: go1.27 툴체인으로 빌드한 gosec가 export data를 읽지 못한다
 
-- status: TASK-270의 기존 수선은 resolved; Go 1.27.2 호환 gosec 정확 후보 채택 승인 (2026-10-14 통합·공식 설치 검증 진행)
+- status: resolved (2026-10-22 — 아래 Resolution)
 - priority: P1
 - category: quality/ci
 - created_at: 2026-10-01
@@ -114,3 +114,13 @@ receipt: printed to stdout on every run; recorded into the issue card only with 
 private builds/scans ran in an isolated mktemp dir, removed on exit in all outcomes
 
 <!-- TASK-270 receipt:end -->
+
+## Resolution
+
+Resolved on 2026-10-22.
+
+- `.make/tools.mk:16`가 승인된 Go 1.27 호환 후보를 고정한다:
+  `GOSEC_VERSION ?= v2.29.1-0.20261009120814-7b1b5cebe007`.
+- `go.mod`는 `toolchain go1.27.3`을 쓴다.
+- hosted CI run 39559122834(master `40b8782e` 기준)가 통과했다. Quality
+  게이트가 포함되며 이 게이트가 `security-code`를 실행한다.

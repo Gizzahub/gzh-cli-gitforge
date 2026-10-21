@@ -1,6 +1,6 @@
 # ISSUE: ce 511+에서 no-arg run-finish 동작이 바뀌어 parity의 ISSUE-069 known-divergent 표식이 낡았다
 
-- status: open
+- status: resolved (2026-10-22)
 - priority: P2
 - category: quality/parity
 - created_at: 2026-10-04
@@ -37,3 +37,6 @@ owner-scoped BLOCKED 거부를 검증하는 `finish-noarg-ambiguous-active` 회�
 추가했다. CE cd0e1d19 실행 파일의 Go build metadata를 golden provenance로
 기록했으며, 오래된 known-divergent/portContract 표식은 더 이상 사용하지
 않는다. 외부 회수 후 조회는 CE ADR-0073대로 BLOCKED 기록을 유지하고 기존 start receipt를 변경하지 않는다는 semantic assertion으로 검증한다. 전체 target-mode parity는 purpose・resume・provider capability・receipt 차이 때문에 완료로 선언하지 않는다. 최신 참조와 의미 계약을 고친 결과는 검증 증거와 함께 기록한다.
+
+The full target-mode remainder is tracked in
+[ISSUE-42](42-runtask-port-follow-ce-f540f972.md).

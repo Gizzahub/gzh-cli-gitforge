@@ -1,6 +1,6 @@
 # ISSUE: 사람 전용 readiness 승인이 저장소마다 수작업 명령 조립에 의존한다
 
-- status: open (설계 결정 완료 2026-10-06 — 착수 대기)
+- status: obsolete (2026-10-22); see Resolution
 - priority: P2
 - category: ux/integrate
 - created_at: 2026-10-06
@@ -133,3 +133,13 @@ launcher 추가와 효과 표 갱신은 ce-devenv 이슈 013이 소유한다.
 - ce-agent-kit `docs/10-ce-cli/22-readiness-runner-adapter.md` (「새 저장소에 적용하기」)
 - ce-devenv `config/claude/hooks/lib/guard-gz-git-version.sh` (`_guard_gz_git_effect_policy`)
 - 사례: sigdock-pass-devbox `tasks/manual/sigdock-component-readiness-bootstrap.md`
+
+## Resolution
+
+Obsolete on 2026-10-22. b8b4cccc ("remove the readiness contract and gate
+declarations") removed human readiness approval:
+`integration.readinessApproval` is now a removed key
+(`pkg/config/removed_keys.go:45`) and no `integrate bootstrap` /
+`integrate readiness` approval command remains. The launcher/hook side
+referenced as ce-devenv issue 013 should be closed there too
+(owner: ce-devenv).

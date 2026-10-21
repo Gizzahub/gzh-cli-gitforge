@@ -9,6 +9,14 @@ discovered-at: 2026-10-20
 created: 2026-10-20
 ---
 
+## Update (2026-10-22)
+
+The release hold did not hold in practice: tags v0.11.0 and v0.11.1 shipped
+with the provenance line (`pkg/integrate/device.go:119`,
+`integrate: run device=...`). The fix belongs to ce-agent-kit
+(`finish_reason.go`); close this card once that fix is installed and its
+commit is cited.
+
 ## Summary
 
 ISSUE-57 makes `integrate check|run|cleanup` and

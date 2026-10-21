@@ -38,3 +38,12 @@ took effect only after the file was moved to
 - Correct the path in these docs and comments, per OS.
 - Note that `config.yaml`, `config.yml` and `config.json` are looked up in that
   order and the first one found wins (`supportedExtensions`).
+
+## Resolution
+
+Resolved on 2026-10-22 by master 40b8782e ("docs(config): state the per-OS
+global config directory, not ~/.config/gz-git"). The per-OS rule is stated
+once in `docs/.claude-context/config-guide.md`; other docs, Go comments, the
+`config init --global` help text and the profile template comment use
+`<config-dir>` = `os.UserConfigDir()/gz-git`. Historical docs
+(`docs/MIGRATION_V2_TO_V3.md`, `reports/`) were left unchanged.
