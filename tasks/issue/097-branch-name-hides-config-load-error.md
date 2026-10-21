@@ -66,3 +66,20 @@ one. `TestBranchNameReadsTheProjectTemplate`
   warned about under `--verbose`, the name
   falls back to the default template, and the test fails only on machines
   whose real global config declares a removed key.
+
+## Resolution
+
+Resolved on 2026-10-22 by `fix(config): fail on a config load error instead of ignoring it` and `fix(config): fail on a bad --profile override instead of ignoring it`.
+
+- `LoadEffectiveConfig` returns the `NewLoader` and `loader.Load()` errors, wrapped, keeping the file and the key. The old
+  `NewLoader` fallback used a zero-value loader whose nil manager panicked in `Load`, so it never produced defaults.
+- A missing global, profile or project file is still not an error.
+- The `--profile` override fails when the manager cannot be created, when the profile does not exist, or when its file
+  fails to load; before, each case ran on the active profile.
+- `branch name` exits 2 on a load error, and its help says so. The twelve commands listed in the Fix note return the
+  error and exit 1, the repository's configuration-error code (`pkg/cliutil/exit.go`); exit 2 there means a partial run.
+- The branch-name tests, `TestRunStatus_NoRepos`, `TestRunExec_DryRunAndSuccess`, `TestPullAllReposFailExitsTwo`,
+  `TestPullConflictExitsTwo` and `TestPullBadFormatExitsOne` isolate the config home. New tests cover a removed key in
+  the global config (exit 2, key named), no global config (defaults), and a missing, broken and valid `--profile`.
+- Impact: once released, a device whose global config still declares a removed key fails every one of these commands
+  until the key is deleted (ISSUE-89).

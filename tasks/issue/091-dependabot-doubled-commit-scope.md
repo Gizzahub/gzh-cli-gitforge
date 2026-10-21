@@ -42,3 +42,8 @@ Set `prefix: "chore"` for both ecosystems and keep `include: "scope"`. Other
 gzh-cli repositories with the same template are tracked in their own
 repositories (gzh-cli, gzh-cli-core, gzh-cli-dev-env, gzh-cli-template,
 gzh-cli-shellforge, gzh-cli-package-manager, gzh-cli-quality).
+
+## Resolution
+
+Resolved on 2026-10-22 by `ci(dependabot): drop the doubled commit scope`: both ecosystems use `prefix: "chore"` with
+`include: "scope"`, so subjects read `chore(deps): ...`.
