@@ -70,9 +70,6 @@ func TestDeviceIdentityLabel(t *testing.T) {
 		if got := tc.device.Label(); got != tc.want {
 			t.Errorf("%+v.Label() = %q, want %q", tc.device, got, tc.want)
 		}
-		if got := hostLockDeviceLabel(hostLockHolder{Host: tc.device.Host, hostRejected: tc.device.Rejected}); got != "host "+tc.want {
-			t.Errorf("host-lock label for %+v = %q, want %q", tc.device, got, "host "+tc.want)
-		}
 	}
 }
 
@@ -132,5 +129,39 @@ func TestResolveCallerOwnerHostGrammar(t *testing.T) {
 	t.Setenv("GIT_WORK_HOST", "")
 	if _, err := ResolveCallerOwner(context.Background(), exec); err == nil || !strings.Contains(err.Error(), "device identity is not configured") {
 		t.Fatalf("missing host: err = %v, want unconfigured device identity", err)
+	}
+}
+
+func TestResolveDeclaredDevice(t *testing.T) {
+	global := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(global, []byte("[ce]\n\tworkHost = lab\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	g := newGitRepo(gitcmd.NewExecutor(), t.TempDir())
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		env, want string
+		rejected  bool
+	}{
+		{"mst", "mst", false},     // environment wins over global Git config
+		{"", "lab", false},        // global ce.workHost
+		{"bad host", "", true},    // malformed declaration is not repaired or guessed
+		{"-mbp", "", true},        // option-like value is refused
+		{"  mbp  ", "mbp", false}, // surrounding space is not part of the name
+		{"MBP", "", true},         // outside the device catalog grammar
+		{"m;x", "", true},         // a separator would split the notice field
+	} {
+		t.Setenv("GIT_WORK_HOST", tc.env)
+		if got := resolveDeclaredDevice(ctx, g); got.Host != tc.want || got.Rejected != tc.rejected {
+			t.Errorf("GIT_WORK_HOST=%q: host = %q rejected = %v, want %q rejected = %v", tc.env, got.Host, got.Rejected, tc.want, tc.rejected)
+		}
+	}
+
+	t.Setenv("GIT_WORK_HOST", "")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(t.TempDir(), "missing"))
+	if got := resolveDeclaredDevice(ctx, g); got.Host != "" || got.Rejected {
+		t.Errorf("undeclared device: host = %q rejected = %v, want empty and not rejected (no hostname fallback)", got.Host, got.Rejected)
 	}
 }

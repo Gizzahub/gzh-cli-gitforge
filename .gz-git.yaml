@@ -4,8 +4,8 @@
 # first '*' marks a task-branch namespace, so agent/* also covers
 # agent/<task>/<agent-id> and dev/*/*/*/* covers
 # dev/<actor>/<host>/<type>/<slug>.
-# No readiness contract is declared, so `gz-git integrate` runs no repository
-# code here: run `make check` yourself before integrating.
+# `gz-git integrate` runs no repository code; its git checks alone decide
+# readiness: run `make check` yourself before integrating.
 branch:
   integrationBranch:
     - master

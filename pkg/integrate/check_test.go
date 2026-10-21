@@ -372,14 +372,15 @@ func writeRepoFile(t *testing.T, dir, name, body string) {
 	}
 }
 
-func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
+// TestBuildRunProtocolKeepsNoneModeShape pins the schema_version 1 shape a
+// none-mode run renders: the retired duration fields stay explicit zeros and
+// no readiness-runner field appears.
+func TestBuildRunProtocolKeepsNoneModeShape(t *testing.T) {
 	t.Parallel()
 	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{
-		Items: []CheckItem{{Name: "readiness contract", Status: checkFail, Detail: "ordinary failure"}},
-	}}, nil, 1)
-	if protocol.ReadinessFailures != nil {
-		t.Fatalf("non-timeout failures = %+v, want omitted readiness failures", protocol.ReadinessFailures)
-	}
+		GateMode: gateModeNone,
+		Items:    []CheckItem{{Name: "readiness contract", Status: checkPass, Detail: "none declared"}},
+	}}, nil, 0)
 	data, err := json.Marshal(protocol)
 	if err != nil {
 		t.Fatal(err)
@@ -388,71 +389,14 @@ func TestBuildRunProtocolOmitsFailuresWithoutTimeouts(t *testing.T) {
 	if err := json.Unmarshal(data, &document); err != nil {
 		t.Fatal(err)
 	}
-	if _, found := document["readiness_failures"]; found {
-		t.Fatalf("non-timeout protocol includes readiness_failures: %#v", document["readiness_failures"])
-	}
-}
-
-func TestBuildRunProtocolTimeoutFailuresKeepNullableFieldsAndAllEntries(t *testing.T) {
-	t.Parallel()
-	signal := "SIGKILL"
-	request := &TerminationRequest{Method: "process_group", Signal: &signal}
-	protocol := BuildRunProtocol(&RunReport{Check: &CheckReport{ReadinessFailures: []ReadinessFailure{
-		{Stage: "contract_runner", Class: "timeout", BudgetMS: 20, ElapsedMS: 21, TerminationRequest: request},
-		{Stage: "contract_plan", Class: "timeout", BudgetMS: 30, ElapsedMS: 31},
-		{Stage: "contract_runner", Class: "timeout", BudgetMS: 40, ElapsedMS: 41, TerminationRequest: &TerminationRequest{Method: "job_object"}},
-	}}}, nil, 1)
-	data, err := json.Marshal(protocol)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var document map[string]any
-	if err := json.Unmarshal(data, &document); err != nil {
-		t.Fatal(err)
-	}
-	failures, ok := document["readiness_failures"].([]any)
-	if !ok || len(failures) != 3 {
-		t.Fatalf("readiness_failures = %#v, want three entries", document["readiness_failures"])
-	}
-	for _, raw := range failures {
-		failure, ok := raw.(map[string]any)
-		if !ok {
-			t.Fatalf("failure JSON = %#v, want object", raw)
-		}
-		for _, key := range []string{"leaf_exit_code", "diagnostic_path"} {
-			value, found := failure[key]
-			if !found || value != nil {
-				t.Fatalf("failure JSON = %#v, want explicit %s:null", raw, key)
-			}
-		}
-		if _, found := failure["termination_request"]; !found {
-			t.Fatalf("failure JSON = %#v, want termination_request key", raw)
+	for _, key := range []string{"resource_wait_duration_ms", "validation_duration_ms", "plan_duration_ms", "preparation_duration_ms", "integration_duration_ms"} {
+		if value, found := document[key]; !found || value != float64(0) {
+			t.Fatalf("%s = %#v (found=%t), want explicit 0", key, value, found)
 		}
 	}
-	firstFailure := protocolFailureObject(t, failures[0])
-	firstRequest := protocolFailureObject(t, firstFailure["termination_request"])
-	if firstRequest["method"] != "process_group" || firstRequest["signal"] != "SIGKILL" {
-		t.Fatalf("termination request = %#v", firstRequest)
+	for _, key := range []string{"readiness_failures", "resource_class"} {
+		if value, found := document[key]; found {
+			t.Fatalf("none-mode protocol includes %s: %#v", key, value)
+		}
 	}
-	second := protocolFailureObject(t, failures[1])
-	if request, found := second["termination_request"]; !found || request != nil {
-		t.Fatalf("uncanceled timeout request = %#v, want explicit null", second["termination_request"])
-	}
-	third := protocolFailureObject(t, failures[2])
-	jobRequest := protocolFailureObject(t, third["termination_request"])
-	if jobRequest["method"] != "job_object" {
-		t.Fatalf("Windows termination request = %#v", third["termination_request"])
-	}
-	if signal, found := jobRequest["signal"]; !found || signal != nil {
-		t.Fatalf("Windows signal = %#v, want explicit null", jobRequest["signal"])
-	}
-}
-
-func protocolFailureObject(t *testing.T, raw any) map[string]any {
-	t.Helper()
-	object, ok := raw.(map[string]any)
-	if !ok {
-		t.Fatalf("protocol object = %#v, want JSON object", raw)
-	}
-	return object
 }

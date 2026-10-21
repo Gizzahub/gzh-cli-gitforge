@@ -8,24 +8,16 @@ gz-git --help
 gz-git <command> --help
 ```
 
-## Readiness transactions
+## Integrate
 
-Target-owned readiness contracts use narrow, separately reviewed procedures:
-[bootstrap](integrate-bootstrap.md) creates a missing contract, while
-[readiness contract update](integrate-readiness-update.md) changes one that
-already exists.
+`gz-git integrate` runs no repository code: its git checks alone decide
+readiness. [Removed gate declarations](integrate-prepare-profile.md) lists the
+removed make gate and readiness contract (`contract-v1`) keys and their load
+error.
 
 [Controller-config integration](integrate-controller-config.md) is the
-explicit devbox-only policy path for repositories that have no target-owned
-readiness contract.
-
-[ND checked-binding preparation](integrate-nd-preparation.md) describes the optional
-native readiness compilation profile for ND source-board bindings.
-[Integration preparation profiles](integrate-prepare-profile.md) describe
-the readiness contract's fixed preparation profiles and the removed
-legacy declarations.
-[Readiness resource plan](integrate-resource-plan.md) lets a target-owned
-runner classify each run as light or high before the host slot is taken.
+explicit devbox-only policy path that binds branch and reclaim policy from a
+controller file.
 
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
 `--no-fetch` finish step on `integrate check` and `integrate run`.
@@ -43,11 +35,11 @@ v1 조회 전용 호환성과 잔여 자원 보존·완료 판정을 설명한�
 prospective plan과 standalone apply의 지원 범위를 설명한다.
 
 [Reclaiming declared workspace clones](integrate-reclaim-workspace-clones.md)
-explains when `integrate run` may delete clones that `make prepare` left in
+explains when `integrate run` may delete clones that `gz-git sync` left in
 the task worktree.
 
-[Integration resource scope](integrate-resources.md) documents target ownership
-and the explicit high-load resource declaration.
+[Integration resource scope](integrate-resources.md) documents target ownership,
+the task fence, and how a lock wait ends.
 
 ## 새 저장소 초기 준비
 

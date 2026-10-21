@@ -200,8 +200,8 @@ The first delivery has these boundaries:
 
    `context.unsupported-platform` is a reason code in the same `context.` namespace as
    `context.not-declared`, and pairs with `componentOutcome=unsupported`. It is
-   deliberately not the convention used by `pkg/integrate/readiness.go:133`, which reports
-   an absent platform capability as `checkFail`. That surface answers "is this branch
+   deliberately not the convention the removed readiness contract (`contract-v1`) used,
+   which reported an absent platform capability as `checkFail`. That surface answered "is this branch
    ready", where an unanswerable check is a failure; this surface reports observations,
    where an unanswerable check is an absence. The divergence is intended, and neither
    surface should be changed to match the other.

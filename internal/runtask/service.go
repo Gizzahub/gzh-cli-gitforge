@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // worktrunkVersion is the Worktrunk release this run lifecycle contracts
@@ -334,8 +336,7 @@ func (s *Service) sourceBranch(ctx context.Context) (string, error) {
 	// declared its target, the declaration is unreadable, and the caller is
 	// told it declared nothing.
 	declaration := filepath.Join(s.root, ".gz-git.yaml")
-	// #nosec G304 -- the path is this repository's own declaration file
-	switch b, readErr := os.ReadFile(declaration); {
+	switch b, readErr := config.ReadConfigFile(declaration); {
 	case readErr == nil:
 		doc, parseErr := parseDeclaration(b)
 		if parseErr != nil {

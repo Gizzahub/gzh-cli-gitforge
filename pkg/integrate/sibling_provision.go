@@ -314,8 +314,7 @@ type siblingLeaseRecord struct {
 // back to a parent or user config layer.
 func LoadSiblingProvision(repoRoot string) (config.SiblingProvision, bool, error) {
 	for _, name := range []string{".gz-git.yaml", ".gz-git.yml", ".gz-git.json"} {
-		// #nosec G304 -- fixed declaration filename under selected repository root
-		data, err := os.ReadFile(filepath.Join(repoRoot, name))
+		data, err := config.ReadConfigFile(filepath.Join(repoRoot, name))
 		if os.IsNotExist(err) {
 			continue
 		}

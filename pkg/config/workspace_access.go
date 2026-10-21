@@ -95,7 +95,7 @@ func workspaceAccessInFileVisited(configPath, repoAbs string, visited map[string
 	// configPath comes only from bounded upward discovery of fixed project
 	// config names, never directly from configuration content.
 	// #nosec G304 -- configPath is a discovered fixed-name local project config.
-	data, err := os.ReadFile(canonicalConfig)
+	data, err := ReadConfigFile(canonicalConfig)
 	if err != nil {
 		return "", false, fmt.Errorf("read workspace access config %s: %w", configPath, err)
 	}

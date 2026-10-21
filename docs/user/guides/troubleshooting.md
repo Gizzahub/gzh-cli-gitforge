@@ -315,95 +315,23 @@ repositories (no remote, no upstream, skipped) and base-sync statuses do not.
 `--dry-run` reports the same scan without touching anything, which is the
 cheapest way to confirm the command is finding your repositories at all.
 
-## `integrate check` says bootstrap required or readiness contract changed
+## `capability integrate-readiness-v1` fails
 
-Before bootstrapping a repository, every wrapper or policy hook that can invoke
-integration should require this exact probe to succeed:
+The readiness contract (`contract-v1`) was removed together with
+`integrate bootstrap`, `integrate readiness review|update`, the readiness
+runner, its preparation profiles, resource plans, the host measurement slot,
+and its diagnostic files. The probe
 
 ```bash
 gz-git capability integrate-readiness-v1
 ```
 
-Unlike a version-string floor, this is the binary's explicit declaration that
-it implements the named contract. Success exits zero and writes exactly
-`integrate-readiness-v1` plus a newline to stdout, including with `--quiet`;
-an older client, unknown capability, wrong arity, or output failure exits
-nonzero and must fail closed.
-
-Readiness V1 is owned by the target branch, not by a task branch. Add the
-contract to the target in a separately approved bootstrap change, then rebase
-task branches onto that target. A task branch cannot introduce, remove, or
-weaken its own gate.
-
-Where neither target nor source declares readiness, gz-git runs no repository
-code: the `readiness contract` row reports `none declared` and the git checks
-alone decide readiness (see
-[`integrate check` passes without running tests or lint](#integrate-check-passes-without-running-tests-or-lint)).
-A source-only declaration fails with `bootstrap required`; once the target declares V1, every
-source must carry the identical readiness declaration and runner tree.
-
-```yaml
-branch:
-  readiness:
-    version: 1
-    runner: .gz-git/readiness/check
-```
-
-The runner must be a tracked executable regular file (`100755`) below
-`.gz-git/readiness/`. Contract runners are supported on macOS and Linux; on
-Windows the check fails closed. `gz-git` runs it from a detached target-SHA worktree
-with fixed `--source-dir`, `--source-sha`, `--target-sha`, and
-`--result-format json-v1` arguments. It must return one JSON value such as:
-
-```json
-{"version":1,"status":"ready","summary":"validation passed"}
-```
-
-`ready`, `not_ready`, and `unavailable` are the only statuses. An unavailable
-measurement, malformed result, timeout, changed runner tree, or changed
-contract is never downgraded; there is no flag that does so.
-
-A contract has no baseline tolerance. gz-git does
-not rerun the runner on the target to excuse failures that already exist there:
-`not_ready` blocks integration whether or not the target shares the failure.
-Keeping the target green is the consuming repository's job. Fix or revert a
-deterministic failure; treat a timing or contention failure at its cause (for
-example the slot from a [resource plan](../../commands/integrate-resource-plan.md));
-and if a known failure must be tolerated meanwhile, declare it in that
-repository's own test layer with an owning issue rather than in the runner's
-verdict logic. This is a design decision, recorded in gzh-cli-devbox ISSUE-351.
-
-V1 defaults to a 15-minute runner execution timeout. A target-owned
-`branch.readiness.timeout` may set a positive Go duration up to `2h` (for example
-`45m`). Omission preserves the existing contract digest. An explicit value is
-part of the contract digest and requires the normal readiness update transaction.
-Preparation and resource waiting do not consume this runner budget.
-Standard output and standard error
-are each limited to 1 MiB. Standard output must contain exactly one
-duplicate-free JSON object with the three fields `version`, `status`, and
-`summary`; unknown fields and trailing values are rejected. `summary` must be
-valid UTF-8, nonempty, single-line text without control characters and at most
-4096 bytes. A nonzero runner exit is an unavailable measurement.
-
-The runner is isolated from the source checkout but is not a sandbox: it
-inherits the normal toolchain, cache, credential, and temporary-directory
-environment needed by repository validation. Selected shell-startup controls
-and Git repository override variables are removed, and `LC_ALL`/`LANG` are
-forced to `C`. The manifest cannot configure arguments, environment, or cwd. Timeout cannot
-be overridden through a CLI flag, environment variable, profile, or global config.
-
-## `integrate check` reports a failing gate without its output
-
-Failing target-owned readiness runners write their captured output to a local diagnostic file. The
-failing check row shows its absolute path. Files live under
-`${XDG_STATE_HOME}/gz-git/integrate/diagnostics/`, or
-`~/.local/state/gz-git/integrate/diagnostics/` when `XDG_STATE_HOME` is unset
-or relative. The directory is mode `0700` and files are mode `0600` because
-tool output can contain secrets. Files persist after the temporary worktree is
-removed; inspect them locally and delete individual files when no longer
-needed. Successful checks create no diagnostic file.
-On Windows, private POSIX permissions are unavailable, so the check reports
-that diagnostic persistence is unsupported instead of writing a file.
+now exits 1 like any unknown capability, and a hook that required it must stop
+requiring it rather than fall back. gz-git runs no repository code, so the
+verification a readiness runner performed belongs to the task runtime (CE
+`ce task gate` and the repository's own checks), which must pass before
+gz-git is called. See
+[`integrate check` passes without running tests or lint](#integrate-check-passes-without-running-tests-or-lint).
 
 ## Controller-backed `integrate queue` is unavailable
 
@@ -421,8 +349,8 @@ branch, and optional task-pattern filter explicitly.
 
 ## `integrate check` passes without running tests or lint
 
-gz-git does not build, execute, or lint repository code itself. Without a
-target-owned readiness contract the report shows
+gz-git does not build, execute, or lint repository code itself. The gate
+mode is always `none`, and the report shows
 
 ```text
 PASS  readiness contract — none declared; gz-git runs no repository code, git checks decide readiness
@@ -431,20 +359,30 @@ INFO readiness provenance — mode=none source=... target=...
 
 and READY means only that the git checks passed: freshness, merge-tree,
 cross-merge, a clean working tree, a pushed source, and the post-gate
-revalidation. Run the repository's own checks (for example `make check`)
-yourself before integrating, or declare a readiness contract so the target
-runs them.
+revalidation. Run the repository's own checks (for example `make check`, or
+CE `ce task gate`) yourself before integrating.
 
-The legacy make gate, `--allow-skipped-checks`, and the repository-root keys
-`branch.makeTimeout`, `branch.makeOutcomeReport`, and `branch.prepareProfile`
-(and controller `integration.prepareProfile`) were removed without a fallback.
-A `.gz-git.yaml` that still declares one fails to load:
+The legacy make gate, `--allow-skipped-checks`, the readiness contract, and
+their declarations were removed without a fallback. Every gz-git loader of a
+`.gz-git.yaml`, workspace, controller, clone, or global config rejects these
+keys wherever a `branch` or `integration` mapping holds them:
+
+- `branch.makeTimeout`, `branch.makeOutcomeReport`
+- `branch.prepareProfile`, `integration.prepareProfile`
+- `branch.readiness` (any content, including an empty mapping)
+- `branch.prepareHighLoad`, `branch.resourceHighLoad`
+- `integration.readinessApproval`
+- `branch.lockWait` (the `--lock-wait` flag is removed with it)
+
+A config that still declares one fails to load:
 
 ```text
-branch.makeTimeout was removed: gz-git no longer runs make; delete it from /repo/.gz-git.yaml
+branch.readiness was removed: gz-git no longer builds, runs, or lints repository code; verification belongs to the task runtime (CE `ce task gate` and the repository's own checks), which must pass before gz-git is called; delete it from /repo/.gz-git.yaml
 ```
 
-Delete the named key from that file.
+Delete the named key from that file. Git-mutation locks wait until the lock is
+free or the command is interrupted (see
+[integration resource scope](../../commands/integrate-resources.md)).
 
 A manual `make lint` uses golangci-lint's shared cache, which is keyed by
 absolute path and outlives a reclaimed worktree, so it can report issues under

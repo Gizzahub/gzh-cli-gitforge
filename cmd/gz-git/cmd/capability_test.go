@@ -15,7 +15,6 @@ func (failingCapabilityWriter) Write([]byte) (int, error) {
 
 func TestCapabilityCommandReportsSupportedCapability(t *testing.T) {
 	for _, capability := range []string{
-		integrateReadinessV1Capability,
 		integrateQueueControllerV1Capability,
 		integrateQueueBaseMissingV1Capability,
 		contextReferenceObserveV1Capability,

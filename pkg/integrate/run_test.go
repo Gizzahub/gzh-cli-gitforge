@@ -180,7 +180,7 @@ func TestRun_HeuristicTargetUsesBoundSourceApproval(t *testing.T) {
 }
 
 func TestRun_HeuristicTargetRecheckedAfterTaskFenceWait(t *testing.T) {
-	fastHostLockPolling(t)
+	fastLockPolling(t)
 	fx := runFixture(t, "")
 	marker := filepath.Join(t.TempDir(), "gate-ran")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
@@ -234,7 +234,7 @@ func TestRun_HeuristicTargetRecheckedAfterTaskFenceWait(t *testing.T) {
 }
 
 func TestRun_DeclarationRecheckedAfterTargetLockWait(t *testing.T) {
-	fastHostLockPolling(t)
+	fastLockPolling(t)
 	fx := runFixture(t, "")
 	marker := filepath.Join(t.TempDir(), "gate-ran")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")
@@ -288,7 +288,7 @@ func TestRun_DeclarationRecheckedAfterTargetLockWait(t *testing.T) {
 }
 
 func TestRun_ControllerRecheckedBeforeGateAfterTargetLockWait(t *testing.T) {
-	fastHostLockPolling(t)
+	fastLockPolling(t)
 	fx := runFixture(t, "")
 	marker := filepath.Join(t.TempDir(), "gate-ran")
 	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: main\n")

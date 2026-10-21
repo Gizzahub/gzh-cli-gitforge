@@ -14,6 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	configpkg "github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // ConfigType represents the detected configuration type.
@@ -125,6 +126,10 @@ func validateConfigFile(path string) (*ValidationResult, error) {
 	content, err := os.ReadFile(path) // #nosec G304 -- path is the explicit config file selected for validation.
 	if err != nil {
 		return nil, err
+	}
+
+	if err := configpkg.RejectRemovedKeys(content, path); err != nil {
+		return &ValidationResult{Errors: []string{fmt.Sprint(err)}}, nil
 	}
 
 	var rawConfig map[string]any

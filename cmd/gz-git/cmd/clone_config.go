@@ -116,6 +116,13 @@ func parseCloneConfig(configPath string, useStdin bool) (*CloneConfig, error) {
 			return nil, fmt.Errorf("read config file %s: %w", configPath, err)
 		}
 	}
+	source := configPath
+	if useStdin {
+		source = "<stdin>"
+	}
+	if err := configpkg.RejectRemovedKeys(data, source); err != nil {
+		return nil, err
+	}
 
 	// Helper to unmarshal based on extension
 	unmarshal := func(d []byte, v any) error {

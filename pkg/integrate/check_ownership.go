@@ -13,7 +13,7 @@ import (
 
 // validateOwnedCheckPlan binds the post-fetch plan to the declaration used
 // before target ownership. A wait may permit another writer to change either
-// the source or its controller; no readiness gate may consume that stale policy.
+// the source or its controller; no git check may consume that stale policy.
 // resolveTarget runs first so explicit source/target approval errors keep their
 // precedence. Caller-supplied IntegrationConfig is not a repository declaration.
 func validateOwnedCheckPlan(ctx context.Context, g gitRepo, root string, before targetPreflight, plan TargetPlan, controller *controllerBinding, decl config.TaskPatternDecl, repositoryTarget bool) error {

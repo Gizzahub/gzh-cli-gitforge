@@ -175,8 +175,6 @@ func findTaskWorktree(ctx context.Context, g gitRepo, branch string) (string, er
 func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
 	p := &evidenceProvenance{}
 	if check != nil {
-		p.PrepareProfile = check.PrepareProfile
-		p.PrepareInputs = check.PrepareInputs
 		p.ReclaimRefs = &evidenceReclaimRefs{
 			Default:     defaultBranchName(check.Plan.DefaultRef, check.Plan.Remote),
 			Integration: check.Plan.Integration.Name,

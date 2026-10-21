@@ -32,8 +32,9 @@ import (
 // command itself creates is part of that new directory (filesystem).
 //
 // arbitrary means gz-git itself launches a program chosen by configuration, a
-// flag, the environment or the repository (make targets, hooks in a gz-git
-// config, a readiness runner, $EDITOR). Programs that git or Worktrunk run on
+// flag, the environment or the repository (hooks in a gz-git config,
+// $EDITOR). gz-git builds, runs, and lints no repository code, so the
+// integrate engine launches no such program. Programs that git or Worktrunk run on
 // their own behalf (hooks, credential helpers, ssh, filters) are not counted:
 // nearly every mutating command can trigger one, so counting them would leave
 // the target with nothing to distinguish.
@@ -47,23 +48,22 @@ const (
 // Mutation targets. Consumers match these strings, so they are a contract:
 // add new ones, never rename.
 const (
-	mutatesWorktree          = "worktree"           // working-tree files or index of an existing repository
-	mutatesRefs              = "refs"               // local branches, tags, HEAD, stash, commits
-	mutatesTrackingRefs      = "tracking-refs"      // remote-tracking refs only
-	mutatesRemote            = "remote"             // pushes to or deletes on a git remote
-	mutatesForge             = "forge"              // objects created or changed through a forge API
-	mutatesFilesystem        = "filesystem"         // directories or kept files created or removed (clones, git worktrees, diagnostics)
-	mutatesConfig            = "config"             // gz-git config, profiles, or git config
-	mutatesCredentials       = "credentials"        // OS keychain tokens
-	mutatesRunState          = "run-state"          // task run records
-	mutatesReadinessContract = "readiness-contract" // target-owned readiness contract
-	mutatesArbitrary         = "arbitrary"          // gz-git launches a caller- or repository-chosen program
+	mutatesWorktree     = "worktree"      // working-tree files or index of an existing repository
+	mutatesRefs         = "refs"          // local branches, tags, HEAD, stash, commits
+	mutatesTrackingRefs = "tracking-refs" // remote-tracking refs only
+	mutatesRemote       = "remote"        // pushes to or deletes on a git remote
+	mutatesForge        = "forge"         // objects created or changed through a forge API
+	mutatesFilesystem   = "filesystem"    // directories or kept files created or removed (clones, git worktrees, diagnostics)
+	mutatesConfig       = "config"        // gz-git config, profiles, or git config
+	mutatesCredentials  = "credentials"   // OS keychain tokens
+	mutatesRunState     = "run-state"     // task run records
+	mutatesArbitrary    = "arbitrary"     // gz-git launches a caller- or repository-chosen program
 )
 
 var knownMutationTargets = map[string]bool{
 	mutatesWorktree: true, mutatesRefs: true, mutatesTrackingRefs: true, mutatesRemote: true,
 	mutatesForge: true, mutatesFilesystem: true, mutatesConfig: true, mutatesCredentials: true,
-	mutatesRunState: true, mutatesReadinessContract: true, mutatesArbitrary: true,
+	mutatesRunState: true, mutatesArbitrary: true,
 }
 
 // commandEffects declares every runnable command, keyed by its path below
@@ -136,28 +136,19 @@ var commandEffects = map[string][]string{
 
 	// Plans fetch the target unconditionally and pass --no-tags, so tag
 	// auto-follow cannot create local tags. Tracking refs are their whole
-	// footprint. Applies change the target-owned readiness contract. run also
-	// fast-forwards a checked-out target and reclaims the task worktree and
+	// footprint. run also fast-forwards a checked-out target and reclaims the task worktree and
 	// branch.
 	"integrate queue":                      {mutatesTrackingRefs},
 	"integrate provision siblings acquire": {mutatesFilesystem},
 	"integrate provision siblings inspect": nil,
 	"integrate provision siblings release": {mutatesFilesystem},
-	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem, mutatesArbitrary},
-	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig, mutatesArbitrary},
+	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem},
+	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig},
 	"integrate cleanup":                    {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 	"integrate legacy-cleanup plan":        {mutatesFilesystem},
 	"integrate legacy-cleanup apply":       {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 	"integrate receipt":                    nil,
 	"integrate reconcile":                  {mutatesFilesystem},
-	"integrate bootstrap plan":             {mutatesTrackingRefs},
-	"integrate bootstrap apply":            {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
-	"integrate readiness update plan":      {mutatesTrackingRefs},
-	"integrate readiness update apply":     {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract},
-	"integrate readiness update review":    {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract, mutatesFilesystem},
-	"integrate readiness update auto":      {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract, mutatesFilesystem, mutatesArbitrary},
-	"integrate readiness update run":       {mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesReadinessContract, mutatesFilesystem, mutatesArbitrary},
-	"integrate readiness update policy":    nil,
 
 	"pr create": {mutatesForge},
 
@@ -171,7 +162,7 @@ var commandEffects = map[string][]string{
 	"run abort":       {mutatesRunState},
 	"run start":       {mutatesFilesystem, mutatesRefs, mutatesConfig, mutatesRunState},
 	"run discard":     {mutatesFilesystem, mutatesRefs, mutatesConfig, mutatesRunState},
-	"run finish":      {mutatesWorktree, mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesRunState, mutatesArbitrary},
+	"run finish":      {mutatesWorktree, mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig, mutatesRunState},
 	"stash list":      nil,
 	"stash apply":     {mutatesWorktree},
 	"stash pop":       {mutatesWorktree, mutatesRefs},

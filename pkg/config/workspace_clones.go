@@ -49,6 +49,9 @@ func DeclaredWorkspaceClones(repoRoot string) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	if err := RejectRemovedKeys(data, path); err != nil {
+		return nil, err
+	}
 	var cfg struct {
 		Workspaces map[string]*Workspace `yaml:"workspaces"`
 	}

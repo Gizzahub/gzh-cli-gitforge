@@ -1,5 +1,18 @@
 # ISSUE: 호스트 ce 바이너리 드리프트로 CE parity 골든 검증이 전면 실패한다
 
+## c6d5bf84 추가 채택 (2026-10-21)
+
+- 설치 CE가 clean `c6d5bf84`(`412-gc6d5bf84`, 0.10.14)로 바뀌어 golden이 다시
+  CE identity 불일치로 실패했다. 이 구간의 CE 비테스트 변경은 `access*.go`,
+  `task_cleanup.go`, `task_lint.go`의 테스트 병렬화용 주입 리팩터뿐이고 캡처
+  경로 밖이다. 최신 설치본 기준 재고정 방침대로 pin을 옮기고 readiness 계약
+  제거와 함께 재녹화했다.
+- CE identity를 정규화하면 10개는 바이트 동일하고, 2개는 `integrate --help`
+  문구만 바뀐다. 종료·상태·ref·push·cleanup은 같다.
+- 근거: [c6d5bf84 채택 기록](../../reports/2026-10-21-ce-parity-reference-c6d5bf84.md).
+- 설치 CE가 바뀔 때마다 기본 게이트가 깨지는 구조는 이 카드의 재고정 반복으로
+  해결하지 않는다. parity를 기본 게이트에서 분리하는 별도 작업으로 다룬다.
+
 ## f88f4331 추가 채택 (2026-10-21)
 
 - 설치 CE가 clean `f88f4331`(`403-gf88f4331`, 0.10.14)로 바뀌어 12개 golden이

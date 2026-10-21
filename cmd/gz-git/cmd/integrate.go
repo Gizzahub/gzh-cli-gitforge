@@ -11,7 +11,7 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
-// integrateCmd groups queue, readiness, and integration commands.
+// integrateCmd groups queue, check, and integration commands.
 var integrateCmd = &cobra.Command{
 	Use:   "integrate",
 	Short: "Inspect and apply task-branch integration",
@@ -26,12 +26,11 @@ var integrateCmd = &cobra.Command{
 
 integrate answers a different question than branch list. queue lists
 unfinished task branches, check is the readiness gate, and run
-fast-forwards then reclaims.
+fast-forwards then reclaims. gz-git builds, runs, and lints no
+repository code: git checks alone decide readiness.
 
-A held host resource slot is exported to gate children through
-HOST_SLOTS_HELD, a cooperative comma-separated list. A child that inherits
-integrate runs under its parent's slot and keeps the parent's holder record.
-Each repository and target ref retains its own Git target lock.`),
+Each repository and target ref has its own Git target lock. A command
+waits for it until the lock is free or the command is interrupted.`),
 	Args: cobra.NoArgs,
 }
 
@@ -43,8 +42,7 @@ func init() {
 // else on the notice stream (stderr), so a captured log names the device and
 // the gz-git build that wrote it. It never goes to stdout: --json documents
 // stay one protocol document. It ignores --quiet like the lock notices it
-// attributes. Only the commands that run gates or wait on host or target
-// locks print it; read-only queries and plan files do not.
+// attributes. Only the commands that wait on git-mutation locks print it; read-only queries and plan files do not.
 func printIntegrateProvenance(cmd *cobra.Command) {
 	device := integrate.ResolveDevice(cmdContext(cmd), gitcmd.NewExecutor(), ".")
 	// A failed write to stderr has nowhere visible to go, and the line is

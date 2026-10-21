@@ -28,16 +28,14 @@ func NewEngine() integrateEngine { return engineIntegrate{} }
 func (engineIntegrate) Check(ctx context.Context, dir string, noFetch bool) (CommandResult, error) {
 	result := CommandResult{Command: integrationProviderGZGit, Args: integrateArgs("check", noFetch), WorkDir: dir}
 	report, err := integrate.Check(ctx, gitcmd.NewExecutor(), integrate.CheckOptions{RepoPath: dir, NoFetch: noFetch})
-	// Check may return a report together with a typed resource-wait error after
-	// it has finished gate cleanup. Preserve the report for the bridge caller.
+	// Check may return a report together with an error. Preserve the report
+	// for the bridge caller.
 	if report != nil {
 		result.Stdout = integrate.FormatCheck(report)
 	}
 	if err != nil {
 		msg := err.Error()
 		switch {
-		case errors.Is(err, integrate.ErrHostLockWait):
-			result.ExitCode = 2
 		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch"):
 			result.ExitCode = 1
 			result.Stderr = "integrate check: " + msg + "\n"
@@ -63,8 +61,6 @@ func (engineIntegrate) Run(ctx context.Context, dir string, noFetch bool) (Comma
 	if err != nil {
 		msg := err.Error()
 		switch {
-		case errors.Is(err, integrate.ErrHostLockWait):
-			result.ExitCode = 2
 		case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "not ready") || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch"):
 			result.ExitCode = 1
 		default:

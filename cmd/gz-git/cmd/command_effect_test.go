@@ -106,15 +106,24 @@ func TestGzGitConfigFileWritersDeclareConfig(t *testing.T) {
 
 // These commands launch a program that gz-git does not fix: exec runs the
 // caller's argv, observe runs the described ce, commit --edit runs $EDITOR,
-// clone and the sync commands run configured hooks, and the integrate engine runs make
-// targets and the target's readiness runner.
+// and clone and the sync commands run configured hooks.
 func TestProgramLaunchersDeclareArbitrary(t *testing.T) {
 	for _, key := range []string{
 		"exec", "observe", "commit", "clone", "sync", "workspace sync",
-		"integrate check", "integrate run", "run finish",
 	} {
 		if !slices.Contains(commandEffects[key], mutatesArbitrary) {
 			t.Errorf("%q launches a caller- or repository-chosen program but does not declare %q: %v", key, mutatesArbitrary, commandEffects[key])
+		}
+	}
+}
+
+// The integrate engine runs no repository code: no make target, gate
+// runner, or preparation step. Declaring arbitrary here would tell a
+// policy consumer that integrating executes the repository.
+func TestIntegrateEngineLaunchesNoRepositoryProgram(t *testing.T) {
+	for _, key := range []string{"integrate check", "integrate run", "run finish"} {
+		if slices.Contains(commandEffects[key], mutatesArbitrary) {
+			t.Errorf("%q declares %q, but the integrate engine launches no repository program: %v", key, mutatesArbitrary, commandEffects[key])
 		}
 	}
 }
@@ -139,33 +148,5 @@ func TestRunFinishCoversIntegrateRun(t *testing.T) {
 	}
 	if !slices.Contains(commandEffects["run finish"], mutatesRunState) {
 		t.Errorf("run finish records the run outcome but does not declare %q", mutatesRunState)
-	}
-}
-
-// The readiness contract is what a policy consumer keys on to keep contract
-// changes with a person; a wrong declaration here silently widens that policy.
-func TestReadinessContractDeclarations(t *testing.T) {
-	want := map[string]bool{
-		"integrate bootstrap apply":         true,
-		"integrate readiness update apply":  true,
-		"integrate readiness update review": true,
-		"integrate readiness update auto":   true,
-		"integrate readiness update run":    true,
-	}
-	for key, targets := range commandEffects {
-		has := false
-		for _, target := range targets {
-			if target == mutatesReadinessContract {
-				has = true
-			}
-		}
-		if has != want[key] {
-			t.Errorf("%q readiness-contract declared = %v, want %v", key, has, want[key])
-		}
-	}
-	for _, key := range []string{"integrate bootstrap plan", "integrate readiness update plan"} {
-		if targets, ok := commandEffects[key]; !ok || len(targets) != 1 || targets[0] != mutatesTrackingRefs {
-			t.Errorf("%q must declare only tracking-refs, got %v (declared=%v)", key, targets, ok)
-		}
 	}
 }

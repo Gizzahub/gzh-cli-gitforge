@@ -26,7 +26,7 @@ func outcomeExecution(t *testing.T, fxDir, id string) *ExecutionContext {
 }
 
 func TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires(t *testing.T) {
-	fastHostLockPolling(t)
+	fastLockPolling(t)
 	fx := readyTaskFixture(t)
 	execution := outcomeExecution(t, fx.Worktree, "pre-lock-wait")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
@@ -64,14 +64,14 @@ func TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires(t *testing.T) {
 	}
 }
 
+// TestRunRecordsBoundOutcomeWhenReadinessRejects rejects through a git check
+// (uncommitted changes), the only way readiness can reject now that gz-git
+// runs no repository code.
 func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
 	t.Parallel()
-	if !readinessRunnerSupported() {
-		t.Skip("contract runners are unsupported on Windows")
-	}
-	fx := readinessFixture(t)
-	advanceReadinessTarget(t, fx, "", "#!/bin/sh\nprintf '{\"version\":1,\"status\":\"not_ready\",\"summary\":\"rejected\"}'\n", "reject readiness")
+	fx := readyTaskFixture(t)
 	execution := outcomeExecution(t, fx.Worktree, "pre-readiness-reject")
+	writeRepoFile(t, fx.Worktree, "uncommitted.txt", "dirty\n")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
 		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
 	}, Execution: execution})

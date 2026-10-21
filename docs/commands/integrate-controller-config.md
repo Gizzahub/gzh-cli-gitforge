@@ -40,7 +40,7 @@ The controller binding supplies branch and reclaim policy only. gz-git does
 not build, execute, or lint repository code itself, so the controller cannot
 select a preparation step or a gate. The removed `integration.prepareProfile`
 (with its `familybook-ent-v1` profile) and `branch.makeTimeout` /
-`branch.prepareProfile` fail to load, naming the key and the controller file to
-delete it from. A repository that needs code-level verification declares a
-target-owned readiness contract instead; see
-[integration preparation profiles](integrate-prepare-profile.md).
+`branch.prepareProfile`, as well as the readiness contract keys, fail to load,
+naming the key and the controller file to delete it from; see
+[removed gate declarations](integrate-prepare-profile.md). Code-level
+verification belongs to the task runtime, before gz-git is called.

@@ -4,13 +4,11 @@
 package config
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -27,22 +25,13 @@ const factNoDeclaration = "no declaration"
 type TaskPatternDecl struct {
 	Patterns          []string
 	IntegrationBranch BranchList
-	// ResourceHighLoad is true only when the repository-root declaration
-	// explicitly opts its integration verification into the shared host slot.
-	ResourceHighLoad bool
-	// LockWait is the declared branch.lockWait. LockWaitSet distinguishes an
-	// omitted declaration from an explicit unbounded value.
-	LockWait    time.Duration
-	LockWaitSet bool
-	Source      string
-	Facts       []string
+	Source            string
+	Facts             []string
 }
 
 type rootBranchDecl struct {
-	patterns         []string
-	integration      []string
-	resourceHighLoad bool
-	lockWait         string
+	patterns    []string
+	integration []string
 }
 
 // LoadRepoRootTaskPattern stats only <repoRoot>/.gz-git.{yaml,yml,json}.
@@ -88,16 +77,8 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 		return decl, err
 	}
 
-	lockWait, lockWaitSet, err := parseLockWait(rootDecl.lockWait, path)
-	if err != nil {
-		return decl, err
-	}
-
 	decl.Patterns = append([]string(nil), rootDecl.patterns...)
 	decl.IntegrationBranch = append(BranchList(nil), rootDecl.integration...)
-	decl.ResourceHighLoad = rootDecl.resourceHighLoad
-	decl.LockWait = lockWait
-	decl.LockWaitSet = lockWaitSet
 	decl.Source = path
 	if len(decl.Patterns) == 0 {
 		decl.Facts = append(decl.Facts, factNoDeclaration)
@@ -146,15 +127,10 @@ func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDec
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
-	if err := rejectRemovedConfigKeys(data, ext == ".json", fullPath); err != nil {
+	if err := RejectRemovedKeys(data, fullPath); err != nil {
 		return decl, err
 	}
-	decl.resourceHighLoad, err = ParseResourceHighLoadDocument(data, ext == ".json")
-	if err != nil {
-		return decl, fmt.Errorf("parse %s: %w", path, err)
-	}
-	decl.lockWait, err = parseRepoRootLockWaitDocument(data, ext == ".json")
-	if err != nil {
+	if err := validateRepoRootDocument(data, ext == ".json"); err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}
 	if ext == ".json" {
@@ -169,7 +145,6 @@ func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDec
 			} else {
 				decl.patterns = fields.patterns
 				decl.integration = fields.integration
-				decl.lockWait = fields.lockWait
 			}
 			if err != nil {
 				return decl, err
@@ -187,14 +162,12 @@ func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDec
 	if file.Branch != nil {
 		decl.patterns = append([]string(nil), file.Branch.TaskPattern...)
 		decl.integration = append([]string(nil), file.Branch.IntegrationBranch...)
-		decl.lockWait = file.Branch.LockWait
 	}
 	return decl, nil
 }
 
 type jsonBranchFields struct {
 	patterns, integration []string
-	lockWait              string
 }
 
 func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
@@ -213,407 +186,34 @@ func decodeJSONBranchFields(raw json.RawMessage) (jsonBranchFields, error) {
 			return jsonBranchFields{}, err
 		}
 	}
-	wait, err := decodeJSONLockWait(m["lockWait"], m["lockWait"] != nil)
-	if err != nil {
-		return jsonBranchFields{}, err
-	}
-	return jsonBranchFields{patterns: coerceStringList(patternsValue), integration: coerceStringList(integrationValue), lockWait: wait}, nil
+	return jsonBranchFields{patterns: coerceStringList(patternsValue), integration: coerceStringList(integrationValue)}, nil
 }
 
-func decodeJSONLockWait(raw json.RawMessage, present bool) (string, error) {
-	if !present || string(bytes.TrimSpace(raw)) == "null" {
-		if present {
-			return "", fmt.Errorf("branch.lockWait must be a non-empty string")
-		}
-		return "", nil
-	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err != nil || value == "" {
-		return "", fmt.Errorf("branch.lockWait must be a non-empty string")
-	}
-	return value, nil
-}
-
-// parseRepoRootLockWaitDocument reads only the authority-bearing repository
-// root declaration, rejecting duplicate, alias, and merge forms that a normal
-// compatibility decoder could otherwise obscure.
-func parseRepoRootLockWaitDocument(data []byte, isJSON bool) (string, error) {
+// validateRepoRootDocument rejects the document shapes the authority-bearing
+// repository root declaration must not take: several YAML documents and a
+// duplicated branch key, which a compatibility decoder would silently resolve.
+func validateRepoRootDocument(data []byte, isJSON bool) error {
 	if isJSON {
-		return parseRepoRootLockWaitJSON(data)
-	}
-	return parseRepoRootLockWaitYAML(data)
-}
-
-func parseRepoRootLockWaitJSON(data []byte) (string, error) {
-	root, rootCounts, err := parseJSONObjectCounts(data)
-	if err != nil {
-		return "", err
-	}
-	if rootCounts["branch"] > 1 {
-		return "", fmt.Errorf("duplicate JSON key %q", "branch")
-	}
-	branch, ok := root["branch"]
-	if !ok || len(bytes.TrimSpace(branch)) == 0 || bytes.TrimSpace(branch)[0] != '{' {
-		return "", nil
-	}
-	fields, counts, err := parseJSONObjectCounts(branch)
-	if err != nil {
-		return "", fmt.Errorf("parse branch: %w", err)
-	}
-	if counts["lockWait"] > 1 {
-		return "", fmt.Errorf("duplicate JSON key %q", "lockWait")
-	}
-	return decodeJSONLockWait(fields["lockWait"], fields["lockWait"] != nil)
-}
-
-func parseRepoRootLockWaitYAML(data []byte) (string, error) {
-	if err := RejectMultiDocumentYAML(data); err != nil {
-		return "", err
-	}
-	var root yaml.Node
-	if err := yaml.Unmarshal(data, &root); err != nil {
-		return "", err
-	}
-	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
-		return "", nil
-	}
-	config := root.Content[0]
-	if mappingKeyCount(config, "branch") > 1 {
-		return "", fmt.Errorf("duplicate YAML key %q", "branch")
-	}
-	hidden, err := yamlRootMergeSuppliesLockWait(config)
-	if err != nil {
-		return "", err
-	}
-	if hidden {
-		return "", fmt.Errorf("branch.lockWait does not allow a root YAML merge that supplies lockWait")
-	}
-	branch := mappingValue(config, "branch")
-	if branch == nil {
-		return "", nil
-	}
-	if branch.Kind == yaml.AliasNode {
-		hidden, err := yamlNodeSuppliesKey(branch, "lockWait")
-		if err != nil {
-			return "", err
-		}
-		if hidden {
-			return "", fmt.Errorf("branch.lockWait does not allow an aliased branch declaration")
-		}
-		return "", nil
-	}
-	if branch.Kind != yaml.MappingNode {
-		return "", nil
-	}
-	if mappingKeyCount(branch, "lockWait") > 1 {
-		return "", fmt.Errorf("duplicate YAML key %q", "lockWait")
-	}
-	hidden, err = yamlMergeSuppliesKey(branch, "lockWait")
-	if err != nil {
-		return "", err
-	}
-	if hidden {
-		return "", fmt.Errorf("branch.lockWait does not allow a YAML merge that supplies lockWait")
-	}
-	node := mappingValue(branch, "lockWait")
-	if node == nil {
-		return "", nil
-	}
-	if node.Kind != yaml.ScalarNode || node.Tag != "!!str" || node.Value == "" {
-		return "", fmt.Errorf("branch.lockWait must be a non-empty string")
-	}
-	return node.Value, nil
-}
-
-func yamlRootMergeSuppliesLockWait(root *yaml.Node) (bool, error) {
-	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
-	for i := 0; i+1 < len(root.Content); i += 2 {
-		if !isYAMLMergeKey(root.Content[i]) {
-			continue
-		}
-		hidden, err := state.mergeValueSuppliesNestedKey(root.Content[i+1], "branch", "lockWait")
-		if err != nil || hidden {
-			return hidden, err
-		}
-	}
-	return false, nil
-}
-
-func decodeJSONResourceHighLoad(raw json.RawMessage, present bool) (bool, error) {
-	if !present {
-		return false, nil
-	}
-	if strings.TrimSpace(string(raw)) == "null" {
-		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
-	}
-	var value bool
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
-	}
-	return value, nil
-}
-
-// ParseResourceHighLoadDocument reads the repository-owned resource
-// classification from one committed .gz-git document. An absent declaration
-// is deliberately light. A present declaration must be a boolean so a dirty
-// or malformed config cannot silently opt a gate out of capacity control.
-func ParseResourceHighLoadDocument(data []byte, isJSON bool) (bool, error) {
-	if isJSON {
-		return parseJSONResourceHighLoad(data)
-	}
-	return parseYAMLResourceHighLoad(data)
-}
-
-func parseJSONResourceHighLoad(data []byte) (bool, error) {
-	root, rootCounts, err := parseJSONObjectCounts(data)
-	if err != nil {
-		return false, err
-	}
-	if rootCounts["branch"] > 1 {
-		return false, fmt.Errorf("duplicate JSON key %q", "branch")
-	}
-	branch, ok := root["branch"]
-	if !ok {
-		return false, nil
-	}
-	fields, counts, err := parseJSONObjectCounts(branch)
-	if err != nil {
-		return false, fmt.Errorf("parse branch: %w", err)
-	}
-	if counts["resourceHighLoad"] > 1 {
-		return false, fmt.Errorf("duplicate JSON key %q", "resourceHighLoad")
-	}
-	return decodeJSONResourceHighLoad(fields["resourceHighLoad"], fields["resourceHighLoad"] != nil)
-}
-
-func parseYAMLResourceHighLoad(data []byte) (bool, error) {
-	if err := RejectMultiDocumentYAML(data); err != nil {
-		return false, err
-	}
-	var root yaml.Node
-	if err := yaml.Unmarshal(data, &root); err != nil {
-		return false, err
-	}
-	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
-		return false, nil
-	}
-	config := root.Content[0]
-	if mappingKeyCount(config, "branch") > 1 {
-		return false, fmt.Errorf("duplicate YAML key %q", "branch")
-	}
-	if err := rejectRootResourceHighLoadMerge(config); err != nil {
-		return false, err
-	}
-	branch := mappingValue(config, "branch")
-	if branch == nil {
-		return false, nil
-	}
-	if branch.Kind == yaml.AliasNode {
-		return rejectAliasedResourceHighLoad(branch)
-	}
-	if branch.Kind != yaml.MappingNode {
-		return false, nil
-	}
-	if mappingKeyCount(branch, "resourceHighLoad") > 1 {
-		return false, fmt.Errorf("duplicate YAML key %q", "resourceHighLoad")
-	}
-	hidden, err := yamlMergeSuppliesKey(branch, "resourceHighLoad")
-	if err != nil {
-		return false, err
-	}
-	if hidden {
-		return false, fmt.Errorf("branch.resourceHighLoad does not allow a YAML merge that supplies resourceHighLoad")
-	}
-	node := mappingValue(branch, "resourceHighLoad")
-	if node == nil {
-		return false, nil
-	}
-	if node.Kind != yaml.ScalarNode || node.Tag != "!!bool" {
-		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean")
-	}
-	var value bool
-	if err := node.Decode(&value); err != nil {
-		return false, fmt.Errorf("branch.resourceHighLoad must be a boolean: %w", err)
-	}
-	return value, nil
-}
-
-func rejectRootResourceHighLoadMerge(config *yaml.Node) error {
-	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
-	for i := 0; i+1 < len(config.Content); i += 2 {
-		if !isYAMLMergeKey(config.Content[i]) {
-			continue
-		}
-		hidden, err := state.mergeValueSuppliesNestedKey(config.Content[i+1], "branch", "resourceHighLoad")
+		_, counts, err := parseJSONObjectCounts(data)
 		if err != nil {
 			return err
 		}
-		if hidden {
-			return fmt.Errorf("branch.resourceHighLoad does not allow a root YAML merge that supplies resourceHighLoad")
+		if counts["branch"] > 1 {
+			return fmt.Errorf("duplicate JSON key %q", "branch")
 		}
+		return nil
 	}
-	return nil
-}
-
-func rejectAliasedResourceHighLoad(branch *yaml.Node) (bool, error) {
-	hidden, err := yamlNodeSuppliesKey(branch, "resourceHighLoad")
-	if err != nil {
-		return false, err
-	}
-	if hidden {
-		return false, fmt.Errorf("branch.resourceHighLoad does not allow an aliased branch declaration")
-	}
-	return false, nil
-}
-
-// decodeJSONPrepareHighLoad validates a present JSON boolean declaration.
-func decodeJSONPrepareHighLoad(raw json.RawMessage, present bool) (bool, error) {
-	if !present {
-		return false, nil
-	}
-	if strings.TrimSpace(string(raw)) == "null" {
-		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
-	}
-	var value bool
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
-	}
-	return value, nil
-}
-
-// ParsePrepareHighLoadDocument reads the repository-owned resource
-// classification from one committed .gz-git document. An absent declaration
-// is deliberately light. A present declaration must be a boolean so a dirty
-// or malformed config cannot silently opt a gate out of capacity control.
-func ParsePrepareHighLoadDocument(data []byte, isJSON bool) (bool, error) {
-	if isJSON {
-		return parseJSONPrepareHighLoad(data)
-	}
-	return parseYAMLPrepareHighLoad(data)
-}
-
-func parseJSONPrepareHighLoad(data []byte) (bool, error) {
-	root, rootCounts, err := parseJSONObjectCounts(data)
-	if err != nil {
-		return false, err
-	}
-	if rootCounts["branch"] > 1 {
-		return false, fmt.Errorf("duplicate JSON key %q", "branch")
-	}
-	branch, ok := root["branch"]
-	if !ok {
-		return false, nil
-	}
-	fields, counts, err := parseJSONObjectCounts(branch)
-	if err != nil {
-		return false, fmt.Errorf("parse branch: %w", err)
-	}
-	if counts["prepareHighLoad"] > 1 {
-		return false, fmt.Errorf("duplicate JSON key %q", "prepareHighLoad")
-	}
-	return decodeJSONPrepareHighLoad(fields["prepareHighLoad"], fields["prepareHighLoad"] != nil)
-}
-
-func parseYAMLPrepareHighLoad(data []byte) (bool, error) {
 	if err := RejectMultiDocumentYAML(data); err != nil {
-		return false, err
+		return err
 	}
 	var root yaml.Node
 	if err := yaml.Unmarshal(data, &root); err != nil {
-		return false, err
+		return err
 	}
-	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
-		return false, nil
-	}
-	config := root.Content[0]
-	if mappingKeyCount(config, "branch") > 1 {
-		return false, fmt.Errorf("duplicate YAML key %q", "branch")
-	}
-	if err := rejectRootPrepareHighLoadMerge(config); err != nil {
-		return false, err
-	}
-	branch := mappingValue(config, "branch")
-	if branch == nil {
-		return false, nil
-	}
-	if branch.Kind == yaml.AliasNode {
-		return rejectAliasedPrepareHighLoad(branch)
-	}
-	if branch.Kind != yaml.MappingNode {
-		return false, nil
-	}
-	if mappingKeyCount(branch, "prepareHighLoad") > 1 {
-		return false, fmt.Errorf("duplicate YAML key %q", "prepareHighLoad")
-	}
-	hidden, err := yamlMergeSuppliesKey(branch, "prepareHighLoad")
-	if err != nil {
-		return false, err
-	}
-	if hidden {
-		return false, fmt.Errorf("branch.prepareHighLoad does not allow a YAML merge that supplies prepareHighLoad")
-	}
-	node := mappingValue(branch, "prepareHighLoad")
-	if node == nil {
-		return false, nil
-	}
-	if node.Kind != yaml.ScalarNode || node.Tag != "!!bool" {
-		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean")
-	}
-	var value bool
-	if err := node.Decode(&value); err != nil {
-		return false, fmt.Errorf("branch.prepareHighLoad must be a boolean: %w", err)
-	}
-	return value, nil
-}
-
-func rejectRootPrepareHighLoadMerge(config *yaml.Node) error {
-	state := yamlKeyTraversal{visiting: make(map[*yaml.Node]bool)}
-	for i := 0; i+1 < len(config.Content); i += 2 {
-		if !isYAMLMergeKey(config.Content[i]) {
-			continue
-		}
-		hidden, err := state.mergeValueSuppliesNestedKey(config.Content[i+1], "branch", "prepareHighLoad")
-		if err != nil {
-			return err
-		}
-		if hidden {
-			return fmt.Errorf("branch.prepareHighLoad does not allow a root YAML merge that supplies prepareHighLoad")
-		}
+	if len(root.Content) == 1 && root.Content[0].Kind == yaml.MappingNode && mappingKeyCount(root.Content[0], "branch") > 1 {
+		return fmt.Errorf("duplicate YAML key %q", "branch")
 	}
 	return nil
-}
-
-func rejectAliasedPrepareHighLoad(branch *yaml.Node) (bool, error) {
-	hidden, err := yamlNodeSuppliesKey(branch, "prepareHighLoad")
-	if err != nil {
-		return false, err
-	}
-	if hidden {
-		return false, fmt.Errorf("branch.prepareHighLoad does not allow an aliased branch declaration")
-	}
-	return false, nil
-}
-
-// parseLockWait accepts "0" and "unbounded" as explicit unbounded waits.
-// The boolean keeps that choice distinct from an omitted declaration.
-func parseLockWait(raw, path string) (time.Duration, bool, error) {
-	if raw == "" {
-		return 0, false, nil
-	}
-	if strings.TrimSpace(raw) != raw {
-		return 0, false, fmt.Errorf("%s: branch.lockWait %q must not have surrounding whitespace", path, raw)
-	}
-	if raw == "unbounded" {
-		return 0, true, nil
-	}
-	wait, err := time.ParseDuration(raw)
-	if err != nil {
-		return 0, false, fmt.Errorf("%s: branch.lockWait %q: %w", path, raw, err)
-	}
-	if wait < 0 {
-		return 0, false, fmt.Errorf("%s: branch.lockWait %q must not be negative", path, raw)
-	}
-	return wait, true, nil
 }
 
 func coerceStringList(v any) []string {

@@ -19,6 +19,14 @@ import (
 
 const targetLocksDirName = "gz-git-integrate-targets"
 
+// Tests shorten these; production polls a non-blocking lock so that
+// cancellation and the periodic holder notice need no interruptible
+// blocking lock.
+var (
+	lockPollInterval   = 200 * time.Millisecond
+	lockNoticeInterval = 30 * time.Second
+)
+
 // errTargetLockWait means target ownership was not acquired. It is distinct
 // from a lock operation error: no target push can have started on this path.
 var errTargetLockWait = errors.New("target lock wait ended before ownership")
@@ -66,11 +74,11 @@ func acquireTargetLock(ctx context.Context, g gitRepo, targetRef string, notice 
 		if locked {
 			return &targetLock{file: f}, nil
 		}
-		if lastNotice.IsZero() || time.Since(lastNotice) >= hostLockNoticeInterval {
+		if lastNotice.IsZero() || time.Since(lastNotice) >= lockNoticeInterval {
 			lastNotice = time.Now()
 			fmt.Fprintf(notice, "integrate: waiting for target ownership common-dir=%s destination=%s\n", common, targetRef)
 		}
-		timer := time.NewTimer(hostLockPollInterval)
+		timer := time.NewTimer(lockPollInterval)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -81,7 +89,7 @@ func acquireTargetLock(ctx context.Context, g gitRepo, targetRef string, notice 
 	}
 }
 
-// targetLockSlot lets Run retain ownership from readiness through its exact
+// targetLockSlot lets Run retain ownership from Check through its exact
 // lease push and reclaim. A standalone Check releases it before returning.
 type (
 	targetLockSlot    struct{ lock *targetLock }

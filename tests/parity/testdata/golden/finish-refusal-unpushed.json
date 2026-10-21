@@ -1,8 +1,8 @@
 {
   "scenario": "finish-refusal-unpushed",
-  "reference": "ce-agent-kit master f88f4331f2c09858778a747589a776bcb477346d",
+  "reference": "ce-agent-kit master c6d5bf842d6adae7bd93327ee0fa0d13d49ca584",
   "toolchain": {
-    "ce": "ce-agent-kit version 0.10.14\nRelease:  v0.10.0\nBuild:    403-gf88f4331\nCommit:   f88f4331f2c09858778a747589a776bcb477346d\nDirty:    false\nRevision: f88f4331f2c09858778a747589a776bcb477346d",
+    "ce": "ce-agent-kit version 0.10.14\nRelease:  v0.10.0\nBuild:    412-gc6d5bf84\nCommit:   c6d5bf842d6adae7bd93327ee0fa0d13d49ca584\nDirty:    false\nRevision: c6d5bf842d6adae7bd93327ee0fa0d13d49ca584",
     "wt": "wt 0.80.0",
     "gzGit": "gz-git version \u003cGZ_GIT_VERSION\u003e"
   },

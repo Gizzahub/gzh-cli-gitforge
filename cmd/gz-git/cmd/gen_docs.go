@@ -24,7 +24,7 @@ type genDocsOptions struct {
 }
 
 // newGenDocsCommand writes the command tree as man pages (git-style
-// hyphenated names, e.g. gz-git-integrate-bootstrap-plan.1) and markdown.
+// hyphenated names, e.g. gz-git-integrate-legacy-cleanup-plan.1) and markdown.
 // It is an installer's tool, hidden from help, and kept apart from help
 // because it writes files under names it chooses.
 func newGenDocsCommand() *cobra.Command {
@@ -150,7 +150,7 @@ func writeDocTrees(target *cobra.Command, opts *genDocsOptions) error {
 }
 
 // docName is the git-style page name shared by man and markdown pages:
-// "gz-git integrate bootstrap plan" becomes gz-git-integrate-bootstrap-plan.
+// "gz-git integrate legacy-cleanup plan" becomes gz-git-integrate-legacy-cleanup-plan.
 func docName(c *cobra.Command) string {
 	return strings.ReplaceAll(c.CommandPath(), " ", "-")
 }

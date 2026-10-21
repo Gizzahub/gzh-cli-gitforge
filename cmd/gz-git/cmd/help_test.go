@@ -47,11 +47,10 @@ func TestHelpAllTextListsWholeTreeWithEffects(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Global Flags:",
-		"gz-git integrate bootstrap plan\n",
-		"--expires-in duration",
-		"gz-git integrate bootstrap apply\n",
-		"Effect: mutating (refs, tracking-refs, remote, readiness-contract)",
-		"gz-git integrate readiness update plan\n",
+		"gz-git integrate legacy-cleanup plan\n",
+		"--released-artifact string",
+		"gz-git integrate legacy-cleanup apply\n",
+		"Effect: mutating (filesystem, refs, tracking-refs, remote, config)",
 		"gz-git status\n",
 	} {
 		if !strings.Contains(out, want) {
@@ -64,17 +63,17 @@ func TestHelpAllTextListsWholeTreeWithEffects(t *testing.T) {
 }
 
 func TestHelpAllScopesToSubtree(t *testing.T) {
-	out, err := runRootHelp(t, "--all", "integrate", "bootstrap")
+	out, err := runRootHelp(t, "--all", "integrate", "legacy-cleanup")
 	if err != nil {
-		t.Fatalf("help --all integrate bootstrap: %v", err)
+		t.Fatalf("help --all integrate legacy-cleanup: %v", err)
 	}
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "gz-git ") && !strings.HasPrefix(line, "gz-git integrate bootstrap") {
+		if strings.HasPrefix(line, "gz-git ") && !strings.HasPrefix(line, "gz-git integrate legacy-cleanup") {
 			t.Errorf("subtree output leaked %q", line)
 		}
 	}
-	if !strings.Contains(out, "gz-git integrate bootstrap plan\n  Create an expiring bootstrap plan (fetches tracking refs only)\n  Usage:  gz-git integrate bootstrap plan [flags]\n  Effect: mutating (tracking-refs)\n") {
-		t.Errorf("bootstrap plan block not rendered as expected:\n%s", out)
+	if !strings.Contains(out, "gz-git integrate legacy-cleanup plan\n  Create a read-only prospective legacy cleanup plan\n  Usage:  gz-git integrate legacy-cleanup plan [flags]\n  Effect: mutating (filesystem)\n") {
+		t.Errorf("legacy-cleanup plan block not rendered as expected:\n%s", out)
 	}
 }
 
@@ -101,21 +100,21 @@ func TestHelpAllJSONDeclaresEveryRunnableCommand(t *testing.T) {
 		}
 	}
 	for path, want := range map[string]string{
-		"gz-git help":                      effectReadOnly,
-		"gz-git stash list":                effectReadOnly,
-		"gz-git integrate bootstrap plan":  effectMutating,
-		"gz-git integrate bootstrap apply": effectMutating,
+		"gz-git help":                           effectReadOnly,
+		"gz-git stash list":                     effectReadOnly,
+		"gz-git integrate legacy-cleanup plan":  effectMutating,
+		"gz-git integrate legacy-cleanup apply": effectMutating,
 	} {
 		if got := byPath[path].Effect; got != want {
 			t.Errorf("%s effect = %q, want %q", path, got, want)
 		}
 	}
-	apply := byPath["gz-git integrate bootstrap apply"]
-	if !slices.Contains(apply.Mutates, mutatesReadinessContract) {
-		t.Errorf("bootstrap apply mutates = %v, want readiness-contract", apply.Mutates)
+	apply := byPath["gz-git integrate legacy-cleanup apply"]
+	if !slices.Contains(apply.Mutates, mutatesRefs) {
+		t.Errorf("legacy-cleanup apply mutates = %v, want refs", apply.Mutates)
 	}
-	if !hasFlag(byPath["gz-git integrate bootstrap plan"].Flags, "output") {
-		t.Errorf("bootstrap plan flags missing --output")
+	if !hasFlag(byPath["gz-git integrate legacy-cleanup plan"].Flags, "output") {
+		t.Errorf("legacy-cleanup plan flags missing --output")
 	}
 	if len(ref.GlobalFlags) == 0 {
 		t.Errorf("global flags missing")
@@ -152,11 +151,11 @@ func TestHelpRejectsAmbiguousFlagUse(t *testing.T) {
 }
 
 func TestPlainHelpShowsEffect(t *testing.T) {
-	out, err := runRootHelp(t, "integrate", "readiness", "update", "apply")
+	out, err := runRootHelp(t, "integrate", "legacy-cleanup", "apply")
 	if err != nil {
-		t.Fatalf("help integrate readiness update apply: %v", err)
+		t.Fatalf("help integrate legacy-cleanup apply: %v", err)
 	}
-	if !strings.Contains(out, "Effect: mutating (refs, tracking-refs, remote, readiness-contract)") {
+	if !strings.Contains(out, "Effect: mutating (filesystem, refs, tracking-refs, remote, config)") {
 		t.Errorf("plain help missing effect line:\n%s", out)
 	}
 }

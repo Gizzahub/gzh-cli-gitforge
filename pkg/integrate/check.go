@@ -8,16 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
-
-var errTargetMovedWhileWaiting = errors.New("target branch changed while waiting for resource slot; re-run check")
 
 const (
 	checkPass = "PASS"
@@ -26,14 +21,12 @@ const (
 	checkSkip = "SKIP"
 )
 
-// Gate modes recorded in CheckReport.GateMode and the readiness provenance
-// row. gateModeNone means neither side declares a readiness contract: gz-git
-// builds, executes, and lints no repository code, and the git checks alone
-// decide readiness.
-const (
-	gateModeContractV1 = "contract-v1"
-	gateModeNone       = "none"
-)
+// gateModeNone is the only gate mode recorded in CheckReport.GateMode and the
+// readiness provenance row: gz-git builds, executes, and lints no repository
+// code, and the git checks alone decide readiness. Repository verification
+// belongs to the task runtime, which runs it before gz-git is called. The
+// former contract-v1 mode is removed.
+const gateModeNone = "none"
 
 // CheckOptions configures a read-only readiness check.
 type CheckOptions struct {
@@ -53,61 +46,20 @@ type CheckOptions struct {
 	NoFetch bool
 	// ExpectSource is the full commit the caller approved. When set, the
 	// source is read after the fetch and must be exactly this commit, so the
-	// SHA compared is the SHA every readiness row measures.
+	// SHA compared is the SHA every check row examines.
 	ExpectSource string
 	// ExpectTarget is the full destination commit the caller approved. It is
 	// intentionally separate from ExpectSource: an immutable request names a
 	// source/target pair and must never silently adopt a newer target tip.
 	ExpectTarget string
-	// LockWait bounds one high-load host-slot acquisition. LockWaitSet keeps
-	// an explicit zero (unbounded) distinct from an omitted flag.
-	LockWait    time.Duration
-	LockWaitSet bool
 	// LockNotice receives the periodic holder notice while waiting; nil
 	// means os.Stderr.
-	LockNotice           io.Writer
-	resourceWait         *time.Duration
-	readinessObservation *readinessObservation
-	resourceWaitObserver func(context.Context) error
-	resourceWaitError    *error
+	LockNotice io.Writer
 	// preMutation is internal Run-only state. Check never writes it durably;
 	// Run records it only after a classified refusal before push.
 	preMutation *preMutationCapture
 	// requireConfirmedTarget is Run-only; standalone Check keeps heuristic WARNs.
 	requireConfirmedTarget bool
-}
-
-// validationDurationKey carries Check's validation-time accumulator. Unlike
-// the resource wait, gate runtime is measured on paths that never see
-// CheckOptions (runner helpers), so the accumulator travels on the context
-// every gate already receives.
-type validationDurationKey struct{}
-
-// withValidationDuration installs the accumulator Check owns for one report.
-func withValidationDuration(ctx context.Context, elapsed *time.Duration) context.Context {
-	return context.WithValue(ctx, validationDurationKey{}, elapsed)
-}
-
-// preparationDurationKey carries the preparation-time accumulator the same
-// way, because profiles run below helpers that only receive a context.
-type preparationDurationKey struct{}
-
-func withPreparationDuration(ctx context.Context, elapsed *time.Duration) context.Context {
-	return context.WithValue(ctx, preparationDurationKey{}, elapsed)
-}
-
-func accumulatePreparation(ctx context.Context, elapsed time.Duration) {
-	if acc, ok := ctx.Value(preparationDurationKey{}).(*time.Duration); ok && acc != nil {
-		*acc += elapsed
-	}
-}
-
-// accumulateValidation adds one measured gate run to Check's accumulator.
-// A context without one (direct runner unit tests) records nothing.
-func accumulateValidation(ctx context.Context, elapsed time.Duration) {
-	if acc, ok := ctx.Value(validationDurationKey{}).(*time.Duration); ok && acc != nil {
-		*acc += elapsed
-	}
 }
 
 // CheckItem is one readiness row.
@@ -125,82 +77,15 @@ type CheckReport struct {
 	Failures  int
 	Warnings  int
 	RootFacts []string
-	// Gate provenance is recorded so run can repeat the exact checked state.
-	GateMode             string
-	ManifestPath         string
-	ContractDigest       string
-	ManifestOID          string
-	RunnerPath           string
-	RunnerOID            string
-	ReadinessTreeOID     string
-	ReadinessStatus      string
-	ReadinessDuration    time.Duration
-	ResourceWaitDuration time.Duration
-	// ValidationDuration records the time actually spent inside gate
-	// subprocesses — contract runner executions — separately from the time
-	// spent waiting
-	// for a declared high-load resource slot. Gate preparation, Git
-	// inspection, cleanup, push, and reclaim are outside it.
-	ValidationDuration time.Duration
-	// PreparationDuration is time spent inside preparation profiles after any
-	// slot was granted; the wait itself stays in ResourceWaitDuration.
-	PreparationDuration time.Duration
-	// PlanDuration is the slot-free plan-v1 runner span. PlanResource is
-	// what the runner asked for, PlanDigest binds it to the execution, and
-	// ResourceClass is what gz-git granted (high when the slot was held).
-	PlanDuration   time.Duration
-	PlanResource   string
-	PlanDigest     string
-	ResourceClass  string
-	PrepareProfile string
-	PrepareInputs  string
-	// ReadinessFailures contains only typed subprocess timeouts. Human
-	// CheckItem.Detail remains diagnostic prose and is never parsed back into
-	// protocol data.
-	ReadinessFailures []ReadinessFailure
-	Controller        *controllerBinding
-}
-
-// terminationRequestRecorder observes the Cmd.Cancel callback rather than
-// inferring a kill from a deadline. os/exec may finish before cancellation,
-// so a timeout can legitimately have a nil termination request.
-type terminationRequestRecorder struct {
-	mu      sync.Mutex
-	request *TerminationRequest
-}
-
-func (r *terminationRequestRecorder) cancel(request TerminationRequest, fn func() error) error {
-	r.mu.Lock()
-	requestCopy := request
-	r.request = &requestCopy
-	r.mu.Unlock()
-	return fn()
-}
-
-func (r *terminationRequestRecorder) snapshot() *TerminationRequest {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.request == nil {
-		return nil
-	}
-	observed := *r.request
-	return &observed
-}
-
-func (r *CheckReport) recordReadinessFailure(failure *ReadinessFailure) {
-	if failure == nil {
-		return
-	}
-	r.ReadinessFailures = append(r.ReadinessFailures, *failure)
+	// GateMode is the readiness provenance mode; always gateModeNone.
+	GateMode   string
+	Controller *controllerBinding
 }
 
 // Check answers whether the branch can land on the target.
 func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (report *CheckReport, err error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
-	}
-	if opts.LockWait < 0 {
-		return nil, fmt.Errorf("--lock-wait must not be negative")
 	}
 	if err := normalizeExpectedApprovals(&opts); err != nil {
 		return nil, err
@@ -245,16 +130,6 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	}
 
 	report = &CheckReport{Plan: plan, Controller: controller}
-	// Resource-slot expiry is a typed check failure even when the readiness
-	// runner turns it into a diagnostic item. Keep the first acquisition error
-	// so callers can select the tool-error exit code after cleanup completes.
-	opts.resourceWaitError = new(error)
-	defer func() { err = applyResourceWaitError(err, *opts.resourceWaitError) }()
-	// The accumulator is unconditional: every gate mode records its runtime,
-	// so a report always distinguishes "waited for the slot" from "ran the
-	// gate", including a zero for a gate that never launched a subprocess.
-	ctx = withValidationDuration(ctx, &report.ValidationDuration)
-	ctx = withPreparationDuration(ctx, &report.PreparationDuration)
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -269,18 +144,11 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	freshness := checkFreshness(ctx, g, plan)
 	add(freshness)
 	if freshness.Status == checkFail {
-		// Freshness is a cheap prerequisite for every measurement below. Do
-		// not execute repository-owned readiness or preparation code
-		// against a source that cannot be integrated until it is refreshed.
+		// Freshness is a cheap prerequisite for every check below; a stale
+		// source must be refreshed before anything else is worth reporting.
 		report.Ready = false
 		return report, nil
 	}
-
-	resourceHighLoad, err := resourceHighLoadForPlan(ctx, g, plan)
-	if err != nil {
-		return nil, err
-	}
-	opts = configureMeasurementOptions(g, plan, report, opts)
 
 	_, mergeItem := checkMergeTree(ctx, g, plan)
 	add(mergeItem)
@@ -290,13 +158,12 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	add(checkWorkingTree(ctx, g, plan))
 	add(checkPushed(ctx, g, plan))
 
-	contractItem := checkReadinessContractWithResource(ctx, g, plan, report, resourceHighLoad, opts)
-	add(contractItem)
-	// Without a contract (gateModeNone) gz-git runs no repository code: the
-	// git checks above and the post-gate revalidation below decide READY.
-	// A high-load gate may run long enough for either ref to move. The target
-	// lock protects local ownership, not a remote writer, so fetch and compare
-	// again before reporting READY. Run repeats this check before its lease push.
+	report.GateMode = gateModeNone
+	add(CheckItem{Name: "readiness contract", Status: checkPass, Detail: "none declared; gz-git runs no repository code, git checks decide readiness"})
+	// gz-git runs no repository code: the git checks above and the
+	// revalidation below decide READY. The target lock protects local
+	// ownership, not a remote writer, so fetch and compare again before
+	// reporting READY. Run repeats this check before its lease push.
 	if _, _, _, err := revalidateCheckedRefsForExpectedTarget(ctx, g, report, opts.NoFetch, opts.ExpectTarget); err != nil {
 		if opts.ExpectTarget != "" && errors.Is(err, ErrTargetMismatch) {
 			return report, err
@@ -307,19 +174,6 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	}
 	report.Ready = report.Failures == 0
 	return report, nil
-}
-
-func applyResourceWaitError(err, resourceWaitError error) error {
-	if resourceWaitError == nil {
-		return err
-	}
-	if err == nil {
-		return resourceWaitError
-	}
-	if !errors.Is(err, resourceWaitError) {
-		return errors.Join(err, resourceWaitError)
-	}
-	return err
 }
 
 // openCheckRepo binds the executor to the requested repository path and
@@ -341,78 +195,6 @@ func openCheckRepo(ctx context.Context, exec *gitcmd.Executor, repoPath string) 
 	}
 	g.dir = root
 	return g, root, nil
-}
-
-func configureMeasurementOptions(g gitRepo, plan TargetPlan, report *CheckReport, opts CheckOptions) CheckOptions {
-	opts.resourceWait = &report.ResourceWaitDuration
-	if opts.LockNotice == nil {
-		opts.LockNotice = os.Stderr
-	}
-	opts.resourceWaitObserver = targetWaitObserver(g, plan, opts.NoFetch, opts.LockNotice)
-	return opts
-}
-
-// targetWaitObserver refreshes only the resolved destination while a declared
-// high-load gate is waiting for capacity. A transient fetch failure is a
-// warning because the next interval can still establish the target; an actual
-// moved target stops before any gate subprocess begins.
-func targetWaitObserver(g gitRepo, plan TargetPlan, noFetch bool, notice io.Writer) func(context.Context) error {
-	var fetchWarned bool
-	return func(ctx context.Context) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if plan.Remote != "" && !noFetch {
-			refreshed, err := refreshWaitingTarget(ctx, g, plan, notice, &fetchWarned)
-			if err != nil || !refreshed {
-				return err
-			}
-		}
-		targetRef := plan.Target
-		if plan.Remote != "" {
-			targetRef = plan.Remote + "/" + targetBranchName(plan.Target, plan.Remote)
-		}
-		sha, ok, err := g.revParse(ctx, targetRef)
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		if err != nil {
-			return err
-		}
-		if !ok || sha != plan.TargetSHA {
-			return errTargetMovedWhileWaiting
-		}
-		return nil
-	}
-}
-
-// refreshWaitingTarget distinguishes a canceled probe from a missing target.
-// A transient refresh failure leaves the request waiting for the next interval.
-func refreshWaitingTarget(ctx context.Context, g gitRepo, plan TargetPlan, notice io.Writer, fetchWarned *bool) (bool, error) {
-	branch := targetBranchName(plan.Target, plan.Remote)
-	exists, existsErr := g.remoteBranchExists(ctx, plan.Remote, branch)
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	if existsErr == nil && !exists {
-		return false, errTargetMovedWhileWaiting
-	}
-	fetchErr := g.fetchTargetRef(ctx, plan.Remote, plan.Target)
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	if fetchErr != nil {
-		if !*fetchWarned && notice != nil {
-			fmt.Fprintf(notice, "integrate: warning: refresh target while waiting for resource slot: %v\n", fetchErr)
-		}
-		*fetchWarned = true
-		return false, nil
-	}
-	return true, nil
-}
-
-func targetMovedWhileWaiting(err error) bool {
-	return errors.Is(err, errTargetMovedWhileWaiting)
 }
 
 func resolveCheckController(ctx context.Context, g gitRepo, opts *CheckOptions) (*controllerBinding, error) {
@@ -599,33 +381,8 @@ func FormatCheck(r *CheckReport) string {
 	for _, item := range r.Items {
 		fmt.Fprintf(&b, "  %s  %s — %s\n", item.Status, item.Name, item.Detail)
 	}
-	if r.ResourceWaitDuration > 0 {
-		fmt.Fprintf(&b, "  INFO  resource wait — Duration=%s\n", r.ResourceWaitDuration.Round(time.Millisecond))
-	}
-	if r.PreparationDuration > 0 {
-		fmt.Fprintf(&b, "  INFO  preparation — Duration=%s\n", r.PreparationDuration.Round(time.Millisecond))
-	}
-	if r.PlanResource != "" || r.PlanDuration > 0 {
-		// A failed plan has spent time but granted nothing; report it with
-		// dashes so the human report agrees with plan_duration_ms.
-		requested, granted, digest := r.PlanResource, r.ResourceClass, r.PlanDigest
-		if requested == "" {
-			requested, granted, digest = "-", "-", "-"
-		}
-		fmt.Fprintf(&b, "  INFO  resource plan — Requested=%s Granted=%s PlanDigest=%s Duration=%s\n", requested, granted, digest, r.PlanDuration.Round(time.Millisecond))
-	}
-	if r.ValidationDuration > 0 {
-		fmt.Fprintf(&b, "  INFO  validation — Duration=%s\n", r.ValidationDuration.Round(time.Millisecond))
-	}
 	if r.GateMode != "" {
-		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
-		if r.GateMode == gateModeContractV1 {
-			fmt.Fprintf(&b, " ManifestPath=%s ContractDigest=%s ManifestOID=%s RunnerPath=%s RunnerOID=%s ReadinessTreeOID=%s Status=%s Duration=%s", r.ManifestPath, r.ContractDigest, r.ManifestOID, r.RunnerPath, r.RunnerOID, r.ReadinessTreeOID, r.ReadinessStatus, r.ReadinessDuration.Round(time.Millisecond))
-			if r.ResourceClass != "" {
-				fmt.Fprintf(&b, " ResourceClass=%s", r.ResourceClass)
-			}
-		}
-		b.WriteByte('\n')
+		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s\n", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
 	}
 	b.WriteByte('\n')
 	if r.Ready {

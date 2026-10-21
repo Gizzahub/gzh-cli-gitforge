@@ -8,7 +8,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -33,29 +32,6 @@ func TestCheck_ExpectedTargetMismatchStopsBeforeGate(t *testing.T) {
 	}
 	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
 		t.Fatalf("gate marker = %v, want absent: expected-target must stop before measurement", statErr)
-	}
-}
-
-// TestCheck_ExpectedTargetPostGateMovementIsRetryable moves the target from
-// inside a readiness runner, so post-gate revalidation sees a target that no
-// longer matches the expected SHA.
-func TestCheck_ExpectedTargetPostGateMovementIsRetryable(t *testing.T) {
-	if !readinessRunnerSupported() {
-		t.Skip("contract runners are unsupported on Windows")
-	}
-	fx := readinessFixture(t)
-	runner := "#!/bin/sh\nset -e\ngit --git-dir=" + strconv.Quote(fx.Origin) + " update-ref refs/heads/develop \"$4\"\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ready\"}'\n"
-	advanceReadinessTarget(t, fx, "", runner, "move target from runner")
-	before := gitOutput(t, fx.Worktree, "rev-parse", fx.Remote+"/develop")
-
-	report, err := Check(context.Background(), gitcmd.NewExecutor(), CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", ExpectTarget: before,
-	})
-	if !errors.Is(err, ErrTargetMismatch) {
-		t.Fatalf("Check() error = %v, want ErrTargetMismatch", err)
-	}
-	if report == nil || report.Plan.TargetSHA != before {
-		t.Fatalf("report = %#v, want original target %s", report, before)
 	}
 }
 

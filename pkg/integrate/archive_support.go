@@ -22,12 +22,6 @@ const (
 	siblingArchiveEntryLimit            = 100000
 )
 
-type prepareInput struct {
-	Name string
-	OID  string
-	data []byte
-}
-
 func requireCanonicalRemote(ctx context.Context, g gitRepo, name, want string) error {
 	canonicalWant, err := canonicalPushEndpoint(want)
 	if err != nil {

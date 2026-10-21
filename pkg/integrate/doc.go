@@ -6,9 +6,10 @@
 // queue lists unfinished task branches. check answers readiness. run
 // fast-forwards an authorized target and reclaims the task branch.
 // Remote reclaim deletes with --force-with-lease against the integrated SHA.
-// gz-git never builds, executes, or lints repository code on its own: a
-// target-owned readiness contract (.gz-git/readiness) is the only way a
-// repository adds checks. Without one, the git checks decide readiness.
+// gz-git never builds, executes, or lints repository code: the git checks
+// (freshness, merge-tree, other branches, a clean working tree, a pushed
+// source, and post-gate revalidation) alone decide readiness. Repository
+// checks belong to the caller's own gate, run before integrate.
 //
 // Integration-branch lookup is not ResolveBase. ResolveBase only sees local
 // refs/heads and prefers master over develop. This package uses a declared

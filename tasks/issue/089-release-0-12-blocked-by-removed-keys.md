@@ -1,63 +1,85 @@
 ---
 id: ISSUE-89
-title: "Releasing 0.12.0 breaks integrate in repositories that still declare removed make keys"
+title: "gz-git 0.12.0 refuses integrate in repositories that still declare removed gate keys"
 type: bug
 priority: P1
 severity: high
-discovered-in: "legacy make gate removal (ee40ef50) release preparation"
+discovered-in: "legacy make gate (ee40ef50) and readiness contract removal"
 discovered-at: 2026-10-21
 created: 2026-10-21
 ---
 
 ## Summary
 
-Master (0ec69cfb) removed the legacy make gate. A `.gz-git.yaml` that still
-declares `branch.makeTimeout`, `branch.makeOutcomeReport`,
-`branch.prepareProfile` or `integration.prepareProfile` now fails to load
-with `<key> was removed: ...; delete it from <path>`. `VERSION` is still
-0.11.1. A bump releases through CI (`release.yml`) and the Homebrew cask, so
-every device that installs it refuses `gz-git integrate` in the repositories
-below until their owners delete the keys.
+gz-git no longer runs repository code. The legacy make gate and the
+`contract-v1` readiness contract are removed. A `.gz-git.yaml` that still
+declares one of these keys fails to load with
+`<key> was removed: ...; delete it from <path>`:
+
+- `branch.makeTimeout`, `branch.makeOutcomeReport`
+- `branch.prepareProfile`, `integration.prepareProfile`
+- `branch.readiness` (any content)
+- `branch.prepareHighLoad`, `branch.resourceHighLoad`
+- `integration.readinessApproval`
+- `branch.lockWait` (the `--lock-wait` flag is removed with it; it only
+  bounded the gate host slot)
+
+This is intended: 0.12.0 releases normally and each owner fixes the error in
+its own repository. Verification that the readiness runner performed moves
+to the task runtime (CE `ce task gate` and the repository's declared checks,
+run by `ce task run-finish` before it calls gz-git). That CE change lands in
+ce-agent-kit before, or in the same cycle as, the 0.12.0 release. This card
+is the impact list, not a release precondition.
 
 ## Reproduction
 
-1. Install a gz-git built from master 0ec69cfb or later.
-1. In `~/mydevbox/cwrapper-devbox`, run `gz-git integrate check`.
+1. Install a gz-git built from the readiness contract removal or later.
+1. In `~/mydevbox/gzh-cli-devbox`, run `gz-git integrate check`.
 
 ## Expected vs Actual
 
-- Expected: the release lands after every owner has deleted the removed keys,
-  so `integrate` keeps working everywhere.
-- Actual: the load fails with
-  `branch.makeTimeout was removed: gz-git no longer runs make; delete it from <path>`
-  in each repository listed below.
+- Expected: an owner who has not yet deleted a removed key sees one clear
+  error naming the key and the file, and `integrate` works after deleting it.
+- Actual (before 0.12.0): the keys load, and the readiness runner executes
+  repository code under gz-git.
 
 ## Evidence
 
-Scan of primary checkouts on mbp, 2026-10-21 (task worktrees inherit the same
-lines on their branches):
+Scan of the `.gz-git.yaml` files on mbp, 2026-10-21. These are only direct
+children of `branch:` and `integration:`. No file declares
+`integration.readinessApproval`. Another 85 hits are in task worktrees, which
+inherit these lines from their branches.
 
-| Repository                                                           | Removed keys                                                               |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `~/mydevbox/cwrapper-devbox`                                         | `branch.makeTimeout: 90m`                                                  |
-| `~/mydevbox/familybook-devbox` (workspace `familybook-engine-fiber`) | `integration.prepareProfile: familybook-ent-v1`                            |
-| `~/mydevbox/flow-taskchain-devbox`                                   | `branch.prepareProfile: flow-taskchain-local-subprojects-v1`               |
-| `~/mydevbox/scripton-nd-stack-devbox`                                | `branch.makeTimeout: 45m`                                                  |
-| `~/mydevbox/sigdock-idp-devbox/sigdock-idp-rs`                       | `branch.makeTimeout`, `branch.prepareProfile: cargo-workspace-v1`          |
-| `~/mydevbox/task-manager-devbox/taskchain-task-manager`              | `branch.makeTimeout: "45m"`                                                |
-| `~/mywork/iac/infra-ops`                                             | `branch.makeTimeout: 52m`, `branch.prepareProfile: infra-ops-python-uv-v1` |
+| Repository (`~` = home)                                      | Removed keys                                                                                       |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `~/mydevbox/cwrapper-devbox`                                 | `branch.makeTimeout`                                                                               |
+| `~/mydevbox/flow-taskchain-devbox`                           | `branch.prepareProfile`                                                                            |
+| `~/mydevbox/scripton-nd-stack-devbox`                        | `branch.makeTimeout`, `branch.prepareHighLoad`, `branch.readiness`                                 |
+| `~/mydevbox/sigdock-idp-devbox/sigdock-idp-rs`               | `branch.makeTimeout`, `branch.prepareHighLoad`, `branch.prepareProfile`, `branch.resourceHighLoad` |
+| `~/mydevbox/task-manager-devbox/taskchain-task-manager`      | `branch.makeTimeout`, `branch.resourceHighLoad`                                                    |
+| `~/mywork/iac/infra-ops`                                     | `branch.makeTimeout`, `branch.prepareHighLoad`, `branch.prepareProfile`, `branch.resourceHighLoad` |
+| `~/mydevbox/familybook-devbox` (+ `familybook-engine-fiber`) | `branch.readiness`                                                                                 |
+| `~/mywork/ce/ce-agent-kit`, `~/mywork/scripton/dva`          | `branch.readiness`                                                                                 |
+| `~/mydevbox/gzh-cli-devbox` (this repository's DevBox)       | `branch.readiness`                                                                                 |
 
-`resourceHighLoad` and `prepareHighLoad` still load. Without a readiness
-contract they no longer guard any code run.
+These repositories declare only `branch.readiness`:
+
+- **DevBox roots:** airouter, flow-agent-mesh, flow-observechain, flow-station,
+  funbricks-elemhant, funbricks-notifire, funbricks-postkit, gizza-plane,
+  gizzahub, gorisa, hek, lottomaster, mansero, matdosa, netow, policy-gate,
+  primeno1, reviewrary, sadawiki, scripton-db-orchestrator, scripton-gitrump,
+  scripton-signalhub, task-manager.
+- **Subprojects:** notifire-frontend-react, postkit-engine-fiber,
+  postkit-int-embed, postkit-ui-react, gizzahub-web-svelte,
+  db-orchestrator-ui, gitrump-ce, gitrump-cli, gitrump-ee, sigdock-idp-ts,
+  sigdock-client, sigdock-extension, sigdock-server-rs, sigdock-shared,
+  sigdock-ts, sigdock-vscode.
 
 ## Scope
 
-- Each owner removes the keys in its own repository. Where the repository
-  relied on make for verification, it declares a `branch.readiness` contract
-  or runs its checks before integrating. infra-ops and sigdock-idp-rs move
-  their kept profiles to `branch.readiness.prepareProfile` only together with
-  a contract.
-- Bump `VERSION` to 0.12.0 (minor: removal of public behavior) only after the
-  owners have cleaned up, or with an explicit decision to let those
-  repositories fail and fix forward.
-- Re-scan before the bump. This card does not change any other repository.
+- Each owner deletes the removed keys in its own repository. If a readiness
+  runner did real verification, the owner keeps the checks that runner
+  invoked (for example `ce task gate`) as the repository's declared checks,
+  which CE runs before integrating.
+- Re-scan when 0.12.0 is published and close this card when the scan is
+  empty. This card does not change any other repository.

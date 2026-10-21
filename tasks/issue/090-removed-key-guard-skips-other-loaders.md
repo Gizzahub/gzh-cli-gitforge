@@ -42,3 +42,18 @@ but one leftover key then blocks a whole workspace sync. If they stay
 silent, the error appears only on `integrate`, where the key used to matter.
 Choose one of these before changing code. The low-cost option is to keep the
 guard at integrate only and document that boundary in `removed_keys.go`.
+
+## Resolution
+
+Resolved on 2026-10-21 by the readiness contract removal: every loader
+rejects removed keys. The decision followed the principle that gz-git runs
+no repository code and keeps no compatibility path, so a stale key fails
+loudly wherever the file is read. `pkg/config/removed_keys.go` is the single
+check: `ReadConfigFile` for loaders that open the file, `RejectRemovedKeys`
+for loaders that read the bytes themselves. Push access, declared clones,
+flat repositories, workspace sync, `clone --config`, the task runtime and
+the global config now go through it.
+`TestEveryConfigLoaderUsesTheRemovedKeyGuard` fails when a new loader reads
+and decodes configuration without it. A leftover
+key now blocks `workspace sync` too; the error names the key and the file to
+delete it from. The impact list is ISSUE-89.

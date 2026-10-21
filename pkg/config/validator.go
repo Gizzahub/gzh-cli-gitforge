@@ -112,12 +112,6 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 		}
 	}
 	if p.Branch != nil {
-		if p.Branch.Readiness != nil {
-			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if p.Branch.PrepareHighLoad {
-			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
-		}
 		if p.Branch.SiblingProvision != nil {
 			return fmt.Errorf("branch.siblingProvision is allowed only in a repository-root project config")
 		}
@@ -155,11 +149,6 @@ func (v *Validator) ValidateGlobalConfig(g *GlobalConfig) error {
 	if g.ActiveProfile != "" && !validProfileName.MatchString(g.ActiveProfile) {
 		return fmt.Errorf("invalid active profile name '%s': must contain only alphanumeric, dash, or underscore", g.ActiveProfile)
 	}
-	if g.Integration != nil && g.Integration.ReadinessApproval != "" &&
-		g.Integration.ReadinessApproval != ReadinessApprovalManual &&
-		g.Integration.ReadinessApproval != ReadinessApprovalAutomatic {
-		return fmt.Errorf("invalid integration.readinessApproval %q: must be %q or %q", g.Integration.ReadinessApproval, ReadinessApprovalManual, ReadinessApprovalAutomatic)
-	}
 
 	return nil
 }
@@ -179,11 +168,6 @@ func (v *Validator) ValidateProjectConfig(p *ProjectConfig) error {
 	if p.Sync != nil {
 		if err := v.ValidateSyncConfig(p.Sync); err != nil {
 			return fmt.Errorf("invalid sync config: %w", err)
-		}
-	}
-	if p.Branch != nil && p.Branch.Readiness != nil {
-		if err := ValidateReadiness(*p.Branch.Readiness); err != nil {
-			return fmt.Errorf("invalid readiness config: %w", err)
 		}
 	}
 	if p.Branch != nil && p.Branch.SiblingProvision != nil {
@@ -404,14 +388,6 @@ func (v *Validator) ValidateConfig(c *Config) error {
 	if c == nil {
 		return nil // nil config is valid (optional)
 	}
-	if c.Branch != nil {
-		if c.Branch.Readiness != nil {
-			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if c.Branch.PrepareHighLoad {
-			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
-		}
-	}
 
 	// Validate parent path if specified
 	if c.Parent != "" {
@@ -487,8 +463,8 @@ func (v *Validator) ValidateConfig(c *Config) error {
 
 // ValidateWorkspace validates a workspace entry.
 func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
-	if err := validateWorkspaceReadinessScope(ws); err != nil {
-		return err
+	if ws == nil {
+		return fmt.Errorf("workspace is nil")
 	}
 
 	if !ws.Access.IsValid() {
@@ -568,21 +544,6 @@ func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 		}
 	}
 
-	return nil
-}
-
-func validateWorkspaceReadinessScope(ws *Workspace) error {
-	if ws == nil {
-		return fmt.Errorf("workspace is nil")
-	}
-	if ws.Branch != nil {
-		if ws.Branch.Readiness != nil {
-			return fmt.Errorf("branch.readiness is allowed only in a repository-root project config")
-		}
-		if ws.Branch.PrepareHighLoad {
-			return fmt.Errorf("branch.prepareHighLoad is allowed only in a repository-root project config")
-		}
-	}
 	return nil
 }
 

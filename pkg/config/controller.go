@@ -35,7 +35,7 @@ func LoadControllerConfig(path string) (*ControllerConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read controller config: %w", err)
 	}
-	if err := rejectRemovedConfigKeys(raw, false, abs); err != nil {
+	if err := RejectRemovedKeys(raw, abs); err != nil {
 		return nil, err
 	}
 	var doc struct {

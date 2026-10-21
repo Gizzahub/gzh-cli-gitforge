@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -26,7 +25,6 @@ var (
 	integrateCheckNoFetch          bool
 	integrateCheckExpectSource     string
 	integrateCheckExpectTarget     string
-	integrateCheckLockWait         time.Duration
 )
 
 var integrateCheckCmd = &cobra.Command{
@@ -39,9 +37,9 @@ var integrateCheckCmd = &cobra.Command{
   gz-git integrate check --target origin/main --direct-to-default
 
 This is read-only. It never pushes and never reclaims.
-gz-git builds, executes and lints no repository code on its own. A target-owned
-readiness contract (.gz-git/readiness) runs the repository's checks; without
-one the gate mode is "none" and the git checks alone decide READY.
+gz-git builds, executes and lints no repository code. The gate mode is
+always "none": the git checks alone (freshness, merge-tree, other branches,
+clean working tree, pushed source, post-gate revalidation) decide READY.
 Run a bare check from a task-branch worktree, not from the target checkout.
 
 Engine: gz-git-integrate (Go)
@@ -62,9 +60,8 @@ func init() {
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckRelease, "release", false, "promote the integration branch onto the default branch")
 	integrateCheckCmd.Flags().StringVar(&integrateCheckControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateCheckCmd.Flags().BoolVar(&integrateCheckNoFetch, "no-fetch", false, "resolve the target from local tracking refs without fetching")
-	integrateCheckCmd.Flags().DurationVar(&integrateCheckLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
-	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
-	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectTarget, "expect-target", "", "fail with exit 4, before any measurement or push, unless the target is this full commit SHA")
+	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectSource, "expect-source", "", "fail with exit 4 unless the source is this full commit SHA")
+	integrateCheckCmd.Flags().StringVar(&integrateCheckExpectTarget, "expect-target", "", "fail with exit 4 unless the target is this full commit SHA")
 }
 
 func runIntegrateCheck(cmd *cobra.Command, args []string) error {
@@ -94,13 +91,10 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		NoFetch:          integrateCheckNoFetch,
 		ExpectSource:     integrateCheckExpectSource,
 		ExpectTarget:     expectTarget,
-		LockWait:         integrateCheckLockWait,
-		LockWaitSet:      cmd.Flags().Changed("lock-wait"),
 		LockNotice:       cmd.ErrOrStderr(),
 	})
 	if errors.Is(ctx.Err(), context.Canceled) {
-		// A killed readiness gate is no verdict; never report it as not ready.
-		// The error carries a retained readiness path if cleanup failed.
+		// An interrupted check is no verdict; never report it as not ready.
 		interrupted := fmt.Errorf("integrate check interrupted: %w", context.Cause(ctx))
 		if err != nil {
 			interrupted = fmt.Errorf("%w: %w", interrupted, err)
@@ -117,12 +111,6 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 				fmt.Fprintln(cmd.ErrOrStderr(), "integrate check:", msg)
 			}
 			return cliutil.NewExitError(cliutil.ExitSourceMismatch, err)
-		}
-		if errors.Is(err, integrate.ErrHostLockWait) {
-			if !quiet && report != nil {
-				fmt.Fprint(cmd.OutOrStdout(), integrate.FormatCheck(report))
-			}
-			return cliutil.NewExitError(2, err)
 		}
 		if errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(msg, "--target") || strings.Contains(msg, "integration branch") {
 			if !quiet {

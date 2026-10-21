@@ -118,18 +118,6 @@ branch:
   integrationBranch: develop
   taskPattern: dev/*/*/*
 
-  # Target-owned integration gate. The runner is a tracked executable regular
-  # file below .gz-git/readiness/ and receives only the fixed V1 arguments.
-  readiness:
-    version: 1
-    runner: .gz-git/readiness/check
-    # Optional target-owned runner budget; default 15m, positive and at most 2h.
-    # Preparation/resource waits are excluded. Changes require readiness update.
-    timeout: 45m
-    # Optional: ask the runner for a slot-free plan-v1 resource class first.
-    # A light plan runs without the host slot unless resourceHighLoad is set.
-    # resourcePlan: plan-v1
-
   # Branch-name templates used by 'gz-git branch name <task>', one per role.
   # Placeholders: {task}, {device}, {agent}. Each is slugified before it is
   # substituted, so a hostname like Daves-MacBook.local becomes a legal segment.

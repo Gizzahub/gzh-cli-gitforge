@@ -35,53 +35,22 @@ type RunProtocol struct {
 	ReclaimDone         []string         `json:"reclaim_done"`
 	ReclaimFailed       []string         `json:"reclaim_failed"`
 	GitReclaim          *GitReclaimProof `json:"git_reclaim,omitempty"`
-	// ResourceWaitDurationMS and ValidationDurationMS separate the check's
-	// slot-admission wait from its gate runtime as explicit integer
-	// milliseconds; both render even when zero, so an absent gate is
-	// distinguishable from a missing field.
+	// ResourceWaitDurationMS, ValidationDurationMS, PlanDurationMS and
+	// PreparationDurationMS are retained in schema_version 1 and always 0:
+	// gz-git no longer waits for a host slot or runs a readiness runner,
+	// plan, or preparation profile. IntegrationDurationMS is revalidation
+	// through the target push. All render even when zero.
 	ResourceWaitDurationMS int `json:"resource_wait_duration_ms"`
 	ValidationDurationMS   int `json:"validation_duration_ms"`
-	// PlanDurationMS, PreparationDurationMS and IntegrationDurationMS finish
-	// the phase split: slot-free plan-v1 runner, preparation profiles after
-	// slot admission, and revalidation through the target push. They render
-	// even when zero, like the two fields above.
-	PlanDurationMS        int `json:"plan_duration_ms"`
-	PreparationDurationMS int `json:"preparation_duration_ms"`
-	IntegrationDurationMS int `json:"integration_duration_ms"`
-	// ResourceClass is the host-slot class the readiness runner was granted
-	// (light or high); absent outside contract mode.
-	ResourceClass string `json:"resource_class,omitempty"`
-	// ReadinessFailures carries typed timeout evidence captured at the process
-	// boundary. It is absent when every readiness subprocess finished within
-	// its budget, preserving the v1 success shape for existing consumers.
-	ReadinessFailures []ReadinessFailure `json:"readiness_failures,omitempty"`
+	PlanDurationMS         int `json:"plan_duration_ms"`
+	PreparationDurationMS  int `json:"preparation_duration_ms"`
+	IntegrationDurationMS  int `json:"integration_duration_ms"`
 	// PreMutationOutcome is a separately durable, context-bound refusal that
 	// this invocation recorded before it reached the target push. Its absence
 	// is never evidence that a push did not happen.
 	PreMutationOutcome *PreMutationOutcome `json:"pre_mutation_outcome,omitempty"`
 	ExitCode           int                 `json:"exit_code"`
 	Error              string              `json:"error,omitempty"`
-}
-
-// ReadinessFailure identifies one readiness subprocess that exceeded its
-// budget: the contract's declared timeout, or the fixed 2-minute budget of
-// the resource plan (stage contract_plan). Nullable fields render as JSON null when a process was
-// killed before it could report an exit code or no cancellation request ran.
-type ReadinessFailure struct {
-	Stage              string              `json:"stage"`
-	Class              string              `json:"class"`
-	BudgetMS           int                 `json:"budget_ms"`
-	ElapsedMS          int                 `json:"elapsed_ms"`
-	LeafExitCode       *int                `json:"leaf_exit_code"`
-	TerminationRequest *TerminationRequest `json:"termination_request"`
-	DiagnosticPath     *string             `json:"diagnostic_path"`
-}
-
-// TerminationRequest records a cancellation request actually made by the
-// process supervisor. It is a request, not proof that the OS delivered it.
-type TerminationRequest struct {
-	Method string  `json:"method"`
-	Signal *string `json:"signal"`
 }
 
 // BuildRunProtocol renders a run result. A nil report with an error is still
@@ -102,12 +71,6 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 		p.IntegrationDurationMS = int(report.IntegrationDuration.Milliseconds())
 		if report.Check != nil {
 			p.TargetRef = "refs/heads/" + targetBranchName(report.Check.Plan.Target, report.Check.Plan.Remote)
-			p.ResourceWaitDurationMS = int(report.Check.ResourceWaitDuration.Milliseconds())
-			p.ValidationDurationMS = int(report.Check.ValidationDuration.Milliseconds())
-			p.PlanDurationMS = int(report.Check.PlanDuration.Milliseconds())
-			p.PreparationDurationMS = int(report.Check.PreparationDuration.Milliseconds())
-			p.ResourceClass = report.Check.ResourceClass
-			p.ReadinessFailures = report.Check.ReadinessFailures
 		}
 		if report.Receipt == nil && report.Integrated {
 			// Legacy runs have no durable receipt identity, but still record

@@ -210,7 +210,7 @@ VERIFY_BASE=origin/master make verify-commit
 
 Follow the root verification profile contract. A widened result requires the full
 integration gate; it is not a narrow PASS. `gz-git integrate` runs no repository
-code (this repository declares no readiness contract), so run `make check`
+code, so run `make check`
 (`verify-full`) yourself before integration.
 
 ______________________________________________________________________

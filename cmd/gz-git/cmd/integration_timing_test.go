@@ -6,9 +6,6 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -69,55 +66,15 @@ func TestIntegrationJSONSeparatesWaitAndValidation(t *testing.T) {
 		return value
 	}
 
-	t.Run("a readiness contract run reports validation milliseconds with an explicit zero wait", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("readiness contract runners are unsupported on Windows")
-		}
+	t.Run("a run integrates with both timing fields as explicit zero", func(t *testing.T) {
 		restore := setIntegrateRunGlobals(t)
 		defer restore()
 		restoreJSON := setJSONOutput(t)
 		defer restoreJSON()
 
-		fx := testutil.TempWorktreeWithBareOrigin(t)
-		if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
-		writeFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\nsleep 0.15\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n")
-		if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		runGit(t, fx.Clone, "add", ".")
-		runGit(t, fx.Clone, "commit", "-m", "declare readiness contract")
-		runGit(t, fx.Clone, "branch", "develop")
-		runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
-		runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/feat/task", "develop")
-		writeFile(t, fx.Worktree, "task.txt", "task\n")
-		runGit(t, fx.Worktree, "add", ".")
-		runGit(t, fx.Worktree, "commit", "-m", "task")
-		runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-
-		doc, exit := runJSON(t, fx)
-		if exit != 0 {
-			t.Fatalf("run exit = %d, want 0 (integrated): %v", exit, doc["error"])
-		}
-		if wait := timingField(t, doc, "resource_wait_duration_ms"); wait != 0 {
-			t.Fatalf("resource_wait_duration_ms = %v, want 0: no high-load declaration means no slot wait", wait)
-		}
-		if validation := timingField(t, doc, "validation_duration_ms"); validation < 100 {
-			t.Fatalf("validation_duration_ms = %v, want at least the runner's 150ms run", validation)
-		}
-	})
-
-	t.Run("no readiness contract integrates with both timing fields as explicit zero", func(t *testing.T) {
-		restore := setIntegrateRunGlobals(t)
-		defer restore()
-		restoreJSON := setJSONOutput(t)
-		defer restoreJSON()
-
-		// gz-git runs no repository code without a readiness contract: the
-		// Makefile below is inert, the git checks alone decide readiness, and
-		// the protocol must still carry both fields as literal zeros.
+		// gz-git runs no repository code: the Makefile below is inert, the
+		// git checks alone decide readiness, and the protocol must still
+		// carry both fields as literal zeros.
 		fx := testutil.TempWorktreeWithBareOrigin(t)
 		writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n")
 		writeFile(t, fx.Clone, "Makefile", "check:\n\t@sleep 0.15\nlint:\n\t@false\n")

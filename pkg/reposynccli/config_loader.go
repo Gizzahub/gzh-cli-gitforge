@@ -127,7 +127,7 @@ func (l FileSpecLoader) Load(ctx context.Context, path string) (ConfigData, erro
 
 	configPath := cleanPath(path)
 
-	raw, err := os.ReadFile(configPath) // #nosec G304 -- configPath is the explicit workspace config selected by the caller.
+	raw, err := config.ReadConfigFile(configPath)
 	if err != nil {
 		return ConfigData{}, fmt.Errorf("read config: %w", err)
 	}
@@ -752,6 +752,9 @@ func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) 
 			if err != nil {
 				return nil, fmt.Errorf("read nested config %s: %w", filepath.Join(wsPath, name), err)
 			}
+			if err := config.RejectRemovedKeys(raw, filepath.Join(wsPath, name)); err != nil {
+				return nil, err
+			}
 			data, err := l.loadData(ctx, raw, filepath.Join(wsPath, name))
 			if err != nil {
 				return nil, err
@@ -790,7 +793,7 @@ func loadParentProfiles(configPath string, visited map[string]bool) (map[string]
 	}
 	visited[absPath] = true
 
-	raw, err := os.ReadFile(absPath) // #nosec G304 -- absPath is resolved from the configured parent workspace.
+	raw, err := config.ReadConfigFile(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("read parent config %s: %w", absPath, err)
 	}
@@ -928,7 +931,7 @@ func resolveParentPath(parentRef, configPath string) string {
 
 // loadParentConfig loads a parent config file and returns its parsed fileConfig.
 func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) {
-	raw, err := os.ReadFile(parentPath) // #nosec G304 -- parentPath is a validated parent config path.
+	raw, err := config.ReadConfigFile(parentPath)
 	if err != nil {
 		return fileConfig{}, fmt.Errorf("read parent config %s: %w", parentPath, err)
 	}

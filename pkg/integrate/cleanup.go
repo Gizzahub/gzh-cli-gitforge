@@ -15,7 +15,7 @@ import (
 
 // Cleanup-only retry (TASK-302). CleanupRetry finishes the reclaim half of an
 // evidenced run that crashed after its push. It deliberately does not call
-// Check, Run, readiness, watchers, merge, or a target push: the integration
+// Check, Run, watchers, merge, or a target push: the integration
 // itself already happened, and re-running any part of it could push work the
 // caller never approved. Every fact is re-proved from Git and the durable
 // receipt before anything is removed.

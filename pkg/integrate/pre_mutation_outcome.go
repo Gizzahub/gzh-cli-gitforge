@@ -128,7 +128,7 @@ func acquireExecutionRunLock(ctx context.Context, common, executionID string) (*
 		if locked {
 			return &receiptWriteLock{file: f}, nil
 		}
-		timer := time.NewTimer(hostLockPollInterval)
+		timer := time.NewTimer(lockPollInterval)
 		select {
 		case <-ctx.Done():
 			timer.Stop()

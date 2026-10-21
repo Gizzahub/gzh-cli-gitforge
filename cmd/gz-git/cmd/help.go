@@ -38,7 +38,7 @@ Simply type gz-git help [path to command] for full details.
 
 --all prints every command under [command] (default: all commands) in one
 run, with its usage, flags, and declared effect. Installed man pages are
-read with man gz-git-<command>, for example man gz-git-integrate-bootstrap-plan.`,
+read with man gz-git-<command>, for example man gz-git-integrate-legacy-cleanup-plan.`,
 		Example: `  gz-git help integrate
   gz-git help --all
   gz-git help --all --format json integrate`,

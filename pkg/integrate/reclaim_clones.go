@@ -17,8 +17,8 @@ import (
 // reclaimDeclaredClones decides what to do with the ignored nested git repos
 // found in a task worktree that is about to be removed.
 //
-// A gate that needs `make prepare` runs `gz-git sync`, which clones the
-// repo-root `.gz-git.yaml` `workspaces:` entries into ignored directories; a
+// A caller's gate may run `gz-git sync`, which clones the repo-root
+// `.gz-git.yaml` `workspaces:` entries into ignored directories; a
 // refusal for every nested repo would make such a repository end every
 // integration with reclaim incomplete. A nested repo is therefore removable
 // only when it is provably a disposable copy of a declared clone:

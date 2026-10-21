@@ -69,7 +69,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 		return nil, fmt.Errorf("failed to read config %s: %w", absConfigPath, err)
 	}
 
-	if err := rejectRemovedConfigKeys(data, false, absConfigPath); err != nil {
+	if err := RejectRemovedKeys(data, absConfigPath); err != nil {
 		return nil, err
 	}
 
@@ -389,10 +389,6 @@ func mergeParentConfig(child, parent *Config) {
 	if child.Branch == nil && parent.Branch != nil {
 		child.Branch = &BranchConfig{}
 		*child.Branch = *parent.Branch
-		// Target-owned declarations are accepted only from a repository-root
-		// project config. Do not let a raw parent document propagate them even
-		// when a caller bypassed validation.
-		child.Branch.PrepareHighLoad = false
 	} else if child.Branch != nil && parent.Branch != nil {
 		mergeParentBranchConfig(child.Branch, parent.Branch)
 	}

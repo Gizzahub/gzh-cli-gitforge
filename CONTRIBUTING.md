@@ -126,8 +126,8 @@ are intentionally deferred until enough profile data exists to design them.
 `verify-affected` and `verify-release` for development and release checks. If
 the development or commit selector widens, it exits nonzero and names
 `make verify-full`. Widening is not a PASS: the full profile remains required.
-`gz-git integrate` runs no repository code: this repository declares no
-readiness contract, so its git checks alone decide readiness. Run the full
+`gz-git integrate` runs no repository code: its git checks alone decide
+readiness. Run the full
 profile (`make check`) yourself before integrating.
 
 The canonical unit suite uses a provisional 30-minute per-package Go timeout.

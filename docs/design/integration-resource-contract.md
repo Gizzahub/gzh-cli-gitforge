@@ -1,66 +1,37 @@
 # Integration resources and target ownership
 
+> **Status (2026-10-21).** The readiness contract (`contract-v1`) is removed,
+> and with it everything this document once specified about host capacity:
+> the host measurement slot, FIFO admission tickets, `HOST_SLOTS_HELD`,
+> `branch.resourceHighLoad`, `branch.prepareHighLoad`, `resourcePlan: plan-v1`,
+> and the target-ref refresh during a slot wait. gz-git runs no repository
+> code, so it has no capacity to meter. Those keys now fail to load; see
+> [removed gate declarations](../commands/integrate-prepare-profile.md). What
+> remains is git-mutation ownership, below.
+
 ## Implemented scope
 
-Integration separates local Git target ownership from host capacity. A target lock
-keys the Git common directory and fully qualified destination ref. It is acquired
-before fetch and is retained by `integrate run` through its exact-lease push and
-reclaim. Source and destination are revalidated before the push; the command does
-not rebase or resolve conflicts automatically.
+A target lock keys the Git common directory and fully qualified destination
+ref. It is acquired before fetch and is retained by `integrate run` through its
+exact-lease push and reclaim. Source and destination are revalidated before the
+push; the command does not rebase or resolve conflicts automatically.
 
-Host capacity is opt-in through repository-root `branch.resourceHighLoad: true`.
-An omitted or false declaration leaves mandatory verification running without a
-host slot. A high-load source or target declaration uses the shared slot only for
-the gate subprocesses; fetch, Git inspection, snapshotting and prepared-worktree creation/removal, push, and reclaim remain outside it.
+A task fence serializes native integration mutations of one task branch across
+target refs and execution IDs, and is always acquired before target ownership.
+An execution run lock serializes the receipt of one execution ID.
 
-Capacity is one. Participating high-load calls receive monotonic FIFO tickets
-before attempting the existing OS lock. Ticket writes are atomic, cancellation
-removes its own ticket, and only positively dead processes are recovered.
-Ambiguous queue state fails closed. Existing callers that do not participate in
-admission still contend on the OS lock.
+## Waiting
 
-## Wait limits
-
-The wait limit applies per slot acquisition and covers FIFO admission plus the
-final OS lock attempt. `--lock-wait` overrides repository-root
-`branch.lockWait`, which overrides the 60 minute default. Explicit zero means
-unbounded. Repository declarations accept Go duration strings, `"0"`, or
-`unbounded`. Only repository-root declarations are authoritative; non-root
-declarations are ignored and are not inherited. Malformed, merged, aliased,
-duplicate, numeric, null, or negative root declarations fail closed.
-`CheckReport` records resource waiting separately from verification duration.
-
-While waiting for FIFO admission or the OS slot, a request periodically refreshes
-its captured remote target ref. Target movement ends the wait as NOT READY and
-requires another check; no gate is started or source rewritten. A transient fetch
-failure produces one warning and does not abandon admission. Refreshing respects
-cancellation and the remaining resource wait budget.
-
-Each FIFO wait notice reads `integrate: waiting <elapsed> for FIFO resource admission; position N of M; head ticket sequence S, pid P, repository R, branch B, command C, queued T, age A; host <name>`, so a log reader can reconstruct the
-wait as it does for the host measurement lock notice. Tickets record repository,
-branch and command as optional fields; a ticket written before they existed
-renders them as `unknown`; `queued` and `age` are `unknown` when the head
-ticket has no `created_at`. A turn that finds the admission lock busy observes no
-queue, so the notice repeats the newest queue seen earlier. Only before the first
-successful turn does it read `queue unknown (not observed)` in place of the
-position and head ticket fields.
+Each acquisition of the task fence, the target lock, and the execution run
+lock polls until the lock is free or the command context ends. An interrupt
+before ownership mutates nothing. `--lock-wait` and `branch.lockWait`, which
+bounded only the removed host slot, are removed keys. Run JSON keeps
+`resource_wait_duration_ms` at `0` for schema stability.
 
 ## Current boundaries
 
-Gate children inherit the cooperative comma-separated `HOST_SLOTS_HELD` list.
-An inherited `integrate` entry reuses the parent's host resource ownership,
-without publishing a new ticket or changing the holder sidecar. Git target
-ownership remains per repository and ref. Repository-root
-`branch.prepareHighLoad: true` independently classifies a readiness contract's
-`prepareProfile`. Source and target declarations are ORed. Each prepared side's
-executor acquires and releases capacity separately, including its short
-integrity checks, while snapshotting and worktree creation/removal stay outside.
-This uses the existing admission and wait reporting, and preserves child claims.
-Without a readiness contract gz-git runs no repository code and takes no slot.
-A readiness contract declaring `resourcePlan: plan-v1` asks its runner for a
-slot-free light/high plan bound by a digest; a high plan or either static
-declaration takes the slot, and a plan can never drop a static declaration.
-Absent profiles do not acquire a preparation slot;
-malformed declarations still fail closed. Windows supports lock release
-and process-liveness checks, but directory fsync is unavailable and native crash
+Git target ownership is per repository and ref; nested checks of another
+repository have a distinct key, and a child targeting the same repository and
+branch waits for that owner. Windows supports lock release and
+process-liveness checks, but directory fsync is unavailable and native crash
 durability has not been verified.

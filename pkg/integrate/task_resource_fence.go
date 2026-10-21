@@ -14,8 +14,7 @@ import (
 
 // acquireTaskResourceFence serializes native integration mutations of the same
 // task even when callers select different target refs or execution IDs. This is
-// cooperative exclusion, never authorization to adopt a legacy resource. Host
-// lifecycle adapters must participate before legacy cleanup can support them.
+// cooperative exclusion, never authorization to adopt a legacy resource.
 // All callers acquire this fence before target ownership to keep lock ordering
 // consistent. Unrelated task branches retain independent target locks.
 func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPath, branch string, notices ...io.Writer) (*targetLock, error) {

@@ -7,11 +7,13 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -21,36 +23,19 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
-// ISSUE-82: SIGINT during readiness must stop the runner's process group
-// through killReadinessProcess and remove the readiness workspace before
-// integrate run exits, instead of orphaning both.
-func TestIntegrateRunInterruptStopsReadinessGroupAndRemovesWorkspace(t *testing.T) {
-	marker := filepath.Join(t.TempDir(), "runner")
-	// The runner records its pid, its background child and its own path, then
-	// blocks until its group is signaled. Both share the runner's group.
-	fx := interruptRunFixture(t, "#!/bin/sh\nsleep 60 &\nchild=$!\nprintf '%s %s %s\\n' \"$$\" \"$child\" \"$0\" > '"+marker+".tmp'\nmv '"+marker+".tmp' '"+marker+"'\nwait \"$child\"\n")
+// SIGINT before the intent boundary ends integrate run with exit 2 and
+// ErrInterrupted, without moving the target. The run is held waiting for
+// target ownership, the last cancelable wait before the push.
+func TestIntegrateRunInterruptBeforeIntentStopsWithoutPush(t *testing.T) {
+	fx := interruptRunFixture(t)
 	before := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop")
+	holdTargetOwnership(t, fx.Worktree, "refs/heads/develop")
 	run := startInterruptibleRun(t)
-	runnerPID, childPID, runnerPath := waitForInterruptRunner(t, marker, run)
-	t.Cleanup(func() { _ = syscall.Kill(-runnerPID, syscall.SIGKILL) })
-	// check → readiness → .gz-git → target → the readiness root.
-	root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(runnerPath))))
-	if !strings.HasPrefix(filepath.Base(root), "gz-git-readiness-") {
-		t.Fatalf("runner path %s is not inside a readiness root", runnerPath)
-	}
+	waitForRunStderr(t, run, "waiting for target ownership")
 	signalSelf(t)
 	err := run.wait(t, 30*time.Second)
 	if cliutil.ExitCodeForError(err) != 2 || !errors.Is(err, integrate.ErrInterrupted) {
 		t.Fatalf("exit=%d err=%v stdout=%s stderr=%s", cliutil.ExitCodeForError(err), err, run.out.String(), run.stderr.String())
-	}
-	for _, pid := range []int{runnerPID, childPID} {
-		waitForProcessGone(t, pid)
-	}
-	if _, statErr := os.Stat(root); !errors.Is(statErr, os.ErrNotExist) {
-		t.Fatalf("readiness root %s survived the interrupt: %v", root, statErr)
-	}
-	if list := gitOutputForIntegrateRun(t, fx.Worktree, "worktree", "list", "--porcelain"); strings.Contains(list, filepath.Base(root)) {
-		t.Fatalf("readiness worktrees still registered:\n%s", list)
 	}
 	if got := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop"); got != before {
 		t.Fatalf("target moved after interrupt: %s -> %s", before, got)
@@ -61,7 +46,7 @@ func TestIntegrateRunInterruptStopsReadinessGroupAndRemovesWorkspace(t *testing.
 // the local fast-forward and reclaim all finish, because CE relies on gz-git
 // completing them.
 func TestIntegrateRunInterruptDuringPushFinishesIntegration(t *testing.T) {
-	fx := interruptRunFixture(t, "#!/bin/sh\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"target gate passed\"}'\n")
+	fx := interruptRunFixture(t)
 	source := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
 	// The hook holds the target push open until the test has signaled.
 	marker := filepath.Join(t.TempDir(), "push")
@@ -114,25 +99,16 @@ func TestIntegrateRunInterruptDuringPushFinishesIntegration(t *testing.T) {
 	}
 }
 
-// interruptRunFixture declares runner as the target readiness and leaves the
-// test inside a pushed task worktree one commit ahead of develop.
-func interruptRunFixture(t *testing.T, runner string) *testutil.WorktreeOrigin {
+// interruptRunFixture declares develop as the integration branch and leaves
+// the test inside a pushed task worktree one commit ahead of develop.
+func interruptRunFixture(t *testing.T) *testutil.WorktreeOrigin {
 	t.Helper()
-	t.Setenv("HOST_SLOTS_HELD", "")
-	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "branch", "develop")
 	runGit(t, fx.Clone, "checkout", "develop")
-	if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
-	writeFile(t, fx.Clone, ".gz-git/readiness/check", runner)
-	if err := os.Chmod(filepath.Join(fx.Clone, ".gz-git", "readiness", "check"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\n")
 	runGit(t, fx.Clone, "add", ".")
-	runGit(t, fx.Clone, "commit", "-m", "declare readiness")
+	runGit(t, fx.Clone, "commit", "-m", "declare integration branch")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "fetch", fx.Remote)
 	runGit(t, fx.Worktree, "checkout", "-B", "dev/actor/fix/interrupt", fx.Remote+"/develop")
@@ -144,11 +120,52 @@ func interruptRunFixture(t *testing.T, runner string) *testutil.WorktreeOrigin {
 	return fx
 }
 
-type interruptibleRun struct {
-	finished    chan struct{}
-	err         error
-	out, stderr bytes.Buffer
+// holdTargetOwnership takes the target lock integrate uses for targetRef in
+// the repository of dir until the test ends.
+func holdTargetOwnership(t *testing.T, dir, targetRef string) {
+	t.Helper()
+	common := gitOutputForIntegrateRun(t, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	locks := filepath.Join(common, "gz-git-integrate-targets")
+	if err := os.MkdirAll(locks, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte(targetRef))
+	f, err := os.OpenFile(filepath.Join(locks, fmt.Sprintf("%x.lock", digest[:])), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
 }
+
+type interruptibleRun struct {
+	finished chan struct{}
+	err      error
+	out      bytes.Buffer
+	stderr   lockedStderr
+}
+
+// lockedStderr lets the test poll stderr while the run goroutine writes it.
+type lockedStderr struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedStderr) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedStderr) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func (r *interruptibleRun) stderrText() string { return r.stderr.String() }
 
 // startInterruptibleRun runs integrate run in the background. Cleanup waits
 // for it before restoring the command globals it reads.
@@ -236,46 +253,21 @@ func signalSelf(t *testing.T) {
 	}
 }
 
-func waitForInterruptRunner(t *testing.T, marker string, run *interruptibleRun) (runnerPID, childPID int, runnerPath string) {
+// waitForRunStderr waits until the background run has written want to its
+// stderr, which shows it reached the wait the test is about to interrupt.
+func waitForRunStderr(t *testing.T, run *interruptibleRun, want string) {
 	t.Helper()
 	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
 		select {
 		case <-run.finished:
-			t.Fatalf("integrate run returned before readiness started: %v stderr=%s", run.err, run.stderr.String())
+			t.Fatalf("integrate run returned before %q: %v stderr=%s", want, run.err, run.stderr.String())
 		default:
 		}
-		data, err := os.ReadFile(marker)
-		if err == nil {
-			fields := strings.Fields(string(data))
-			if len(fields) != 3 {
-				t.Fatalf("runner marker %q", data)
-			}
-			runnerPID, err = strconv.Atoi(fields[0])
-			if err != nil {
-				t.Fatal(err)
-			}
-			childPID, err = strconv.Atoi(fields[1])
-			if err != nil {
-				t.Fatal(err)
-			}
-			return runnerPID, childPID, fields[2]
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	t.Fatal("readiness runner never started")
-	return 0, 0, ""
-}
-
-// waitForProcessGone allows the reparented child a moment to be reaped.
-func waitForProcessGone(t *testing.T, pid int) {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
+		if strings.Contains(run.stderrText(), want) {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("readiness process %d survived the interrupt", pid)
+	t.Fatalf("integrate run never wrote %q", want)
 }

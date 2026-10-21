@@ -13,6 +13,7 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	configpkg "github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
 )
 
@@ -205,7 +206,7 @@ func appendRepoEntry(config map[string]any, name, url, path string) error {
 }
 
 func loadOrCreateConfig(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path) // #nosec G304 -- path is the explicit workspace config selected by the caller.
+	data, err := configpkg.ReadConfigFile(path)
 	if os.IsNotExist(err) {
 		// Create default config structure
 		return map[string]any{

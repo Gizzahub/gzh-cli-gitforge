@@ -30,7 +30,7 @@ import (
 // so a toolchain drift shows up as a diff, and re-recording is the
 // declared response.
 const (
-	pinnedCECommit = "f88f4331f2c09858778a747589a776bcb477346d"
+	pinnedCECommit = "c6d5bf842d6adae7bd93327ee0fa0d13d49ca584"
 	host           = "mbp"
 	actorDefault   = "claude"
 	pinnedGitDate  = "2026-01-01T00:00:00+0000"
@@ -272,8 +272,8 @@ func newSandbox(t *testing.T, sc scenario) *sandbox {
 	repo := filepath.Join(root, "repo")
 	sb.git("", "init", "-q", "-b", "master", "repo")
 	write(t, filepath.Join(repo, "README.md"), "parity sandbox\n")
-	// gz-git runs no repository code: without a readiness contract the
-	// gate mode is "none" and the git checks alone decide readiness. The
+	// gz-git runs no repository code: the gate mode is always "none" and
+	// the git checks alone decide readiness. The
 	// Makefile stays in the fixture as inert content that proves exactly
 	// that; nothing on the run-finish path invokes it.
 	write(t, filepath.Join(repo, "Makefile"), "check:\n\t@echo sandbox gate ok\nlint:\n\t@echo sandbox lint ok\n")

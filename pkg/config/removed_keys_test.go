@@ -24,7 +24,15 @@ func assertRemovedKeyError(t *testing.T, err error, key, path string) {
 	if err == nil {
 		t.Fatalf("load accepted removed %s", key)
 	}
-	for _, want := range []string{key + " was removed", "gz-git no longer runs make", "delete it from " + path} {
+	parts := strings.Split(key, ".")
+	reason := removedKeyReasons[parts[len(parts)-2]][parts[len(parts)-1]]
+	if reason == "" {
+		t.Fatalf("%s is not a removed key", key)
+	}
+	for _, want := range []string{
+		key + " was removed: " + reason,
+		"delete it from " + path,
+	} {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %q, want it to contain %q", err, want)
 		}
@@ -48,6 +56,16 @@ func TestRepoRootRemovedKeysFailTheLoad(t *testing.T) {
 		{"yaml prepareProfile", ".gz-git.yaml", "branch:\n  prepareProfile: familybook-ent-v1\n", "branch.prepareProfile"},
 		{"json prepareProfile", ".gz-git.json", `{"branch": {"prepareProfile": "cargo-workspace-v1"}}`, "branch.prepareProfile"},
 		{"yaml merge supplies makeTimeout", ".gz-git.yaml", "base: &base\n  makeTimeout: 90m\nbranch:\n  <<: *base\n", "branch.makeTimeout"},
+		{"yaml readiness", ".gz-git.yaml", "branch:\n  integrationBranch: master\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n", "branch.readiness"},
+		{"yaml readiness with only prepareProfile", ".gz-git.yaml", "branch:\n  readiness:\n    prepareProfile: infra-ops-python-uv-v1\n", "branch.readiness"},
+		{"yaml empty readiness", ".gz-git.yaml", "branch:\n  readiness: {}\n", "branch.readiness"},
+		{"yaml null readiness", ".gz-git.yaml", "branch:\n  readiness:\n", "branch.readiness"},
+		{"json readiness", ".gz-git.json", `{"branch": {"readiness": {"version": 1}}}`, "branch.readiness"},
+		{"yaml prepareHighLoad", ".gz-git.yaml", "branch:\n  prepareHighLoad: true\n", "branch.prepareHighLoad"},
+		{"json prepareHighLoad", ".gz-git.json", `{"branch": {"prepareHighLoad": false}}`, "branch.prepareHighLoad"},
+		{"yaml resourceHighLoad", ".gz-git.yaml", "branch:\n  resourceHighLoad: true\n", "branch.resourceHighLoad"},
+		{"yaml lockWait", ".gz-git.yaml", "branch:\n  lockWait: 1m\n", "branch.lockWait"},
+		{"json resourceHighLoad", ".gz-git.json", `{"branch": {"resourceHighLoad": true}}`, "branch.resourceHighLoad"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -59,17 +77,6 @@ func TestRepoRootRemovedKeysFailTheLoad(t *testing.T) {
 	}
 }
 
-// TestRepoRootReadinessPrepareProfileStillLoads guards the removal's scope:
-// branch.readiness.prepareProfile belongs to the target-owned readiness
-// contract and must keep loading.
-func TestRepoRootReadinessPrepareProfileStillLoads(t *testing.T) {
-	root := t.TempDir()
-	writeConfigFile(t, root, ".gz-git.yaml", "branch:\n  integrationBranch: master\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n    prepareProfile: infra-ops-python-uv-v1\n")
-	if _, err := LoadRepoRootTaskPattern(root); err != nil {
-		t.Fatalf("readiness prepareProfile rejected: %v", err)
-	}
-}
-
 func TestControllerConfigRemovedKeysFailTheLoad(t *testing.T) {
 	cases := []struct {
 		name, workspace, key string
@@ -77,6 +84,8 @@ func TestControllerConfigRemovedKeysFailTheLoad(t *testing.T) {
 		{"integration prepareProfile", "    branch:\n      integrationBranch: develop\n    integration:\n      prepareProfile: familybook-ent-v1\n", "workspaces.engine.integration.prepareProfile"},
 		{"branch makeTimeout", "    branch:\n      integrationBranch: develop\n      makeTimeout: 90m\n    integration: {}\n", "workspaces.engine.branch.makeTimeout"},
 		{"branch prepareProfile", "    branch:\n      integrationBranch: develop\n      prepareProfile: familybook-ent-v1\n    integration: {}\n", "workspaces.engine.branch.prepareProfile"},
+		{"integration readinessApproval", "    branch:\n      integrationBranch: develop\n    integration:\n      readinessApproval:\n        approvers: [ops]\n", "workspaces.engine.integration.readinessApproval"},
+		{"branch readiness", "    branch:\n      integrationBranch: develop\n      readiness:\n        version: 1\n    integration: {}\n", "workspaces.engine.branch.readiness"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -108,4 +117,45 @@ func TestProjectConfigFileRemovedKeyFailsTheLoad(t *testing.T) {
 	path := writeConfigFile(t, dir, ".gz-git.json", `{"branch": {"makeTimeout": "90m"}}`)
 	var cfg ProjectConfig
 	assertRemovedKeyError(t, unmarshalFile(path, &cfg), "branch.makeTimeout", path)
+}
+
+func TestGlobalConfigReadinessApprovalFailsTheLoad(t *testing.T) {
+	dir := t.TempDir()
+	path := writeConfigFile(t, dir, "config.yaml", "integration:\n  readinessApproval:\n    approvers: [ops]\n")
+	var cfg GlobalConfig
+	assertRemovedKeyError(t, unmarshalFile(path, &cfg), "integration.readinessApproval", path)
+}
+
+// TestPreviouslyUnguardedLoadersRejectRemovedKeys covers the loaders that
+// decoded .gz-git.yaml without the removed-key guard before they were routed
+// through ReadConfigFile and RejectRemovedKeys.
+func TestPreviouslyUnguardedLoadersRejectRemovedKeys(t *testing.T) {
+	for _, key := range []string{"readiness", "prepareHighLoad", "resourceHighLoad"} {
+		t.Run("workspace access "+key, func(t *testing.T) {
+			root := t.TempDir()
+			repo := filepath.Join(root, "repo")
+			if err := os.MkdirAll(repo, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			path := writeConfigFile(t, root, ".gz-git.yaml", "branch:\n  "+key+": true\nworkspaces:\n  repo:\n    path: repo\n")
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _, err = WorkspacePushAccess(repo)
+			assertRemovedKeyError(t, err, "branch."+key, resolved)
+		})
+		t.Run("workspace clones "+key, func(t *testing.T) {
+			root := t.TempDir()
+			path := writeConfigFile(t, root, ".gz-git.yaml", "workspaces:\n  child:\n    branch:\n      "+key+": true\n")
+			_, err := DeclaredWorkspaceClones(root)
+			assertRemovedKeyError(t, err, "workspaces.child.branch."+key, path)
+		})
+	}
+	t.Run("read config file integration readinessApproval", func(t *testing.T) {
+		dir := t.TempDir()
+		path := writeConfigFile(t, dir, ".gz-git.yaml", "integration:\n  readinessApproval: {}\n")
+		_, err := ReadConfigFile(path)
+		assertRemovedKeyError(t, err, "integration.readinessApproval", path)
+	})
 }

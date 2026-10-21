@@ -23,30 +23,30 @@ gz-git integrate run   origin/develop --target origin/master --release --no-fetc
   Uppercase is lowercased to match `rev-parse`. An abbreviation or any other
   shape is a usage error (exit 2).
 - The source is read after the target fetch, and that read is both the value
-  compared and the commit readiness measures (`Plan.BranchSHA`). A stale local
+  compared and the commit the git checks judge (`Plan.BranchSHA`). A stale local
   tracking ref that the fetch advances to the expected commit therefore passes.
 - `run` compares again after revalidating the checked refs, before the push.
 - A mismatch exits **4** with `source <branch> is <sha>, expected <sha>` and
   pushes nothing. Callers distinguish it from NOT READY (1) by the code alone
   (`integrate.ErrSourceMismatch` in Go).
 - The flag is not tied to `--release`; it means the same on a task branch.
-- The target is compared after fetch and before any gate or intent receipt.
-  `run` compares it again after the gate; a confirmed lease rejection caused
+- The target is compared after fetch and before any intent receipt. `run`
+  compares it again after revalidating the checked refs; a confirmed lease rejection caused
   by target movement exits **4**, while authentication, policy, and unrelated
   push failures retain their own error classification.
 
 Capability detection: the flag appears in the `Flags:` section of
 `integrate check --help` and `integrate run --help`, as `--no-fetch` does.
 
-## Freshness before expensive validation
+## Freshness before the other git checks
 
 An approved source SHA can still be behind the fetched integration target.
 `--expect-source` pins identity; it does not make the candidate current.
-Freshness failure returns NOT READY (`run` exits 1) before readiness runners
-or preparation. Nothing is pushed or reclaimed. Unexecuted gate rows
-are absent, not PASS, and validation / resource-wait durations remain zero.
+Freshness failure returns NOT READY (`run` exits 1) before the remaining git
+checks. Nothing is pushed or reclaimed. Rows of checks that did not run are absent,
+not PASS.
 
 Refresh through the adopted repository lifecycle and review the new input before
-invoking native integration once. Fresh candidates retain their mandatory gates,
-post-gate ref checks, push leases, reclaim protections, and validation timing.
+invoking native integration once. Fresh candidates retain their git checks,
+ref revalidation, push leases, and reclaim protections.
 This does not introduce automatic rebase, retries, batching, or a result cache.

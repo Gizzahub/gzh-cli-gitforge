@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -26,7 +25,6 @@ var (
 	integrateRunNoFetch          bool
 	integrateRunExpectSource     string
 	integrateRunExpectTarget     string
-	integrateRunLockWait         time.Duration
 	integrateRunExecutionID      string
 	integrateRunGeneration       string
 	integrateRunOwnerActor       string
@@ -64,34 +62,30 @@ fails before pushing. Legacy v1 receipts are read-only. With
 --json, run prints the machine protocol document (schema_version 1,
 snake_case: execution_id, generation, owner{actor,host,kind}, task_sha,
 target_ref, source_pushed, receipt_phase, worktree_removed,
-local_branch_removed, remote_branch_removed, reclaim_*, exit_code, error),
-plus the check's timing as explicit integer milliseconds:
-resource_wait_duration_ms (slot admission) and validation_duration_ms
-(gate runtime), both present even when zero. On a budget timeout,
-readiness_failures optionally carries typed stage, class, budget_ms,
-elapsed_ms, leaf_exit_code, termination_request and diagnostic_path evidence.
-A diagnostic path is local to the host that ran the command and is not
-portable evidence.
+local_branch_removed, remote_branch_removed, reclaim_*, exit_code, error).
+resource_wait_duration_ms, validation_duration_ms, plan_duration_ms and
+preparation_duration_ms stay in the document as explicit zeros: gz-git runs
+no repository code, so nothing is admitted, validated or prepared.
 Without an execution context, source_pushed and the three *_removed fields
 report positive outcomes observed by this invocation; they do not create a
 durable receipt or owner identity. With a receipt, its fields are authoritative.
 False is not proof that an operation did not occur: positive evidence may be
 unavailable. Verify actual Git/remote/filesystem state when reconciling a run.
 Readiness refusal details are printed on stderr while JSON stdout remains
-one protocol document; diagnostic paths identify the retained command logs.
+one protocol document.
 
 When a complete execution context is refused before the target push because
-target ownership timed out or readiness rejected it, pre_mutation_outcome
+target ownership was not acquired, pre_mutation_outcome
 may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
 does not prove that no push occurred, and a receipt of any phase prevents a
 negative outcome from being reused for that execution.
 
 SIGINT or SIGTERM before the intent boundary (the receipt, or the push
-without an execution context) stops the readiness runner's process group,
-removes the readiness workspace, records no pre-mutation outcome, and exits 2
-with "interrupted before the target push". Past that boundary a signal is
-ignored and the push, local fast-forward and reclaim finish; only the first
-signal is handled, so a second one terminates gz-git at once.
+without an execution context) stops the run, records no pre-mutation
+outcome, and exits 2 with "interrupted before the target push". Past that
+boundary a signal is ignored and the push, local fast-forward and reclaim
+finish; only the first signal is handled, so a second one terminates gz-git
+at once.
 
 Engine: gz-git-integrate (Go)
 
@@ -112,9 +106,8 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunRelease, "release", false, "promote the integration branch onto the default branch")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
-	integrateRunCmd.Flags().DurationVar(&integrateRunLockWait, "lock-wait", 0, "wait per high-load host-slot acquisition (default: 1h; 0 = unbounded; overrides branch.lockWait)")
-	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any measurement or push, unless the source is this full commit SHA")
-	integrateRunCmd.Flags().StringVar(&integrateRunExpectTarget, "expect-target", "", "fail with exit 4, before any measurement or push, unless the target is this full commit SHA")
+	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any push, unless the source is this full commit SHA")
+	integrateRunCmd.Flags().StringVar(&integrateRunExpectTarget, "expect-target", "", "fail with exit 4, before any push, unless the target is this full commit SHA")
 	integrateRunCmd.Flags().StringVar(&integrateRunExecutionID, "execution-id", "", "durable-evidence execution id; supply together with --generation, --owner-actor, --owner-host, --owner-kind and --expect-source, or not at all")
 	integrateRunCmd.Flags().StringVar(&integrateRunGeneration, "generation", "", "exact runtime generation of this execution; opaque, compared exactly by receipt and cleanup")
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerActor, "owner-actor", "", "logical actor executing the run (e.g. claude, celee)")
@@ -152,9 +145,8 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}
-	// A signal cancels readiness and make probes so they stop their process
-	// groups and remove their workspaces; integrate.Run ignores it past the
-	// intent boundary.
+	// A signal cancels the run before the intent boundary; integrate.Run
+	// ignores it past that boundary.
 	ctx, cancel := withInterruptCancel(cmdContext(cmd))
 	defer cancel()
 	dir, err := os.Getwd()
@@ -185,8 +177,6 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			NoFetch:          integrateRunNoFetch,
 			ExpectSource:     integrateRunExpectSource,
 			ExpectTarget:     expectTarget,
-			LockWait:         integrateRunLockWait,
-			LockWaitSet:      cmd.Flags().Changed("lock-wait"),
 			LockNotice:       cmd.ErrOrStderr(),
 		},
 		Execution: executionContext,
@@ -225,7 +215,7 @@ func integrateRunExitCode(report *integrate.RunReport, err error) int {
 		return cliutil.ExitReclaimIncomplete
 	case errors.Is(err, integrate.ErrSourceMismatch), errors.Is(err, integrate.ErrTargetMismatch):
 		return cliutil.ExitSourceMismatch
-	case errors.Is(err, integrate.ErrHostLockWait), errors.Is(err, integrate.ErrInterrupted):
+	case errors.Is(err, integrate.ErrInterrupted):
 		return 2
 	case errors.Is(err, integrate.ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
 		return 1

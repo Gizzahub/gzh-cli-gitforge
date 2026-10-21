@@ -52,9 +52,9 @@ const preMutationOutcomeWriteTimeout = 5 * time.Second
 
 // ErrInterrupted reports that the caller's context was canceled, by a signal
 // or otherwise, before the run reached its intent boundary. Nothing was
-// pushed, and an interrupted readiness gate is no verdict, so no pre-mutation
-// outcome is recorded for it. An expired deadline is not an interrupt: it
-// keeps its lock-wait or readiness classification.
+// pushed, and an interrupted check is no verdict, so no pre-mutation outcome
+// is recorded for it. An expired deadline is not an interrupt: it keeps its
+// target-lock-wait classification.
 var ErrInterrupted = errors.New("interrupted before the target push")
 
 func canceledByCaller(ctx context.Context) bool {
@@ -69,7 +69,7 @@ func interruptedBeforePush(ctx context.Context, err error) error {
 }
 
 // recordCurrentPreMutationOutcome gives the evidence write a bounded context
-// after the caller's lock-wait context has expired. Reusing the canceled
+// after the caller's context has ended. Reusing the canceled
 // context would turn a verified pre-push refusal into an unbound error.
 func recordCurrentPreMutationOutcome(ctx context.Context, capture *preMutationCapture, phase string) (*PreMutationOutcome, error) {
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), preMutationOutcomeWriteTimeout)
@@ -133,20 +133,19 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 		defer runLock.release()
 	}
-	// Target ownership survives readiness through the exact lease push and
-	// reclaim. Resource slots are acquired only around declared high-load gates.
+	// Target ownership survives Check through the exact lease push and
+	// reclaim.
 	ctx, lock := withTargetLockSlot(ctx)
 	defer lock.release()
 	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if canceledByCaller(ctx) {
-		// Readiness stopped its runner group and removed its workspace on the
-		// way out; a killed gate is neither ready nor rejected.
+		// An interrupted check is neither ready nor rejected.
 		return &RunReport{Check: check}, interruptedBeforePush(ctx, err)
 	}
 	if err != nil {
 		report := &RunReport{Check: check}
-		if recordErr := recordPreMutationCheckFailure(ctx, opts, check, report, err); recordErr != nil {
+		if recordErr := recordPreMutationCheckFailure(ctx, opts, report, err); recordErr != nil {
 			return report, recordErr
 		}
 		return report, err
@@ -164,13 +163,11 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	return report, err
 }
 
-func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, check *CheckReport, report *RunReport, checkErr error) error {
+func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, report *RunReport, checkErr error) error {
 	phase := ""
 	switch {
 	case errors.Is(checkErr, errTargetLockWait):
 		phase = preMutationPhaseTargetLockWait
-	case opts.Execution != nil && errors.Is(checkErr, ErrHostLockWait) && check != nil && !check.Ready:
-		phase = preMutationPhaseReadinessRejected
 	default:
 		return nil
 	}
@@ -183,8 +180,8 @@ func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, check *
 }
 
 // rejectUnconfirmedHeuristicTarget keeps a remote HEAD fallback observable in
-// Check but requires Run callers to confirm it before any readiness gate can
-// execute. Explicit targets and controller policies are already confirmation.
+// Check but requires Run callers to confirm it before any merge or push.
+// Explicit targets and controller policies are already confirmation.
 func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) error {
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.ControllerConfig) != "" {
 		return nil
@@ -210,9 +207,9 @@ func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor
 	if integration.Source != SourceHeuristic {
 		return nil
 	}
-	// Check resolves expectation mismatches before readiness gates. Preserve
-	// that ordering while still stopping a heuristic run before a gate, merge,
-	// or push.
+	// Check resolves expectation mismatches before its git checks. Preserve
+	// that ordering while still stopping a heuristic run before a merge or
+	// push.
 	if opts.ExpectSource != "" || opts.ExpectTarget != "" {
 		if _, err := resolveTarget(ctx, g, exec, opts); err != nil {
 			return err
@@ -235,7 +232,7 @@ func unconfirmedIntegrationTargetError(name string) error {
 }
 
 // runChecked continues an integration from an immutable readiness report.
-// It deliberately revalidates source, target, and contract provenance before
+// It deliberately revalidates the checked source and target before
 // any push or reclaim action.
 func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, check *CheckReport) (*RunReport, error) {
 	if exec == nil {
@@ -266,7 +263,7 @@ func runChecked(ctx context.Context, exec *gitcmd.Executor, opts RunOptions, che
 		return report, err
 	}
 
-	// A source that moved while readiness ran is, under --expect-source, a
+	// A source that moved after Check is, under --expect-source, a
 	// mismatch with the approval, not a generic revalidation failure: compare
 	// it first so the caller gets ErrSourceMismatch (exit 4) for it too.
 	if err := requireExpectedSource(ctx, g, check.Plan.Branch, opts.ExpectSource); err != nil {
@@ -387,21 +384,7 @@ func revalidateCheckedRefsForExpectedTarget(ctx context.Context, g gitRepo, chec
 		}
 		return "", "", "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, targetRef, targetSHA, check.Plan.TargetSHA)
 	}
-	if check.GateMode != gateModeContractV1 {
-		return sourceSHA, targetSHA, targetName, nil
-	}
-	targetContract, present, err := loadReadinessContract(ctx, g, targetSHA)
-	if err != nil {
-		return "", "", "", err
-	}
-	if !present || targetContract.Digest != check.ContractDigest || targetContract.ManifestOID != check.ManifestOID || targetContract.TreeOID != check.ReadinessTreeOID || targetContract.RunnerOID != check.RunnerOID {
-		return "", "", "", fmt.Errorf("target readiness contract changed during readiness; re-run check")
-	}
 	return sourceSHA, targetSHA, targetName, nil
-}
-
-func pushFastForward(ctx context.Context, g gitRepo, remote, sourceSHA, targetName, checkedTargetSHA string) error {
-	return pushFastForwardWithExpectedTarget(ctx, g, remote, remote, false, sourceSHA, targetName, checkedTargetSHA)
 }
 
 func pushFastForwardWithExpectedTarget(ctx context.Context, g gitRepo, remote, remoteName string, expectTarget bool, sourceSHA, targetName, checkedTargetSHA string) error {

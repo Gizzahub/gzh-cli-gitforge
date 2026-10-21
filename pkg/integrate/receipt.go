@@ -243,12 +243,15 @@ type evidenceControllerProvenance struct {
 }
 
 type evidenceProvenance struct {
-	DeclarationPatterns []string                      `json:"declaration_patterns"`
-	DeclarationFacts    []string                      `json:"declaration_facts,omitempty"`
-	PrepareProfile      string                        `json:"prepare_profile,omitempty"`
-	PrepareInputs       string                        `json:"prepare_inputs,omitempty"`
-	ReclaimRefs         *evidenceReclaimRefs          `json:"reclaim_refs,omitempty"`
-	Controller          *evidenceControllerProvenance `json:"controller,omitempty"`
+	DeclarationPatterns []string `json:"declaration_patterns"`
+	DeclarationFacts    []string `json:"declaration_facts,omitempty"`
+	// PrepareProfile and PrepareInputs are read-only history: receipts
+	// written while preparation profiles existed carry them, and strict
+	// decoding must still accept them. New receipts leave them empty.
+	PrepareProfile string                        `json:"prepare_profile,omitempty"`
+	PrepareInputs  string                        `json:"prepare_inputs,omitempty"`
+	ReclaimRefs    *evidenceReclaimRefs          `json:"reclaim_refs,omitempty"`
+	Controller     *evidenceControllerProvenance `json:"controller,omitempty"`
 }
 
 // evidenceReclaimRefs records the branch names used by the reclaim guard at
@@ -441,7 +444,7 @@ func acquireReceiptWriteLock(ctx context.Context, common, executionID string) (*
 		if locked {
 			return &receiptWriteLock{file: f}, nil
 		}
-		timer := time.NewTimer(hostLockPollInterval)
+		timer := time.NewTimer(lockPollInterval)
 		select {
 		case <-ctx.Done():
 			timer.Stop()

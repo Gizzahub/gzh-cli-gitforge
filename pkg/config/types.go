@@ -236,26 +236,6 @@ type BranchConfig struct {
 	// path dependencies. It is root-only and never inherited from a profile.
 	SiblingProvision *SiblingProvision `yaml:"siblingProvision,omitempty" json:"siblingProvision,omitempty"`
 
-	// Readiness is a target-owned integration gate. Like TaskPattern, it is
-	// preserved here for project-config round trips but must never be inherited
-	// or merged from a parent, profile, workspace, or global configuration.
-	Readiness *Readiness `yaml:"readiness,omitempty" json:"readiness,omitempty"`
-
-	// ResourceHighLoad opts this repository's integration verification into the
-	// host-wide high-load resource slot. It is deliberately false by default:
-	// an unclassified gate still runs, but it must not consume machine capacity.
-	// Like the other integration declarations it is read only from the
-	// repository-root project config.
-	ResourceHighLoad bool `yaml:"resourceHighLoad,omitempty" json:"resourceHighLoad,omitempty"`
-
-	// PrepareHighLoad opts only declared preparation subprocesses into the host resource slot.
-	PrepareHighLoad bool `yaml:"prepareHighLoad,omitempty" json:"prepareHighLoad,omitempty"`
-
-	// LockWait bounds a single high-load host-slot acquisition. It is read
-	// only from the repository-root declaration; "0" and "unbounded" mean
-	// unbounded, while an omitted key uses the command default.
-	LockWait string `yaml:"lockWait,omitempty" json:"lockWait,omitempty"`
-
 	// Naming templates the branch names that `gz-git branch name` builds, so a
 	// task branch is spelled the same way on every machine and by every agent.
 	Naming *branch.Naming `yaml:"naming,omitempty"`
@@ -516,19 +496,8 @@ type GlobalConfig struct {
 	// is committed, and a shared device name names nothing.
 	Identity *identity.Identity `yaml:"identity,omitempty"`
 
-	// Integration selects machine-wide integration policy. It is intentionally
-	// global-only because a committed project file must not widen an operator's
-	// readiness-approval boundary.
-	Integration *IntegrationPolicy `yaml:"integration,omitempty"`
-
 	// Environments define named token sets
 	Environments map[string]Environment `yaml:"environments,omitempty"`
-}
-
-// IntegrationPolicy contains global integration controls.
-type IntegrationPolicy struct {
-	// ReadinessApproval is "manual" (the default) or "automatic".
-	ReadinessApproval string `yaml:"readinessApproval,omitempty"`
 }
 
 // Environment represents a named set of API tokens.
@@ -791,7 +760,8 @@ type Workspace struct {
 // IntegrationControl marks a controller workspace as an integration target.
 // It carries no fields: branch.integrationBranch and branch.taskPattern on the
 // same workspace remain the target and reclaim declarations, and the removed
-// integration.prepareProfile key is rejected when the controller loads.
+// integration.prepareProfile and integration.readinessApproval keys are
+// rejected when the controller loads.
 type IntegrationControl struct{}
 
 // WorkspaceAccess describes the remote-write contract for a workspace.

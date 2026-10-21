@@ -7,9 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -122,33 +119,21 @@ func TestIntegrateRunContextTargetMismatchPrintsProtocolAndExitFour(t *testing.T
 }
 
 func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("readiness contract runners are unsupported on Windows")
-	}
 	restore := setIntegrateRunContextGlobals(t)
 	defer restore()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	target := gitOutputForIntegrateRun(t, fx.Clone, "branch", "--show-current")
-	// The target-owned readiness runner fails only when the source tree (its
-	// --source-dir argument) carries the broken marker, so the contract is
-	// identical on both sides and the failure is the source's own.
-	if err := os.MkdirAll(filepath.Join(fx.Clone, ".gz-git", "readiness"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n  readiness:\n    version: 1\n    runner: .gz-git/readiness/check\n")
-	runner := filepath.Join(fx.Clone, ".gz-git", "readiness", "check")
-	writeFile(t, fx.Clone, ".gz-git/readiness/check", "#!/bin/sh\nif [ -f \"$2/broken\" ]; then echo readiness-failure-marker >&2; exit 1; fi\nprintf '{\"version\":1,\"status\":\"ready\",\"summary\":\"ok\"}'\n")
-	if err := os.Chmod(runner, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n")
 	runGit(t, fx.Clone, "add", ".")
-	runGit(t, fx.Clone, "commit", "-m", "declare passing readiness contract")
+	runGit(t, fx.Clone, "commit", "-m", "declare integration branch")
 	runGit(t, fx.Clone, "push", fx.Remote, "HEAD")
 	runGit(t, fx.Worktree, "merge", "--ff-only", target)
-	writeFile(t, fx.Worktree, "broken", "readiness must fail\n")
-	runGit(t, fx.Worktree, "add", "broken")
-	runGit(t, fx.Worktree, "commit", "-m", "introduce failing readiness")
+	writeFile(t, fx.Worktree, "task.txt", "task\n")
+	runGit(t, fx.Worktree, "add", "task.txt")
+	runGit(t, fx.Worktree, "commit", "-m", "task")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	// A git check refuses: the worktree carries an uncommitted change.
+	writeFile(t, fx.Worktree, "uncommitted.txt", "dirty\n")
 	before := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", target)
 	integrateRunJSON, quiet = true, false
 	integrateRunExecutionID, integrateRunGeneration = "diagnostic-run", "generation-1"
@@ -170,19 +155,11 @@ func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) 
 	if protocol.SourcePushed || protocol.Integrated || protocol.PreMutationOutcome == nil {
 		t.Fatalf("refusal lost its negative binding: %+v", protocol)
 	}
-	if !strings.Contains(stderr.String(), "FAIL  readiness contract") || !strings.Contains(stderr.String(), "diagnostic: ") || !strings.Contains(stderr.String(), "NOT READY") {
-		t.Fatalf("failed gate cause missing from stderr: %s", stderr.String())
-	}
-	for _, line := range strings.Split(stderr.String(), "\n") {
-		if _, path, found := strings.Cut(line, "diagnostic: "); found {
-			log, readErr := os.ReadFile(strings.TrimSpace(path))
-			if readErr != nil || !bytes.Contains(log, []byte("readiness-failure-marker")) {
-				t.Fatalf("reported diagnostic did not preserve the actual failed command: %v: %s", readErr, log)
-			}
-		}
+	if !strings.Contains(stderr.String(), "FAIL  working-tree") || !strings.Contains(stderr.String(), "NOT READY") {
+		t.Fatalf("failed check cause missing from stderr: %s", stderr.String())
 	}
 	if got := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", target); got != before {
-		t.Fatalf("failed gate changed target: %s -> %s", before, got)
+		t.Fatalf("failed check changed target: %s -> %s", before, got)
 	}
 }
 
