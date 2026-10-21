@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// ConfigDirName is the config directory name under XDG_CONFIG_HOME.
+	// ConfigDirName is the config directory name under os.UserConfigDir().
 	ConfigDirName = "gz-git"
 
 	// ProfilesDirName is the subdirectory for profile files.
@@ -38,13 +38,16 @@ var supportedExtensions = []string{".yaml", ".yml", ".json"}
 
 // Paths provides access to all config file locations.
 type Paths struct {
-	// ConfigDir is the root config directory (~/.config/gz-git)
+	// ConfigDir is the root config directory, os.UserConfigDir()/gz-git:
+	// ~/Library/Application Support/gz-git on macOS,
+	// ${XDG_CONFIG_HOME:-~/.config}/gz-git on Linux, %AppData%\gz-git on Windows.
+	// Docs abbreviate it as <config-dir>.
 	ConfigDir string
 
-	// ProfilesDir is the profiles directory (~/.config/gz-git/profiles)
+	// ProfilesDir is the profiles directory (<config-dir>/profiles)
 	ProfilesDir string
 
-	// StateDir is the state directory (~/.config/gz-git/state)
+	// StateDir is the state directory (<config-dir>/state)
 	StateDir string
 
 	// GlobalConfigFile is the global config file path
@@ -67,7 +70,11 @@ func findFile(basePath string, extensions []string) string {
 }
 
 // NewPaths creates a Paths instance with standard locations.
-// It uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config.
+// The root is os.UserConfigDir()/gz-git, which is per-OS: macOS uses
+// ~/Library/Application Support, Linux uses XDG_CONFIG_HOME (default
+// ~/.config; a relative XDG_CONFIG_HOME is an error), Windows uses %AppData%.
+// Global config and profile files are looked up as .yaml, .yml, then .json;
+// the first match wins.
 func NewPaths() (*Paths, error) {
 	configHome, err := os.UserConfigDir()
 	if err != nil {

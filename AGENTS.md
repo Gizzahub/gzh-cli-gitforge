@@ -60,9 +60,11 @@ gate remains required.
 
 1. Command flags (`--provider gitlab`)
 1. Project config (`.gz-git.yaml`)
-1. Active profile (`~/.config/gz-git/profiles/{active}.yaml`)
-1. Global config (`~/.config/gz-git/config.yaml`)
+1. Active profile (`<config-dir>/profiles/{active}.yaml`)
+1. Global config (`<config-dir>/config.yaml`)
 1. Built-in defaults
+
+> `<config-dir>` is the gz-git config directory: `os.UserConfigDir()/gz-git` (macOS `~/Library/Application Support/gz-git`, Linux `${XDG_CONFIG_HOME:-~/.config}/gz-git`, Windows `%AppData%\gz-git`). See [config-guide](docs/.claude-context/config-guide.md).
 
 **Two formats**: `repositories` array (simple) or `workspaces` map (hierarchical)
 

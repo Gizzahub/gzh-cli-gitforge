@@ -19,10 +19,10 @@ Config 디렉토리 초기화.
 gz-git config init
 ```
 
-생성되는 구조:
+생성되는 구조 (`<config-dir>` = `os.UserConfigDir()/gz-git`: macOS `~/Library/Application Support/gz-git`, Linux `${XDG_CONFIG_HOME:-~/.config}/gz-git`, Windows `%AppData%\gz-git`; 자세한 내용은 [config-guide](../.claude-context/config-guide.md)):
 
 ```
-~/.config/gz-git/
+<config-dir>/
 ├── config.yaml           # Global config
 ├── profiles/
 │   └── default.yaml      # Default profile
@@ -141,8 +141,8 @@ gz-git config hierarchy
 ```
 Config Hierarchy:
 =================
-~/.config/gz-git/config.yaml (global)
-└── ~/.config/gz-git/profiles/work.yaml (active profile)
+<config-dir>/config.yaml (global)
+└── <config-dir>/profiles/work.yaml (active profile)
     └── ~/mydevbox/.gz-git.yaml (project)
         └── ~/mydevbox/subproject/.gz-git.yaml (nested)
 ```
@@ -153,14 +153,14 @@ Config Hierarchy:
 
 1. **Command flags** (`--provider gitlab`)
 1. **Project config** (`.gz-git.yaml`)
-1. **Active profile** (`~/.config/gz-git/profiles/work.yaml`)
-1. **Global config** (`~/.config/gz-git/config.yaml`)
+1. **Active profile** (`<config-dir>/profiles/work.yaml`)
+1. **Global config** (`<config-dir>/config.yaml`)
 1. **Built-in defaults**
 
 ## Profile 파일 형식
 
 ```yaml
-# ~/.config/gz-git/profiles/work.yaml
+# <config-dir>/profiles/work.yaml
 name: work
 provider: gitlab
 baseURL: https://gitlab.company.com

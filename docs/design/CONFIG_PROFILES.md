@@ -85,11 +85,13 @@ gz-git config profile delete old   # Remove profile
 
 **5-Layer System (Highest to Lowest Priority)**:
 
+(`<config-dir>` is the gz-git config directory, `os.UserConfigDir()/gz-git`: macOS `~/Library/Application Support/gz-git`, Linux `${XDG_CONFIG_HOME:-~/.config}/gz-git`, Windows `%AppData%\gz-git`.)
+
 ```
 1. Command Flags     → --provider gitlab (HIGHEST)
 2. Project Config    → .gz-git.yaml in project directory
-3. Active Profile    → ~/.config/gz-git/profiles/work.yaml
-4. Global Config     → ~/.config/gz-git/config.yaml
+3. Active Profile    → <config-dir>/profiles/work.yaml
+4. Global Config     → <config-dir>/config.yaml
 5. Built-in Defaults → (LOWEST)
 ```
 

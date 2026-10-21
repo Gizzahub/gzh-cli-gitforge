@@ -193,7 +193,7 @@ func init() {
 	configProfileCmd.AddCommand(configProfileDeleteCmd)
 
 	// Flags
-	configInitCmd.Flags().BoolVar(&configGlobal, "global", false, "Initialize global configuration (~/.config/gz-git)")
+	configInitCmd.Flags().BoolVar(&configGlobal, "global", false, "Initialize global configuration (os.UserConfigDir()/gz-git)")
 	configInitCmd.Flags().BoolVar(&configLocal, "local", false, "Initialize project config (default)")
 
 	configShowCmd.Flags().BoolVar(&showEffective, "effective", false, "Show effective configuration (merged)")

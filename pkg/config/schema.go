@@ -9,8 +9,9 @@ const ExampleConfig = `# gz-git Configuration Reference
 # This file serves as a reference for all available configuration options.
 # You can use this structure in:
 #   - Project config: .gz-git.yaml
-#   - Global config:  ~/.config/gz-git/config.yaml
-#   - Profile config: ~/.config/gz-git/profiles/*.yaml
+#   - Global config:  <config-dir>/config.yaml
+#   - Profile config: <config-dir>/profiles/*.yaml
+# where <config-dir> is os.UserConfigDir()/gz-git (per-OS; see pkg/config/paths.go).
 
 # -----------------------------------------------------------------------------
 # Core Settings

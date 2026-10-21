@@ -7,9 +7,11 @@
 // Configuration follows a 5-layer precedence system (highest to lowest):
 //  1. Command flags (e.g., --provider gitlab)
 //  2. Project config (.gz-git.yaml in current dir or parent)
-//  3. Active profile (~/.config/gz-git/profiles/{active}.yaml)
-//  4. Global config (~/.config/gz-git/config.yaml)
+//  3. Active profile (<config-dir>/profiles/{active}.yaml)
+//  4. Global config (<config-dir>/config.yaml)
 //  5. Built-in defaults
+//
+// <config-dir> is os.UserConfigDir()/gz-git (see paths.go).
 package config
 
 import (
@@ -80,7 +82,7 @@ type ConfigMeta struct {
 // A profile contains default values for command flags, eliminating
 // the need to repeatedly specify the same options.
 //
-// Example profile file (~/.config/gz-git/profiles/work.yaml):
+// Example profile file (<config-dir>/profiles/work.yaml):
 //
 //	name: work
 //	provider: gitlab
@@ -470,7 +472,7 @@ type AuditConfig struct {
 	Autofix map[string]bool `yaml:"autofix,omitempty"`
 }
 
-// GlobalConfig represents ~/.config/gz-git/config.yaml
+// GlobalConfig represents <config-dir>/config.yaml
 //
 // Example global config file:
 //

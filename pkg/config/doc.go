@@ -13,15 +13,23 @@
 //
 //  1. Command flags (e.g., --provider gitlab)
 //  2. Project config (.gz-git.yaml in current dir or parent)
-//  3. Active profile (~/.config/gz-git/profiles/{active}.yaml)
-//  4. Global config (~/.config/gz-git/config.yaml)
+//  3. Active profile (<config-dir>/profiles/{active}.yaml)
+//  4. Global config (<config-dir>/config.yaml)
 //  5. Built-in defaults
 //
 // # File Locations
 //
-// Global configuration directory: ~/.config/gz-git/
+// Global configuration directory: <config-dir>/, which is
+// os.UserConfigDir()/gz-git (see NewPaths):
 //
-//	~/.config/gz-git/
+//   - macOS: ~/Library/Application Support/gz-git
+//   - Linux: ${XDG_CONFIG_HOME:-~/.config}/gz-git (a relative XDG_CONFIG_HOME is an error)
+//   - Windows: %AppData%\gz-git
+//
+// config.yaml, config.yml and config.json are tried in that order; the first
+// match wins.
+//
+//	<config-dir>/
 //	├── config.yaml              # Global config
 //	├── profiles/
 //	│   ├── default.yaml        # Default profile

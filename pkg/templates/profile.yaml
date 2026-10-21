@@ -1,5 +1,5 @@
 # gz-git profile configuration
-# Location: ~/.config/gz-git/profiles/{{.Name}}.yaml
+# Location: os.UserConfigDir()/gz-git/profiles/{{.Name}}.yaml
 #
 # Profiles eliminate repetitive command flags by storing defaults.
 #

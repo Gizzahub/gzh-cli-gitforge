@@ -6,8 +6,18 @@ ______________________________________________________________________
 
 ## Config File Locations
 
+The global config directory (`<config-dir>` throughout the docs) is Go's `os.UserConfigDir()` plus `gz-git` (`pkg/config/paths.go`):
+
+| OS      | `<config-dir>`                                                                    |
+| ------- | --------------------------------------------------------------------------------- |
+| macOS   | `~/Library/Application Support/gz-git`                                            |
+| Linux   | `${XDG_CONFIG_HOME:-~/.config}/gz-git` (a relative `XDG_CONFIG_HOME` is an error) |
+| Windows | `%AppData%\gz-git`                                                                |
+
+`XDG_CONFIG_HOME` has no effect on macOS. For `config` and each profile, `.yaml`, `.yml`, then `.json` are tried in that order; the first match wins.
+
 ```
-~/.config/gz-git/
+<config-dir>/
 ├── config.yaml              # Global config
 ├── profiles/
 │   ├── default.yaml        # Default profile
@@ -409,7 +419,7 @@ Agent: hermes-01
 ```
 
 ```yaml
-# ~/.config/gz-git/config.yaml — global, not a project's .gz-git.yaml
+# <config-dir>/config.yaml — global, not a project's .gz-git.yaml
 identity:
   device: dave-office
   agent: hermes-01

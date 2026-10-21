@@ -16,11 +16,11 @@ This skill guides you to simplify multi-repository clone operations using `gz-gi
 
 ## Overview: Three Approaches
 
-| Approach           | Complexity | Best For                               |
-| ------------------ | ---------- | -------------------------------------- |
-| Makefile + clone   | Simple     | Quick setup, CI/CD, fixed repo list    |
-| Workspace CLI      | Medium     | YAML config, team sharing, local mgmt  |
-| Forge Sync         | Advanced   | Org-wide sync, profiles, auto-discover |
+| Approach         | Complexity | Best For                               |
+| ---------------- | ---------- | -------------------------------------- |
+| Makefile + clone | Simple     | Quick setup, CI/CD, fixed repo list    |
+| Workspace CLI    | Medium     | YAML config, team sharing, local mgmt  |
+| Forge Sync       | Advanced   | Org-wide sync, profiles, auto-discover |
 
 ### Quick Decision Guide
 
@@ -33,7 +33,7 @@ Do you need to sync an entire GitHub/GitLab organization?
       └─ No → Approach 1: Makefile + clone
 ```
 
----
+______________________________________________________________________
 
 ## Approach 1: Makefile + gz-git clone
 
@@ -124,12 +124,13 @@ prepare:
 ```
 
 **repos.txt**:
+
 ```
 git@github.com:myorg/repo1.git
 git@github.com:myorg/repo2.git
 ```
 
----
+______________________________________________________________________
 
 ## Approach 2: Workspace CLI
 
@@ -169,14 +170,14 @@ repositories:
 
 ### Key Commands
 
-| Command                        | Purpose                        |
-| ------------------------------ | ------------------------------ |
-| `workspace init`               | Create empty .gz-git.yaml      |
-| `workspace scan <dir>`         | Scan repos → generate config   |
-| `workspace sync`               | Clone/update from config       |
-| `workspace status`             | Health check                   |
-| `workspace add <url>`          | Add repo to config             |
-| `workspace validate`           | Validate config syntax         |
+| Command                | Purpose                      |
+| ---------------------- | ---------------------------- |
+| `workspace init`       | Create empty .gz-git.yaml    |
+| `workspace scan <dir>` | Scan repos → generate config |
+| `workspace sync`       | Clone/update from config     |
+| `workspace status`     | Health check                 |
+| `workspace add <url>`  | Add repo to config           |
+| `workspace validate`   | Validate config syntax       |
 
 ### Makefile Integration
 
@@ -198,7 +199,7 @@ status:
 
 See: `skill:workspace-management` for detailed workspace operations.
 
----
+______________________________________________________________________
 
 ## Approach 3: Forge Sync + Profiles
 
@@ -222,7 +223,9 @@ gz-git config profile use work
 gz-git sync from-forge --org mygroup --target ~/repos
 ```
 
-### Profile Config (~/.config/gz-git/profiles/work.yaml)
+### Profile Config (<config-dir>/profiles/work.yaml)
+
+`<config-dir>` is the gz-git config directory, `os.UserConfigDir()/gz-git`: macOS `~/Library/Application Support/gz-git`, Linux `${XDG_CONFIG_HOME:-~/.config}/gz-git`, Windows `%AppData%\gz-git`.
 
 ```yaml
 name: work
@@ -299,17 +302,17 @@ status:
 
 See: `skill:forge-sync`, `skill:config-profiles` for detailed guides.
 
----
+______________________________________________________________________
 
 ## Choosing the Right Approach
 
-| Scenario                                  | Recommended Approach         |
-| ----------------------------------------- | ---------------------------- |
-| Fixed 5-10 repos, CI/CD                   | Makefile + clone             |
-| Team shares repo list                     | Workspace CLI                |
-| Sync entire GitHub/GitLab org             | Forge Sync                   |
-| Multiple environments (work/personal)     | Forge Sync + Profiles        |
-| Mixed: some manual + some from org        | Forge Sync → config generate → Workspace |
+| Scenario                              | Recommended Approach                     |
+| ------------------------------------- | ---------------------------------------- |
+| Fixed 5-10 repos, CI/CD               | Makefile + clone                         |
+| Team shares repo list                 | Workspace CLI                            |
+| Sync entire GitHub/GitLab org         | Forge Sync                               |
+| Multiple environments (work/personal) | Forge Sync + Profiles                    |
+| Mixed: some manual + some from org    | Forge Sync → config generate → Workspace |
 
 ### Combination Pattern
 
@@ -325,33 +328,33 @@ gz-git workspace sync
 gz-git workspace status
 ```
 
----
+______________________________________________________________________
 
 ## Migration Paths
 
 ### Shell Loops → Makefile + clone
 
 1. Extract repository list from loop
-2. Define `GIT_BASE` and `REPOS` variables
-3. Build URL arguments with `$(foreach)`
-4. Replace loop with single `gz-git clone` call
-5. Test with `--dry-run`
+1. Define `GIT_BASE` and `REPOS` variables
+1. Build URL arguments with `$(foreach)`
+1. Replace loop with single `gz-git clone` call
+1. Test with `--dry-run`
 
 ### Makefile → Workspace CLI
 
 1. Run `gz-git workspace scan .` to generate config
-2. Review and edit `.gz-git.yaml`
-3. Replace Makefile target with `gz-git workspace sync`
-4. Share config with team
+1. Review and edit `.gz-git.yaml`
+1. Replace Makefile target with `gz-git workspace sync`
+1. Share config with team
 
 ### Workspace CLI → Forge Sync
 
 1. Create profile: `gz-git config profile create`
-2. Test: `gz-git sync from-forge --org myorg --dry-run`
-3. Generate config: `gz-git sync config generate -o .gz-git.yaml`
-4. Verify: `gz-git workspace sync`
+1. Test: `gz-git sync from-forge --org myorg --dry-run`
+1. Generate config: `gz-git sync config generate -o .gz-git.yaml`
+1. Verify: `gz-git workspace sync`
 
----
+______________________________________________________________________
 
 ## Performance Comparison
 
@@ -361,7 +364,7 @@ gz-git workspace status
 | gz-git (j=5)   | ~10s    | ~25s     | 5 parallel  |
 | gz-git (j=10)  | ~8s     | ~15s     | 10 parallel |
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -391,14 +394,14 @@ gz-git config profile list     # Check available profiles
 gz-git config init             # Initialize config directory
 ```
 
----
+______________________________________________________________________
 
 ## Related Skills
 
-| Skill                  | Purpose                              |
-| ---------------------- | ------------------------------------ |
-| `gz-git`               | Core CLI reference                   |
-| `workspace-management` | Workspace CLI detailed guide         |
-| `config-profiles`      | Profile creation and management      |
-| `forge-sync`           | GitHub/GitLab/Gitea sync guide       |
-| `sync-troubleshooting` | Sync diagnostics and error handling  |
+| Skill                  | Purpose                             |
+| ---------------------- | ----------------------------------- |
+| `gz-git`               | Core CLI reference                  |
+| `workspace-management` | Workspace CLI detailed guide        |
+| `config-profiles`      | Profile creation and management     |
+| `forge-sync`           | GitHub/GitLab/Gitea sync guide      |
+| `sync-troubleshooting` | Sync diagnostics and error handling |

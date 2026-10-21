@@ -509,7 +509,7 @@ gz-git commit --auto --dry-run
 
 ```bash
 # Load from file
-gz-git commit --template-file ~/.config/gz-git/my-template.yaml
+gz-git commit --template-file path/to/my-template.yaml
 
 # Set as default
 gz-git config template.default my-template

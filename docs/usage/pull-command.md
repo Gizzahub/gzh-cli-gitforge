@@ -270,7 +270,7 @@ gz-git pull --stash ~/projects
 gz-git config profile use work
 gz-git pull ~/work-projects
 
-# Profile 설정 예시 (~/.config/gz-git/profiles/work.yaml):
+# Profile 설정 예시 (<config-dir>/profiles/work.yaml):
 # pull:
 #   rebase: true
 #   prune: true

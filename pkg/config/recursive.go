@@ -767,7 +767,7 @@ func GetConfigWorkspaces(config *Config) map[string]*Workspace {
 }
 
 // GetProfileByName returns a profile by name from the config.
-// Lookup order: inline (config.Profiles) → external (~/.config/gz-git/profiles/)
+// Lookup order: inline (config.Profiles) → external (<config-dir>/profiles/)
 // Returns nil if profile not found in either location.
 func GetProfileByName(config *Config, name string) *Profile {
 	if config == nil || name == "" {
@@ -811,7 +811,7 @@ func HasInlineProfile(config *Config, name string) bool {
 //  3. Grandparent config's inline profiles (and so on...)
 //
 // Returns nil if profile not found in any level.
-// For external profiles (~/.config/gz-git/profiles/), use Manager.GetProfile().
+// For external profiles (<config-dir>/profiles/), use Manager.GetProfile().
 func GetProfileFromChain(config *Config, name string) *Profile {
 	if config == nil || name == "" {
 		return nil

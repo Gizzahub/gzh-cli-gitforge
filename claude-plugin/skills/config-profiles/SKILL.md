@@ -25,10 +25,10 @@ gz-git resolves configuration from 5 layers (highest → lowest):
 ├─────────────────────────────────────────┤
 │ 2. Project config (.gz-git.yaml)        │
 ├─────────────────────────────────────────┤
-│ 3. Active profile (~/.config/gz-git/    │
+│ 3. Active profile (<config-dir>/    │
 │    profiles/{active}.yaml)              │
 ├─────────────────────────────────────────┤
-│ 4. Global config (~/.config/gz-git/     │
+│ 4. Global config (<config-dir>/     │
 │    config.yaml)                         │
 ├─────────────────────────────────────────┤
 │ 5. Built-in defaults                    │  ← Lowest priority
@@ -37,12 +37,14 @@ gz-git resolves configuration from 5 layers (highest → lowest):
 
 **Rule**: Higher layers override lower layers. Unset values fall through.
 
----
+______________________________________________________________________
 
 ## File Locations
 
+`<config-dir>` is the gz-git config directory, `os.UserConfigDir()/gz-git`: macOS `~/Library/Application Support/gz-git`, Linux `${XDG_CONFIG_HOME:-~/.config}/gz-git`, Windows `%AppData%\gz-git`.
+
 ```
-~/.config/gz-git/
+<config-dir>/
 ├── config.yaml              # Global config
 ├── profiles/
 │   ├── default.yaml        # Default profile
@@ -56,7 +58,7 @@ gz-git resolves configuration from 5 layers (highest → lowest):
 ~/mydevbox/.gz-git.yaml
 ```
 
----
+______________________________________________________________________
 
 ## Profile Commands
 
@@ -116,7 +118,7 @@ gz-git config profile show
 gz-git config profile delete old-profile
 ```
 
----
+______________________________________________________________________
 
 ## Config Commands
 
@@ -147,19 +149,19 @@ gz-git config hierarchy
 # ├── Flag overrides: (none)
 # ├── Project: ~/myproject/.gz-git.yaml
 # │   └── profile: work
-# ├── Active Profile: ~/.config/gz-git/profiles/work.yaml
+# ├── Active Profile: <config-dir>/profiles/work.yaml
 # │   ├── provider: gitlab
 # │   └── baseURL: https://gitlab.company.com
-# └── Global: ~/.config/gz-git/config.yaml
+# └── Global: <config-dir>/config.yaml
 #     └── activeProfile: work
 ```
 
----
+______________________________________________________________________
 
 ## Profile File Format
 
 ```yaml
-# ~/.config/gz-git/profiles/work.yaml
+# <config-dir>/profiles/work.yaml
 name: work
 
 # Forge provider settings
@@ -201,7 +203,7 @@ push:
   setUpstream: true
 ```
 
----
+______________________________________________________________________
 
 ## Project Config Format
 
@@ -224,12 +226,12 @@ metadata:
   repository: https://gitlab.company.com/backend/myproject
 ```
 
----
+______________________________________________________________________
 
 ## Global Config Format
 
 ```yaml
-# ~/.config/gz-git/config.yaml
+# <config-dir>/config.yaml
 
 # Default active profile
 activeProfile: work
@@ -248,7 +250,7 @@ environments:
     githubToken: ${PERSONAL_GITHUB_TOKEN}
 ```
 
----
+______________________________________________________________________
 
 ## Environment Variable Expansion
 
@@ -264,11 +266,12 @@ token: glpat-xxxxxxxxxxxx
 ```
 
 **Security Notes**:
+
 - Profile files: 0600 permissions (user read/write only)
 - Config directory: 0700 permissions (user access only)
 - Only `${VAR}` expansion (no shell command execution)
 
----
+______________________________________________________________________
 
 ## Hierarchical Config (Advanced)
 
@@ -312,11 +315,11 @@ workspaces:
 
 ### Workspace Types
 
-| Type     | Description                          |
-| -------- | ------------------------------------ |
-| `forge`  | Sync from GitLab/GitHub/Gitea API    |
-| `git`    | Plain git repository (leaf node)     |
-| `config` | Has nested config file (recursive)   |
+| Type     | Description                        |
+| -------- | ---------------------------------- |
+| `forge`  | Sync from GitLab/GitHub/Gitea API  |
+| `git`    | Plain git repository (leaf node)   |
+| `config` | Has nested config file (recursive) |
 
 ### Parent Config Reference
 
@@ -328,7 +331,7 @@ parent: ~/devenv/workstation/.gz-git.yaml  # Explicit parent
 profile: polypia  # Found in parent's inline profiles
 ```
 
----
+______________________________________________________________________
 
 ## Common Workflows
 
@@ -390,7 +393,7 @@ EOF
 gz-git workspace sync
 ```
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -431,34 +434,36 @@ gz-git config hierarchy
 
 ```bash
 # Fix permissions
-chmod 700 ~/.config/gz-git
-chmod 600 ~/.config/gz-git/profiles/*
-chmod 600 ~/.config/gz-git/config.yaml
+# Set CONFIG_DIR to <config-dir> first (see File Locations), e.g. on Linux:
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/gz-git"
+chmod 700 "$CONFIG_DIR"
+chmod 600 "$CONFIG_DIR"/profiles/*
+chmod 600 "$CONFIG_DIR"/config.yaml
 ```
 
----
+______________________________________________________________________
 
 ## Quick Reference
 
-| Task                        | Command                                |
-| --------------------------- | -------------------------------------- |
-| Create profile              | `gz-git config profile create NAME`    |
-| List profiles               | `gz-git config profile list`           |
-| Switch profile              | `gz-git config profile use NAME`       |
-| Show profile                | `gz-git config profile show [NAME]`    |
-| Delete profile              | `gz-git config profile delete NAME`    |
-| Show effective config       | `gz-git config show --effective`       |
-| Show hierarchy              | `gz-git config hierarchy`              |
-| One-time override           | `--profile NAME` flag on any command   |
+| Task                  | Command                              |
+| --------------------- | ------------------------------------ |
+| Create profile        | `gz-git config profile create NAME`  |
+| List profiles         | `gz-git config profile list`         |
+| Switch profile        | `gz-git config profile use NAME`     |
+| Show profile          | `gz-git config profile show [NAME]`  |
+| Delete profile        | `gz-git config profile delete NAME`  |
+| Show effective config | `gz-git config show --effective`     |
+| Show hierarchy        | `gz-git config hierarchy`            |
+| One-time override     | `--profile NAME` flag on any command |
 
----
+______________________________________________________________________
 
 ## workspace vs config profile
 
-| Feature           | `workspace` commands    | `config profile`         |
-| ----------------- | ----------------------- | ------------------------ |
-| Config format     | `repositories` array    | `workspaces` map         |
-| Hierarchy         | Single level            | Recursive nesting        |
-| Forge sync        | Manual (add URLs)       | API-based (org sync)     |
-| Profile support   | No                      | Yes                      |
-| Use case          | Simple local repo list  | Multi-env, complex setup |
+| Feature         | `workspace` commands   | `config profile`         |
+| --------------- | ---------------------- | ------------------------ |
+| Config format   | `repositories` array   | `workspaces` map         |
+| Hierarchy       | Single level           | Recursive nesting        |
+| Forge sync      | Manual (add URLs)      | API-based (org sync)     |
+| Profile support | No                     | Yes                      |
+| Use case        | Simple local repo list | Multi-env, complex setup |
