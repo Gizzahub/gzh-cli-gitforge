@@ -59,3 +59,11 @@ injecting a clock or a wait budget the test controls instead of a real 50ms.
 Verify under sustained host load (for example the single-test loop with a
 high `-count` while a parallel build or `stress` runs), since an idle host
 passes either way.
+
+## Resolution
+
+Obsolete on 2026-10-21. b8b4cccc ("remove the readiness contract and gate
+declarations") deleted the code under test and the test itself:
+`pkg/integrate/admission.go`, the host measurement lock, the `--lock-wait`
+budget and `cmd/gz-git/cmd/integrate_resource_wait_unix_test.go`. No
+remaining test spends a real wait budget on FIFO admission.

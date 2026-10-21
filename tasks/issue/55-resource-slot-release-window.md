@@ -1,6 +1,6 @@
 # ISSUE: Target observation can become stale before slot acquisition
 
-- Status: open; source-derived finding, no runtime reproduction claimed
+- Status: obsolete (2026-10-21); see Resolution
 - Owner: `pkg/integrate`
 
 ## Finding
@@ -25,3 +25,13 @@ Cover the FIFO/OS release window and final-refresh failure with gate markers.
 
 This is separate from the observation-budget correction in
 [ISSUE-54](54-resource-probe-deadline.md). No remediation is included there.
+
+## Resolution
+
+Obsolete on 2026-10-21. b8b4cccc ("remove the readiness contract and gate
+declarations") deleted the gate host slots, FIFO admission
+(`pkg/integrate/admission.go`, `acquireAdmission`) and the gate that the slot
+guarded. gz-git now runs no repository code, so there is no window between
+slot acquisition and a gate start. The target lock that this card asked to
+preserve is itself being removed under
+[ISSUE-93](093-integrate-target-lock-removal.md).

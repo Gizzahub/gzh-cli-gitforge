@@ -1,5 +1,5 @@
 ---
-id: ISSUE-85
+id: ISSUE-93
 title: "integrate holds a target lock across the readiness gate; remove it"
 type: design-defect
 priority: P1
@@ -22,6 +22,15 @@ does.
 
 The lock was introduced in d3a9a0e8 (2026-10-12) and is specified in
 `docs/design/integration-resource-contract.md`.
+
+Update 2026-10-21: b8b4cccc removed the readiness gate and `--lock-wait`, but
+not the lock. `integrate check` holds it (`pkg/integrate/check.go:118`
+`holdTargetLock`) and `integrate run` holds it from fetch to reclaim
+(`pkg/integrate/run.go:138` `withTargetLockSlot`), and the wait is now
+unbounded: it ends only when the holder releases it or the command is
+interrupted. The gate that made the wait long now runs in CE `run-finish`
+before `integrate run`, so the wait is shorter per holder but still blocks
+on any concurrent run of the same target.
 
 ## Owner decision (2026-10-20)
 
@@ -72,10 +81,14 @@ integrations belongs to the caller/orchestrator, not to gz-git.
 
 ## Related
 
-- The ACTIVE run `refresh-under-target-lock`
+- The run `refresh-under-target-lock`
   (`dev/claude/mst/feat/refresh-under-target-lock`, commit 14834a5e "refresh a
   stale task branch under the target lock") extends the lock this issue
-  removes. Reconcile it with this decision before it lands.
-- ISSUE-55 (resource slot release window), ISSUE-057 and ISSUE-069 (target-lock
-  notices in the provenance stream) assume the lock exists. Revisit them once
-  it is removed.
+  removes. It was ABORTED on 2026-10-21 with its branch and worktree kept; do
+  not land it.
+- [ISSUE-61](061-concurrent-landing-reverify.md) hands its remaining gitforge
+  item here: when the exact-lease push is rejected without `--expect-target`,
+  the refusal must name the stale target like the revalidation does.
+- ISSUE-55 (resource slot release window) is obsolete since b8b4cccc.
+  ISSUE-057 and ISSUE-069 (target-lock notices in the provenance stream)
+  assume the lock exists. Revisit them once it is removed.

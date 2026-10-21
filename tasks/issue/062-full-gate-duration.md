@@ -106,3 +106,14 @@ tests:
   among them; most read process-wide state, and ISSUE-83 lists the
   reasons and the work to remove them. Capping concurrent full
   gates belongs to the landing policy (ISSUE-61, ce-devenv ISSUE-041).
+
+## Update (2026-10-21)
+
+The Summary's premises are partly outdated. b8b4cccc removed the
+readiness contract, so a change no longer "widens readiness" inside
+gz-git; `verify-full` is a make target that CE `run-finish` runs before
+`integrate run`. ee40ef50 and b8b4cccc also deleted many of the slow
+`pkg/integrate` tests measured above (the package now has 226 top-level
+tests, 149 parallel; see ISSUE-83). The durations above predate both
+commits. Re-measure `verify-full` on the current master before opening
+new work here.

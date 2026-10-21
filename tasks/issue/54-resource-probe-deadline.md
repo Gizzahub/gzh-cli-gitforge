@@ -44,4 +44,5 @@ publication and selected-path audit. Installed `gz-git version` reports
 Primary checkout evidence: `tmp/resource-handoff-finish.json`,
 `tmp/resource-handoff-native-receipt.json`, `tmp/resource-handoff-install.log`
 and `tmp/resource-handoff-installed.sha256`. This records mbp adoption only;
-no other host or published release is asserted. ISSUE-55 remains out of scope.
+no other host or published release is asserted. ISSUE-55 remains out of scope;
+it became obsolete when b8b4cccc removed the slots and admission (2026-10-21).

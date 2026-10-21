@@ -1,5 +1,5 @@
 ---
-id: ISSUE-86
+id: ISSUE-94
 title: "Docs say the global config lives in ~/.config/gz-git; macOS reads ~/Library/Application Support/gz-git"
 type: docs
 priority: P2

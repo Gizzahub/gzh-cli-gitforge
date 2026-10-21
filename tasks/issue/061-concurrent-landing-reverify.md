@@ -87,3 +87,21 @@ acquisition); this card covers the cost of any target move.
   complete" after readiness (ce-agent-kit; gitforge's `internal/runtask`
   mirrors that reference and follows it), and the policy choice under
   ce-devenv ISSUE-041.
+
+## Resolution
+
+Closed for gitforge on 2026-10-21; the remaining items are external or moved.
+
+- The premise changed. b8b4cccc removed the readiness gate from gz-git, so
+  `integrate run` no longer runs a finished gate that a landing can discard.
+  The full gate now runs in CE `run-finish` before `integrate run`, so the
+  cost of re-running it after a stale-base refusal is CE's to reduce.
+- Done here: the Run-phase revalidation names the stale target (see
+  Findings).
+- Moved to [ISSUE-93](093-integrate-target-lock-removal.md): when the
+  exact-lease push itself is rejected without `--expect-target`, the
+  refusal must name the stale target too. ISSUE-93 removes the target lock,
+  so that rejection becomes the normal fast refusal for a concurrent run.
+- External: CE's `index == 0` stale-base classification (ce-agent-kit, then
+  `internal/runtask/service_lifecycle.go:318` follows it) and the landing
+  policy under ce-devenv ISSUE-041.
