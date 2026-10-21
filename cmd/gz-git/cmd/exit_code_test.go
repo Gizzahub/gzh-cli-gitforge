@@ -102,6 +102,10 @@ func TestPullAllReposFailExitsTwo(t *testing.T) {
 	restore := setBulkTestGlobals(t)
 	defer restore()
 
+	// Isolate the config dir: a load error now fails the command instead of
+	// being swallowed, so the developer's real global config must not leak in.
+	isolateConfigHome(t)
+
 	source := testutil.TempGitRepoWithCommit(t)
 	parent := t.TempDir()
 	bogus := filepath.Join(t.TempDir(), "does-not-exist.git")
@@ -134,6 +138,10 @@ func TestPullConflictExitsTwo(t *testing.T) {
 	defer restore()
 	origStrategy := pullStrategy
 	defer func() { pullStrategy = origStrategy }()
+
+	// Isolate the config dir: a load error now fails the command instead of
+	// being swallowed, so the developer's real global config must not leak in.
+	isolateConfigHome(t)
 
 	source := testutil.TempGitRepoWithCommit(t)
 	parent := t.TempDir()

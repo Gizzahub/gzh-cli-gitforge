@@ -121,6 +121,10 @@ func TestRunStatus_SkipFetchWithTempRepos(t *testing.T) {
 
 func TestRunStatus_NoRepos(t *testing.T) {
 	resetStatusFlags(t)
+	// Isolate the config dir: a load error now fails the command instead of
+	// being swallowed, so a real global config with a removed key would fail
+	// an empty-directory run that should succeed.
+	isolateConfigHome(t)
 	empty := t.TempDir()
 	statusFlags.SkipFetch = true
 	statusFlags.Format = "default"

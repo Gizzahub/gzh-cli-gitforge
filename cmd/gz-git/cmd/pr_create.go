@@ -79,10 +79,13 @@ func runPRCreate(cmd *cobra.Command, args []string) error {
 		return cliutil.NewExitError(cliutil.ExitToolError, err)
 	}
 
-	effective, _ := LoadEffectiveConfig(cmd, map[string]any{
+	effective, err := LoadEffectiveConfig(cmd, map[string]any{
 		"provider": prCreateProvider,
 		"token":    prCreateToken,
 	})
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		if prCreateProvider == "" {
 			prCreateProvider = effective.Provider

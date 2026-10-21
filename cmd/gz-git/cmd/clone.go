@@ -85,7 +85,10 @@ func init() {
 func runClone(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
 			cloneFlags.Parallel = effective.Parallel

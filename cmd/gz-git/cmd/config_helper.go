@@ -21,22 +21,21 @@ import (
 //	    "org": org,
 //	})
 func LoadEffectiveConfig(cmd *cobra.Command, flags map[string]any) (*config.EffectiveConfig, error) {
-	// Create loader
+	// Create loader. A failure here means the config directory itself could not
+	// be resolved (e.g. $HOME unset), and the old defaults fallback hid it
+	// behind a zero-value loader whose nil manager panics in Load.
 	loader, err := config.NewLoader()
 	if err != nil {
-		// Config is optional - if it fails to load, just use defaults and flags
-		if verbose {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to load config: %v\n", err)
-		}
-		// Return config with only flags and defaults
-		loader = &config.ConfigLoader{}
+		return nil, fmt.Errorf("failed to create config loader: %w", err)
 	}
 
-	// Load configs (global, profile, project)
+	// Load configs (global, profile, project). A missing file is not an error —
+	// the manager returns defaults and the project config may be nil — so any
+	// error here is real: an unreadable file, a syntax error, or a removed key.
+	// Failing fast beats running on defaults while silently dropping the
+	// operator's configuration.
 	if err := loader.Load(); err != nil {
-		if verbose {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: Failed to load config layers: %v\n", err)
-		}
+		return nil, fmt.Errorf("failed to load config layers: %w", err)
 	}
 
 	// Apply profile override if provided via --profile flag
@@ -64,7 +63,10 @@ func LoadEffectiveConfig(cmd *cobra.Command, flags map[string]any) (*config.Effe
 //
 // Usage:
 //
-//	effective, _ := LoadEffectiveConfig(cmd, nil)
+//	effective, err := LoadEffectiveConfig(cmd, nil)
+//	if err != nil {
+//	    return err
+//	}
 //	if provider == "" && effective.Provider != "" {
 //	    provider = effective.Provider
 //	}

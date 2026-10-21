@@ -82,13 +82,15 @@ func runBranchName(cmd *cobra.Command, args []string) error {
 	}
 
 	// A missing config is not an error here: the defaults spell the convention,
-	// and the identity still resolves from the environment and the hostname.
-	effective, _ := LoadEffectiveConfig(cmd, nil)
-
-	var naming *branch.Naming
-	if effective != nil {
-		naming = effective.Branch.Naming
+	// and the identity still resolves from the environment and the hostname. A
+	// config that fails to load is: continuing would silently drop the project's
+	// branch.naming templates, so it exits 2 like any other usage error.
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return cliutil.NewExitError(2, err)
 	}
+
+	naming := effective.Branch.Naming
 
 	name, err := naming.Resolve(kind, args[0], pushIdentity(effective))
 	if err != nil {

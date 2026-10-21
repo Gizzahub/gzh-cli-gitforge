@@ -134,7 +134,10 @@ func runHandoffEnd(cmd *cobra.Command, args []string) error {
 		return cliutil.NewExitError(2, err)
 	}
 
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	guards, err := resolvePushGuards(effective, pushOverrides{})
 	if err != nil {
 		return err

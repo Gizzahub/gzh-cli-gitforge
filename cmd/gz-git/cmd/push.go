@@ -74,7 +74,10 @@ func runPush(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	// Load config with profile support
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		// Apply config if flag not explicitly set
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {

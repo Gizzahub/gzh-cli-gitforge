@@ -82,7 +82,10 @@ func runExec(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
 			execFlags.Parallel = effective.Parallel

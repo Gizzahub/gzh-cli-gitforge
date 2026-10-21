@@ -24,6 +24,9 @@ func TestRunExec_DryRunAndSuccess(t *testing.T) {
 	prev := execFlags
 	prevFF, prevTO := execFailFast, execTimeout
 	prevQ, prevV := quiet, verbose
+	// Isolate the config dir: a load error now fails the command instead of
+	// being swallowed, so the developer's real global config must not leak in.
+	isolateConfigHome(t)
 	t.Cleanup(func() {
 		execFlags = prev
 		execFailFast, execTimeout = prevFF, prevTO

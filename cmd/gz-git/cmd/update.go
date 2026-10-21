@@ -72,7 +72,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	var baseCandidates []string
 
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
 			updateFlags.Parallel = effective.Parallel

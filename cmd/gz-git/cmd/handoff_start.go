@@ -109,7 +109,10 @@ func runHandoffStart(cmd *cobra.Command, args []string) error {
 	plan := handoff.PlanStart(assessment)
 	report := &handoffStartReport{Plan: plan, DryRun: handoffStartFlags.DryRun}
 
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	mine := pushIdentity(effective)
 
 	if handoffStartFlags.DryRun {

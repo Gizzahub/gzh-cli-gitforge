@@ -78,7 +78,10 @@ func runInfo(cmd *cobra.Command, args []string) error {
 		baseCandidates   []string
 		autofixOverrides map[string]bool
 	)
-	effective, _ := LoadEffectiveConfig(cmd, nil)
+	effective, err := LoadEffectiveConfig(cmd, nil)
+	if err != nil {
+		return err
+	}
 	if effective != nil {
 		autofixOverrides = effective.Audit.Autofix
 		if !cmd.Flags().Changed("parallel") && effective.Parallel > 0 {
