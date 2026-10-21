@@ -84,6 +84,12 @@ from devenv readinessApproval seeding. Installed gz-git 0.11.1 still accepts
 it; a 0.12.0 build refuses to load it, and `gz-git branch name` then falls
 back to the default naming without saying why (ISSUE-97).
 
+The seed is ce-devenv `config/gz-git/config.base.yaml` (devenv commits
+239e0093..74f8a8d9, 2026-10-21), which writes the key into a device's global
+config when none exists. Remove it there before tagging 0.12.0, and delete
+the key from seeded devices only after 0.12.0 is installed: an older gz-git
+asks for readiness approval again without it.
+
 ## Scope
 
 - Each owner deletes the removed keys in its own repository. If a readiness
