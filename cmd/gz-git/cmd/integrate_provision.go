@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
@@ -44,6 +46,27 @@ var (
 			sources, err := parseProvisionSources(provisionSources)
 			if err != nil {
 				return err
+			}
+			// A --source name no declared sibling matches was silently ignored
+			// and the declared source acquired instead (ISSUE-49): reject the
+			// call so the response never reports a source the caller did not
+			// choose.
+			declared := make([]string, 0, len(decl.Siblings))
+			known := make(map[string]bool, len(decl.Siblings))
+			for _, dep := range decl.Siblings {
+				declared = append(declared, dep.Name)
+				known[dep.Name] = true
+			}
+			unknown := make([]string, 0, len(sources))
+			for name := range sources {
+				if !known[name] {
+					unknown = append(unknown, name)
+				}
+			}
+			if len(unknown) > 0 {
+				slices.Sort(unknown)
+				return cliutil.NewExitError(2, fmt.Errorf("--source %s is not a declared sibling; declared siblings: %s",
+					strings.Join(unknown, ", "), strings.Join(declared, ", ")))
 			}
 			leases := make([]integrate.SiblingLease, 0, len(decl.Siblings))
 			for _, dep := range decl.Siblings {

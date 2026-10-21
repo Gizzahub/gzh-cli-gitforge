@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
@@ -74,6 +76,33 @@ func provisionCommandFixture(t *testing.T, collision bool) (*testutil.WorktreeOr
 		integrateProvisionReleaseCmd.SetContext(previousReleaseContext)
 	})
 	return owner, output
+}
+
+// TestProvisionCLIAcquireRejectsUndeclaredSourceName covers ISSUE-49: a
+// --source name no declared sibling matches is a usage error (exit 2) that
+// names the unknown name and the declared ones, and nothing is acquired.
+func TestProvisionCLIAcquireRejectsUndeclaredSourceName(t *testing.T) {
+	owner, _ := provisionCommandFixture(t, false)
+	provisionSources = append(provisionSources, "ghost="+owner.Clone)
+
+	err := integrateProvisionAcquireCmd.RunE(integrateProvisionAcquireCmd, nil)
+	if err == nil {
+		t.Fatal("undeclared --source name was accepted")
+	}
+	var exitErr *cliutil.ExitError
+	if !errors.As(err, &exitErr) || exitErr.Code != 2 {
+		t.Fatalf("error = %v, want a usage error with exit code 2", err)
+	}
+	if !strings.Contains(err.Error(), "ghost") || !strings.Contains(err.Error(), "first") {
+		t.Fatalf("error %q lacks the unknown or the declared source name", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(filepath.Dir(owner.Clone), "snapshot")); !os.IsNotExist(statErr) {
+		t.Fatalf("rejected acquire still provisioned a snapshot: %v", statErr)
+	}
+	leases, leasesErr := integrate.InspectPersistedSiblingLeases(context.Background(), owner.Clone)
+	if leasesErr != nil || len(leases) != 0 {
+		t.Fatalf("rejected acquire left leases: %v %v", leases, leasesErr)
+	}
 }
 
 func TestProvisionCLILeaseJSONAndForeignWorktreeRefusal(t *testing.T) {
