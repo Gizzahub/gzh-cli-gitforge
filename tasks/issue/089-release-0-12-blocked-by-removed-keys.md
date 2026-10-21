@@ -75,6 +75,15 @@ These repositories declare only `branch.readiness`:
   sigdock-client, sigdock-extension, sigdock-server-rs, sigdock-shared,
   sigdock-ts, sigdock-vscode.
 
+### Global config on mbp
+
+The 2026-10-21 scan covered only `.gz-git.yaml` files. The global gz-git
+config on mbp (`~/Library/Application Support/gz-git/config.yaml`) declares
+`integration.readinessApproval: automatic`; ISSUE-94 records it as coming
+from devenv readinessApproval seeding. Installed gz-git 0.11.1 still accepts
+it; a 0.12.0 build refuses to load it, and `gz-git branch name` then falls
+back to the default naming without saying why (ISSUE-97).
+
 ## Scope
 
 - Each owner deletes the removed keys in its own repository. If a readiness
@@ -83,3 +92,5 @@ These repositories declare only `branch.readiness`:
   which CE runs before integrating.
 - Re-scan when 0.12.0 is published and close this card when the scan is
   empty. This card does not change any other repository.
+- The re-scan includes each machine's global config, and the owner that
+  seeds the key (ce-devenv, per ISSUE-94) is asked to remove it.
