@@ -38,15 +38,23 @@ func LoadEffectiveConfig(cmd *cobra.Command, flags map[string]any) (*config.Effe
 		return nil, fmt.Errorf("failed to load config layers: %w", err)
 	}
 
-	// Apply profile override if provided via --profile flag
+	// Apply profile override if provided via --profile flag. An override the
+	// operator named must either apply or fail: silently running on the active
+	// profile would drop the requested provider, token, and clone settings
+	// without a word.
 	if profileOverride != "" {
 		mgr, err := config.NewManager()
-		if err == nil && mgr.ProfileExists(profileOverride) {
-			overrideProfile, err := mgr.LoadProfile(profileOverride)
-			if err == nil {
-				loader.SetActiveProfileInternal(overrideProfile)
-			}
+		if err != nil {
+			return nil, fmt.Errorf("failed to create config manager: %w", err)
 		}
+		if !mgr.ProfileExists(profileOverride) {
+			return nil, fmt.Errorf("profile '%s' not found", profileOverride)
+		}
+		overrideProfile, err := mgr.LoadProfile(profileOverride)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load profile '%s': %w", profileOverride, err)
+		}
+		loader.SetActiveProfileInternal(overrideProfile)
 	}
 
 	// Resolve effective config with flags

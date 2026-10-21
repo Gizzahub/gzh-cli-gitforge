@@ -85,6 +85,10 @@ func TestPullBadFormatExitsOne(t *testing.T) {
 	restore := setBulkTestGlobals(t)
 	defer restore()
 
+	// Isolate the config dir: a load error now fails the command instead of
+	// being swallowed, so the developer's real global config must not leak in.
+	isolateConfigHome(t)
+
 	pullFlags.Format = "bogus-format"
 
 	err := runPull(pullCmd, []string{t.TempDir()})

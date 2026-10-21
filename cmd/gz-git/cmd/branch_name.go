@@ -62,7 +62,8 @@ rather than left in the name.
 
 Exit codes:
   0  the name was printed
-  2  the kind, the task or a template could not produce a valid branch name
+  2  the kind, the task or a template could not produce a valid branch name,
+     or the config exists but fails to load
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: runBranchName,
