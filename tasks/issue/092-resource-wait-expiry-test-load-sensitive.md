@@ -16,8 +16,8 @@ created: 2026-10-21
 consume the whole 50ms budget before the host-lock holder is read, so the
 expiry error lacks the holder description and the test fails.
 
-This is a suspected cause from the failure shape; no instrumented reproduction
-exists yet.
+The CI failure log names the admission step directly (see Evidence); no
+instrumented reproduction exists yet.
 
 ## Evidence
 
@@ -27,19 +27,22 @@ exists yet.
 - `pkg/integrate/admission.go`: `acquireAdmission` and `admissionWaitExpired`
   spend the same wait budget on FIFO admission before the OS lock holder is
   described.
-- CI run 39524694645 failed on master `0e883d00` (Quality gate) and passed on
-  rerun.
-- Locally `go test -run TestIntegrateResourceWaitExpiryExitsTwo -count=20`
-  passes 20/20 under go1.27.3 and go1.26.10, so the failure needs load.
-- The gz-git integrate diagnostic recorded `diagnostics 2 -> 3` on the first
-  run-finish attempt.
+- CI run 39524694645 failed on master `0e883d00` (Quality gate) at `:110` and
+  passed on rerun. Its log reads
+  `acquire FIFO resource admission ...; host measurement lock wait expired after 50ms; admission ticket canceled`.
+- The failure needs host load, not the whole package:
+  `go test -run TestIntegrateResourceWaitExpiryExitsTwo -count=20` passed 20/20
+  on an idle host, but on darwin with go1.27.3 at load average 7-10 it failed
+  at `:110` with the same admission-expiry message in about 2 of 80
+  iterations.
 
 ## Reproduction
 
-1. Run the whole `cmd/gz-git/cmd` package, for example
-   `go test ./cmd/gz-git/cmd/... -count=1`, on a loaded machine or hosted CI.
-1. Intermittently the test fails at `:83` or `:110`; the single-test loop
-   above does not reproduce it.
+1. On a loaded host (local reproductions were at load average 7-10) or hosted
+   CI, run either the single-test loop above or the whole package,
+   `go test ./cmd/gz-git/cmd/... -count=1`.
+1. Intermittently the test fails at `:83` or `:110`; on an idle host neither
+   form reproduces it.
 
 ## Expected vs Actual
 
@@ -53,5 +56,6 @@ Decide first whether the product contract is "the expiry report always names
 the holder". If yes, make the production path describe the holder even when
 admission consumed the budget. If no, make the test deterministic by
 injecting a clock or a wait budget the test controls instead of a real 50ms.
-Verify under `go test ./cmd/gz-git/cmd/... -count=N` with `-cpu` or parallel
-load, not the single-test loop.
+Verify under sustained host load (for example the single-test loop with a
+high `-count` while a parallel build or `stress` runs), since an idle host
+passes either way.
