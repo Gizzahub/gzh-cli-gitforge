@@ -826,50 +826,50 @@ func TestCleanupOnlyRetryPathRefGuard(t *testing.T) {
 	f.assertResidualsIntact(t, wt)
 }
 
+// TestCleanupOnlyRetryConcurrentTarget holds the task fence as a concurrent
+// command would. Cleanup must refuse at once with every residual intact, never
+// wait, and a cleanup after release finishes while a follower rewrites nothing.
 func TestCleanupOnlyRetryConcurrentTarget(t *testing.T) {
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)
 	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	lock, err := acquireTargetLock(ctx, newGitRepo(f.exec, f.fx.Clone), "refs/heads/develop", nil)
+	fence, err := acquireTaskResourceFence(context.Background(), f.exec, f.fx.Clone, f.receipt(t).TaskBranch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer lock.release()
+	defer fence.release()
 	revision := f.receipt(t).Revision
-	waiting := []*signalledWriter{{ch: make(chan struct{})}, {ch: make(chan struct{})}}
-	done := make(chan error, len(waiting))
-	for _, notice := range waiting {
+	const contenders = 2
+	done := make(chan error, contenders)
+	started := time.Now()
+	for range contenders {
 		go func() {
-			_, err := CleanupRetry(ctx, f.exec, CleanupOptions{RepoPath: f.fx.Clone, ExecutionID: f.execution.ExecutionID, Generation: "g7", LockNotice: notice})
+			_, err := CleanupRetry(context.Background(), f.exec, CleanupOptions{RepoPath: f.fx.Clone, ExecutionID: f.execution.ExecutionID, Generation: "g7"})
 			done <- err
 		}()
 	}
-	for _, notice := range waiting {
-		select {
-		case <-notice.ch:
-		case err := <-done:
-			t.Fatalf("cleanup bypassed held target ownership: %v", err)
-		case <-ctx.Done():
-			t.Fatal("cleanup did not report target contention")
+	for range contenders {
+		if err := <-done; !errors.Is(err, ErrResourceBusy) {
+			t.Fatalf("cleanup under a held task fence = %v, want ErrResourceBusy", err)
 		}
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("cleanup waited %s for the held fence; it must refuse at once", elapsed)
 	}
 	f.assertResidualsIntact(t, wt)
-	lock.release()
-	for range waiting {
-		select {
-		case err := <-done:
-			if err != nil {
-				t.Fatalf("cleanup after target release: %v", err)
-			}
-		case <-ctx.Done():
-			t.Fatal("cleanup did not finish after target release")
-		}
+	if got := f.receipt(t).Revision; got != revision {
+		t.Fatalf("refused cleanup wrote the receipt: revision %d -> %d", revision, got)
+	}
+	fence.release()
+	if _, err := f.cleanup(t, "g7"); err != nil {
+		t.Fatalf("cleanup after fence release: %v", err)
 	}
 	f.assertResidualsGone(t, wt)
+	if _, err := f.cleanup(t, "g7"); err != nil {
+		t.Fatalf("follower cleanup after completion: %v", err)
+	}
 	if got := f.receipt(t).Revision; got != revision+4 {
-		t.Fatalf("concurrent follower rewrote completed cleanup: revision %d -> %d", revision, got)
+		t.Fatalf("follower rewrote completed cleanup: revision %d -> %d", revision, got)
 	}
 }
 

@@ -38,8 +38,8 @@ prospective plan과 standalone apply의 지원 범위를 설명한다.
 explains when `integrate run` may delete clones that `gz-git sync` left in
 the task worktree.
 
-[Integration resource scope](integrate-resources.md) documents target ownership,
-the task fence, and how a lock wait ends.
+[Integration resource scope](integrate-resources.md) documents how concurrent
+runs on one target are refused instead of awaited, and the fail-fast task fence.
 
 ## 새 저장소 초기 준비
 

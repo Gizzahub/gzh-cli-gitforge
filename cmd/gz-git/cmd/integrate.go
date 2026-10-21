@@ -29,8 +29,12 @@ unfinished task branches, check is the readiness gate, and run
 fast-forwards then reclaims. gz-git builds, runs, and lints no
 repository code: git checks alone decide readiness.
 
-Each repository and target ref has its own Git target lock. A command
-waits for it until the lock is free or the command is interrupted.`),
+gz-git never makes one integration wait for another: it detects and
+reports. Concurrent runs on one target are not ordered; the exact-lease
+push lets one land, and every other run refuses at once, naming the
+target, the commit it checked, the current commit, and the rebase to do.
+Two commands never reclaim one task's worktree and branches at once: the
+second refuses immediately and names the holding process.`),
 	Args: cobra.NoArgs,
 }
 
@@ -41,8 +45,8 @@ func init() {
 // printIntegrateProvenance writes the run provenance line before anything
 // else on the notice stream (stderr), so a captured log names the device and
 // the gz-git build that wrote it. It never goes to stdout: --json documents
-// stay one protocol document. It ignores --quiet like the lock notices it
-// attributes. Only the commands that wait on git-mutation locks print it; read-only queries and plan files do not.
+// stay one protocol document. It ignores --quiet so a refusal on stderr is
+// always attributed. Only the commands that mutate git print it; read-only queries and plan files do not.
 func printIntegrateProvenance(cmd *cobra.Command) {
 	device := integrate.ResolveDevice(cmdContext(cmd), gitcmd.NewExecutor(), ".")
 	// A failed write to stderr has nowhere visible to go, and the line is

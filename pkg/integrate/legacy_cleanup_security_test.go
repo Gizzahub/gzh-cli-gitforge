@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
@@ -229,40 +228,20 @@ func TestLegacyCleanupSecurityRejectsIntentDirectorySymlink(t *testing.T) {
 	assertLegacyResourcesPresent(t, primary, task)
 }
 
-func TestLegacyCleanupSecurityHonorsTargetAndTaskFences(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		hold func(*testing.T, *LegacyCleanupPlan, string) func()
-	}{
-		{"target lock", func(t *testing.T, p *LegacyCleanupPlan, primary string) func() {
-			t.Helper()
-			lock, err := acquireTargetLock(context.Background(), newGitRepo(gitcmd.NewExecutor(), primary), p.TargetRef, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return lock.release
-		}},
-		{"sibling task fence", func(t *testing.T, p *LegacyCleanupPlan, primary string) func() {
-			t.Helper()
-			lock, err := acquireTaskResourceFence(context.Background(), gitcmd.NewExecutor(), primary, p.TaskBranch)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return lock.release
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			plan, planPath, primary, task := legacySecurityPlan(t, true)
-			release := tc.hold(t, plan, primary)
-			defer release()
-			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-			defer cancel()
-			if err := applyLegacySecurityContext(t, ctx, plan, planPath); err == nil {
-				t.Fatal("cleanup crossed an existing resource fence")
-			}
-			assertLegacyResourcesPresent(t, primary, task)
-		})
+// TestLegacyCleanupSecurityHonorsTaskFence holds the sibling task fence. The
+// legacy cleanup must refuse at once, without a deadline forcing it out of a
+// wait, and leave every resource in place.
+func TestLegacyCleanupSecurityHonorsTaskFence(t *testing.T) {
+	plan, planPath, primary, task := legacySecurityPlan(t, true)
+	fence, err := acquireTaskResourceFence(context.Background(), gitcmd.NewExecutor(), primary, plan.TaskBranch)
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer fence.release()
+	if err := applyLegacySecurityContext(t, context.Background(), plan, planPath); !errors.Is(err, ErrResourceBusy) {
+		t.Fatalf("cleanup under a held task fence = %v, want ErrResourceBusy", err)
+	}
+	assertLegacyResourcesPresent(t, primary, task)
 }
 
 func TestLegacyCleanupSecurityRejectsChangedEndpointTargetDirtyNestedAndForeignMarker(t *testing.T) {

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -52,9 +51,6 @@ type CheckOptions struct {
 	// intentionally separate from ExpectSource: an immutable request names a
 	// source/target pair and must never silently adopt a newer target tip.
 	ExpectTarget string
-	// LockNotice receives the periodic holder notice while waiting; nil
-	// means os.Stderr.
-	LockNotice io.Writer
 	// preMutation is internal Run-only state. Check never writes it durably;
 	// Run records it only after a classified refusal before push.
 	preMutation *preMutationCapture
@@ -115,12 +111,6 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	if err := opts.preMutation.capture(ctx, g, preflight); err != nil {
 		return nil, err
 	}
-	releaseTarget, err := holdTargetLock(ctx, g, preflight.targetRef, opts.LockNotice)
-	if err != nil {
-		return nil, err
-	}
-	defer releaseTarget()
-
 	plan, err := resolveTarget(ctx, g, exec, opts)
 	if err != nil {
 		return nil, err
@@ -161,9 +151,10 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	report.GateMode = gateModeNone
 	add(CheckItem{Name: "readiness contract", Status: checkPass, Detail: "none declared; gz-git runs no repository code, git checks decide readiness"})
 	// gz-git runs no repository code: the git checks above and the
-	// revalidation below decide READY. The target lock protects local
-	// ownership, not a remote writer, so fetch and compare again before
-	// reporting READY. Run repeats this check before its lease push.
+	// revalidation below decide READY. Nothing holds the target while the
+	// checks run, so fetch and compare again before reporting READY; a
+	// target that moved is reported, never waited for. Run repeats this
+	// check before its lease push.
 	if _, _, _, err := revalidateCheckedRefsForExpectedTarget(ctx, g, report, opts.NoFetch, opts.ExpectTarget); err != nil {
 		if opts.ExpectTarget != "" && errors.Is(err, ErrTargetMismatch) {
 			return report, err

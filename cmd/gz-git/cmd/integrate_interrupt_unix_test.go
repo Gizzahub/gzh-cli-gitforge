@@ -7,9 +7,7 @@ package cmd
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,14 +22,15 @@ import (
 )
 
 // SIGINT before the intent boundary ends integrate run with exit 2 and
-// ErrInterrupted, without moving the target. The run is held waiting for
-// target ownership, the last cancelable wait before the push.
+// ErrInterrupted, without moving the target. gz-git holds no lock it could
+// wait on, so the run is held inside its readiness fetch instead: the
+// remote's upload-pack blocks until the test releases it.
 func TestIntegrateRunInterruptBeforeIntentStopsWithoutPush(t *testing.T) {
 	fx := interruptRunFixture(t)
 	before := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/develop")
-	holdTargetOwnership(t, fx.Worktree, "refs/heads/develop")
+	marker := holdReadinessFetch(t, fx.Worktree, fx.Remote)
 	run := startInterruptibleRun(t)
-	waitForRunStderr(t, run, "waiting for target ownership")
+	waitForRunMarker(t, run, marker)
 	signalSelf(t)
 	err := run.wait(t, 30*time.Second)
 	if cliutil.ExitCodeForError(err) != 2 || !errors.Is(err, integrate.ErrInterrupted) {
@@ -120,24 +119,24 @@ func interruptRunFixture(t *testing.T) *testutil.WorktreeOrigin {
 	return fx
 }
 
-// holdTargetOwnership takes the target lock integrate uses for targetRef in
-// the repository of dir until the test ends.
-func holdTargetOwnership(t *testing.T, dir, targetRef string) {
+// holdReadinessFetch makes every fetch from remote in dir block inside
+// upload-pack until the test ends, and returns the file the wrapper creates
+// once a fetch has reached it. The wait is bounded so a killed fetch cannot
+// leave the wrapper running for long, and the wrapper drops the stderr it
+// inherits so a canceled fetch does not wait on the pipe it would hold open.
+func holdReadinessFetch(t *testing.T, dir, remote string) string {
 	t.Helper()
-	common := gitOutputForIntegrateRun(t, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
-	locks := filepath.Join(common, "gz-git-integrate-targets")
-	if err := os.MkdirAll(locks, 0o755); err != nil {
+	scratch := t.TempDir()
+	marker := filepath.Join(scratch, "fetching")
+	release := filepath.Join(scratch, "release")
+	wrapper := filepath.Join(scratch, "upload-pack")
+	script := "#!/bin/sh\nexec 2>/dev/null\n: > '" + marker + "'\nn=0\nwhile [ ! -e '" + release + "' ] && [ $n -lt 600 ]; do sleep 0.1; n=$((n+1)); done\nexec git upload-pack \"$@\"\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil { // #nosec G306 -- test wrapper must be executable
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256([]byte(targetRef))
-	f, err := os.OpenFile(filepath.Join(locks, fmt.Sprintf("%x.lock", digest[:])), os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = f.Close() })
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() { _ = os.WriteFile(release, nil, 0o600) })
+	runGit(t, dir, "config", "remote."+remote+".uploadpack", wrapper)
+	return marker
 }
 
 type interruptibleRun struct {
@@ -164,8 +163,6 @@ func (b *lockedStderr) String() string {
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
-
-func (r *interruptibleRun) stderrText() string { return r.stderr.String() }
 
 // startInterruptibleRun runs integrate run in the background. Cleanup waits
 // for it before restoring the command globals it reads.
@@ -253,21 +250,21 @@ func signalSelf(t *testing.T) {
 	}
 }
 
-// waitForRunStderr waits until the background run has written want to its
-// stderr, which shows it reached the wait the test is about to interrupt.
-func waitForRunStderr(t *testing.T, run *interruptibleRun, want string) {
+// waitForRunMarker waits until the background run has created marker, which
+// shows it reached the wait the test is about to interrupt.
+func waitForRunMarker(t *testing.T, run *interruptibleRun, marker string) {
 	t.Helper()
 	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
 		select {
 		case <-run.finished:
-			t.Fatalf("integrate run returned before %q: %v stderr=%s", want, run.err, run.stderr.String())
+			t.Fatalf("integrate run returned before reaching %s: %v stderr=%s", marker, run.err, run.stderr.String())
 		default:
 		}
-		if strings.Contains(run.stderrText(), want) {
+		if _, err := os.Stat(marker); err == nil {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatalf("integrate run never wrote %q", want)
+	t.Fatalf("integrate run never reached %s", marker)
 }

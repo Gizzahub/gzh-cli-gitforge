@@ -104,11 +104,6 @@ func ApplyLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, opts LegacyC
 		return err
 	}
 	defer fence.release()
-	target, err := acquireTargetLock(ctx, g, p.TargetRef, nil)
-	if err != nil {
-		return err
-	}
-	defer target.release()
 	checker, err := newLegacyGuardChecker(p, opts.RuntimeAttempt)
 	if err != nil {
 		return err

@@ -6,8 +6,6 @@ package integrate
 import (
 	"context"
 	"errors"
-	"io"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -25,42 +23,27 @@ func outcomeExecution(t *testing.T, fxDir, id string) *ExecutionContext {
 	}
 }
 
-func TestRunRecordsBoundOutcomeWhenTargetLockWaitExpires(t *testing.T) {
-	fastLockPolling(t)
+// TestTargetLockWaitPhaseIsReadOnly keeps documents written before the target
+// lock was removed readable while no run can record the retired phase.
+func TestTargetLockWaitPhaseIsReadOnly(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
-	execution := outcomeExecution(t, fx.Worktree, "pre-lock-wait")
+	execution := outcomeExecution(t, fx.Worktree, "retired-lock-wait")
+	if err := validatePreMutationPhase(preMutationPhaseTargetLockWait, "target_lock_wait"); err != nil {
+		t.Fatalf("legacy target_lock_wait document must stay valid: %v", err)
+	}
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Worktree)
-	lock, err := acquireTargetLock(context.Background(), g, "refs/heads/develop", io.Discard)
-	if err != nil {
+	capture := &preMutationCapture{execution: *execution}
+	if err := capture.capture(context.Background(), g, targetPreflight{branch: "dev/actor/feat/task", targetRef: "refs/heads/develop"}); err != nil {
 		t.Fatal(err)
 	}
-	defer lock.release()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	report, err := Run(ctx, gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
-	}, Execution: execution})
-	if !errors.Is(err, errTargetLockWait) {
-		t.Fatalf("Run() error = %v, want target-lock wait", err)
-	}
-	if report == nil || report.PreMutationOutcome == nil {
-		t.Fatalf("Run() report = %#v, want durable pre-mutation outcome", report)
-	}
-	outcome := report.PreMutationOutcome
-	if outcome.Phase != preMutationPhaseTargetLockWait || outcome.ReasonClass != "target_lock_wait" || !outcome.PreMutation || outcome.TaskSHA != execution.ExpectSource || outcome.ExpectedSource != execution.ExpectSource || outcome.TargetRef != "refs/heads/develop" {
-		t.Fatalf("outcome = %+v", outcome)
+	outcome, err := recordPreMutationOutcome(context.Background(), capture, preMutationPhaseTargetLockWait)
+	if err == nil || outcome != nil || !strings.Contains(err.Error(), "read-only") {
+		t.Fatalf("record target_lock_wait = %#v, %v; want read-only refusal", outcome, err)
 	}
 	common := gitOutput(t, fx.Worktree, "rev-parse", "--path-format=absolute", "--git-common-dir")
-	stored, ok, readErr := readPreMutationOutcome(common, execution.ExecutionID)
-	if readErr != nil || !ok || !samePreMutationIdentity(stored, outcome) {
-		t.Fatalf("stored outcome = %#v, ok=%t, err=%v", stored, ok, readErr)
-	}
-	if receipt, exists, readErr := readReceipt(common, execution.ExecutionID); readErr != nil || exists || receipt != nil {
-		t.Fatalf("lock refusal wrote receipt=%#v exists=%t err=%v", receipt, exists, readErr)
-	}
-	proto := BuildRunProtocol(report, err, 2)
-	if proto.PreMutationOutcome == nil || proto.ExecutionID != execution.ExecutionID || proto.TaskSHA != execution.ExpectSource || proto.TargetRef != "refs/heads/develop" || proto.SourcePushed || proto.ReceiptPhase != "" {
-		t.Fatalf("protocol = %+v", proto)
+	if stored, exists, readErr := readPreMutationOutcome(common, execution.ExecutionID); readErr != nil || exists || stored != nil {
+		t.Fatalf("refused phase wrote outcome=%#v exists=%t err=%v", stored, exists, readErr)
 	}
 }
 
@@ -73,7 +56,7 @@ func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
 	execution := outcomeExecution(t, fx.Worktree, "pre-readiness-reject")
 	writeRepoFile(t, fx.Worktree, "uncommitted.txt", "dirty\n")
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
 	}, Execution: execution})
 	if err == nil || !strings.Contains(err.Error(), "not ready") {
 		t.Fatalf("Run() error = %v, want not ready", err)
@@ -111,54 +94,30 @@ func TestMalformedContextAndExistingReceiptCannotProduceSafeOutcome(t *testing.T
 }
 
 func TestSameExecutionCannotRecordNegativeWhileAnotherRunOwnsIt(t *testing.T) {
+	t.Parallel()
 	fx := readyTaskFixture(t)
 	execution := outcomeExecution(t, fx.Worktree, "same-execution-owner")
 	common := gitOutput(t, fx.Worktree, "rev-parse", "--path-format=absolute", "--git-common-dir")
-	owner, err := acquireExecutionRunLock(context.Background(), common, execution.ExecutionID)
+	owner, err := acquireExecutionRunLock(common, execution.ExecutionID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer owner.release()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	type runResult struct {
-		report *RunReport
-		err    error
+	started := time.Now()
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
+	}, Execution: execution})
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("Run waited %s for the held execution; it must refuse at once", elapsed)
 	}
-	done := make(chan runResult, 1)
-	go func() {
-		report, err := Run(ctx, gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
-			RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
-		}, Execution: execution})
-		done <- runResult{report: report, err: err}
-	}()
-	// The identity lookup can exceed the old 100ms budget.  Observe the actual
-	// lock-wait frame so cancellation is synchronized to the intended boundary.
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		buf := make([]byte, 128<<10)
-		n := runtime.Stack(buf, true)
-		if strings.Contains(string(buf[:n]), "acquireExecutionRunLock") {
-			cancel()
-			break
-		}
-		if time.Now().After(deadline) {
-			cancel()
-			<-done
-			t.Fatal("Run did not reach execution lock wait")
-		}
-		time.Sleep(time.Millisecond)
-	}
-	result := <-done
-	report, err := result.report, result.err
-	if err == nil || !strings.Contains(err.Error(), "wait for integration run") {
-		t.Fatalf("Run() error = %v, want execution ownership wait", err)
+	if !errors.Is(err, ErrResourceBusy) || !strings.Contains(err.Error(), "integration run "+execution.ExecutionID) {
+		t.Fatalf("Run() error = %v, want ErrResourceBusy naming the execution", err)
 	}
 	if report != nil {
 		t.Fatalf("Run() report = %#v, want no negative outcome without execution ownership", report)
 	}
 	if outcome, exists, readErr := readPreMutationOutcome(common, execution.ExecutionID); readErr != nil || exists || outcome != nil {
-		t.Fatalf("blocked peer wrote outcome=%#v exists=%t err=%v", outcome, exists, readErr)
+		t.Fatalf("refused peer wrote outcome=%#v exists=%t err=%v", outcome, exists, readErr)
 	}
 }
 
@@ -194,7 +153,7 @@ func TestExistingPushedReceiptSuppressesStaleNegativeOutcome(t *testing.T) {
 		t.Fatal(err)
 	}
 	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
-		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task", LockNotice: io.Discard,
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
 	}, Execution: execution})
 	if !errors.Is(err, ErrEvidenceReplay) {
 		t.Fatalf("Run() error = %v, want existing pushed receipt refusal", err)

@@ -29,8 +29,9 @@ var integrateCleanupCmd = &cobra.Command{
 
 Reclaims the task worktree, local branch, and remote task branch recorded
 in the durable receipt, without re-integrating: cleanup never runs checks,
-readiness, gates, watchers, merge, or a target push. It acquires the same
-repo/target lock, verifies the exact generation and that the caller resolves
+readiness, gates, watchers, merge, or a target push. It refuses at once
+while another gz-git command holds the task, verifies the exact generation
+and that the caller resolves
 to the receipt's owner (GIT_WORK_ACTOR/GZ_GIT_TASK_ACTOR + GIT_WORK_HOST /
 ce.workHost — never a hostname), refuses while the receipt's holder is
 alive or of unknown liveness (an elapsed lease never authorizes stealing),
@@ -80,7 +81,6 @@ func runIntegrateCleanup(cmd *cobra.Command, args []string) error {
 		RepoPath:    dir,
 		ExecutionID: integrateCleanupExecutionID,
 		Generation:  integrateCleanupGeneration,
-		LockNotice:  cmd.ErrOrStderr(),
 	})
 	exit := integrate.CleanupExitCode(err)
 	if !quiet {

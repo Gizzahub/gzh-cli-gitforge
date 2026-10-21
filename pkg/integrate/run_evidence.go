@@ -15,9 +15,9 @@ import (
 // Run-side evidence recording (TASK-302). A run that carries an execution
 // context writes its intent receipt before the push, marks the push
 // immediately after the real push and before reclaim, and records the
-// reclaim results as they happen. Every write happens while the run's
-// original target lock is held, so the receipt sequence is linearizable
-// against the destination.
+// reclaim results as they happen. Every write happens while the run holds
+// its execution run lock and task fence, and each is a revision CAS, so the
+// receipt sequence is linearizable against cleanup of the same task.
 
 // beginRunEvidence writes the intent receipt. The durable run identity is
 // immutable: a receipt already exists for this execution-id only if this same
@@ -25,8 +25,8 @@ import (
 // repository, task, or target is a replay collision and the run pushes
 // nothing. The identity check and the write are one atomic step under the
 // per-execution write lock: two concurrent begins with the same execution-id
-// and different targets hold different target locks, so without that lock
-// both would pass the check and the loser would overwrite the winner's
+// and different targets are otherwise unordered, so without that lock both
+// would pass the check and the loser would overwrite the winner's
 // receipt. With it, the loser fails here — before run proceeds to any push.
 func beginRunEvidence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, common string, opts RunOptions, check *CheckReport, sourceSHA, targetName string) (*Receipt, error) {
 	e := opts.Execution

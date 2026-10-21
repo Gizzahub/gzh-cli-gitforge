@@ -189,13 +189,13 @@ func TestTargetMoveProofUsesOneExactPushEndpoint(t *testing.T) {
 	runGit(t, fx.Clone, "add", "fetch-only-move.txt")
 	runGit(t, fx.Clone, "commit", "-m", "move fetch endpoint")
 	runGit(t, fx.Clone, "push", fx.Remote, "develop")
-	moved, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, gitOutput(t, fx.Worktree, "rev-parse", "HEAD"))
+	_, moved, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, gitOutput(t, fx.Worktree, "rev-parse", "HEAD"))
 	if err != nil || moved {
 		t.Fatalf("push endpoint proof moved=%t err=%v, want unchanged push endpoint", moved, err)
 	}
 
 	runGit(t, fx.Worktree, "config", "--add", "remote."+fx.Remote+".pushurl", fx.Origin)
-	if _, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, gitOutput(t, fx.Worktree, "rev-parse", "HEAD")); err == nil {
+	if _, _, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, gitOutput(t, fx.Worktree, "rev-parse", "HEAD")); err == nil {
 		t.Fatal("multiple push endpoints must refuse retryable classification")
 	}
 }
@@ -242,7 +242,7 @@ func TestTargetMoveProofRejectsAlreadyAcceptedSource(t *testing.T) {
 	runGit(t, fx.Clone, "checkout", "develop")
 	runGit(t, fx.Clone, "reset", "--hard", source)
 	runGit(t, fx.Clone, "push", "--force", fx.Remote, "develop")
-	moved, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, source)
+	_, moved, err := targetMovedAtPushEndpoint(context.Background(), g, fx.Remote, fx.Remote, "develop", expected, source)
 	if err != nil || moved {
 		t.Fatalf("accepted source proof moved=%t err=%v, want non-retryable", moved, err)
 	}

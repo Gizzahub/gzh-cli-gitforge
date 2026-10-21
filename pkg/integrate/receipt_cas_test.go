@@ -10,9 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
@@ -175,8 +173,8 @@ func TestReceiptCreateVsExistingRefused(t *testing.T) {
 }
 
 // Concurrent begins with one execution-id but different targets are the
-// blocker scenario: target locks differ, so only the receipt write lock and
-// the atomic identity check stop the loser. The loser must fail with
+// blocker scenario: nothing else orders them, so only the receipt write lock
+// and the atomic identity check stop the loser. The loser must fail with
 // ErrEvidenceReplay before run ever reaches a push.
 func TestBeginRunEvidenceConcurrentCollision(t *testing.T) {
 	t.Parallel()
@@ -301,81 +299,50 @@ func TestCleanupRereadGuard(t *testing.T) {
 	})
 }
 
-// signalledWriter closes ch on the first write, so a test can observe that a
-// lock waiter has announced itself.
-type signalledWriter struct {
-	once sync.Once
-	ch   chan struct{}
-}
-
-func (w *signalledWriter) Write(p []byte) (int, error) {
-	w.once.Do(func() { close(w.ch) })
-	return len(p), nil
-}
-
-// End to end: while cleanup waits for the target lock, the receipt is
-// rewritten underneath it. The after-lock re-read must refuse the moved
+// End to end: between cleanup's first receipt read and its re-read under the
+// task fence, the receipt is rewritten. The re-read must refuse the moved
 // identity before any proof or deletion, leaving every residual intact.
-func TestCleanupRereadGuardWhileWaitingForLock(t *testing.T) {
+func TestCleanupRereadGuardAfterFirstRead(t *testing.T) {
 	t.Run("remote changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.Remote = "other" })
+		runCleanupReread(t, func(r *Receipt) { r.Remote = "other" })
 	})
 	t.Run("push endpoint changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.PushRemote = "https://decoy.invalid/repo.git" })
+		runCleanupReread(t, func(r *Receipt) { r.PushRemote = "https://decoy.invalid/repo.git" })
 	})
 	t.Run("captured target changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.TargetBeforeSHA = r.TaskSHA })
+		runCleanupReread(t, func(r *Receipt) { r.TargetBeforeSHA = r.TaskSHA })
 	})
 	t.Run("reclaim branch provenance changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.Provenance.ReclaimRefs.Integration = "different" })
+		runCleanupReread(t, func(r *Receipt) { r.Provenance.ReclaimRefs.Integration = "different" })
 	})
 	t.Run("controller pattern authority changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) {
+		runCleanupReread(t, func(r *Receipt) {
 			r.Provenance.Controller = &evidenceControllerProvenance{TaskPattern: []string{"dev/*"}}
 		})
 	})
 	t.Run("target moved", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.TargetRef = "refs/heads/master" })
+		runCleanupReread(t, func(r *Receipt) { r.TargetRef = "refs/heads/master" })
 	})
 	t.Run("task sha changed", func(t *testing.T) {
-		runCleanupRereadWait(t, func(r *Receipt) { r.TaskSHA += "00" })
+		runCleanupReread(t, func(r *Receipt) { r.TaskSHA += "00" })
 	})
 }
 
-func runCleanupRereadWait(t *testing.T, rewrite func(*Receipt)) {
+func runCleanupReread(t *testing.T, rewrite func(*Receipt)) {
 	t.Helper()
 	f := newCleanupRetryFX(t, "@true")
 	f.realRun(t)
 	wt := f.crashState(t, crashOpts{phase: evidencePhasePushed})
 
-	g := newGitRepo(f.exec, f.fx.Clone)
-	lock, err := acquireTargetLock(context.Background(), g, "refs/heads/develop", nil)
+	ctx := context.Background()
+	run, err := newCleanupRun(ctx, f.exec, CleanupOptions{RepoPath: f.fx.Clone, ExecutionID: "run-42", Generation: "g7"})
 	if err != nil {
-		t.Fatalf("hold target lock: %v", err)
+		t.Fatalf("first cleanup read: %v", err)
 	}
-	waiting := &signalledWriter{ch: make(chan struct{})}
-	done := make(chan error, 1)
-	go func() {
-		_, err := CleanupRetry(context.Background(), f.exec, CleanupOptions{
-			RepoPath:    f.fx.Clone,
-			ExecutionID: "run-42",
-			Generation:  "g7",
-			LockNotice:  waiting,
-		})
-		done <- err
-	}()
-	<-waiting.ch
 	f.amendReceiptRaw(t, rewrite)
 	amended := f.receipt(t)
-	lock.release()
-
-	select {
-	case err := <-done:
-		if !errors.Is(err, ErrEvidenceReplay) {
-			t.Fatalf("err = %v, want ErrEvidenceReplay from the re-read guard", err)
-		}
-	case <-time.After(60 * time.Second):
-		t.Fatal("cleanup did not finish after the target lock was released")
+	if err := run.revalidateUnderFence(ctx); !errors.Is(err, ErrEvidenceReplay) {
+		t.Fatalf("err = %v, want ErrEvidenceReplay from the re-read guard", err)
 	}
 	f.assertResidualsIntact(t, wt)
 	if after := f.receipt(t); after.Revision != amended.Revision {

@@ -52,8 +52,8 @@ or `integration` mapping holds it, including under `workspaces` and
 
 - The git checks: freshness, merge-tree, other branches, a clean working
   tree, a pushed source, and post-gate revalidation.
-- The git-mutation locks (task fence, target ownership, execution run lock);
-  see
+- The fail-fast local fences (task fence, execution run lock); gz-git never
+  waits for another integration. See
   [integration resource scope](integrate-resources.md).
 - The `readiness contract` row and the `readiness provenance` line of the
   check report, which keep their `none` output; run JSON keeps schema v1,

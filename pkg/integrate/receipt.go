@@ -351,13 +351,11 @@ func readReceipt(common, executionID string) (*Receipt, bool, error) {
 }
 
 // writeReceipt persists a receipt durably (temp + fsync + rename + dir fsync)
-// as an optimistic CAS. The caller must already hold the target lock for the
-// destination the receipt names; this then takes the per-execution write
-// lock — the order target-lock → execution-write-lock is the only one, so it
-// cannot deadlock — and refuses when the durable document is not exactly what
-// the caller last read: same revision, same immutable identity. Two runs
-// sharing an execution-id but pushing different targets hold different target
-// locks, so that pair is serialized here instead. Nothing but file reads and
+// as an optimistic CAS. It takes the per-execution write lock, which its
+// holders never hold while taking another lock, so it cannot deadlock, and
+// refuses when the durable document is not exactly what the caller last read:
+// same revision, same immutable identity. Two runs sharing an execution-id but
+// pushing different targets are serialized here. Nothing but file reads and
 // the atomic write happens under the execution lock: no git, no network. A
 // refused CAS leaves the in-memory receipt byte-identical, revision and claim
 // included. Every write refreshes the liveness claim to the writer.
@@ -401,9 +399,13 @@ func createReceipt(ctx context.Context, common string, r *Receipt) error {
 	return writeReceiptLocked(common, r, nil)
 }
 
-// receiptWriteLock serializes receipt mutation for one execution id. The
-// target lock keys by destination ref, so two runs sharing an execution id
-// but pushing different targets are not serialized by it; this lock is.
+// lockPollInterval paces the receipt write lock. Tests shorten it.
+var lockPollInterval = 200 * time.Millisecond
+
+// receiptWriteLock serializes receipt mutation for one execution id. It
+// covers only a read-compare-write of gz-git's own receipt or outcome file,
+// never a fetch, push or reclaim, so a waiter waits for a file write, not for
+// another integration.
 type receiptWriteLock struct{ file *os.File }
 
 func (l *receiptWriteLock) release() {
@@ -419,8 +421,8 @@ func evidenceReceiptLockPath(common, executionID string) string {
 
 // acquireReceiptWriteLock blocks until this process owns the per-execution
 // receipt lock. The lock belongs to the open file description, so the kernel
-// drops it if the holder dies. Callers already hold the target lock; nothing
-// may take these two locks in the opposite order.
+// drops it if the holder dies. Its holders take no other lock while holding
+// it.
 func acquireReceiptWriteLock(ctx context.Context, common, executionID string) (*receiptWriteLock, error) {
 	canonical, err := canonicalCommonDir(common)
 	if err != nil {

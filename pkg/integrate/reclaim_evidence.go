@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-// GitReclaimProof contains actual Git facts from the existing target-locked
-// reclaim. It carries no execution, generation, owner, or authorization ledger.
+// GitReclaimProof contains actual Git facts from the task-fenced reclaim. It
+// carries no execution, generation, owner, or authorization ledger.
 // The native caller saves this optional JSON object from the run protocol.
 type GitReclaimProof struct {
 	RepositoryCommonDir string                 `json:"repository_common_dir"`

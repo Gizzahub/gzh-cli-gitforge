@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
@@ -21,8 +20,11 @@ const (
 	preMutationOutcomeCapability = "pre-mutation-outcome/v1"
 	preMutationOutcomesSuffix    = "outcomes"
 
-	preMutationPhaseTargetLockWait    = "target_lock_wait"
 	preMutationPhaseReadinessRejected = "readiness_rejected"
+	// preMutationPhaseTargetLockWait is read-only. gz-git recorded it when a
+	// run gave up waiting for the removed target lock; documents that carry
+	// it still validate, but no run writes it any more.
+	preMutationPhaseTargetLockWait = "target_lock_wait"
 )
 
 var errPreMutationOutcomeUnbound = errors.New("pre-mutation outcome is not bound to the current execution")
@@ -52,8 +54,8 @@ type PreMutationOutcome struct {
 	LegacySourceRevision       string        `json:"legacy_source_revision,omitempty"`
 }
 
-// preMutationCapture carries a fully bound candidate across Check's target
-// ownership wait. It is in-memory until Run classifies a refusal; Check itself
+// preMutationCapture carries a fully bound candidate from Check's preflight to
+// Run's refusal. It is in-memory until Run classifies a refusal; Check itself
 // remains read-only and can never mint a negative outcome.
 type preMutationCapture struct {
 	execution ExecutionContext
@@ -105,38 +107,18 @@ func evidenceExecutionRunLockPath(common, executionID string) string {
 	return evidenceReceiptPath(common, executionID) + ".run"
 }
 
-// acquireExecutionRunLock serializes every execution-context run for one
-// execution id from preflight through push/reclaim. Receipt writes retain
+// acquireExecutionRunLock keeps two invocations of one execution id from
+// running at once, from preflight through push/reclaim. Receipt writes retain
 // their narrower CAS lock; this distinct outer lock prevents one invocation
 // from recording a pre-push refusal while another invocation with the same
-// identity advances to intent or pushes.
-func acquireExecutionRunLock(ctx context.Context, common, executionID string) (*receiptWriteLock, error) {
+// identity advances to intent or pushes. A second invocation never waits: it
+// refuses with ErrResourceBusy.
+func acquireExecutionRunLock(common, executionID string) (*resourceLock, error) {
 	dir := filepath.Dir(evidenceReceiptPath(common, executionID))
 	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G301 -- Git common directory is repository-owned
 		return nil, fmt.Errorf("create integration run lock directory: %w", err)
 	}
-	f, err := os.OpenFile(evidenceExecutionRunLockPath(common, executionID), os.O_RDWR|os.O_CREATE, 0o600) // #nosec G304 -- fixed SHA-256 name below Git common directory
-	if err != nil {
-		return nil, fmt.Errorf("open integration run lock: %w", err)
-	}
-	for {
-		locked, lockErr := tryLockFile(f)
-		if lockErr != nil {
-			_ = f.Close()
-			return nil, fmt.Errorf("lock integration run %s: %w", executionID, lockErr)
-		}
-		if locked {
-			return &receiptWriteLock{file: f}, nil
-		}
-		timer := time.NewTimer(lockPollInterval)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			_ = f.Close()
-			return nil, fmt.Errorf("wait for integration run %s: %w", executionID, ctx.Err())
-		case <-timer.C:
-		}
-	}
+	return tryAcquireResourceLock(evidenceExecutionRunLockPath(common, executionID), "integration run "+executionID)
 }
 
 func sha256ExecutionID(executionID string) string {
@@ -226,6 +208,7 @@ func (o *PreMutationOutcome) validateReconciliationProvenance() error {
 func validatePreMutationPhase(phase, reason string) error {
 	switch phase {
 	case preMutationPhaseTargetLockWait:
+		// Read-only: accepted so older outcome documents stay readable.
 		if reason != "target_lock_wait" {
 			return fmt.Errorf("target_lock_wait reason_class is %q", reason)
 		}
@@ -269,10 +252,10 @@ func recordPreMutationOutcome(ctx context.Context, capture *preMutationCapture, 
 	candidate := *capture.candidate
 	candidate.Phase = phase
 	switch phase {
-	case preMutationPhaseTargetLockWait:
-		candidate.ReasonClass = "target_lock_wait"
 	case preMutationPhaseReadinessRejected:
 		candidate.ReasonClass = "not_ready"
+	case preMutationPhaseTargetLockWait:
+		return nil, fmt.Errorf("pre-mutation phase %q is read-only: gz-git no longer waits for a target lock", phase)
 	default:
 		return nil, fmt.Errorf("unknown pre-mutation phase %q", phase)
 	}

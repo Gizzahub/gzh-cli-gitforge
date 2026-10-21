@@ -6,6 +6,9 @@ package integrate
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,12 +27,18 @@ func TestTaskResourceFenceExcludesSameTaskAcrossWorktrees(t *testing.T) {
 	// A caller in the primary selecting the task explicitly must contend with
 	// a caller selecting it implicitly from the task worktree, independently
 	// of which integration target or execution ID either caller will use.
+	// A held fence refuses at once and names its holder; it never waits.
 	for _, spelling := range []string{"dev/actor/feat/task", " refs/heads/dev/actor/feat/task "} {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		_, err = acquireTaskResourceFence(ctx, exec, fx.Clone, spelling)
-		cancel()
-		if !errors.Is(err, context.DeadlineExceeded) {
-			t.Fatalf("same task fence (%q) error = %v, want context deadline", spelling, err)
+		started := time.Now()
+		_, err = acquireTaskResourceFence(context.Background(), exec, fx.Clone, spelling)
+		if !errors.Is(err, ErrResourceBusy) {
+			t.Fatalf("same task fence (%q) error = %v, want ErrResourceBusy", spelling, err)
+		}
+		if want := fmt.Sprintf("pid=%d", os.Getpid()); !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "dev/actor/feat/task") {
+			t.Fatalf("same task fence (%q) error = %v, want it to name the task and holder %s", spelling, err, want)
+		}
+		if elapsed := time.Since(started); elapsed > 5*time.Second {
+			t.Fatalf("held fence refusal took %s; it must not wait", elapsed)
 		}
 	}
 	held.release()
@@ -48,9 +57,7 @@ func TestTaskResourceFenceKeepsUnrelatedTasksIndependent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer first.release()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	second, err := acquireTaskResourceFence(ctx, exec, repo, "dev/codex/testhost/fix/two")
+	second, err := acquireTaskResourceFence(context.Background(), exec, repo, "dev/codex/testhost/fix/two")
 	if err != nil {
 		t.Fatalf("unrelated task blocked: %v", err)
 	}

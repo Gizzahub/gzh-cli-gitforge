@@ -75,7 +75,7 @@ Readiness refusal details are printed on stderr while JSON stdout remains
 one protocol document.
 
 When a complete execution context is refused before the target push because
-target ownership was not acquired, pre_mutation_outcome
+readiness was rejected, pre_mutation_outcome
 may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
 does not prove that no push occurred, and a receipt of any phase prevents a
 negative outcome from being reused for that execution.
@@ -177,7 +177,6 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			NoFetch:          integrateRunNoFetch,
 			ExpectSource:     integrateRunExpectSource,
 			ExpectTarget:     expectTarget,
-			LockNotice:       cmd.ErrOrStderr(),
 		},
 		Execution: executionContext,
 	})

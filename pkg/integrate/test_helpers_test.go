@@ -42,14 +42,6 @@ func (b *lockedBuffer) String() string {
 	return b.buf.String()
 }
 
-// fastLockPolling makes lock waits observable within a test's runtime.
-func fastLockPolling(t *testing.T) {
-	t.Helper()
-	poll, notice := lockPollInterval, lockNoticeInterval
-	lockPollInterval, lockNoticeInterval = 10*time.Millisecond, 50*time.Millisecond
-	t.Cleanup(func() { lockPollInterval, lockNoticeInterval = poll, notice })
-}
-
 func waitForText(t *testing.T, what string, read func() string, want string) {
 	t.Helper()
 	deadline := time.Now().Add(testWaitTimeout)

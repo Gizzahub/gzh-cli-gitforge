@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
@@ -64,9 +63,6 @@ type CleanupOptions struct {
 	// ExecutionID and Generation must match the receipt exactly.
 	ExecutionID string
 	Generation  string
-	// LockNotice receives the periodic lock notice while waiting; nil means
-	// os.Stderr.
-	LockNotice io.Writer
 }
 
 // CleanupReport is the cleanup result. Complete is true only when every
@@ -104,19 +100,15 @@ func CleanupRetry(ctx context.Context, exec *gitcmd.Executor, opts CleanupOption
 	if err != nil {
 		return nil, err
 	}
-	taskFence, err := acquireTaskResourceFence(ctx, exec, run.g.dir, run.report.Receipt.TaskBranch, opts.LockNotice)
+	// The task fence keeps a concurrent run or cleanup of this task from
+	// deleting the same residuals; a held fence refuses at once. Receipt
+	// writes stay under the receipt CAS.
+	taskFence, err := acquireTaskResourceFence(ctx, exec, run.g.dir, run.report.Receipt.TaskBranch)
 	if err != nil {
 		return nil, err
 	}
 	defer taskFence.release()
-	// The existing repo/target lock is the mutation authority for this
-	// destination; the receipt CAS happens under it.
-	lock, err := acquireTargetLock(ctx, run.g, run.report.Receipt.TargetRef, opts.LockNotice)
-	if err != nil {
-		return nil, err
-	}
-	defer lock.release()
-	if err := run.revalidateUnderLock(ctx); err != nil {
+	if err := run.revalidateUnderFence(ctx); err != nil {
 		return nil, err
 	}
 	if err := run.proveRemoteTarget(ctx); err != nil {
@@ -202,13 +194,13 @@ func newCleanupRun(ctx context.Context, exec *gitcmd.Executor, opts CleanupOptio
 	}, nil
 }
 
-// revalidateUnderLock re-reads the receipt after target ownership is held:
-// a run may have rewritten it while cleanup waited. The re-read must still be
-// the exact identity the lock was taken for — the same target ref and every
-// immutable field; a receipt rebound to another destination means this lock
-// guards the wrong ref. The claim check and guards follow; a live or
-// unknowable holder refuses before any proof or deletion.
-func (r *cleanupRun) revalidateUnderLock(ctx context.Context) error {
+// revalidateUnderFence re-reads the receipt after the task fence is held: a
+// run may have rewritten it since cleanup first read it. The re-read must
+// still be the exact identity cleanup validated — the same target ref and
+// every immutable field; a receipt rebound to another destination is not the
+// one cleanup proved. The claim check and guards follow; a live or unknowable
+// holder refuses before any proof or deletion.
+func (r *cleanupRun) revalidateUnderFence(ctx context.Context) error {
 	lockedRead := r.report.Receipt
 	receipt, ok, err := readReceipt(r.common, r.opts.ExecutionID)
 	if err != nil {
@@ -247,8 +239,8 @@ func (r *cleanupRun) revalidateUnderLock(ctx context.Context) error {
 // receipt is the crash window before the push: the residuals hold the only
 // copy of the work, so cleanup refuses and the run must be re-executed. A
 // crash between the push and its receipt update left the durable evidence
-// behind the fact; that flag is reconciled here under the lock, without
-// re-pushing.
+// behind the fact; that flag is reconciled here under the task fence and the
+// receipt CAS, without re-pushing.
 func (r *cleanupRun) proveRemoteTarget(ctx context.Context) error {
 	contains, err := proveRemoteTargetContainsTask(ctx, r.g, r.report.Receipt, r.targetName, r.endpoint)
 	if err != nil {
@@ -423,7 +415,7 @@ func CleanupExitCode(err error) int {
 }
 
 // cleanupIdentityCAS is the exact generation/owner comparison cleanup runs
-// both before and under the target lock.
+// both before and under the task fence.
 func cleanupIdentityCAS(receipt *Receipt, opts CleanupOptions, caller OwnerIdentity) error {
 	if receipt.Generation != opts.Generation {
 		return fmt.Errorf("%w: receipt is %q, got %q", ErrCleanupGenerationMismatch, receipt.Generation, opts.Generation)
@@ -434,18 +426,17 @@ func cleanupIdentityCAS(receipt *Receipt, opts CleanupOptions, caller OwnerIdent
 	return nil
 }
 
-// cleanupRereadGuard proves the receipt re-read under the target lock is
-// still the exact identity the lock was taken for: the same target ref, and
-// no immutable field (generation, owner, repository, task, branch) rewritten
-// while cleanup waited for ownership. A receipt rebound to another
-// destination means the held lock guards the wrong ref, so cleanup refuses
-// before any proof or deletion.
+// cleanupRereadGuard proves the receipt re-read under the task fence is still
+// the exact identity cleanup first read: the same target ref, and no
+// immutable field (generation, owner, repository, task, branch) rewritten
+// since. A receipt rebound to another destination is not the one cleanup
+// validated, so cleanup refuses before any proof or deletion.
 func cleanupRereadGuard(locked, reread *Receipt) error {
 	if locked.TargetRef != reread.TargetRef {
-		return fmt.Errorf("%w: receipt target_ref moved from %s to %s while waiting for target ownership", ErrEvidenceReplay, locked.TargetRef, reread.TargetRef)
+		return fmt.Errorf("%w: receipt target_ref moved from %s to %s since cleanup first read it", ErrEvidenceReplay, locked.TargetRef, reread.TargetRef)
 	}
 	if conflicts := locked.identityConflicts(reread); len(conflicts) > 0 {
-		return fmt.Errorf("%w: receipt %s changed while waiting for target ownership", ErrEvidenceReplay, strings.Join(conflicts, ", "))
+		return fmt.Errorf("%w: receipt %s changed since cleanup first read it", ErrEvidenceReplay, strings.Join(conflicts, ", "))
 	}
 	return nil
 }

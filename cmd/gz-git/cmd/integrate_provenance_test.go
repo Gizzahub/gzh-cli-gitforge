@@ -110,7 +110,7 @@ func TestIntegrateRunJSONKeepsProvenanceOffStdout(t *testing.T) {
 }
 
 // TestIntegrateCleanupPrintsProvenance covers the receipt cleanup, which
-// waits on target locks and prints their notices on the same stream.
+// mutates git and prints its refusals on the same stream.
 func TestIntegrateCleanupPrintsProvenance(t *testing.T) {
 	isolateIntegrateDevice(t, "", "")
 	t.Chdir(t.TempDir())

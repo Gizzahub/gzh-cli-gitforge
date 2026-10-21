@@ -97,7 +97,7 @@ func ReconcileLegacyPreMutation(ctx context.Context, exec *gitcmd.Executor, opts
 		return nil, err
 	}
 	evidence, diag, g, root, common := prepared.evidence, prepared.diagnostic, prepared.repo, prepared.root, prepared.common
-	outer, err := acquireExecutionRunLock(ctx, common, opts.Execution.ExecutionID)
+	outer, err := acquireExecutionRunLock(common, opts.Execution.ExecutionID)
 	if err != nil {
 		return nil, err
 	}
@@ -374,10 +374,10 @@ func LegacyReconcileCapability() string { return legacyReconcileCapability }
 
 func validateLockedRepositoryBinding(root, common, diagnosticCWD, lockedRoot, lockedCommon string) error {
 	if lockedRoot != root || lockedRoot != diagnosticCWD {
-		return fmt.Errorf("repository root changed while waiting for execution lock")
+		return fmt.Errorf("repository root changed before the execution lock was taken")
 	}
 	if lockedCommon == "" || lockedCommon != common {
-		return fmt.Errorf("repository common directory changed while waiting for execution lock")
+		return fmt.Errorf("repository common directory changed before the execution lock was taken")
 	}
 	return nil
 }

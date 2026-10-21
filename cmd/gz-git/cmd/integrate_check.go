@@ -91,7 +91,6 @@ func runIntegrateCheck(cmd *cobra.Command, args []string) error {
 		NoFetch:          integrateCheckNoFetch,
 		ExpectSource:     integrateCheckExpectSource,
 		ExpectTarget:     expectTarget,
-		LockNotice:       cmd.ErrOrStderr(),
 	})
 	if errors.Is(ctx.Err(), context.Canceled) {
 		// An interrupted check is no verdict; never report it as not ready.

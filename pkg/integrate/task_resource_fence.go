@@ -5,19 +5,27 @@ package integrate
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
-	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 )
 
-// acquireTaskResourceFence serializes native integration mutations of the same
-// task even when callers select different target refs or execution IDs. This is
-// cooperative exclusion, never authorization to adopt a legacy resource.
-// All callers acquire this fence before target ownership to keep lock ordering
-// consistent. Unrelated task branches retain independent target locks.
-func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPath, branch string, notices ...io.Writer) (*targetLock, error) {
+// taskFenceDirName keeps the directory and key the removed target lock used,
+// so an older gz-git still contends on the same file as this one.
+const taskFenceDirName = "gz-git-integrate-targets"
+
+// acquireTaskResourceFence keeps two gz-git mutations of one task branch —
+// run reclaim, cleanup retry, legacy cleanup — from deleting the same
+// worktree and branches at once, even when callers select different target
+// refs or execution IDs. It never waits: a held fence refuses with
+// ErrResourceBusy naming the holder. It is cooperative exclusion, never
+// authorization to adopt a legacy resource, and it does not order
+// integrations of one target; the exact-lease push does that.
+func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPath, branch string) (*resourceLock, error) {
 	if strings.TrimSpace(repoPath) == "" {
 		repoPath = "."
 	}
@@ -34,9 +42,17 @@ func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPa
 	if err := gitcmd.SanitizeBranchName(branch); err != nil {
 		return nil, fmt.Errorf("task resource fence branch: %w", err)
 	}
-	var notice io.Writer
-	if len(notices) > 0 {
-		notice = notices[0]
+	common, err := g.output(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil || common == "" {
+		if err == nil {
+			err = fmt.Errorf("git common directory is empty")
+		}
+		return nil, fmt.Errorf("resolve task resource fence directory: %w", err)
 	}
-	return acquireTargetLock(ctx, g, "task-resource:"+branch, notice)
+	dir := filepath.Join(common, taskFenceDirName)
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- Git common directory is repository-owned
+		return nil, fmt.Errorf("create task resource fence directory: %w", err)
+	}
+	digest := sha256.Sum256([]byte("task-resource:" + branch))
+	return tryAcquireResourceLock(filepath.Join(dir, fmt.Sprintf("%x.lock", digest[:])), "task resource fence for "+branch)
 }

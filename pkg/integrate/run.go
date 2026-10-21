@@ -40,8 +40,7 @@ type RunReport struct {
 	// verified refusal before it could enter the target push.
 	PreMutationOutcome *PreMutationOutcome
 	// IntegrationDuration spans revalidation, the target push and the local
-	// target fast-forward of a ready check. Reclaim is outside it, and the
-	// target lock wait precedes it.
+	// target fast-forward of a ready check. Reclaim is outside it.
 	IntegrationDuration time.Duration
 	// pastIntent marks that the run crossed its intent boundary, after which
 	// cancellation no longer applies.
@@ -53,8 +52,8 @@ const preMutationOutcomeWriteTimeout = 5 * time.Second
 // ErrInterrupted reports that the caller's context was canceled, by a signal
 // or otherwise, before the run reached its intent boundary. Nothing was
 // pushed, and an interrupted check is no verdict, so no pre-mutation outcome
-// is recorded for it. An expired deadline is not an interrupt: it keeps its
-// target-lock-wait classification.
+// is recorded for it. An expired deadline is not an interrupt: it is
+// reported as the deadline error.
 var ErrInterrupted = errors.New("interrupted before the target push")
 
 func canceledByCaller(ctx context.Context) bool {
@@ -81,9 +80,8 @@ func recordCurrentPreMutationOutcome(ctx context.Context, capture *preMutationCa
 // Reclaim only matches declared taskPattern. No pattern → reclaim nothing.
 func Run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunReport, error) {
 	report, err := run(ctx, exec, opts)
-	// A cancellation that stopped any step before the intent boundary, a
-	// fence or run-lock wait included, is an interrupt; past the boundary the
-	// context no longer applies.
+	// A cancellation that stopped any step before the intent boundary is an
+	// interrupt; past the boundary the context no longer applies.
 	if err != nil && canceledByCaller(ctx) && (report == nil || !report.pastIntent) && !errors.Is(err, ErrInterrupted) {
 		err = interruptedBeforePush(ctx, err)
 	}
@@ -105,7 +103,7 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if err := rejectUnconfirmedHeuristicTarget(ctx, exec, opts.CheckOptions); err != nil {
 		return nil, err
 	}
-	taskFence, err := acquireTaskResourceFence(ctx, exec, opts.RepoPath, opts.Branch, opts.LockNotice)
+	taskFence, err := acquireTaskResourceFence(ctx, exec, opts.RepoPath, opts.Branch)
 	if err != nil {
 		return nil, err
 	}
@@ -127,16 +125,14 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 			}
 			return nil, fmt.Errorf("resolve execution run common directory: %w", err)
 		}
-		runLock, err := acquireExecutionRunLock(ctx, common, opts.Execution.ExecutionID)
+		runLock, err := acquireExecutionRunLock(common, opts.Execution.ExecutionID)
 		if err != nil {
 			return nil, err
 		}
 		defer runLock.release()
 	}
-	// Target ownership survives Check through the exact lease push and
-	// reclaim.
-	ctx, lock := withTargetLockSlot(ctx)
-	defer lock.release()
+	// Nothing holds the target: a concurrent integration of it is detected
+	// by revalidation and the exact lease push, and refused, never awaited.
 	opts.requireConfirmedTarget = true
 	check, err := Check(ctx, exec, opts.CheckOptions)
 	if canceledByCaller(ctx) {
@@ -144,11 +140,7 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		return &RunReport{Check: check}, interruptedBeforePush(ctx, err)
 	}
 	if err != nil {
-		report := &RunReport{Check: check}
-		if recordErr := recordPreMutationCheckFailure(ctx, opts, report, err); recordErr != nil {
-			return report, recordErr
-		}
-		return report, err
+		return &RunReport{Check: check}, err
 	}
 	report, err := runChecked(ctx, exec, opts, check)
 	if err != nil && check != nil && !check.Ready && !canceledByCaller(ctx) {
@@ -161,22 +153,6 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		}
 	}
 	return report, err
-}
-
-func recordPreMutationCheckFailure(ctx context.Context, opts RunOptions, report *RunReport, checkErr error) error {
-	phase := ""
-	switch {
-	case errors.Is(checkErr, errTargetLockWait):
-		phase = preMutationPhaseTargetLockWait
-	default:
-		return nil
-	}
-	outcome, err := recordCurrentPreMutationOutcome(ctx, opts.preMutation, phase)
-	if err != nil {
-		return fmt.Errorf("%w; record pre-mutation outcome: %w", checkErr, err)
-	}
-	report.PreMutationOutcome = outcome
-	return nil
 }
 
 // rejectUnconfirmedHeuristicTarget keeps a remote HEAD fallback observable in
@@ -218,7 +194,7 @@ func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor
 	return unconfirmedIntegrationTargetError(integration.Name)
 }
 
-// rejectHeuristicRunPlan rechecks the authoritative plan after ownership waits.
+// rejectHeuristicRunPlan rechecks the authoritative plan after the fetch.
 // The early precheck alone cannot authorize a declaration that changes later.
 func rejectHeuristicRunPlan(plan TargetPlan, opts CheckOptions) error {
 	if opts.requireConfirmedTarget && strings.TrimSpace(opts.Target) == "" && strings.TrimSpace(opts.ControllerConfig) == "" && plan.Integration.Source == SourceHeuristic {
@@ -413,17 +389,39 @@ func pushFastForwardWithExpectedTarget(ctx context.Context, g gitRepo, remote, r
 		return err
 	}
 	if push.ExitCode != 0 {
+		detail := pushFailureDetail(push, expectTarget)
+		targetRef := targetName
+		if remoteName != "" {
+			targetRef = remoteName + "/" + targetName
+		}
 		// The retryable classification is granted only by a complete,
 		// unambiguous porcelain record binding the exact leased source and
 		// ref, then re-reading the leased destination itself. Stderr prose,
 		// mixed or partial output, and any other rejection stay generic.
-		if expectTarget && isSolePorcelainStaleLeaseRejection(push, sourceSHA, "refs/heads/"+targetName) {
-			moved, refreshErr := targetMovedAtPushEndpoint(ctx, g, remote, remoteName, targetName, checkedTargetSHA, sourceSHA)
-			if refreshErr == nil && moved {
-				return fmt.Errorf("%w: target %s moved after readiness", ErrTargetMismatch, targetName)
+		if expectTarget {
+			if isSolePorcelainStaleLeaseRejection(push, sourceSHA, "refs/heads/"+targetName) {
+				actual, moved, refreshErr := targetMovedAtPushEndpoint(ctx, g, remote, remoteName, targetName, checkedTargetSHA, sourceSHA)
+				if refreshErr == nil && moved {
+					return fmt.Errorf("%w: target %s is %s, expected %s; rebase onto %s and re-run check", ErrTargetMismatch, targetRef, actual, checkedTargetSHA, targetRef)
+				}
+			}
+			return fmt.Errorf("git push %s %s failed: %s", remote, refspec, detail)
+		}
+		// Without an approved pair the refusal carries no exit-code contract,
+		// but it still names the target, both commits and the action, in the
+		// words revalidation uses, so a caller can tell a lost race from any
+		// other push failure. A target equal to the source may already carry
+		// this push and stays generic.
+		if strings.Contains(push.Stderr, "(stale info)") {
+			actual, moved, refreshErr := targetMovedAtPushEndpoint(ctx, g, remote, remoteName, targetName, checkedTargetSHA, sourceSHA)
+			switch {
+			case refreshErr == nil && moved:
+				return fmt.Errorf("target branch changed before the push: %s is %s, readiness checked %s; rebase onto %s and re-run check (git push: %s)", targetRef, actual, checkedTargetSHA, targetRef, detail)
+			case refreshErr != nil:
+				return fmt.Errorf("target branch changed before the push: %s current commit unknown (%w), readiness checked %s; rebase onto %s and re-run check (git push: %s)", targetRef, refreshErr, checkedTargetSHA, targetRef, detail)
 			}
 		}
-		return fmt.Errorf("git push %s %s failed: %s", remote, refspec, pushFailureDetail(push, expectTarget))
+		return fmt.Errorf("git push %s %s failed: %s", remote, refspec, detail)
 	}
 	return nil
 }
@@ -596,25 +594,25 @@ func isSolePorcelainStaleLeaseRejection(push *gitcmd.Result, sourceSHA, targetRe
 // git push. Tracking refs may have a different fetch URL, and a remote can
 // have multiple push URLs, so either ambiguity deliberately keeps the generic
 // push error instead of claiming the request is safely retryable.
-func targetMovedAtPushEndpoint(ctx context.Context, g gitRepo, pushRemote, remoteName, targetName, expected, source string) (bool, error) {
+func targetMovedAtPushEndpoint(ctx context.Context, g gitRepo, pushRemote, remoteName, targetName, expected, source string) (actual string, moved bool, err error) {
 	endpoint, err := pushEndpoint(ctx, g, remoteName)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	if pushRemote != remoteName {
 		actualPush, err := canonicalPushEndpoint(pushRemote)
 		if err != nil || actualPush != endpoint {
-			return false, fmt.Errorf("push destination differs from verified remote endpoint")
+			return "", false, fmt.Errorf("push destination differs from verified remote endpoint")
 		}
 	}
-	actual, err := exactRemoteSHA(ctx, g, endpoint, "refs/heads/"+targetName)
+	actual, err = exactRemoteSHA(ctx, g, endpoint, "refs/heads/"+targetName)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	// A target equal to the source proves this push (or a concurrent equivalent
 	// push) may already have landed. Preserve the generic failure and intent
 	// receipt for cleanup/reconciliation; it is not safe to request a rerun.
-	return actual != expected && actual != source, nil
+	return actual, actual != expected && actual != source, nil
 }
 
 func ffTargetWorktrees(ctx context.Context, exec *gitcmd.Executor, g gitRepo, targetName, sourceSHA string) error {
