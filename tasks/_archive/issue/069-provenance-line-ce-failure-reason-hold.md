@@ -7,6 +7,10 @@ severity: medium
 discovered-in: "review of the ISSUE-57/58 change"
 discovered-at: 2026-10-20
 created: 2026-10-20
+resolution: fixed
+resolved-at: 2026-10-22T06:55:38Z
+resolution-summary: "Resolved as fixed."
+status: done
 ---
 
 ## Update (2026-10-22)
@@ -91,3 +95,14 @@ summary misleads.
   hold keeps it out of the Homebrew channel.
 - Close this card when the CE fix is installed on the devices that run
   `ce task run-finish`, citing the CE issue and commit.
+
+## Resolution (2026-10-22)
+
+Fixed in ce-agent-kit as ISSUE-460 (master `effd3181`, fix commits
+`f5d86cd6` and `3a1d30c1`). `failingCheckReason` now skips the provenance
+line, both device hint lines, the wait notices (`integrate: waiting `) and
+non-fatal warnings (`integrate: warning: `) before it falls back to a stderr
+line, so a refusal without a `FAIL ` line is recorded as the refusal. ce
+0.10.20 built from `effd3181` is installed on mst with `make install_cli`.
+Other devices that run `ce task run-finish` pick it up on their next CE
+install. The release hold is lifted.
