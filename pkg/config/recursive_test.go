@@ -1283,12 +1283,14 @@ func TestLoadConfigRecursive_ConfigWorkspaceCycle(t *testing.T) {
 		{
 			name: "config workspace at its own directory",
 			setup: func(t *testing.T, root string) {
+				t.Helper()
 				writeWorkspaceConfig(t, root, "workspaces:\n  self:\n    type: config\n    path: .\n")
 			},
 		},
 		{
 			name: "two config workspaces pointing at each other",
 			setup: func(t *testing.T, root string) {
+				t.Helper()
 				writeWorkspaceConfig(t, root, "workspaces:\n  a:\n    type: config\n    path: a\n")
 				writeWorkspaceConfig(t, filepath.Join(root, "a"), "workspaces:\n  back:\n    type: config\n    path: ..\n")
 			},
@@ -1296,6 +1298,7 @@ func TestLoadConfigRecursive_ConfigWorkspaceCycle(t *testing.T) {
 		{
 			name: "inline nested workspace pointing at its own config",
 			setup: func(t *testing.T, root string) {
+				t.Helper()
 				writeWorkspaceConfig(t, root, "workspaces:\n  a:\n    type: forge\n    path: a\n    workspaces:\n      up:\n        type: config\n        path: ..\n")
 			},
 		},
