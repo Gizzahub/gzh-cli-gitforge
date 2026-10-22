@@ -17,6 +17,24 @@ with the provenance line (`pkg/integrate/device.go:119`,
 (`finish_reason.go`); close this card once that fix is installed and its
 commit is cited.
 
+## Re-check (2026-10-22)
+
+The CE fix has not landed, and no ce-agent-kit card tracks it (ce-agent-kit
+master `a8a63782`, installed ce 0.10.18):
+
+- `failingCheckReason` in `internal/usecase/taskruntime/finish_reason.go`
+  still falls back to the first non-empty stderr line. It has not changed
+  since this card was written; it names a BLOCKED run that is not stale and
+  whose reason is still "integration did not complete".
+- gz-git master `86f02984` still prints the line first (built at
+  `pkg/integrate/device.go:119`, written to stderr by
+  `cmd/gz-git/cmd/integrate.go:54`), and `pkg/integrate/check_target.go:331`
+  still refuses a non-integration target without a `FAIL ` line.
+- v0.12.0 also shipped with the line, so the release hold no longer holds
+  anything back. What is left is registering and making the CE fix in a
+  ce-agent-kit session.
+- ISSUE-93's resolution says ISSUE-069 is closed; this card is still open.
+
 ## Summary
 
 ISSUE-57 makes `integrate check|run|cleanup` and
