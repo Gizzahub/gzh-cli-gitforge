@@ -105,9 +105,11 @@ MDFORMAT_PYTHON := $(MDFORMAT_TOOL_DIR)/mdformat/$(if $(shell go env GOEXE),Scri
 MDFORMAT_CONSTRAINTS := $(CURDIR)/.make/mdformat-constraints.txt
 # Split the list at its delimiters and compare whole entries: a substring match
 # accepted an extra plugin and versions such as 1.0.0.post1.
-MDFORMAT_VERSION_OK = "$(MDFORMAT)" --version 2>/dev/null | \
+MDFORMAT_VERSION_OK = { mdformat_version_output=$$("$(MDFORMAT)" --version 2>/dev/null) && printf '%s\n' "$$mdformat_version_output" | \
 	awk -v core="mdformat $(MDFORMAT_VERSION)" -v a="mdformat-gfm $(MDFORMAT_GFM_VERSION)" -v b="mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION)" \
-	'NR == 1 && sub(/\)$$/, "") { n = split($$0, p, / \(|, /); ok = n == 3 && p[1] == core && ((p[2] == a && p[3] == b) || (p[2] == b && p[3] == a)) } END { exit !ok }'
+	'NR == 1 && sub(/\)$$/, "") { n = split($$0, p, / \(|, /); ok = n == 3 && p[1] == core && ((p[2] == a && p[3] == b) || (p[2] == b && p[3] == a)) } END { exit !ok }'; }
+# 재사용과 설치 후 모두 실제 venv의 Python 하한을 검사한다.
+MDFORMAT_PYTHON_OK = "$(MDFORMAT_PYTHON)" -I -c 'import sys; sys.exit(sys.version_info < (3, 11))'
 # `--version` names only the three top-level packages. The transitive ones in
 # the constraints file decide rendering too, so an install made before a pin
 # changed must not pass. Every non-comment line must be name==version; a loose
@@ -144,9 +146,10 @@ install-goimports: ## install the pinned goimports into bin/tools
 
 install-mdformat: ## install the pinned mdformat and its plugins into bin/tools
 	@echo -e "$(CYAN)Ensuring mdformat $(MDFORMAT_VERSION)...$(RESET)"
-	@if ! { $(MDFORMAT_VERSION_OK) && $(MDFORMAT_DEPS_OK) 2>/dev/null; }; then \
+	@if ! { $(MDFORMAT_PYTHON_OK) && $(MDFORMAT_VERSION_OK) && $(MDFORMAT_DEPS_OK); } 2>/dev/null; then \
 		command -v uv >/dev/null 2>&1 || { echo "uv is required to install mdformat (https://docs.astral.sh/uv/); offline with a warm uv cache, set UV_OFFLINE=1" >&2; exit 1; }; \
 		echo -e "$(YELLOW)Installing mdformat $(MDFORMAT_VERSION) into $(dir $(MDFORMAT))$(RESET)"; \
+		UV_PYTHON="$${UV_PYTHON->=3.11}" \
 		UV_TOOL_DIR="$(MDFORMAT_TOOL_DIR)" UV_TOOL_BIN_DIR="$(dir $(MDFORMAT))" \
 			uv tool install --quiet --force \
 				--constraints "$(MDFORMAT_CONSTRAINTS)" \
@@ -154,6 +157,10 @@ install-mdformat: ## install the pinned mdformat and its plugins into bin/tools
 				--with "mdformat-frontmatter==$(MDFORMAT_FRONTMATTER_VERSION)" \
 				"mdformat==$(MDFORMAT_VERSION)" || exit 1; \
 	fi
+	@$(MDFORMAT_PYTHON_OK) || { \
+		echo "mdformat requires Python >=3.11 at $(MDFORMAT_PYTHON); explicit UV_PYTHON is preserved when installing" >&2; \
+		exit 1; \
+	}
 	@$(MDFORMAT_VERSION_OK) || { \
 		echo "mdformat at $(MDFORMAT) is not $(MDFORMAT_VERSION) with mdformat-gfm $(MDFORMAT_GFM_VERSION) and mdformat_frontmatter $(MDFORMAT_FRONTMATTER_VERSION); got: $$("$(MDFORMAT)" --version 2>&1 || echo 'not runnable')" >&2; \
 		exit 1; \

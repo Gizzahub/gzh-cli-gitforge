@@ -386,7 +386,7 @@ quality-workspace-check: ## verify workspace metadata in an isolated temporary c
 		echo -e "$(GREEN)✅ Tracked Go workspace metadata is clean!$(RESET)"
 
 quality-check: export GOWORK := off
-quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
+quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test mdformat-install-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
 	@echo -e "$(GREEN)✅ Canonical quality gate passed!$(RESET)"
 
 quality: quality-check ## compatibility alias for the canonical quality gate
@@ -428,6 +428,10 @@ verify-release-steps:
 
 verification-selector-test: ## run isolated selector/profile regression fixtures
 	@/bin/bash scripts/test-verification-profile.sh
+
+.PHONY: mdformat-install-test
+mdformat-install-test: install-mdformat ## verify the pinned formatter installer with isolated offline fixtures
+	@/bin/bash scripts/test-mdformat-install.sh "$(MDFORMAT_PYTHON)"
 
 release-notes-test: ## verify Deprecated: trailers are collected into release notes
 	@/bin/bash scripts/test-release-deprecations.sh
