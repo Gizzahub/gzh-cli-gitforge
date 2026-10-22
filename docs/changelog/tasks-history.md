@@ -4,6 +4,30 @@
 
 ______________________________________________________________________
 
+## 인덱스 정리 (2026-10-22)
+
+2026-10-17 이후 README의 열린 표에 남아 있던 아래 카드는 각 카드의 상태 줄과
+Resolution 기준으로 이미 닫혀 있었다. 이번 정리에서 열린 표에서 뺐다.
+ISSUE-56~97 중 Resolution이 있는 카드는 개별 행을 두지 않고 카드 본문을 기록으로 삼는다.
+
+| #     | 상태                           | 근거                                                                                                    |
+| ----- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 28    | resolved (2026-10-04)          | `HOMEBREW_TAP_TOKEN` 교체 뒤 Cask 게시와 macOS 설치 확인                                                |
+| 29–39 | done / fixed / superseded      | 각 카드 상태 줄. 33은 ADR-0026으로 기각                                                                 |
+| 40    | resolved (2026-10-22)          | 카드 Resolution                                                                                         |
+| 41    | 참조 정합화 검증 완료          | CE ad92901e 참조 채택                                                                                   |
+| 43–45 | done / resolved / obsolete     | 각 카드 Resolution                                                                                      |
+| 46    | resolved (2026-10-14)          | source `b323` native lifecycle proof                                                                    |
+| 47    | closed — obsolete (2026-10-22) | ee40ef50이 기준선 worktree를 없앴다. 남은 archive scratch는 SIGKILL 때만 남아 회수 경로를 만들지 않는다 |
+| 48    | resolved (Python/UV 범위)      | source 9227bf3, infra-ops b7ad3178                                                                      |
+| 49    | resolved (2026-10-22)          | 미선언 `--source` 이름을 획득 전에 거부                                                                 |
+| 51–55 | resolved / fixed / obsolete    | 각 카드 상태 줄. 55는 b8b4cccc가 슬롯을 제거해 obsolete                                                 |
+
+정정: ISSUE-093 Resolution의 "ISSUE-069 is closed"는 틀렸다. 069는 ce-agent-kit 수정 대기로 열려 있다.
+ISSUE-20 포인터는 devbox에서 기각(`2f50f89`)·삭제(`ade1c0d`)된 카드를 가리키도록 고쳤다.
+
+______________________________________________________________________
+
 ## 완료 (2026-08-25)
 
 | #   | 태스크                                                                                                                         | 우선순위 | 요지                                                                                                                                                             |

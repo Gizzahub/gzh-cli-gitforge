@@ -111,5 +111,5 @@ Resolved on 2026-10-22 by `feat(integrate): remove the target lock; detect and r
 - Follow-up: the parity goldens `doctor-active.json` and `discard-no-fetch.json` still embed the old integrate help
   ("waits for it until the lock is free"). They are recorded through the installed ce and gz-git, so they can be
   re-recorded only after a release with this change is installed; `make test-parity` is opt-in and outside `make check`.
-- ISSUE-057 and ISSUE-069 assumed the lock; ISSUE-069 is closed, and CE consumers of the retired `target_lock_wait`
-  phase and `LockNotice` fields should be checked when ce-agent-kit adopts this release.
+- ISSUE-057 and ISSUE-069 assumed the lock. ISSUE-069 is still open (its fix belongs to ce-agent-kit). CE consumers
+  of the retired `target_lock_wait` phase and `LockNotice` fields should be checked when ce-agent-kit adopts this release.

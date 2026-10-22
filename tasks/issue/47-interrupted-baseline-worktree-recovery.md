@@ -1,6 +1,6 @@
 # ISSUE: 중단된 integrate 기준선 worktree의 회수 경로가 없다
 
-- status: open
+- status: closed (2026-10-22 — obsolete; see Resolution)
 - priority: P2
 - category: product/resource-lifecycle
 - created_at: 2026-10-14
@@ -92,3 +92,13 @@ ISSUE-34의 baseline prepare 문제와는 별도다.
 `make quality-check`는 `test-unit-quality`의 기존 CE parity reference guard에서
 실패했다. 실패를 통과로 간주하지 않는다. ISSUE-41에 이미 기록된 불일치이며,
 이번 문서 등록을 위해 reference 재녹화나 설치 도구 변경을 하지 않는다.
+
+## Resolution (2026-10-22)
+
+Closed as obsolete by owner decision. ee40ef50 removed the integrate baseline
+worktree, so the interrupted-recovery case this card describes no longer exists.
+The only remaining integrate temp root outside tests is the archive scratch
+directory (`pkg/integrate/archive_support.go:67`, `gzh-git-archive-*`), which a
+deferred removal cleans up and which can leak only when the process is
+SIGKILLed. That residue is small and short-lived, so no reclamation path is
+built. Reopen if `gzh-git-archive-*` directories are observed to accumulate.

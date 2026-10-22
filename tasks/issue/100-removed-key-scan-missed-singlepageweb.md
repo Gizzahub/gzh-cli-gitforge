@@ -23,8 +23,7 @@ That re-scan, and the 2026-10-21 impact table before it, did not include
   `branch.resourceHighLoad`. Its owner found this only when `ce task run-finish`
   was refused, and removed them in `66caae45` (14:37 KST) and `9475f38c`
   (14:42 KST).
-- Seven child repositories still declare `branch.prepareProfile:
-  pnpm-frozen-lockfile-v1` on their primary checkout (`master`) and on
+- Seven child repositories still declare `branch.prepareProfile: pnpm-frozen-lockfile-v1` on their primary checkout (`master`) and on
   `develop`: singlepageweb-calculator, -date, -image, -network, -pdf,
   -template, -timer. Their next integration will be refused the same way.
 
@@ -60,6 +59,16 @@ and TASK-283; this card does not ask gz-git to change those repositories.
 - Actual: singlepageweb-devbox and its children were outside the scan, and
   the card closed as an empty scan. The cause (how the 50 checkouts were
   enumerated) is not recorded in ISSUE-89 and was not investigated here.
+
+## Additional gap: mst global config (2026-10-22)
+
+The same closing scan checked the global config on mbp only. On mst,
+`~/Library/Application Support/gz-git/config.yaml` still holds only
+`integration:` / `readinessApproval: automatic`. A gz-git built from master
+after ISSUE-97 (`tmp/bin/gz-git` in the DevBox) refuses every command there:
+`failed to load config layers: ... integration.readinessApproval was removed`.
+The homebrew 0.12.0 binary predates ISSUE-97 and still loads it. The operator
+removes the key on that device; gz-git does not edit user config.
 
 ## Notes
 
