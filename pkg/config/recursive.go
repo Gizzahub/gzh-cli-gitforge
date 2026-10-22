@@ -39,13 +39,19 @@ const (
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
 func LoadConfigRecursive(path, configFile string) (*Config, error) {
-	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), true, 0)
+	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), make(map[string]bool), true, 0)
 }
 
 // loadConfigRecursiveWithVisited loads config with circular reference detection.
 //
+// visited holds the configs read for this level and its parent chain. chain
+// holds the configs of the enclosing config workspaces, so a config workspace
+// that points back at an ancestor is reported instead of recursing forever.
+// A nested config may still name an ancestor as its parent, because parents
+// are loaded without their workspaces.
+//
 //nolint:gocognit,gocyclo // complex by design: handles recursive config loading with cycle detection, path resolution, and workspace traversal
-func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
+func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
 	// Check depth limit
 	if depth > MaxConfigDepth {
 		return nil, fmt.Errorf("config recursion depth exceeded (max %d): possible circular or excessively nested config", MaxConfigDepth)
@@ -59,7 +65,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 	}
 
 	// Check for circular reference
-	if visited[absConfigPath] {
+	if visited[absConfigPath] || chain[absConfigPath] {
 		return nil, fmt.Errorf("circular config reference detected: %s", absConfigPath)
 	}
 	visited[absConfigPath] = true
@@ -105,7 +111,8 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 		// Load parent config recursively (with same visited map for cycle detection)
 		// IMPORTANT: Pass loadWorkspaces=false to prevent infinite recursion
 		// We only want the parent's settings, not to traverse its workspaces again
-		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited, false, depth+1)
+		// No workspace chain: a nested config may name an ancestor as its parent
+		parentConfig, err := loadConfigRecursiveWithVisited(parentDir, parentFile, visited, nil, false, depth+1)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load parent config '%s': %w", config.Parent, err)
 		}
@@ -119,6 +126,17 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 	// Skip if disabled (e.g., when we are being loaded as a parent)
 	if !loadWorkspaces {
 		return &config, nil
+	}
+
+	// Each nested config workspace sees this config as an ancestor. Copy the
+	// chain per load so sibling workspaces may share a nested config.
+	nestedChain := func() map[string]bool {
+		next := make(map[string]bool, len(chain)+1)
+		for p := range chain {
+			next[p] = true
+		}
+		next[absConfigPath] = true
+		return next
 	}
 
 	for name, ws := range config.Workspaces {
@@ -149,7 +167,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 		case WorkspaceTypeConfig:
 			// Workspace has a nested config file - recurse!
 			nestedConfigFile := ".gz-git.yaml"
-			nestedConfig, err := LoadConfigRecursive(wsPath, nestedConfigFile)
+			nestedConfig, err := loadConfigRecursiveWithVisited(wsPath, nestedConfigFile, make(map[string]bool), nestedChain(), true, depth+1)
 			if err != nil {
 				// Config file not found is OK (use workspace settings only)
 				// But other errors (permission denied, disk I/O) should be reported
@@ -191,7 +209,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 			nestedType := nestedWs.Type.Resolve(nestedWs.Source != nil)
 			if nestedType == WorkspaceTypeConfig {
 				nestedConfigFile := ".gz-git.yaml"
-				_, err := LoadConfigRecursive(nestedPath, nestedConfigFile)
+				_, err := loadConfigRecursiveWithVisited(nestedPath, nestedConfigFile, make(map[string]bool), nestedChain(), true, depth+1)
 				if err != nil {
 					// Config not found is OK, but report other errors
 					if errors.Is(err, os.ErrNotExist) {

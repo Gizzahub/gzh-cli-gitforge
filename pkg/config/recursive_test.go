@@ -1263,3 +1263,66 @@ profile: test-profile
 		t.Fatal("Expected to find test-profile")
 	}
 }
+
+// writeWorkspaceConfig writes content to dir/.gz-git.yaml, creating dir.
+func writeWorkspaceConfig(t *testing.T, dir, content string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".gz-git.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadConfigRecursive_ConfigWorkspaceCycle(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, root string)
+	}{
+		{
+			name: "config workspace at its own directory",
+			setup: func(t *testing.T, root string) {
+				writeWorkspaceConfig(t, root, "workspaces:\n  self:\n    type: config\n    path: .\n")
+			},
+		},
+		{
+			name: "two config workspaces pointing at each other",
+			setup: func(t *testing.T, root string) {
+				writeWorkspaceConfig(t, root, "workspaces:\n  a:\n    type: config\n    path: a\n")
+				writeWorkspaceConfig(t, filepath.Join(root, "a"), "workspaces:\n  back:\n    type: config\n    path: ..\n")
+			},
+		},
+		{
+			name: "inline nested workspace pointing at its own config",
+			setup: func(t *testing.T, root string) {
+				writeWorkspaceConfig(t, root, "workspaces:\n  a:\n    type: forge\n    path: a\n    workspaces:\n      up:\n        type: config\n        path: ..\n")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			tt.setup(t, root)
+
+			_, err := LoadConfigRecursive(root, ".gz-git.yaml")
+			if err == nil {
+				t.Fatal("expected a circular config reference error, got nil")
+			}
+			if !strings.Contains(err.Error(), "circular config reference detected") {
+				t.Fatalf("expected circular config reference error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestLoadConfigRecursive_SharedNestedConfigIsNotACycle(t *testing.T) {
+	root := t.TempDir()
+	writeWorkspaceConfig(t, root, "workspaces:\n  one:\n    type: config\n    path: shared\n  two:\n    type: config\n    path: shared\n")
+	writeWorkspaceConfig(t, filepath.Join(root, "shared"), "parent: ../.gz-git.yaml\nprofile: shared\n")
+
+	if _, err := LoadConfigRecursive(root, ".gz-git.yaml"); err != nil {
+		t.Fatalf("siblings sharing a nested config whose parent is the root must load: %v", err)
+	}
+}
