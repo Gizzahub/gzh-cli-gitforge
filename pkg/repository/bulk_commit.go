@@ -220,6 +220,10 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 			result.TotalDirty++
 		case "conflicted":
 			result.TotalConflicted++
+		case "error":
+			// Analysis failed (change set or message generator); Phase 2 skips
+			// it, so count it here or the exit code reports success.
+			result.TotalFailed++
 		}
 	}
 
@@ -412,9 +416,15 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 	// Generate suggested message
 	if opts.MessageGenerator != nil {
 		msg, err := opts.MessageGenerator(ctx, repoPath, result.ChangedFiles)
-		if err == nil {
-			result.SuggestedMessage = msg
+		if err != nil {
+			// A caller-supplied message that cannot be produced must not
+			// degrade into the auto-generated message.
+			result.Status = "error"
+			result.Error = fmt.Errorf("message generator failed: %w", err)
+			result.Duration = time.Since(startTime)
+			return result
 		}
+		result.SuggestedMessage = msg
 	}
 
 	if result.SuggestedMessage == "" {

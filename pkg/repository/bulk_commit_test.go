@@ -631,3 +631,37 @@ func TestFilePathParsing(t *testing.T) {
 		}
 	}
 }
+
+// A message generator error must surface as a per-repository failure instead
+// of silently committing the auto-generated message (ISSUE-099).
+func TestBulkCommitMessageGeneratorErrorSurfaces(t *testing.T) {
+	tmpDir := t.TempDir()
+	repoPath := filepath.Join(tmpDir, "repo")
+	if err := createDirtyRepo(repoPath); err != nil {
+		t.Skipf("Skipping test: git not available: %v", err)
+	}
+
+	genErr := errors.New("generator boom")
+	result, err := NewClient().BulkCommit(context.Background(), BulkCommitOptions{
+		Directory: tmpDir,
+		MaxDepth:  2,
+		Yes:       true,
+		Logger:    NewNoopLogger(),
+		MessageGenerator: func(context.Context, string, []string) (string, error) {
+			return "", genErr
+		},
+	})
+	if err != nil {
+		t.Fatalf("BulkCommit: %v", err)
+	}
+	if result.TotalCommitted != 0 || result.TotalFailed != 1 {
+		t.Fatalf("committed=%d failed=%d, want 0 and 1", result.TotalCommitted, result.TotalFailed)
+	}
+	if len(result.Repositories) != 1 || !errors.Is(result.Repositories[0].Error, genErr) {
+		t.Fatalf("repository error = %+v, want it to wrap generator error", result.Repositories)
+	}
+	out, _ := exec.Command("git", "-C", repoPath, "log", "-1", "--format=%s").Output() //nolint:noctx // test
+	if string(out) != "Initial commit\n" {
+		t.Errorf("a commit was created: %q", out)
+	}
+}

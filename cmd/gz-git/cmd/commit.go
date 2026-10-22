@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -91,10 +92,30 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		printScanningMessage(config.directory, commitFlags.Depth, commitFlags.Parallel, commitFlags.DryRun)
 	}
 
+	// An explicit message map must name real repositories. Verify that on a
+	// dry run before any commit is made.
+	if config.customMessages != nil && !config.options.DryRun {
+		dryOpts := config.options
+		dryOpts.DryRun = true
+		dryOpts.ProgressCallback = nil
+		preview, previewErr := client.BulkCommit(ctx, dryOpts)
+		if previewErr != nil {
+			return fmt.Errorf("bulk commit failed: %w", previewErr)
+		}
+		if err := validateCommitMessageKeys(config.customMessages, preview); err != nil {
+			return err
+		}
+	}
+
 	// Execute bulk commit (analysis phase if DryRun, otherwise commits)
 	result, err := client.BulkCommit(ctx, config.options)
 	if err != nil {
 		return fmt.Errorf("bulk commit failed: %w", err)
+	}
+	if config.customMessages != nil && config.options.DryRun {
+		if err := validateCommitMessageKeys(config.customMessages, result); err != nil {
+			return err
+		}
 	}
 
 	// Display scan completion message
@@ -135,10 +156,8 @@ func runCommit(cmd *cobra.Command, args []string) error {
 			result.TotalConflicted)
 	}
 
-	return errPartialFailure(
-		result.TotalFailed+result.TotalConflicted,
-		result.TotalDirty+result.TotalConflicted,
-	)
+	failed := result.TotalFailed + result.TotalConflicted
+	return errPartialFailure(failed, max(failed, result.TotalDirty+result.TotalConflicted))
 }
 
 type commitRunConfig struct {
@@ -241,26 +260,63 @@ func loadCommitMessages() (map[string]string, error) {
 	return messages, nil
 }
 
+// lookupCommitMessageKey returns the key of messages that addresses repoPath:
+// the relative path, its basename, or the absolute path, in that order.
+func lookupCommitMessageKey(directory, repoPath string, messages map[string]string) (string, bool) {
+	relPath, err := filepath.Rel(directory, repoPath)
+	if err != nil {
+		relPath = filepath.Base(repoPath)
+	}
+	if relPath == "." {
+		relPath = filepath.Base(directory)
+	}
+	for _, key := range []string{relPath, filepath.Base(relPath), repoPath} {
+		if _, ok := messages[key]; ok {
+			return key, true
+		}
+	}
+	return "", false
+}
+
 func customCommitMessageGenerator(directory string, messages map[string]string) func(context.Context, string, []string) (string, error) {
 	return func(_ context.Context, repoPath string, _ []string) (string, error) {
-		relPath, err := filepath.Rel(directory, repoPath)
-		if err != nil {
-			relPath = filepath.Base(repoPath)
-		}
-		if relPath == "." {
-			relPath = filepath.Base(directory)
-		}
-		if message, ok := messages[relPath]; ok {
-			return message, nil
-		}
-		if message, ok := messages[filepath.Base(relPath)]; ok {
-			return message, nil
-		}
-		if message, ok := messages[repoPath]; ok {
-			return message, nil
+		if key, ok := lookupCommitMessageKey(directory, repoPath, messages); ok {
+			return messages[key], nil
 		}
 		return "", nil
 	}
+}
+
+// validateCommitMessageKeys rejects message keys that match none of the dirty
+// repositories in a dry-run result, naming every unmatched key and the valid
+// ones. Without it an unmatched key silently commits the auto message.
+func validateCommitMessageKeys(messages map[string]string, preview *repository.BulkCommitResult) error {
+	matched := make(map[string]bool, len(messages))
+	valid := make([]string, 0, len(preview.Repositories))
+	for _, repo := range preview.Repositories {
+		if repo.Status != "would-commit" && repo.Status != "dirty" {
+			continue
+		}
+		valid = append(valid, repo.RelativePath)
+		for key := range messages {
+			if key == repo.RelativePath || key == filepath.Base(repo.RelativePath) || key == repo.Path {
+				matched[key] = true
+			}
+		}
+	}
+	var unmatched []string
+	for key := range messages {
+		if !matched[key] {
+			unmatched = append(unmatched, key)
+		}
+	}
+	if len(unmatched) == 0 {
+		return nil
+	}
+	sort.Strings(unmatched)
+	sort.Strings(valid)
+	return fmt.Errorf("commit message key(s) match no repository with changes: %s (valid keys: %s); nothing was committed",
+		strings.Join(unmatched, ", "), strings.Join(valid, ", "))
 }
 
 func commitEditorResult(ctx context.Context, client repository.Client, result *repository.BulkCommitResult, opts repository.BulkCommitOptions) (*repository.BulkCommitResult, bool, error) {
