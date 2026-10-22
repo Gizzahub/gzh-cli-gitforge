@@ -7,6 +7,10 @@ severity: high
 discovered-in: "legacy make gate (ee40ef50) and readiness contract removal"
 discovered-at: 2026-10-21
 created: 2026-10-21
+resolution: fixed
+resolved-at: 2026-10-22T00:58:48Z
+resolution-summary: "Resolved as fixed."
+status: done
 ---
 
 ## Summary
@@ -89,6 +93,14 @@ The seed is ce-devenv `config/gz-git/config.base.yaml` (devenv commits
 config when none exists. Remove it there before tagging 0.12.0, and delete
 the key from seeded devices only after 0.12.0 is installed: an older gz-git
 asks for readiness approval again without it.
+
+### Re-scan on mbp, 2026-10-22
+
+The 50 primary checkouts and the global config declare none of the removed
+keys. The last two, `~/mydevbox/scripton-nd-stack-devbox` and
+`~/mydevbox/flow-agent-mesh-devbox`, removed theirs in nd-stack `2e34532e`
+and flow-agent-mesh `77086c11`. ce-devenv no longer seeds
+`integration.readinessApproval`.
 
 ## Scope
 
