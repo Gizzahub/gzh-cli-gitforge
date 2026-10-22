@@ -28,9 +28,9 @@ never reported. The same path applies to `--yaml`, piped input and
 
 1. Create a scratch directory with one Git repository `sbkube` holding an
    uncommitted file `a.txt`.
-2. `gz-git commit -d 2 --format llm <dir>` shows `PATH: sbkube`.
-3. `gz-git commit -d 2 --yes --json '{"sbkub":"msg"}' <dir>` (typo in the key).
-4. `git -C <dir>/sbkube log -1 --format=%s` prints `chore: update a.txt`; the
+1. `gz-git commit -d 2 --format llm <dir>` shows `PATH: sbkube`.
+1. `gz-git commit -d 2 --yes --json '{"sbkub":"msg"}' <dir>` (typo in the key).
+1. `git -C <dir>/sbkube log -1 --format=%s` prints `chore: update a.txt`; the
    command exited 0 with no warning.
 
 A key equal to the `PATH:` value or its basename commits `msg` as expected.
