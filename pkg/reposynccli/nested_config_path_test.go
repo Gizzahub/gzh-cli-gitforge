@@ -31,7 +31,7 @@ func writeNestedConfigLayout(t *testing.T) nestedConfigLayout {
 		t.Fatal(err)
 	}
 	elsewhere := filepath.Join(t.TempDir(), "elsewhere")
-	top := "workspaces:\n  child:\n    type: config\n    path: child\n"
+	top := "workspaces:\n  child:\n    type: config\n    sync:\n      recursive: true\n    path: child\n"
 	if err := os.WriteFile(filepath.Join(root, ".gz-git.yaml"), []byte(top), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestLoadRebasesGrandchildNestedConfigRepos(t *testing.T) {
 	if err := os.MkdirAll(gc, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	childCfg := "workspaces:\n  gc:\n    type: config\n    path: gc\n"
+	childCfg := "workspaces:\n  gc:\n    type: config\n    sync:\n      recursive: true\n    path: gc\n"
 	if err := os.WriteFile(filepath.Join(f.root, "child", ".gz-git.yaml"), []byte(childCfg), 0o600); err != nil {
 		t.Fatal(err)
 	}

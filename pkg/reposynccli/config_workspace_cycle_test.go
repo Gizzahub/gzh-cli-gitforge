@@ -63,7 +63,7 @@ func TestLoadPathlessConfigWorkspaceResolvesToWorkspaceName(t *testing.T) {
 	root := t.TempDir()
 	child := filepath.Join(root, "child")
 	mkdirAll(t, child)
-	writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n")
+	writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n    sync:\n      recursive: true\n")
 	writeGzGitConfig(t, child, "repositories:\n  - name: lib\n    url: https://example.invalid/lib.git\n")
 
 	data, err := (FileSpecLoader{}).Load(context.Background(), filepath.Join(root, ".gz-git.yaml"))
@@ -83,7 +83,7 @@ func TestLoadPathlessConfigWorkspaceResolvesToWorkspaceName(t *testing.T) {
 // not exist is skipped as missing, not reloaded from the parent config.
 func TestLoadPathlessConfigWorkspaceWithoutDirectoryDoesNotRecurse(t *testing.T) {
 	root := t.TempDir()
-	writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n")
+	writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n    sync:\n      recursive: true\n")
 
 	stderr := loadWarnings(t, filepath.Join(root, ".gz-git.yaml"))
 	if n := strings.Count(stderr, "workspace 'child' skipped"); n != 1 {
@@ -102,7 +102,7 @@ func TestLoadConfigWorkspaceCycles(t *testing.T) {
 			name: "explicit self path",
 			setup: func(t *testing.T, root string) {
 				t.Helper()
-				writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n    path: .\n")
+				writeGzGitConfig(t, root, "workspaces:\n  child:\n    type: config\n    sync:\n      recursive: true\n    path: .\n")
 			},
 		},
 		{
@@ -113,9 +113,9 @@ func TestLoadConfigWorkspaceCycles(t *testing.T) {
 				b := filepath.Join(root, "b")
 				mkdirAll(t, a)
 				mkdirAll(t, b)
-				writeGzGitConfig(t, root, "workspaces:\n  a:\n    type: config\n    path: a\n")
-				writeGzGitConfig(t, a, "workspaces:\n  b:\n    type: config\n    path: ../b\n")
-				writeGzGitConfig(t, b, "workspaces:\n  a:\n    type: config\n    path: ../a\n")
+				writeGzGitConfig(t, root, "workspaces:\n  a:\n    type: config\n    sync:\n      recursive: true\n    path: a\n")
+				writeGzGitConfig(t, a, "workspaces:\n  b:\n    type: config\n    sync:\n      recursive: true\n    path: ../b\n")
+				writeGzGitConfig(t, b, "workspaces:\n  a:\n    type: config\n    sync:\n      recursive: true\n    path: ../a\n")
 			},
 		},
 		{
@@ -125,7 +125,7 @@ func TestLoadConfigWorkspaceCycles(t *testing.T) {
 				if err := os.Symlink(root, filepath.Join(root, "link")); err != nil {
 					t.Skipf("symlink: %v", err)
 				}
-				writeGzGitConfig(t, root, "workspaces:\n  link:\n    type: config\n    path: link\n")
+				writeGzGitConfig(t, root, "workspaces:\n  link:\n    type: config\n    sync:\n      recursive: true\n    path: link\n")
 			},
 		},
 	}
@@ -155,9 +155,9 @@ func TestLoadSiblingConfigWorkspacesSharingNestedConfig(t *testing.T) {
 	mkdirAll(t, one)
 	mkdirAll(t, two)
 	mkdirAll(t, shared)
-	writeGzGitConfig(t, root, "workspaces:\n  x:\n    type: config\n    path: one\n  y:\n    type: config\n    path: two\n")
-	writeGzGitConfig(t, one, "workspaces:\n  s:\n    type: config\n    path: ../shared\n")
-	writeGzGitConfig(t, two, "workspaces:\n  s:\n    type: config\n    path: ../shared\n")
+	writeGzGitConfig(t, root, "workspaces:\n  x:\n    type: config\n    sync:\n      recursive: true\n    path: one\n  y:\n    type: config\n    sync:\n      recursive: true\n    path: two\n")
+	writeGzGitConfig(t, one, "workspaces:\n  s:\n    type: config\n    sync:\n      recursive: true\n    path: ../shared\n")
+	writeGzGitConfig(t, two, "workspaces:\n  s:\n    type: config\n    sync:\n      recursive: true\n    path: ../shared\n")
 	writeGzGitConfig(t, shared, "repositories:\n  - name: lib\n    url: https://example.invalid/lib.git\n")
 
 	if stderr := loadWarnings(t, filepath.Join(root, ".gz-git.yaml")); cycleWarnings(stderr) != 0 {

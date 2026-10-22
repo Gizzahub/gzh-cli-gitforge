@@ -23,7 +23,7 @@ func TestConfigDirSpecLoaderResolvesNestedConfigReposAgainstChildDir(t *testing.
 	if err := os.MkdirAll(child, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	topBody := "workspaces:\n  child:\n    type: config\n    path: child\n"
+	topBody := "workspaces:\n  child:\n    type: config\n    sync:\n      recursive: true\n    path: child\n"
 	if err := os.WriteFile(filepath.Join(root, DefaultConfigFile), []byte(topBody), 0o600); err != nil {
 		t.Fatal(err)
 	}

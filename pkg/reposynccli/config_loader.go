@@ -104,6 +104,7 @@ type forgeSource struct {
 type syncSettings struct {
 	Strategy   string `yaml:"strategy"`
 	MaxRetries int    `yaml:"maxRetries"`
+	Recursive  bool   `yaml:"recursive"`
 }
 
 type profileEntry struct {
@@ -547,6 +548,13 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 	// Process each workspace
 	for name, ws := range cfg.Workspaces {
 		if ws == nil {
+			continue
+		}
+		// `workspace sync` plans a config workspace only with sync.recursive
+		// (config.GetConfigWorkspaces); skip the rest before they add a root,
+		// so status neither lists their repositories nor treats them as
+		// orphans (ISSUE-101).
+		if ws.Type == "config" && (ws.Sync == nil || !ws.Sync.Recursive) {
 			continue
 		}
 
