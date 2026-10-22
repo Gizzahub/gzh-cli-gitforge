@@ -224,7 +224,9 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 	}
 
 	previewOnly := !opts.Yes && !opts.DryRun && !commitEdit
-	if previewOnly {
+	// With -e the first pass only collects the messages to edit; the commit
+	// happens in commitEditorResult once the editor closes with content.
+	if previewOnly || commitEdit {
 		opts.DryRun = true
 	}
 	return commitRunConfig{
