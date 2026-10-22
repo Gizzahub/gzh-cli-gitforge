@@ -521,7 +521,12 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 
 	var roots []string
 	seenTargets := make(map[string]struct{})
-	configDir := filepath.Dir(configPath)
+	// Absolute, like the nested config targets loadConfigWorkspace returns, so
+	// seenTargets compares one path form whatever path the caller passed.
+	configDir, err := filepath.Abs(filepath.Dir(configPath))
+	if err != nil {
+		return ConfigData{}, fmt.Errorf("resolve config directory of %s: %w", configPath, err)
+	}
 
 	// Process each workspace
 	for name, ws := range cfg.Workspaces {
@@ -734,7 +739,18 @@ func (l FileSpecLoader) loadForgeWorkspace( //nolint:gocyclo // complex provider
 }
 
 // loadConfigWorkspace recursively loads a nested config file.
+//
+// Relative repository paths in the nested config are rebased on wsPath, the
+// nested config's directory, where `workspace sync` places them (ISSUE-96).
 func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) ([]reposync.RepoSpec, error) {
+	// An absolute wsPath makes the nested config's own workspace paths absolute,
+	// so only its relative repository entries are rebased below.
+	absWSPath, err := filepath.Abs(wsPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve nested config workspace %s: %w", wsPath, err)
+	}
+	wsPath = absWSPath
+
 	// Try .gz-git.yaml first, then .gz-git.yml
 	candidates := []string{".gz-git.yaml", ".gz-git.yml"}
 	root, err := safefs.OpenRoot(wsPath)
@@ -759,7 +775,13 @@ func (l FileSpecLoader) loadConfigWorkspace(ctx context.Context, wsPath string) 
 			if err != nil {
 				return nil, err
 			}
-			return data.Plan.Input.Repos, nil
+			repos := data.Plan.Input.Repos
+			for i := range repos {
+				if repos[i].TargetPath != "" && !filepath.IsAbs(repos[i].TargetPath) {
+					repos[i].TargetPath = filepath.Join(wsPath, repos[i].TargetPath)
+				}
+			}
+			return repos, nil
 		} else if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("stat nested config %s: %w", filepath.Join(wsPath, name), err)
 		}
