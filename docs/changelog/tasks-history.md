@@ -23,6 +23,8 @@ ISSUE-56~97 중 Resolution이 있는 카드는 개별 행을 두지 않고 카�
 | 49    | resolved (2026-10-22)          | 미선언 `--source` 이름을 획득 전에 거부                                                                 |
 | 51–55 | resolved / fixed / obsolete    | 각 카드 상태 줄. 55는 b8b4cccc가 슬롯을 제거해 obsolete                                                 |
 
+ISSUE-96은 같은 날 `111b7208`(중첩 config 저장소 경로를 그 디렉터리 기준으로 재계산)으로 닫혔고, 후속 결함은 ISSUE-101·102로 등록됐다.
+
 정정: ISSUE-093 Resolution의 "ISSUE-069 is closed"는 틀렸다. 069는 ce-agent-kit 수정 대기로 열려 있다.
 ISSUE-20 포인터는 devbox에서 기각(`2f50f89`)·삭제(`ade1c0d`)된 카드를 가리키도록 고쳤다.
 
