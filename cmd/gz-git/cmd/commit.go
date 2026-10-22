@@ -102,7 +102,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		if previewErr != nil {
 			return fmt.Errorf("bulk commit failed: %w", previewErr)
 		}
-		if err := validateCommitMessageKeys(config.customMessages, preview); err != nil {
+		if err := validateCommitMessageKeys(config.keyRoot, config.customMessages, preview); err != nil {
 			return err
 		}
 	}
@@ -113,7 +113,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("bulk commit failed: %w", err)
 	}
 	if config.customMessages != nil && config.options.DryRun {
-		if err := validateCommitMessageKeys(config.customMessages, result); err != nil {
+		if err := validateCommitMessageKeys(config.keyRoot, config.customMessages, result); err != nil {
 			return err
 		}
 	}
@@ -157,11 +157,24 @@ func runCommit(cmd *cobra.Command, args []string) error {
 	}
 
 	failed := result.TotalFailed + result.TotalConflicted
-	return errPartialFailure(failed, max(failed, result.TotalDirty+result.TotalConflicted))
+	return errPartialFailure(failed, max(failed, commitAttempted(result)))
+}
+
+// commitAttempted counts the repositories the run had something to do in:
+// every one that was not clean, including those whose analysis failed.
+func commitAttempted(result *repository.BulkCommitResult) int {
+	n := 0
+	for _, repo := range result.Repositories {
+		if repo.Status != "clean" {
+			n++
+		}
+	}
+	return n
 }
 
 type commitRunConfig struct {
 	directory      string
+	keyRoot        string
 	options        repository.BulkCommitOptions
 	customMessages map[string]string
 	previewOnly    bool
@@ -199,8 +212,15 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		Logger:            createBulkLogger(verbose),
 		ProgressCallback:  createProgressCallback("Analyzing", commitFlags.Format, quiet),
 	}
+	// Message keys are matched against paths relative to the scan root, which
+	// filepath.Rel cannot compute from a relative directory and the absolute
+	// repository paths the scan reports.
+	keyRoot, err := filepath.Abs(directory)
+	if err != nil {
+		return commitRunConfig{}, fmt.Errorf("resolve %s: %w", directory, err)
+	}
 	if customMessages != nil {
-		opts.MessageGenerator = customCommitMessageGenerator(directory, customMessages)
+		opts.MessageGenerator = customCommitMessageGenerator(keyRoot, customMessages)
 	}
 
 	previewOnly := !opts.Yes && !opts.DryRun && !commitEdit
@@ -209,6 +229,7 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 	}
 	return commitRunConfig{
 		directory:      directory,
+		keyRoot:        keyRoot,
 		options:        opts,
 		customMessages: customMessages,
 		previewOnly:    previewOnly,
@@ -260,9 +281,9 @@ func loadCommitMessages() (map[string]string, error) {
 	return messages, nil
 }
 
-// lookupCommitMessageKey returns the key of messages that addresses repoPath:
-// the relative path, its basename, or the absolute path, in that order.
-func lookupCommitMessageKey(directory, repoPath string, messages map[string]string) (string, bool) {
+// commitMessageKeys returns the keys that address repoPath, in lookup order:
+// the path relative to directory, its basename, and the absolute path.
+func commitMessageKeys(directory, repoPath string) []string {
 	relPath, err := filepath.Rel(directory, repoPath)
 	if err != nil {
 		relPath = filepath.Base(repoPath)
@@ -270,7 +291,13 @@ func lookupCommitMessageKey(directory, repoPath string, messages map[string]stri
 	if relPath == "." {
 		relPath = filepath.Base(directory)
 	}
-	for _, key := range []string{relPath, filepath.Base(relPath), repoPath} {
+	return []string{relPath, filepath.Base(relPath), repoPath}
+}
+
+// lookupCommitMessageKey returns the first key of messages that addresses
+// repoPath.
+func lookupCommitMessageKey(directory, repoPath string, messages map[string]string) (string, bool) {
+	for _, key := range commitMessageKeys(directory, repoPath) {
 		if _, ok := messages[key]; ok {
 			return key, true
 		}
@@ -287,19 +314,22 @@ func customCommitMessageGenerator(directory string, messages map[string]string) 
 	}
 }
 
-// validateCommitMessageKeys rejects message keys that match none of the dirty
-// repositories in a dry-run result, naming every unmatched key and the valid
-// ones. Without it an unmatched key silently commits the auto message.
-func validateCommitMessageKeys(messages map[string]string, preview *repository.BulkCommitResult) error {
+// validateCommitMessageKeys rejects message keys that match none of the
+// repositories with changes in a dry-run result, naming every unmatched key and
+// the valid ones. Without it an unmatched key silently commits the auto
+// message. Keys match exactly as in lookupCommitMessageKey. A key for a
+// conflicted repository, or one whose analysis failed, counts as matched so
+// the run reports that refusal or error itself.
+func validateCommitMessageKeys(directory string, messages map[string]string, preview *repository.BulkCommitResult) error {
 	matched := make(map[string]bool, len(messages))
 	valid := make([]string, 0, len(preview.Repositories))
 	for _, repo := range preview.Repositories {
-		if repo.Status != "would-commit" && repo.Status != "dirty" {
+		if repo.Status == "clean" {
 			continue
 		}
 		valid = append(valid, repo.RelativePath)
-		for key := range messages {
-			if key == repo.RelativePath || key == filepath.Base(repo.RelativePath) || key == repo.Path {
+		for _, key := range commitMessageKeys(directory, repo.Path) {
+			if _, ok := messages[key]; ok {
 				matched[key] = true
 			}
 		}

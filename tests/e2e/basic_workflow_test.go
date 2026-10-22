@@ -75,8 +75,8 @@ func TestBasicCommitWorkflow(t *testing.T) {
 		repo.WriteFile("test.txt", "test content\n")
 		repo.Git("add", "test.txt")
 
-		// Test commit with message flag
-		output := repo.RunGzhGit("commit", "-m", "test: add test file", "--dry-run")
+		// -m takes 'repo:message'; a common message is --all.
+		output := repo.RunGzhGit("commit", "--all", "test: add test file", "--dry-run")
 
 		// Should accept the message
 		AssertContains(t, output, "Bulk Commit")

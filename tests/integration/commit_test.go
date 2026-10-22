@@ -31,14 +31,15 @@ func TestCommitBulkCommand(t *testing.T) {
 		AssertContains(t, output, "Bulk Commit")
 	})
 
-	t.Run("with message flag", func(t *testing.T) {
+	t.Run("with common message flag", func(t *testing.T) {
 		repo := NewTestRepo(t)
 		repo.SetupWithCommits()
 
 		repo.WriteFile("test.txt", "test content")
 		repo.GitAdd("test.txt")
 
-		output := repo.RunGzhGitSuccess("commit", "-m", "test: add test file", "--dry-run")
+		// -m takes 'repo:message'; a common message is --all.
+		output := repo.RunGzhGitSuccess("commit", "--all", "test: add test file", "--dry-run")
 
 		// Should accept the message
 		AssertContains(t, output, "Bulk Commit")
@@ -52,6 +53,6 @@ func TestCommitBulkCommand(t *testing.T) {
 //
 // For bulk operations:
 //   gz-git commit [directory]           # Bulk commit (default)
-//   gz-git commit -m "message"          # Common message for all repos
-//   gz-git commit --messages "repo:msg" # Per-repo messages
-//   gz-git commit --messages-file file  # Messages from JSON file
+//   gz-git commit --all "message"       # Common message for all repos
+//   gz-git commit -m "repo:msg"         # Per-repo messages
+//   gz-git commit --json '{"repo":"m"}' # Per-repo messages as JSON

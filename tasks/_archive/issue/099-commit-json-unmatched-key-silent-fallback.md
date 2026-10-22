@@ -7,6 +7,10 @@ severity: medium
 discovered-in: "infra-ops agent session (gz-git 0.12.0, footer-bearing commit messages)"
 discovered-at: 2026-10-22
 created: 2026-10-22
+resolution: fixed
+resolved-at: 2026-10-22T08:22:12Z
+resolution-summary: "Resolved as fixed."
+status: done
 ---
 
 ## Summary
@@ -49,3 +53,30 @@ A key equal to the `PATH:` value or its basename commits `msg` as expected.
   way.
 - `analyzeRepositoryForCommit` also drops a generator error (`err == nil` check before
   the fallback); surface it instead of silently using the auto message.
+
+## Resolution (2026-10-22)
+
+Fixed on branch `dev/claude/mst/fix/commit-json-unmatched-key`.
+
+- With an explicit message map (`--json`, `--yaml`, piped input or
+  `-m repo:message`), `runCommit` does a dry run first and fails with exit 1
+  before any commit when a key matches no repository with changes. The error
+  names every unmatched key and the valid keys.
+- Validation and the message generator share one key list
+  (`commitMessageKeys`) resolved against the absolute scan root, so a nested
+  key such as `group/repo` matches when the scan directory is `.` or another
+  relative path. The independent review found the two disagreeing there.
+- A key for a conflicted repository, or one whose analysis failed, counts as
+  matched, so the run reports that repository's own exit 2 instead.
+- Scope decision: a dirty repository that no key covers keeps the auto
+  message. Only unmatched keys fail.
+- `analyzeRepositoryForCommit` reports a generator error as that
+  repository's `error` instead of falling back. Analysis errors now count in
+  `TotalFailed` (exit 2) and no longer in `TotalSkipped`, and the
+  partial-failure total counts every repository that was not clean.
+- `tests/integration/commit_test.go` passed a common message as
+  `-m "test: add test file"`, which `-m` parses as repo `test`. It now uses
+  `--all`, the documented common-message flag.
+
+Out of scope, filed separately: ISSUE-103 (`-e` without `--yes` commits
+before the editor opens).

@@ -235,7 +235,9 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 	//
 	// This is computed before the dry-run return below; when it lived after it,
 	// a dry run always reported 0 skipped.
-	result.TotalSkipped = len(filteredRepos) - result.TotalDirty - result.TotalConflicted
+	// TotalFailed holds only analysis errors at this point; they failed, so
+	// they are not skipped.
+	result.TotalSkipped = len(filteredRepos) - result.TotalDirty - result.TotalConflicted - result.TotalFailed
 
 	// If dry-run, we're done with analysis
 	if opts.DryRun {

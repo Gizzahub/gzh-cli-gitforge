@@ -32,10 +32,10 @@ ______________________________________________________________________
 | 50  | [rewritten-legacy-native-context-delivery](issue/50-rewritten-legacy-native-context-delivery.md)                    | P2       | 다시 쓴 task head가 원래 legacy native 거부를 정리하지 못한다. 수정 위치는 ce-agent-kit `legacy_context_reconcile.go`                                          |
 | 083 | [integrate-tests-stay-sequential-on-process-state](issue/083-integrate-tests-stay-sequential-on-process-state.md)   | P3       | `pkg/integrate`가 게이트 263초 중 243초를 쓴다(6bcd8d9f 재측정). 환경 주입과 분할 실행 중 방식 결정 대기                                                       |
 | 098 | [integrate-argument-surface-adr-0161](issue/098-integrate-argument-surface-adr-0161.md)                             | P2       | ADR-0161이 퇴역시킨 `integrate` 인자 표면이 남아 있다. 서브커맨드별 결정과 CE `run-finish` 동시 변경 필요                                                      |
-| 099 | [commit-json-unmatched-key-silent-fallback](issue/099-commit-json-unmatched-key-silent-fallback.md)                 | P2       | `commit --json`의 어느 저장소에도 맞지 않는 키가 조용히 자동 메시지 커밋으로 이어진다                                                                          |
 | 100 | [removed-key-scan-missed-singlepageweb](issue/100-removed-key-scan-missed-singlepageweb.md)                         | P2       | ISSUE-89 제거 키 재스캔이 singlepageweb-devbox와 자식 저장소, 그리고 mst 전역 설정을 빠뜨렸다                                                                  |
 | 101 | [status-lists-nested-config-repos-sync-skips](issue/101-status-lists-nested-config-repos-sync-skips.md)             | P3       | `sync.recursive`가 없는 중첩 config workspace를 sync는 건너뛰는데 status는 그 저장소를 나열한다                                                                |
 | 102 | [status-loader-pathless-config-workspace-overflows](issue/102-status-loader-pathless-config-workspace-overflows.md) | P3       | `path` 없는 `type: config` workspace가 status 로더를 자기 설정 재귀로 스택 오버플로시킨다                                                                      |
+| 103 | [commit-edit-commits-before-editor](issue/103-commit-edit-commits-before-editor.md)                                 | P2       | `commit -e`를 `--yes` 없이 쓰면 편집기가 열리기 전에 자동 메시지로 커밋된다                                                                                    |
 
 [ISSUE-20](issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 

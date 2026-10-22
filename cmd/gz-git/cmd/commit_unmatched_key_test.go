@@ -89,3 +89,30 @@ func TestCommitJSONMatchedKeyCommitsMessage(t *testing.T) {
 		t.Errorf("HEAD subject = %q, want the explicit message", got)
 	}
 }
+
+// A nested key must match when the scan directory is relative, the usual case
+// of running from the workspace root.
+func TestCommitJSONNestedKeyFromRelativeDirectory(t *testing.T) {
+	setCommitTestGlobals(t)
+	isolateConfigHome(t)
+	commitFlags.Depth = 3
+	depthFlag := commitCmd.Flags().Lookup("scan-depth")
+	origChanged := depthFlag.Changed
+	depthFlag.Changed = true
+	t.Cleanup(func() { depthFlag.Changed = origChanged })
+
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, "group"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	repo := makeDirtyRepoUnder(t, filepath.Join(parent, "group"), "repo")
+	t.Chdir(parent)
+
+	commitJSON = `{"group/repo":"feat: explicit"}`
+	if err := runCommit(commitCmd, []string{"."}); err != nil {
+		t.Fatalf("runCommit: %v", err)
+	}
+	if got := headSubject(t, repo); got != "feat: explicit" {
+		t.Errorf("HEAD subject = %q, want the explicit message", got)
+	}
+}
