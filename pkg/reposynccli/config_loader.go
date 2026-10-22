@@ -10,6 +10,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -446,6 +447,21 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 	}, nil
 }
 
+// configChainKey carries the chain of enclosing config directories through
+// ctx while nested config workspaces load, so this loader can detect config
+// workspace reference cycles without changing exported signatures (ISSUE-102).
+type configChainKey struct{}
+
+// configChain returns the config directories enclosing the current nested
+// load, empty at the top level.
+func configChain(ctx context.Context) []string {
+	chain, ok := ctx.Value(configChainKey{}).([]string)
+	if !ok {
+		return nil
+	}
+	return chain
+}
+
 // loadWorkspacesConfig handles the new hierarchical config format with workspaces.
 // Supports three workspace types:
 //   - type: forge  → fetch repos from forge API (GitHub/GitLab/Gitea)
@@ -535,9 +551,12 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 		}
 
 		// Resolve workspace path (relative to config file location)
+		// A missing path defaults to the workspace name (compact config
+		// convention), matching `workspace sync`; the former "." default made
+		// a pathless config workspace reload this same file (ISSUE-102).
 		wsPath := ws.Path
 		if wsPath == "" {
-			wsPath = "."
+			wsPath = name
 		}
 		if wsPath == "." {
 			wsPath = configDir
@@ -586,7 +605,22 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 			}
 
 		case "config":
-			repos, err = l.loadConfigWorkspace(ctx, wsPath)
+			// A config workspace pointing back at an enclosing config
+			// directory would reload the same file forever (ISSUE-102).
+			// The chain follows one nesting path, so siblings sharing a
+			// nested config are not a cycle. sameDir also catches a symlink
+			// back to an ancestor, as sync's self-sync guard does.
+			chain := configChain(ctx)
+			isAncestor := func(dir string) bool { return sameDir(wsPath, dir) }
+			if isAncestor(configDir) || slices.ContainsFunc(chain, isAncestor) {
+				cycleErr := fmt.Errorf("config workspace cycle at %s", wsPath)
+				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, cycleErr)
+				continue
+			}
+			// The full slice expression copies before appending, so later
+			// siblings still see the parent chain.
+			chainCtx := context.WithValue(ctx, configChainKey{}, append(chain[:len(chain):len(chain)], configDir))
+			repos, err = l.loadConfigWorkspace(chainCtx, wsPath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, err)
 				continue
