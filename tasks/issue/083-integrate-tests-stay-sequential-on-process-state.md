@@ -48,6 +48,41 @@ Whether `pkg/integrate` is still the critical path of the race step has
 not been re-measured since the deletions. Re-measure after ISSUE-93 lands
 and decide from that measurement whether this card still needs work.
 
+## Re-measurement (2026-10-22)
+
+The make gate has never run `-race`: `git log -S'-race' -- .make Makefile`
+finds only the commit that added the build files, and `-race` is only in
+the `cover`, `cover-html` and `test-race` targets, which the gate does not
+call. The race figures in ISSUE-62's Measurements came from a manual
+`go test -race` command. `verify-full` runs `test-unit-quality`, which
+passes `-parallel=1` (`VERIFY_GO_TEST_PARALLEL`, `.make/test.mk`), so
+`t.Parallel()` does not shorten the gate today.
+
+Measured on an export of master `86f02984` (macOS, 18 CPUs) with the
+`test-unit-quality` flags plus `-count=1` and `-json`:
+
+| `-parallel` | Wall-clock | `pkg/integrate` | Next package          |
+| ----------- | ---------- | --------------- | --------------------- |
+| 1 (gate)    | 263 s      | 243 s           | `pkg/repository` 48 s |
+| 4           | 219 s      | 202 s           | `pkg/repository` 49 s |
+
+- `pkg/integrate` is still the critical path: five times the next package
+  in the gate run, four times with `-parallel=4`.
+- It has 229 top-level tests; 155 call `t.Parallel()` (one of them skips)
+  and 74 do not. The 74 sequential tests add up to 153 s in the gate run
+  and 168 s with `-parallel=4`, so no `-parallel` value takes the package
+  much below 150 s. The slowest sequential tests are cleanup tests:
+  `TestLegacyCleanupCERuntimeGuard` 12 s,
+  `TestCleanupOnlyRetryLeaseGeneration` 11 s and
+  `TestCleanupRereadGuardAfterFirstRead` 9 s (gate run).
+- The export has no `.git`, so seven top-level tests in `pkg/repository`,
+  `benchmarks` and `tests/cli` that need the repository root to be a Git
+  checkout failed in both runs. They do not touch `pkg/integrate`.
+
+The card still needs work. Raising the gate's `-parallel` value is a
+separate, smaller choice: it is worth about 40 s, and the comment next to
+`VERIFY_GO_TEST_PARALLEL` keeps it at 1 on purpose.
+
 ## Reproduction
 
 `grep -c 't.Parallel()' pkg/integrate/*_test.go` against the count of
