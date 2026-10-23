@@ -6,6 +6,14 @@ first. Each record is kept as written when it was adopted; commands, gates and
 `tmp/` paths it names describe that time, not the current suite. Section
 references (`§6 above`, `the commands below`) point into the contract.
 
+The prior clean `c6d5bf84` reference (`412-gc6d5bf84`) replaces `f88f4331`
+together with the readiness contract removal. CE's non-test changes in that
+range (`access*.go`, `task_cleanup.go`, `task_lint.go`) are off the captured
+paths. Normalized for CE identity, ten fixtures are byte-identical and two
+(discard-no-fetch, doctor-active) differ only in captured `integrate --help`
+text. Exits, status, ownership, refs, push and cleanup are unchanged.
+Evidence is in `reports/2026-10-21-ce-parity-reference-c6d5bf84.md`.
+
 The prior `f88f4331` (legacy make gate removal) and `f66d06c1` (identity
 only) references are recorded in
 `reports/2026-10-21-ce-parity-reference-f88f4331.md` and

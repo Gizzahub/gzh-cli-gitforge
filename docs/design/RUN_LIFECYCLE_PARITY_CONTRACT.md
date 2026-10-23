@@ -7,7 +7,7 @@ window") and the `run-lifecycle` row of the CE migration ledger
 (`ce-agent-kit/docs/00-product/11-task-migration-ledger.md`).
 
 The current behavioral reference is **CE source `ce-agent-kit`
-`c6d5bf842d6adae7bd93327ee0fa0d13d49ca584`**, installed as CE 0.10.14 with
+`fd175fd2b73dc457de8fa284dd93fc0361af07d8`**, installed as CE 0.10.24 with
 `vcs.modified=false`. In addition to CE's release/build stamps, the suite verifies
 the full revision and clean state from Go executable metadata. Fixtures must
 not claim a reference revision different from the executable they capture.
@@ -30,7 +30,7 @@ Reference toolchain used by the fixtures:
 
 | Component        | Version                                                  | Role                             |
 | ---------------- | -------------------------------------------------------- | -------------------------------- |
-| `ce`             | 0.10.14 (`c6d5bf84`, clean Go build metadata)            | system under test (reference)    |
+| `ce`             | 0.10.24 (`fd175fd2`, clean Go build metadata)            | system under test (reference)    |
 | `wt` (Worktrunk) | 0.80.0 (CE accepts the 0.80 minor line since `b09a605e`) | worktree create/remove/inventory |
 | `gz-git`         | test-built current checkout (`GOWORK=off`)               | integration provider (reclaim)   |
 | `git`            | system git                                               | refs, worktree plumbing          |
@@ -560,13 +560,14 @@ ______________________________________________________________________
 
 ## 7. Fixture suite
 
-The current clean `c6d5bf84` reference (`412-gc6d5bf84`) replaces `f88f4331`
-together with the readiness contract removal. CE's non-test changes in that
-range (`access*.go`, `task_cleanup.go`, `task_lint.go`) are off the captured
-paths. Normalized for CE identity, ten fixtures are byte-identical and two
+The current clean `fd175fd2` reference (`527-gfd175fd2b`, CE 0.10.24) replaces
+`c6d5bf84`. Normalized for CE identity, ten fixtures are byte-identical and two
 (discard-no-fetch, doctor-active) differ only in captured `integrate --help`
-text. Exits, status, ownership, refs, push and cleanup are unchanged.
-Evidence is in `reports/2026-10-21-ce-parity-reference-c6d5bf84.md`.
+text, which drops the retired lock-wait wording (ISSUE-93). Exits, status,
+ownership, refs, push and cleanup are unchanged. CE's `taskruntime` changes in
+that range (finish judgment, settle, sibling provisioning) are not reached by
+the twelve scenarios, so this capture does not attest them.
+Evidence is in `reports/2026-10-24-ce-parity-reference-fd175fd2.md`.
 
 Adopting a reference requires a machine capture of all twelve scenarios, fresh
 non-record verification, and independent comparison of the complete diff.
