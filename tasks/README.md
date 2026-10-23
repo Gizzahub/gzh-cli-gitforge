@@ -37,7 +37,7 @@ ______________________________________________________________________
 | 102 | [status-loader-pathless-config-workspace-overflows](issue/102-status-loader-pathless-config-workspace-overflows.md) | P3       | `path` 없는 `type: config` workspace가 status 로더를 자기 설정 재귀로 스택 오버플로시킨다                                                                      |
 | 103 | [commit-edit-commits-before-editor](issue/103-commit-edit-commits-before-editor.md)                                 | P2       | `commit -e`를 `--yes` 없이 쓰면 편집기가 열리기 전에 자동 메시지로 커밋된다                                                                                    |
 | 106 | [legacy-cleanup-identity-inode-reuse](issue/106-legacy-cleanup-identity-inode-reuse.md)                             | P2       | legacy cleanup ABA 테스트가 Linux에서 간헐적으로 다시 만든 worktree를 통과시킨다(inode 재사용 추정, 미확인)                                                    |
-| 107 | [reusable-gate-worktree](issue/107-reusable-gate-worktree.md)                                                       | P3       | 고정 경로에서 재사용하는 거버넌스 게이트 worktree가 없다. 이득은 미측정(sigdock-idp-rs 632–924s, 통제 측정 선행)                                               |
+| 107 | [reusable-gate-worktree](issue/107-reusable-gate-worktree.md)                                                       | P3       | 고정 경로에서 재사용하는 거버넌스 게이트 worktree가 없다. 이득은 미측정(sigdock-idp-rs 632–1065s, 통제 측정 선행)                                              |
 
 [ISSUE-20](issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 
