@@ -76,6 +76,13 @@ gitforge 체크아웃에서
 - 원격 추적 ref가 없을 때 CE가 거부하는 경로는 지금 어떤 시나리오에도 없다.
   포트를 고칠 때 그 시나리오를 추가할지 함께 정한다.
 
+## 함께 처리할 것
+
+ISSUE-93(아카이브)의 후속: parity 골든 `doctor-active.json`과
+`discard-no-fetch.json`에 퇴역한 integrate help 문구("waits for it until the
+lock is free")가 남아 있다. 락 제거는 v0.13.0부터 배포됐으므로, 포트를 고친 뒤
+설치된 ce와 gz-git로 골든을 다시 녹화할 때 함께 갱신한다.
+
 ## 완료 판정
 
 - `PARITY_TARGET=gz-git go test ./tests/parity/... -run TestCEParity -count=1`이

@@ -34,4 +34,4 @@ declarations") deleted the gate host slots, FIFO admission
 guarded. gz-git now runs no repository code, so there is no window between
 slot acquisition and a gate start. The target lock that this card asked to
 preserve is itself being removed under
-[ISSUE-93](../../issue/093-integrate-target-lock-removal.md).
+[ISSUE-93](093-integrate-target-lock-removal.md).

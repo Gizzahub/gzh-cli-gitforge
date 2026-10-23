@@ -41,7 +41,7 @@ longer exist in production code. Of the 77, 25 call `t.Setenv` directly;
 most of the rest are cleanup and reclaim tests (`cleanup_retry_test.go`
 23, `reclaim_evidence_test.go` 13, `legacy_cleanup_security_test.go` 9)
 that share the `TestMain` state directory or the target lock.
-[ISSUE-93](093-integrate-target-lock-removal.md) removes the target lock
+[ISSUE-93](../_archive/issue/093-integrate-target-lock-removal.md) removes the target lock
 and rewrites several of those tests.
 
 Whether `pkg/integrate` is still the critical path of the race step has

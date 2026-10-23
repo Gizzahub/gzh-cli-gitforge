@@ -49,5 +49,5 @@ lines 146–154.
 First written as ISSUE-77 on the unlanded branch
 `dev/claude/mst/feat/refresh-under-target-lock` (commit e12081b8). That run
 was ABORTED on 2026-10-21 and is not to be landed (see
-[ISSUE-93](093-integrate-target-lock-removal.md)), and ISSUE-77 is now another
+[ISSUE-93](../_archive/issue/093-integrate-target-lock-removal.md)), and ISSUE-77 is now another
 card on master, so the finding is re-registered here.

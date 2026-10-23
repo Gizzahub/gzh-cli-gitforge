@@ -17,9 +17,9 @@ loaded the repository-root declaration with
 `config.LoadRepoRootTaskPattern(root)` (`pkg/integrate/check.go:99`), which
 reads the working tree, which is the default branch's `.gz-git.yaml`.
 
-After [ISSUE-89](../_archive/issue/089-release-0-12-blocked-by-removed-keys.md)
-and [ISSUE-90](../_archive/issue/090-removed-key-guard-skips-other-loaders.md), a removed key
-refuses that load with exit 2. [ISSUE-100](100-removed-key-scan-missed-singlepageweb.md)
+After [ISSUE-89](089-release-0-12-blocked-by-removed-keys.md)
+and [ISSUE-90](090-removed-key-guard-skips-other-loaders.md), a removed key
+refuses that load with exit 2. [ISSUE-100](../../issue/100-removed-key-scan-missed-singlepageweb.md)
 then found `branch.prepareProfile` still declared in singlepageweb-devbox's
 child repositories. The repositories deleted it on `develop`, for example
 singlepageweb-calculator `0ee4886d16bb1076194d0ed188eef375609cc70b`.
@@ -112,6 +112,13 @@ When the provenance cannot read the declaration, it records a
 as before.
 
 There is no flag, no environment bypass and no warning-only downgrade.
+
+## Resolution
+
+Resolved on 2026-10-23 by `c8b44f0a` (read the release declaration from the
+source commit), `2cd836b4` (read it only after the fetch) and `f02ae7a4`
+(gate a release on the target's `integrationBranch`), released in v0.13.1
+(`9dc8bcce`). The follow-ups are ISSUE-110.
 
 ## Scope
 

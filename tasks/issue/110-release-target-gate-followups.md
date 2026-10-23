@@ -11,7 +11,7 @@ created: 2026-10-23
 
 ## Summary
 
-[ISSUE-109](109-release-reads-target-working-tree-declaration.md) gates a
+[ISSUE-109](../_archive/issue/109-release-reads-target-working-tree-declaration.md) gates a
 `--release` on the `branch.integrationBranch` committed at the target commit.
 Its third review left two non-blocking follow-ups. Neither weakens the gate:
 both fail closed.
