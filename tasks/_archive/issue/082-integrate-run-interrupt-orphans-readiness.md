@@ -76,8 +76,10 @@ gz-git 0.10.5, singlepageweb-devbox, 2026-10-20 (times UTC+9):
   already-orphaned worktree. This issue asks that interruption not orphan
   anything in the first place.
 - ISSUE-74 (`074-readiness-cleanup-leaves-registration.md`, registered on a
-  pending branch; not yet on master): readiness cleanup fails
+  pending branch; never landed): readiness cleanup fails
   after a READY verdict without any signal. Same workspace, different trigger.
+  Obsolete since b8b4cccc removed the readiness contract and its worktree
+  cleanup.
 - singlepageweb-devbox `troubleshooting/2026-10-20/02-run-finish-interrupt-orphans.md`
   (consumer record of the manual recovery).
 

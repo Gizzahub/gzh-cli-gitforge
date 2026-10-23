@@ -23,7 +23,7 @@ ______________________________________________________________________
 
 ## Open Issues (후속)
 
-2026-10-22 기준 열린 카드만 둔다. 닫힌 카드는 각 카드의 Resolution과
+2026-10-23 기준 열린 카드만 둔다. 닫힌 카드는 각 카드의 Resolution과
 [tasks-history](../docs/changelog/tasks-history.md)에 있다.
 
 | #   | 이슈                                                                                                                | 우선순위 | 요약                                                                                                                                                           |
@@ -33,10 +33,9 @@ ______________________________________________________________________
 | 083 | [integrate-tests-stay-sequential-on-process-state](issue/083-integrate-tests-stay-sequential-on-process-state.md)   | P3       | `pkg/integrate`가 게이트 263초 중 243초를 쓴다(6bcd8d9f 재측정). 환경 주입과 분할 실행 중 방식 결정 대기                                                       |
 | 098 | [integrate-argument-surface-adr-0161](issue/098-integrate-argument-surface-adr-0161.md)                             | P2       | ADR-0161이 퇴역시킨 `integrate` 인자 표면이 남아 있다. 서브커맨드별 결정과 CE `run-finish` 동시 변경 필요                                                      |
 | 100 | [removed-key-scan-missed-singlepageweb](issue/100-removed-key-scan-missed-singlepageweb.md)                         | P2       | ISSUE-89 제거 키 재스캔이 singlepageweb-devbox와 자식 저장소, 그리고 mst 전역 설정을 빠뜨렸다                                                                  |
-| 101 | [status-lists-nested-config-repos-sync-skips](issue/101-status-lists-nested-config-repos-sync-skips.md)             | P3       | `sync.recursive`가 없는 중첩 config workspace를 sync는 건너뛰는데 status는 그 저장소를 나열한다                                                                |
-| 102 | [status-loader-pathless-config-workspace-overflows](issue/102-status-loader-pathless-config-workspace-overflows.md) | P3       | `path` 없는 `type: config` workspace가 status 로더를 자기 설정 재귀로 스택 오버플로시킨다                                                                      |
-| 103 | [commit-edit-commits-before-editor](issue/103-commit-edit-commits-before-editor.md)                                 | P2       | `commit -e`를 `--yes` 없이 쓰면 편집기가 열리기 전에 자동 메시지로 커밋된다                                                                                    |
+| 104 | [sync-and-status-loaders-duplicate-workspace-rules](issue/104-sync-and-status-loaders-duplicate-workspace-rules.md) | P3       | sync와 status가 같은 workspaces 설정을 서로 다른 로더로 읽고, 네 규칙이 두 곳에 중복 구현되어 네 번 어긋났다                                                   |
 | 107 | [reusable-gate-worktree](issue/107-reusable-gate-worktree.md)                                                       | P3       | 고정 경로에서 재사용하는 거버넌스 게이트 worktree가 없다. 이득은 미측정(sigdock-idp-rs 632–1065s, 통제 측정 선행)                                              |
+| 108 | [not-ready-run-reports-unbound-pre-mutation](issue/108-not-ready-run-reports-unbound-pre-mutation.md)               | P3       | 실행 컨텍스트 없는 not-ready 거부에 "pre-mutation outcome is not bound" 오류가 덧붙어 두 번째 실패처럼 보인다                                                  |
 
 [ISSUE-20](_archive/issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 
