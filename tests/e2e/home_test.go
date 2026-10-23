@@ -23,6 +23,8 @@ func isolateHome(dir string) error {
 		"HOME":                home,
 		"XDG_CONFIG_HOME":     filepath.Join(home, ".config"),
 		"GIT_CONFIG_NOSYSTEM": "1",
+		// An inherited GIT_CONFIG_GLOBAL would replace the isolated .gitconfig.
+		"GIT_CONFIG_GLOBAL": filepath.Join(home, ".gitconfig"),
 	}
 	for key, value := range env {
 		if err := os.Setenv(key, value); err != nil {

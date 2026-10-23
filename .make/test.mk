@@ -23,6 +23,16 @@ VERIFY_GO_TEST_PARALLEL ?= 1
 # without changing the selected package set or its coverage assertions.
 VERIFY_GO_FULL_PACKAGE_TIMEOUT ?= 30m
 
+# Tests see no global or system Git configuration, as on a hosted runner.
+# A developer's identity, signing, or default-branch settings would otherwise
+# let a test pass locally that fails in CI. A test that needs a global value
+# sets its own GIT_CONFIG_GLOBAL; writing to /dev/null fails visibly.
+GIT_ISOLATED_TEST_TARGETS := test test-unit test-unit-quality test-affected \
+	coverage-critical-check test-integration-quality test-integration-only \
+	test-e2e-only cover cover-html cover-report test-race test-verbose test-timeout
+$(GIT_ISOLATED_TEST_TARGETS): export GIT_CONFIG_GLOBAL := /dev/null
+$(GIT_ISOLATED_TEST_TARGETS): export GIT_CONFIG_NOSYSTEM := 1
+
 # ==============================================================================
 # Testing Targets
 # ==============================================================================
