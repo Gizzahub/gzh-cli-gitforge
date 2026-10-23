@@ -8,19 +8,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
 // cancelWaitDelay bounds how long Wait keeps copying output into a buffer
 // after git exits or is canceled. Canceling kills only git itself; a process
 // it spawned (an upload-pack wrapper, ssh, a credential helper) can keep the
-// pipe open and would otherwise hold Wait until that process exits. It does
-// not bound a caller's own read from StdoutPipe.
+// pipe open and would otherwise hold Wait until that process exits.
 const cancelWaitDelay = 2 * time.Second
 
 // ignoreWaitDelay drops exec.ErrWaitDelay when git itself exited 0: the
@@ -231,26 +230,50 @@ func (e *Executor) runWithOutputLimit(ctx context.Context, dir string, env []str
 	cmd.Dir = dir
 	cmd.Env = env
 	cmd.WaitDelay = cancelWaitDelay
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return &Result{Error: err, ExitCode: -1}, false, fmt.Errorf("create stdout pipe: %w", err)
-	}
+	// Stdout is a writer, not StdoutPipe, so exec owns the copy and WaitDelay
+	// bounds it: a child holding the pipe open cannot stall the read.
+	stdout := &stdoutLimitWriter{limit: limit, onOverflow: cancelCommand}
+	cmd.Stdout = stdout
 	var stderr bytes.Buffer
 	cmd.Stderr = &outputLimitWriter{w: &stderr, remaining: 128 << 10}
 	if err := cmd.Start(); err != nil {
 		return &Result{Error: err, ExitCode: -1}, false, nil
 	}
-	data, readErr := io.ReadAll(io.LimitReader(stdout, limit+1))
-	overflow := int64(len(data)) > limit
-	if overflow {
-		data = data[:limit]
-		cancelCommand()
-	}
 	waitErr := ignoreWaitDelay(cmd, cmd.Wait())
-	if readErr != nil {
-		return commandResult(string(data), stderr.String(), waitErr, start), overflow, fmt.Errorf("read stdout: %w", readErr)
-	}
+	data, overflow := stdout.result()
 	return commandResult(string(data), stderr.String(), waitErr, start), overflow, nil
+}
+
+// stdoutLimitWriter keeps the first limit bytes. The first byte past the limit
+// marks overflow and cancels git; later output is discarded so the copy drains.
+type stdoutLimitWriter struct {
+	mu         sync.Mutex
+	buf        bytes.Buffer
+	limit      int64
+	overflow   bool
+	onOverflow func()
+}
+
+func (w *stdoutLimitWriter) Write(data []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.overflow {
+		return len(data), nil
+	}
+	if room := w.limit - int64(w.buf.Len()); int64(len(data)) > room {
+		w.buf.Write(data[:room])
+		w.overflow = true
+		w.onOverflow()
+		return len(data), nil
+	}
+	w.buf.Write(data)
+	return len(data), nil
+}
+
+func (w *stdoutLimitWriter) result() ([]byte, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Bytes(), w.overflow
 }
 
 func commandResult(stdout, stderr string, commandErr error, started time.Time) *Result {

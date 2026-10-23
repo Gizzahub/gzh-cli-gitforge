@@ -58,3 +58,37 @@ func TestExecutorRunReturnsAfterCancelWhenAChildKeepsThePipeOpen(t *testing.T) {
 		t.Fatalf("Run waited %s after cancel", elapsed)
 	}
 }
+
+// RunWithOutputLimit once read stdout from StdoutPipe itself, and WaitDelay
+// does not bound a caller's own read: a lingering child held it until the child
+// exited. The clean-exit test guards that hang; the overflow test checks that
+// the writer-based path also returns promptly once it cancels the command.
+func TestExecutorRunWithOutputLimitReturnsWhenAChildKeepsThePipeOpen(t *testing.T) {
+	e := NewExecutor(WithGitBinary(fakeGitLeavingChild(t, false)))
+	started := time.Now()
+	res, overflow, err := e.RunWithOutputLimit(context.Background(), t.TempDir(), nil, 1<<20, "archive")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overflow || res.ExitCode != 0 || res.Error != nil || strings.TrimSpace(res.Stdout) != "done" {
+		t.Fatalf("overflow=%v exit=%d err=%v stdout=%q", overflow, res.ExitCode, res.Error, res.Stdout)
+	}
+	if elapsed := time.Since(started); elapsed > 10*time.Second {
+		t.Fatalf("RunWithOutputLimit waited %s for the lingering child", elapsed)
+	}
+}
+
+func TestExecutorRunWithOutputLimitReturnsAfterOverflowWhenAChildKeepsThePipeOpen(t *testing.T) {
+	e := NewExecutor(WithGitBinary(fakeGitLeavingChild(t, true)))
+	started := time.Now()
+	res, overflow, err := e.RunWithOutputLimit(context.Background(), t.TempDir(), nil, 2, "archive")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !overflow || res.Stdout != "do" || res.ExitCode == 0 {
+		t.Fatalf("overflow=%v exit=%d stdout=%q", overflow, res.ExitCode, res.Stdout)
+	}
+	if elapsed := time.Since(started); elapsed > 10*time.Second {
+		t.Fatalf("RunWithOutputLimit waited %s after overflow", elapsed)
+	}
+}
