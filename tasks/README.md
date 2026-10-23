@@ -38,7 +38,7 @@ ______________________________________________________________________
 | 103 | [commit-edit-commits-before-editor](issue/103-commit-edit-commits-before-editor.md)                                 | P2       | `commit -e`를 `--yes` 없이 쓰면 편집기가 열리기 전에 자동 메시지로 커밋된다                                                                                    |
 | 107 | [reusable-gate-worktree](issue/107-reusable-gate-worktree.md)                                                       | P3       | 고정 경로에서 재사용하는 거버넌스 게이트 worktree가 없다. 이득은 미측정(sigdock-idp-rs 632–1065s, 통제 측정 선행)                                              |
 
-[ISSUE-20](issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
+[ISSUE-20](_archive/issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 
 ### Recently closed (2026-08-25)
 

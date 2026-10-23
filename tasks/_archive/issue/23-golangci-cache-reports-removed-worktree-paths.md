@@ -103,5 +103,5 @@ branch diagnostics reference paths outside the repository: ...
 - `pkg/integrate/check_make.go` — per-run `GOLANGCI_LINT_CACHE`
 - `pkg/integrate/check_baseline.go` — `foreignDiagnosticLocations` / `foreignDiagnosticError`
 - `docs/user/guides/troubleshooting.md`
-- 관련: [21-golangci-exclusion-paths-unanchored](21-golangci-exclusion-paths-unanchored.md)
+- 관련: [21-golangci-exclusion-paths-unanchored](../../issue/21-golangci-exclusion-paths-unanchored.md)
   (제외 패턴 앵커링 — 캐시와는 별개 사안)

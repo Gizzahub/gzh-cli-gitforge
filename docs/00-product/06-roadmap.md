@@ -5,7 +5,7 @@
 이 문서는 과거 구현 기록과 현재 검증 상태를 구분한다.
 
 - 과거 구현 완료는 현재 stable 게시·설치 검증을 의미하지 않는다.
-- 현재 stable 게시·설치 증거는 issue28에서 확인한다. ([28-goreleaser-brews-deprecated-and-ci-pins-latest.md](../../tasks/issue/28-goreleaser-brews-deprecated-and-ci-pins-latest.md))
+- 현재 stable 게시·설치 증거는 issue28에서 확인한다. ([28-goreleaser-brews-deprecated-and-ci-pins-latest.md](../../tasks/_archive/issue/28-goreleaser-brews-deprecated-and-ci-pins-latest.md))
 - 평가 기준: master 81d3543 (2026-10-02)
 - adoption: 미측정
 - 추가 TUI·notify backend 구현은 미승인 계획이다.
@@ -39,7 +39,7 @@
 
 이 표는 과거 구현 완료의 기록이다. 현재 stable 게시·설치 증거는 issue28에서
 확인한다. 근거 문서:
-[28-goreleaser-brews-deprecated-and-ci-pins-latest.md](../../tasks/issue/28-goreleaser-brews-deprecated-and-ci-pins-latest.md).
+[28-goreleaser-brews-deprecated-and-ci-pins-latest.md](../../tasks/_archive/issue/28-goreleaser-brews-deprecated-and-ci-pins-latest.md).
 게시·설치 검증이 확인될 때까지 이 단계를 stable 달성으로 표시하지 않는다.
 
 ### Phase 8: Advanced Features (진행 중) 🔄

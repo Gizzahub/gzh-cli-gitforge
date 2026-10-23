@@ -22,7 +22,7 @@
   제거와 함께 재녹화했다.
 - CE identity를 정규화하면 10개는 바이트 동일하고, 2개는 `integrate --help`
   문구만 바뀐다. 종료·상태·ref·push·cleanup은 같다.
-- 근거: [c6d5bf84 채택 기록](../../reports/2026-10-21-ce-parity-reference-c6d5bf84.md).
+- 근거: [c6d5bf84 채택 기록](../../../reports/2026-10-21-ce-parity-reference-c6d5bf84.md).
 - 설치 CE가 바뀔 때마다 기본 게이트가 깨지는 구조는 이 카드의 재고정 반복으로
   해결하지 않는다. parity를 기본 게이트에서 분리하는 별도 작업으로 다룬다.
 
@@ -33,7 +33,7 @@
   옮기고 legacy make 게이트 제거와 함께 재녹화했다.
 - CE identity를 정규화하면 6개는 바이트 동일하고, 6개는 gz-git stdout만 바뀐다
   (gate mode `none`, make 행 제거, help 문구). 종료·상태·ref·push·cleanup은 같다.
-- 근거: [f88f4331 채택 기록](../../reports/2026-10-21-ce-parity-reference-f88f4331.md).
+- 근거: [f88f4331 채택 기록](../../../reports/2026-10-21-ce-parity-reference-f88f4331.md).
 
 ## f66d06c1 추가 채택 (2026-10-20)
 
@@ -42,7 +42,7 @@
   재녹화했다.
 - CE identity를 정규화하면 12개 모두 바이트 동일하다. 시나리오·normalizer·
   상태·종료·권한·ref·push·cleanup은 바뀌지 않았다. non-record parity PASS.
-- 근거: [f66d06c1 채택 기록](../../reports/2026-10-20-ce-parity-reference-f66d06c1.md).
+- 근거: [f66d06c1 채택 기록](../../../reports/2026-10-20-ce-parity-reference-f66d06c1.md).
 
 ## Resolution (2026-10-20)
 
@@ -51,7 +51,7 @@
 - 참조를 설치 CE clean `6baa7f9e`(`345-g6baa7f9e`)로 옮기고 12개를 재녹화했다.
   차이는 CE identity와 finish 두 시나리오의 마스킹된 stderr 줄뿐이다.
 - non-record parity 검증 PASS. 근거:
-  [채택 기록](../../reports/2026-10-20-ce-parity-reference-6baa7f9e.md). 최종 전달
+  [채택 기록](../../../reports/2026-10-20-ce-parity-reference-6baa7f9e.md). 최종 전달
   판정은 native `run-finish` 영수증이 소유한다.
 
 ## 42363c6e 추가 채택 (2026-10-18)
@@ -66,7 +66,7 @@
 - issue resolve 거절·readiness cleanup 실패는 해당 12개에서 호출하지 않는다.
   소유 회귀와 capture의 검증 범위를 구분하며 이전 전달 이력은 보존한다.
 - 현재 후보의 배포·검사·전달 경계는
-  [42363c6e 채택 기록](../../reports/2026-10-18-ce-parity-reference-42363c6e.md)을 따른다.
+  [42363c6e 채택 기록](../../../reports/2026-10-18-ce-parity-reference-42363c6e.md)을 따른다.
 
 ## 8f7c2963 추가 채택 (2026-10-18)
 
@@ -79,7 +79,7 @@
 - targeted record 62.939초와 별도 전체 non-record 44.028초에 성공했고,
   검사 전후 실행 파일 해시가 일치했다.
 - 아래 ef33833b 결과는 역사적 관측이다. 현재 검증과 최종 native 전달 근거는
-  [채택 기록](../../reports/2026-10-18-ce-parity-reference-ef33833b.md)의 현재 후보 절을 따른다.
+  [채택 기록](../../../reports/2026-10-18-ce-parity-reference-ef33833b.md)의 현재 후보 절을 따른다.
 
 ## ef33833b 후속 참조 채택 (2026-10-18)
 
@@ -107,7 +107,7 @@
 - 재배치 전 실제 make check·lint는 통과했으나, source 이동으로 native 통합은
   거절됐다. 재배치 이후의 전달·정리 결과는 최종 native receipt로 확인한다.
 - raw 근거와 검토 범위는
-  [채택 기록](../../reports/2026-10-18-ce-parity-reference-ef33833b.md)에 있다.
+  [채택 기록](../../../reports/2026-10-18-ce-parity-reference-ef33833b.md)에 있다.
   과거 실패·해결 기록은 아래에 당시 관측으로 보존한다.
 
 ## 참조 정합화 (2026-10-18)
@@ -485,7 +485,7 @@ full PASS로 이월하지 않는다. 최종 전달 판정은 native 영수증이
 
 readiness runner 예산 후보의 최초 native 전달은 설치 CE `e8307aa4`와 golden의 guard
 불일치를 관측했다. 기준 source62459750과 후보72d5796b의 `tests/parity` Git tree는
-동일하다. [전달 기록](../../docs/task-reviews/readiness-runner-budget/validation.md)과
+동일하다. [전달 기록](../../../docs/task-reviews/readiness-runner-budget/validation.md)과
 [원본 영수증](../../docs/task-reviews/readiness-runner-budget/first-finish.json)을 보존한다.
 이번에는 별도의 실행 잠금 테스트 진단이 source에 추가돼 native가 BLOCKED를 반환했다.
 parity 재녹화·기대값 변경·통합 우회는 하지 않으며, 이번 결과는 전달 성공이 아니다.

@@ -40,7 +40,7 @@ golden을 검사하는 pin assertion도 함께 실행해 package가 실패했으
 clean committed primary의 `make install`과 selected-path audit가 성공했다.
 설치본은 `a1c51c9f`, SHA-256은
 `15fddbccd4ef3135f88d04d02400f2d89b4ad3a2551c86591d35b0feaa50bad5`다.
-상세 소유 기록은 [ISSUE54](../tasks/issue/54-resource-probe-deadline.md)에 있다.
+상세 소유 기록은 [ISSUE54](../tasks/_archive/issue/54-resource-probe-deadline.md)에 있다.
 parity 작업도 이 source 위로 재배치했고, 변경된 checkout provider를 새로 빌드한
 별도 전체 non-record parity 검사가 29.593초에 성공했다. 로그는
 `tmp/parity-8f7c2963-installed-provider-verify.log`다. ISSUE55의 기존 slot 직전 freshness

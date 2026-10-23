@@ -70,7 +70,7 @@ CLI 요청 문장 `테스트완료` 및 실제 candidate runner의 성공 결과
 
 전체 native gate는 통과하지 않았다. CE parity 참조 불일치와 설치된 구버전
 provider의 15분 전체 제한 때문에 기준선 비교를 완료하지 못했다.
-구체적 revision·진단 경로는 [ISSUE-41](../tasks/issue/41-ce-parity-golden-drift.md)에
+구체적 revision·진단 경로는 [ISSUE-41](../tasks/_archive/issue/41-ce-parity-golden-drift.md)에
 기록했다. 관련 `pkg/integrate` 전체 단위 검사는 796.081초에 통과했지만,
 이를 전체 게이트 성공으로 해석하지 않는다.
 

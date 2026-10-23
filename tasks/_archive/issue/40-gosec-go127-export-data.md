@@ -7,7 +7,7 @@
 - owner: `gzh-cli-gitforge/.make/tools.mk`
 - work-card: 중앙 보드 카드 TASK-270 (devbox `tasks/todo/270-gitforge-gosec-go127-compatibility.md`)
 
-현재 핀과 Go 1.27.2 검증 기록은 [quality baseline 검증](../../docs/task-reviews/quality-baseline/validation.md)을 참조한다. 아래 TASK-270 및 영수증은 당시 실행 기록으로 보존한다.
+현재 핀과 Go 1.27.2 검증 기록은 [quality baseline 검증](../../../docs/task-reviews/quality-baseline/validation.md)을 참조한다. 아래 TASK-270 및 영수증은 당시 실행 기록으로 보존한다.
 
 ## 증상과 원인
 

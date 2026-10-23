@@ -62,7 +62,7 @@ b79c1a4a 차이를 거절했다. primary source에서도 같은 guard 실패(exi
 CE locator의 source·배포·live 경로 일치와 실행 revision 일치는 서로 다릅니다.
 2026-10-14 관측은 source HEAD 9012626c, clean 실행 CE b79c1a4a, gitforge 참조
 cd0e1d19입니다. 실제 fixture 의미 비교 전에는 stamp-only로 판정하지 않습니다.
-[ISSUE-41의 단일 후보 후속안](../../../tasks/issue/41-ce-parity-golden-drift.md#%EC%A0%9C%EC%95%88%ED%95%9C-%EB%8B%A8%EC%9D%BC-%ED%9B%84%EB%B3%B4-%EC%98%88%EC%82%B0--%EC%95%84%EC%A7%81-%ED%99%9C%EC%84%B1%ED%99%94%ED%95%98%EC%A7%80-%EC%95%8A%EC%9D%8C)은
+[ISSUE-41의 단일 후보 후속안](../../../tasks/_archive/issue/41-ce-parity-golden-drift.md#%EC%A0%9C%EC%95%88%ED%95%9C-%EB%8B%A8%EC%9D%BC-%ED%9B%84%EB%B3%B4-%EC%98%88%EC%82%B0--%EC%95%84%EC%A7%81-%ED%99%9C%EC%84%B1%ED%99%94%ED%95%98%EC%A7%80-%EC%95%8A%EC%9D%8C)은
 소진된 TASK-318/321과 별개이며 아직 활성화하지 않았습니다.
 
 DVA의 [공식 latest stable](https://github.com/ScriptonBasestar/dva/releases/latest)은
