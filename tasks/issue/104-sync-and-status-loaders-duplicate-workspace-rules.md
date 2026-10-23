@@ -117,3 +117,51 @@ Open questions:
   (`workspacesConfig`, `loadWorkspacesConfig`, `loadForgeWorkspace`,
   `loadConfigWorkspace`) into a sibling file, after
   `config_loader_git_workspace.go`, fits this work.
+
+## Progress
+
+2026-10-23 (option 1, partial): the classification rule and the path
+default are shared; the card stays open for the rest.
+
+- Decisions (user): sync's rule is canonical, so an untyped or
+  `type: git` workspace without `url` and with `sync.recursive: true` is a
+  config workspace in status too; `type: config` (or `type: git`) with a
+  `source` is a config error in both commands instead of forge in sync and
+  config in status.
+- `pkg/config/workspace_kind.go`: `ClassifyWorkspace` (and
+  `(*Workspace).Kind`), `SyncsConfigWorkspace`, `WorkspacePathOrName`, and
+  the sentinel `ErrWorkspaceTypeConflict`. `GetForgeWorkspaces`,
+  `GetGitWorkspaces`, `GetConfigWorkspaces`, `ValidateWorkspace` and
+  `config hierarchy` use it; the status loader `loadWorkspacesConfig`
+  replaces its own type inference and recursive gate with it.
+  `loadConfigRecursiveWithVisited` checks the conflict on top and nested
+  entries but keeps recursing only into explicit `type: config` entries:
+  that recursion only validates, and an error there drops every workspace
+  behind sync's load warning, while the config planner loads an inferred
+  config workspace and fails on its errors (review finding).
+- The conflict fails `LoadConfigRecursive`; `workspace sync` returns that
+  error instead of its usual load warning. Status returns it from `Load`,
+  including from a nested config. Accepted asymmetry: sync also validates
+  the child of an explicit non-recursive `type: config` workspace (the
+  ISSUE-95 cycle tests rely on it), so only sync refuses a conflict there,
+  as it already does a cycle or parse error.
+- Kept: the loader still accepts an unknown type
+  (`TestLoadConfigRecursive_InvalidWorkspaceType`); the validator reports
+  it. Status now skips an unknown type with a warning, as sync plans none,
+  where it used to load it as a git workspace.
+- Tests: `TestClassifyWorkspace`, `TestWorkspaceGettersShareClassification`,
+  `TestLoadConfigRecursive_RefusesConfigWorkspaceWithSource`; in
+  `pkg/reposynccli` `TestLoadInfersConfigWorkspaceLikeSync` and
+  `TestLoadRefusesConfigWorkspaceWithSource`; in `pkg/workspacecli`
+  `TestWorkspaceSyncRefusesConfigWorkspaceWithSource` and
+  `TestWorkspaceSyncInferredConfigWorkspace` (plans the child's
+  repositories; a broken child config fails sync). Mutation evidence,
+  reverted: the old status inference fails both status tests; the old
+  `GetForgeWorkspaces` selection fails the getter test; disabling the sync
+  abort fails both conflict subtests; recursing into inferred config
+  workspaces fails the broken-child subtest.
+- Docs: `docs/.claude-context/config-guide.md` "Type inference".
+
+Still open: one base-directory resolver (three remain), canonical cycle
+semantics, the duplicated YAML schema in `pkg/reposynccli`, the
+`forge status` gate question, and the `config_loader.go` split.

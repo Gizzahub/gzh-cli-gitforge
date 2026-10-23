@@ -171,6 +171,15 @@ Config File Structure (Reference):
 
 			recursiveCfg, recursiveErr := config.LoadConfigRecursive(configDir, configFile)
 			if recursiveErr != nil {
+				// A source with a non-forge type is a config error, not a
+				// warning: status refuses it too (ISSUE-104).
+				if errors.Is(recursiveErr, config.ErrWorkspaceTypeConflict) {
+					if planSpinnerProgram != nil {
+						planSpinnerProgram.Send(planDoneMsg{})
+						planSpinnerProgram.Wait()
+					}
+					return recursiveErr
+				}
 				if !os.IsNotExist(recursiveErr) {
 					fmt.Fprintf(planOut, "⚠️  Config warning: %v\n", recursiveErr)
 				}

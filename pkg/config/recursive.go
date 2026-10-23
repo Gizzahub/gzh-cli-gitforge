@@ -144,11 +144,13 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 			continue
 		}
 
-		// Default path to workspace name when omitted (compact config convention)
-		effectivePath := ws.Path
-		if effectivePath == "" {
-			effectivePath = name
+		// Refuse an entry sync and status cannot agree on (ISSUE-104).
+		if _, err := ws.Kind(); err != nil {
+			return nil, fmt.Errorf("workspace '%s' in %s: %w", name, configPath, err)
 		}
+
+		// Default path to workspace name when omitted (compact config convention)
+		effectivePath := WorkspacePathOrName(ws.Path, name)
 
 		// Resolve workspace path (handle ~, relative paths)
 		wsPath, err := resolvePath(path, effectivePath)
@@ -160,10 +162,11 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 		// This ensures that downstream code (e.g., sync_command.go) uses the expanded path
 		ws.Path = wsPath
 
-		// Determine effective type
-		effectiveType := ws.Type.Resolve(ws.Source != nil)
-
-		switch effectiveType {
+		// Recursion here only validates nested configs, and only explicit
+		// type: config ones: the config planner loads an inferred config
+		// workspace itself and fails on its errors, where an error here
+		// would drop every workspace behind sync's load warning.
+		switch ws.Type.Resolve(ws.Source != nil) {
 		case WorkspaceTypeConfig:
 			// Workspace has a nested config file - recurse!
 			nestedConfigFile := ".gz-git.yaml"
@@ -206,8 +209,10 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 					name, nestedName, nestedWs.Path, err)
 			}
 
-			nestedType := nestedWs.Type.Resolve(nestedWs.Source != nil)
-			if nestedType == WorkspaceTypeConfig {
+			if _, err := nestedWs.Kind(); err != nil {
+				return nil, fmt.Errorf("nested workspace '%s/%s' in %s: %w", name, nestedName, configPath, err)
+			}
+			if nestedWs.Type.Resolve(nestedWs.Source != nil) == WorkspaceTypeConfig {
 				nestedConfigFile := ".gz-git.yaml"
 				_, err := loadConfigRecursiveWithVisited(nestedPath, nestedConfigFile, make(map[string]bool), nestedChain(), true, depth+1)
 				if err != nil {
@@ -728,7 +733,8 @@ func GetForgeWorkspaces(config *Config) map[string]*Workspace {
 	}
 
 	for name, ws := range config.Workspaces {
-		if ws.Source != nil || ws.Type == WorkspaceTypeForge {
+		// Loading already refused unclassifiable workspaces.
+		if kind, err := ws.Kind(); err == nil && kind == WorkspaceTypeForge {
 			result[name] = ws
 		}
 	}
@@ -747,8 +753,7 @@ func GetGitWorkspaces(config *Config) map[string]*Workspace {
 
 	for name, ws := range config.Workspaces {
 		// Must be type=git (explicit or inferred) with a URL
-		effectiveType := ws.Type.Resolve(ws.Source != nil)
-		if effectiveType == WorkspaceTypeGit && ws.URL != "" {
+		if kind, err := ws.Kind(); err == nil && kind == WorkspaceTypeGit && ws.URL != "" {
 			result[name] = ws
 		}
 	}
@@ -756,8 +761,9 @@ func GetGitWorkspaces(config *Config) map[string]*Workspace {
 	return result
 }
 
-// GetConfigWorkspaces returns workspaces with type=config that have sync.recursive enabled.
-// These are workspaces whose child config should be loaded and synced by the parent.
+// GetConfigWorkspaces returns config workspaces (explicit, or inferred by
+// ClassifyWorkspace) that have sync.recursive enabled. These are workspaces
+// whose child config should be loaded and synced by the parent.
 func GetConfigWorkspaces(config *Config) map[string]*Workspace {
 	result := make(map[string]*Workspace)
 
@@ -766,17 +772,8 @@ func GetConfigWorkspaces(config *Config) map[string]*Workspace {
 	}
 
 	for name, ws := range config.Workspaces {
-		// Skip forge and git workspaces (handled by their own planners)
-		if ws.Source != nil || ws.Type == WorkspaceTypeForge {
-			continue
-		}
-		effectiveType := ws.Type.Resolve(ws.Source != nil)
-		if effectiveType == WorkspaceTypeGit && ws.URL != "" {
-			continue
-		}
-
-		// Only include if sync.recursive is true
-		if ws.Sync != nil && ws.Sync.Recursive {
+		kind, err := ws.Kind()
+		if err == nil && SyncsConfigWorkspace(kind, ws.recursive()) {
 			result[name] = ws
 		}
 	}

@@ -461,6 +461,23 @@ func (v *Validator) ValidateConfig(c *Config) error {
 	return nil
 }
 
+// validateWorkspaceType checks the declared type and that it agrees with
+// the source, using the classification sync and status share.
+func validateWorkspaceType(ws *Workspace) error {
+	if !ws.Type.IsValid() {
+		return fmt.Errorf("invalid workspace type '%s': must be 'forge', 'git', or 'config'", ws.Type)
+	}
+	effectiveType, err := ws.Kind()
+	if err != nil {
+		return err
+	}
+	// Validate source is required for forge type
+	if effectiveType == WorkspaceTypeForge && ws.Source == nil {
+		return fmt.Errorf("source is required for forge workspace")
+	}
+	return nil
+}
+
 // ValidateWorkspace validates a workspace entry.
 func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 	if ws == nil {
@@ -476,17 +493,8 @@ func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 		return fmt.Errorf("workspace path is empty")
 	}
 
-	// Validate type
-	if !ws.Type.IsValid() {
-		return fmt.Errorf("invalid workspace type '%s': must be 'forge', 'git', or 'config'", ws.Type)
-	}
-
-	// Determine effective type
-	effectiveType := ws.Type.Resolve(ws.Source != nil)
-
-	// Validate source is required for forge type
-	if effectiveType == WorkspaceTypeForge && ws.Source == nil {
-		return fmt.Errorf("source is required for forge workspace")
+	if err := validateWorkspaceType(ws); err != nil {
+		return err
 	}
 
 	// Validate source if provided

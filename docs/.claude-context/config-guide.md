@@ -208,6 +208,28 @@ workspaces:
   `path` differs: sync clones into `<config dir>/<name>`, status scans the
   config directory, which lists the same checkout once it is cloned there.
 
+#### Type inference
+
+`workspace sync`, `workspace status` and `config hierarchy` classify every
+entry with one rule, `config.ClassifyWorkspace`:
+
+1. A `source` makes the workspace `forge`. A `source` together with
+   `type: config` or `type: git` is a config error
+   (`ErrWorkspaceTypeConflict`): sync and status refuse the config, also when
+   the entry sits in the child config of a recursive config workspace. Sync
+   also validates the child config of an explicit `type: config` workspace
+   without `sync.recursive`, which it does not plan and status skips, so only
+   sync refuses a conflict there, as it does a cycle or a parse error.
+1. An explicit `type: forge` or `type: config` is taken as written.
+1. Without a type, or with `type: git`, an entry with no `url` and with
+   `sync.recursive: true` is a `config` workspace: it has no repository of
+   its own, so its child `.gz-git.yaml` lists the repositories. Every other
+   entry is `git`.
+
+A `config` workspace takes part in sync and status only with
+`sync.recursive: true`. Sync plans no workspace of an unknown type, and status
+skips it with a warning; `gz-git config hierarchy --validate` reports it.
+
 ### Discovery Modes
 
 ```bash

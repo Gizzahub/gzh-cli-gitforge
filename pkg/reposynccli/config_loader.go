@@ -550,11 +550,19 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 		if ws == nil {
 			continue
 		}
+		// Classify with the rule `workspace sync` uses (ISSUE-104), so an
+		// untyped workspace without a url and with sync.recursive is a config
+		// workspace here too, and a contradictory entry fails both commands.
+		recursive := ws.Sync != nil && ws.Sync.Recursive
+		wsType, err := config.ClassifyWorkspace(config.WorkspaceType(ws.Type), ws.Source != nil, ws.URL, recursive)
+		if err != nil {
+			return ConfigData{}, fmt.Errorf("workspace '%s' in %s: %w", name, configPath, err)
+		}
 		// `workspace sync` plans a config workspace only with sync.recursive
 		// (config.GetConfigWorkspaces); skip the rest before they add a root,
 		// so status neither lists their repositories nor treats them as
 		// orphans (ISSUE-101).
-		if ws.Type == "config" && (ws.Sync == nil || !ws.Sync.Recursive) {
+		if wsType == config.WorkspaceTypeConfig && !config.SyncsConfigWorkspace(wsType, recursive) {
 			continue
 		}
 
@@ -562,10 +570,7 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 		// A missing path defaults to the workspace name (compact config
 		// convention), matching `workspace sync`; the former "." default made
 		// a pathless config workspace reload this same file (ISSUE-102).
-		wsPath := ws.Path
-		if wsPath == "" {
-			wsPath = name
-		}
+		wsPath := config.WorkspacePathOrName(ws.Path, name)
 		if wsPath == "." {
 			wsPath = configDir
 		} else if !filepath.IsAbs(wsPath) && !strings.HasPrefix(wsPath, "~") {
@@ -590,21 +595,10 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 			}
 		}
 
-		// Determine workspace type
-		wsType := ws.Type
-		if wsType == "" {
-			if ws.Source != nil {
-				wsType = "forge"
-			} else {
-				wsType = "git"
-			}
-		}
-
 		var repos []reposync.RepoSpec
-		var err error
 
 		switch wsType {
-		case "forge":
+		case config.WorkspaceTypeForge:
 			repos, err = l.loadForgeWorkspace(ctx, ws, wsProfile, wsPath, defaultCloneProto, defaultSSHPort)
 			if err != nil {
 				// Log warning but continue with other workspaces
@@ -612,7 +606,7 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 				continue
 			}
 
-		case "config":
+		case config.WorkspaceTypeConfig:
 			// A config workspace pointing back at an enclosing config
 			// directory would reload the same file forever (ISSUE-102).
 			// The chain follows one nesting path, so siblings sharing a
@@ -629,17 +623,26 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 			// siblings still see the parent chain.
 			chainCtx := context.WithValue(ctx, configChainKey{}, append(chain[:len(chain):len(chain)], configDir))
 			repos, err = l.loadConfigWorkspace(chainCtx, wsPath)
+			if errors.Is(err, config.ErrWorkspaceTypeConflict) {
+				// Sync's recursive load refuses the whole tree (ISSUE-104).
+				return ConfigData{}, err
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, err)
 				continue
 			}
 
-		default: // "git" or unspecified
+		case config.WorkspaceTypeGit:
 			repos, err = loadGitWorkspace(name, ws, wsPath, configDir)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, err)
 				continue
 			}
+
+		default:
+			// No sync planner takes an unknown type either.
+			fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: unknown type %q\n", name, wsType)
+			continue
 		}
 
 		for _, repo := range repos {

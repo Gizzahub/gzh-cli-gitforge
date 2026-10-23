@@ -518,7 +518,12 @@ func printConfigTree(cfg *config.Config, path, configFile string, depth int, val
 		wsIndent := strings.Repeat("  ", depth+1)
 		wsPath := resolveChildPath(path, ws.Path)
 
-		effectiveType := ws.Type.Resolve(ws.Source != nil)
+		// The classification sync and status use (ISSUE-104).
+		effectiveType, err := ws.Kind()
+		if err != nil {
+			fmt.Printf("%s%s ⚠ %v\n", wsIndent, name, err)
+			continue
+		}
 
 		switch effectiveType {
 		case config.WorkspaceTypeConfig:
