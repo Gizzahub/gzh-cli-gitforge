@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
-	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // Run-side evidence recording (TASK-302). A run that carries an execution
@@ -172,7 +171,7 @@ func findTaskWorktree(ctx context.Context, g gitRepo, branch string) (string, er
 // runProvenance captures the approved declaration and controller facts at
 // intent time, so cleanup judges guards against what was approved, not
 // against whatever the dying worktree last said.
-func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
+func runProvenance(ctx context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
 	p := &evidenceProvenance{}
 	if check != nil {
 		p.ReclaimRefs = &evidenceReclaimRefs{
@@ -180,7 +179,11 @@ func runProvenance(_ context.Context, g gitRepo, check *CheckReport) *evidencePr
 			Integration: check.Plan.Integration.Name,
 		}
 	}
-	if decl, err := config.LoadRepoRootTaskPattern(g.dir); err == nil {
+	release, source := false, ""
+	if check != nil {
+		release, source = check.Plan.Release, check.Plan.BranchSHA
+	}
+	if decl, err := loadPlanDeclaration(ctx, g, g.dir, release, source); err == nil {
 		p.DeclarationPatterns = append([]string(nil), decl.Patterns...)
 		p.DeclarationFacts = append([]string(nil), decl.Facts...)
 	}

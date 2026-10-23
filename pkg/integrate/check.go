@@ -76,6 +76,10 @@ type CheckReport struct {
 	// GateMode is the readiness provenance mode; always gateModeNone.
 	GateMode   string
 	Controller *controllerBinding
+	// Declaration is the repository-root declaration the check applied. A
+	// release reads it from the release source commit (Declaration.Commit);
+	// any other check reads the working tree.
+	Declaration config.TaskPatternDecl
 }
 
 // Check answers whether the branch can land on the target.
@@ -96,7 +100,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	if err != nil {
 		return nil, err
 	}
-	decl, err := config.LoadRepoRootTaskPattern(root)
+	decl, err := initialDeclaration(ctx, g, root, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +119,12 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	if err != nil {
 		return nil, err
 	}
-	if err := validateOwnedCheckPlan(ctx, g, root, preflight, plan, controller, decl, repositoryTarget); err != nil {
+	decl, err = validateOwnedCheckPlan(ctx, g, root, preflight, plan, controller, decl, repositoryTarget)
+	if err != nil {
 		return nil, err
 	}
 
-	report = &CheckReport{Plan: plan, Controller: controller}
+	report = &CheckReport{Plan: plan, Controller: controller, Declaration: decl}
 	add := func(item CheckItem) {
 		report.Items = append(report.Items, item)
 		switch item.Status {
@@ -372,6 +377,9 @@ func FormatCheck(r *CheckReport) string {
 	for _, item := range r.Items {
 		fmt.Fprintf(&b, "  %s  %s — %s\n", item.Status, item.Name, item.Detail)
 	}
+	if r.Declaration.Commit != "" {
+		fmt.Fprintf(&b, "  INFO  declaration — %s at release source commit %s\n", declarationSourceLabel(r.Declaration), config.ShortCommit(r.Declaration.Commit))
+	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s\n", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
 	}
@@ -382,6 +390,13 @@ func FormatCheck(r *CheckReport) string {
 		fmt.Fprintf(&b, "NOT READY — %d failure(s), %d warning(s)\n", r.Failures, r.Warnings)
 	}
 	return b.String()
+}
+
+func declarationSourceLabel(decl config.TaskPatternDecl) string {
+	if decl.Source == "" {
+		return "no .gz-git declaration"
+	}
+	return decl.Source
 }
 
 func formatIntegrationResolution(integration Resolution) string {

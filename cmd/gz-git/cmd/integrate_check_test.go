@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
@@ -85,6 +86,46 @@ func TestIntegrateCheckExplicitEmptyExpectedTargetExitsTwoBeforeEngine(t *testin
 	}
 	if err == nil || !strings.Contains(err.Error(), "--expect-target must not be empty") {
 		t.Fatalf("error = %v, want explicit empty-target usage rejection", err)
+	}
+}
+
+// TestIntegrateCheckReleaseReadsSourceDeclaration is the ISSUE-109 command:
+// `integrate check <remote>/develop --target <remote>/main --release
+// --expect-source <sha>` from a primary checkout whose working-tree
+// .gz-git.yaml still carries a removed key that develop already deleted. The
+// release reads the declaration at the source commit and names that commit.
+func TestIntegrateCheckReleaseReadsSourceDeclaration(t *testing.T) {
+	restore := setIntegrateCheckGlobals(t)
+	defer restore()
+
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: [dev/*]\n  prepareProfile: pnpm-frozen-lockfile-v1\n")
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "declare policy")
+	runGit(t, fx.Clone, "push", fx.Remote, "HEAD:refs/heads/main")
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	runGit(t, fx.Worktree, "checkout", "-B", "develop", fx.Remote+"/main")
+	writeFile(t, fx.Worktree, ".gz-git.yaml", "branch:\n  integrationBranch: develop\n  taskPattern: [dev/*]\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "drop removed key")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "develop")
+	runGit(t, fx.Clone, "fetch", fx.Remote)
+	source := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", fx.Remote+"/develop")
+
+	integrateCheckTarget = fx.Remote + "/main"
+	integrateCheckRelease = true
+	integrateCheckExpectSource = source
+	var stdout bytes.Buffer
+	integrateCheckCmd.SetOut(&stdout)
+	t.Cleanup(func() { integrateCheckCmd.SetOut(nil) })
+	t.Chdir(fx.Clone)
+
+	err := runIntegrateCheck(integrateCheckCmd, []string{fx.Remote + "/develop"})
+	if got := cliutil.ExitCodeForError(err); got != 0 {
+		t.Fatalf("release check exit = %d, want 0; err=%v\n%s", got, err, stdout.String())
+	}
+	if want := "at release source commit " + source[:12]; !strings.Contains(stdout.String(), want) {
+		t.Fatalf("output does not name %q:\n%s", want, stdout.String())
 	}
 }
 

@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	slashpath "path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -26,7 +28,10 @@ type TaskPatternDecl struct {
 	Patterns          []string
 	IntegrationBranch BranchList
 	Source            string
-	Facts             []string
+	// Commit is the commit the declaration was read from
+	// (LoadCommittedTaskPattern); empty when it was read from the working tree.
+	Commit string
+	Facts  []string
 }
 
 type rootBranchDecl struct {
@@ -86,6 +91,116 @@ func LoadRepoRootTaskPattern(repoRoot string) (TaskPatternDecl, error) {
 	return decl, nil
 }
 
+// CommittedConfigFile is one .gz-git.{yaml,yml,json} blob of a commit, named
+// by its repository-relative slash path.
+type CommittedConfigFile struct {
+	Path string
+	Data []byte
+}
+
+// LoadCommittedTaskPattern applies LoadRepoRootTaskPattern's rules to the
+// declaration files committed at commit instead of the working tree. files
+// holds that commit's .gz-git.{yaml,yml,json} blobs; other names are
+// ignored. The removed-key guard and the literal-protected-name check apply
+// unchanged, and their errors name the file and the commit it was read from.
+// Source stays the repo-root path the file has once that commit is checked
+// out, so a committed and a working-tree declaration of the same file compare
+// equal by Source.
+func LoadCommittedTaskPattern(repoRoot, commit string, files []CommittedConfigFile) (TaskPatternDecl, error) {
+	var decl TaskPatternDecl
+	if strings.TrimSpace(repoRoot) == "" {
+		return decl, fmt.Errorf("repo root is empty")
+	}
+	if strings.TrimSpace(commit) == "" {
+		return decl, fmt.Errorf("commit is empty")
+	}
+	root, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return decl, fmt.Errorf("resolve repo root: %w", err)
+	}
+	decl.Commit = commit
+	at := " at commit " + ShortCommit(commit)
+
+	sorted := append([]CommittedConfigFile(nil), files...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
+	rootFiles := map[string][]byte{}
+	for _, f := range sorted {
+		rel := slashpath.Clean(f.Path)
+		if !isProjectConfigName(slashpath.Base(rel)) {
+			continue
+		}
+		if !strings.Contains(rel, "/") {
+			rootFiles[rel] = f.Data
+			continue
+		}
+		if inSkippedConfigDir(rel) {
+			continue
+		}
+		entryPath := filepath.Join(root, filepath.FromSlash(rel))
+		if nested, err := parseRootBranchDecl(f.Data, rel, entryPath); err == nil && len(nested.patterns) > 0 {
+			decl.Facts = append(decl.Facts, "ignored non-root taskPattern: "+entryPath+at)
+		}
+	}
+
+	for _, ext := range []string{".yaml", ".yml", ".json"} {
+		name := ProjectConfigFileName + ext
+		data, ok := rootFiles[name]
+		if !ok {
+			continue
+		}
+		fullPath := filepath.Join(root, name)
+		rootDecl, err := parseRootBranchDecl(data, name, fullPath)
+		if err != nil {
+			return decl, fmt.Errorf("%w%s", err, at)
+		}
+		if err := rejectLiteralProtected(rootDecl.patterns, fullPath); err != nil {
+			return decl, fmt.Errorf("%w%s", err, at)
+		}
+		decl.Patterns = append([]string(nil), rootDecl.patterns...)
+		decl.IntegrationBranch = append(BranchList(nil), rootDecl.integration...)
+		decl.Source = fullPath
+		if len(decl.Patterns) == 0 {
+			decl.Facts = append(decl.Facts, factNoDeclaration)
+		}
+		return decl, nil
+	}
+	decl.Facts = append(decl.Facts, factNoDeclaration)
+	return decl, nil
+}
+
+// ShortCommit abbreviates a commit ID for display only; it never selects a
+// commit.
+func ShortCommit(commit string) string {
+	if len(commit) > 12 {
+		return commit[:12]
+	}
+	return commit
+}
+
+// IsProjectConfigName reports whether name is a .gz-git.{yaml,yml,json}
+// file name.
+func IsProjectConfigName(name string) bool {
+	return isProjectConfigName(name)
+}
+
+func isProjectConfigName(name string) bool {
+	return name == ProjectConfigFileName+".yaml" ||
+		name == ProjectConfigFileName+".yml" ||
+		name == ProjectConfigFileName+".json"
+}
+
+// inSkippedConfigDir mirrors the working-tree scan, which does not descend
+// into .git, vendor, or node_modules at any depth.
+func inSkippedConfigDir(rel string) bool {
+	dirs := strings.Split(slashpath.Dir(rel), "/")
+	for _, dir := range dirs {
+		if dir == ".git" || dir == "vendor" || dir == "node_modules" {
+			return true
+		}
+	}
+	return false
+}
+
 // MatchTaskPattern reports whether name falls inside a declared task-branch
 // namespace. It delegates to pkg/repository, the single source of truth (see
 // repository.MatchTaskPattern for why ownership sits there).
@@ -120,12 +235,18 @@ func statRepoRootConfig(root *safefs.Root, rootPath string) (string, error) {
 // fullPath names it in errors. A declaration that still carries a removed key
 // fails the load and names the file the key must be deleted from.
 func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDecl, error) {
-	var decl rootBranchDecl
 	data, err := root.ReadFile(path)
 	if err != nil {
-		return decl, fmt.Errorf("read %s: %w", path, err)
+		return rootBranchDecl{}, fmt.Errorf("read %s: %w", path, err)
 	}
+	return parseRootBranchDecl(data, path, fullPath)
+}
 
+// parseRootBranchDecl decodes declaration bytes; path selects JSON or YAML
+// and names the file in parse errors, fullPath names it in the removed-key
+// error.
+func parseRootBranchDecl(data []byte, path, fullPath string) (rootBranchDecl, error) {
+	var decl rootBranchDecl
 	ext := strings.ToLower(filepath.Ext(path))
 	if err := RejectRemovedKeys(data, fullPath); err != nil {
 		return decl, err
@@ -141,14 +262,10 @@ func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDec
 		if b, ok := raw["branch"]; ok {
 			fields, decodeErr := decodeJSONBranchFields(b)
 			if decodeErr != nil {
-				err = decodeErr
-			} else {
-				decl.patterns = fields.patterns
-				decl.integration = fields.integration
+				return decl, decodeErr
 			}
-			if err != nil {
-				return decl, err
-			}
+			decl.patterns = fields.patterns
+			decl.integration = fields.integration
 		}
 		return decl, nil
 	}
@@ -299,9 +416,7 @@ func reportNonRootTaskPatternAt(root *safefs.Root, rootPath, rel string, decl *T
 			continue
 		}
 
-		if name != ProjectConfigFileName+".yaml" &&
-			name != ProjectConfigFileName+".yml" &&
-			name != ProjectConfigFileName+".json" {
+		if !isProjectConfigName(name) {
 			continue
 		}
 		if filepath.Dir(entryPath) == rootPath {

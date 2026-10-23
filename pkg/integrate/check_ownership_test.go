@@ -56,7 +56,8 @@ func captureOwnedCheckInputs(t *testing.T, fx *testutil.WorktreeOrigin, controll
 }
 
 func (in ownedCheckInputs) validate() error {
-	return validateOwnedCheckPlan(context.Background(), in.g, in.root, in.preflight, in.plan, in.controller, in.decl, in.repositoryTarget)
+	_, err := validateOwnedCheckPlan(context.Background(), in.g, in.root, in.preflight, in.plan, in.controller, in.decl, in.repositoryTarget)
+	return err
 }
 
 // TestValidateOwnedCheckPlanRefusesChangedDeclaration changes, between the
