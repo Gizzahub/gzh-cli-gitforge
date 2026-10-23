@@ -37,10 +37,10 @@ Summary: 3 success, 1 up-to-date, 1 error
 
 ## Remote 옵션
 
-| 모드 | 플래그 | 설명 | 사용 시점 |
-|------|--------|------|-----------|
+| 모드            | 플래그                   | 설명                  | 사용 시점           |
+| --------------- | ------------------------ | --------------------- | ------------------- |
 | **All Remotes** | `--all-remotes` (기본값) | 모든 remote에서 fetch | 다중 remote 사용 시 |
-| **Origin Only** | `--all-remotes=false` | origin에서만 fetch | CI/CD, 단일 remote |
+| **Origin Only** | `--all-remotes=false`    | origin에서만 fetch    | CI/CD, 단일 remote  |
 
 ```bash
 # 모든 remote에서 fetch (기본값)
@@ -52,36 +52,36 @@ gz-git fetch --all-remotes=false ~/workspace
 
 ## 상태 아이콘
 
-| 아이콘 | 상태 | 의미 |
-|--------|------|------|
-| `✓` | fetched | 새 커밋을 가져옴 |
-| `=` | up-to-date | 이미 최신 상태 |
-| `⚠` | dirty | 수정된 파일 있음 (fetch 성공) |
-| `✗` | error | Fetch 실패 |
-| `🔐` | auth-required | 인증 필요 |
+| 아이콘 | 상태          | 의미                          |
+| ------ | ------------- | ----------------------------- |
+| `✓`    | fetched       | 새 커밋을 가져옴              |
+| `=`    | up-to-date    | 이미 최신 상태                |
+| `⚠`    | dirty         | 수정된 파일 있음 (fetch 성공) |
+| `✗`    | error         | Fetch 실패                    |
+| `🔐`   | auth-required | 인증 필요                     |
 
 ## Divergence 표시
 
-| 표시 | 의미 |
-|------|------|
-| `N↓ fetched` | Remote에서 N개 커밋 가져옴 |
-| `up-to-date` | Remote와 동일 |
-| `up-to-date N↑` | Local이 N커밋 앞섬 |
-| `N↓ N↑ fetched` | 분기됨 (fetch는 성공) |
+| 표시            | 의미                       |
+| --------------- | -------------------------- |
+| `N↓ fetched`    | Remote에서 N개 커밋 가져옴 |
+| `up-to-date`    | Remote와 동일              |
+| `up-to-date N↑` | Local이 N커밋 앞섬         |
+| `N↓ N↑ fetched` | 분기됨 (fetch는 성공)      |
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `--all-remotes` | 모든 remote에서 fetch | true |
-| `-p, --prune` | 삭제된 원격 브랜치 정리 | false |
-| `-t, --tags` | 모든 태그 가져오기 | false |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
-| `-n, --dry-run` | 미리보기 (실행 안 함) | false |
+| 옵션               | 설명                    | 기본값  |
+| ------------------ | ----------------------- | ------- |
+| `-d, --scan-depth` | 스캔 깊이               | 1       |
+| `-j, --parallel`   | 병렬 처리 수            | 10      |
+| `--all-remotes`    | 모든 remote에서 fetch   | true    |
+| `-p, --prune`      | 삭제된 원격 브랜치 정리 | false   |
+| `-t, --tags`       | 모든 태그 가져오기      | false   |
+| `--include`        | 포함 패턴 (regex)       | -       |
+| `--exclude`        | 제외 패턴 (regex)       | -       |
+| `-f, --format`     | 출력 형식               | default |
+| `-n, --dry-run`    | 미리보기 (실행 안 함)   | false   |
 
 ## 출력 형식
 
@@ -194,10 +194,10 @@ gz-git fetch ~/work-projects
 
 ### Fetch vs Pull
 
-| 명령어 | 동작 | Working Tree | 사용 시점 |
-|--------|------|--------------|-----------|
-| **fetch** | 원격 변경사항만 가져옴 | 변경 없음 | 안전한 업데이트 확인 |
-| **pull** | fetch + merge/rebase | 변경됨 | 로컬에 적용 |
+| 명령어    | 동작                   | Working Tree | 사용 시점            |
+| --------- | ---------------------- | ------------ | -------------------- |
+| **fetch** | 원격 변경사항만 가져옴 | 변경 없음    | 안전한 업데이트 확인 |
+| **pull**  | fetch + merge/rebase   | 변경됨       | 로컬에 적용          |
 
 **권장**: 먼저 `fetch`로 변경사항 확인 → 필요시 `pull` 또는 `update`
 

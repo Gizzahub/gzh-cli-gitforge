@@ -3,9 +3,9 @@ name: Markdown contract
 on:
   push:
     branches: [master, main, develop, 'dev/**']
-    paths: ['**/*.md', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
+    paths: ['**/*.md', '.gitattributes', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
   pull_request:
-    paths: ['**/*.md', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
+    paths: ['**/*.md', '.gitattributes', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
   workflow_dispatch:
 
 permissions:

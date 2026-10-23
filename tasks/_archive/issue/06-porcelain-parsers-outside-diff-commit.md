@@ -152,12 +152,12 @@ untracked가 두 번 세어진다. 축약을 풀면 이 오차가 **커진다**.
      `parseGitStatus(code)`로 XY를 한 글자로 접어 인덱스/워크트리 어느 쪽 변경인지를 잃는다.
      `Status`의 `StagedFiles`/`ModifiedFiles`/`DeletedFiles` 구분은 원본 XY 코드를 요구하므로
      `ChangeSet` 경유로는 무손실 복원이 불가능하다.
-2. 두 호출을 `--porcelain -z -uall` + `runGit`으로 전환 (`RunOutput` 경유 제거 → 2-a 해소).
-3. `checkRepositoryState`의 충돌 판정을 `isUnmergedCode` 호출로 대체하고,
+1. 두 호출을 `--porcelain -z -uall` + `runGit`으로 전환 (`RunOutput` 경유 제거 → 2-a 해소).
+1. `checkRepositoryState`의 충돌 판정을 `isUnmergedCode` 호출로 대체하고,
    `ConflictedFiles`는 `collectConflictedPaths`(`changeset.go:458`, `ls-files --unmerged -z`)에서 받는다.
-4. `internal/parser/status.go`의 `ParseStatus`/`parseStatusCode` **삭제** (호출자 0건).
+1. `internal/parser/status.go`의 `ParseStatus`/`parseStatusCode` **삭제** (호출자 0건).
    `internal/parser/status_test.go`의 해당 케이스도 함께 제거.
-5. `UncommittedFiles` 의미 재확정 — **deprecate + 세분화** (결정됨):
+1. `UncommittedFiles` 의미 재확정 — **deprecate + 세분화** (결정됨):
    - `repositoryState.UncommittedFiles` / `RepositoryStatusResult.UncommittedFiles`를
      `Deprecated:` 주석으로 표시하고 값은 유지(축약만 해제).
    - 세분화 카운트를 신설해 노출: 추적 변경 / 스테이징 / untracked를 분리.
@@ -183,11 +183,11 @@ untracked가 두 번 세어진다. 축약을 풀면 이 오차가 **커진다**.
 - [x] 충돌 판정이 `isUnmergedCode`를 재사용 (중복 분기 제거)
 - [x] `internal/parser.ParseStatus` 삭제, 빌드/테스트 통과
 - [x] `?? 디렉터리` 축약 케이스에 대한 회귀 테스트 추가
-      (`TestGetStatusExpandsUntrackedDirectories` — 실제 git 리포 사용. 테이블 테스트로는
-      플래그 전달 여부를 증명할 수 없어 별도 실-리포 테스트로 분리)
+  (`TestGetStatusExpandsUntrackedDirectories` — 실제 git 리포 사용. 테이블 테스트로는
+  플래그 전달 여부를 증명할 수 없어 별도 실-리포 테스트로 분리)
 - [x] C-quoted/비ASCII 경로가 실경로로 반환됨 (01의 `TestChangeSetUnquotesPaths`와 동일 기준)
 - [x] **첫 레코드가 ` D`/` M`일 때 `ModifiedFiles`/`DeletedFiles`로 분류되고 경로가 온전한지** 회귀 테스트
-      (`TestParseStatus/unstaged_modify_as_first_record`, `.../worktree-only_delete_as_first_record`)
+  (`TestParseStatus/unstaged_modify_as_first_record`, `.../worktree-only_delete_as_first_record`)
 - [x] `UncommittedFiles` deprecate 주석 + 세분화 필드 추가, 소비자 파일 갱신
 - [x] CHANGELOG에 증가/감소/이동 세 방향 모두 breaking-fix로 기재
 
@@ -195,17 +195,17 @@ untracked가 두 번 세어진다. 축약을 풀면 이 오차가 **커진다**.
 
 ### 변경
 
-| 파일 | 내용 |
-|------|------|
-| `pkg/repository/porcelain.go` (신규) | `parsePorcelainZ` + `statusFromRecords` + `applyStatusCode` — 패키지 단일 파서 |
-| `pkg/repository/changeset.go` | `collectChangeSet`의 인라인 레코드 루프를 `parsePorcelainZ`로 교체 |
-| `pkg/repository/client.go` | `GetStatus`가 `runGit` + `-z -uall`; 구 `parseStatus`/`parseStatusCode` 삭제 |
-| `pkg/repository/bulk.go` | `checkRepositoryState` 재작성; 4개 결과 구조체에 `TrackedChangedFiles`/`StagedFiles`/`UnstagedFiles` 추가, `UncommittedFiles` deprecate |
-| `pkg/repository/interfaces.go` | `Status`에 `StagedCount`/`UnstagedCount`/`TrackedChangedCount` 추가 |
-| `internal/parser/status.go` | `ParseStatus`/`parseStatusCode` 삭제 (+ 해당 테스트) |
-| `pkg/reposync/diagnostic_executor.go` | `ModifiedFiles` 합산과 dirty 판정을 `TrackedChangedCount`로 |
-| `pkg/repository/update.go`, `bulk_switch.go` | 같은 계열의 표시용 합산 3곳 정리 |
-| `cmd/gz-git/cmd/{bulk_common,pull,fetch,push,info}.go` | deprecated 필드 대신 `TrackedChangedFiles` 사용 |
+| 파일                                                   | 내용                                                                                                                                    |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `pkg/repository/porcelain.go` (신규)                   | `parsePorcelainZ` + `statusFromRecords` + `applyStatusCode` — 패키지 단일 파서                                                          |
+| `pkg/repository/changeset.go`                          | `collectChangeSet`의 인라인 레코드 루프를 `parsePorcelainZ`로 교체                                                                      |
+| `pkg/repository/client.go`                             | `GetStatus`가 `runGit` + `-z -uall`; 구 `parseStatus`/`parseStatusCode` 삭제                                                            |
+| `pkg/repository/bulk.go`                               | `checkRepositoryState` 재작성; 4개 결과 구조체에 `TrackedChangedFiles`/`StagedFiles`/`UnstagedFiles` 추가, `UncommittedFiles` deprecate |
+| `pkg/repository/interfaces.go`                         | `Status`에 `StagedCount`/`UnstagedCount`/`TrackedChangedCount` 추가                                                                     |
+| `internal/parser/status.go`                            | `ParseStatus`/`parseStatusCode` 삭제 (+ 해당 테스트)                                                                                    |
+| `pkg/reposync/diagnostic_executor.go`                  | `ModifiedFiles` 합산과 dirty 판정을 `TrackedChangedCount`로                                                                             |
+| `pkg/repository/update.go`, `bulk_switch.go`           | 같은 계열의 표시용 합산 3곳 정리                                                                                                        |
+| `cmd/gz-git/cmd/{bulk_common,pull,fetch,push,info}.go` | deprecated 필드 대신 `TrackedChangedFiles` 사용                                                                                         |
 
 ### 설계 판단 3건
 
@@ -213,10 +213,10 @@ untracked가 두 번 세어진다. 축약을 풀면 이 오차가 **커진다**.
    교체하면 유일한 호출자(`processStatusRepository`)가 이미 `*Status`를 들고 있으므로
    새 필드도 리더 0건이 된다 — 방금 제거한 `IsDirty`와 같은 모양. 카운트는 XY 코드를
    본 유일한 값인 `Status`가 갖고, 이 타입은 "지금 어떤 작업 중인가"만 답한다.
-2. **카운트를 `Status`의 필드로 저장한다** (슬라이스에서 파생 불가). `D `(인덱스 삭제)와
+1. **카운트를 `Status`의 필드로 저장한다** (슬라이스에서 파생 불가). `D `(인덱스 삭제)와
    ` D`(워크트리 삭제)가 둘 다 `DeletedFiles`에 들어가므로, 슬라이스 조합의 `len()`으로는
    staged/unstaged를 구분할 수 없고 두 슬라이스에 걸친 경로를 이중 계상한다.
-3. **JSON 키 `uncommitted_files`는 유지.** 값만 정정. 키 변경은 값 변경보다 큰 파괴이고,
+1. **JSON 키 `uncommitted_files`는 유지.** 값만 정정. 키 변경은 값 변경보다 큰 파괴이고,
    이제 네 경로 모두 같은 의미를 갖는다.
 
 ### 부수 해소
@@ -241,11 +241,11 @@ golangci-lint은 실행 불가 — 설치본이 go1.25로 빌드되어 있고 �
 
 실측 대조 (`uncommitted` + `untracked`, git ground truth 대비):
 
-| 픽스처 | git 실제 | v0.7.0 | 신규 |
-|--------|---------|--------|------|
-| 이 리포 (`info`) | 18 tracked + 3 untracked | 21 + 3 | **18 + 3** |
-| 워크트리 삭제 2 + untracked 디렉터리 1개(파일 2) (`info`) | 2 + 2 | 3 + 1 | **2 + 2** |
-| 같은 픽스처 (`status --skip-fetch`, 헬스 경로) | 2 + 2 | 1 + 1 | **2 + 2** |
+| 픽스처                                                    | git 실제                 | v0.7.0 | 신규       |
+| --------------------------------------------------------- | ------------------------ | ------ | ---------- |
+| 이 리포 (`info`)                                          | 18 tracked + 3 untracked | 21 + 3 | **18 + 3** |
+| 워크트리 삭제 2 + untracked 디렉터리 1개(파일 2) (`info`) | 2 + 2                    | 3 + 1  | **2 + 2**  |
+| 같은 픽스처 (`status --skip-fetch`, 헬스 경로)            | 2 + 2                    | 1 + 1  | **2 + 2**  |
 
 ## References
 

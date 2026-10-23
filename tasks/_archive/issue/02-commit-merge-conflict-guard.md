@@ -18,8 +18,8 @@
 
 ## Findings covered
 
-| ID | 위치 | 증상 |
-|----|------|------|
+| ID                                      | 위치                                           | 증상                                                        |
+| --------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
 | `commit-commits-merge-conflict-markers` | `bulk_commit.go:333` (분류), `:368` (`add -A`) | conflict 마커가 히스토리에 영구 기록, 리포는 clean으로 보고 |
 
 ## Reproduction
@@ -55,10 +55,10 @@ OTHER
 1. `collectChangeSet`(`01-changeset-unify-diff-commit-scope.md`)에서 `ConflictCount` / `ChangeEntry.Conflicted` 산출
    - porcelain 상태 코드 `DD`, `AU`, `UD`, `UA`, `DU`, `AA`, `UU` 전부
    - 보강 검사로 `git ls-files -u` 비어있지 않음 또는 `.git/MERGE_HEAD` 존재
-2. `BulkCommit`에서 `ConflictCount > 0`인 리포는 **커밋하지 않고** `status: "skipped"` + 명시적 `error` 메시지로 처리
-3. `--dry-run` 미리보기에서 conflict 상태를 별도 아이콘/라벨로 표시 (`⚠ conflict` 등)
-4. 프로세스 exit code를 0이 아닌 값으로 올림 (현재는 실패해도 0 — `04` 태스크와 공통 이슈)
-5. 강제 실행이 필요하다면 `--allow-conflicted` 같은 별도 opt-in 플래그로만 허용
+1. `BulkCommit`에서 `ConflictCount > 0`인 리포는 **커밋하지 않고** `status: "skipped"` + 명시적 `error` 메시지로 처리
+1. `--dry-run` 미리보기에서 conflict 상태를 별도 아이콘/라벨로 표시 (`⚠ conflict` 등)
+1. 프로세스 exit code를 0이 아닌 값으로 올림 (현재는 실패해도 0 — `04` 태스크와 공통 이슈)
+1. 강제 실행이 필요하다면 `--allow-conflicted` 같은 별도 opt-in 플래그로만 허용
 
 ### JSON 스키마
 
@@ -75,6 +75,7 @@ OTHER
 이 함수를 그대로 흡수하도록 하기 위한 것이다 (재작성 없음).
 
 **2. 탐지원과 경로원을 분리한다.**
+
 - 탐지: porcelain 상태 코드 (이미 파싱 중이므로 추가 비용 0)
 - 경로: `git ls-files --unmerged -z` — 인덱스 stage 1~3을 직접 읽으므로 `core.quotePath`의
   영향을 받지 않고 워크트리 현재 상태와도 무관하다. stage당 1레코드라 중복 제거가 필요하다.
@@ -90,16 +91,16 @@ OTHER
 ## Acceptance Criteria
 
 - [x] `UU`/`AA`/`DD` 등 unmerged 상태 리포가 `gz-git commit --yes`로 커밋되지 않음
-      → `TestBulkCommitRefusesUnmergedRepository`
+  → `TestBulkCommitRefusesUnmergedRepository`
 - [x] `--dry-run` 출력(default/compact/json/llm 전부)에 conflict 상태가 명시적으로 표시됨
-      → `TestBulkCommitDryRunReportsConflict`; default/compact는 `⊗ CONFLICT: N unmerged` +
-      unmerged 경로 전체를 `--verbose` 무관하게 출력, JSON은 `conflicted_files` / `total_conflicted`
+  → `TestBulkCommitDryRunReportsConflict`; default/compact는 `⊗ CONFLICT: N unmerged` +
+  unmerged 경로 전체를 `--verbose` 무관하게 출력, JSON은 `conflicted_files` / `total_conflicted`
 - [x] conflict 리포가 있을 때 프로세스 exit code != 0
-      → `errPartialFailure(TotalFailed+TotalConflicted, TotalDirty+TotalConflicted)` = `ExitPartialFailed`(2)
+  → `errPartialFailure(TotalFailed+TotalConflicted, TotalDirty+TotalConflicted)` = `ExitPartialFailed`(2)
 - [x] `.git/MERGE_HEAD`가 보존되어 사용자가 수동으로 merge를 이어갈 수 있음
-      → 같은 테스트에서 `MERGE_HEAD` 존재 + `HEAD` 부모 1개를 함께 확인
+  → 같은 테스트에서 `MERGE_HEAD` 존재 + `HEAD` 부모 1개를 함께 확인
 - [x] `bulk_commit_test.go`에 `UU` 픽스처 테스트 추가
-      → `bulk_commit_conflict_test.go` 신규 4건 (`createConflictedRepo` 픽스처)
+  → `bulk_commit_conflict_test.go` 신규 4건 (`createConflictedRepo` 픽스처)
 - [x] `internal/parser/status.go`의 기존 `U` 분류 로직 재사용 여부 검토 후 결정 기록 → 위 Decision 1
 
 ## Escape hatch

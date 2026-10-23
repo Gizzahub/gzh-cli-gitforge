@@ -2,7 +2,7 @@
 
 CLI commands for Forge API-based repository sync (GitHub, GitLab, Gitea).
 
----
+______________________________________________________________________
 
 ## Purpose
 
@@ -11,19 +11,19 @@ and sync them locally. Bridges CLI → forge providers → `reposync` executor.
 
 **Contrast with `workspacecli`**: this package calls Forge APIs; workspacecli uses local config.
 
----
+______________________________________________________________________
 
 ## Commands
 
-| File | Command | Description |
-|------|---------|-------------|
-| `from_forge_command.go` | `forge from` | Clone/sync from org/group |
+| File                         | Command                 | Description                        |
+| ---------------------------- | ----------------------- | ---------------------------------- |
+| `from_forge_command.go`      | `forge from`            | Clone/sync from org/group          |
 | `config_generate_command.go` | `forge config generate` | Generate `.gz-git.yaml` from forge |
-| `config_command.go` | `forge config` | Config subcommands root |
-| `status_command.go` | `forge status` | Health diagnosis across repos |
-| `setup_command.go` | `forge setup` | Interactive setup wizard |
+| `config_command.go`          | `forge config`          | Config subcommands root            |
+| `status_command.go`          | `forge status`          | Health diagnosis across repos      |
+| `setup_command.go`           | `forge setup`           | Interactive setup wizard           |
 
----
+______________________________________________________________________
 
 ## Filtering (`filter.go`)
 
@@ -41,7 +41,7 @@ filter := reposynccli.NewFilter(reposynccli.FilterOptions{
 repos := filter.Apply(allRepos)
 ```
 
----
+______________________________________________________________________
 
 ## Factory Pattern (`factory.go`)
 
@@ -65,16 +65,16 @@ root := f.NewRootCmd()
 Optional fields override defaults when set (orchestrator, version metadata).
 There is no `WithConfigLoader` / generic options-builder API.
 
----
+______________________________________________________________________
 
 ## Progress Reporting
 
-| File | Purpose |
-|------|---------|
+| File                  | Purpose               |
+| --------------------- | --------------------- |
 | `progress_console.go` | Terminal progress bar |
-| `progress_status.go` | Status line updates |
+| `progress_status.go`  | Status line updates   |
 
----
+______________________________________________________________________
 
 ## DO / DON'T
 
@@ -83,7 +83,7 @@ There is no `WithConfigLoader` / generic options-builder API.
 - **DON'T** hardcode provider URLs — use `pkg/provider` abstractions
 - **DON'T** store auth tokens in generated config files
 
----
+______________________________________________________________________
 
 ## Testing
 

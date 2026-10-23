@@ -85,7 +85,8 @@ try:
                  ['config', 'user.email', 'native@example.invalid'],
                  ['config', 'commit.gpgsign', 'false']):
         run(['git', *args], cwd=work, env=git_env)
-    (work / 'baseline.md').write_text('# Baseline\n', encoding='utf-8')
+    # 기준 문서는 플랫폼 기본 줄바꿈 대신 formatter 계약의 LF 바이트로 만든다.
+    (work / 'baseline.md').write_bytes(b'# Baseline\n')
     run(['git', 'add', '.'], cwd=work, env=git_env)
     run(['git', 'commit', '-qm', 'baseline', '--no-verify'], cwd=work, env=git_env)
     run(['git', 'branch', 'baseline'], cwd=work, env=git_env)

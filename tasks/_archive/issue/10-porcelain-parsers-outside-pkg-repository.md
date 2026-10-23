@@ -21,15 +21,15 @@
 바뀌었다 — porcelain 파싱은 실제로 무해했지만, **같은 줄에 다른 계열의 fail-open이
 있었다.**
 
-| # | 위치 | 최초 판정 | 재조사 결과 |
-|---|---|---|---|
-| 1 | `pkg/branch/parallel.go:279` `getModifiedFiles` | 실제 결함 | 수정 `9b3bf9d` — 호출 사슬의 fail-open 4곳 동반 수정 |
-| 2 | `pkg/reposync/executor_git.go:366` | 실제 결함 | 수정 `b0caf10` — `AA`/`DD` + `StatusErr` |
-| 3 | `pkg/doctor/repo_checks.go:223,254` | 준결함 | 수정 `7d1fc41` — 에러가 "체크 통과"로 읽히던 것 확인 |
-| 4 | `pkg/branch/worktree.go:359` | 결함 아님 | **판정 변경** — porcelain은 무해하나 `Run`의 `ExitCode` 미검사. 파일 전체 5곳 동일. 수정 `7eecc6c` |
-| 5 | `pkg/branch/parallel.go:270` | 결함 아님 | 유지 — `ExitCode` 검사는 `9b3bf9d`에서 이미 추가 |
-| 6 | `pkg/workspacecli/sync_command.go:1366` | 결함 아님 | 함수는 유지(`cmd.Output()`은 exit code를 에러로 준다). 단 호출자 `:1695`가 `err == nil &&`로 삼킴 — 수정 `7eecc6c` |
-| (참고) | `pkg/repository/bulk_stash.go:275` | — | **태스크 08 소관** (미착수) |
+| #      | 위치                                            | 최초 판정 | 재조사 결과                                                                                                        |
+| ------ | ----------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1      | `pkg/branch/parallel.go:279` `getModifiedFiles` | 실제 결함 | 수정 `9b3bf9d` — 호출 사슬의 fail-open 4곳 동반 수정                                                               |
+| 2      | `pkg/reposync/executor_git.go:366`              | 실제 결함 | 수정 `b0caf10` — `AA`/`DD` + `StatusErr`                                                                           |
+| 3      | `pkg/doctor/repo_checks.go:223,254`             | 준결함    | 수정 `7d1fc41` — 에러가 "체크 통과"로 읽히던 것 확인                                                               |
+| 4      | `pkg/branch/worktree.go:359`                    | 결함 아님 | **판정 변경** — porcelain은 무해하나 `Run`의 `ExitCode` 미검사. 파일 전체 5곳 동일. 수정 `7eecc6c`                 |
+| 5      | `pkg/branch/parallel.go:270`                    | 결함 아님 | 유지 — `ExitCode` 검사는 `9b3bf9d`에서 이미 추가                                                                   |
+| 6      | `pkg/workspacecli/sync_command.go:1366`         | 결함 아님 | 함수는 유지(`cmd.Output()`은 exit code를 에러로 준다). 단 호출자 `:1695`가 `err == nil &&`로 삼킴 — 수정 `7eecc6c` |
+| (참고) | `pkg/repository/bulk_stash.go:275`              | —         | **태스크 08 소관** (미착수)                                                                                        |
 
 "불리언 dirty만 본다"는 판단 자체는 4·5·6 모두에서 옳았다. 놓친 것은 **그 불리언을
 읽어내는 방법**이었다: `gitcmd.Executor.Run`은 실패한 git을 `ExitCode`로만 알리므로
@@ -75,23 +75,23 @@ if out, err := cmd.Output(); err == nil {          // ← fail-open
 
 1. `getModifiedFiles`를 `pkg/repository`의 공용 경로로 옮기거나, 최소한
    `-z -uall` + XY 보존 + rename/`??` 분리로 재작성.
-2. `executor_git.go`의 충돌 판정을 `isUnmergedCode`와 같은 집합으로 교정하고
+1. `executor_git.go`의 충돌 판정을 `isUnmergedCode`와 같은 집합으로 교정하고
    `cmd.Output()` 실패를 삼키지 않게 한다.
-3. `pkg/doctor/repo_checks.go:223,254` — 에러 시 `return nil`이 "체크 통과"로 읽히는지
+1. `pkg/doctor/repo_checks.go:223,254` — 에러 시 `return nil`이 "체크 통과"로 읽히는지
    확인하고, 그렇다면 체크 실패로 표면화.
-4. ~~4·5·6은 수정하지 않는다~~ — 주석 근거는 남기되, 재조사에서 4·6은 실제 수정
+1. ~~4·5·6은 수정하지 않는다~~ — 주석 근거는 남기되, 재조사에서 4·6은 실제 수정
    대상으로 바뀌었다(위 표).
 
 ## Acceptance Criteria
 
 - [x] `getModifiedFiles`가 rename에 대해 실존 경로(신규 경로)만 반환
-      — `TestGetModifiedFiles`가 반환 경로 전부에 `os.Lstat`을 건다
+  — `TestGetModifiedFiles`가 반환 경로 전부에 `os.Lstat`을 건다
 - [x] `getModifiedFiles`가 `??`를 modified에 포함하지 않음
-      — `TestGetModifiedFilesExcludesUntracked`
+  — `TestGetModifiedFilesExcludesUntracked`
 - [x] `AA`·`DD` 픽스처에서 `executor_git.go`가 `HasConflicts=true`
-      — `TestCollectPostSyncStatusDetects{AA,DD}Conflict`
+  — `TestCollectPostSyncStatusDetects{AA,DD}Conflict`
 - [x] `git status` 실패 시 `executor_git.go`가 "깨끗함"으로 판정하지 않음
-      — `PostSyncStatus.StatusErr` + 렌더러 2곳 `unknown`
+  — `PostSyncStatus.StatusErr` + 렌더러 2곳 `unknown`
 - [x] 4·5·6에 판단 근거 주석 (4·6은 주석과 함께 실제 수정도 필요했다)
 - [x] `pkg/repository` 밖 porcelain 파싱 지점 재전수조사 후 이 표 갱신
 
@@ -117,8 +117,8 @@ if out, err := cmd.Output(); err == nil {          // ← fail-open
 ### 3. 심각도 근거 — `ps.HasConflicts` 소비자는 표시 2곳뿐
 
 `executor_git.go:399`(badge)와 `sync_progress_tui.go:429`(TUI). 의사결정 게이트가
-아니므로 코드 영향만 보면 P3 급이다. P2 유지 근거는 **"충돌 없음으로 보이는 화면을
-믿고 사용자가 다음 sync를 진행한다"**로 명시해 둔다.
+아니므로 코드 영향만 보면 P3 급이다. P2 유지 근거는 \*\*"충돌 없음으로 보이는 화면을
+믿고 사용자가 다음 sync를 진행한다"\*\*로 명시해 둔다.
 
 ### 4. Scope 1을 실행하려면 결정이 먼저다 → **안 A 채택** (아래 D1)
 

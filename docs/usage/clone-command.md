@@ -57,19 +57,19 @@ plugins:
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `--url` | Clone할 URL (반복 가능) | - |
-| `--file` | URL 목록 파일 | - |
-| `-c, --config` | YAML config 파일 | - |
-| `-g, --group` | 특정 그룹만 clone (반복 가능) | 전체 |
-| `-b, --branch` | Checkout할 branch | repo default |
-| `-s, --update-strategy` | 기존 repo 처리: skip, pull, reset, rebase, fetch | skip |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `-n, --dry-run` | 실행하지 않고 미리보기 | false |
-| `--structure` | 디렉토리 구조: flat, user | flat |
-| `--depth` | Shallow clone 깊이 | 0 (전체) |
-| `--submodules` | Submodule 초기화 | false |
+| 옵션                    | 설명                                             | 기본값       |
+| ----------------------- | ------------------------------------------------ | ------------ |
+| `--url`                 | Clone할 URL (반복 가능)                          | -            |
+| `--file`                | URL 목록 파일                                    | -            |
+| `-c, --config`          | YAML config 파일                                 | -            |
+| `-g, --group`           | 특정 그룹만 clone (반복 가능)                    | 전체         |
+| `-b, --branch`          | Checkout할 branch                                | repo default |
+| `-s, --update-strategy` | 기존 repo 처리: skip, pull, reset, rebase, fetch | skip         |
+| `-j, --parallel`        | 병렬 처리 수                                     | 10           |
+| `-n, --dry-run`         | 실행하지 않고 미리보기                           | false        |
+| `--structure`           | 디렉토리 구조: flat, user                        | flat         |
+| `--depth`               | Shallow clone 깊이                               | 0 (전체)     |
+| `--submodules`          | Submodule 초기화                                 | false        |
 
 ## 그룹 선택
 
@@ -85,13 +85,13 @@ gz-git clone -c repos-config.yaml . -g core -g plugins
 
 기존에 이미 clone된 repo가 있을 때 처리 방법:
 
-| Strategy | 동작 |
-|----------|------|
-| `skip` | 건너뛰기 (기본값) |
-| `pull` | git pull 실행 |
-| `reset` | git fetch + reset --hard |
-| `rebase` | git pull --rebase |
-| `fetch` | git fetch만 실행 |
+| Strategy | 동작                     |
+| -------- | ------------------------ |
+| `skip`   | 건너뛰기 (기본값)        |
+| `pull`   | git pull 실행            |
+| `reset`  | git fetch + reset --hard |
+| `rebase` | git pull --rebase        |
+| `fetch`  | git fetch만 실행         |
 
 ```bash
 # 기존 repo는 pull로 업데이트

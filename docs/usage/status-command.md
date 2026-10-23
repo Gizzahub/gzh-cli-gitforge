@@ -30,44 +30,44 @@ Summary: 1 clean, 1 warning, 1 dirty, 1 unreachable
 
 ## 상태 아이콘
 
-| 아이콘 | 상태 | 의미 |
-|--------|------|------|
-| `✓` | clean | Working tree가 깨끗함 |
-| `⚠` | warning | Behind 또는 diverged (해결 가능) |
-| `✗` | dirty/error | 수정된 파일 있음, 충돌 가능 |
-| `⊘` | unreachable | Remote fetch 실패 |
+| 아이콘 | 상태        | 의미                             |
+| ------ | ----------- | -------------------------------- |
+| `✓`    | clean       | Working tree가 깨끗함            |
+| `⚠`    | warning     | Behind 또는 diverged (해결 가능) |
+| `✗`    | dirty/error | 수정된 파일 있음, 충돌 가능      |
+| `⊘`    | unreachable | Remote fetch 실패                |
 
 ## Working Tree 표시
 
-| 표시 | 의미 |
-|------|------|
-| `M` | Modified (수정됨) |
-| `A` | Added (추가됨) |
-| `D` | Deleted (삭제됨) |
-| `?` | Untracked (미추적) |
-| `U` | Conflict (충돌) |
+| 표시 | 의미               |
+| ---- | ------------------ |
+| `M`  | Modified (수정됨)  |
+| `A`  | Added (추가됨)     |
+| `D`  | Deleted (삭제됨)   |
+| `?`  | Untracked (미추적) |
+| `U`  | Conflict (충돌)    |
 
 예: `3M 1?` = 수정 3개, 미추적 1개
 
 ## Divergence 표시
 
-| 표시 | 의미 |
-|------|------|
-| `up-to-date` | Remote와 동일 |
-| `N↓ behind` | Remote보다 N커밋 뒤처짐 |
-| `N↑ ahead` | Remote보다 N커밋 앞섬 |
+| 표시             | 의미                       |
+| ---------------- | -------------------------- |
+| `up-to-date`     | Remote와 동일              |
+| `N↓ behind`      | Remote보다 N커밋 뒤처짐    |
+| `N↑ ahead`       | Remote보다 N커밋 앞섬      |
 | `N↑ M↓ diverged` | 분기됨 (merge/rebase 필요) |
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
-| `-v, --verbose` | 상세 출력 | false |
+| 옵션               | 설명              | 기본값  |
+| ------------------ | ----------------- | ------- |
+| `-d, --scan-depth` | 스캔 깊이         | 1       |
+| `-j, --parallel`   | 병렬 처리 수      | 10      |
+| `--include`        | 포함 패턴 (regex) | -       |
+| `--exclude`        | 제외 패턴 (regex) | -       |
+| `-f, --format`     | 출력 형식         | default |
+| `-v, --verbose`    | 상세 출력         | false   |
 
 ## 출력 형식
 

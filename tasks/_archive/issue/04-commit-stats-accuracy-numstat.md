@@ -34,12 +34,12 @@ if strings.Contains(line, "changed") {   // ← 파일명 라인까지 매칭
 
 ## Findings covered
 
-| ID | 위치 | 증상 |
-|----|------|------|
-| `commit-stats-sum-not-head-delta` | `:336`+`:342` | 순변화 0인 리포를 `would-commit`으로 예고 → 실행 시 결정적 실패, **exit code는 0** |
-| `commit-additions-double-count-staged-plus-unstaged` | `:342` | 겹치는 편집이 정확히 2배로 계상 |
-| `commit-untracked-lines-never-counted` | `:336-346` | untracked는 `files_changed`엔 잡히나 `additions`엔 절대 안 잡힘 |
-| `parse-diff-stats-filename-poisoning` | `:478` | 파일명 선두 숫자가 삽입/삭제 수로 둔갑 |
+| ID                                                   | 위치          | 증상                                                                               |
+| ---------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------- |
+| `commit-stats-sum-not-head-delta`                    | `:336`+`:342` | 순변화 0인 리포를 `would-commit`으로 예고 → 실행 시 결정적 실패, **exit code는 0** |
+| `commit-additions-double-count-staged-plus-unstaged` | `:342`        | 겹치는 편집이 정확히 2배로 계상                                                    |
+| `commit-untracked-lines-never-counted`               | `:336-346`    | untracked는 `files_changed`엔 잡히나 `additions`엔 절대 안 잡힘                    |
+| `parse-diff-stats-filename-poisoning`                | `:478`        | 파일명 선두 숫자가 삽입/삭제 수로 둔갑                                             |
 
 ## Reproduction
 
@@ -78,9 +78,9 @@ gz-git 보고                → additions:2, deletions:2
    - `--numstat`은 `<add>\t<del>\t<path>` 고정 포맷 → 파일명 오염 원천 차단
    - `-z`는 경로 quoting 제거 (`01` 태스크와 동일 근거)
    - 단일 호출이므로 이중 계상·상쇄 문제 동시 해결
-2. untracked 파일의 라인 수를 별도 산출해 합산 (또는 `03` 태스크의 `git add -N` 방식 채택 시 자동 포함)
-3. 집계는 `01`의 `collectChangeSet`가 `ChangeSet.Additions/Deletions`로 제공하고, `bulk_commit`은 이를 소비만 한다
-4. **exit code 정정**: `TotalFailed > 0`이면 프로세스가 0이 아닌 값 반환
+1. untracked 파일의 라인 수를 별도 산출해 합산 (또는 `03` 태스크의 `git add -N` 방식 채택 시 자동 포함)
+1. 집계는 `01`의 `collectChangeSet`가 `ChangeSet.Additions/Deletions`로 제공하고, `bulk_commit`은 이를 소비만 한다
+1. **exit code 정정**: `TotalFailed > 0`이면 프로세스가 0이 아닌 값 반환
    - 상위 오케스트레이터가 종료코드만 보고 실패한 커밋을 성공으로 집계하는 것을 막는다
    - `02` 태스크(conflict skip)와 동일한 종료코드 정책을 공유
 
@@ -91,24 +91,24 @@ gz-git 보고                → additions:2, deletions:2
 ## Acceptance Criteria
 
 - [x] `parseDiffStats` 제거 또는 numstat 파서로 대체 — `git diff --stat` 텍스트 파싱 호출 0건
-      → `parseDiffStats`, `extractDiffSummaryLine` 및 각 테스트 삭제. `--stat` 호출 0건
-        (요약 문자열은 `formatDiffSummary`가 numstat 수치로 직접 조립)
+  → `parseDiffStats`, `extractDiffSummaryLine` 및 각 테스트 삭제. `--stat` 호출 0건
+  (요약 문자열은 `formatDiffSummary`가 numstat 수치로 직접 조립)
 - [x] 파일명에 `changed`/선두 숫자가 있어도 집계가 정확 (회귀 테스트 픽스처 포함)
-      → `TestCommitStatsIgnoreFilenameDigits`(`9-changed-deletions.txt` +3줄 → +3/-0),
-        `TestParseNumstat/numeric_filenames`
+  → `TestCommitStatsIgnoreFilenameDigits`(`9-changed-deletions.txt` +3줄 → +3/-0),
+  `TestParseNumstat/numeric_filenames`
 - [x] staged+unstaged가 겹치는 편집에서 보고값 == 실제 커밋 결과
-      → `TestCommitStatsMatchRecordedCommit` — 실제 커밋 후 `git diff HEAD~1 HEAD --numstat`와 대조
+  → `TestCommitStatsMatchRecordedCommit` — 실제 커밋 후 `git diff HEAD~1 HEAD --numstat`와 대조
 - [x] 순변화 0인 리포는 `would-commit`이 아니라 `clean`/`skipped`로 예고됨
-      → `TestCommitNetZeroIsNotPreviewedAsCommittable` (`MM` 상쇄 케이스)
+  → `TestCommitNetZeroIsNotPreviewedAsCommittable` (`MM` 상쇄 케이스)
 - [x] untracked 전용 리포의 `additions`가 실제 커밋 라인 수와 일치
-      → `TestCommitCountsUntrackedLines` (개행 없는 마지막 줄 포함, 8줄 일치)
+  → `TestCommitCountsUntrackedLines` (개행 없는 마지막 줄 포함, 8줄 일치)
 - [x] 커밋 실패가 1건이라도 있으면 exit code != 0
-      → task 02에서 이미 반영: `commit.go:273` `errPartialFailure(TotalFailed+TotalConflicted, …)`
-        → `cliutil.ExitPartialFailed`(2). 본 태스크에서 경로 재확인만 수행
+  → task 02에서 이미 반영: `commit.go:273` `errPartialFailure(TotalFailed+TotalConflicted, …)`
+  → `cliutil.ExitPartialFailed`(2). 본 태스크에서 경로 재확인만 수행
 - [x] `--include`/`--exclude` 사용 시 `TotalSkipped`가 필터링 후 기준으로 정확
-      → `TestBulkCommitSkippedCountsFilteredSet/skipped_excludes_filtered-out_repositories`
+  → `TestBulkCommitSkippedCountsFilteredSet/skipped_excludes_filtered-out_repositories`
 - [x] 픽스처 추가: `MM` 상쇄, 겹치는 편집, untracked-only, 숫자 접두 파일명
-      → `bulk_commit_stats_test.go` 6개 테스트. 바이너리 케이스 추가
+  → `bulk_commit_stats_test.go` 6개 테스트. 바이너리 케이스 추가
 
 ## Decisions
 
@@ -118,16 +118,16 @@ gz-git 보고                → additions:2, deletions:2
    레코드 수만이 "diff 없음"과 "순라인 0인 diff"를 구분한다.
    → `TestCommitCountsBinaryAsZeroLines`가 이 구분을 고정한다.
 
-2. **충돌 리포는 net-zero 판정에서 제외한다.**
+1. **충돌 리포는 net-zero 판정에서 제외한다.**
    unmerged 경로는 해소 전까지 HEAD 델타가 없어 clean으로 오판될 수 있다. task 02의
    충돌 가드가 먼저 걸리도록 `ConflictCount == 0` 조건을 net-zero 판정에 추가했다.
 
-3. **untracked 라인 집계는 `collectChangeSet`에 넣어 diff/commit이 공유한다.**
+1. **untracked 라인 집계는 `collectChangeSet`에 넣어 diff/commit이 공유한다.**
    commit 쪽에만 넣으면 같은 리포에서 diff는 `additions=0`, commit은 `additions=12`를
    보고하게 되어 task 01이 없앤 바로 그 불일치가 라인 수 차원에서 부활한다.
    task 03에서 기각한 `git add -N`은 여기서도 채택하지 않았다(같은 이유: diff는 read-only).
 
-4. **`TotalSkipped`는 필터링 **후** 집합 기준(`len(filteredRepos)`)이며 dry-run 반환 이전에 계산한다.**
+1. **`TotalSkipped`는 필터링 **후** 집합 기준(`len(filteredRepos)`)이며 dry-run 반환 이전에 계산한다.**
    두 개의 독립 버그였다 — (a) `TotalScanned`는 필터링 전 값이라 `--include` 사용 시
    제외된 리포까지 "건너뜀"으로 계상됐고, (b) 계산이 dry-run 조기 반환 **뒤**에 있어
    dry-run은 항상 0을 보고했다.

@@ -28,29 +28,31 @@ gz-git sync status --target ~/repos --verbose
 gz-git sync status --skip-fetch
 ```
 
----
+______________________________________________________________________
 
 ## Health Status Reference
 
-| Icon | Status      | Meaning                          | Action Required |
-| ---- | ----------- | -------------------------------- | --------------- |
-| ✓    | healthy     | Up-to-date, clean working tree   | None            |
-| ⚠    | warning     | Diverged, behind, or ahead       | Pull or push    |
-| ✗    | error       | Conflicts or dirty + behind      | Manual resolve  |
-| ⊘    | unreachable | Network timeout or auth failed   | Fix connection  |
+| Icon | Status      | Meaning                        | Action Required |
+| ---- | ----------- | ------------------------------ | --------------- |
+| ✓    | healthy     | Up-to-date, clean working tree | None            |
+| ⚠    | warning     | Diverged, behind, or ahead     | Pull or push    |
+| ✗    | error       | Conflicts or dirty + behind    | Manual resolve  |
+| ⊘    | unreachable | Network timeout or auth failed | Fix connection  |
 
----
+______________________________________________________________________
 
 ## Network Issues
 
 ### Timeout (`⊘ timeout`)
 
 **Symptom**:
+
 ```
 ⊘ project-api (main)   timeout   fetch failed (30s timeout)
 ```
 
 **Causes**:
+
 - Slow network connection
 - Large repository
 - Server overload
@@ -74,11 +76,13 @@ curl -I https://gitlab.company.com
 ### Unreachable (`⊘ unreachable`)
 
 **Symptom**:
+
 ```
 ⊘ project-api (main)   unreachable   remote unreachable
 ```
 
 **Causes**:
+
 - DNS resolution failed
 - Server down
 - Firewall blocking
@@ -106,11 +110,13 @@ curl -I https://gitlab.company.com
 ### Authentication Failed (`⊘ auth-failed`)
 
 **Symptom**:
+
 ```
 ⊘ project-api (main)   auth-failed   authentication failed
 ```
 
 **Causes**:
+
 - Invalid or expired token
 - SSH key not loaded
 - Wrong credentials
@@ -140,19 +146,20 @@ ssh-add ~/.ssh/id_rsa
 
 **Token Scope Requirements**:
 
-| Provider | Required Scopes            |
-| -------- | -------------------------- |
-| GitHub   | `repo`, `read:org`         |
-| GitLab   | `api`, `read_repository`   |
-| Gitea    | `read:repository`          |
+| Provider | Required Scopes          |
+| -------- | ------------------------ |
+| GitHub   | `repo`, `read:org`       |
+| GitLab   | `api`, `read_repository` |
+| Gitea    | `read:repository`        |
 
----
+______________________________________________________________________
 
 ## Divergence Issues
 
 ### Behind Remote (`⚠ N↓ behind`)
 
 **Symptom**:
+
 ```
 ⚠ project-api (main)   warning   5↓ behind
   → Pull 5 commits from upstream
@@ -177,6 +184,7 @@ gz-git pull .
 ### Ahead of Remote (`⚠ N↑ ahead`)
 
 **Symptom**:
+
 ```
 ⚠ project-api (main)   warning   3↑ ahead
   → Push 3 commits to upstream
@@ -198,6 +206,7 @@ gz-git push .
 ### Diverged (`⚠ N↑ N↓ diverged`)
 
 **Symptom**:
+
 ```
 ⚠ project-api (develop)   warning   2↑ 3↓ diverged
   → Diverged: 2 ahead, 3 behind. Use 'git pull --rebase'
@@ -227,6 +236,7 @@ git push --force-with-lease
 ### No Upstream (`⚠ no-upstream`)
 
 **Symptom**:
+
 ```
 ⚠ project-api (feature/new)   warning   no-upstream
   → Set upstream with: git push -u origin feature/new
@@ -247,6 +257,7 @@ git branch --set-upstream-to=origin/feature/new
 ### Conflict (`✗ conflict`)
 
 **Symptom**:
+
 ```
 ✗ project-api (main)   error   conflict
   → Resolve merge conflicts in 3 files
@@ -280,13 +291,14 @@ git merge --abort
 git rebase --abort
 ```
 
----
+______________________________________________________________________
 
 ## Working Tree Issues
 
 ### Dirty Working Tree (`✗ dirty`)
 
 **Symptom**:
+
 ```
 ✗ project-api (main)   error   dirty + 5↓ behind
   → Commit or stash 3 modified files, then pull
@@ -320,6 +332,7 @@ git clean -fd
 ### Rebase in Progress
 
 **Symptom**:
+
 ```
 ✗ project-api (main)   error   rebase-in-progress
   → Complete or abort rebase: git rebase --continue or --abort
@@ -344,6 +357,7 @@ git rebase --abort
 ### Merge in Progress
 
 **Symptom**:
+
 ```
 ✗ project-api (main)   error   merge-in-progress
   → Complete or abort merge: git commit or git merge --abort
@@ -365,7 +379,7 @@ git commit
 git merge --abort
 ```
 
----
+______________________________________________________________________
 
 ## Sync Strategy Issues
 
@@ -406,18 +420,20 @@ git commit
 gz-git sync from-forge --strategy reset ...
 ```
 
----
+______________________________________________________________________
 
 ## Repository Issues
 
 ### Invalid Repository
 
 **Symptom**:
+
 ```
 ✗ project-api   error   failed to open repository
 ```
 
 **Causes**:
+
 - Directory not a git repo
 - Corrupted `.git` directory
 - Permission issues
@@ -441,6 +457,7 @@ ls -la project-api/.git
 ### Repository Not Found
 
 **Symptom**:
+
 ```
 Error: repository not found: project-api
 ```
@@ -458,7 +475,7 @@ ls -la project-api
 gz-git sync from-forge --org myorg --target .
 ```
 
----
+______________________________________________________________________
 
 ## Bulk Operation Issues
 
@@ -501,7 +518,7 @@ gz-git workspace sync -j 2
 gz-git sync status --timeout 120s
 ```
 
----
+______________________________________________________________________
 
 ## Quick Fix Commands
 
@@ -544,33 +561,33 @@ gz-git pull .
 gz-git stash pop .
 ```
 
----
+______________________________________________________________________
 
 ## Diagnostic Commands Summary
 
-| Task                    | Command                                    |
-| ----------------------- | ------------------------------------------ |
-| Check health            | `gz-git sync status --target DIR`          |
-| Verbose health          | `gz-git sync status -v`                    |
-| Skip fetch (fast)       | `gz-git sync status --skip-fetch`          |
-| Increase timeout        | `gz-git sync status --timeout 120s`        |
-| JSON output             | `gz-git sync status -f json`               |
-| Check single repo       | `gz-git info /path/to/repo`                |
-| Test SSH                | `ssh -T git@github.com`                    |
-| Test token              | `curl -H "PRIVATE-TOKEN: $TOKEN" URL`      |
+| Task              | Command                               |
+| ----------------- | ------------------------------------- |
+| Check health      | `gz-git sync status --target DIR`     |
+| Verbose health    | `gz-git sync status -v`               |
+| Skip fetch (fast) | `gz-git sync status --skip-fetch`     |
+| Increase timeout  | `gz-git sync status --timeout 120s`   |
+| JSON output       | `gz-git sync status -f json`          |
+| Check single repo | `gz-git info /path/to/repo`           |
+| Test SSH          | `ssh -T git@github.com`               |
+| Test token        | `curl -H "PRIVATE-TOKEN: $TOKEN" URL` |
 
----
+______________________________________________________________________
 
 ## Error Message Quick Reference
 
-| Error Message                    | Likely Cause           | Quick Fix                    |
-| -------------------------------- | ---------------------- | ---------------------------- |
-| `fetch timeout`                  | Slow network           | `--timeout 120s`             |
-| `authentication failed`          | Bad token/key          | Check `$TOKEN`, `ssh-add`    |
-| `remote unreachable`             | Network/DNS issue      | Check VPN, DNS               |
-| `dirty + behind`                 | Local changes          | `git stash`, then pull       |
-| `diverged`                       | Both changed           | `git pull --rebase`          |
-| `conflict`                       | Merge conflict         | Resolve manually             |
-| `rebase-in-progress`             | Incomplete rebase      | `--continue` or `--abort`    |
-| `no-upstream`                    | No tracking branch     | `git push -u origin BRANCH`  |
-| `failed to open repository`      | Not a git repo         | Re-clone                     |
+| Error Message               | Likely Cause       | Quick Fix                   |
+| --------------------------- | ------------------ | --------------------------- |
+| `fetch timeout`             | Slow network       | `--timeout 120s`            |
+| `authentication failed`     | Bad token/key      | Check `$TOKEN`, `ssh-add`   |
+| `remote unreachable`        | Network/DNS issue  | Check VPN, DNS              |
+| `dirty + behind`            | Local changes      | `git stash`, then pull      |
+| `diverged`                  | Both changed       | `git pull --rebase`         |
+| `conflict`                  | Merge conflict     | Resolve manually            |
+| `rebase-in-progress`        | Incomplete rebase  | `--continue` or `--abort`   |
+| `no-upstream`               | No tracking branch | `git push -u origin BRANCH` |
+| `failed to open repository` | Not a git repo     | Re-clone                    |

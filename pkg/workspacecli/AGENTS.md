@@ -2,7 +2,7 @@
 
 CLI commands for local workspace management (config-based repo sync).
 
----
+______________________________________________________________________
 
 ## Purpose
 
@@ -13,21 +13,21 @@ This is the **declarative workspace engine** (config-driven convergence).
 Contrast with scan-based bulk commands (`fetch`/`pull`/`status`, …) which are
 **ad-hoc scan operations** over a directory tree.
 
----
+______________________________________________________________________
 
 ## Commands
 
-| File | Command | Description |
-|------|---------|-------------|
-| `init_command.go` | `workspace init` | Scan dir → generate config |
-| `sync_command.go` | `workspace sync` | Clone/update from config |
-| `quicksync_command.go` | `sync` (alias) | Auto-init + sync (one shot) |
-| `status_command.go` | `workspace status` | Health check |
-| `add_command.go` | `workspace add` | Add repo to config |
-| `validate_command.go` | `workspace validate` | Validate config file |
-| `generate_command.go` | `workspace generate-config` | Generate config from forge |
+| File                   | Command                     | Description                 |
+| ---------------------- | --------------------------- | --------------------------- |
+| `init_command.go`      | `workspace init`            | Scan dir → generate config  |
+| `sync_command.go`      | `workspace sync`            | Clone/update from config    |
+| `quicksync_command.go` | `sync` (alias)              | Auto-init + sync (one shot) |
+| `status_command.go`    | `workspace status`          | Health check                |
+| `add_command.go`       | `workspace add`             | Add repo to config          |
+| `validate_command.go`  | `workspace validate`        | Validate config file        |
+| `generate_command.go`  | `workspace generate-config` | Generate config from forge  |
 
----
+______________________________________________________________________
 
 ## Key Flow: `workspace sync`
 
@@ -43,7 +43,7 @@ sync_command.go
 Workspace recursion (child configs): `--recurse-workspaces`
 (deprecated alias: `--recursive` / `-R`).
 
----
+______________________________________________________________________
 
 ## Factory Pattern (`factory.go`)
 
@@ -59,17 +59,18 @@ root := f.NewRootCmd() // workspace root + subcommands
 Inject mocks in tests by constructing `CommandFactory{}` and exercising
 command constructors (`newSyncCmd`, `newInitCmd`, …) / `NewRootCmd`.
 
----
+______________________________________________________________________
 
 ## Sync Preview (`sync_tree_output.go`)
 
 `workspace sync` shows a detailed preview before executing:
+
 - Repository summary (clone/update/skip counts)
 - File-level changes (added/modified/deleted)
 - Conflict warnings (dirty worktree, diverged branches)
 - Interactive confirmation (`--interactive`)
 
----
+______________________________________________________________________
 
 ## DO / DON'T
 
@@ -78,7 +79,7 @@ command constructors (`newSyncCmd`, `newInitCmd`, …) / `NewRootCmd`.
 - **DON'T** call Forge APIs here — delegate to `reposynccli`
 - **DON'T** run hook commands via shell — use `exec.Command(args[0], args[1:]...)`
 
----
+______________________________________________________________________
 
 ## Testing
 

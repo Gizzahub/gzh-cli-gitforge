@@ -21,26 +21,26 @@
 
 `internal/parser/status.go`가 지워질 때 함께 사라진 3건:
 
-| 케이스 | 현재 상태 |
-|---|---|
-| `C ` (copied) | **미복원** — `applyStatusCode`의 `case 'C'` 분기가 무테스트 |
-| unknown worktree status code | **미복원** — `default: return fmt.Errorf(...)` 경로가 무테스트 |
-| short record | **태스크 09 소관** — 09가 "에러여야 한다"로 계약을 바꾸므로 그쪽에서 복원 |
+| 케이스                       | 현재 상태                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `C ` (copied)                | **미복원** — `applyStatusCode`의 `case 'C'` 분기가 무테스트               |
+| unknown worktree status code | **미복원** — `default: return fmt.Errorf(...)` 경로가 무테스트            |
+| short record                 | **태스크 09 소관** — 09가 "에러여야 한다"로 계약을 바꾸므로 그쪽에서 복원 |
 
 앞의 2건은 이번 세션에서 `applyStatusCode`의 worktree 스위치를 **다시 쓴** 직후라
 특히 중요하다. `case 'R', 'C'`는 새로 추가된 코드인데 `C` 경로에 테스트가 없다.
 
 ### 2. 소비자 7곳 무테스트
 
-| 위치 | 함수 | 무엇을 하는가 |
-|---|---|---|
-| `pkg/repository/bulk.go:1416` | `populateFetchDirtyStatus` | fetch 결과에 dirty 필드 채움 |
-| `pkg/repository/bulk.go:1817` | `populatePullDirtyStatus` | pull 결과에 dirty 필드 채움 |
-| `pkg/repository/bulk.go:2359` | `populateDirtyStatus` | push 결과에 dirty 필드 채움 |
-| `pkg/repository/bulk.go:2462` | `processStatusRepository` | `gz-git status` 한 저장소 처리 |
-| `pkg/repository/update.go:303` | (update 경로) | `GetStatus` 결과로 갱신 여부 판단 |
-| `pkg/repository/update.go:400` | (update 경로) | 동일 |
-| `pkg/repository/bulk_switch.go:162` | (switch 경로) | dirty면 브랜치 전환 건너뜀 |
+| 위치                                | 함수                       | 무엇을 하는가                     |
+| ----------------------------------- | -------------------------- | --------------------------------- |
+| `pkg/repository/bulk.go:1416`       | `populateFetchDirtyStatus` | fetch 결과에 dirty 필드 채움      |
+| `pkg/repository/bulk.go:1817`       | `populatePullDirtyStatus`  | pull 결과에 dirty 필드 채움       |
+| `pkg/repository/bulk.go:2359`       | `populateDirtyStatus`      | push 결과에 dirty 필드 채움       |
+| `pkg/repository/bulk.go:2462`       | `processStatusRepository`  | `gz-git status` 한 저장소 처리    |
+| `pkg/repository/update.go:303`      | (update 경로)              | `GetStatus` 결과로 갱신 여부 판단 |
+| `pkg/repository/update.go:400`      | (update 경로)              | 동일                              |
+| `pkg/repository/bulk_switch.go:162` | (switch 경로)              | dirty면 브랜치 전환 건너뜀        |
 
 세 `populate*DirtyStatus`는 서로 거의 같은 코드다 — 하나가 틀리면 셋 다 틀린다.
 `bulk_switch.go:162`은 **사용자 데이터 보호 판정**이다: 여기서 dirty를 놓치면
@@ -75,32 +75,32 @@ if err := cmd.Run(); err != nil {
 ## Scope
 
 1. `TestParseStatus`에 `C` copied·unknown worktree code 케이스 추가.
-2. 소비자 7곳에 대해 실 git 픽스처 기반 테스트 추가. 최소한
+1. 소비자 7곳에 대해 실 git 픽스처 기반 테스트 추가. 최소한
    `bulk_switch.go:162`(데이터 보호)과 `processStatusRepository`(사용자 노출 경로)는 필수.
-3. `populate*DirtyStatus` 3중복은 테스트 추가 전에 하나로 합칠지 판단
+1. `populate*DirtyStatus` 3중복은 테스트 추가 전에 하나로 합칠지 판단
    (합치면 테스트 1개로 3곳이 덮인다 — 단, 별도 태스크로 뺄 것).
-4. `internal/testutil`: `t.Logf` → `t.Fatalf`, `commit.gpgsign=false`·
+1. `internal/testutil`: `t.Logf` → `t.Fatalf`, `commit.gpgsign=false`·
    `init.defaultBranch` 명시.
-5. `diagnostic_integration_test.go`의 `integration` 태그 재검토 — 로컬 git만
+1. `diagnostic_integration_test.go`의 `integration` 태그 재검토 — 로컬 git만
    쓰는 케이스는 기본 실행 대상으로.
 
 ## Acceptance Criteria
 
 - [x] `C` copied 케이스가 `TestParseStatus`에 존재하고 `RenamedFiles`를 검증
-      (`copied file` + `worktree-side copy`; index-side C now fills RenamedFiles)
+  (`copied file` + `worktree-side copy`; index-side C now fills RenamedFiles)
 - [x] unknown worktree code가 non-nil error를 반환함을 검증하는 케이스 존재
-      (`unknown worktree status code` — ` X weird.txt`)
+  (`unknown worktree status code` — ` X weird.txt`)
 - [x] `bulk_switch.go` dirty 판정에 실 픽스처 테스트 존재 (dirty면 전환 안 함)
-      (`TestProcessSwitchRepositorySkipsDirty`)
+  (`TestProcessSwitchRepositorySkipsDirty`)
 - [x] `processStatusRepository`에 실 픽스처 테스트 존재
-      (`TestProcessStatusRepositoryReportsDirty` / `...ReportsClean`)
+  (`TestProcessStatusRepositoryReportsDirty` / `...ReportsClean`)
 - [x] `TempGitRepoWithCommit`이 커밋 실패 시 `t.Fatalf`
 - [x] `testutil` 픽스처가 `commit.gpgsign=false` 설정 (+ `init.defaultBranch=main`)
 - [x] `integration` 태그 없이 실행되는 reposync 회귀 테스트 유지/확대
-      (`diagnostic_worktree_test.go` already untagged; integration file kept tagged
-      for network-ish multi-repo paths)
+  (`diagnostic_worktree_test.go` already untagged; integration file kept tagged
+  for network-ish multi-repo paths)
 - [x] 각 신규 테스트는 **뮤테이션으로 검증** — 수정을 되돌리면 실제로 FAIL해야 함
-      (코멘트에 mutation 힌트 기록; dirty/switch/copy 케이스는 리스트 단언 포함)
+  (코멘트에 mutation 힌트 기록; dirty/switch/copy 케이스는 리스트 단언 포함)
 
 ## Notes
 

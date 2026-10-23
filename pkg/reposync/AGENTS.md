@@ -2,14 +2,14 @@
 
 Sync planner and executor for repository orchestration.
 
----
+______________________________________________________________________
 
 ## Purpose
 
 Converts a desired repository list into an action plan, then executes it.
 Used by both `workspacecli` (local config) and `reposynccli` (forge API).
 
----
+______________________________________________________________________
 
 ## Core Interfaces
 
@@ -25,34 +25,35 @@ type Executor interface {
 }
 ```
 
----
+______________________________________________________________________
 
 ## Planners
 
-| File | Type | Input |
-|------|------|-------|
-| `planner_static.go` | `StaticPlanner` | Local config (`[]RepoSpec`) |
-| `planner_forge.go` | `ForgePlanner` | Forge API (GitHub/GitLab/Gitea) |
+| File                | Type            | Input                           |
+| ------------------- | --------------- | ------------------------------- |
+| `planner_static.go` | `StaticPlanner` | Local config (`[]RepoSpec`)     |
+| `planner_forge.go`  | `ForgePlanner`  | Forge API (GitHub/GitLab/Gitea) |
 
 Auto-detects action per repo:
+
 - **clone** — target path does not exist
 - **pull/fetch** — repo exists, up-to-date
 - **update** — repo exists, behind remote
 
----
+______________________________________________________________________
 
 ## Key Types
 
-| Type | Purpose |
-|------|---------|
-| `PlanRequest` | `PlanInput` + `PlanOptions` |
-| `RepoSpec` | URL, target path, branch, auth, strategy |
-| `Plan` | `[]Action` — ordered list |
-| `Action` | type (clone/pull/fetch/skip), spec, strategy |
-| `Strategy` | clone strategy: `mirror`, `standard`, `shallow` |
-| `AuthConfig` | SSH key path or token |
+| Type          | Purpose                                         |
+| ------------- | ----------------------------------------------- |
+| `PlanRequest` | `PlanInput` + `PlanOptions`                     |
+| `RepoSpec`    | URL, target path, branch, auth, strategy        |
+| `Plan`        | `[]Action` — ordered list                       |
+| `Action`      | type (clone/pull/fetch/skip), spec, strategy    |
+| `Strategy`    | clone strategy: `mirror`, `standard`, `shallow` |
+| `AuthConfig`  | SSH key path or token                           |
 
----
+______________________________________________________________________
 
 ## Execution Flow
 
@@ -65,7 +66,7 @@ Plan → executor.go
   state_file.go       → persist last-sync state
 ```
 
----
+______________________________________________________________________
 
 ## Diagnostics (`diagnostic.go`)
 
@@ -76,7 +77,7 @@ report := diag.Report()  // per-repo health: healthy/warning/error/unreachable
 
 Health symbols: `✓` healthy · `⚠` warning · `✗` error · `⊘` unreachable
 
----
+______________________________________________________________________
 
 ## DO / DON'T
 
@@ -85,7 +86,7 @@ Health symbols: `✓` healthy · `⚠` warning · `✗` error · `⊘` unreachab
 - **DON'T** call `pkg/repository` from executor — use `executor_git.go` (gitcmd direct)
 - **DON'T** store credentials in `state_file.go`
 
----
+______________________________________________________________________
 
 ## Testing
 

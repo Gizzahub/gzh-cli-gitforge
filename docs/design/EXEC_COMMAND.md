@@ -48,9 +48,9 @@ cmd.Dir = repoPath
 ## Execution Model
 
 1. scanner로 repo 발견 (기존 `pkg/scanner` 재사용)
-2. worker pool 병렬 실행 (기존 bulk 실행기 패턴, 기본 `DefaultLocalParallel`)
-3. repo별 결과 수집: exit code, stdout/stderr(테일 제한), 소요 시간
-4. 포맷터로 출력 — 실패 repo 요약을 마지막에 재출력
+1. worker pool 병렬 실행 (기존 bulk 실행기 패턴, 기본 `DefaultLocalParallel`)
+1. repo별 결과 수집: exit code, stdout/stderr(테일 제한), 소요 시간
+1. 포맷터로 출력 — 실패 repo 요약을 마지막에 재출력
 
 ## Output (default format)
 
@@ -63,8 +63,8 @@ Summary: 10 repos, 9 ok, 1 failed
 ## Open Questions
 
 1. 비-git 디렉토리도 대상에 포함하는 옵션(`--any-dir`)이 필요한가?
-2. 환경변수 주입(`GZ_REPO_NAME`, `GZ_REPO_PATH`)을 제공할 것인가? (git-xargs 스타일)
-3. exit code 정책: 하나라도 실패하면 non-zero? (`--fail-fast`와 별개로 기본값 결정 필요)
+1. 환경변수 주입(`GZ_REPO_NAME`, `GZ_REPO_PATH`)을 제공할 것인가? (git-xargs 스타일)
+1. exit code 정책: 하나라도 실패하면 non-zero? (`--fail-fast`와 별개로 기본값 결정 필요)
 
 ## Non-Goals
 

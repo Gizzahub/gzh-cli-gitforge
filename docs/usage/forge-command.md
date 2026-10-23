@@ -4,12 +4,12 @@ Git Forge (GitHub, GitLab, Gitea) API를 통한 repository 동기화/설정 생�
 
 ## 서브커맨드
 
-| 커맨드 | 설명 |
-|--------|------|
-| `from` | Forge에서 직접 clone/update |
+| 커맨드            | 설명                         |
+| ----------------- | ---------------------------- |
+| `from`            | Forge에서 직접 clone/update  |
 | `config generate` | Forge API → config 파일 생성 |
-| `status` | Repository health 진단 |
-| `setup` | Interactive 설정 마법사 |
+| `status`          | Repository health 진단       |
+| `setup`           | Interactive 설정 마법사      |
 
 ## from
 
@@ -43,21 +43,21 @@ gz-git forge from \
 
 ### 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `--provider` | github, gitlab, gitea | - |
-| `--org` | Organization/Group 이름 | - |
-| `--path` | Clone 대상 디렉토리 | - (required) |
-| `--base-url` | API endpoint (self-hosted) | provider default |
-| `--token` | 인증 토큰 | - |
-| `--clone-proto` | Clone 프로토콜: ssh, https | ssh |
-| `--ssh-port` | SSH 포트 (비표준) | - |
-| `--include-subgroups` | GitLab 하위 그룹 포함 | false |
-| `--subgroup-mode` | flat, nested | flat |
-| `--include` | Repo name/full path regex 포함 필터 | - |
-| `--exclude` | Repo name/full path regex 제외 필터 | - |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `-n, --dry-run` | 미리보기 | false |
+| 옵션                  | 설명                                | 기본값           |
+| --------------------- | ----------------------------------- | ---------------- |
+| `--provider`          | github, gitlab, gitea               | -                |
+| `--org`               | Organization/Group 이름             | -                |
+| `--path`              | Clone 대상 디렉토리                 | - (required)     |
+| `--base-url`          | API endpoint (self-hosted)          | provider default |
+| `--token`             | 인증 토큰                           | -                |
+| `--clone-proto`       | Clone 프로토콜: ssh, https          | ssh              |
+| `--ssh-port`          | SSH 포트 (비표준)                   | -                |
+| `--include-subgroups` | GitLab 하위 그룹 포함               | false            |
+| `--subgroup-mode`     | flat, nested                        | flat             |
+| `--include`           | Repo name/full path regex 포함 필터 | -                |
+| `--exclude`           | Repo name/full path regex 제외 필터 | -                |
+| `-j, --parallel`      | 병렬 처리 수                        | 10               |
+| `-n, --dry-run`       | 미리보기                            | false            |
 
 ### Name Filtering
 
@@ -94,12 +94,12 @@ gz-git forge from \
 
 Repository metadata 기반 필터링:
 
-| 옵션 | 설명 | 예시 |
-|------|------|------|
-| `--language` | 언어 필터 (쉼표 구분) | `go,rust,python` |
-| `--min-stars` | 최소 star 수 | `100` |
-| `--max-stars` | 최대 star 수 (0=무제한) | `10000` |
-| `--last-push-within` | 최근 활동 기간 | `7d`, `30d`, `6M`, `1y` |
+| 옵션                 | 설명                    | 예시                    |
+| -------------------- | ----------------------- | ----------------------- |
+| `--language`         | 언어 필터 (쉼표 구분)   | `go,rust,python`        |
+| `--min-stars`        | 최소 star 수            | `100`                   |
+| `--max-stars`        | 최대 star 수 (0=무제한) | `10000`                 |
+| `--last-push-within` | 최근 활동 기간          | `7d`, `30d`, `6M`, `1y` |
 
 ```bash
 # Go repos with 100+ stars, active in last 6 months
@@ -122,11 +122,11 @@ gz-git forge from \
 
 **Provider 제한사항:**
 
-| Provider | 언어 필터 | 비고 |
-|----------|----------|------|
-| GitHub | ✅ 지원 | - |
-| GitLab | ⚠ 제한적 | API에서 language 미제공 |
-| Gitea | ⚠ 제한적 | SDK에서 language 미노출 |
+| Provider | 언어 필터 | 비고                    |
+| -------- | --------- | ----------------------- |
+| GitHub   | ✅ 지원   | -                       |
+| GitLab   | ⚠ 제한적  | API에서 language 미제공 |
+| Gitea    | ⚠ 제한적  | SDK에서 language 미노출 |
 
 GitLab/Gitea에서 `--language` 사용 시 경고 메시지가 표시됩니다.
 
@@ -244,12 +244,12 @@ Summary: 1 healthy, 1 warning, 1 error, 1 unreachable
 
 ### Health Status
 
-| Status | 의미 | 권장 조치 |
-|--------|------|----------|
-| `healthy` | 최신, clean | 없음 |
-| `warning` | diverged/behind | pull/rebase |
-| `error` | dirty + behind | stash/commit → pull |
-| `timeout` | 네트워크 문제 | 연결 확인 |
+| Status    | 의미            | 권장 조치           |
+| --------- | --------------- | ------------------- |
+| `healthy` | 최신, clean     | 없음                |
+| `warning` | diverged/behind | pull/rebase         |
+| `error`   | dirty + behind  | stash/commit → pull |
+| `timeout` | 네트워크 문제   | 연결 확인           |
 
 ## setup
 

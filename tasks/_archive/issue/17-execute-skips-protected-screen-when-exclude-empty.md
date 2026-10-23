@@ -64,12 +64,12 @@ func (c *cleanupService) isProtectedBranch(branch string, additionalPatterns []s
 ## Scope
 
 1. 내장 보호 검사를 `len(opts.Exclude)` 조건 **밖으로** 꺼낸다. 필터는 항상 돈다.
-2. 걸러낸 브랜치를 조용히 버리지 않는다. 태스크 13이 `ExecuteResult`를 도입했으므로
+1. 걸러낸 브랜치를 조용히 버리지 않는다. 태스크 13이 `ExecuteResult`를 도입했으므로
    `Skipped []string`(또는 `Failed`에 사유를 담은 항목)으로 호출자에게 보인다 —
    지금은 "요청했는데 안 지워졌다"가 아무 데도 안 나타난다.
-3. 회귀 테스트: `Exclude`가 빈 `ExecuteOptions`로 `Merged: ["main"]`을 넘겨도
+1. 회귀 테스트: `Exclude`가 빈 `ExecuteOptions`로 `Merged: ["main"]`을 넘겨도
    `main`이 살아남는다.
-4. `Analyze`가 이미 걸러 준다는 사실에 기대지 않음을 주석으로 남긴다.
+1. `Analyze`가 이미 걸러 준다는 사실에 기대지 않음을 주석으로 남긴다.
 
 ## Acceptance Criteria
 

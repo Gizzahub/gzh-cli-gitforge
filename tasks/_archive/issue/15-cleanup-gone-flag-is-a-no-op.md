@@ -24,12 +24,12 @@
 `--gone`에는 구현이 두 벌 있다. 디렉터리 인자를 주면 벌크 경로, 안 주면 단일 경로로
 갈라지는데(`cleanup_branch.go:103`) **두 경로가 서로 다른 질문에 답한다.**
 
-| | 벌크 (`pkg/repository/bulk_cleanup.go:462`) | 단일 (`pkg/branch/cleanup.go` 구 `isBranchOrphaned`) |
-|---|---|---|
-| 대상 | **로컬** 브랜치 (`refs/heads/`) | **원격추적** 브랜치 (`refs/remotes/`) |
-| 판정 | `for-each-ref %(upstream:track)`의 `[gone]` | `git remote` 목록에 remote 이름이 있는가 |
-| 근거 | git 자신의 답 | 직접 만든 규칙 |
-| 삭제 | `git branch -D` | (도달 불가) |
+|      | 벌크 (`pkg/repository/bulk_cleanup.go:462`) | 단일 (`pkg/branch/cleanup.go` 구 `isBranchOrphaned`) |
+| ---- | ------------------------------------------- | ---------------------------------------------------- |
+| 대상 | **로컬** 브랜치 (`refs/heads/`)             | **원격추적** 브랜치 (`refs/remotes/`)                |
+| 판정 | `for-each-ref %(upstream:track)`의 `[gone]` | `git remote` 목록에 remote 이름이 있는가             |
+| 근거 | git 자신의 답                               | 직접 만든 규칙                                       |
+| 삭제 | `git branch -D`                             | (도달 불가)                                          |
 
 git이 `[gone]`이라 부르는 것, `git branch -vv`가 `[origin/x: gone]`으로 찍는 것,
 사용자가 "고아 브랜치"라 말하는 것은 전부 **왼쪽**이다. 오른쪽은 "등록되지 않은
@@ -89,30 +89,29 @@ if strings.HasPrefix(branch.Name, "remotes/") {
 
 1. ~~`isBranchOrphaned`의 `remotes/` 접두어 검사를 제거한다~~ → **함수를 삭제**하고
    `findGoneBranches`로 대체한다. 벌크 경로와 같은 방식:
-   `fetch --prune` 후 `for-each-ref --format=%(refname:short) %(upstream:track)
-   refs/heads/`에서 `[gone]` 줄을 고른다.
-2. ~~원격 이름 추출이 새 입력 형태에 맞는지 확인~~ → 해당 없음(함수 삭제).
-3. `--gone`과 `--remote`의 관계를 결정한다 (아래 D1).
-4. ~~`manager.Delete`가 원격추적 브랜치를 다룰 수 있게 한다~~ → **불필요.**
+   `fetch --prune` 후 `for-each-ref --format=%(refname:short) %(upstream:track) refs/heads/`에서 `[gone]` 줄을 고른다.
+1. ~~원격 이름 추출이 새 입력 형태에 맞는지 확인~~ → 해당 없음(함수 삭제).
+1. `--gone`과 `--remote`의 관계를 결정한다 (아래 D1).
+1. ~~`manager.Delete`가 원격추적 브랜치를 다룰 수 있게 한다~~ → **불필요.**
    고아는 로컬 브랜치이므로 `manager.Delete`가 이미 다룬다. 이 항목은 "고아 =
    원격추적 브랜치"라는 §0의 잘못된 전제에서 나온 것이다.
-5. `AnalyzeOptions.IncludeGone` 추가 + 단일 경로 CLI 배선 (§2·§3).
-6. 회귀 방지 테스트.
-7. CHANGELOG 기재.
+1. `AnalyzeOptions.IncludeGone` 추가 + 단일 경로 CLI 배선 (§2·§3).
+1. 회귀 방지 테스트.
+1. CHANGELOG 기재.
 
 ## Acceptance Criteria
 
 - [x] 상위가 삭제된 브랜치가 있는 픽스처에서 `Analyze(IncludeGone:true)`가
-      `report.Orphaned`에 그 브랜치를 담는다 —
-      `TestCleanupService_AnalyzeFindsBranchWithGoneUpstream`
+  `report.Orphaned`에 그 브랜치를 담는다 —
+  `TestCleanupService_AnalyzeFindsBranchWithGoneUpstream`
 - [x] 상위가 살아있는 브랜치는 담기지 **않는다** (과탐지 방지) — 같은 테스트의
-      `live-upstream` assertion
+  `live-upstream` assertion
 - [x] `IncludeGone:false`면 `Orphaned`가 빈다 (플래그가 실제로 동작을 가른다) —
-      `TestCleanupService_AnalyzeSkipsGoneWhenNotRequested`
+  `TestCleanupService_AnalyzeSkipsGoneWhenNotRequested`
 - [x] `--gone --force`가 대상을 실제로 제거하고 제거 수가 출력에 반영된다 —
-      `TestCleanupBranchGoneDeletesAndCounts` (`✓ Deleted 1 branch(es)`)
+  `TestCleanupBranchGoneDeletesAndCounts` (`✓ Deleted 1 branch(es)`)
 - [x] `--gone`이 서버의 브랜치를 지우지 않는다 (D1 고정) —
-      `TestCleanupService_ExecuteGoneLeavesOriginUntouched`
+  `TestCleanupService_ExecuteGoneLeavesOriginUntouched`
 - [x] `make quality` 통과 (`make lint` 신규 지적 0건 — 아래 D3)
 - [x] CHANGELOG 기재 — 플래그가 지금까지 무동작이었다는 사실 포함
 

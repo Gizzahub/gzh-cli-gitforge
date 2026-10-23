@@ -25,12 +25,12 @@ for _, file := range result.UntrackedFiles {
 
 ## Findings covered
 
-| ID | 증상 | 심각도 |
-|----|------|--------|
-| `untracked-symlink-dereference-leak` | symlink를 따라가 **리포 밖 파일 본문**을 diff/LLM 출력에 인라인 | 🔴 정보유출 |
-| `untracked-read-unbounded-memory` | `MaxDiffSize` 검사가 파일을 다 읽은 **후** 수행되어 예산이 무력화 | 🔴 OOM |
-| `include-untracked-noop-on-directories` | 축약된 untracked 디렉터리에 EISDIR → bare `continue` → 플래그가 무음 no-op | 🟠 |
-| `include-untracked-silently-drops-files` | 같은 `continue`가 quoted 경로도 삼켜 신규 파일이 경고 없이 사라짐 | 🟠 |
+| ID                                       | 증상                                                                       | 심각도      |
+| ---------------------------------------- | -------------------------------------------------------------------------- | ----------- |
+| `untracked-symlink-dereference-leak`     | symlink를 따라가 **리포 밖 파일 본문**을 diff/LLM 출력에 인라인            | 🔴 정보유출 |
+| `untracked-read-unbounded-memory`        | `MaxDiffSize` 검사가 파일을 다 읽은 **후** 수행되어 예산이 무력화          | 🔴 OOM      |
+| `include-untracked-noop-on-directories`  | 축약된 untracked 디렉터리에 EISDIR → bare `continue` → 플래그가 무음 no-op | 🟠          |
+| `include-untracked-silently-drops-files` | 같은 `continue`가 quoted 경로도 삼켜 신규 파일이 경고 없이 사라짐          | 🟠          |
 
 ## Reproduction
 
@@ -80,9 +80,9 @@ git reset -- <paths>            # 원복
 `add -N`을 쓸 수 없는 경우의 최소 수정안:
 
 1. `os.Lstat`으로 선검사 — **regular file만** 처리, symlink/디렉터리/디바이스는 스킵
-2. 크기를 `Lstat` 결과로 **먼저** 확인하고 예산 초과 시 읽지 않음
-3. 읽기는 `io.LimitReader`로 스트리밍
-4. bare `continue`를 제거하고 스킵 사유를 반드시 기록
+1. 크기를 `Lstat` 결과로 **먼저** 확인하고 예산 초과 시 읽지 않음
+1. 읽기는 `io.LimitReader`로 스트리밍
+1. bare `continue`를 제거하고 스킵 사유를 반드시 기록
 
 ### 무음 실패 제거 (필수)
 
@@ -105,11 +105,11 @@ omitted_files: [{path, reason}]   // reason: "is-directory" | "symlink" | "too-l
 
 1. `git ls-files --others --exclude-standard -z` — 디렉터리 전개와 unquoted 경로를 부작용 없이 확보.
    porcelain `??`는 디렉터리를 축약하고 C-quote되므로 열거원으로 쓰지 않는다 (`bulk_diff.go`에서 skip).
-2. `os.Lstat` → symlink는 `mode 120000` + 링크 경로만 (git과 동일), 비정규 파일은 `not-regular-file`로 기록.
-3. `info.Size()`를 남은 예산과 **먼저** 비교 — 초과 시 읽지 않고 `too-large` 기록 + `Truncated` 설정.
-4. `os.Open` → **열린 디스크립터에서 `f.Stat()` 재확인** → `io.LimitReader`.
+1. `os.Lstat` → symlink는 `mode 120000` + 링크 경로만 (git과 동일), 비정규 파일은 `not-regular-file`로 기록.
+1. `info.Size()`를 남은 예산과 **먼저** 비교 — 초과 시 읽지 않고 `too-large` 기록 + `Truncated` 설정.
+1. `os.Open` → **열린 디스크립터에서 `f.Stat()` 재확인** → `io.LimitReader`.
    Lstat과 Open 사이의 심링크 교체(TOCTOU) 창을 닫는다.
-5. bare `continue` 전멸 — 모든 스킵이 `OmittedFiles{Path, Reason}`에 기록된다.
+1. bare `continue` 전멸 — 모든 스킵이 `OmittedFiles{Path, Reason}`에 기록된다.
 
 부수 수정: 기존 hunk 빌더가 `strings.Split(content, "\n")`을 써서 개행으로 끝나는 모든 파일에
 빈 `+` 줄 하나와 어긋난 라인 수를 냈다. `splitDiffLines`가 이를 처리하고 git의
@@ -122,21 +122,21 @@ symlink는 스킵이 아니라 **정상 처리**된다.
 ## Acceptance Criteria
 
 - [x] untracked symlink가 diff 본문에 **타깃 파일 내용을 인라인하지 않음** (경로/모드만 표기)
-      → `TestUntrackedSymlinkIsNotDereferenced`
+  → `TestUntrackedSymlinkIsNotDereferenced`
 - [x] untracked 디렉터리 하위 파일 본문이 `--include-untracked`에 정상 포함됨 (중첩 깊이 무관)
-      → `TestUntrackedDirectoryIsExpanded` (`docs/adr/` 2단 중첩)
+  → `TestUntrackedDirectoryIsExpanded` (`docs/adr/` 2단 중첩)
 - [x] 공백/비ASCII 경로 untracked 파일이 누락 없이 포함됨 → `TestUntrackedSpacedPathIncluded`
 - [x] `--max-size N` 초과 파일에서 프로세스 RSS가 N에 비례해 유지됨
-      → `TestUntrackedOversizeFileIsNotRead` (256KB 파일 / `MaxDiffSize` 4096).
-      191MB 픽스처는 단위 테스트에 부적합해 비율을 유지한 채 축소했다. 검증 대상은 크기가 아니라
-      **읽기 이전에 크기로 거부하는지**이며, `TestReadRegularFileRespectsLimit`이 경계를 직접 확인한다.
+  → `TestUntrackedOversizeFileIsNotRead` (256KB 파일 / `MaxDiffSize` 4096).
+  191MB 픽스처는 단위 테스트에 부적합해 비율을 유지한 채 축소했다. 검증 대상은 크기가 아니라
+  **읽기 이전에 크기로 거부하는지**이며, `TestReadRegularFileRespectsLimit`이 경계를 직접 확인한다.
 - [x] 어떤 이유로든 스킵된 파일이 `omitted_files`에 사유와 함께 보고되고, 사람이 읽는 포맷에도 경고가 표시됨
-      → `TestUntrackedUnreadableFileIsReported`; `diff.go`의 `⚠ N untracked file(s) omitted`는
-      `--verbose` 무관하게 출력되고 JSON은 `--no-content`에서도 `omitted_files`를 유지한다
+  → `TestUntrackedUnreadableFileIsReported`; `diff.go`의 `⚠ N untracked file(s) omitted`는
+  `--verbose` 무관하게 출력되고 JSON은 `--no-content`에서도 `omitted_files`를 유지한다
 - [x] `bulk_diff_test.go:550-568`의 `IncludeUntracked` 테스트 보강
-      → `bulk_diff_untracked_test.go` 신규 12건이 실제 읽기 루프를 실행한다 (기존 필드 왕복 테스트는 존치)
+  → `bulk_diff_untracked_test.go` 신규 12건이 실제 읽기 루프를 실행한다 (기존 필드 왕복 테스트는 존치)
 - [x] 픽스처 추가: 디렉터리, symlink(리포 밖 시크릿 대상), 바이너리, 대용량, 공백 경로, 개행 없는 파일
-      → `untrackedFixture`
+  → `untrackedFixture`
 
 ## Notes
 

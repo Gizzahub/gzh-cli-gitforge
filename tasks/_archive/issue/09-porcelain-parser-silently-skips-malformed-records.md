@@ -28,10 +28,10 @@ for i := 0; i < len(records); i++ {
 
 `continue`가 처리하는 입력은 두 종류인데 코드가 구분하지 않는다.
 
-| 입력 | 실제 의미 | 올바른 처리 |
-|---|---|---|
-| 마지막 NUL 뒤의 빈 문자열 `""` | 정상 — `-z`는 레코드마다 NUL을 붙이므로 항상 생긴다 | 건너뛰기 (현행 유지) |
-| `"M"`, `"XY"`, `"?? "` 등 4바이트 미만 비어있지 않은 값 | **비정상** — git이 이런 걸 낼 이유가 없다. 냈다면 우리가 모르는 포맷이거나 stdout이 잘린 것 | 에러 |
+| 입력                                                    | 실제 의미                                                                                   | 올바른 처리          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------- |
+| 마지막 NUL 뒤의 빈 문자열 `""`                          | 정상 — `-z`는 레코드마다 NUL을 붙이므로 항상 생긴다                                         | 건너뛰기 (현행 유지) |
+| `"M"`, `"XY"`, `"?? "` 등 4바이트 미만 비어있지 않은 값 | **비정상** — git이 이런 걸 낼 이유가 없다. 냈다면 우리가 모르는 포맷이거나 stdout이 잘린 것 | 에러                 |
 
 즉 현행 코드는 "정상적으로 예상되는 빈 레코드"를 처리하려다 **"우리가 포맷을 잘못
 알고 있다"는 유일한 신호까지 같이 삼킨다.** 전역 규칙(`error-visibility`: 오류
@@ -56,12 +56,12 @@ for i := 0; i < len(records); i++ {
        return nil, fmt.Errorf("malformed porcelain record %q", records[i])
    }
    ```
-2. `parsePorcelainZ`가 `([]porcelainRecord, error)`를 반환하도록 시그니처 변경.
+1. `parsePorcelainZ`가 `([]porcelainRecord, error)`를 반환하도록 시그니처 변경.
    호출자 3곳(`collectChangeSet`, `GetStatus`, `checkRepositoryState`)은 이미
    `statusFromRecords`의 에러를 감싸고 있으므로 분기 추가 부담이 작다.
-3. rename 소스 레코드 lookahead(`i+1 < len(records)`)가 **거짓일 때도** 에러여야 한다.
+1. rename 소스 레코드 lookahead(`i+1 < len(records)`)가 **거짓일 때도** 에러여야 한다.
    현행은 소스 없는 rename을 `OldPath: ""`로 조용히 통과시킨다.
-4. CHANGELOG에 계약 변경으로 기재 (구 `ParseStatus`는 에러였다는 사실 포함).
+1. CHANGELOG에 계약 변경으로 기재 (구 `ParseStatus`는 에러였다는 사실 포함).
 
 ## Acceptance Criteria
 

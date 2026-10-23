@@ -171,18 +171,18 @@ gz-git push --refspec develop:master --dry-run
 gz-git validates refspecs **before** executing:
 
 1. **Format check** - Git branch name rules
-2. **Source branch check** - Local branch must exist
-3. **Commit count** - Calculates actual push commits
-4. **Remote branch check** - Verifies remote branch exists
+1. **Source branch check** - Local branch must exist
+1. **Commit count** - Calculates actual push commits
+1. **Remote branch check** - Verifies remote branch exists
 
 ### Valid/Invalid Formats
 
-| Valid                                   | Invalid (auto-error)     |
-| --------------------------------------- | ------------------------ |
-| `branch`                                | `develop::master` (::)   |
-| `local:remote`                          | `branch name` (space)    |
-| `+local:remote` (force)                 | `-invalid` (starts -)    |
-| `refs/heads/main:refs/heads/master`     | `branch.` (ends .)       |
+| Valid                               | Invalid (auto-error)   |
+| ----------------------------------- | ---------------------- |
+| `branch`                            | `develop::master` (::) |
+| `local:remote`                      | `branch name` (space)  |
+| `+local:remote` (force)             | `-invalid` (starts -)  |
+| `refs/heads/main:refs/heads/master` | `branch.` (ends .)     |
 
 ### Error Messages
 
@@ -201,10 +201,10 @@ When using hierarchical config, control how workspaces are discovered.
 
 ### Modes
 
-| Mode       | Behavior                                          |
-| ---------- | ------------------------------------------------- |
-| `explicit` | Only use workspaces defined in config             |
-| `auto`     | Scan directories, ignore config workspaces        |
+| Mode       | Behavior                                            |
+| ---------- | --------------------------------------------------- |
+| `explicit` | Only use workspaces defined in config               |
+| `auto`     | Scan directories, ignore config workspaces          |
 | `hybrid`   | Use config if defined, otherwise scan **(default)** |
 
 ### Usage
@@ -297,11 +297,11 @@ See: `skill:config-profiles` for profile setup guide.
 
 ## Related Skills
 
-| Skill                    | Purpose                               |
-| ------------------------ | ------------------------------------- |
-| `workspace-management`   | Local workspace CLI operations        |
-| `config-profiles`        | Profile creation and management       |
-| `forge-sync`             | GitHub/GitLab/Gitea sync              |
-| `branch-cleanup`         | Merged/stale/gone and leftover bot remotes |
-| `sync-troubleshooting`   | Sync diagnostics and error resolution |
-| `devbox-setup`           | Multi-repo Makefile setup             |
+| Skill                  | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `workspace-management` | Local workspace CLI operations             |
+| `config-profiles`      | Profile creation and management            |
+| `forge-sync`           | GitHub/GitLab/Gitea sync                   |
+| `branch-cleanup`       | Merged/stale/gone and leftover bot remotes |
+| `sync-troubleshooting` | Sync diagnostics and error resolution      |
+| `devbox-setup`         | Multi-repo Makefile setup                  |

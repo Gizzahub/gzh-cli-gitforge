@@ -8,8 +8,8 @@ gz-git diagnoses; interactive merge/rebase stays in git).
 ## Features Demonstrated
 
 1. **Pre-Merge Conflict Detection**: Identify conflicts before attempting merge
-2. **Fast-forward check**: Whether merge can fast-forward
-3. **CLI pointer**: `gz-git conflict detect <source> <target>`
+1. **Fast-forward check**: Whether merge can fast-forward
+1. **CLI pointer**: `gz-git conflict detect <source> <target>`
 
 ## Usage
 

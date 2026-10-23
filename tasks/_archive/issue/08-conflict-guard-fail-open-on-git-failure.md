@@ -56,13 +56,13 @@ return state, nil     // ExitCode != 0 → 위 블록을 통째로 건너뛰고 
 
 ### 영향받는 호출 경로
 
-| 호출 지점 | 앞선 `GetStatus` | 결과 |
-|---|:---:|---|
-| `bulk.go:2012` `processPushRepository` | **없음** (`GetInfo`만) | **가드 우회** — `"cannot push: repository has unresolved conflicts"`(`:2022`)를 통과해 push 진행 |
-| `bulk.go:1668` 풀 실패 후 상태 재확인 | **없음** | `HasConflicts=false` → `abortRebaseIfNeeded`(`:1672`) 복구 스킵, 리포가 리베이스 중간 상태로 잔류. 에러도 "Pull failed"로 오분류 |
-| `bulk.go:1545` `processPullRepository` | 있음(`:1535`) | 마스킹됨 — `RunOutput`은 exit≠0에 error를 내므로 `GetStatus`가 먼저 실패 |
-| `bulk_switch.go:183` | 있음(`:162`) | 마스킹됨 (동일 이유) |
-| `bulk.go:2442` `processStatusRepository` | 있음(`:2432`) | 마스킹됨 |
+| 호출 지점                                |    앞선 `GetStatus`    | 결과                                                                                                                             |
+| ---------------------------------------- | :--------------------: | -------------------------------------------------------------------------------------------------------------------------------- |
+| `bulk.go:2012` `processPushRepository`   | **없음** (`GetInfo`만) | **가드 우회** — `"cannot push: repository has unresolved conflicts"`(`:2022`)를 통과해 push 진행                                 |
+| `bulk.go:1668` 풀 실패 후 상태 재확인    |        **없음**        | `HasConflicts=false` → `abortRebaseIfNeeded`(`:1672`) 복구 스킵, 리포가 리베이스 중간 상태로 잔류. 에러도 "Pull failed"로 오분류 |
+| `bulk.go:1545` `processPullRepository`   |     있음(`:1535`)      | 마스킹됨 — `RunOutput`은 exit≠0에 error를 내므로 `GetStatus`가 먼저 실패                                                         |
+| `bulk_switch.go:183`                     |      있음(`:162`)      | 마스킹됨 (동일 이유)                                                                                                             |
+| `bulk.go:2442` `processStatusRepository` |     있음(`:2432`)      | 마스킹됨                                                                                                                         |
 
 **마스킹된 3곳은 우연이다.** `GetStatus`가 앞에 있고 그게 `RunOutput`(exit≠0 → error)을
 쓰기 때문일 뿐, `checkRepositoryState` 자체의 계약이 아니다. 호출 순서가 바뀌면 되살아난다.
@@ -100,10 +100,10 @@ if err != nil {
 1. `checkRepositoryState`가 `c.executor.Run` 대신 `runGit`을 쓰도록 전환 —
    exit≠0을 에러로 승격. 호출자 5곳은 이미 `err != nil` 분기에서 `StatusError`를 세팅하므로
    추가 처리 불필요.
-2. `if ExitCode == 0 && Stdout != ""` 가드 제거 (빈 stdout = clean은 파싱 결과로 자연히 나옴).
-3. `diagnostic_executor.go:168`의 `WorkTreeClean` fallback을 `WorkTreeUnknown` 계열로 강등하거나,
+1. `if ExitCode == 0 && Stdout != ""` 가드 제거 (빈 stdout = clean은 파싱 결과로 자연히 나옴).
+1. `diagnostic_executor.go:168`의 `WorkTreeClean` fallback을 `WorkTreeUnknown` 계열로 강등하거나,
    최소한 health 상태를 warning으로 표시. (별도 판단 필요 — 표시 경로라 fail-fast가 과할 수 있음)
-4. 회귀 테스트: git status가 exit≠0을 내는 픽스처에서 `checkRepositoryState`가 **에러를 반환**하고,
+1. 회귀 테스트: git status가 exit≠0을 내는 픽스처에서 `checkRepositoryState`가 **에러를 반환**하고,
    `processPushRepository`가 `StatusError`로 끝나는지 확인.
 
 ## Acceptance Criteria
@@ -112,10 +112,10 @@ if err != nil {
 - [x] 손상된 인덱스 픽스처에서 `gz-git push`가 성공 경로로 진행하지 않음
 - [x] 풀 실패 후 상태 재확인(현 `bulk.go:1724`)이 상태 확인 실패를 "충돌 없음"으로 오인하지 않음
 - [x] `pkg/repository`에 `c.executor.Run(...)` 직접 호출 후 `ExitCode`만 검사하는 잔존 지점 없음
-      (2026-08-07: 답변 불가 계열 `status` → `runGit`; 존재 탐침·표시 메타데이터는 의도적 유지 — 아래 갱신 #3)
+  (2026-08-07: 답변 불가 계열 `status` → `runGit`; 존재 탐침·표시 메타데이터는 의도적 유지 — 아래 갱신 #3)
 - [x] `diagnostic_executor.go`의 "assume clean on error"에 대한 판단 기록 (수정 또는 유지 근거)
 
----
+______________________________________________________________________
 
 ## 2026-08-05 갱신 — Scope 1·2·4는 태스크 06에서 해소됨
 
@@ -148,14 +148,15 @@ if err != nil {
 
 1. **`diagnostic_executor.go:166-168`의 `WorkTreeClean // Assume clean on error`** — 미수정.
    06은 같은 블록의 카운트 계열만 고쳤다. 판단 기록이 아직 없다.
-2. **`pkg/repository` 전역의 `executor.Run` + `ExitCode`-only 잔존 지점** — 조사 결과
+
+1. **`pkg/repository` 전역의 `executor.Run` + `ExitCode`-only 잔존 지점** — 조사 결과
    생각보다 넓다. 특히 같은 fail-open **계열**인 곳:
 
-   | 위치 | 코드 | 결과 |
-   |---|---|---|
-   | `bulk_stash.go:275` | `statusResult, _ := ...Run(..., "status", "--porcelain")` 후 `ExitCode == 0 && Stdout == ""` | git 실패 시 "변경 있음"으로 읽혀 stash를 시도 — 방향은 fail-safe지만 근거는 우연 |
-   | `bulk_tag.go:265,300`, `bulk_cleanup.go:333,409` | `_, _ :=` 로 error 자체를 버리고 `ExitCode == 0`만 검사 | 태그/브랜치 존재 판정이 "확인 불가 = 없음"으로 붕괴 |
-   | `bulk.go:1676,1767,1777` | `rev-parse HEAD` / `rev-list --count` | 실패 시 빈 문자열 → "변경 없음"으로 판정 |
+   | 위치                                             | 코드                                                                                         | 결과                                                                             |
+   | ------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+   | `bulk_stash.go:275`                              | `statusResult, _ := ...Run(..., "status", "--porcelain")` 후 `ExitCode == 0 && Stdout == ""` | git 실패 시 "변경 있음"으로 읽혀 stash를 시도 — 방향은 fail-safe지만 근거는 우연 |
+   | `bulk_tag.go:265,300`, `bulk_cleanup.go:333,409` | `_, _ :=` 로 error 자체를 버리고 `ExitCode == 0`만 검사                                      | 태그/브랜치 존재 판정이 "확인 불가 = 없음"으로 붕괴                              |
+   | `bulk.go:1676,1767,1777`                         | `rev-parse HEAD` / `rev-list --count`                                                        | 실패 시 빈 문자열 → "변경 없음"으로 판정                                         |
 
    여기서 필요한 건 일괄 치환이 아니라 **지점별 판단**이다. 위 표의 `//nolint:errcheck`
    주석들은 전부 "ExitCode check below handles both"라고 주장하지만, `rev-parse --verify`
@@ -170,7 +171,7 @@ if err != nil {
 > **오판. 같은 날 세션 리뷰에서 철회했다.** "표시 경로라 심각도가 낮다"는 전제가
 > 틀렸다 — 아래 참조.
 
----
+______________________________________________________________________
 
 ## 2026-08-05 갱신 #2 — Scope 3 해소, 강등 철회
 
@@ -184,13 +185,13 @@ P3 강등의 근거는 "잔여는 표시 경로(`diagnostic_executor`)뿐"이었
 
 실측 (`.git/index`를 손상시킨 픽스처, `git status` exit=128 / `rev-parse` exit=0):
 
-| | v0.7.0 | 수정 후 |
-|---|---|---|
-| `status --skip-fetch` | `✓ All 1 repositories are healthy` | `✗ 1 error` |
-| exit code | **0** | **2** |
-| `summary` | `healthy:1` | `error:1` |
-| `recommendation` | `No action needed, repository is up-to-date` | `Working tree state could not be read...` |
-| `error` 필드 | 없음 | `...exited 128: fatal: .git/index: index file smaller than expected` |
+|                       | v0.7.0                                       | 수정 후                                                              |
+| --------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| `status --skip-fetch` | `✓ All 1 repositories are healthy`           | `✗ 1 error`                                                          |
+| exit code             | **0**                                        | **2**                                                                |
+| `summary`             | `healthy:1`                                  | `error:1`                                                            |
+| `recommendation`      | `No action needed, repository is up-to-date` | `Working tree state could not be read...`                            |
+| `error` 필드          | 없음                                         | `...exited 128: fatal: .git/index: index file smaller than expected` |
 
 **인덱스가 깨진 리포가 "정상"으로 보고되고 exit 0으로 끝난다.** 표시 경로라서 낮은
 심각도가 아니라, 표시 경로이기 때문에 사용자가 이걸 근거로 다음 행동을 정한다.
@@ -238,18 +239,18 @@ Scope 1·2·4는 06에서, Scope 3은 이번에 해소됐다. 남은 것은 아�
 
 답변 불가(`status`)와 존재 탐침(`rev-parse --verify`)을 분리했다.
 
-| 위치 | 판단 | 조치 |
-|---|---|---|
-| `bulk_stash.go` `processStashSave` `status --porcelain` | exit≠0 = 답변 불가 | **`runGit`으로 전환**, StatusError |
-| `bulk_tag.go` `rev-parse --verify refs/tags/...` | exit≠0 = 태그 없음 (정상 답) | 유지 + 의도 주석 |
-| `bulk_tag.go` `tag -l` | 표시 메타; 실패→0개 | 유지 + 의도 주석 |
-| `bulk_cleanup.go` `branch --list` | 표시 카운트 | 유지 + 의도 주석 |
-| `bulk_cleanup.go` `detectBaseBranch` `rev-parse --verify` | exit≠0 = 후보 없음 | 유지 + 의도 주석 |
-| `bulk_stash.go` `stash list` | 표시 카운트 | 유지 + 의도 주석 |
+| 위치                                                        | 판단                         | 조치                                  |
+| ----------------------------------------------------------- | ---------------------------- | ------------------------------------- |
+| `bulk_stash.go` `processStashSave` `status --porcelain`     | exit≠0 = 답변 불가           | **`runGit`으로 전환**, StatusError    |
+| `bulk_tag.go` `rev-parse --verify refs/tags/...`            | exit≠0 = 태그 없음 (정상 답) | 유지 + 의도 주석                      |
+| `bulk_tag.go` `tag -l`                                      | 표시 메타; 실패→0개          | 유지 + 의도 주석                      |
+| `bulk_cleanup.go` `branch --list`                           | 표시 카운트                  | 유지 + 의도 주석                      |
+| `bulk_cleanup.go` `detectBaseBranch` `rev-parse --verify`   | exit≠0 = 후보 없음           | 유지 + 의도 주석                      |
+| `bulk_stash.go` `stash list`                                | 표시 카운트                  | 유지 + 의도 주석                      |
 | `bulk.go` `rev-parse HEAD` / `rev-list --count` (pull 전후) | 실패 시 비교 스킵/fallback 1 | 유지 — push 가드와 무관, 성공 후 통계 |
 
 AC "ExitCode만 검사하는 잔존 지점 없음"은 **fail-open 계열(답변 불가→이상 없음)** 이 없다는 뜻으로 해석한다.
-존재 탐침에서 exit≠0을 "없음"으로 읽는 것은 git의 계약 자체이므로  residual이 아니다.
+존재 탐침에서 exit≠0을 "없음"으로 읽는 것은 git의 계약 자체이므로 residual이 아니다.
 
 ## References
 

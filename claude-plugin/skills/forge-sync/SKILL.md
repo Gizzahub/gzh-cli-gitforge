@@ -17,28 +17,29 @@ This skill covers synchronization from Git forges (GitHub, GitLab, Gitea) using 
 
 ## Overview
 
-| Command              | Purpose                                    |
-| -------------------- | ------------------------------------------ |
-| `sync from-forge`    | Clone/update repos directly from forge API |
-| `sync config generate` | Generate config file from forge API      |
-| `sync status`        | Check repository health and divergence     |
-| `sync setup`         | Interactive setup wizard                   |
+| Command                | Purpose                                    |
+| ---------------------- | ------------------------------------------ |
+| `sync from-forge`      | Clone/update repos directly from forge API |
+| `sync config generate` | Generate config file from forge API        |
+| `sync status`          | Check repository health and divergence     |
+| `sync setup`           | Interactive setup wizard                   |
 
 **Key Difference**:
+
 - `sync from-forge`: One-off direct sync (no config file)
 - `sync config generate` + `workspace sync`: Config-based workflow
 
----
+______________________________________________________________________
 
 ## Supported Providers
 
-| Provider | API URL                    | Features                        |
-| -------- | -------------------------- | ------------------------------- |
-| GitHub   | api.github.com             | Orgs, users, SSH/HTTPS          |
-| GitLab   | gitlab.com/api/v4          | Groups, subgroups, SSH port     |
-| Gitea    | (custom)/api/v1            | Orgs, SSH/HTTPS                 |
+| Provider | API URL           | Features                    |
+| -------- | ----------------- | --------------------------- |
+| GitHub   | api.github.com    | Orgs, users, SSH/HTTPS      |
+| GitLab   | gitlab.com/api/v4 | Groups, subgroups, SSH port |
+| Gitea    | (custom)/api/v1   | Orgs, SSH/HTTPS             |
 
----
+______________________________________________________________________
 
 ## Quick Start
 
@@ -116,48 +117,48 @@ gz-git sync from-forge \
   --token $GITEA_TOKEN
 ```
 
----
+______________________________________________________________________
 
 ## from-forge Flags Reference
 
 ### Required Flags
 
-| Flag         | Description                          |
-| ------------ | ------------------------------------ |
-| `--provider` | `github`, `gitlab`, or `gitea`       |
-| `--org`      | Organization or group name           |
-| `--target`   | Local directory for cloned repos     |
-| `--token`    | API token for authentication         |
+| Flag         | Description                      |
+| ------------ | -------------------------------- |
+| `--provider` | `github`, `gitlab`, or `gitea`   |
+| `--org`      | Organization or group name       |
+| `--target`   | Local directory for cloned repos |
+| `--token`    | API token for authentication     |
 
 ### Optional Flags
 
-| Flag                  | Default   | Description                           |
-| --------------------- | --------- | ------------------------------------- |
-| `--base-url`          | (default) | API endpoint for self-hosted          |
-| `--clone-proto`       | `ssh`     | Clone protocol: `ssh` or `https`      |
-| `--ssh-port`          | `22`      | Custom SSH port                       |
-| `--ssh-key`           | -         | SSH private key file path             |
-| `--include-subgroups` | `false`   | Include GitLab subgroups              |
-| `--subgroup-mode`     | `flat`    | `flat` or `nested` directory layout   |
-| `--include-forks`     | `false`   | Include forked repos                  |
-| `--include-archived`  | `false`   | Include archived repos                |
-| `--include-private`   | `true`    | Include private repos                 |
+| Flag                  | Default   | Description                             |
+| --------------------- | --------- | --------------------------------------- |
+| `--base-url`          | (default) | API endpoint for self-hosted            |
+| `--clone-proto`       | `ssh`     | Clone protocol: `ssh` or `https`        |
+| `--ssh-port`          | `22`      | Custom SSH port                         |
+| `--ssh-key`           | -         | SSH private key file path               |
+| `--include-subgroups` | `false`   | Include GitLab subgroups                |
+| `--subgroup-mode`     | `flat`    | `flat` or `nested` directory layout     |
+| `--include-forks`     | `false`   | Include forked repos                    |
+| `--include-archived`  | `false`   | Include archived repos                  |
+| `--include-private`   | `true`    | Include private repos                   |
 | `--strategy`          | `reset`   | Sync strategy: `reset`, `pull`, `fetch` |
-| `--parallel`          | `4`       | Parallel workers                      |
-| `--max-retries`       | `3`       | Retry attempts on failure             |
-| `--cleanup-orphans`   | `false`   | Delete repos not in org               |
-| `--dry-run`           | `false`   | Preview without executing             |
-| `--user`              | `false`   | Treat `--org` as username             |
+| `--parallel`          | `4`       | Parallel workers                        |
+| `--max-retries`       | `3`       | Retry attempts on failure               |
+| `--cleanup-orphans`   | `false`   | Delete repos not in org                 |
+| `--dry-run`           | `false`   | Preview without executing               |
+| `--user`              | `false`   | Treat `--org` as username               |
 
----
+______________________________________________________________________
 
 ## Sync Strategies
 
-| Strategy | Behavior                                         |
-| -------- | ------------------------------------------------ |
-| `reset`  | Hard reset to remote HEAD (discard local)        |
-| `pull`   | Pull with merge (preserve local changes)         |
-| `fetch`  | Fetch only (no checkout, update refs)            |
+| Strategy | Behavior                                  |
+| -------- | ----------------------------------------- |
+| `reset`  | Hard reset to remote HEAD (discard local) |
+| `pull`   | Pull with merge (preserve local changes)  |
+| `fetch`  | Fetch only (no checkout, update refs)     |
 
 ```bash
 # Safe sync (preserve local changes)
@@ -170,7 +171,7 @@ gz-git sync from-forge --strategy reset ...
 gz-git sync from-forge --strategy fetch ...
 ```
 
----
+______________________________________________________________________
 
 ## Subgroup Modes (GitLab Only)
 
@@ -205,7 +206,7 @@ parent-group/
 gz-git sync from-forge --include-subgroups --subgroup-mode nested ...
 ```
 
----
+______________________________________________________________________
 
 ## Config Generation
 
@@ -258,7 +259,7 @@ repositories:
     path: project-api
 ```
 
----
+______________________________________________________________________
 
 ## Sync Status
 
@@ -302,14 +303,14 @@ Summary: 1 healthy, 1 warning, 1 error, 1 timeout (4 total)
 
 ### Health Status Icons
 
-| Icon | Status      | Meaning                          |
-| ---- | ----------- | -------------------------------- |
-| ✓    | healthy     | Up-to-date, clean                |
-| ⚠    | warning     | Diverged, behind, or ahead       |
-| ✗    | error       | Conflicts, dirty + behind        |
-| ⊘    | unreachable | Network timeout, auth failed     |
+| Icon | Status      | Meaning                      |
+| ---- | ----------- | ---------------------------- |
+| ✓    | healthy     | Up-to-date, clean            |
+| ⚠    | warning     | Diverged, behind, or ahead   |
+| ✗    | error       | Conflicts, dirty + behind    |
+| ⊘    | unreachable | Network timeout, auth failed |
 
----
+______________________________________________________________________
 
 ## Using Profiles
 
@@ -329,7 +330,7 @@ gz-git config profile use work
 gz-git sync from-forge --org devbox --target ~/repos
 ```
 
----
+______________________________________________________________________
 
 ## Common Workflows
 
@@ -386,7 +387,7 @@ gz-git sync from-forge \
 # [DRY-RUN] Would skip: project-api (up-to-date)
 ```
 
----
+______________________________________________________________________
 
 ## Token Setup
 
@@ -419,7 +420,7 @@ export GITLAB_TOKEN="glpat-xxxxxxxxxxxx"
 export GITEA_TOKEN="xxxxxxxxxxxxxxxx"
 ```
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -478,35 +479,36 @@ gz-git sync status --skip-fetch
 gz-git sync from-forge --subgroup-mode nested ...
 ```
 
----
+______________________________________________________________________
 
 ## Quick Reference
 
-| Task                    | Command                                           |
-| ----------------------- | ------------------------------------------------- |
-| Sync GitHub org         | `sync from-forge --provider github --org NAME`    |
-| Sync GitLab group       | `sync from-forge --provider gitlab --org NAME`    |
-| Include subgroups       | `--include-subgroups --subgroup-mode flat`        |
-| Self-hosted GitLab      | `--base-url URL --ssh-port PORT`                  |
-| Generate config         | `sync config generate -o .gz-git.yaml`            |
-| Check status            | `sync status --target DIR`                        |
-| Dry run                 | `--dry-run`                                       |
-| Preserve local changes  | `--strategy pull`                                 |
-| Use profile             | `--profile work`                                  |
+| Task                   | Command                                        |
+| ---------------------- | ---------------------------------------------- |
+| Sync GitHub org        | `sync from-forge --provider github --org NAME` |
+| Sync GitLab group      | `sync from-forge --provider gitlab --org NAME` |
+| Include subgroups      | `--include-subgroups --subgroup-mode flat`     |
+| Self-hosted GitLab     | `--base-url URL --ssh-port PORT`               |
+| Generate config        | `sync config generate -o .gz-git.yaml`         |
+| Check status           | `sync status --target DIR`                     |
+| Dry run                | `--dry-run`                                    |
+| Preserve local changes | `--strategy pull`                              |
+| Use profile            | `--profile work`                               |
 
----
+______________________________________________________________________
 
 ## forge-sync vs workspace
 
-| Feature          | `sync from-forge`          | `workspace sync`           |
-| ---------------- | -------------------------- | -------------------------- |
-| Source           | Forge API (live)           | Config file (static)       |
-| New repos        | Auto-discovered            | Manual add to config       |
-| Use case         | Initial sync, refresh      | Daily sync, stable list    |
-| Flags            | All forge options          | Config-defined             |
-| Profile support  | Yes                        | Yes                        |
+| Feature         | `sync from-forge`     | `workspace sync`        |
+| --------------- | --------------------- | ----------------------- |
+| Source          | Forge API (live)      | Config file (static)    |
+| New repos       | Auto-discovered       | Manual add to config    |
+| Use case        | Initial sync, refresh | Daily sync, stable list |
+| Flags           | All forge options     | Config-defined          |
+| Profile support | Yes                   | Yes                     |
 
 **Recommended Workflow**:
+
 1. `sync from-forge` for initial clone
-2. `sync config generate` to create config
-3. `workspace sync` for daily operations
+1. `sync config generate` to create config
+1. `workspace sync` for daily operations

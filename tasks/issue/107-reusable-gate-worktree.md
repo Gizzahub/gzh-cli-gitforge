@@ -47,17 +47,18 @@ Values are `command_duration_s` (workspace `cargo test`) and
 sigdock-idp-rs pool `.omo/evidence/workspace-gate-20261023-<run>/`
 (gitignored, local to the reporting device).
 
-| Run | rs HEAD | Worktree state | Workspace stage | Server feature compile |
-|---|---|---|---|---|
-| 070938 | `4cdec01b9` | first gate in worktree A, `gate_exit=1` | 793s | 1025s |
-| 074207 | `ac0cc6a34` | second gate in A | 633s | 603s |
-| 080356 | `2975dbcd9` | third gate in A | 632s | 552s |
-| 103303 | `d0381e9d4` | fourth gate in A; overlapped 104333 from 10:43:34, about the last 4 min of its workspace stage and all of its feature stage | 894s | 895s |
-| 094134 | `54622cbe4` | first gate in a new worktree | 924s | 693s |
-| 101516 | `8d19bf366` | new worktree, shared `CARGO_TARGET_DIR` starting empty, stopped during the feature stage after 103303 started | 1065s | — |
-| 104333 | `39e3f5028` | new worktree, shared `CARGO_TARGET_DIR` with workspace members cleaned; whole workspace stage overlapped 103303 (about 17 min) | 1045s | 724s |
+| Run    | rs HEAD     | Worktree state                                                                                                                 | Workspace stage | Server feature compile |
+| ------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------- | ---------------------- |
+| 070938 | `4cdec01b9` | first gate in worktree A, `gate_exit=1`                                                                                        | 793s            | 1025s                  |
+| 074207 | `ac0cc6a34` | second gate in A                                                                                                               | 633s            | 603s                   |
+| 080356 | `2975dbcd9` | third gate in A                                                                                                                | 632s            | 552s                   |
+| 103303 | `d0381e9d4` | fourth gate in A; overlapped 104333 from 10:43:34, about the last 4 min of its workspace stage and all of its feature stage    | 894s            | 895s                   |
+| 094134 | `54622cbe4` | first gate in a new worktree                                                                                                   | 924s            | 693s                   |
+| 101516 | `8d19bf366` | new worktree, shared `CARGO_TARGET_DIR` starting empty, stopped during the feature stage after 103303 started                  | 1065s           | —                      |
+| 104333 | `39e3f5028` | new worktree, shared `CARGO_TARGET_DIR` with workspace members cleaned; whole workspace stage overlapped 103303 (about 17 min) | 1045s           | 724s                   |
 
 The rows are not comparable like-for-like:
+
 - The runs differ in commit, gate script revision (080356 ran 14 portable lanes; 094134 and 104333 ran none), `Cargo.lock`, and cargo binary path (mise shim vs `~/.cargo/bin`).
 - Other sessions' builds shared the CPU, including the overlap marked above.
 
@@ -88,8 +89,7 @@ gain either.
   toolchain, no concurrent gate) of a first gate vs a repeat gate at one
   path, to decide whether the gain justifies the capability.
 - Owner decision: whether the gate worktree belongs to `gz-git worktree`,
-  to `gz-git integrate`, or to the CE task runtime. `gz-git integrate
-  prepare` already checks out detached worktrees, but in temporary
+  to `gz-git integrate`, or to the CE task runtime. `gz-git integrate prepare` already checks out detached worktrees, but in temporary
   directories that are not reused.
 - It must not let a gate verdict attach to a SHA other than the one checked
   out; the sigdock gate already records `nested_head` and dirty files.

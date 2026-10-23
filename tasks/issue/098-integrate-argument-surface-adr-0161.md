@@ -13,8 +13,7 @@ created: 2026-10-22
 
 ce-agent-kit `decisions/adr/0161-integration-judgment-owned-by-task-runtime.md`
 decision 3 reduces `gz-git integrate` to execution and recording:
-`integrate run <branch> --source <sha> --target <ref>@<sha> [--record <id>]
-[--owner <actor>/<host>/<kind>] [--json]`, plus `integrate cleanup <id>`,
+`integrate run <branch> --source <sha> --target <ref>@<sha> [--record <id>] [--owner <actor>/<host>/<kind>] [--json]`, plus `integrate cleanup <id>`,
 `integrate receipt <id>` and `integrate queue` (read-only). ce-agent-kit
 `decisions/adr/0163-run-finish-cutover-uses-existing-provider-arguments.md`
 decision 3 keeps that surface as the goal but defers it: run-finish cut over

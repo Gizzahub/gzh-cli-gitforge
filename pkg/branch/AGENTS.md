@@ -2,27 +2,27 @@
 
 Git branch management: listing, switching, cleanup, worktree ops.
 
----
+______________________________________________________________________
 
 ## Purpose
 
 Provides `Service` for branch operations on a single repository.
 Handles parallel bulk cleanup via `Manager` across multiple repos.
 
----
+______________________________________________________________________
 
 ## Key Types
 
-| Type | File | Purpose |
-|------|------|---------|
-| `Service` | `manager.go` | Single-repo branch operations |
-| `Manager` | `manager.go` | Bulk operations across repos |
-| `BranchInfo` | `types.go` | Name, remote, merged, gone |
-| `CleanupOptions` | `cleanup.go` | Filters for cleanup |
-| `CleanupResult` | `cleanup.go` | Per-branch cleanup outcome |
-| `Worktree` | `worktree.go` | Worktree add/list/remove |
+| Type             | File          | Purpose                       |
+| ---------------- | ------------- | ----------------------------- |
+| `Service`        | `manager.go`  | Single-repo branch operations |
+| `Manager`        | `manager.go`  | Bulk operations across repos  |
+| `BranchInfo`     | `types.go`    | Name, remote, merged, gone    |
+| `CleanupOptions` | `cleanup.go`  | Filters for cleanup           |
+| `CleanupResult`  | `cleanup.go`  | Per-branch cleanup outcome    |
+| `Worktree`       | `worktree.go` | Worktree add/list/remove      |
 
----
+______________________________________________________________________
 
 ## Service Usage
 
@@ -41,17 +41,17 @@ result, err := svc.Cleanup(branch.CleanupOptions{
 })
 ```
 
----
+______________________________________________________________________
 
 ## Cleanup Categories
 
-| Category | Meaning | Flag |
-|----------|---------|------|
-| **merged** | Merged into current branch | `RemoveMerged` |
-| **stale** | No commits for N days | `RemoveStale` + `StaleDays` |
-| **gone** | Remote tracking branch deleted | `RemoveGone` |
+| Category   | Meaning                        | Flag                        |
+| ---------- | ------------------------------ | --------------------------- |
+| **merged** | Merged into current branch     | `RemoveMerged`              |
+| **stale**  | No commits for N days          | `RemoveStale` + `StaleDays` |
+| **gone**   | Remote tracking branch deleted | `RemoveGone`                |
 
----
+______________________________________________________________________
 
 ## Parallel Operations (`parallel.go`)
 
@@ -60,7 +60,7 @@ mgr := branch.NewManager(repoPaths, branch.ManagerOptions{Parallel: 10})
 results, err := mgr.CleanupAll(ctx, cleanupOpts)
 ```
 
----
+______________________________________________________________________
 
 ## Worktree (`worktree.go`)
 
@@ -72,7 +72,7 @@ err := svc.AddWorktree(ctx, branch.WorktreeOptions{
 })
 ```
 
----
+______________________________________________________________________
 
 ## DO / DON'T
 
@@ -81,7 +81,7 @@ err := svc.AddWorktree(ctx, branch.WorktreeOptions{
 - **DON'T** force-delete branches without explicit `--force` flag from user
 - **DON'T** remove worktrees without checking for uncommitted changes
 
----
+______________________________________________________________________
 
 ## Testing
 

@@ -31,20 +31,22 @@ Summary: 3 success, 2 up-to-date, 1 skipped
 
 ## Update vs Pull
 
-| 명령어 | 동작 | 전략 | 히스토리 | 사용 시점 |
-|--------|------|------|----------|-----------|
-| **update** | pull --rebase | rebase (고정) | 선형 유지 | **일상적인 업데이트** |
-| **pull** | fetch + integrate | merge/rebase/ff-only (선택) | 전략별 상이 | 전략 선택이 필요할 때 |
+| 명령어     | 동작              | 전략                        | 히스토리    | 사용 시점             |
+| ---------- | ----------------- | --------------------------- | ----------- | --------------------- |
+| **update** | pull --rebase     | rebase (고정)               | 선형 유지   | **일상적인 업데이트** |
+| **pull**   | fetch + integrate | merge/rebase/ff-only (선택) | 전략별 상이 | 전략 선택이 필요할 때 |
 
 ### 언제 update를 사용하나?
 
 **✓ Update를 사용해야 할 때**:
+
 - 일일 코드 동기화
 - Feature 브랜치 최신화
 - 로컬 작업만 있고 아직 push 안 함
 - 깔끔한 히스토리 선호
 
 **✗ Update를 피해야 할 때**:
+
 - 이미 push한 커밋 (협업 중)
 - Main/master 브랜치 (merge가 안전)
 - Conflict 해결이 복잡할 것 같을 때
@@ -53,16 +55,16 @@ Summary: 3 success, 2 up-to-date, 1 skipped
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `--no-fetch` | Fetch 생략 (이미 fetch한 경우) | false |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
-| `-n, --dry-run` | 미리보기 (실행 안 함) | false |
-| `-v, --verbose` | 상세 출력 | false |
+| 옵션               | 설명                           | 기본값  |
+| ------------------ | ------------------------------ | ------- |
+| `-d, --scan-depth` | 스캔 깊이                      | 1       |
+| `-j, --parallel`   | 병렬 처리 수                   | 10      |
+| `--no-fetch`       | Fetch 생략 (이미 fetch한 경우) | false   |
+| `--include`        | 포함 패턴 (regex)              | -       |
+| `--exclude`        | 제외 패턴 (regex)              | -       |
+| `-f, --format`     | 출력 형식                      | default |
+| `-n, --dry-run`    | 미리보기 (실행 안 함)          | false   |
+| `-v, --verbose`    | 상세 출력                      | false   |
 
 ## 출력 형식
 
@@ -183,6 +185,7 @@ gz-git update --include "feature-.*" ~/workspace
 ```
 
 **금지 사항**:
+
 - 이미 push한 커밋 rebase
 - Main/master 브랜치 update
 - 다른 사람과 공유 중인 브랜치
@@ -199,9 +202,10 @@ gz-git update ~/projects
 ```
 
 **해결 방법**:
+
 1. 수동으로 commit
-2. `git stash` 사용
-3. `gz-git pull --stash` 사용 (update는 stash 옵션 없음)
+1. `git stash` 사용
+1. `gz-git pull --stash` 사용 (update는 stash 옵션 없음)
 
 ### Conflict 해결
 
@@ -234,20 +238,23 @@ git rebase --abort
 ### Fetch vs Update
 
 **Fetch만 실행** (안전):
+
 ```bash
 gz-git fetch ~/workspace  # Working tree 변경 없음
 gz-git status ~/workspace  # 상태 확인
 ```
 
 **Update 실행** (변경됨):
+
 ```bash
 gz-git update ~/workspace  # Working tree 변경됨 (rebase)
 ```
 
 **권장 워크플로우**:
+
 1. `fetch` - 원격 변경사항 가져오기
-2. `status` - Divergence 확인
-3. `update` 또는 `pull` - 선택적 적용
+1. `status` - Divergence 확인
+1. `update` 또는 `pull` - 선택적 적용
 
 ## 관련 명령어
 

@@ -19,19 +19,19 @@ This skill covers local config-based multi-repository management using `gz-git w
 
 **Workspace CLI** manages local git repositories through a simple YAML config file (`.gz-git.yaml`).
 
-| Command    | Purpose                               |
-| ---------- | ------------------------------------- |
-| `init`     | Create empty config file              |
-| `scan`     | Scan directory → generate config      |
-| `sync`     | Clone/update repos from config        |
-| `status`   | Check workspace health                |
-| `add`      | Add repo to config                    |
-| `validate` | Validate config file                  |
+| Command    | Purpose                          |
+| ---------- | -------------------------------- |
+| `init`     | Create empty config file         |
+| `scan`     | Scan directory → generate config |
+| `sync`     | Clone/update repos from config   |
+| `status`   | Check workspace health           |
+| `add`      | Add repo to config               |
+| `validate` | Validate config file             |
 
 **Key Difference**: Workspace CLI uses `repositories` array for simple local management.
 For hierarchical multi-level config or Forge API sync, use `gz-git config` or `gz-git sync from-forge`.
 
----
+______________________________________________________________________
 
 ## Config File Format (.gz-git.yaml)
 
@@ -83,13 +83,13 @@ repositories:
 
 ### Sync Strategies
 
-| Strategy | Behavior                                      |
-| -------- | --------------------------------------------- |
-| `reset`  | Hard reset to remote (discard local changes)  |
-| `pull`   | Pull with merge (preserve local changes)      |
-| `skip`   | Skip sync (useful for submodules)             |
+| Strategy | Behavior                                     |
+| -------- | -------------------------------------------- |
+| `reset`  | Hard reset to remote (discard local changes) |
+| `pull`   | Pull with merge (preserve local changes)     |
+| `skip`   | Skip sync (useful for submodules)            |
 
----
+______________________________________________________________________
 
 ## Commands
 
@@ -108,7 +108,7 @@ gz-git workspace init --name "My Devbox" --description "Development workspace"
 
 **Output**: Empty config file ready for manual editing or `workspace add`.
 
----
+______________________________________________________________________
 
 ### 2. `workspace scan` - Scan Directory → Config
 
@@ -131,7 +131,7 @@ gz-git workspace scan ~/mydevbox --include "gzh-cli-*"
 
 **Workflow**: Scan first, then edit generated config to customize.
 
----
+______________________________________________________________________
 
 ### 3. `workspace sync` - Clone/Update from Config
 
@@ -153,11 +153,12 @@ gz-git workspace sync --strategy reset
 ```
 
 **Actions**:
+
 - **Missing repos**: Clone from URL
 - **Existing repos**: Pull/reset based on strategy
 - **Orphans**: Optionally remove (if `cleanupOrphans: true`)
 
----
+______________________________________________________________________
 
 ### 4. `workspace status` - Check Health
 
@@ -173,6 +174,7 @@ gz-git workspace status --format json
 ```
 
 **Output**:
+
 ```
 Workspace Status
 ================
@@ -183,7 +185,7 @@ Workspace Status
 Summary: 1 healthy, 1 warning, 1 dirty (3 total)
 ```
 
----
+______________________________________________________________________
 
 ### 5. `workspace add` - Add Repo to Config
 
@@ -203,7 +205,7 @@ gz-git workspace add --from-current
 gz-git workspace add git@github.com:myorg/repo.git -c myworkspace.yaml
 ```
 
----
+______________________________________________________________________
 
 ### 6. `workspace validate` - Validate Config
 
@@ -219,12 +221,13 @@ gz-git workspace validate --check-urls
 ```
 
 **Checks**:
+
 - YAML syntax
 - Required fields (name, url)
 - Duplicate names/paths
 - URL format validity
 
----
+______________________________________________________________________
 
 ## Common Workflows
 
@@ -273,7 +276,7 @@ gz-git workspace add git@github.com:vendor/lib.git --path vendor/lib
 gz-git workspace sync
 ```
 
----
+______________________________________________________________________
 
 ## Config Examples
 
@@ -339,7 +342,7 @@ repositories:
     strategy: skip  # managed separately
 ```
 
----
+______________________________________________________________________
 
 ## Troubleshooting
 
@@ -359,6 +362,7 @@ gz-git workspace sync -c path/to/.gz-git.yaml
 ### "repository already exists"
 
 Workspace sync detects existing repos. Use strategy to control behavior:
+
 - `reset`: Discard local, match remote
 - `pull`: Merge remote changes
 - `skip`: Leave unchanged
@@ -382,17 +386,18 @@ grep -E "^\s+name:" .gz-git.yaml | sort | uniq -d
 grep -E "^\s+path:" .gz-git.yaml | sort | uniq -d
 ```
 
----
+______________________________________________________________________
 
 ## Workspace vs Sync vs Config
 
-| Command          | Purpose                          | Config Format      |
-| ---------------- | -------------------------------- | ------------------ |
-| `workspace`      | Local config management          | `repositories` 배열 |
-| `sync from-forge`| Forge API → local clone          | CLI flags          |
-| `config profile` | Profile-based settings           | `workspaces` map   |
+| Command           | Purpose                 | Config Format       |
+| ----------------- | ----------------------- | ------------------- |
+| `workspace`       | Local config management | `repositories` 배열 |
+| `sync from-forge` | Forge API → local clone | CLI flags           |
+| `config profile`  | Profile-based settings  | `workspaces` map    |
 
 **Rule of Thumb**:
+
 - Simple local repo list → `workspace`
 - Forge org sync → `sync from-forge`
 - Multi-environment profiles → `config profile`

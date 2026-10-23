@@ -42,9 +42,10 @@ gz-git switch feature/new -c
 ```
 
 **동작**:
+
 1. 브랜치 존재 여부 확인
-2. 없으면 현재 HEAD에서 새 브랜치 생성
-3. 생성된 브랜치로 전환
+1. 없으면 현재 HEAD에서 새 브랜치 생성
+1. 생성된 브랜치로 전환
 
 **주의**: 이미 존재하면 단순 전환 (오류 없음)
 
@@ -59,11 +60,11 @@ gz-git switch main --force
 
 ### 위험성
 
-| 동작 | 결과 |
-|------|------|
+| 동작                    | 결과          |
+| ----------------------- | ------------- |
 | **Uncommitted changes** | **영구 손실** |
-| **Untracked files** | **영구 삭제** |
-| **Staged changes** | **영구 손실** |
+| **Untracked files**     | **영구 삭제** |
+| **Staged changes**      | **영구 손실** |
 
 ### Force 사용 전 확인사항
 
@@ -117,36 +118,36 @@ gz-git switch develop ~/projects
 
 ### 상태별 동작
 
-| 상태 | 동작 | 아이콘 |
-|------|------|--------|
-| **Clean** | 브랜치 전환 | `✓` |
-| **Dirty (수정됨)** | Skip (건너뜀) | `⚠` |
-| **Already on branch** | Skip | `=` |
-| **Branch not found** | Error | `✗` |
-| **Force (위험)** | 변경사항 버림 | `✓` (데이터 손실) |
+| 상태                  | 동작          | 아이콘            |
+| --------------------- | ------------- | ----------------- |
+| **Clean**             | 브랜치 전환   | `✓`               |
+| **Dirty (수정됨)**    | Skip (건너뜀) | `⚠`               |
+| **Already on branch** | Skip          | `=`               |
+| **Branch not found**  | Error         | `✗`               |
+| **Force (위험)**      | 변경사항 버림 | `✓` (데이터 손실) |
 
 ## 상태 값
 
-| 값 | 의미 | 아이콘 |
-|-----|------|--------|
-| `StatusSwitched` | 브랜치 전환 성공 | `✓` |
-| `StatusAlready` | 이미 해당 브랜치에 있음 | `=` |
-| `StatusDirty` | Dirty repo (skip) | `⚠` |
-| `StatusError` | 오류 (브랜치 없음 등) | `✗` |
-| `StatusSkipped` | 필터로 제외됨 | `-` |
+| 값               | 의미                    | 아이콘 |
+| ---------------- | ----------------------- | ------ |
+| `StatusSwitched` | 브랜치 전환 성공        | `✓`    |
+| `StatusAlready`  | 이미 해당 브랜치에 있음 | `=`    |
+| `StatusDirty`    | Dirty repo (skip)       | `⚠`    |
+| `StatusError`    | 오류 (브랜치 없음 등)   | `✗`    |
+| `StatusSkipped`  | 필터로 제외됨           | `-`    |
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `-c, --create` | 브랜치 없으면 생성 | false |
-| `--force` | **⚠️ 위험: 수정사항 버림** | false |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
-| `-n, --dry-run` | 미리보기 (실행 안 함) | false |
+| 옵션               | 설명                       | 기본값  |
+| ------------------ | -------------------------- | ------- |
+| `-d, --scan-depth` | 스캔 깊이                  | 1       |
+| `-j, --parallel`   | 병렬 처리 수               | 10      |
+| `-c, --create`     | 브랜치 없으면 생성         | false   |
+| `--force`          | **⚠️ 위험: 수정사항 버림** | false   |
+| `--include`        | 포함 패턴 (regex)          | -       |
+| `--exclude`        | 제외 패턴 (regex)          | -       |
+| `-f, --format`     | 출력 형식                  | default |
+| `-n, --dry-run`    | 미리보기 (실행 안 함)      | false   |
 
 ## 출력 형식
 
@@ -343,6 +344,7 @@ gz-git status ~/workspace
 ### Force 절대 금지 상황
 
 **절대 사용 금지**:
+
 - 중요한 작업 중
 - 백업 없이
 - 여러 repos에 일괄 적용
@@ -360,6 +362,7 @@ gz-git switch develop ~/workspace
 ```
 
 **Force 옵션 위험성**:
+
 ```bash
 # ⚠️ 위험: 모든 수정사항 영구 손실
 gz-git switch develop --force ~/workspace
@@ -376,6 +379,7 @@ gz-git switch feature/new --create
 ```
 
 **특정 시점에서 생성하려면**:
+
 ```bash
 cd my-repo
 git switch -c feature/new origin/develop
@@ -385,6 +389,7 @@ cd ..
 ### 오류 처리
 
 **브랜치 없음**:
+
 ```bash
 # 오류 발생
 gz-git switch nonexistent ~/workspace
@@ -394,6 +399,7 @@ gz-git switch nonexistent --create ~/workspace
 ```
 
 **권한 오류**:
+
 ```bash
 # 읽기 전용 repo
 ✗ readonly-project  error: permission denied

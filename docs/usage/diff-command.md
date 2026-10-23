@@ -48,10 +48,10 @@ Summary: 3 files modified across 2 repositories
 
 ## Staged vs Unstaged
 
-| 타입 | 플래그 | 대상 | 사용 시점 |
-|------|--------|------|-----------|
-| **Unstaged** | (기본값) | Working tree 변경사항 | 일반적인 확인 |
-| **Staged** | `--staged` | Stage된 변경사항 | **Commit 전 확인** |
+| 타입         | 플래그     | 대상                  | 사용 시점          |
+| ------------ | ---------- | --------------------- | ------------------ |
+| **Unstaged** | (기본값)   | Working tree 변경사항 | 일반적인 확인      |
+| **Staged**   | `--staged` | Stage된 변경사항      | **Commit 전 확인** |
 
 ### Unstaged (기본값)
 
@@ -61,6 +61,7 @@ gz-git diff ~/workspace
 ```
 
 **포함**:
+
 - Modified 파일
 - Deleted 파일
 - `--include-untracked` 사용 시 untracked 파일
@@ -73,6 +74,7 @@ gz-git diff --staged ~/workspace
 ```
 
 **포함**:
+
 - `git add`로 stage된 변경사항
 - Commit될 내용
 
@@ -94,6 +96,7 @@ gz-git diff --max-size 0 ~/workspace
 ```
 
 **Truncation 동작**:
+
 ```
 === large-project (main) ===
 Modified files: 15
@@ -106,29 +109,29 @@ Use --max-size to increase limit
 
 ## 파일 상태 아이콘
 
-| 아이콘 | 상태 | 의미 |
-|--------|------|------|
-| `M` | Modified | 수정됨 |
-| `A` | Added | 추가됨 (staged) |
-| `D` | Deleted | 삭제됨 |
-| `R` | Renamed | 이름 변경됨 |
-| `C` | Copied | 복사됨 |
-| `?` | Untracked | 미추적 (--include-untracked 시) |
+| 아이콘 | 상태      | 의미                            |
+| ------ | --------- | ------------------------------- |
+| `M`    | Modified  | 수정됨                          |
+| `A`    | Added     | 추가됨 (staged)                 |
+| `D`    | Deleted   | 삭제됨                          |
+| `R`    | Renamed   | 이름 변경됨                     |
+| `C`    | Copied    | 복사됨                          |
+| `?`    | Untracked | 미추적 (--include-untracked 시) |
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `--staged` | Staged 변경사항만 | false |
-| `--include-untracked` | Untracked 파일 포함 | false |
-| `-U, --context` | Diff context 줄 수 | 3 |
-| `--max-size` | 최대 diff 크기 (KB) | 100 |
-| `--no-content` | 요약만 (diff 내용 생략) | false |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
+| 옵션                  | 설명                    | 기본값  |
+| --------------------- | ----------------------- | ------- |
+| `-d, --scan-depth`    | 스캔 깊이               | 1       |
+| `-j, --parallel`      | 병렬 처리 수            | 10      |
+| `--staged`            | Staged 변경사항만       | false   |
+| `--include-untracked` | Untracked 파일 포함     | false   |
+| `-U, --context`       | Diff context 줄 수      | 3       |
+| `--max-size`          | 최대 diff 크기 (KB)     | 100     |
+| `--no-content`        | 요약만 (diff 내용 생략) | false   |
+| `--include`           | 포함 패턴 (regex)       | -       |
+| `--exclude`           | 제외 패턴 (regex)       | -       |
+| `-f, --format`        | 출력 형식               | default |
 
 ## 출력 형식
 
@@ -323,12 +326,14 @@ gz-git diff --format llm ~/workspace > changes.txt
 ### Staged vs Unstaged 구분
 
 **기본값은 unstaged**:
+
 ```bash
 # Working tree 변경사항
 gz-git diff ~/workspace
 ```
 
 **Commit 전에는 staged 확인**:
+
 ```bash
 # Stage된 내용 확인
 gz-git diff --staged ~/workspace
@@ -337,11 +342,13 @@ gz-git diff --staged ~/workspace
 ### 크기 제한
 
 **기본 100KB** - 대부분 충분:
+
 ```
 [Diff truncated: exceeds 100KB limit]
 ```
 
 **해결**:
+
 ```bash
 # 크기 늘리기
 gz-git diff --max-size 500 ~/workspace
@@ -386,6 +393,7 @@ gz-git diff ~/workspace
 ```
 
 **줄이기**:
+
 ```bash
 # 간결하게
 gz-git diff -U 1 ~/workspace
@@ -394,6 +402,7 @@ gz-git diff -U 1 ~/workspace
 ### Binary 파일
 
 Binary 파일은 diff 불가:
+
 ```
 Binary files a/image.png and b/image.png differ
 ```

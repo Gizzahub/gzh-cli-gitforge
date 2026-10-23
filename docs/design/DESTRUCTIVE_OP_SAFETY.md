@@ -19,25 +19,25 @@ making the guard proportional to the blast radius.
 1. **Dry-run is the default.** A destructive command run with no execution flag
    previews what it would do and changes nothing.
 
-2. **Execution requires `--force`. Bulk × destructive additionally requires
+1. **Execution requires `--force`. Bulk × destructive additionally requires
    confirmation.** On an interactive terminal the command prints the deletion
    summary and asks `y/N`. In a non-interactive environment (pipe / CI) it
    refuses unless `--yes` is also given. `--yes` never substitutes for `--force`.
 
-3. **Every destructive command offers `--dry-run` (`-n`).** Even single-target
+1. **Every destructive command offers `--dry-run` (`-n`).** Even single-target
    commands (e.g. `worktree remove`) must let the user preview without acting.
 
-4. **Mutating bulk commands handle SIGINT/SIGTERM gracefully.** On interrupt the
+1. **Mutating bulk commands handle SIGINT/SIGTERM gracefully.** On interrupt the
    command prints `cancelling...`, stops dispatching new work, and reports the
    partial result — it is never hard-killed mid-write.
 
 ## Decision Matrix
 
-| Command             | Destructive | Bulk | Default   | Execute flag | Confirm gate            |
-| ------------------- | ----------- | ---- | --------- | ------------ | ----------------------- |
-| `clean`             | yes         | yes  | dry-run   | `--force`    | prompt / `--yes`        |
-| `cleanup branch`    | yes         | both | dry-run   | `--force`    | bulk: prompt / `--yes`  |
-| `worktree remove`   | yes         | no   | acts¹     | (n/a)        | none (single target)    |
+| Command           | Destructive | Bulk | Default | Execute flag | Confirm gate           |
+| ----------------- | ----------- | ---- | ------- | ------------ | ---------------------- |
+| `clean`           | yes         | yes  | dry-run | `--force`    | prompt / `--yes`       |
+| `cleanup branch`  | yes         | both | dry-run | `--force`    | bulk: prompt / `--yes` |
+| `worktree remove` | yes         | no   | acts¹   | (n/a)        | none (single target)   |
 
 ¹ `worktree remove` acts by default but now supports `--dry-run (-n)` for preview
 (policy point 3). Single-target destructive ops do not require the confirm gate
@@ -61,7 +61,7 @@ identically. Reuse them — do not reimplement:
 - [ ] Preview-only by default; no data changes without an explicit execute flag.
 - [ ] `--dry-run` / `-n` previews the action.
 - [ ] If bulk: prints a deletion summary, then calls `confirmDestructiveBulk`;
-      refuses non-interactive runs without `--yes`.
+  refuses non-interactive runs without `--yes`.
 - [ ] Wraps its context with `withInterruptCancel` and reports partial results.
 - [ ] Exit codes follow the bulk contract (0 all-success, 1 tool/config error,
-      2 partial repo failure).
+  2 partial repo failure).
