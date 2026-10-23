@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // RunOptions configures a fast-forward integrate and reclaim.
@@ -168,7 +169,12 @@ func rejectUnconfirmedHeuristicTarget(ctx context.Context, exec *gitcmd.Executor
 	if err != nil {
 		return err
 	}
-	decl, err := initialDeclaration(ctx, g, root, opts)
+	// A release needs an explicit target (it returned above); Check reports
+	// the same refusal without reading any declaration before the fetch.
+	if opts.Release {
+		return ErrReleaseNeedsTarget
+	}
+	decl, err := config.LoadRepoRootTaskPattern(root)
 	if err != nil {
 		return err
 	}
@@ -644,7 +650,7 @@ func finishRunReclaim(ctx context.Context, exec *gitcmd.Executor, g gitRepo, roo
 	if err := revalidateController(ctx, g, report.Check); err != nil {
 		return report, err
 	}
-	decl, loadErr := loadPlanDeclaration(ctx, g, root, report.Check.Plan.Release, report.SHA)
+	decl, loadErr := checkedPlanDeclaration(ctx, g, root, report.Check, report.SHA)
 	if report.Check.Controller != nil {
 		decl.Patterns = append([]string(nil), report.Check.Controller.TaskPattern...)
 		decl.Facts = nil

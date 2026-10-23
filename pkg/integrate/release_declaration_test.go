@@ -5,6 +5,7 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/internal/testutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 const (
@@ -147,6 +149,7 @@ func TestCommittedDeclarationFiles_ReadsBlobsAndRefusesRootSymlink(t *testing.T)
 		t.Fatal(err)
 	}
 	writeRepoFile(t, fx.Clone, "sub/.gz-git.yml", "branch:\n  taskPattern: [nested/*]\n")
+	writeRepoFile(t, fx.Clone, "sub/other.yaml", declClean)
 	runGit(t, fx.Clone, "add", ".")
 	runGit(t, fx.Clone, "commit", "-m", "declare policy")
 	g := newGitRepo(gitcmd.NewExecutor(), fx.Clone)
@@ -176,5 +179,120 @@ func TestCommittedDeclarationFiles_ReadsBlobsAndRefusesRootSymlink(t *testing.T)
 	}
 	if _, err := committedDeclarationFiles(context.Background(), g, "develop"); err == nil {
 		t.Fatal("a ref name must not be accepted as the release source commit")
+	}
+}
+
+// advanceRemoteDevelop pushes a commit to the remote develop that sets the
+// declaration to decl, without fetching it into the clone. It returns that
+// commit, which exists only on the remote until the next fetch.
+func advanceRemoteDevelop(t *testing.T, fx *testutil.WorktreeOrigin, decl string) string {
+	t.Helper()
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	runGit(t, fx.Worktree, "checkout", "-B", "develop", fx.Remote+"/develop")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", decl)
+	runGit(t, fx.Worktree, "commit", "-am", "drop removed key")
+	runGit(t, fx.Worktree, "push", fx.Remote, "develop")
+	sha := strings.TrimSpace(gitOutput(t, fx.Worktree, "rev-parse", "HEAD"))
+	runGit(t, fx.Worktree, "checkout", "--detach")
+	runGit(t, fx.Worktree, "branch", "-D", "develop")
+	return sha
+}
+
+// TestCheck_ReleaseStaleLocalSourceReadsFetchedCommit is the stale-clone
+// shape of ISSUE-109: the local origin/develop still carries the removed key,
+// the remote already deleted it, and the approved source exists only on the
+// remote. Nothing may read the stale local ref before the fetch.
+func TestCheck_ReleaseStaleLocalSourceReadsFetchedCommit(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declWithRemovedKey, declWithRemovedKey)
+	approved := advanceRemoteDevelop(t, fx, declClean)
+	opts := releaseRemoteOptions(fx)
+	opts.ExpectSource = approved
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !report.Ready || report.Declaration.Commit != approved {
+		t.Fatalf("want READY from %s, got commit %q\n%s", approved, report.Declaration.Commit, FormatCheck(report))
+	}
+}
+
+func TestCheck_ReleaseSourceRefAppearsOnlyAfterFetch(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declWithRemovedKey, declClean)
+	runGit(t, fx.Clone, "update-ref", "-d", "refs/remotes/"+fx.Remote+"/develop")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), releaseRemoteOptions(fx))
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	develop := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/develop"))
+	if !report.Ready || report.Declaration.Commit != develop {
+		t.Fatalf("want READY from %s, got commit %q\n%s", develop, report.Declaration.Commit, FormatCheck(report))
+	}
+}
+
+func TestCheck_ReleaseRequiresExplicitTarget(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declWithRemovedKey, declClean)
+	opts := releaseDeclarationOptions(t, fx)
+	opts.Target = ""
+	if _, err := Check(context.Background(), gitcmd.NewExecutor(), opts); !errors.Is(err, ErrReleaseNeedsTarget) {
+		t.Fatalf("Check err = %v, want ErrReleaseNeedsTarget", err)
+	}
+	if _, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts}); !errors.Is(err, ErrReleaseNeedsTarget) {
+		t.Fatalf("Run err = %v, want ErrReleaseNeedsTarget", err)
+	}
+}
+
+// TestCheck_ReleaseWithCallerIntegrationConfigStillRejectsRemovedKey: a
+// caller-supplied integration branch replaces the declared one, but the
+// committed declaration is still read and still guarded.
+func TestCheck_ReleaseWithCallerIntegrationConfigStillRejectsRemovedKey(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declClean, declWithRemovedKey)
+	opts := releaseDeclarationOptions(t, fx)
+	opts.IntegrationConfig = []string{"develop"}
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err == nil || !strings.Contains(err.Error(), "branch.prepareProfile was removed") || !strings.Contains(err.Error(), "commit "+opts.ExpectSource[:12]) {
+		t.Fatalf("err = %v, want the removed-key refusal at the source commit", err)
+	}
+}
+
+func TestRun_ReleaseRefusesRemovedKeyInSourceCommit(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declClean, declWithRemovedKey)
+	opts := releaseDeclarationOptions(t, fx)
+	mainBefore := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	_, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: opts})
+	if err == nil || !strings.Contains(err.Error(), "branch.prepareProfile was removed") {
+		t.Fatalf("Run err = %v, want the removed-key refusal", err)
+	}
+	runGit(t, fx.Clone, "fetch", fx.Remote)
+	if got := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main")); got != mainBefore {
+		t.Fatalf("refused release moved main from %s to %s", mainBefore, got)
+	}
+}
+
+// TestCheckedPlanDeclaration_ReusesCheckRead: a step after Check that asks
+// for the release commit Check read gets that declaration back unread.
+func TestCheckedPlanDeclaration_ReusesCheckRead(t *testing.T) {
+	t.Parallel()
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	g := newGitRepo(gitcmd.NewExecutor(), fx.Clone)
+	head := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", "HEAD"))
+	check := &CheckReport{Plan: TargetPlan{Release: true}, Declaration: config.TaskPatternDecl{Commit: head, Patterns: []string{"read/*"}}}
+	decl, err := checkedPlanDeclaration(context.Background(), g, fx.Clone, check, head)
+	if err != nil || len(decl.Patterns) != 1 || decl.Patterns[0] != "read/*" {
+		t.Fatalf("decl = %+v, err = %v; want Check's declaration reused", decl, err)
+	}
+}
+
+func TestRunProvenance_RecordsUnreadableDeclaration(t *testing.T) {
+	t.Parallel()
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	writeRepoFile(t, fx.Clone, ".gz-git.yaml", declWithRemovedKey)
+	p := runProvenance(context.Background(), newGitRepo(gitcmd.NewExecutor(), fx.Clone), nil)
+	if len(p.DeclarationPatterns) != 0 || len(p.DeclarationFacts) != 1 || !strings.Contains(p.DeclarationFacts[0], "was removed") {
+		t.Fatalf("provenance = %+v, want one unreadable-declaration fact", p)
 	}
 }

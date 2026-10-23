@@ -5,11 +5,10 @@ package integrate
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"path"
 	"strings"
 
-	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
@@ -21,11 +20,21 @@ import (
 // let a key the source had already deleted block the only path that delivers
 // the deletion (ISSUE-109). The committed file still passes the removed-key
 // guard and every other declaration check, so a release cannot carry a
-// removed key forward. Every release-path loader (Check's first read and its
-// post-fetch revalidation, Run's heuristic-target precheck, reclaim, and the
-// evidence provenance) goes through loadPlanDeclaration so they compare like
-// with like. Integration into the integration branch keeps reading the
-// working tree.
+// removed key forward.
+//
+// The read happens once, after the fetch, at the source commit the plan
+// resolved (resolveTarget). Nothing reads a release declaration before the
+// fetch: a local source ref may be stale, and reading it would judge a commit
+// nobody approved. A release therefore needs an explicit --target, since
+// deriving the default target would need the declaration first. Run's
+// reclaim and evidence provenance reuse the declaration Check read when they
+// ask for the same commit. Integration into the integration branch keeps
+// reading the working tree.
+
+// ErrReleaseNeedsTarget reports a release without an explicit target. The
+// release declaration is read at the source commit after the fetch, so there
+// is no declaration to derive a target from before it.
+var ErrReleaseNeedsTarget = errors.New("--release requires an explicit --target <default branch>")
 
 // loadPlanDeclaration reads the declaration that governs an integration:
 // the one committed at sourceSHA for a release, the working tree otherwise.
@@ -44,83 +53,65 @@ func loadPlanDeclaration(ctx context.Context, g gitRepo, root string, release bo
 	return decl, nil
 }
 
-// initialDeclaration is the read before the fetch. A release reads the
-// source as it resolves locally then: the approved --expect-source commit
-// when it is present, otherwise the source ref. Check's post-fetch
-// revalidation re-reads at the fetched source and refuses a declaration
-// that changed in between.
-func initialDeclaration(ctx context.Context, g gitRepo, root string, opts CheckOptions) (config.TaskPatternDecl, error) {
-	if !opts.Release {
-		return config.LoadRepoRootTaskPattern(root)
+// checkedPlanDeclaration is loadPlanDeclaration for a step after Check. A
+// release asking for the commit Check already read reuses that declaration
+// instead of reading the commit again; a commit is immutable, so the result
+// is the same.
+func checkedPlanDeclaration(ctx context.Context, g gitRepo, root string, check *CheckReport, sourceSHA string) (config.TaskPatternDecl, error) {
+	release := check != nil && check.Plan.Release
+	if release && sourceSHA != "" && check.Declaration.Commit == sourceSHA {
+		return check.Declaration, nil
 	}
-	source, err := localReleaseSource(ctx, g, opts)
-	if err != nil {
-		return config.TaskPatternDecl{}, err
-	}
-	return loadPlanDeclaration(ctx, g, root, true, source)
+	return loadPlanDeclaration(ctx, g, root, release, sourceSHA)
 }
 
-func localReleaseSource(ctx context.Context, g gitRepo, opts CheckOptions) (string, error) {
-	if opts.ExpectSource != "" {
-		sha, ok, err := g.revParse(ctx, opts.ExpectSource)
-		if err != nil {
-			return "", err
-		}
-		if ok {
-			return sha, nil
-		}
-	}
-	branch := strings.TrimSpace(opts.Branch)
-	if branch == "" {
-		var err error
-		branch, err = g.currentBranch(ctx)
-		if err != nil {
-			return "", err
-		}
-	}
-	if err := gitcmd.SanitizeBranchName(branch); err != nil {
-		return "", fmt.Errorf("invalid branch: %w", err)
-	}
-	sha, ok, err := g.revParse(ctx, branch)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		return "", fmt.Errorf("release source %s is not available locally; fetch it before releasing", branch)
-	}
-	return sha, nil
+// emptyTreeIDs are git's well-known empty tree objects by object-ID length
+// (SHA-1, SHA-256). Diffing a commit against the empty tree lists its files
+// with pathspec glob magic, which ls-tree does not support.
+var emptyTreeIDs = map[int]string{
+	40: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+	64: "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321",
 }
 
 // committedDeclarationFiles returns the .gz-git.{yaml,yml,json} blobs of
-// commit. Blobs are read by object ID, so no committed path reaches a git
-// argument. A repo-root declaration committed as a symbolic link is refused:
-// its bytes are a link target, not the declaration the release installs.
+// commit. Pathspecs restrict the listing to those names at any depth, so its
+// output does not grow with the rest of the tree. Blobs are read by object
+// ID, so no committed path reaches a git argument. A repo-root declaration
+// committed as a symbolic link is refused: its bytes are a link target, not
+// the declaration the release installs.
 func committedDeclarationFiles(ctx context.Context, g gitRepo, commit string) ([]config.CommittedConfigFile, error) {
-	if _, err := NormalizeExpectSource(commit); err != nil {
+	if normalized, err := NormalizeExpectSource(commit); err != nil || normalized != commit {
 		return nil, fmt.Errorf("release source %q is not a full commit ID", commit)
 	}
-	res, err := g.run(ctx, "ls-tree", "-r", "-z", "--full-tree", commit)
+	args := []string{"diff-tree", "-r", "-z", "--no-renames", emptyTreeIDs[len(commit)], commit, "--"}
+	for _, ext := range []string{".yaml", ".yml", ".json"} {
+		args = append(args, ":(glob)**/"+config.ProjectConfigFileName+ext)
+	}
+	res, err := g.run(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
 	if res.ExitCode != 0 {
-		return nil, fmt.Errorf("git ls-tree %s: %s", commit, strings.TrimSpace(res.Stderr))
+		return nil, fmt.Errorf("git diff-tree %s: %s", commit, strings.TrimSpace(res.Stderr))
 	}
+	// -z raw output alternates ":<old mode> <new mode> <old oid> <new oid> A"
+	// and the path.
+	fields := strings.Split(strings.TrimSuffix(res.Stdout, "\x00"), "\x00")
 	var files []config.CommittedConfigFile
-	for _, entry := range strings.Split(res.Stdout, "\x00") {
-		meta, rel, ok := strings.Cut(entry, "\t")
-		if !ok || !config.IsProjectConfigName(path.Base(rel)) {
-			continue
+	for i := 0; i+1 < len(fields); i += 2 {
+		meta, rel := strings.Fields(strings.TrimPrefix(fields[i], ":")), fields[i+1]
+		if len(meta) != 5 {
+			return nil, fmt.Errorf("git diff-tree %s: unexpected entry %q", commit, fields[i])
 		}
-		fields := strings.Fields(meta)
-		if len(fields) != 3 || fields[1] != "blob" {
-			continue
-		}
-		mode, oid := fields[0], fields[2]
-		if mode == "120000" {
+		mode, oid := meta[1], meta[3]
+		switch mode {
+		case "100644", "100755":
+		case "120000":
 			if !strings.Contains(rel, "/") {
 				return nil, fmt.Errorf("%s at commit %s is a symbolic link; commit the declaration as a regular file", rel, config.ShortCommit(commit))
 			}
+			continue
+		default:
 			continue
 		}
 		blob, err := g.run(ctx, "cat-file", "blob", oid)

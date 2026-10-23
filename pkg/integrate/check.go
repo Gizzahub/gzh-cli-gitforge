@@ -100,12 +100,20 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	if err != nil {
 		return nil, err
 	}
-	decl, err := initialDeclaration(ctx, g, root, opts)
-	if err != nil {
-		return nil, err
-	}
-	if len(opts.IntegrationConfig) == 0 {
-		opts.IntegrationConfig = decl.IntegrationBranch
+	// A release reads its declaration after the fetch, at the source commit
+	// (resolveTarget); only an integration reads the working tree up front.
+	var decl config.TaskPatternDecl
+	if opts.Release {
+		if strings.TrimSpace(opts.Target) == "" {
+			return nil, ErrReleaseNeedsTarget
+		}
+	} else {
+		if decl, err = config.LoadRepoRootTaskPattern(root); err != nil {
+			return nil, err
+		}
+		if len(opts.IntegrationConfig) == 0 {
+			opts.IntegrationConfig = decl.IntegrationBranch
+		}
 	}
 
 	preflight, err := preflightTargetRef(ctx, g, exec, opts, controller)

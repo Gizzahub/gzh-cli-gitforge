@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // ErrImplicitSourceIsTarget reports a bare integrate invocation from the
@@ -92,6 +93,9 @@ type TargetPlan struct {
 	Integration Resolution
 	HeadSHA     string
 	Release     bool
+	// sourceDeclaration is the declaration committed at BranchSHA; a release
+	// reads it once after the fetch. Empty for any other plan.
+	sourceDeclaration config.TaskPatternDecl
 }
 
 // releasesRemoteRef reports a release whose source is the remote-tracking
@@ -146,6 +150,19 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 		return plan, err
 	}
 	plan.BranchSHA = sha
+
+	// A release reads the declaration committed at the source it fetched, so
+	// the integration branch it promotes is the one that commit declares.
+	if opts.Release {
+		decl, err := loadPlanDeclaration(ctx, g, g.dir, true, sha)
+		if err != nil {
+			return plan, err
+		}
+		plan.sourceDeclaration = decl
+		if len(opts.IntegrationConfig) == 0 {
+			opts.IntegrationConfig = decl.IntegrationBranch
+		}
+	}
 
 	integ, err := ResolveIntegrationBranch(ctx, exec, g.dir, opts.IntegrationConfig)
 	if err != nil {

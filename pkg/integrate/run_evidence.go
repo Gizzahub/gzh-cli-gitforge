@@ -173,17 +173,19 @@ func findTaskWorktree(ctx context.Context, g gitRepo, branch string) (string, er
 // against whatever the dying worktree last said.
 func runProvenance(ctx context.Context, g gitRepo, check *CheckReport) *evidenceProvenance {
 	p := &evidenceProvenance{}
+	source := ""
 	if check != nil {
+		source = check.Plan.BranchSHA
 		p.ReclaimRefs = &evidenceReclaimRefs{
 			Default:     defaultBranchName(check.Plan.DefaultRef, check.Plan.Remote),
 			Integration: check.Plan.Integration.Name,
 		}
 	}
-	release, source := false, ""
-	if check != nil {
-		release, source = check.Plan.Release, check.Plan.BranchSHA
-	}
-	if decl, err := loadPlanDeclaration(ctx, g, g.dir, release, source); err == nil {
+	// An unreadable declaration stays non-fatal here (Check already applied
+	// it), but the provenance records why it carries no patterns.
+	if decl, err := checkedPlanDeclaration(ctx, g, g.dir, check, source); err != nil {
+		p.DeclarationFacts = []string{"declaration unreadable at intent time: " + err.Error()}
+	} else {
 		p.DeclarationPatterns = append([]string(nil), decl.Patterns...)
 		p.DeclarationFacts = append([]string(nil), decl.Facts...)
 	}

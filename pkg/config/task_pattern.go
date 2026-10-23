@@ -106,6 +106,13 @@ type CommittedConfigFile struct {
 // Source stays the repo-root path the file has once that commit is checked
 // out, so a committed and a working-tree declaration of the same file compare
 // equal by Source.
+//
+// Parity with the working-tree read is limited to what a commit records:
+// files inside submodules (gitlinks) are not part of the commit, so they
+// produce no non-root fact; a nested declaration committed as a symbolic link
+// is not followed and produces no fact; and names match case-sensitively, so
+// a file whose committed name differs only in case is not a declaration even
+// where a case-insensitive file system would open it.
 func LoadCommittedTaskPattern(repoRoot, commit string, files []CommittedConfigFile) (TaskPatternDecl, error) {
 	var decl TaskPatternDecl
 	if strings.TrimSpace(repoRoot) == "" {

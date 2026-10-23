@@ -62,23 +62,36 @@ key, and `develop` deletes it
 
 ## Fix
 
-In `--release` mode, every release-path loader reads the declaration
-committed at the release source commit through `loadPlanDeclaration`
-(`pkg/integrate/release_declaration.go`):
+In `--release` mode, the declaration is read once, after the fetch, at the
+source commit the plan resolved. The read goes through `loadPlanDeclaration`
+(`pkg/integrate/release_declaration.go`), called from `resolveTarget`. The
+integration branch the release promotes comes from that commit, and
+`validateOwnedCheckPlan` returns that same read. `finishRunReclaim` and the
+evidence provenance reuse it through `checkedPlanDeclaration`.
 
-- Check's first read: the `--expect-source` commit, or the source ref when
-  the flag is omitted.
-- The post-fetch revalidation in `validateOwnedCheckPlan`: the fetched source
-  SHA.
-- Run's `rejectUnconfirmedHeuristicTarget` and `finishRunReclaim`.
-- The evidence provenance.
+Nothing reads a release declaration before the fetch. An earlier version
+read the local source ref pre-fetch whenever `--expect-source` was not
+local, so a stale clone was refused at a commit nobody approved. A release
+without `--target` would need the declaration before the fetch to derive
+its target. `Check` and Run's `rejectUnconfirmedHeuristicTarget` refuse it
+with `ErrReleaseNeedsTarget`. It never passed `validateTarget` anyway.
+
+The committed declaration files are listed with `git diff-tree` against the
+empty tree, restricted by `:(glob)**/.gz-git.{yaml,yml,json}` pathspecs. The
+listing therefore does not grow with the rest of the tree. `ls-tree` does
+not support glob pathspecs.
 
 `config.LoadCommittedTaskPattern` applies the removed-key guard, the
 literal-protected-name check and the other root declaration rules to the
 committed bytes. Its errors name the file and the short commit. A root
 declaration committed as a symbolic link is refused. The check report prints
 `INFO  declaration — <path> at release source commit <short>`. Non-release
-integration still reads the working tree.
+integration still reads the working tree. Its pre-fetch read and post-fetch
+change detection are unchanged.
+
+When the provenance cannot read the declaration, it records a
+`declaration unreadable at intent time: <error>` fact. This stays non-fatal,
+as before.
 
 There is no flag, no environment bypass and no warning-only downgrade.
 

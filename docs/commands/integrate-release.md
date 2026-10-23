@@ -25,8 +25,9 @@ gz-git runs no repository code, so the git rows alone decide readiness
 ## Declaration source
 
 A release reads the repository-root `.gz-git.{yaml,yml,json}` committed at
-the release source commit (`--expect-source`, or the source ref when it is
-omitted), not the primary checkout's working tree. The release fast-forwards
+the release source commit, not the primary checkout's working tree. The
+source commit is the one the source ref resolves to after the fetch, held
+to `--expect-source` when that flag is given. The release fast-forwards
 the default branch to that commit, so its committed declaration is the one
 the default branch carries afterwards; the working-tree copy is the state the
 release replaces. The default branch changes only by release, so reading the
@@ -43,9 +44,19 @@ the provenance:
   INFO  declaration — /repo/.gz-git.yaml at release source commit 0ee4886d16bb
 ```
 
-Check's post-fetch revalidation, `run`'s heuristic-target precheck, reclaim,
-and the evidence provenance read the same commit. Integration into the
-integration branch keeps reading the working tree.
+Nothing reads a release declaration before the fetch. A local source ref can
+be stale and still carry a key the remote already deleted; reading it would
+judge a commit nobody approved. The declaration is read once, after the
+fetch, and reclaim and the evidence provenance reuse that read. Because the
+integration branch the release promotes is declared in that commit, a
+release needs an explicit `--target <default branch>`; without one, `check`
+and `run` refuse before the fetch:
+
+```text
+--release requires an explicit --target <default branch>
+```
+
+Integration into the integration branch keeps reading the working tree.
 
 Release never reclaims: the integration ref matches neither the reclaim
 guard's task patterns nor the integration/default names it protects.
