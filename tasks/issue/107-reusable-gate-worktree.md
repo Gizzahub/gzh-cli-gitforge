@@ -52,7 +52,7 @@ sigdock-idp-rs pool `.omo/evidence/workspace-gate-20261023-<run>/`
 | 070938 | `4cdec01b9` | first gate in worktree A, `gate_exit=1` | 793s | 1025s |
 | 074207 | `ac0cc6a34` | second gate in A | 633s | 603s |
 | 080356 | `2975dbcd9` | third gate in A | 632s | 552s |
-| 103303 | `d0381e9d4` | fourth gate in A; its feature stage ran alongside all of 104333's workspace stage | 894s | 895s |
+| 103303 | `d0381e9d4` | fourth gate in A; overlapped 104333 from 10:43:34, about the last 4 min of its workspace stage and all of its feature stage | 894s | 895s |
 | 094134 | `54622cbe4` | first gate in a new worktree | 924s | 693s |
 | 101516 | `8d19bf366` | new worktree, shared `CARGO_TARGET_DIR` starting empty, stopped during the feature stage after 103303 started | 1065s | — |
 | 104333 | `39e3f5028` | new worktree, shared `CARGO_TARGET_DIR` with workspace members cleaned; whole workspace stage overlapped 103303 (about 17 min) | 1045s | 724s |
