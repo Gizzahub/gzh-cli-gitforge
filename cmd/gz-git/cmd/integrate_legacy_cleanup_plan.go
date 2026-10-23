@@ -64,6 +64,13 @@ func runIntegrateLegacyCleanupPlan(cmd *cobra.Command, _ []string) error {
 			return fail(err)
 		}
 	}
+	// Building a plan replaces the task's witness and so retires any earlier
+	// plan; refuse an occupied output first so a failed write leaves it usable.
+	if _, err := os.Lstat(legacyCleanupPlanOutput); err == nil {
+		return fail(fmt.Errorf("plan output already exists: %s", legacyCleanupPlanOutput))
+	} else if !os.IsNotExist(err) {
+		return fail(err)
+	}
 	plan, err := integrate.BuildLegacyCleanupPlan(cmdContext(cmd), gitcmd.NewExecutor(), integrate.LegacyCleanupPlanOptions{RepoPath: root, Target: legacyCleanupPlanTarget, DoneArtifactPath: legacyCleanupPlanDoneArtifact, ReleasedArtifactPath: legacyCleanupPlanReleasedArtifact, Owner: owner, RuntimeGuard: guard})
 	if err != nil {
 		return fail(err)

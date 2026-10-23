@@ -311,6 +311,62 @@ func TestLegacyCleanupSecurityRejectsGitDirABASubstitutionBeforeDeletion(t *test
 	}
 }
 
+// The substitution above is caught only while the filesystem happens to give
+// the re-created worktree new numbers. This rewrites the plan with the
+// replacement's device, inode, and birth time, which is what an ext4 host
+// reusing freed inodes within one coarse timestamp tick observes, so only the
+// witness token the plan wrote into the removed Git directory can refuse it.
+func TestLegacyCleanupSecurityRejectsSubstitutionWithReusedPhysicalIdentity(t *testing.T) {
+	plan, planPath, primary, task := legacySecurityPlan(t, true)
+	runGit(t, primary, "worktree", "remove", "--force", task)
+	runGit(t, primary, "worktree", "add", task, plan.TaskBranch)
+	fresh, err := captureLegacyWorktreeIdentity(context.Background(), gitcmd.NewExecutor(), plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh.Witness != "" {
+		t.Fatalf("replacement worktree inherited a witness: %q", fresh.Witness)
+	}
+	fresh.Witness = plan.WorktreeIdentity.Witness
+	plan.WorktreeIdentity = fresh
+	if plan.PlanDigest, err = legacyCleanupPlanDigest(plan); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(planPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteLegacyCleanupPlan(planPath, plan); err != nil {
+		t.Fatal(err)
+	}
+	err = applyLegacySecurity(t, plan, planPath)
+	if err == nil || !strings.Contains(err.Error(), "physical identity changed") {
+		t.Fatalf("substitution with a reused physical identity was not refused: %v", err)
+	}
+	assertLegacyResourcesPresent(t, primary, task)
+}
+
+// A plan written before witnesses existed must not remove a present worktree,
+// since its identity can no longer tell a substitute from the planned tree.
+func TestLegacyCleanupSecurityRejectsWitnesslessPlanWhileWorktreePresent(t *testing.T) {
+	plan, planPath, primary, task := legacySecurityPlan(t, true)
+	plan.WorktreeIdentity.Witness = ""
+	var err error
+	if plan.PlanDigest, err = legacyCleanupPlanDigest(plan); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(planPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteLegacyCleanupPlan(planPath, plan); err != nil {
+		t.Fatal(err)
+	}
+	err = applyLegacySecurity(t, plan, planPath)
+	if err == nil || !strings.Contains(err.Error(), "predates the legacy cleanup witness") {
+		t.Fatalf("witnessless plan was not refused: %v", err)
+	}
+	assertLegacyResourcesPresent(t, primary, task)
+}
+
 func assertLegacyResourcesPresent(t *testing.T, primary, task string) {
 	t.Helper()
 	if _, err := os.Stat(task); err != nil {

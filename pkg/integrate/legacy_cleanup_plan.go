@@ -199,7 +199,8 @@ func observeLegacyCleanupPlan(ctx context.Context, exec *gitcmd.Executor, opts L
 	return plan, nil
 }
 
-// BuildLegacyCleanupPlan observes a prospective cleanup without modifying Git resources.
+// BuildLegacyCleanupPlan observes a prospective cleanup without modifying Git
+// resources; its only write is the witness token in the task's private Git directory.
 func BuildLegacyCleanupPlan(ctx context.Context, exec *gitcmd.Executor, opts LegacyCleanupPlanOptions) (*LegacyCleanupPlan, error) {
 	if exec == nil {
 		return nil, fmt.Errorf("git executor is nil")
@@ -240,6 +241,9 @@ func BuildLegacyCleanupPlan(ctx context.Context, exec *gitcmd.Executor, opts Leg
 	}
 	if err := validateLegacyCleanupArtifact(opts.ReleasedArtifactPath, "RELEASED", plan); err != nil {
 		return nil, fmt.Errorf("RELEASED artifact contract: %w", err)
+	}
+	if identity.Witness, err = writeLegacyCleanupWitness(identity.GitDir); err != nil {
+		return nil, err
 	}
 	plan.PlanDigest, err = legacyCleanupPlanDigest(plan)
 	if err != nil {
@@ -394,6 +398,12 @@ func ReadLegacyCleanupPlan(path string) (*LegacyCleanupPlan, error) {
 	}
 	if plan.WorktreeIdentity == nil {
 		return nil, fmt.Errorf("legacy cleanup plan lacks physical worktree identity")
+	}
+	// A plan written before witnesses existed stays readable so an apply that
+	// already removed the worktree can resume; apply refuses it while the
+	// worktree is still present.
+	if w := plan.WorktreeIdentity.Witness; w != "" && !validSHA256(w) {
+		return nil, fmt.Errorf("legacy cleanup plan has a malformed witness")
 	}
 	digest, err := legacyCleanupPlanDigest(&plan)
 	if err != nil {

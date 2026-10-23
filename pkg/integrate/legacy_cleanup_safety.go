@@ -5,6 +5,8 @@ package integrate
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,9 +23,11 @@ import (
 // A device/inode pair alone is not ABA-safe: ext4 and similar filesystems hand
 // a freed inode number to the next allocation, so a worktree removed and
 // re-created at the same path can come back with every number unchanged.
-// BirthNS is the resource's creation time in nanoseconds, which a re-creation
-// always moves. It is zero where the filesystem does not record one, and the
-// identity then falls back to device and inode alone.
+// BirthNS is the resource's creation time in nanoseconds. Linux stamps it from
+// the coarse clock, so a re-creation within one tick can keep it unchanged;
+// LegacyWorktreeIdentity.Witness closes that gap. BirthNS is zero where the
+// filesystem does not record one, and the identity then relies on device,
+// inode, and the witness.
 type LegacyFileIdentity struct {
 	Device  uint64 `json:"device"`
 	Inode   uint64 `json:"inode"`
@@ -31,12 +35,51 @@ type LegacyFileIdentity struct {
 }
 
 // LegacyWorktreeIdentity is the prospective plan's local resource inventory.
+// Witness is the random token the plan wrote into the task's private Git
+// directory: ext4 hands a re-created worktree, Git directory, and .git file the
+// inode numbers their removed predecessors freed (ISSUE-106), so device/inode
+// alone cannot tell a substituted worktree from the planned one.
 type LegacyWorktreeIdentity struct {
 	GitDir              string             `json:"git_dir"`
 	PrimaryGitDirectory LegacyFileIdentity `json:"primary_git_directory"`
 	Worktree            LegacyFileIdentity `json:"worktree"`
 	GitDirectory        LegacyFileIdentity `json:"git_directory"`
 	GitFile             LegacyFileIdentity `json:"git_file"`
+	Witness             string             `json:"witness"`
+}
+
+const legacyWitnessFileName = "gz-git-legacy-cleanup-witness"
+
+// writeLegacyCleanupWitness replaces any earlier plan's token, so only the
+// newest plan for a task can authorize its cleanup. Removing the worktree
+// removes the token with its Git directory.
+func writeLegacyCleanupWitness(gitDir string) (string, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return "", fmt.Errorf("generate legacy cleanup witness: %w", err)
+	}
+	witness := hex.EncodeToString(token[:])
+	if err := atomicStateWrite(filepath.Join(gitDir, legacyWitnessFileName), []byte(witness+"\n")); err != nil {
+		return "", fmt.Errorf("write legacy cleanup witness: %w", err)
+	}
+	return witness, nil
+}
+
+// readLegacyCleanupWitness returns "" when no plan has written a token.
+func readLegacyCleanupWitness(gitDir string) (string, error) {
+	path := filepath.Join(gitDir, legacyWitnessFileName)
+	if _, err := os.Lstat(path); os.IsNotExist(err) {
+		return "", nil
+	}
+	data, err := readBoundedRegularFile(path, 128, "legacy cleanup witness")
+	if err != nil {
+		return "", err
+	}
+	witness := strings.TrimSuffix(string(data), "\n")
+	if !validSHA256(witness) {
+		return "", fmt.Errorf("legacy cleanup witness is malformed")
+	}
+	return witness, nil
 }
 
 func legacyPhysicalIdentity(path string, directory bool) (LegacyFileIdentity, error) {
@@ -253,6 +296,9 @@ func captureLegacyWorktreeIdentity(ctx context.Context, exec *gitcmd.Executor, p
 		return nil, err
 	}
 	if identity.GitFile, err = legacyPhysicalIdentity(filepath.Join(plan.TaskWorktree, ".git"), false); err != nil {
+		return nil, err
+	}
+	if identity.Witness, err = readLegacyCleanupWitness(gitDir); err != nil {
 		return nil, err
 	}
 	return identity, nil

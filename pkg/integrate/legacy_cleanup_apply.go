@@ -281,6 +281,9 @@ func legacyCleanupPresence(ctx context.Context, exec *gitcmd.Executor, g gitRepo
 		}
 	}
 	if worktreePresent {
+		if p.WorktreeIdentity == nil || p.WorktreeIdentity.Witness == "" {
+			return 0, fmt.Errorf("plan predates the legacy cleanup witness; re-plan before removing the worktree")
+		}
 		fresh, err := captureLegacyWorktreeIdentity(ctx, exec, p)
 		if err != nil {
 			return 0, err

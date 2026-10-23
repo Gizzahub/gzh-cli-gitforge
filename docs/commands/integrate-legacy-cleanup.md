@@ -25,6 +25,10 @@ native task lifecycle, native runtime state, CE guard가 없는 CE 선언은 계
 
 worktree와 Git directory의 device/inode 정체성을 관찰할 수 없는 호스트는
 지원하지 않는다. 경로·파일 크기·수정 시각으로 물리 정체성을 추정하지 않는다.
+ext4처럼 지운 inode 번호를 곧바로 재사용하는 파일 시스템에서는 같은 경로에
+다시 만든 worktree가 device/inode와 생성 시각까지 같을 수 있다. 그래서 계획은
+task의 private Git directory에 무작위 witness 토큰을 기록하고, apply는 삭제 전에
+그 토큰이 그대로 있는지 확인한다.
 
 같은 task의 협조적 native `integrate run`, `integrate cleanup`, legacy apply는
 저장소 common directory의 task 잠금을 공유한다. target 잠금은 별도로 유지한다.
@@ -36,8 +40,12 @@ worktree와 Git directory의 device/inode 정체성을 관찰할 수 없는 호�
 명시해 실행한다. `--output`, `--done-artifact`, `--released-artifact`는 절대
 경로를 사용한다. CE 경로는 CE가 만든 절대 경로 `--runtime-guard`도 명시한다.
 기존 파일을 덮어쓰지 않는 계획 파일을 생성하며 Git 자원은
-변경하지 않는다. 정확한 인자와 근거 스키마는 명령 도움말과 계획 스키마를
-확인한다.
+변경하지 않는다. 유일한 쓰기는 task Git directory의
+`gz-git-legacy-cleanup-witness` 파일이며, 이를 다시 쓰므로 같은 task의
+가장 최근 계획만 apply할 수 있다. 출력 경로가 이미 있으면 witness를 쓰기 전에
+거부한다. witness가 없는 이전 버전의 계획은 worktree가 남아 있으면 거부하므로
+다시 계획해야 하고, worktree를 이미 지운 중단된 정리는 그대로 재개할 수 있다. 정확한 인자와 근거 스키마는 명령 도움말과
+계획 스키마를 확인한다.
 
 두 근거 파일은 각각 `status`가 `DONE`, `RELEASED`인 다음 구조의 disposition
 문서를 받는다. `task_sha`는 전체 commit OID이며 모든 정체성 필드는 실제
