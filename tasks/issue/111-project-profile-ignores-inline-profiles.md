@@ -46,3 +46,19 @@ failed to load config layers: failed to load project profile 'polypia': profile 
 Resolve the project profile through the project config file's parent chain
 (loaded without workspaces) with `GetProfileFromChain`, then fall back to the
 external file; name both locations when neither has it.
+
+## Resolution
+
+Resolved on 2026-10-24 by `fix(config): resolve a project's profile from inline profiles first`.
+
+- `Manager.LoadProjectProfile` loads the project config file's parent chain without workspaces and takes the profile
+  from `GetProfileFromChain`, then falls back to `profiles/<name>.yaml`. The map key names an inline profile whose
+  `name` field is empty; the profile is validated either way.
+- A name found in neither place reports the project config path and the profiles directory. A `parent:` that fails to
+  load is an error.
+- The loader resolves the project's profile even when it matches the active profile's name, so an inline profile of
+  that name wins.
+- Tests: `pkg/config/project_profile_test.go` (six cases). Disabling the inline lookup fails the three inline tests.
+- Verified against the operator's `~/mydevbox`: the built binary runs `fetch --dry-run` and `config show` reports
+  `profile: polypia`.
+- Docs: `docs/.claude-context/config-guide.md`, Project Config Example.
