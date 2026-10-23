@@ -397,7 +397,6 @@ ______________________________________________________________________
 
 - `pkg/repository` - Repository operations
 - `internal/gitcmd` - Git command execution
-- `internal/parser` - Git output parsing
 - `text/template` - Go template engine
 
 ### 4.3 Error Handling

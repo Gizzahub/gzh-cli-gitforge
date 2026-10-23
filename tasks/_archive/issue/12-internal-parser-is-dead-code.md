@@ -23,12 +23,12 @@ $ grep -rn --include='*.go' 'gzh-cli-gitforge/internal/parser' . | grep -v '^\./
 패키지를 임포트하는 파일이 **모듈 전체에 0개**다. 남은 것은 자기 자신을 테스트하는
 테스트뿐이다.
 
-| 파일 | 크기 | 내용 |
-|---|---|---|
-| `internal/parser/status.go` | 2.8KB | 7 exported (`ParseBranchInfo`, `ParseRemoteInfo`, `ParseUpstreamInfo`, `ParseAheadBehind`, `ParseCommitInfo`, `ParseFileList`, `ParseIsClean`) |
-| `internal/parser/common.go` | 6.1KB | 13 exported (`SplitLines`, `ParseKeyValue`, `ParseInt`, `ParseBool`, `ParseTimestamp`, `ParseDate`, `ParseRef`, `ParseCommitHash`, `ParseFileMode`, `IsEmptyLine`, `TrimPrefix`, `SplitFields`, `ExtractBetween`) |
-| `internal/parser/status_test.go` | 7.6KB | 위 7개 테스트 |
-| `internal/parser/common_test.go` | 13.5KB | 위 13개 테스트 |
+| 파일                             | 크기   | 내용                                                                                                                                                                                                              |
+| -------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `internal/parser/status.go`      | 2.8KB  | 7 exported (`ParseBranchInfo`, `ParseRemoteInfo`, `ParseUpstreamInfo`, `ParseAheadBehind`, `ParseCommitInfo`, `ParseFileList`, `ParseIsClean`)                                                                    |
+| `internal/parser/common.go`      | 6.1KB  | 13 exported (`SplitLines`, `ParseKeyValue`, `ParseInt`, `ParseBool`, `ParseTimestamp`, `ParseDate`, `ParseRef`, `ParseCommitHash`, `ParseFileMode`, `IsEmptyLine`, `TrimPrefix`, `SplitFields`, `ExtractBetween`) |
+| `internal/parser/status_test.go` | 7.6KB  | 위 7개 테스트                                                                                                                                                                                                     |
+| `internal/parser/common_test.go` | 13.5KB | 위 13개 테스트                                                                                                                                                                                                    |
 
 **21KB의 테스트가 아무도 호출하지 않는 8.9KB의 코드를 검증하고 있다.**
 
@@ -45,14 +45,13 @@ deprecate 기간 없이 바로 지울 수 있다.
 
 ## Scope
 
-1. 삭제 직전에 임포터 0건을 다시 확인한다 (`grep -rn --include='*.go'
-   'gzh-cli-gitforge/internal/parser' .`). 태스크 작성 시점 이후 새 호출자가 생겼다면
+1. 삭제 직전에 임포터 0건을 다시 확인한다 (`grep -rn --include='*.go' 'gzh-cli-gitforge/internal/parser' .`). 태스크 작성 시점 이후 새 호출자가 생겼다면
    중단하고 그 호출자를 먼저 판단한다.
-2. `internal/parser/` 디렉터리 전체 삭제 (소스 2 + 테스트 2).
-3. `pkg/doctor`의 `parseAheadBehind` 사본은 **그대로 둔다.** 이 태스크는 죽은 코드
+1. `internal/parser/` 디렉터리 전체 삭제 (소스 2 + 테스트 2).
+1. `pkg/doctor`의 `parseAheadBehind` 사본은 **그대로 둔다.** 이 태스크는 죽은 코드
    제거이지 파서 통합이 아니다 — 살아있는 유일한 구현을 건드릴 이유가 없다.
    (모듈 전역 porcelain 파서는 이미 `internal/porcelain`이 담당한다.)
-4. `docs/`·`CLAUDE.md`에 `internal/parser` 언급이 있으면 정정한다.
+1. `docs/`·`CLAUDE.md`에 `internal/parser` 언급이 있으면 정정한다.
    루트 `CLAUDE.md`의 디렉터리 구조표에 `parser/ # Output parsing` 항목이 있다.
 
 ## Acceptance Criteria
@@ -61,7 +60,7 @@ deprecate 기간 없이 바로 지울 수 있다.
 - [x] `go build ./...` · `go vet ./...` 통과
 - [x] `make quality` 통과
 - [x] `grep -rn 'internal/parser' .` 결과가 문서/태스크 이력에만 남음
-      (예외 3건 — D3 참조)
+  (예외 3건 — D3 참조)
 - [x] 루트 `CLAUDE.md` 디렉터리 구조표에서 `parser/` 항목 제거
 - [x] CHANGELOG 기재 (`internal/`이라 공개 API 변경 아님을 명시)
 
@@ -72,11 +71,11 @@ deprecate 기간 없이 바로 지울 수 있다.
 Scope 3을 그대로 따랐다. 다만 착수 중 확인한 것은 **사본이 하나가 아니라 셋**이라는
 사실이다:
 
-| 위치 | 함수 |
-|---|---|
-| `pkg/repository/client.go:468` | `parseAheadBehind` |
-| `pkg/branch/manager.go:441` | `parseAheadBehindFromStatus` |
-| `pkg/doctor/repo_checks.go:469` | `parseAheadBehind` |
+| 위치                            | 함수                         |
+| ------------------------------- | ---------------------------- |
+| `pkg/repository/client.go:468`  | `parseAheadBehind`           |
+| `pkg/branch/manager.go:441`     | `parseAheadBehindFromStatus` |
+| `pkg/doctor/repo_checks.go:469` | `parseAheadBehind`           |
 
 셋 다 살아 있고 호출자가 있다. 통합은 별개 판단(어느 시그니처를 정본으로 삼을지,
 `porcelain` 파서로 흡수할지)이 필요하므로 이 태스크에서 하지 않는다. 이 태스크는
@@ -99,6 +98,10 @@ Scope 3을 그대로 따랐다. 다만 착수 중 확인한 것은 **사본이 �
 - `docs/specs/10-commit-automation.md:400` — `internal/parser` - Git output parsing
 - `docs/specs/20-branch-management.md:472` — `internal/parser`: Parse git output
 - `docs/specs/30-history-analysis.md:638` — `internal/parser` - Output parsing utilities
+
+2026-10-23 정정: `ce access check`가 세 파일을 `default`로 판정해 수정했다. `pkg/commit`과
+`pkg/history`는 `internal/parser`를 대신할 파서를 쓰지 않으므로 해당 줄을 지웠고,
+`pkg/branch`는 `internal/porcelain`을 쓰므로 그 항목으로 바꿨다.
 
 **`CHANGELOG.md` 4건은 의도적으로 남겼다**(`:88`, `:134`, `:988`, `:1092`). 변경 이력은
 그 시점의 사실을 적은 기록이므로 나중 삭제를 소급 반영하면 이력이 아니게 된다.

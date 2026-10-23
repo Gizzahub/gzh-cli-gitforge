@@ -469,7 +469,7 @@ pkg/branch/
 **Internal**:
 
 - `internal/gitcmd`: Git command execution
-- `internal/parser`: Parse git output
+- `internal/porcelain`: Parse Git porcelain output
 - `pkg/repository`: Repository abstraction
 
 **External**:

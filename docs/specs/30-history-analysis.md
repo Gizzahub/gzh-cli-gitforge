@@ -635,7 +635,6 @@ ______________________________________________________________________
 
 - `pkg/repository` - Repository operations
 - `internal/gitcmd` - Git command execution
-- `internal/parser` - Output parsing utilities
 
 ### External
 
