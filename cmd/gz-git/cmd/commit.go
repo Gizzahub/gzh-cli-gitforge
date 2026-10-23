@@ -191,6 +191,10 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 	if err := validateBulkFormat(commitFlags.Format); err != nil {
 		return commitRunConfig{}, err
 	}
+	// -e commits once the editor closes, so it cannot honor --dry-run.
+	if commitEdit && commitFlags.DryRun {
+		return commitRunConfig{}, fmt.Errorf("--edit cannot be combined with --dry-run: --edit commits the edited messages; run without --edit to preview")
+	}
 
 	customMessages, err := loadCommitMessages()
 	if err != nil {
@@ -354,6 +358,15 @@ func validateCommitMessageKeys(directory string, messages map[string]string, pre
 func commitEditorResult(ctx context.Context, client repository.Client, result *repository.BulkCommitResult, opts repository.BulkCommitOptions) (*repository.BulkCommitResult, bool, error) {
 	if !commitEdit || result.TotalDirty == 0 {
 		return result, false, nil
+	}
+	// --all is the message BulkCommit would use for every repository, so the
+	// editor starts from it; the commit below then takes the edited messages
+	// instead of reapplying it.
+	if opts.Message != "" {
+		for i := range result.Repositories {
+			result.Repositories[i].Message = opts.Message
+		}
+		opts.Message = ""
 	}
 	editedMessages, err := editMessagesInEditor(result)
 	if err != nil {

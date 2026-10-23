@@ -6,6 +6,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -66,5 +67,53 @@ func TestCommitEditCommitsEditedMessage(t *testing.T) {
 	parentSubject := gitOutputForIntegrateRun(t, repo, "log", "-1", "--skip=1", "--format=%s")
 	if parentSubject != before {
 		t.Errorf("parent of HEAD = %q, want %q: more than one commit was made", parentSubject, before)
+	}
+}
+
+// -e commits after the editor closes, which --dry-run forbids, so the
+// combination is refused before the editor opens (ISSUE-105).
+func TestCommitEditRejectsDryRun(t *testing.T) {
+	setCommitTestGlobals(t)
+	isolateConfigHome(t)
+	commitYes, commitEdit = false, true
+	commitFlags.DryRun = true
+	opened := filepath.Join(t.TempDir(), "opened")
+	useCommitEditor(t, `: > '`+opened+`'; printf 'r1: feat: edited\n' > "$1"`)
+
+	parent := t.TempDir()
+	repo := makeDirtyRepoUnder(t, parent, "r1")
+	before := headSubject(t, repo)
+
+	err := runCommit(commitCmd, []string{parent})
+	if err == nil || !strings.Contains(err.Error(), "--dry-run") {
+		t.Fatalf("runCommit error = %v, want a --dry-run refusal", err)
+	}
+	if _, statErr := os.Stat(opened); statErr == nil {
+		t.Error("the editor was opened")
+	}
+	if after := headSubject(t, repo); after != before {
+		t.Errorf("a commit was created: HEAD %q, was %q", after, before)
+	}
+}
+
+// --all fills the editor, and the edited message is what gets committed
+// (ISSUE-105).
+func TestCommitEditAllMessageIsEditable(t *testing.T) {
+	setCommitTestGlobals(t)
+	isolateConfigHome(t)
+	origAll := commitAll
+	t.Cleanup(func() { commitAll = origAll })
+	commitYes, commitEdit, commitAll = true, true, "chore: common"
+	useCommitEditor(t, `grep -qx 'r1: chore: common' "$1" || exit 1
+printf 'r1: feat: edited\n' > "$1"`)
+
+	parent := t.TempDir()
+	repo := makeDirtyRepoUnder(t, parent, "r1")
+
+	if err := runCommit(commitCmd, []string{parent}); err != nil {
+		t.Fatalf("runCommit: %v", err)
+	}
+	if got := headSubject(t, repo); got != "feat: edited" {
+		t.Errorf("HEAD subject = %q, want the edited message", got)
 	}
 }

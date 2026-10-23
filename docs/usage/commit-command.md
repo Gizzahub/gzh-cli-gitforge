@@ -50,13 +50,13 @@ gz-git commit -m "repo1:fix: bug" -m "repo2:feat: feature" --yes
 
 5가지 메시지 제공 방법:
 
-| 방법 | 플래그 | 형식 | 사용 시점 |
-|------|--------|------|-----------|
-| **Per-repo** | `-m "repo:message"` | 각 repo마다 다른 메시지 | **가장 일반적** |
-| **공통** | `--all "message"` | 모든 repo에 동일 메시지 | 단순 업데이트 |
-| **인라인 JSON** | `--json '{...}'` | CLI에서 직접 JSON 입력 | **LLM/자동화 최적** |
-| **인라인 YAML** | `--yaml '...'` | CLI에서 직접 YAML 입력 | **LLM/자동화 최적** |
-| **직접 파이프** | `cat file \| gz-git commit` | stdin으로 JSON/YAML 파이프 | CI/CD |
+| 방법            | 플래그                      | 형식                       | 사용 시점           |
+| --------------- | --------------------------- | -------------------------- | ------------------- |
+| **Per-repo**    | `-m "repo:message"`         | 각 repo마다 다른 메시지    | **가장 일반적**     |
+| **공통**        | `--all "message"`           | 모든 repo에 동일 메시지    | 단순 업데이트       |
+| **인라인 JSON** | `--json '{...}'`            | CLI에서 직접 JSON 입력     | **LLM/자동화 최적** |
+| **인라인 YAML** | `--yaml '...'`              | CLI에서 직접 YAML 입력     | **LLM/자동화 최적** |
+| **직접 파이프** | `cat file \| gz-git commit` | stdin으로 JSON/YAML 파이프 | CI/CD               |
 
 ### 1. Per-repo 메시지 (권장)
 
@@ -83,6 +83,7 @@ gz-git commit --all "chore: update dependencies" --yes
 ```
 
 **사용 예**:
+
 - 의존성 일괄 업데이트
 - 설정 파일 동기화
 - 문서 일괄 수정
@@ -98,6 +99,7 @@ cat messages.yaml | gz-git commit --yes
 ```
 
 **messages.json 형식**:
+
 ```json
 {
   "gzh-cli": "feat: add wizard command",
@@ -107,6 +109,7 @@ cat messages.yaml | gz-git commit --yes
 ```
 
 **messages.yaml 형식**:
+
 ```yaml
 gzh-cli: "feat: add wizard command"
 gzh-cli-gitforge: "fix: fix authentication error"
@@ -116,6 +119,7 @@ gzh-cli-quality: "test: add integration tests"
 **장점**: 스크립트/CI/CD에서 사용, 감사 추적 가능, 복잡한 명령어 치환(`$()`)이나 플래그 없이 직관적으로 연결 가능
 
 **stdin 직접 주입 예시**:
+
 ```bash
 echo '{"gzh-cli":"feat: add"}' | gz-git commit --yes
 # 또는
@@ -131,11 +135,13 @@ gz-git commit --json '{"gzh-cli":"feat: add feature","gzh-cli-gitforge":"fix: bu
 ```
 
 **장점**:
+
 - 파일 생성/삭제 불필요 (1단계로 완결)
 - LLM이 JSON 출력을 바로 주입 가능
 - Agent Mesh 파이프라인에서 최적
 
 **Agent Mesh 예시**:
+
 ```yaml
 steps:
   - id: generate
@@ -157,13 +163,15 @@ gz-git commit -e
 ```
 
 **동작**:
+
 1. Dirty repos 스캔
-2. 각 repo마다 임시 메시지 생성
-3. `$EDITOR` 실행 (vim, nano 등)
-4. 편집 완료 후 확인
-5. `--yes` 없으면 미리보기만
+1. 각 repo마다 임시 메시지 생성
+1. `$EDITOR` 실행 (vim, nano 등)
+1. 편집 완료 후 확인
+1. `--yes` 없으면 미리보기만
 
 **편집기 내용 예**:
+
 ```
 # Edit commit messages below
 # Format: repository:message
@@ -175,19 +183,19 @@ gzh-cli-quality:docs: update documentation
 
 ## 주요 옵션
 
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-d, --scan-depth` | 스캔 깊이 | 1 |
-| `-j, --parallel` | 병렬 처리 수 | 10 |
-| `-m, --message` | Per-repo 메시지 (`repo:msg`) | - |
-| `--all` | 공통 메시지 (모든 repo) | - |
-| `--json` | 인라인 JSON 메시지 | - |
-| `-y, --yes` | 확인 없이 실행 | false |
-| `-e, --edit` | 에디터에서 메시지 편집 | false |
-| `--include` | 포함 패턴 (regex) | - |
-| `--exclude` | 제외 패턴 (regex) | - |
-| `-f, --format` | 출력 형식 | default |
-| `-n, --dry-run` | 미리보기 (실행 안 함) | false |
+| 옵션               | 설명                                                                                  | 기본값  |
+| ------------------ | ------------------------------------------------------------------------------------- | ------- |
+| `-d, --scan-depth` | 스캔 깊이                                                                             | 1       |
+| `-j, --parallel`   | 병렬 처리 수                                                                          | 10      |
+| `-m, --message`    | Per-repo 메시지 (`repo:msg`)                                                          | -       |
+| `--all`            | 공통 메시지 (모든 repo)                                                               | -       |
+| `--json`           | 인라인 JSON 메시지                                                                    | -       |
+| `-y, --yes`        | 확인 없이 실행                                                                        | false   |
+| `-e, --edit`       | 에디터에서 메시지 편집 후 커밋 (`--all` 메시지로 시작, `--dry-run`과 함께 쓸 수 없음) | false   |
+| `--include`        | 포함 패턴 (regex)                                                                     | -       |
+| `--exclude`        | 제외 패턴 (regex)                                                                     | -       |
+| `-f, --format`     | 출력 형식                                                                             | default |
+| `-n, --dry-run`    | 미리보기 (실행 안 함)                                                                 | false   |
 
 **중요**: `--yes` 없으면 미리보기만 수행 (실제 커밋 안 함)
 
@@ -293,6 +301,7 @@ gz-git commit -e --yes
 ```
 
 **$EDITOR 설정**:
+
 ```bash
 export EDITOR=vim
 export EDITOR=nano
@@ -302,6 +311,7 @@ export EDITOR="code --wait"  # VS Code
 ### JSON 파일 사용 - 자동화
 
 **messages.json** 생성:
+
 ```json
 {
   "gzh-cli": "feat: implement parallel execution",
@@ -312,11 +322,13 @@ export EDITOR="code --wait"  # VS Code
 ```
 
 **실행 (다이렉트 파이프)**:
+
 ```bash
 cat messages.json | gz-git commit --yes
 ```
 
 **스크립트 예**:
+
 ```bash
 #!/bin/bash
 # 자동 커밋 스크립트
@@ -404,6 +416,7 @@ gz-git commit -m "repo:message" --yes
 ### 메시지 형식 주의
 
 **Per-repo 형식**:
+
 ```bash
 # ✓ 올바름
 -m "gzh-cli:feat: add feature"
@@ -434,16 +447,19 @@ Repository 이름은 **디렉토리 이름**과 일치해야 함:
 ### 공통 메시지 vs Per-repo
 
 **언제 --all 사용?**:
+
 - 모든 repos에 동일한 변경 (의존성, 설정)
 - 단순 업데이트 (lint, format)
 
 **언제 -m 사용?**:
+
 - 각 repo마다 다른 변경사항
 - 정확한 커밋 메시지 필요
 
 ### CI/CD 주의사항
 
 **자동 커밋 시 확인**:
+
 ```bash
 # ✓ 안전: 결과 확인
 gz-git commit --all "ci: update" --yes --format json > result.json
@@ -458,6 +474,7 @@ gz-git commit --all "ci: update" --yes  # 실패해도 모름
 ### Interactive 모드 편집기
 
 **편집기 미설정 시**:
+
 ```bash
 # 오류 발생: $EDITOR not set
 gz-git commit -e
