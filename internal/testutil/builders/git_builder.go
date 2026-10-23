@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package builders provides fluent test fixture builders for git operations.
 package builders
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // One-shot carryover of in-flight CE run records into gz-git state.
 
 package runtask

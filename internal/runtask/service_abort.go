@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Closing a task execution that will never be integrated.
 
 package runtask

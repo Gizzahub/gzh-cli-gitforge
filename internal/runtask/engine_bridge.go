@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // The in-process integration engine: pkg/integrate behind the lifecycle's
 // engine boundary.
 

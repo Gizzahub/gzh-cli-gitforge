@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package conformance holds the committed integration-branch corpus and its
 // parser. It does not interpret the rows.
 package conformance

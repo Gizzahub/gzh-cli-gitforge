@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Querying and completing task execution lifecycle.
 
 package runtask

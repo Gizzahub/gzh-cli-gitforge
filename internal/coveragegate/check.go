@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package coveragegate enforces per-package minimum statement-coverage floors
 // against a standard Go coverprofile and fails closed on any drop.
 //

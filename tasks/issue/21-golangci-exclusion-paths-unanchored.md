@@ -110,8 +110,8 @@ $ golangci-lint run -c <anchored-and-unlimited> ./... # master 326f6e4 기준
 현재 `make lint`가 0건이라는 것은 게이트가 작동한다는 뜻이지, 측정된 254건을 모두
 근본적으로 제거했다는 뜻은 아니다. `gocritic`, 테스트의 `noctx`, 호환성에 묶인
 `staticcheck` 등은 사유가 있는 범위별 exclusion으로 남아 있다. 이 항목들의 코드 개선은
-별도 정리 작업으로 남겨 두며, 이 태스크의 완료 판정과 섞지 않는다. 특히 `goheader`의
-전 파일 적용 보류는 [issue 16](16-goheader-rule-rejects-every-file.md)을 참조한다.
+별도 정리 작업으로 남겨 두며, 이 태스크의 완료 판정과 섞지 않는다. `goheader`는
+[issue 16](../_archive/issue/16-goheader-rule-rejects-every-file.md)에서 헤더를 채운 뒤 다시 켰다.
 
 ## 순서 주의
 

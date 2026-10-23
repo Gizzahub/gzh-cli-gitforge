@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Command coveragegate enforces the critical package coverage floors.
 //
 // It reads a floors manifest and a Go coverprofile produced by

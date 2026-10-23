@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package cmd implements the CLI commands for gz-git.
 package cmd
 

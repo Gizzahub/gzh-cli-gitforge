@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package main is the entry point for the gz-git CLI application.
 // gz-git provides advanced Git operations through a command-line interface.
 package main

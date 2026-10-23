@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Recovering an integration that landed before provider cleanup failed.
 
 package runtask

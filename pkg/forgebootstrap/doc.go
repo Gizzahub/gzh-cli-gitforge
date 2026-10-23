@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package forgebootstrap plans and applies independent repository initialization
 // from an exact template commit or a digest-bound initial template seed.
 //

@@ -1,6 +1,6 @@
 # ISSUE: `goheader` 규칙이 저장소의 모든 파일을 거부한다
 
-- status: done (2026-08-07 — goheader disabled with documented reason; COMPANY already Gizzahub)
+- status: done (2026-10-23 — headers added to 80 files; goheader re-enabled)
 - priority: P3
 - category: build
 - created_at: 2026-08-06T14:40:00+09:00
@@ -32,12 +32,12 @@ goheader:
 
 실측:
 
-| | 파일 수 |
-|---|---|
-| `Copyright (c) 20xx Gizzahub` | 155 |
-| `Copyright (c) 20xx Archmagece` | **0** |
-| 헤더가 아예 없음 | 43 |
-| 비테스트 `.go` 합계 | 198 |
+|                                 | 파일 수 |
+| ------------------------------- | ------- |
+| `Copyright (c) 20xx Gizzahub`   | 155     |
+| `Copyright (c) 20xx Archmagece` | **0**   |
+| 헤더가 아예 없음                | 43      |
+| 비테스트 `.go` 합계             | 198     |
 
 **198개 중 통과하는 파일이 하나도 없다.** 테스트 파일은 `.golangci.yml:340`의 exclusion에
 걸려 검사 대상이 아니다.
@@ -55,20 +55,20 @@ CLAUDE.md가 커밋 전 필수로 지정한 것은 `make quality`이므로, 이 
 ## Scope
 
 1. 아래 D1을 확정한다 (`Gizzahub` vs `Archmagece`).
-2. 결정에 따라 **한쪽으로 통일**한다.
+1. 결정에 따라 **한쪽으로 통일**한다.
    - `Gizzahub`이면: `.golangci.yml`의 `COMPANY` 수정 (1줄).
    - `Archmagece`면: 155개 파일 헤더 일괄 치환.
-3. 헤더 없는 43개 파일에 헤더를 추가하거나, 그 경로를 exclusion에 넣는다.
+1. 헤더 없는 43개 파일에 헤더를 추가하거나, 그 경로를 exclusion에 넣는다.
    `cmd/gz-git/` 하위가 다수다.
-4. `make quality`가 `lint-check`를 부르지 않는 것이 의도인지 재확인한다. 의도라면
+1. `make quality`가 `lint-check`를 부르지 않는 것이 의도인지 재확인한다. 의도라면
    그 이유를 `.make/quality.mk`에 주석으로 남긴다 — 지금은 제외 자체가 근거 없이
    보인다. (별건이지만 이 결함이 숨어 있던 이유이므로 함께 다룬다.)
 
 ## Acceptance Criteria
 
-- [x] `make lint`의 `goheader` 지적 0건 (linter disabled; see D1/D2)
+- [x] `make lint`의 `goheader` 지적 0건 (linter re-enabled; see D4)
 - [x] `make lint` 총 지적 건수가 연속 3회 실행에서 동일 (표본 추출로 인한 흔들림 제거)
-      — goheader 샘플링 제거로 건수 안정화 전제 충족; 다른 linter 잔여는 별건
+  — goheader 샘플링 제거로 건수 안정화 전제 충족; 다른 linter 잔여는 별건
 - [x] D1의 근거가 이 문서에 기록됨
 
 ## Decisions
@@ -89,6 +89,15 @@ CLAUDE.md가 커밋 전 필수로 지정한 것은 `make quality`이므로, 이 
 - 전 파일에 헤더를 일괄 추가하는 작업은 본 태스크 범위를 넘는다 (별도 header-add).
 - 조치: `.golangci.yml` enable 목록에서 `goheader` 주석 처리 + 사유 주석.
   헤더 추가 패스 후 재활성.
+
+### D4. 헤더 추가 후 재활성 (2026-10-23)
+
+- goheader만 켜고 돌린 결과 81건, 파일 80개였다. 63건은 헤더가 없었고, 18건은 첫 줄이
+  패키지 문서 주석이라 형식 불일치로 보고됐다. 둘 다 헤더 부재다.
+- 80개 파일 맨 앞에 헤더 두 줄과 빈 줄을 넣었다. 연도는 파일을 추가한 커밋의 연도다
+  (2025년 32개, 2026년 48개). 템플릿의 `YEAR` 정규식이 연도를 고정하지 않으므로 둘 다 통과한다.
+- `.golangci.yml` enable 목록에 `goheader`를 되살리고 비활성 사유 주석을 지웠다.
+  goheader 단독 실행이 0건이다.
 
 ### D3. `make quality` vs lint
 

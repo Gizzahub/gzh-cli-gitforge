@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package runtask implements the repository task-run lifecycle that ADR-0055
 // moves from ce-agent-kit into gz-git: run identity, owner, lock, and receipt
 // state live here, and task-manager consumes them through the JSON surface.

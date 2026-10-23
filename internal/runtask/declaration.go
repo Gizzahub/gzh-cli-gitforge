@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Decoding the repository-root `.gz-git.yaml` that declares where finished
 // work lands and which branches reclaim may act on.
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Package gitcmd provides Git command execution and output handling.
 // This package wraps the Git CLI and provides a safe, structured interface
 // for executing Git commands with proper error handling and output parsing.

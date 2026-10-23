@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Gizzahub
+// SPDX-License-Identifier: MIT
+
 // Guarded reclamation of an unintegrated task execution.
 
 package runtask
