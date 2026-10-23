@@ -1,9 +1,20 @@
-# ISSUE: runtask 포트가 CE f540f972 · b09a605e 동작을 따르지 않아 parity 포트 모드가 전면 실패한다
+---
+id: ISSUE-42
+title: "runtask 포트가 CE f540f972 · b09a605e 동작을 따르지 않아 parity 포트 모드가 전면 실패한다"
+type: bug
+priority: P2
+severity: medium
+discovered-in: "devbox TASK-256 parity re-record"
+discovered-at: 2026-10-03
+created: 2026-10-03
+---
 
-- status: open
-- priority: P2
+## Summary
+
+`internal/runtask` 포트가 CE의 Worktrunk 0.80 라인 판정과 원격 추적 ref 기준
+run source를 따르지 않아, parity 포트 모드 11개 시나리오가 모두 실패한다.
+
 - category: quality/parity
-- created_at: 2026-10-03
 - owner: `gzh-cli-gitforge/internal/runtask`
 - work-card: 없음 — 포트 결정 대기 (devbox TASK-256 Stop 조건으로 분리)
 
@@ -20,13 +31,25 @@ devbox TASK-256이 parity 골든을 설치된 CE(`ce-agent-kit` `f540f972`, 빌�
 그러므로 TASK-256이 만든 악화는 아니다. 다만 재녹화 뒤에는 실패 원인이
 아래 동작 차이로 확정된다.
 
+## Reproduction
+
+gitforge 체크아웃에서
+`PARITY_TARGET=gz-git go test ./tests/parity/... -run TestCEParity -count=1`을
+실행한다. 같은 명령을 `PARITY_TARGET` 없이 실행하면 참조 모드다.
+
+## Expected vs Actual
+
+- Expected: 포트 모드가 참조 모드처럼 11개 시나리오를 모두 통과한다.
+- Actual: 포트 모드는 11개 모두 실패하고 `doctor-active`도 실패한다. 참조
+  모드는 모두 통과한다.
+
 ## 포트가 따라가야 할 CE 동작
 
 1. **Worktrunk 버전 (CE `b09a605e`).** CE는 0.80 minor 라인을 받는다. 포트는
    `internal/runtask/service.go:17`의 `const worktrunkVersion = "0.74.0"`을
    `service_doctor.go:64`에서 부분 문자열로 비교한다. 그래서 설치된
    wt 0.80.0에서 doctor가 `Worktrunk 0.74.0 is required`로 BLOCKED된다.
-2. **원격 추적 ref 기준 run source (CE `f540f972`).**
+1. **원격 추적 ref 기준 run source (CE `f540f972`).**
    - run-start가 `git show-ref --verify --quiet refs/remotes/origin/<integration>`로
      원격 추적 ref를 확인한다. 그 ref의 SHA로
      `wt switch --create --base <SHA>`를 실행한다. 포트는

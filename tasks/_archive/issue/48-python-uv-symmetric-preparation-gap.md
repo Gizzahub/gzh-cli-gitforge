@@ -8,7 +8,7 @@
 - implementation-grade: strong
 - review-grade: strong (독립 리뷰)
 - work-card: `gzh-cli-devbox:tasks/_archive/done/324-python-uv-symmetric-preparation.md` (TASK-324; board closure follows acceptance)
-- related: [ISSUE-034](../_archive/issue/34-generalize-prepare-profile-baseline-probe-dies-without-bootstrap.md), infra-ops `tasks/issue/005-integrate-baseline-unmeasurable-in-pristine-worktree.md`
+- related: [ISSUE-034](34-generalize-prepare-profile-baseline-probe-dies-without-bootstrap.md), infra-ops `tasks/issue/005-integrate-baseline-unmeasurable-in-pristine-worktree.md`
 
 ## 확인된 문제
 

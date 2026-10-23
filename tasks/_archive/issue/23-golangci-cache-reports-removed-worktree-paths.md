@@ -39,21 +39,20 @@ golangci-lint는 분석 결과를 **절대 경로 키**로 캐시한다. 캐시�
 worktree가 사라져도 남는다. 이 저장소의 워크플로가 그 수명 차이를 매 태스크마다 만든다:
 
 1. 태스크 worktree를 만든다 → lint가 그 절대 경로 아래 파일들을 분석·캐시한다
-2. `integrate run`이 통합 후 worktree를 삭제한다 (회수는 통합의 일부다)
-3. 다음 `integrate check`의 lint가 캐시를 재사용한다 → **사라진 경로의 진단이 부활한다**
+1. `integrate run`이 통합 후 worktree를 삭제한다 (회수는 통합의 일부다)
+1. 다음 `integrate check`의 lint가 캐시를 재사용한다 → **사라진 경로의 진단이 부활한다**
 
 ## 원인 (2) — 게이트를 고쳐도 `make install` 전까지는 낡은 게이트가 판정한다
 
 **이쪽이 이 이슈의 실제 교훈이다.** 위 (1)은 이 이슈를 파일링하기 **11시간 전에 이미
 수정되어 master에 있었다.**
 
-| 커밋 | 시각 | 내용 |
-| ---- | ---- | ---- |
-| `e7f631f` | 2026-08-24 11:37 | `fix(pkg/integrate): isolate lint gate caches` |
+| 커밋      | 시각             | 내용                                              |
+| --------- | ---------------- | ------------------------------------------------- |
+| `e7f631f` | 2026-08-24 11:37 | `fix(pkg/integrate): isolate lint gate caches`    |
 | `052325e` | 2026-08-24 11:43 | `fix(pkg/integrate): harden lint path validation` |
 
-그럼에도 20:35~22:52 사이의 `integrate check`는 유령 237건을 계속 보고했다. `integrate
-check`를 실행하는 주체가 **소스 트리가 아니라 설치된 `~/go/bin/gz-git`** 이기 때문이다.
+그럼에도 20:35~22:52 사이의 `integrate check`는 유령 237건을 계속 보고했다. `integrate check`를 실행하는 주체가 **소스 트리가 아니라 설치된 `~/go/bin/gz-git`** 이기 때문이다.
 그날 `make install`을 실행한 시각은 23:02이고, 그 이후 실행부터 `PASS make lint — ok`가
 나왔다. 설치 바이너리에 새 코드가 들어갔는지는 다음으로 확인된다:
 
@@ -103,5 +102,5 @@ branch diagnostics reference paths outside the repository: ...
 - `pkg/integrate/check_make.go` — per-run `GOLANGCI_LINT_CACHE`
 - `pkg/integrate/check_baseline.go` — `foreignDiagnosticLocations` / `foreignDiagnosticError`
 - `docs/user/guides/troubleshooting.md`
-- 관련: [21-golangci-exclusion-paths-unanchored](../../issue/21-golangci-exclusion-paths-unanchored.md)
+- 관련: [21-golangci-exclusion-paths-unanchored](21-golangci-exclusion-paths-unanchored.md)
   (제외 패턴 앵커링 — 캐시와는 별개 사안)

@@ -51,7 +51,7 @@ Error: validation failed with 1 blocking issues
 
 ## 전례 — 줄이는 방식은 유지되지 않는다
 
-[19-tasks-readme-exceeds-doc-size-guideline](../_archive/issue/19-tasks-readme-exceeds-doc-size-guideline.md)이
+[19-tasks-readme-exceeds-doc-size-guideline](19-tasks-readme-exceeds-doc-size-guideline.md)이
 `tasks/README.md`에서 **같은 문제**를 겪었고 결론은 다음과 같았다:
 
 > 2026-08-05 시점에 11098바이트로 한 번 초과했고, 그때는 내가 추가한 분량만 줄여
@@ -109,7 +109,7 @@ docs/changelog/0.1.md   (985~)
 - 릴리스를 새로 끊는 일(태그·배포)은 이 태스크에 포함하지 않는다. 실측대로 분할만으로
   게이트를 통과하므로 릴리스 컷은 필요조건이 아니다.
 - `make changelog`(`git-chglog -o CHANGELOG.md`)는 이 파일을 **덮어쓴다.** 분할 구조와
-  정면 충돌하므로 [24-make-changelog-overwrites-handwritten-log](../_archive/issue/24-make-changelog-overwrites-handwritten-log.md)에서
+  정면 충돌하므로 [24-make-changelog-overwrites-handwritten-log](24-make-changelog-overwrites-handwritten-log.md)에서
   별도로 처리한다. 그 결론이 나기 전에는 `make changelog`를 실행하지 않는다.
 - 훅 자체(`ce-validate-filesize.sh`)의 한도는 이 태스크에서 바꾸지 않는다. 개인 정책이
   저장소 바깥에 있으므로 별건이다.
@@ -120,8 +120,8 @@ docs/changelog/0.1.md   (985~)
 - 훅: `ce-validate-filesize.sh` (error: 46080 바이트 / 500 prose줄)
 - 가이드라인: `skill:docs:doc-standards` (guide 기준 500줄 / 45KB error)
 - `.goreleaser.yaml` — `changelog.use: github`
-- 전례: [19-tasks-readme-exceeds-doc-size-guideline](../_archive/issue/19-tasks-readme-exceeds-doc-size-guideline.md)
-- 후속: [24-make-changelog-overwrites-handwritten-log](../_archive/issue/24-make-changelog-overwrites-handwritten-log.md)
+- 전례: [19-tasks-readme-exceeds-doc-size-guideline](19-tasks-readme-exceeds-doc-size-guideline.md)
+- 후속: [24-make-changelog-overwrites-handwritten-log](24-make-changelog-overwrites-handwritten-log.md)
 
 ## Open Questions
 

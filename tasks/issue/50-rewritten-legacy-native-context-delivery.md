@@ -1,7 +1,20 @@
-# ISSUE: Rewritten task heads cannot reconcile the original legacy native refusal
+---
+id: ISSUE-50
+title: "Rewritten task heads cannot reconcile the original legacy native refusal"
+type: bug
+priority: P2
+severity: medium
+discovered-in: "CE sibling-evidence-delivery finish"
+discovered-at: 2026-10-14
+created: 2026-10-14
+---
 
-- status: open
-- priority: P2
+## Summary
+
+CE cannot reconcile a legacy native refusal once the task branch has been
+rewritten past the captured head, so the retained `sibling-evidence-delivery`
+run can be neither finished nor reclaimed through a supported path.
+
 - category: lifecycle/recovery
 - owner: ce-agent-kit — `internal/usecase/taskruntime/legacy_context_reconcile.go`
 
@@ -28,6 +41,21 @@ The explicit version-bound reconciliation contract requires the current clean,
 pushed worktree HEAD to equal the captured original task SHA. This retained run
 does not meet that condition. This is an unsupported recovery case, not proof
 of a new push failure, completed cleanup, or a regression in the new contract.
+
+## Reproduction
+
+On the device holding the retained worktree (mst), run
+`ce task run-status sibling-evidence-delivery` from the gitforge primary
+checkout. Derived from the receipts above; not re-run from this device.
+
+## Expected vs Actual
+
+- Expected: CE offers a supported way to reconcile the uncertain original
+  native outcome, or to clean up the retained run explicitly, after the task
+  branch was rewritten.
+- Actual: status keeps refusing finish because the original outcome is
+  uncertain, and reconciliation requires the current HEAD to equal the
+  captured SHA, which a rewritten branch can no longer meet.
 
 ## Scope and follow-up
 

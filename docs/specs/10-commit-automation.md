@@ -702,7 +702,7 @@ ______________________________________________________________________
 
 - [PRD.md](../../PRODUCT.md) - Section 4.2
 - [10-architecture/40-interface-contracts.md](../10-architecture/40-interface-contracts.md) - Section 5 (Interface Contracts)
-- [specs/00-overview.md](./00-overview.md)
+- [specs/00-overview.md](00-overview.md)
 
 ______________________________________________________________________
 

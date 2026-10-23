@@ -43,11 +43,11 @@ ______________________________________________________________________
 
 ### Recently closed (2026-08-25)
 
-| #   | 태스크                                            | 결과                                                                                                                               |
-| --- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 26  | defaults-scan-depth-is-a-dead-config-key          | 모든 bulk scan에 계층형 기본 깊이를 적용하고 명시 플래그 우선·설정 확장자·반복 실행 계약을 테스트로 고정 (`7fa61c5`·`341ce6d`)     |
-| 27  | task-branch-upstream-points-at-integration-branch | integration upstream 별도 진단, 안전한 task ref 처방, audit code 추가와 slash remote 정규화로 해결 (`b8ad882`·`9a42ae4`·`f1c9881`) |
-| 25  | no-declarative-exclusion-for-bulk-write-commands  | `defaults.scan.exclude` 추가(`2dcaf8e`)와 빈 항목 제거(`33cc679`)로 해결. 저장소 단위 `readOnly`는 채택하지 않음                   |
+| #   | 태스크                                            | 결과                                                                                                                                  |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 26  | defaults-scan-depth-is-a-dead-config-key          | 모든 bulk scan에 계층형 기본 깊이를 적용하고 명시 플래그 우선·설정 확장자·반복 실행 계약을 테스트로 고정 (`7fa61c5`·`341ce6d`)        |
+| 27  | task-branch-upstream-points-at-integration-branch | integration upstream 별도 진단, 안전한 task ref 처방, audit code 추가와 slash remote 정규화로 해결 (`f4743020`·`64c258c8`·`91cf9dcd`) |
+| 25  | no-declarative-exclusion-for-bulk-write-commands  | `defaults.scan.exclude` 추가(`2dcaf8e`)와 빈 항목 제거(`33cc679`)로 해결. 저장소 단위 `readOnly`는 채택하지 않음                      |
 
 ### Recently closed (2026-08-24)
 
@@ -59,14 +59,14 @@ ______________________________________________________________________
 
 ### Recently closed (2026-08-14 quality-debt follow-up)
 
-| #   | 태스크                                 | 결과                                                                                                                                                                                                                                                                        |
-| --- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 07  | llm-output-nondeterministic-map-order  | drop `sortLLMSummaryBlock`; consume published sorted core in `go.mod` (`51aadf0`), including `GOWORK=off` CI                                                                                                                                                                |
-| 21  | golangci-exclusion-paths-unanchored    | anchor `vendor`/`tmp`, remove unnecessary `.git` exclusion, measure 254 baseline, restore lint-zero gate; [deferred lint debt](issue/21-golangci-exclusion-paths-unanchored.md#%EC%A7%80%EC%97%B0%EB%90%9C-%EB%A6%B0%ED%8A%B8-%EB%B6%80%EC%B1%84) remains explicitly scoped |
-| 08  | conflict-guard residual ExitCode audit | `status` → `runGit`; existence probes documented intentional                                                                                                                                                                                                                |
-| 11  | status consumer + fixture gaps         | ParseStatus C/unknown-worktree; switch/status fixtures; testutil fatals                                                                                                                                                                                                     |
-| 16  | goheader                               | COMPANY=Gizzahub; linter disabled pending header-add                                                                                                                                                                                                                        |
-| 18  | golangci v1/v2                         | PATH has v2.12.2; install target skips when v2 present                                                                                                                                                                                                                      |
+| #   | 태스크                                 | 결과                                                                                                                                                                                                                                                                                 |
+| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 07  | llm-output-nondeterministic-map-order  | drop `sortLLMSummaryBlock`; consume published sorted core in `go.mod` (`51aadf0`), including `GOWORK=off` CI                                                                                                                                                                         |
+| 21  | golangci-exclusion-paths-unanchored    | anchor `vendor`/`tmp`, remove unnecessary `.git` exclusion, measure 254 baseline, restore lint-zero gate; [deferred lint debt](_archive/issue/21-golangci-exclusion-paths-unanchored.md#%EC%A7%80%EC%97%B0%EB%90%9C-%EB%A6%B0%ED%8A%B8-%EB%B6%80%EC%B1%84) remains explicitly scoped |
+| 08  | conflict-guard residual ExitCode audit | `status` → `runGit`; existence probes documented intentional                                                                                                                                                                                                                         |
+| 11  | status consumer + fixture gaps         | ParseStatus C/unknown-worktree; switch/status fixtures; testutil fatals                                                                                                                                                                                                              |
+| 16  | goheader                               | COMPANY=Gizzahub; linter disabled pending header-add                                                                                                                                                                                                                                 |
+| 18  | golangci v1/v2                         | PATH has v2.12.2; install target skips when v2 present                                                                                                                                                                                                                               |
 
 ### Task ownership
 

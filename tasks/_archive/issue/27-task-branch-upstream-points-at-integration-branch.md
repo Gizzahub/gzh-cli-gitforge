@@ -9,7 +9,7 @@
 
 ## 해결
 
-`b8ad882`·`9a42ae4`·`f1c9881`에서 다음을 구현했다.
+`f4743020`·`64c258c8`·`91cf9dcd`에서 다음을 구현했다.
 
 - `integrate check`는 upstream 이름을 SHA보다 먼저 검사해 task branch가 integration
   branch를 추적하면 별도 `upstream` 실패로 분류한다. 이미 같은 이름의 원격 task ref가

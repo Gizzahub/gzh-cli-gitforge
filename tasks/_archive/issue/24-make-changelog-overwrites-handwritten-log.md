@@ -41,7 +41,7 @@ changelog: ## generate changelog (requires git-chglog)
 
 ## 이슈 22와의 충돌
 
-[22-changelog-exceeds-doc-size-gate](../../issue/22-changelog-exceeds-doc-size-gate.md)는 과거 릴리스를
+[22-changelog-exceeds-doc-size-gate](22-changelog-exceeds-doc-size-gate.md)는 과거 릴리스를
 `docs/changelog/`로 옮기고 `CHANGELOG.md`에는 인덱스만 남기는 구조를 세운다. `git-chglog -o CHANGELOG.md`는 그 인덱스를 **전체 이력 재생성으로 대체**한다. 두 설계는 공존할 수 없다.
 그래서 이 이슈가 22의 선행 조건이다.
 
@@ -74,7 +74,7 @@ GitHub Release 노트로 생성하고 있어 **기능이 중복**이다. 생성�
 
 - `.make/dev.mk` — `changelog` 타깃
 - `.goreleaser.yaml` — `changelog.use: github`, `release.mode: replace`
-- 선행/후속: [22-changelog-exceeds-doc-size-gate](../../issue/22-changelog-exceeds-doc-size-gate.md)
+- 선행/후속: [22-changelog-exceeds-doc-size-gate](22-changelog-exceeds-doc-size-gate.md)
 
 ## Resolution (2026-08-24)
 

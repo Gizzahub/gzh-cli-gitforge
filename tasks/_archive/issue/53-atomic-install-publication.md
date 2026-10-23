@@ -101,3 +101,6 @@ and emitted no native pre-mutation proof. Its execution was aborted with its
 the same installer change. Its focused atomic-install regression passed in
 9.185 seconds with source device 16777251 and destination device 16777232.
 The fresh delivery must produce its own full-gate and integration receipts.
+
+Landed on master: `f02041dc` (fix(install): stage validated executables
+before atomic publication).

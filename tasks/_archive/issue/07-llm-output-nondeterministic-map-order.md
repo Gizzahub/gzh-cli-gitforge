@@ -95,7 +95,7 @@ $ make test                                          # 6개 패키지 전부 ok 
 
 초기 검증 시점에는 로컬 `golangci-lint` 실행 환경이 준비되지 않았지만, 이는 이 변경의
 정합성이나 회귀 테스트와 무관한 환경 제약이었다. 현재 lint 게이트의 상태와 잔여 정리는
-[issue 21](../../issue/21-golangci-exclusion-paths-unanchored.md)에 기록한다.
+[issue 21](21-golangci-exclusion-paths-unanchored.md)에 기록한다.
 
 ## Acceptance Criteria
 

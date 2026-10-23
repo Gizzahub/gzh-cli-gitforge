@@ -71,3 +71,6 @@ no duplicate renderer or bare-remote fixture. Earlier regressions passed in
 16.428s; the reconciled candidate needs its own verification and native verdict.
 That delivery belongs to the CE receipt for `verification-evidence-followup`,
 separately from the original correction's execution and historical raw evidence.
+
+Landed on master: `5d661bca` (correction) and `6b8c62ad` (consolidated
+follow-up tests).

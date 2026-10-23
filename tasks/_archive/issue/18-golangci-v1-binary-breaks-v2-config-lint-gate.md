@@ -31,19 +31,19 @@ make: *** [lint-check] Error 3
 
 **설정은 v2, 바이너리는 v1이다.**
 
-| 항목 | 값 | 확인 방법 |
-|---|---|---|
-| `gzh-cli-core/.golangci.yml` | `version: "2"` (1행 주석도 "v2") | `head -8` |
-| `gzh-cli-gitforge/.golangci.yml` | `version: "2"` | `head -8` |
-| PATH에서 잡히는 바이너리 | `/Users/archmagece/go/bin/golangci-lint` — **v1.64.8** | `which -a` |
-| 그 바이너리 설치 시각 | 2026-08-06 18:24 | `ls -l` |
-| mise 등록 버전 | **2.12.2** (올바름) | `mise ls golangci-lint` |
-| mise shim 실행 결과 | 그런데도 **v1.64.8** 을 보고함 | shim 직접 실행 |
+| 항목                             | 값                                                     | 확인 방법               |
+| -------------------------------- | ------------------------------------------------------ | ----------------------- |
+| `gzh-cli-core/.golangci.yml`     | `version: "2"` (1행 주석도 "v2")                       | `head -8`               |
+| `gzh-cli-gitforge/.golangci.yml` | `version: "2"`                                         | `head -8`               |
+| PATH에서 잡히는 바이너리         | `/Users/archmagece/go/bin/golangci-lint` — **v1.64.8** | `which -a`              |
+| 그 바이너리 설치 시각            | 2026-08-06 18:24                                       | `ls -l`                 |
+| mise 등록 버전                   | **2.12.2** (올바름)                                    | `mise ls golangci-lint` |
+| mise shim 실행 결과              | 그런데도 **v1.64.8** 을 보고함                         | shim 직접 실행          |
 
 두 가지가 겹쳐 있다.
 
 1. `~/go/bin/golangci-lint`(v1.64.8)가 mise shim보다 PATH 앞에 있다.
-2. mise가 2.12.2를 갖고 있다고 하는데도 shim이 v1.64.8을 실행한다 — shim 해석이
+1. mise가 2.12.2를 갖고 있다고 하는데도 shim이 v1.64.8을 실행한다 — shim 해석이
    기대대로 동작하지 않는다. **이쪽은 아직 원인 미확정이다.**
 
 바이너리 설치 시각(08-06 18:24)이 태스크 15·16 작업 시간대와 겹친다.
@@ -65,26 +65,26 @@ CI는 `golangci/golangci-lint-action@v6` + `version: latest`(= v2)를 쓰므로 
 ## Acceptance Criteria
 
 - [x] `gzh-cli-core`와 `gzh-cli-gitforge` 양쪽에서 `make lint`가 설정 스키마 오류 없이
-      **완주**한다 (지적 건수는 0이 아니어도 되고, "v2 config with v1" 메시지가 사라지면 통과)
-      (2026-08-07: active binary is mise v2.12.2; schema error gone)
+  **완주**한다 (지적 건수는 0이 아니어도 되고, "v2 config with v1" 메시지가 사라지면 통과)
+  (2026-08-07: active binary is mise v2.12.2; schema error gone)
 - [x] `golangci-lint version`이 v2.x를 보고한다 (`2.12.2`)
 - [x] `which -a golangci-lint`의 첫 항목이 v2를 가리킨다 —
-      mise install path first; `~/go/bin` still has v1.64.8 but not first on PATH
+  mise install path first; `~/go/bin` still has v1.64.8 but not first on PATH
 - [x] `make lint`를 다시 실행해도 v1이 재설치되지 않는다
-      (`install-golangci-lint` now checks for v2 on PATH; pins `GOLANGCI_LINT_VERSION=v2.12.2`)
+  (`install-golangci-lint` now checks for v2 on PATH; pins `GOLANGCI_LINT_VERSION=v2.12.2`)
 - [x] 태스크 06·07·`tasks/README.md`의 "go1.25로 빌드되어" 문장을 실제 원인으로 정정
-      (본 이슈 + 16 갱신으로 대체 진단 기록)
+  (본 이슈 + 16 갱신으로 대체 진단 기록)
 - [x] 태스크 16의 `goheader` 재현이 가능해졌는지 확인하고 16에 결과 기재
-      (가능; template=Gizzahub already; disabled goheader pending header-add pass)
+  (가능; template=Gizzahub already; disabled goheader pending header-add pass)
 
 ## 2026-08-07 해결 요약
 
 1. 현재 셸에서 `golangci-lint version` = **2.12.2** (mise). v1 config 오류 재현 안 됨.
-2. `.make/tools.mk` `install-golangci-lint`:
+1. `.make/tools.mk` `install-golangci-lint`:
    - `which` 존재만 보던 로직 → **v2인지 검사** 후 스킵
    - 없을 때만 `GOLANGCI_LINT_VERSION` (기본 `v2.12.2`) 설치
-3. `~/go/bin/golangci-lint` v1.64.8 잔재는 남음 — PATH 앞에 오면 재발. 주석에 안내.
-4. gzh-cli-core Makefile은 이 세션 범위 밖; core도 동일 패턴 권장.
+1. `~/go/bin/golangci-lint` v1.64.8 잔재는 남음 — PATH 앞에 오면 재발. 주석에 안내.
+1. gzh-cli-core Makefile은 이 세션 범위 밖; core도 동일 패턴 권장.
 
 ## 범위 경계
 

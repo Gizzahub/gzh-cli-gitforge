@@ -32,10 +32,10 @@ ______________________________________________________________________
 
 ## 완료 (2026-08-25)
 
-| #   | 태스크                                                                                                                         | 우선순위 | 요지                                                                                                                                                             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 26  | [defaults-scan-depth-is-a-dead-config-key](../../tasks/_archive/issue/26-defaults-scan-depth-is-a-dead-config-key.md)          | P3       | 계층형 `defaults.scan.depth`를 모든 bulk scan에 적용하고 명시 플래그 우선·설정 확장자·반복 실행 상태 복원을 고정 (`7fa61c5`·`341ce6d`) ✅                        |
-| 27  | [task-branch-upstream-points-at-integration-branch](../../tasks/issue/27-task-branch-upstream-points-at-integration-branch.md) | P2       | integration upstream을 push 지연과 분리하고 동일 이름 task ref만 지시. audit code와 longest registered remote 정규화까지 구현 (`b8ad882`·`9a42ae4`·`f1c9881`) ✅ |
+| #   | 태스크                                                                                                                                  | 우선순위 | 요지                                                                                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 26  | [defaults-scan-depth-is-a-dead-config-key](../../tasks/_archive/issue/26-defaults-scan-depth-is-a-dead-config-key.md)                   | P3       | 계층형 `defaults.scan.depth`를 모든 bulk scan에 적용하고 명시 플래그 우선·설정 확장자·반복 실행 상태 복원을 고정 (`7fa61c5`·`341ce6d`) ✅                        |
+| 27  | [task-branch-upstream-points-at-integration-branch](../../tasks/_archive/issue/27-task-branch-upstream-points-at-integration-branch.md) | P2       | integration upstream을 push 지연과 분리하고 동일 이름 task ref만 지시. audit code와 longest registered remote 정규화까지 구현 (`b8ad882`·`9a42ae4`·`f1c9881`) ✅ |
 
 이슈 26 검증은 `.gz-git.yaml`·`.yml`·`.json` 탐색 우선순위, 부모 설정 상속,
 `--scan-depth` 우선, `depth: 0`의 미설정/상속 의미, 실제 중첩 저장소 탐색을 포함한다.
@@ -55,7 +55,7 @@ ______________________________________________________________________
 | #   | 태스크                                                                                                                          | 우선순위 | 요지                                                                                                                                        |
 | --- | ------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 23  | [golangci-cache-reports-removed-worktree-paths](../../tasks/_archive/issue/23-golangci-cache-reports-removed-worktree-paths.md) | P2       | 파일링 시점에 이미 해결돼 있었다 — `e7f631f`가 lint 타깃에 per-run `GOLANGCI_LINT_CACHE`를 주고 `052325e`가 저장소 밖 진단을 실패로 승격 ✅ |
-| 22  | [changelog-exceeds-doc-size-gate](../../tasks/issue/22-changelog-exceeds-doc-size-gate.md)                                      | P1       | 과거 릴리스를 `docs/changelog/{0.7,0.6,0.4,0.3,0.2,0.1}.md`로 분할하고 71커밋 백로그를 `[Unreleased]`에 주제별로 기록 ✅                    |
+| 22  | [changelog-exceeds-doc-size-gate](../../tasks/_archive/issue/22-changelog-exceeds-doc-size-gate.md)                             | P1       | 과거 릴리스를 `docs/changelog/{0.7,0.6,0.4,0.3,0.2,0.1}.md`로 분할하고 71커밋 백로그를 `[Unreleased]`에 주제별로 기록 ✅                    |
 | 24  | [make-changelog-overwrites-handwritten-log](../../tasks/_archive/issue/24-make-changelog-overwrites-handwritten-log.md)         | P2       | `.make/dev.mk`의 `changelog:` 타깃 제거 — `git-chglog -o CHANGELOG.md`는 추가가 아니라 덮어쓰기였다 ✅                                      |
 
 검증·범위 메모: 유령 237건이 계속 보인 이유는 캐시가 아니라 **설치 바이너리 지연**이었다.
@@ -79,11 +79,11 @@ ______________________________________________________________________
 | #   | 태스크                                                                                                          | 우선순위 | 요지                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
 | 07  | [llm-output-nondeterministic-map-order](../../tasks/_archive/issue/07-llm-output-nondeterministic-map-order.md) | P3       | published core `84a0f3d`를 `go.mod`/`go.sum`에 반영해 `GOWORK=off` 단독 CI도 정렬 formatter를 사용 ✅               |
-| 21  | [golangci-exclusion-paths-unanchored](../../tasks/issue/21-golangci-exclusion-paths-unanchored.md)              | P1       | exclusion 경로 교정·254건 기준선 측정·lint-zero 게이트 복구; 범위별 suppression 부채는 문서에 지연 항목으로 명시 ✅ |
+| 21  | [golangci-exclusion-paths-unanchored](../../tasks/_archive/issue/21-golangci-exclusion-paths-unanchored.md)     | P1       | exclusion 경로 교정·254건 기준선 측정·lint-zero 게이트 복구; 범위별 suppression 부채는 문서에 지연 항목으로 명시 ✅ |
 
 검증·범위 메모: handoff의 untracked-only 실제 CLI 경로와 artifact guard는
 `tests/e2e/handoff_test.go`에 추가했다. 린트 0건은 게이트 복구를 뜻하며, 모든 기존
-lint 지적을 근본 해결했다는 의미는 아니다. 남은 항목은 [issue 21의 지연된 린트 부채](../../tasks/issue/21-golangci-exclusion-paths-unanchored.md#%EC%A7%80%EC%97%B0%EB%90%9C-%EB%A6%B0%ED%8A%B8-%EB%B6%80%EC%B1%84)에 링크한다.
+lint 지적을 근본 해결했다는 의미는 아니다. 남은 항목은 [issue 21의 지연된 린트 부채](../../tasks/_archive/issue/21-golangci-exclusion-paths-unanchored.md#%EC%A7%80%EC%97%B0%EB%90%9C-%EB%A6%B0%ED%8A%B8-%EB%B6%80%EC%B1%84)에 링크한다.
 
 ______________________________________________________________________
 
