@@ -270,28 +270,8 @@ func legacyCleanupPresence(ctx context.Context, exec *gitcmd.Executor, g gitRepo
 	if remotePresent && oid != p.TaskOID {
 		return 0, fmt.Errorf("remote task ref moved")
 	}
-	trees, err := g.listWorktrees(ctx)
+	worktreePresent, err := legacyWorktreePresence(ctx, exec, g, p)
 	if err != nil {
-		return 0, err
-	}
-	worktreePresent := false
-	for _, wt := range trees {
-		if wt.Path == p.TaskWorktree || wt.Branch == p.TaskBranch {
-			worktreePresent = true
-		}
-	}
-	if worktreePresent {
-		if p.WorktreeIdentity == nil || p.WorktreeIdentity.Witness == "" {
-			return 0, fmt.Errorf("plan predates the legacy cleanup witness; re-plan before removing the worktree")
-		}
-		fresh, err := captureLegacyWorktreeIdentity(ctx, exec, p)
-		if err != nil {
-			return 0, err
-		}
-		if p.WorktreeIdentity == nil || !reflect.DeepEqual(fresh, p.WorktreeIdentity) {
-			return 0, fmt.Errorf("task physical identity changed")
-		}
-	} else if err := ensureLegacyWorktreeAbsent(ctx, g, p); err != nil {
 		return 0, err
 	}
 	removed := 0
@@ -310,6 +290,36 @@ func legacyCleanupPresence(ctx context.Context, exec *gitcmd.Executor, g gitRepo
 		return 0, fmt.Errorf("removed legacy resource reappeared")
 	}
 	return removed, nil
+}
+
+// legacyWorktreePresence reports whether the task worktree is still registered.
+// A registered worktree must keep the planned physical identity and witness; an
+// unregistered one must also be absent from disk.
+func legacyWorktreePresence(ctx context.Context, exec *gitcmd.Executor, g gitRepo, p *LegacyCleanupPlan) (bool, error) {
+	trees, err := g.listWorktrees(ctx)
+	if err != nil {
+		return false, err
+	}
+	present := false
+	for _, wt := range trees {
+		if wt.Path == p.TaskWorktree || wt.Branch == p.TaskBranch {
+			present = true
+		}
+	}
+	if !present {
+		return false, ensureLegacyWorktreeAbsent(ctx, g, p)
+	}
+	if p.WorktreeIdentity == nil || p.WorktreeIdentity.Witness == "" {
+		return false, fmt.Errorf("plan predates the legacy cleanup witness; re-plan before removing the worktree")
+	}
+	fresh, err := captureLegacyWorktreeIdentity(ctx, exec, p)
+	if err != nil {
+		return false, err
+	}
+	if !reflect.DeepEqual(fresh, p.WorktreeIdentity) {
+		return false, fmt.Errorf("task physical identity changed")
+	}
+	return true, nil
 }
 
 func prepareLegacyCleanup(ctx context.Context, exec *gitcmd.Executor, g gitRepo, p *LegacyCleanupPlan, path string, checker legacyGuardChecker) (*legacyCleanupIntent, int, error) {
