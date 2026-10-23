@@ -17,9 +17,17 @@ import (
 // LegacyFileIdentity binds a physical resource, not merely a reusable pathname.
 // Hosts without observable device/inode identities are unsupported rather than
 // treating size or modification time as a substitute for resource identity.
+//
+// A device/inode pair alone is not ABA-safe: ext4 and similar filesystems hand
+// a freed inode number to the next allocation, so a worktree removed and
+// re-created at the same path can come back with every number unchanged.
+// BirthNS is the resource's creation time in nanoseconds, which a re-creation
+// always moves. It is zero where the filesystem does not record one, and the
+// identity then falls back to device and inode alone.
 type LegacyFileIdentity struct {
-	Device uint64 `json:"device"`
-	Inode  uint64 `json:"inode"`
+	Device  uint64 `json:"device"`
+	Inode   uint64 `json:"inode"`
+	BirthNS int64  `json:"birth_ns,omitempty"`
 }
 
 // LegacyWorktreeIdentity is the prospective plan's local resource inventory.
@@ -52,7 +60,11 @@ func legacyPhysicalIdentity(path string, directory bool) (LegacyFileIdentity, er
 	if !devOK || !inoOK || inode == 0 {
 		return LegacyFileIdentity{}, fmt.Errorf("physical resource identity is unsupported on this host")
 	}
-	return LegacyFileIdentity{Device: device, Inode: inode}, nil
+	birth, err := legacyBirthTime(path, inode)
+	if err != nil {
+		return LegacyFileIdentity{}, err
+	}
+	return LegacyFileIdentity{Device: device, Inode: inode, BirthNS: birth}, nil
 }
 
 func legacyStatNumber(value reflect.Value) (uint64, bool) {
