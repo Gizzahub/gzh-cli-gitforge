@@ -354,29 +354,71 @@ func (m *Manager) LoadGlobalConfig() (*GlobalConfig, error) {
 
 // LoadProjectConfig loads project-specific configuration.
 func (m *Manager) LoadProjectConfig() (*ProjectConfig, error) {
+	config, _, err := m.loadProjectConfigWithPath()
+	return config, err
+}
+
+// loadProjectConfigWithPath loads the project config and returns the file it
+// came from, so a caller can resolve the profile it names (LoadProjectProfile).
+// The path is "" when no project config exists.
+func (m *Manager) loadProjectConfigWithPath() (*ProjectConfig, string, error) {
 	// Find project config file
 	configPath, err := FindProjectConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to find project config: %w", err)
+		return nil, "", fmt.Errorf("failed to find project config: %w", err)
 	}
 
 	// No project config found (not an error)
 	if configPath == "" {
-		return nil, nil //nolint:nilnil // nil config is the documented "not found" sentinel for this function
+		return nil, "", nil
 	}
 
 	// Unmarshal YAML or JSON
 	var config ProjectConfig
 	if err := unmarshalFile(configPath, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse project config file: %w", err)
+		return nil, "", fmt.Errorf("failed to parse project config file: %w", err)
 	}
 
 	// Validate config
 	if err := m.validator.ValidateProjectConfig(&config); err != nil {
-		return nil, fmt.Errorf("project config validation failed: %w", err)
+		return nil, "", fmt.Errorf("project config validation failed: %w", err)
 	}
 
-	return &config, nil
+	return &config, configPath, nil
+}
+
+// LoadProjectProfile resolves the profile named by the project config at
+// configPath. Lookup order matches GetProfileByName: inline profiles in the
+// config and along its parent chain (GetProfileFromChain) first, then the
+// external profile file. The chain is loaded without workspaces, as a parent
+// is, so a broken parent fails here instead of dropping the profile.
+func (m *Manager) LoadProjectProfile(configPath, name string) (*Profile, error) {
+	if name == "" {
+		return nil, fmt.Errorf("profile name is required")
+	}
+
+	dir, file := filepath.Split(configPath)
+	chain, err := loadConfigRecursiveWithVisited(dir, file, make(map[string]bool), nil, false, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if profile := GetProfileFromChain(chain, name); profile != nil {
+		// The map key names an inline profile; its name field is optional.
+		if profile.Name == "" {
+			profile.Name = name
+		}
+		if err := m.validator.ValidateProfile(profile); err != nil {
+			return nil, fmt.Errorf("inline profile '%s' in %s: %w", name, GetProfileSource(chain, name), err)
+		}
+		return profile, nil
+	}
+
+	if !m.ProfileExists(name) {
+		return nil, fmt.Errorf("profile '%s' not found: no inline profile in %s or its parents, and no profile file in %s",
+			name, configPath, m.paths.ProfilesDir)
+	}
+	return m.LoadProfile(name)
 }
 
 // ================================================================================

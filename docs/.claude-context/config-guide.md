@@ -120,6 +120,10 @@ metadata:
   repository: https://gitlab.company.com/backend/myproject
 ```
 
+The named profile is resolved from inline `profiles:` in this file and along its `parent:` chain first, then from
+`profiles/<name>.yaml` in the config directory. A name found in neither place, or a `parent:` that fails to load, is a
+config error for every command that loads config layers (ISSUE-111).
+
 ______________________________________________________________________
 
 ## Usage Example

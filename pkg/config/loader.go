@@ -64,15 +64,17 @@ func (l *ConfigLoader) Load() error {
 	}
 
 	// Load project config (may be nil if not found)
-	projectConfig, err := l.manager.LoadProjectConfig()
+	projectConfig, projectConfigPath, err := l.manager.loadProjectConfigWithPath()
 	if err != nil {
 		return fmt.Errorf("failed to load project config: %w", err)
 	}
 	l.projectConfig = projectConfig
 
-	// If project specifies a different profile, load it
-	if projectConfig != nil && projectConfig.Profile != "" && projectConfig.Profile != activeProfileName {
-		projectProfile, err := l.manager.LoadProfile(projectConfig.Profile)
+	// If the project names a profile, resolve it from the project's inline
+	// chain or the profile files. Done even when it matches the active
+	// profile's name: an inline profile of that name takes precedence.
+	if projectConfig != nil && projectConfig.Profile != "" {
+		projectProfile, err := l.manager.LoadProjectProfile(projectConfigPath, projectConfig.Profile)
 		if err != nil {
 			return fmt.Errorf("failed to load project profile '%s': %w", projectConfig.Profile, err)
 		}
