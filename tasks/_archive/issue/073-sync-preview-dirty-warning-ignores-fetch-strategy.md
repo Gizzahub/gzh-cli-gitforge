@@ -58,7 +58,7 @@ Registration only; no remediation is included here.
 
 ## Resolution
 
-Fixed in `a16d4659`. `updateTouchesWorktree` derives the warning from the
+Fixed in `55057db3`. `updateTouchesWorktree` derives the warning from the
 planned `Action.Strategy`, which every planner fills with the effective value
 and which the executor runs as reset when unset. Fetch drops the dirty-worktree conflict
 and warning from both preview paths; every other strategy, including an unset

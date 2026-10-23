@@ -1,7 +1,7 @@
 ---
 id: ISSUE-93
 title: "integrate holds a target lock across the readiness gate; remove it"
-type: design-defect
+type: bug
 priority: P1
 severity: high
 discovered-in: "singlepageweb-devbox review run-finish"
@@ -55,6 +55,20 @@ integrations belongs to the caller/orchestrator, not to gz-git.
 - The exact-lease push already rejects a target that moved after the gate, so
   the lock does not add a correctness guarantee for the push. It only turns a
   fast stale-target refusal into a long wait.
+
+## Reproduction
+
+Before the resolution below: start two `ce task run-finish` integrations of
+the same target from separate task branches. The second prints
+`integrate: waiting for target ownership …` and waits until the first run
+releases the lock.
+
+## Expected vs Actual
+
+- Expected: the second run never waits on the first. When the target moved,
+  it refuses at once and names the stale target and the rebase to do.
+- Actual: the second run waited for the first run's whole integration,
+  about 30 minutes in the singlepageweb-devbox case.
 
 ## Scope
 
@@ -111,5 +125,5 @@ Resolved on 2026-10-22 by `feat(integrate): remove the target lock; detect and r
 - Follow-up: the parity goldens `doctor-active.json` and `discard-no-fetch.json` still embed the old integrate help
   ("waits for it until the lock is free"). They are recorded through the installed ce and gz-git, so they can be
   re-recorded only after a release with this change is installed; `make test-parity` is opt-in and outside `make check`.
-- ISSUE-057 and ISSUE-069 assumed the lock. ISSUE-069 is still open (its fix belongs to ce-agent-kit). CE consumers
+- ISSUE-057 and ISSUE-069 assumed the lock. ISSUE-069 was closed as fixed on 2026-10-22. CE consumers
   of the retired `target_lock_wait` phase and `LockNotice` fields should be checked when ce-agent-kit adopts this release.
