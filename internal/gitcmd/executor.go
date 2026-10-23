@@ -16,6 +16,22 @@ import (
 	"time"
 )
 
+// cancelWaitDelay bounds how long Wait keeps copying output into a buffer
+// after git exits or is canceled. Canceling kills only git itself; a process
+// it spawned (an upload-pack wrapper, ssh, a credential helper) can keep the
+// pipe open and would otherwise hold Wait until that process exits. It does
+// not bound a caller's own read from StdoutPipe.
+const cancelWaitDelay = 2 * time.Second
+
+// ignoreWaitDelay drops exec.ErrWaitDelay when git itself exited 0: the
+// output git wrote is complete, only a lingering child kept the pipe open.
+func ignoreWaitDelay(cmd *exec.Cmd, err error) error {
+	if errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success() {
+		return nil
+	}
+	return err
+}
+
 // Executor executes Git commands and captures their output.
 // It provides a safe wrapper around os/exec with input sanitization,
 // timeout support, and structured result handling.
@@ -132,6 +148,7 @@ func (e *Executor) RunWithEnv(ctx context.Context, dir string, extraEnv []string
 	// Build command
 	cmd := exec.CommandContext(cmdCtx, e.gitBinary, sanitizedArgs...) // #nosec G204 -- arguments are validated by SanitizeArgs and executed without a shell.
 	cmd.Dir = dir
+	cmd.WaitDelay = cancelWaitDelay
 
 	// Build environment: inherit system env + executor env + extra env
 	// This ensures system defaults (PATH, HOME, etc.) are available
@@ -147,7 +164,7 @@ func (e *Executor) RunWithEnv(ctx context.Context, dir string, extraEnv []string
 	cmd.Stderr = &stderr
 
 	// Execute command
-	execErr := cmd.Run()
+	execErr := ignoreWaitDelay(cmd, cmd.Run())
 
 	// Calculate duration
 	duration := time.Since(start)
@@ -213,6 +230,7 @@ func (e *Executor) runWithOutputLimit(ctx context.Context, dir string, env []str
 	cmd := exec.CommandContext(cmdCtx, e.gitBinary, sanitizedArgs...) // #nosec G204 -- arguments are validated by SanitizeArgs and executed without a shell.
 	cmd.Dir = dir
 	cmd.Env = env
+	cmd.WaitDelay = cancelWaitDelay
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return &Result{Error: err, ExitCode: -1}, false, fmt.Errorf("create stdout pipe: %w", err)
@@ -228,7 +246,7 @@ func (e *Executor) runWithOutputLimit(ctx context.Context, dir string, env []str
 		data = data[:limit]
 		cancelCommand()
 	}
-	waitErr := cmd.Wait()
+	waitErr := ignoreWaitDelay(cmd, cmd.Wait())
 	if readErr != nil {
 		return commandResult(string(data), stderr.String(), waitErr, start), overflow, fmt.Errorf("read stdout: %w", readErr)
 	}

@@ -36,6 +36,7 @@ ______________________________________________________________________
 | 101 | [status-lists-nested-config-repos-sync-skips](issue/101-status-lists-nested-config-repos-sync-skips.md)             | P3       | `sync.recursive`가 없는 중첩 config workspace를 sync는 건너뛰는데 status는 그 저장소를 나열한다                                                                |
 | 102 | [status-loader-pathless-config-workspace-overflows](issue/102-status-loader-pathless-config-workspace-overflows.md) | P3       | `path` 없는 `type: config` workspace가 status 로더를 자기 설정 재귀로 스택 오버플로시킨다                                                                      |
 | 103 | [commit-edit-commits-before-editor](issue/103-commit-edit-commits-before-editor.md)                                 | P2       | `commit -e`를 `--yes` 없이 쓰면 편집기가 열리기 전에 자동 메시지로 커밋된다                                                                                    |
+| 106 | [legacy-cleanup-identity-inode-reuse](issue/106-legacy-cleanup-identity-inode-reuse.md)                             | P2       | legacy cleanup ABA 테스트가 Linux에서 간헐적으로 다시 만든 worktree를 통과시킨다(inode 재사용 추정, 미확인)                                                    |
 
 [ISSUE-20](issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 

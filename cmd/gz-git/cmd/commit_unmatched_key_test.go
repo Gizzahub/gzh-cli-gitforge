@@ -33,6 +33,9 @@ func makeDirtyRepoUnder(t *testing.T, parent, name string) string {
 	t.Helper()
 	dest := filepath.Join(parent, name)
 	runGit(t, ".", "clone", "--quiet", testutil.TempGitRepoWithCommit(t), dest)
+	// A clone does not copy the source's local identity; CI has no global one.
+	runGit(t, dest, "config", "user.name", "Test")
+	runGit(t, dest, "config", "user.email", "test@example.com")
 	if err := os.WriteFile(filepath.Join(dest, "a.txt"), []byte("x\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
