@@ -56,10 +56,18 @@ from pathlib import Path
 args = sys.argv[1:]
 if args[:2] != ["-I", "-c"]: raise RuntimeError(args)
 version = (Path(os.environ["TEST_CASE"]) / "runtime-version").read_text().strip()
-pins = dict(line.split("==") for line in Path(os.environ["TEST_CONSTRAINTS"]).read_text().splitlines() if line and not line.startswith(chr(35)))
+pins = dict(line.split("==") for line in Path(os.environ["TEST_CONSTRAINTS"]).read_text(encoding="utf-8").splitlines() if line and not line.startswith(chr(35)))
 metadata.distributions = lambda name: [types.SimpleNamespace(version="0.invalid" if os.environ.get("TEST_BAD_DEPS") else pins.get(name))]
 sys.version_info = tuple(map(int, version.split(".")))
 sys.argv = ["-c"] + args[3:]
+# 실제 의존성 검사 식의 기본 locale decoding을 Windows CP1252처럼 재현한다.
+if os.environ.get("TEST_DEFAULT_ENCODING"):
+    import builtins
+    original_open = builtins.open
+    def locale_open(file, *args, **kwargs):
+        kwargs.setdefault("encoding", os.environ["TEST_DEFAULT_ENCODING"])
+        return original_open(file, *args, **kwargs)
+    builtins.open = locale_open
 exec(args[2])
 ''')
     uv_shim = root / 'uv-shim.py'
@@ -94,6 +102,9 @@ formatter.chmod(0o700)
         constraints = work / '.make/mdformat-constraints.txt'
         constraints.parent.mkdir()
         shutil.copyfile(repo / '.make/mdformat-constraints.txt', constraints)
+        if changes.get('TEST_DEFAULT_ENCODING'):
+            constraints.write_text(constraints.read_text(encoding='utf-8') + '\n# UTF-8 검증\n',
+                                   encoding='utf-8')
         env = {k:v for k,v in os.environ.items() if not k.startswith('TEST_')
                and k not in ('UV_PYTHON', 'MAKEFLAGS', 'MAKEOVERRIDES', 'MFLAGS')}
         env.update(TEST_CASE=str(work), TEST_HOST_PYTHON=sys.executable,
@@ -109,7 +120,7 @@ formatter.chmod(0o700)
             seed = dict(env, TEST_INSTALL_RUNTIME=existing)
             subprocess.run([sys.executable, str(uv_shim), 'seed'], env=seed, check=True)
         result = subprocess.run(['make', '--no-print-directory', '-C', str(work),
-                                 '-f', str(repo / '.make/tools.mk'), 'install-mdformat'],
+                                 '-f', str(repo / '.make/tools.mk'), 'install-mdformat', 'GO=go'],
                                 env=env, capture_output=True, text=True, timeout=30)
         require((result.returncode == 0) == expected, (name, result.stdout, result.stderr))
         calls = work / 'uv-calls.jsonl'
@@ -138,6 +149,7 @@ formatter.chmod(0o700)
     case('version-producer-failure', existing='3.14.5', expected=False, TEST_VERSION_EXIT='42')
     case('dependency-mismatch', existing='3.14.5', expected=False, TEST_BAD_DEPS='1')
     case('windows-path-shape', TEST_GOEXE='.exe')
+    case('windows-default-encoding', TEST_DEFAULT_ENCODING='cp1252')
     print('mdformat installer fixtures: PASS (' + str(len(passed)) + ' cases; simulated runtimes, not native Windows)')
 except BaseException as error:
     failure = error

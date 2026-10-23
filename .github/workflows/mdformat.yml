@@ -1,0 +1,75 @@
+name: Markdown contract
+
+on:
+  push:
+    branches: [master, main, develop, 'dev/**']
+    paths: ['**/*.md', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
+  pull_request:
+    paths: ['**/*.md', '.make/**', 'scripts/*mdformat*', 'Makefile', '.github/workflows/mdformat.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mdformat:
+    name: Native Markdown (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.3'
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.9.17'
+      - name: Prepare and check changed Markdown
+        shell: bash
+        env:
+          MDFORMAT_EVENT: ${{ github.event_name }}
+          MDFORMAT_BEFORE: ${{ github.event.before }}
+          MDFORMAT_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          MDFORMAT_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          case "$MDFORMAT_EVENT" in
+            pull_request)
+              test -n "$MDFORMAT_PR_BASE"
+              base=$MDFORMAT_PR_BASE
+              ;;
+            push)
+              if [[ "$MDFORMAT_REF" == refs/heads/dev/* ]]; then
+                base=origin/master
+              elif [ -n "$MDFORMAT_BEFORE" ] && [ "$MDFORMAT_BEFORE" != 0000000000000000000000000000000000000000 ]; then
+                base=$MDFORMAT_BEFORE
+              elif [ "$MDFORMAT_REF" = refs/heads/master ]; then
+                make format-md-all-check
+                exit 0
+              else
+                # A newly pushed task branch is compared with this repository's declared source.
+                base=origin/master
+              fi
+              ;;
+            workflow_dispatch)
+              make format-md-all-check
+              exit 0
+              ;;
+            *) echo "unsupported Markdown event: $MDFORMAT_EVENT" >&2; exit 2 ;;
+          esac
+          make format-md-check "MDFORMAT_BASE=$base"
+      - name: Verify actual native installer and selector
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(go env GOEXE)" = .exe ]; then
+            bin/tools/python/mdformat/Scripts/python.exe -I scripts/test-mdformat-native.py
+          else
+            bin/tools/python/mdformat/bin/python -I scripts/test-mdformat-native.py
+          fi

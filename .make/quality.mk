@@ -12,12 +12,16 @@
 # Code Formatting Targets
 # ==============================================================================
 
+# 기준 branch 이후의 저장소 소유 Markdown만 검사한다.
+MDFORMAT_BASE ?= origin/master
+MDFORMAT_RUN = "$(MDFORMAT_PYTHON)" -I scripts/mdformat-files.py
+
 format: format-simplify ## quick and simple formatting (default)
 fmt: format-simplify
 
 # This target is deliberately source-non-mutating. It is the formatting leg of
 # the canonical quality gate; use format/format-simplify when files should change.
-format-check: install-gofumpt install-goimports install-mdformat ## check Go and changed Markdown formatting without modifying files
+format-check: install-gofumpt install-goimports format-md-check ## check Go and changed Markdown formatting without modifying files
 	@echo -e "$(CYAN)Checking Go formatting...$(RESET)"
 	@GO_FILES=$$("$(GOFUMPT)" -l .); \
 	if [ -n "$$GO_FILES" ]; then \
@@ -27,50 +31,34 @@ format-check: install-gofumpt install-goimports install-mdformat ## check Go and
 	if [ -n "$$GOIMPORT_FILES" ]; then \
 		echo "Go files requiring import formatting:"; echo "$$GOIMPORT_FILES"; exit 1; \
 	fi
-	@echo -e "$(CYAN)Checking changed Markdown formatting...$(RESET)"
-	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
-	BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
-	FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD 2>/dev/null; git diff --name-only --diff-filter=ACMR HEAD; } | sed -n '/\.md$$/p' | sort -u); \
-	if [ -n "$$FILES" ]; then \
-		"$(MDFORMAT)" --check $$FILES; \
-	fi
 	@echo -e "$(GREEN)✅ Formatting checks passed!$(RESET)"
 
-format-simplify: format-install-tools ## quick basic formatting with gofumpt, goimports, and mdformat
+format-simplify: format-install-tools install-mdformat ## quick basic formatting with gofumpt, goimports, and mdformat
 	@echo -e "$(CYAN)🚀 Quick formatting...$(RESET)"
 	@echo "1. Running gofumpt (includes go fmt + simplification)..."
 	@"$(GOFUMPT)" -w .
 	@echo "2. Organizing imports..."
 	@"$(GOIMPORTS)" -w -local github.com/gizzahub/gzh-cli .
 	@echo "3. Formatting changed markdown files..."
-	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
-		BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
-		FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD; git diff --name-only --diff-filter=ACMR HEAD; } | grep '\.md$$' | sort -u || true); \
-		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs "$(MDFORMAT)"; fi
+	@$(MDFORMAT_RUN) changed --base "$(MDFORMAT_BASE)" --formatter "$(MDFORMAT)"
 	@echo -e "$(GREEN)✅ Quick formatting complete!$(RESET)"
 
-# bin/ holds mdformat's own venv, whose dependencies ship README.md files.
-format-md: install-mdformat ## format all markdown files with mdformat
-	@echo -e "$(CYAN)📝 Formatting markdown files...$(RESET)"
-	@find . -name "*.md" -type f -not -path "./vendor/*" -not -path "./.git/*" -not -path "./bin/*" | xargs -r "$(MDFORMAT)"
-	@echo -e "$(GREEN)✅ Markdown formatting complete!$(RESET)"
+# 전체 문서 정렬은 명시적 target으로 분리한다.
+format-md: install-mdformat ## format all repository-owned Markdown explicitly
+	@$(MDFORMAT_RUN) all --formatter "$(MDFORMAT)"
 
-format-md-check: install-mdformat ## check markdown files that need formatting (read-only)
-	@echo -e "$(CYAN)📋 Checking markdown formatting...$(RESET)"
-	@BASE_REF=$$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || echo origin/master); \
-		BASE=$$(git merge-base HEAD "$$BASE_REF" 2>/dev/null || echo HEAD); \
-		FILES=$$({ git diff --name-only --diff-filter=ACMR "$$BASE"...HEAD; git diff --name-only --diff-filter=ACMR HEAD; } | grep '\.md$$' | sort -u || true); \
-		if [ -n "$$FILES" ]; then echo "$$FILES" | xargs "$(MDFORMAT)" --check; fi
+format-md-check: install-mdformat ## check changed Markdown before document backfill
+	@$(MDFORMAT_RUN) changed --base "$(MDFORMAT_BASE)" --formatter "$(MDFORMAT)" --check
 
-format-md-diff: install-mdformat ## format only changed markdown files
-	@echo -e "$(CYAN)🚀 Formatting changed markdown files...$(RESET)"
-	@CHANGED_FILES=$$(git diff --name-only --diff-filter=d HEAD | grep '\.md$$' || true); \
-	if [ -n "$$CHANGED_FILES" ]; then \
-		echo "$$CHANGED_FILES" | xargs -r "$(MDFORMAT)"; \
-		echo -e "$(GREEN)✅ Changed markdown files formatted!$(RESET)"; \
-	else \
-		echo -e "$(YELLOW)No markdown files changed$(RESET)"; \
-	fi
+.PHONY: format-md-all-check markdown-selector-test
+format-md-all-check: install-mdformat ## check all repository-owned Markdown explicitly
+	@$(MDFORMAT_RUN) all --formatter "$(MDFORMAT)" --check
+
+format-md-diff: install-mdformat ## format changed Markdown only
+	@$(MDFORMAT_RUN) changed --base "$(MDFORMAT_BASE)" --formatter "$(MDFORMAT)"
+
+markdown-selector-test: install-mdformat ## verify selection with isolated Git fixtures
+	@"$(MDFORMAT_PYTHON)" -I scripts/test-mdformat-files.py
 
 format-strict: format-install-tools ## comprehensive formatting with all tools
 	@echo -e "$(CYAN)🔧 Strict formatting (all tools)...$(RESET)"
@@ -386,7 +374,7 @@ quality-workspace-check: ## verify workspace metadata in an isolated temporary c
 		echo -e "$(GREEN)✅ Tracked Go workspace metadata is clean!$(RESET)"
 
 quality-check: export GOWORK := off
-quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test release-ci-check-test mdformat-install-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
+quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test release-ci-check-test mdformat-install-test markdown-selector-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
 	@echo -e "$(GREEN)✅ Canonical quality gate passed!$(RESET)"
 
 quality: quality-check ## compatibility alias for the canonical quality gate
