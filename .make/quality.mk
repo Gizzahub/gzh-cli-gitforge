@@ -339,7 +339,7 @@ pre-commit-update: ## update pre-commit hooks to latest versions
 # ==============================================================================
 
 .PHONY: quality quality-strict quality-fix quality-build quality-workspace-check quality-check-validate lint-all
-.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test release-notes-test
+.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test release-notes-test release-ci-check release-ci-check-test
 .NOTPARALLEL: quality-check verify-commit-affected
 
 # The base is a declared remote-tracking integration ref, not a guessed local
@@ -386,7 +386,7 @@ quality-workspace-check: ## verify workspace metadata in an isolated temporary c
 		echo -e "$(GREEN)✅ Tracked Go workspace metadata is clean!$(RESET)"
 
 quality-check: export GOWORK := off
-quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test mdformat-install-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
+quality-check: quality-workspace-check format-check lint-check security-code security-deps quality-build test-install-audit verification-selector-test release-notes-test release-ci-check-test mdformat-install-test test-unit-quality test-integration-quality test-e2e-only coverage-critical-check ## run the canonical source-non-mutating quality gate
 	@echo -e "$(GREEN)✅ Canonical quality gate passed!$(RESET)"
 
 quality: quality-check ## compatibility alias for the canonical quality gate
@@ -422,6 +422,7 @@ verify-release: ## run the release profile: full gate plus check-only snapshot p
 	@"$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_RELEASE_TIMEOUT)" $(MAKE) --no-print-directory verify-release-steps
 
 verify-release-steps:
+	@$(MAKE) --no-print-directory release-ci-check
 	@$(MAKE) --no-print-directory verify-full
 	@$(MAKE) --no-print-directory release-check
 	@$(MAKE) --no-print-directory release-dry-run
@@ -435,6 +436,16 @@ mdformat-install-test: install-mdformat ## verify the pinned formatter installer
 
 release-notes-test: ## verify Deprecated: trailers are collected into release notes
 	@/bin/bash scripts/test-release-deprecations.sh
+
+# The Release workflow publishes from master, so a release must build on a
+# master commit whose CI passed. Fetch first: the check reads the local ref.
+RELEASE_CI_REF ?= origin/master
+
+release-ci-check: ## require a passing CI push run on the commit a release builds on
+	@/bin/bash scripts/release-ci-check.sh "$(RELEASE_CI_REF)"
+
+release-ci-check-test: ## verify the release CI check with a fake gh
+	@/bin/bash scripts/test-release-ci-check.sh
 
 quality-check-validate: ## validate quality workflow delegation and fail-closed commands
 	@set -eu; \

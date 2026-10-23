@@ -11,7 +11,7 @@ LLM-optimized guidance for gzh-cli-gitforge.
 | `make verify-affected` | Changed Go packages and reverse test dependencies (5m)                | Development loop |
 | `make verify-commit`   | Impact-aware format, lint, security, and tests (8m; DVA wrapper 10m)  | Before commit    |
 | `make verify-full`     | Full format, lint, security, build, unit/E2E, and coverage gate (60m) | Integration      |
-| `make verify-release`  | Full gate plus check-only snapshot packaging (75m)                    | Before release   |
+| `make verify-release`  | Passing master CI, full gate, and check-only snapshot packaging (75m) | Before release   |
 | `make quality-check`   | Canonical full gate called by `verify-full`                           | Compatibility    |
 | `make quality`         | Alias for `quality-check`                                             | Compatibility    |
 | `make dev-fast`        | format + unit tests                                                   | Quick dev cycle  |

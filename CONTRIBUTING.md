@@ -123,7 +123,9 @@ in its existing local run receipt; `dva ci full` records the final gate the
 same way. Centralized metric collection, a shared event schema, and aggregation
 are intentionally deferred until enough profile data exists to design them.
 `dva` owns only the commit and full profiles; use the direct Make entrypoints
-`verify-affected` and `verify-release` for development and release checks. If
+`verify-affected` and `verify-release` for development and release checks.
+`verify-release` first requires a passing CI push run on the `origin/master`
+commit the release builds on, read with `gh`; fetch before running it. If
 the development or commit selector widens, it exits nonzero and names
 `make verify-full`. Widening is not a PASS: the full profile remains required.
 `gz-git integrate` runs no repository code: its git checks alone decide
