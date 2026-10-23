@@ -96,6 +96,11 @@ type TargetPlan struct {
 	// sourceDeclaration is the declaration committed at BranchSHA; a release
 	// reads it once after the fetch. Empty for any other plan.
 	sourceDeclaration config.TaskPatternDecl
+	// targetIntegration is the integrationBranch declared at TargetSHA and
+	// targetDeclarationSource the root file declaring it; a release reads
+	// them once after the fetch and gates on them. Empty for any other plan.
+	targetIntegration       config.BranchList
+	targetDeclarationSource string
 }
 
 // releasesRemoteRef reports a release whose source is the remote-tracking
@@ -151,16 +156,10 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	}
 	plan.BranchSHA = sha
 
-	// A release reads the declaration committed at the source it fetched, so
-	// the integration branch it promotes is the one that commit declares.
+	var releaseTargetSHA string
 	if opts.Release {
-		decl, err := loadPlanDeclaration(ctx, g, g.dir, true, sha)
-		if err != nil {
+		if releaseTargetSHA, err = readReleaseDeclarations(ctx, g, &plan, &opts); err != nil {
 			return plan, err
-		}
-		plan.sourceDeclaration = decl
-		if len(opts.IntegrationConfig) == 0 {
-			opts.IntegrationConfig = decl.IntegrationBranch
 		}
 	}
 
@@ -194,8 +193,8 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	if !ok {
 		return plan, fmt.Errorf("target ref not found: %s", target)
 	}
-	if opts.ExpectTarget != "" && tsha != opts.ExpectTarget {
-		return plan, fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, target, tsha, opts.ExpectTarget)
+	if err := checkTargetSHA(target, tsha, releaseTargetSHA, opts.ExpectTarget); err != nil {
+		return plan, err
 	}
 	plan.Target = target
 	plan.TargetSHA = tsha
@@ -218,6 +217,65 @@ func resolveSource(ctx context.Context, g gitRepo, branch, expect string) (strin
 	}
 	if expect != "" && sha != expect {
 		return "", fmt.Errorf("%w: source %s is %s, expected %s", ErrSourceMismatch, branch, sha, expect)
+	}
+	return sha, nil
+}
+
+// readReleaseDeclarations reads a release's declarations after the fetch and
+// returns the target commit it read. The declaration committed at the source
+// is strictly validated, but the integration branch the release may promote
+// is the one the target commit declares: a source cannot authorize its own
+// promotion. The source's integrationBranch is never a fallback; with none
+// declared at the target the heuristic applies and refuses the release.
+func readReleaseDeclarations(ctx context.Context, g gitRepo, plan *TargetPlan, opts *CheckOptions) (string, error) {
+	decl, err := loadPlanDeclaration(ctx, g, g.dir, true, plan.BranchSHA)
+	if err != nil {
+		return "", err
+	}
+	plan.sourceDeclaration = decl
+	targetSHA, err := resolveReleaseTarget(ctx, g, opts.Target)
+	if err != nil {
+		return "", err
+	}
+	integration, source, err := loadTargetIntegrationBranch(ctx, g, targetSHA)
+	if err != nil {
+		return "", err
+	}
+	plan.targetIntegration, plan.targetDeclarationSource = integration, source
+	if len(opts.IntegrationConfig) == 0 {
+		opts.IntegrationConfig = integration
+	}
+	return targetSHA, nil
+}
+
+// checkTargetSHA holds the resolved target commit to the one a release read
+// its gating declaration from, if any, and to the caller's expectation.
+func checkTargetSHA(target, tsha, releaseTargetSHA, expect string) error {
+	if releaseTargetSHA != "" && tsha != releaseTargetSHA {
+		return fmt.Errorf("release target %s moved from %s to %s while the plan was resolved", target, releaseTargetSHA, tsha)
+	}
+	if expect != "" && tsha != expect {
+		return fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, target, tsha, expect)
+	}
+	return nil
+}
+
+// resolveReleaseTarget reads the commit of a release's explicit target, whose
+// declaration gates the release.
+func resolveReleaseTarget(ctx context.Context, g gitRepo, target string) (string, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "", ErrReleaseNeedsTarget
+	}
+	if err := gitcmd.SanitizeBranchName(target); err != nil {
+		return "", fmt.Errorf("invalid --target: %w", err)
+	}
+	sha, ok, err := g.revParse(ctx, target)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", fmt.Errorf("target ref not found: %s", target)
 	}
 	return sha, nil
 }

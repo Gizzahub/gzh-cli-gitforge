@@ -139,3 +139,44 @@ func TestLoadCommittedTaskPattern_RequiresCommit(t *testing.T) {
 		t.Fatal("expected error for empty commit")
 	}
 }
+
+func TestCommittedIntegrationBranch_SkipsRemovedKeyGuard(t *testing.T) {
+	t.Parallel()
+	got, source, err := CommittedIntegrationBranch(committedTestCommit, []CommittedConfigFile{
+		committedFile(".gz-git.yaml", "branch:\n  integrationBranch: develop\n  prepareProfile: pnpm-frozen-lockfile-v1\n"),
+		committedFile("sub/.gz-git.yaml", "branch:\n  integrationBranch: nested\n"),
+	})
+	if err != nil {
+		t.Fatalf("CommittedIntegrationBranch: %v", err)
+	}
+	if !slices.Equal(got, BranchList{"develop"}) || source != ".gz-git.yaml" {
+		t.Fatalf("got %v from %q, want [develop] from .gz-git.yaml", got, source)
+	}
+}
+
+func TestCommittedIntegrationBranch_NoRootDeclaration(t *testing.T) {
+	t.Parallel()
+	got, source, err := CommittedIntegrationBranch(committedTestCommit, []CommittedConfigFile{
+		committedFile("sub/.gz-git.yaml", "branch:\n  integrationBranch: nested\n"),
+	})
+	if err != nil || len(got) != 0 || source != "" {
+		t.Fatalf("got %v from %q, err %v; want nothing", got, source, err)
+	}
+}
+
+func TestCommittedIntegrationBranch_SyntaxErrorNamesCommit(t *testing.T) {
+	t.Parallel()
+	for name, file := range map[string]CommittedConfigFile{
+		"yaml":          committedFile(".gz-git.yaml", "branch: [unclosed\n"),
+		"json":          committedFile(".gz-git.json", `{"branch": `),
+		"duplicate key": committedFile(".gz-git.yaml", "branch:\n  integrationBranch: develop\nbranch:\n  integrationBranch: main\n"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := CommittedIntegrationBranch(committedTestCommit, []CommittedConfigFile{file})
+			if err == nil || !strings.Contains(err.Error(), "at commit "+committedTestCommit[:12]) {
+				t.Fatalf("want a parse error naming the commit, got %v", err)
+			}
+		})
+	}
+}

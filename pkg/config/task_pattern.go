@@ -175,6 +175,39 @@ func LoadCommittedTaskPattern(repoRoot, commit string, files []CommittedConfigFi
 	return decl, nil
 }
 
+// CommittedIntegrationBranch reads only branch.integrationBranch from the
+// repository-root declaration committed at commit; files is as for
+// LoadCommittedTaskPattern. It skips the removed-key guard: a release reads
+// the target's declaration only to learn which branch it may promote, and
+// that declaration is the pre-release state the release replaces, so a key
+// the source already deleted must not block the release that delivers the
+// deletion. Syntax and document-shape errors still fail and name the commit.
+// It returns the root file it read, or "" when the commit has none.
+func CommittedIntegrationBranch(commit string, files []CommittedConfigFile) (BranchList, string, error) {
+	if strings.TrimSpace(commit) == "" {
+		return nil, "", fmt.Errorf("commit is empty")
+	}
+	rootFiles := map[string][]byte{}
+	for _, f := range files {
+		if rel := slashpath.Clean(f.Path); isProjectConfigName(rel) {
+			rootFiles[rel] = f.Data
+		}
+	}
+	for _, ext := range []string{".yaml", ".yml", ".json"} {
+		name := ProjectConfigFileName + ext
+		data, ok := rootFiles[name]
+		if !ok {
+			continue
+		}
+		decl, err := decodeRootBranchDecl(data, name)
+		if err != nil {
+			return nil, name, fmt.Errorf("%w at commit %s", err, ShortCommit(commit))
+		}
+		return append(BranchList(nil), decl.integration...), name, nil
+	}
+	return nil, "", nil
+}
+
 // ShortCommit abbreviates a commit ID for display only; it never selects a
 // commit.
 func ShortCommit(commit string) string {
@@ -253,11 +286,17 @@ func readRootBranchDecl(root *safefs.Root, path, fullPath string) (rootBranchDec
 // and names the file in parse errors, fullPath names it in the removed-key
 // error.
 func parseRootBranchDecl(data []byte, path, fullPath string) (rootBranchDecl, error) {
+	if err := RejectRemovedKeys(data, fullPath); err != nil {
+		return rootBranchDecl{}, err
+	}
+	return decodeRootBranchDecl(data, path)
+}
+
+// decodeRootBranchDecl is parseRootBranchDecl without the removed-key guard.
+// Syntax and document-shape errors still fail.
+func decodeRootBranchDecl(data []byte, path string) (rootBranchDecl, error) {
 	var decl rootBranchDecl
 	ext := strings.ToLower(filepath.Ext(path))
-	if err := RejectRemovedKeys(data, fullPath); err != nil {
-		return decl, err
-	}
 	if err := validateRepoRootDocument(data, ext == ".json"); err != nil {
 		return decl, fmt.Errorf("parse %s: %w", path, err)
 	}

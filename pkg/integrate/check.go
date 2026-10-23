@@ -77,8 +77,9 @@ type CheckReport struct {
 	GateMode   string
 	Controller *controllerBinding
 	// Declaration is the repository-root declaration the check applied. A
-	// release reads it from the release source commit (Declaration.Commit);
-	// any other check reads the working tree.
+	// release reads it from the release source commit (Declaration.Commit),
+	// though its integrationBranch does not gate the release (see
+	// release_declaration.go); any other check reads the working tree.
 	Declaration config.TaskPatternDecl
 }
 
@@ -386,7 +387,10 @@ func FormatCheck(r *CheckReport) string {
 		fmt.Fprintf(&b, "  %s  %s — %s\n", item.Status, item.Name, item.Detail)
 	}
 	if r.Declaration.Commit != "" {
-		fmt.Fprintf(&b, "  INFO  declaration — %s at release source commit %s\n", declarationSourceLabel(r.Declaration), config.ShortCommit(r.Declaration.Commit))
+		fmt.Fprintf(&b, "  INFO  declaration — %s at release source commit %s; integrationBranch source=%s, target=%s (from %s at target commit %s, gates the release)\n",
+			declarationSourceLabel(r.Declaration), config.ShortCommit(r.Declaration.Commit),
+			formatDeclaredBranches(r.Declaration.IntegrationBranch), formatDeclaredBranches(r.Plan.targetIntegration),
+			targetDeclarationLabel(r.Plan.targetDeclarationSource), config.ShortCommit(r.Plan.TargetSHA))
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s\n", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)
@@ -405,6 +409,20 @@ func declarationSourceLabel(decl config.TaskPatternDecl) string {
 		return "no .gz-git declaration"
 	}
 	return decl.Source
+}
+
+func targetDeclarationLabel(source string) string {
+	if source == "" {
+		return "no .gz-git declaration"
+	}
+	return source
+}
+
+func formatDeclaredBranches(branches config.BranchList) string {
+	if len(branches) == 0 {
+		return "(none)"
+	}
+	return strings.Join(branches, ",")
 }
 
 func formatIntegrationResolution(integration Resolution) string {

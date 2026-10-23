@@ -53,6 +53,9 @@ func releaseDeclarationOptions(t *testing.T, fx *testutil.WorktreeOrigin) CheckO
 	return opts
 }
 
+// The ISSUE-109 deadlock: the target still carries a removed key next to
+// integrationBranch: develop, and the clean source is the release that
+// deletes it. The target is read leniently for its integration branch only.
 func TestCheck_ReleaseReadsDeclarationFromSourceCommit(t *testing.T) {
 	t.Parallel()
 	fx := releaseDeclarationFixture(t, declWithRemovedKey, declClean)
@@ -70,9 +73,117 @@ func TestCheck_ReleaseReadsDeclarationFromSourceCommit(t *testing.T) {
 	if want := []string{"dev/*"}; len(report.Declaration.Patterns) != 1 || report.Declaration.Patterns[0] != want[0] {
 		t.Fatalf("declaration patterns = %v, want %v", report.Declaration.Patterns, want)
 	}
+	if report.Plan.Integration.Name != "develop" || !strings.HasPrefix(report.Plan.Integration.Source, SourceConfigPrefix) {
+		t.Fatalf("integration = %+v, want develop from config", report.Plan.Integration)
+	}
 	out := FormatCheck(report)
-	if want := "declaration — " + report.Declaration.Source + " at release source commit " + opts.ExpectSource[:12]; !strings.Contains(out, want) {
-		t.Fatalf("report does not name the declaration provenance %q:\n%s", want, out)
+	targetSHA := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	for _, want := range []string{
+		"declaration — " + report.Declaration.Source + " at release source commit " + opts.ExpectSource[:12],
+		"integrationBranch source=develop, target=develop (from .gz-git.yaml at target commit " + targetSHA[:12] + ", gates the release)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("report does not name the declaration provenance %q:\n%s", want, out)
+		}
+	}
+}
+
+// pushRemoteBranch commits decl as .gz-git.yaml on a branch cut from the
+// remote default branch and pushes it, returning the remote-tracking name.
+func pushRemoteBranch(t *testing.T, fx *testutil.WorktreeOrigin, branch, decl string) string {
+	t.Helper()
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	runGit(t, fx.Worktree, "checkout", "-B", branch, fx.Remote+"/main")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", decl)
+	writeRepoFile(t, fx.Worktree, branch+".txt", "work\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", branch+" work")
+	runGit(t, fx.Worktree, "push", fx.Remote, branch)
+	runGit(t, fx.Worktree, "checkout", "--detach")
+	runGit(t, fx.Worktree, "branch", "-D", branch)
+	runGit(t, fx.Clone, "fetch", fx.Remote)
+	return fx.Remote + "/" + branch
+}
+
+// A source branch that declares itself the integration branch must not
+// authorize its own promotion: the gate reads the target's declaration, and
+// with none declared there the heuristic refuses rather than borrowing the
+// source's value.
+func TestCheck_ReleaseSourceCannotDeclareItselfIntegrationBranch(t *testing.T) {
+	t.Parallel()
+	selfDeclared := "branch:\n  integrationBranch: feature-x\n  taskPattern: [dev/*]\n"
+	for name, tc := range map[string]struct{ targetDecl, refusal string }{
+		"target declares develop": {declClean, "release promotion must start from origin/develop"},
+		// The heuristic resolves the remote HEAD (main), the release target.
+		"target declares none": {"branch:\n  taskPattern: [dev/*]\n", "against the integration branch"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			fx := releaseDeclarationFixture(t, tc.targetDecl, declClean)
+			opts := releaseRemoteOptions(fx)
+			opts.Branch = pushRemoteBranch(t, fx, "feature-x", selfDeclared)
+			main := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+			report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+			if err == nil {
+				t.Fatalf("a source declaring itself the integration branch was not refused:\n%s", FormatCheck(report))
+			}
+			if !strings.Contains(err.Error(), tc.refusal) {
+				t.Fatalf("error %q does not contain %q", err, tc.refusal)
+			}
+			if got := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main")); got != main {
+				t.Fatalf("target moved to %s", got)
+			}
+		})
+	}
+}
+
+// A source that changes integrationBranch does not move the gate: the
+// release keeps promoting the branch the target declares, and the report
+// names both values.
+func TestCheck_ReleaseGatesOnTargetIntegrationBranch(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, declClean, "branch:\n  integrationBranch: staging\n  taskPattern: [dev/*]\n")
+	opts := releaseDeclarationOptions(t, fx)
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !report.Ready {
+		t.Fatalf("want READY, got\n%s", FormatCheck(report))
+	}
+	if report.Plan.Integration.Name != "develop" {
+		t.Fatalf("integration = %+v, want the target's develop", report.Plan.Integration)
+	}
+	if got := report.Declaration.IntegrationBranch; len(got) != 1 || got[0] != "staging" {
+		t.Fatalf("source declaration integrationBranch = %v, want [staging]", got)
+	}
+	if out := FormatCheck(report); !strings.Contains(out, "integrationBranch source=staging, target=develop") {
+		t.Fatalf("report does not name both integration branches:\n%s", out)
+	}
+
+	// The branch the source names is not promotable by its own say-so.
+	opts = releaseRemoteOptions(fx)
+	opts.Branch = pushRemoteBranch(t, fx, "staging", "branch:\n  integrationBranch: staging\n  taskPattern: [dev/*]\n")
+	if report, err := Check(context.Background(), gitcmd.NewExecutor(), opts); err == nil && report.Ready {
+		t.Fatalf("release from the source-declared staging branch was READY:\n%s", FormatCheck(report))
+	}
+}
+
+// The target declaration is read for its integration branch only, but a
+// syntax error there still fails the release and names the target commit.
+func TestCheck_ReleaseRejectsUnparsableTargetDeclaration(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, "branch: [unclosed\n", declClean)
+	opts := releaseDeclarationOptions(t, fx)
+	main := strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err == nil {
+		t.Fatal("an unparsable target declaration must fail the release")
+	}
+	for _, want := range []string{"release target declaration", ".gz-git.yaml", "commit " + main[:12]} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q does not contain %q", err, want)
+		}
 	}
 }
 

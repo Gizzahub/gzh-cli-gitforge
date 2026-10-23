@@ -54,7 +54,9 @@ key, and `develop` deletes it
 - Expected: a release applies the declaration it installs, which is the one
   committed at the release source commit. The default branch carries that
   declaration after the fast-forward. The removed-key guard still refuses a
-  source commit that carries a removed key.
+  source commit that carries a removed key. The integration branch that
+  gates the release still comes from the target, so a source cannot
+  authorize its own promotion.
 - Actual: the release applies the default branch's pre-release working-tree
   declaration and refuses on a key the source already removed. The default
   branch has no other path to drop the key without bypassing the
@@ -62,12 +64,27 @@ key, and `develop` deletes it
 
 ## Fix
 
-In `--release` mode, the declaration is read once, after the fetch, at the
-source commit the plan resolved. The read goes through `loadPlanDeclaration`
-(`pkg/integrate/release_declaration.go`), called from `resolveTarget`. The
-integration branch the release promotes comes from that commit, and
-`validateOwnedCheckPlan` returns that same read. `finishRunReclaim` and the
-evidence provenance reuse it through `checkedPlanDeclaration`.
+In `--release` mode, the declaration is read from commits after the fetch,
+and split by role.
+
+- **Source commit.** `loadPlanDeclaration`
+  (`pkg/integrate/release_declaration.go`), called from `resolveTarget`,
+  reads the source commit the plan resolved. It is strictly validated.
+  `validateOwnedCheckPlan` returns that read. `finishRunReclaim` and the
+  evidence provenance reuse it through `checkedPlanDeclaration` for task
+  patterns, reclaim and provenance.
+- **Target commit.** `loadTargetIntegrationBranch` reads only
+  `branch.integrationBranch` committed at the target commit, through
+  `config.CommittedIntegrationBranch`. It skips the removed-key guard, and
+  syntax and document-shape errors still fail. When no controller supplies
+  an integration config, that value feeds `ResolveIntegrationBranch`, and so
+  drives `validateTarget` and the remote-release-ref rows.
+
+An earlier revision of this fix took the gating integration branch from the
+source commit. That let a source branch declare itself the integration
+branch and authorize its own promotion. The source's value now never gates
+and is never a fallback. A target that declares none keeps the heuristic,
+which refuses a release.
 
 Nothing reads a release declaration before the fetch. An earlier version
 read the local source ref pre-fetch whenever `--expect-source` was not
@@ -83,9 +100,10 @@ not support glob pathspecs.
 
 `config.LoadCommittedTaskPattern` applies the removed-key guard, the
 literal-protected-name check and the other root declaration rules to the
-committed bytes. Its errors name the file and the short commit. A root
-declaration committed as a symbolic link is refused. The check report prints
-`INFO  declaration — <path> at release source commit <short>`. Non-release
+source's committed bytes. Its errors name the file and the short commit. A
+root declaration committed as a symbolic link is refused on either side. The
+check report prints
+`INFO  declaration — <path> at release source commit <short>; integrationBranch source=<list>, target=<list> (from <file> at target commit <short>, gates the release)`. Non-release
 integration still reads the working tree. Its pre-fetch read and post-fetch
 change detection are unchanged.
 
