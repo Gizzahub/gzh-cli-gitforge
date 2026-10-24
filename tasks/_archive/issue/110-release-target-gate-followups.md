@@ -11,7 +11,7 @@ created: 2026-10-23
 
 ## Summary
 
-[ISSUE-109](../_archive/issue/109-release-reads-target-working-tree-declaration.md) gates a
+[ISSUE-109](109-release-reads-target-working-tree-declaration.md) gates a
 `--release` on the `branch.integrationBranch` committed at the target commit.
 Its third review left two non-blocking follow-ups. Neither weakens the gate:
 both fail closed.
@@ -77,6 +77,22 @@ file on the default branch.
   mismatched `--expect-target` that asserts `ErrTargetMismatch`.
 - (b) Add a paragraph to the "Declaration source" section of
   `docs/commands/integrate-release.md`.
+
+## Resolution
+
+Resolved on 2026-10-24 in the commit that archives this card.
+
+- (a) `readReleaseDeclarations` compares `--expect-target` right after
+  `resolveReleaseTarget`, so a mismatch is `ErrTargetMismatch` whatever the
+  target declaration holds. The "moved" error in `checkTargetSHA` wraps
+  `ErrTargetMismatch` too.
+- Tests: an unparsable and a symlinked target declaration, each with a
+  mismatched and a matching `--expect-target`. The "moved" error is tested
+  on `checkTargetSHA` directly, because `Check` cannot move the ref between
+  its two reads.
+- (b) The "Declaration source" section of
+  `docs/commands/integrate-release.md` now states the target-side symlink
+  refusal and its recovery.
 
 ## Scope
 

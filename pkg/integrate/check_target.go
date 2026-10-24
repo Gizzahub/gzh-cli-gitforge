@@ -237,6 +237,12 @@ func readReleaseDeclarations(ctx context.Context, g gitRepo, plan *TargetPlan, o
 	if err != nil {
 		return "", err
 	}
+	// The caller's expectation is held before the target declaration is
+	// read: a mismatched --expect-target is a target mismatch even when the
+	// declaration at that commit is unparsable or refused.
+	if opts.ExpectTarget != "" && targetSHA != opts.ExpectTarget {
+		return "", fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, opts.Target, targetSHA, opts.ExpectTarget)
+	}
 	integration, source, err := loadTargetIntegrationBranch(ctx, g, targetSHA)
 	if err != nil {
 		return "", err
@@ -252,7 +258,7 @@ func readReleaseDeclarations(ctx context.Context, g gitRepo, plan *TargetPlan, o
 // its gating declaration from, if any, and to the caller's expectation.
 func checkTargetSHA(target, tsha, releaseTargetSHA, expect string) error {
 	if releaseTargetSHA != "" && tsha != releaseTargetSHA {
-		return fmt.Errorf("release target %s moved from %s to %s while the plan was resolved", target, releaseTargetSHA, tsha)
+		return fmt.Errorf("%w: release target %s moved from %s to %s while the plan was resolved", ErrTargetMismatch, target, releaseTargetSHA, tsha)
 	}
 	if expect != "" && tsha != expect {
 		return fmt.Errorf("%w: target %s is %s, expected %s", ErrTargetMismatch, target, tsha, expect)

@@ -57,6 +57,13 @@ output names both values:
   INFO  declaration — /repo/.gz-git.yaml at release source commit 0ee4886d16bb; integrationBranch source=develop, target=develop (from .gz-git.yaml at target commit 9aab0def1234, gates the release)
 ```
 
+The symbolic-link refusal binds the target too. Since ISSUE-109 the target
+declaration is read from the target commit, where a root `.gz-git.*`
+committed as a symbolic link is refused; the earlier working-tree read
+followed the link, so a target that used to release now refuses every
+release. To recover, commit the declaration as a regular file on the default
+branch.
+
 Nothing reads a release declaration before the fetch. A local ref can be
 stale and still carry a key the remote already deleted; reading it would
 judge a commit nobody approved. Each declaration is read once, after the

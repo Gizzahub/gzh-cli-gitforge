@@ -39,7 +39,6 @@ ______________________________________________________________________
 | 104 | [sync-and-status-loaders-duplicate-workspace-rules](issue/104-sync-and-status-loaders-duplicate-workspace-rules.md) | P3       | sync와 status가 같은 workspaces 설정을 서로 다른 로더로 읽고, 네 규칙이 두 곳에 중복 구현되어 네 번 어긋났다                                                   |
 | 107 | [reusable-gate-worktree](issue/107-reusable-gate-worktree.md)                                                       | P3       | 고정 경로에서 재사용하는 거버넌스 게이트 worktree가 없다. 이득은 미측정(sigdock-idp-rs 632–1065s, 통제 측정 선행)                                              |
 | 108 | [not-ready-run-reports-unbound-pre-mutation](issue/108-not-ready-run-reports-unbound-pre-mutation.md)               | P3       | 실행 컨텍스트 없는 not-ready 거부에 "pre-mutation outcome is not bound" 오류가 덧붙어 두 번째 실패처럼 보인다                                                  |
-| 110 | [release-target-gate-followups](issue/110-release-target-gate-followups.md)                                         | P3       | ISSUE-109 후속: `--expect-target` 비교가 대상 선언 읽기보다 늦어 불일치가 exit 4로 보고되지 않는다. 심볼릭 링크 대상 선언 거부는 미문서화                      |
 
 [ISSUE-20](_archive/issue/20-forge-event-stream-product-surface.md)은 devbox에서 기각된 카드의 포인터만 남는다.
 

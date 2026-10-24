@@ -187,6 +187,97 @@ func TestCheck_ReleaseRejectsUnparsableTargetDeclaration(t *testing.T) {
 	}
 }
 
+// A stale --expect-target must fail with ErrTargetMismatch whatever the
+// target declaration holds: an unparsable declaration must not mask the
+// mismatch the caller would otherwise see as exit 4.
+func TestCheck_ReleaseMismatchedExpectTargetBeatsDeclarationError(t *testing.T) {
+	t.Parallel()
+	fx := releaseDeclarationFixture(t, "branch: [unclosed\n", declClean)
+	opts := releaseDeclarationOptions(t, fx)
+	// The release source is the target's child, so it is a full commit that
+	// differs from the target.
+	opts.ExpectTarget = opts.ExpectSource
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if !errors.Is(err, ErrTargetMismatch) {
+		t.Fatalf("err = %v, want ErrTargetMismatch", err)
+	}
+
+	// With a matching --expect-target the declaration error is still
+	// reported, and it is not a target mismatch.
+	opts = releaseDeclarationOptions(t, fx)
+	opts.ExpectTarget = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	_, err = Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err == nil || errors.Is(err, ErrTargetMismatch) || !strings.Contains(err.Error(), "release target declaration") {
+		t.Fatalf("err = %v, want the unparsable-declaration refusal", err)
+	}
+}
+
+// symlinkedTargetFixture commits the target default branch's root
+// .gz-git.yaml as a symbolic link, which the committed-declaration read
+// refuses, and the release source carries a regular declaration.
+func symlinkedTargetFixture(t *testing.T) *testutil.WorktreeOrigin {
+	t.Helper()
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	writeRepoFile(t, fx.Clone, "real-decl.yaml", declClean)
+	if err := os.Symlink("real-decl.yaml", filepath.Join(fx.Clone, ".gz-git.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "link policy")
+	runGit(t, fx.Clone, "push", fx.Remote, "HEAD:refs/heads/main")
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	runGit(t, fx.Worktree, "checkout", "-B", "develop", fx.Remote+"/main")
+	runGit(t, fx.Worktree, "rm", "-q", ".gz-git.yaml")
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", declClean)
+	writeRepoFile(t, fx.Worktree, "develop-only.txt", "release\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "develop work")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "develop")
+	runGit(t, fx.Worktree, "checkout", "--detach")
+	runGit(t, fx.Worktree, "branch", "-D", "develop")
+	runGit(t, fx.Clone, "fetch", fx.Remote)
+	return fx
+}
+
+// A symlinked root declaration on the target must not mask a mismatched
+// --expect-target either: the expectation is held before the declaration is
+// read.
+func TestCheck_ReleaseMismatchedExpectTargetBeatsSymlinkedTargetDeclaration(t *testing.T) {
+	t.Parallel()
+	fx := symlinkedTargetFixture(t)
+	opts := releaseDeclarationOptions(t, fx)
+	opts.ExpectTarget = opts.ExpectSource
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if !errors.Is(err, ErrTargetMismatch) {
+		t.Fatalf("err = %v, want ErrTargetMismatch", err)
+	}
+	if strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("err %q came from the declaration read, not the expectation", err)
+	}
+
+	// With a matching --expect-target the fixture reaches the declaration
+	// read, which refuses the symbolic link.
+	opts = releaseDeclarationOptions(t, fx)
+	opts.ExpectTarget = strings.TrimSpace(gitOutput(t, fx.Clone, "rev-parse", fx.Remote+"/main"))
+	_, err = Check(context.Background(), gitcmd.NewExecutor(), opts)
+	if err == nil || errors.Is(err, ErrTargetMismatch) || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("err = %v, want the symbolic-link refusal", err)
+	}
+}
+
+// A target that moves between the declaration read and the plan resolution
+// is a target mismatch too, so it maps to the same caller exit. Check cannot
+// provoke the move — nothing fetches or rewrites the ref between the two
+// rev-parses of the same ref in the same repository — so the wrapper is
+// tested directly.
+func TestCheckTargetSHA_WrapsMovedTargetInTargetMismatch(t *testing.T) {
+	t.Parallel()
+	err := checkTargetSHA("origin/main", "bbbb", "aaaa", "")
+	if !errors.Is(err, ErrTargetMismatch) || !strings.Contains(err.Error(), "moved from aaaa to bbbb") {
+		t.Fatalf("err = %v, want wrapped ErrTargetMismatch naming the move", err)
+	}
+}
+
 func TestCheck_ReleaseWithoutExpectSourceReadsSourceRef(t *testing.T) {
 	t.Parallel()
 	fx := releaseDeclarationFixture(t, declWithRemovedKey, declClean)
