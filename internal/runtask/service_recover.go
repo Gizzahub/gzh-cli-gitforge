@@ -19,6 +19,17 @@ const partialCleanupReason = "integration succeeded but task recovery cleanup fa
 // verifies that the recorded task commit is in the pushed source branch, then
 // appends evidence naming whatever engine cleanup left behind.
 func (s *Service) Recover(ctx context.Context, task string) (resp TaskResponse, code int) {
+	return s.recoverExecution(ctx, task, false)
+}
+
+// RecoverClaimDead is Recover for a FINISHING claim the recorded owner declares
+// dead without the same-host pid proof: a claim from another host, without a
+// pid. A claimant still running on this host is refused.
+func (s *Service) RecoverClaimDead(ctx context.Context, task string) (resp TaskResponse, code int) {
+	return s.recoverExecution(ctx, task, true)
+}
+
+func (s *Service) recoverExecution(ctx context.Context, task string, claimDead bool) (resp TaskResponse, code int) {
 	task = normalize(task)
 	if task == "" {
 		return response(TaskExecutionStatusBlocked, task, "task is required", "gz-git run recover <task>"), 1
@@ -44,14 +55,24 @@ func (s *Service) Recover(ctx context.Context, task string) (resp TaskResponse, 
 	if !found {
 		return response(TaskExecutionStatusUnknown, task, "task execution was not found", "gz-git run list", "run-list"), 1
 	}
+	if err := validateExecutionPurpose(execution); err != nil {
+		return response(TaskExecutionStatusBlocked, task, err.Error(), "inspect execution metadata; gz-git will not recover a purpose/branch mismatch"), 1
+	}
 	previous := receipts[task]
+	if !receiptPurposeMatchesOrAbsent(execution, previous) {
+		return response(TaskExecutionStatusBlocked, task, "receipt purpose does not match the execution", "inspect task runtime receipt evidence"), 1
+	}
 	if previous.Status == TaskExecutionStatusDone && validateDoneReceipt(task, &execution, &previous) == nil {
 		r := response(TaskExecutionStatusDone, task, "task execution is already DONE: "+previous.Reason, "no action required", "run-status")
 		r.Execution, r.Receipt = &execution, &previous
 		return r, 0
 	}
-	if !isPartialCleanupReceipt(execution, previous) {
-		return response(TaskExecutionStatusBlocked, task, "run-recover requires the recorded exit-3 provider cleanup failure", "inspect task runtime receipt evidence"), 1
+	claimed := isFinishClaim(previous)
+	if claimDead && !claimed {
+		return response(TaskExecutionStatusBlocked, task, "run-recover --claim-dead requires a FINISHING claim as the latest receipt; found "+previous.Operation+" "+previous.Status, "run gz-git run status "+task, "run-status"), 1
+	}
+	if !claimed && !isPartialCleanupReceipt(execution, previous) {
+		return response(TaskExecutionStatusBlocked, task, "run-recover requires the recorded exit-3 provider cleanup failure, a bound native completion, or an interrupted run-finish", "inspect task runtime receipt evidence"), 1
 	}
 	owner, err := s.owner(ctx)
 	if err != nil || !sameOwner(execution.Owner, owner) {
@@ -62,6 +83,13 @@ func (s *Service) Recover(ctx context.Context, task string) (resp TaskResponse, 
 	cfg, err := s.config()
 	if err != nil {
 		return response(TaskExecutionStatusBlocked, task, err.Error(), "repair task runtime configuration"), 1
+	}
+	if claimed {
+		var declaredBy *TaskOwner
+		if claimDead {
+			declaredBy = &owner
+		}
+		return s.recoverInterruptedFinish(ctx, store, execution, previous, cfg, declaredBy)
 	}
 	receipt, err := s.recoveryReceipt(ctx, execution, previous, cfg)
 	if err != nil {
@@ -76,18 +104,33 @@ func (s *Service) Recover(ctx context.Context, task string) (resp TaskResponse, 
 }
 
 func isPartialCleanupReceipt(execution TaskExecution, receipt TaskReceipt) bool {
-	if receipt.Task != execution.Task || receipt.Owner != execution.Owner || receipt.Branch != execution.Branch || receipt.Worktree != execution.Worktree ||
+	if executionPurpose(execution) != TaskExecutionPurposeDelivery || !receiptPurposeMatchesOrAbsent(execution, receipt) ||
+		receipt.Task != execution.Task || receipt.Owner != execution.Owner || receipt.Branch != execution.Branch || receipt.Worktree != execution.Worktree ||
 		receipt.Operation != "finish" || receipt.Status != TaskExecutionStatusBlocked || receipt.Reason != partialCleanupReason ||
 		strings.TrimSpace(receipt.SourceHeadBefore) == "" || strings.TrimSpace(receipt.TaskHead) == "" || !receipt.SourcePushed {
 		return false
 	}
 	for _, diagnostic := range receipt.Diagnostics {
-		args := strings.Join(diagnostic.Args, " ")
-		if diagnostic.Command == integrationProviderGZGit && (args == "integrate run" || args == "integrate run --no-fetch") && diagnostic.ExitCode == 3 {
+		if diagnostic.Command == integrationProviderGZGit && isIntegrateRun(diagnostic.Args, integrationTarget(execution)) && diagnostic.ExitCode == 3 {
 			return true
 		}
 	}
 	return false
+}
+
+// isIntegrateRun accepts the run invocations the lifecycle has issued: bare,
+// with --no-fetch, and, since finish began naming the target, with --target
+// pinned to this execution's recorded source. A run against any other target
+// is not evidence about this execution's landing.
+func isIntegrateRun(args []string, target string) bool {
+	if len(args) < 2 || args[0] != "integrate" || args[1] != "run" {
+		return false
+	}
+	rest := args[2:]
+	if len(rest) >= 2 && rest[0] == integrationTargetFlag && rest[1] == target {
+		rest = rest[2:]
+	}
+	return len(rest) == 0 || (len(rest) == 1 && rest[0] == integrationNoFetchFlag)
 }
 
 func (s *Service) recoveryReceipt(ctx context.Context, execution TaskExecution, previous TaskReceipt, cfg TaskRuntimeConfig) (TaskReceipt, error) {
@@ -98,7 +141,11 @@ func (s *Service) recoveryReceipt(ctx context.Context, execution TaskExecution, 
 		TaskHead: previous.TaskHead, ToolVersion: toolVersion(), ToolRevision: toolRevision(),
 	}
 	probe := func(args ...string) (CommandResult, error) {
-		result, err := s.command(ctx, s.root, "git", args...)
+		probeCtx := ctx
+		if len(args) > 0 && args[0] != "ls-remote" {
+			probeCtx = offlineObservationContext(ctx)
+		}
+		result, err := s.command(probeCtx, s.root, "git", args...)
 		r.Diagnostics = append(r.Diagnostics, diagnostic(result))
 		if err != nil {
 			return result, err

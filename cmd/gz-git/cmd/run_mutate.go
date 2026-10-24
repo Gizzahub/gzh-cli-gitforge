@@ -18,34 +18,44 @@ import (
 var (
 	runStartJSON           bool
 	runStartType           string
+	runStartPurpose        string
+	runStartResume         bool
 	runFinishJSON          bool
 	runRecoverJSON         bool
+	runRecoverClaimDead    bool
 	runAbortJSON           bool
 	runAbortReason         string
 	runDiscardJSON         bool
 	runDiscardReason       string
 	runDiscardTakeOverFrom string
+	runDiscardLocalOnly    bool
 	runImportCEJSON        bool
 	runImportCEDryRun      bool
 )
 
 var runStartCmd = &cobra.Command{
 	Use:   "start <task>",
-	Short: "Create an owner-bound task worktree (--type, --json)",
-	Long: cliutil.QuickStartHelp(`  gz-git run start <task> --type <feat|fix|refactor|docs|test|chore|perf> [--json]
+	Short: "Create an owner-bound task worktree (--type, --purpose, --json)",
+	Long: cliutil.QuickStartHelp(`  gz-git run start <task> --type <feat|fix|refactor|docs|test|chore|perf> [--purpose delivery|experiment|review] [--resume] [--json]
 
 Creates one owner-bound task worktree through Worktrunk and records the
-execution under the current actor/host identity.`),
+execution under the current actor/host identity. --resume returns an
+existing execution of your own instead of refusing it; it cannot change
+the recorded execution type or purpose.`),
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if strings.TrimSpace(runStartType) == "" {
 			return cliutil.NewExitError(cliutil.ExitToolError, fmt.Errorf("--type is required (feat|fix|refactor|docs|test|chore|perf)"))
 		}
+		purpose := runtask.TaskExecutionPurpose(runStartPurpose)
+		if runStartPurpose != "" && !purpose.Valid() {
+			return cliutil.NewExitError(cliutil.ExitToolError, fmt.Errorf("--purpose must be delivery, experiment, or review"))
+		}
 		svc, err := newRunService()
 		if err != nil {
 			return cliutil.NewExitError(cliutil.ExitToolError, err)
 		}
-		result := svc.Start(cmdContext(cmd), args[0], runtask.TaskExecutionType(runStartType))
+		result := svc.StartWithPurpose(cmdContext(cmd), args[0], runtask.TaskExecutionType(runStartType), purpose, runStartResume)
 		code := 0
 		if result.Status == runtask.TaskExecutionStatusBlocked {
 			code = 1
@@ -79,16 +89,22 @@ the choice to the caller.`),
 
 var runRecoverCmd = &cobra.Command{
 	Use:   "recover <task>",
-	Short: "Close a proven partial cleanup without deleting residuals (--json)",
-	Long: cliutil.QuickStartHelp(`  gz-git run recover <task> [--json]
+	Short: "Close a proven partial cleanup or a dead run-finish claim (--json)",
+	Long: cliutil.QuickStartHelp(`  gz-git run recover <task> [--claim-dead] [--json]
 
 Closes a proven exit-3 provider cleanup failure without repeating
-integration or removing residual paths or refs.`),
+integration or removing residual paths or refs. --claim-dead recovers a
+standing FINISHING claim the caller declares dead; a claim whose run-finish
+process is still running on this host is refused.`),
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		svc, err := newRunService()
 		if err != nil {
 			return cliutil.NewExitError(cliutil.ExitToolError, err)
+		}
+		if runRecoverClaimDead {
+			result, code := svc.RecoverClaimDead(cmdContext(cmd), args[0])
+			return runResult(cmd.OutOrStdout(), result, runRecoverJSON, false, code)
 		}
 		result, code := svc.Recover(cmdContext(cmd), args[0])
 		return runResult(cmd.OutOrStdout(), result, runRecoverJSON, false, code)
@@ -115,10 +131,11 @@ Appends a terminal receipt; removes no worktree, branch, or remote ref.`),
 var runDiscardCmd = &cobra.Command{
 	Use:   "discard <task>",
 	Short: "Discard a clean task worktree and branch without integration (--reason, --json)",
-	Long: cliutil.QuickStartHelp(`  gz-git run discard <task> --reason R [--take-over-from actor/host] [--json]
+	Long: cliutil.QuickStartHelp(`  gz-git run discard <task> --reason R [--take-over-from actor/host] [--local-only] [--json]
 
 Requires the exact owner or an explicit same-host takeover; refuses dirty
-worktrees and remote branches.`),
+worktrees and remote branches. --local-only reclaims the local resources
+only: no network is used and remote refs stay unchecked and unchanged.`),
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if strings.TrimSpace(runDiscardReason) == "" {
@@ -128,7 +145,7 @@ worktrees and remote branches.`),
 		if err != nil {
 			return cliutil.NewExitError(cliutil.ExitToolError, err)
 		}
-		result, code := svc.Discard(cmdContext(cmd), args[0], runDiscardReason, runDiscardTakeOverFrom)
+		result, code := svc.DiscardWithOptions(cmdContext(cmd), args[0], runDiscardReason, runDiscardTakeOverFrom, runtask.DiscardOptions{LocalOnly: runDiscardLocalOnly})
 		return runResult(cmd.OutOrStdout(), result, runDiscardJSON, false, code)
 	},
 }
@@ -177,13 +194,17 @@ func init() {
 	runCmd.AddCommand(runDiscardCmd)
 	runCmd.AddCommand(runImportCECmd)
 	runStartCmd.Flags().StringVar(&runStartType, "type", "", "execution type (feat|fix|refactor|docs|test|chore|perf)")
+	runStartCmd.Flags().StringVar(&runStartPurpose, "purpose", "", "execution purpose (delivery|experiment|review); default delivery")
+	runStartCmd.Flags().BoolVar(&runStartResume, "resume", false, "return your own existing execution instead of refusing it")
 	runStartCmd.Flags().BoolVar(&runStartJSON, "json", false, "print the response document")
 	runFinishCmd.Flags().BoolVar(&runFinishJSON, "json", false, "print the response document")
+	runRecoverCmd.Flags().BoolVar(&runRecoverClaimDead, "claim-dead", false, "recover a FINISHING claim whose run-finish process is declared dead")
 	runRecoverCmd.Flags().BoolVar(&runRecoverJSON, "json", false, "print the response document")
 	runAbortCmd.Flags().StringVar(&runAbortReason, "reason", "", "why this execution will never integrate")
 	runAbortCmd.Flags().BoolVar(&runAbortJSON, "json", false, "print the response document")
 	runDiscardCmd.Flags().StringVar(&runDiscardReason, "reason", "", "why this task worktree is discarded (required)")
 	runDiscardCmd.Flags().StringVar(&runDiscardTakeOverFrom, "take-over-from", "", "exact actor/host of the recorded owner, for same-host takeover")
+	runDiscardCmd.Flags().BoolVar(&runDiscardLocalOnly, "local-only", false, "reclaim local resources only; remote branch is not checked or changed")
 	runDiscardCmd.Flags().BoolVar(&runDiscardJSON, "json", false, "print the response document")
 	runImportCECmd.Flags().BoolVar(&runImportCEDryRun, "dry-run", false, "report what would be imported without writing")
 	runImportCECmd.Flags().BoolVar(&runImportCEJSON, "json", false, "print the import report document")

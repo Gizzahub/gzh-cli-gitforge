@@ -396,7 +396,7 @@ func TestWorktrunk080LifecycleFixture(t *testing.T) {
 		t.Fatalf("doctor blocked against installed Worktrunk %s: %s (%s)", worktrunkVersion, doctor.Reason, doctor.NextAction)
 	}
 
-	start := service.Start(ctx, task, TaskExecutionTypeChore)
+	start := service.StartWithPurpose(ctx, task, TaskExecutionTypeChore, "", false)
 	if start.Status != TaskExecutionStatusActive || start.Execution == nil {
 		t.Fatalf("run-start status = %s, reason = %s; want ACTIVE against installed Worktrunk %s", start.Status, start.Reason, worktrunkVersion)
 	}

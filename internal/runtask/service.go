@@ -81,7 +81,14 @@ func identityNextAction(err error) string {
 }
 
 func (s *Service) command(ctx context.Context, dir, name string, args ...string) (CommandResult, error) {
-	return s.runner.Run(ctx, CommandRequest{Command: name, Args: args, WorkDir: dir})
+	request := CommandRequest{Command: name, Args: args, WorkDir: dir}
+	// Offline observation forbids the Git commands it shapes from reading a
+	// remote; probes that are themselves network-backed are excluded by their
+	// callers, never by this env.
+	if isOfflineObservation(ctx) && name == "git" {
+		request.Env = map[string]string{"GIT_NO_LAZY_FETCH": "1", "GIT_OPTIONAL_LOCKS": "0"}
+	}
+	return s.runner.Run(ctx, request)
 }
 
 // resolveCommonDir resolves the repository's git common directory the way

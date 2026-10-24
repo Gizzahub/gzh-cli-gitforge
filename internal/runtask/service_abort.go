@@ -8,6 +8,7 @@ package runtask
 import (
 	"context"
 	"os"
+	"strings"
 )
 
 // Abort closes one execution as ABORTED by appending a terminal receipt.
@@ -50,15 +51,24 @@ func (s *Service) Abort(ctx context.Context, task, reason string) (resp TaskResp
 	if !found {
 		return response(TaskExecutionStatusUnknown, task, "task execution was not found", "gz-git run list", "run-list"), 1
 	}
+	if err := validateExecutionPurpose(execution); err != nil {
+		return response(TaskExecutionStatusBlocked, task, err.Error(), "inspect execution metadata; gz-git will not act on a purpose/branch mismatch"), 1
+	}
 	// Already terminal exits 0. The caller asked for a closed record and a
 	// closed record is what exists, so a recovery loop that aborts twice is
 	// not a failure -- the same reading Finish gives an already-DONE task.
 	previous := receipts[task]
+	if !receiptPurposeMatchesOrAbsent(execution, previous) {
+		return response(TaskExecutionStatusBlocked, task, "receipt purpose does not match the execution", "inspect task runtime receipt evidence"), 1
+	}
 	validDone := previous.Status == TaskExecutionStatusDone && validateDoneReceipt(task, &execution, &previous) == nil
 	if previous.Status == TaskExecutionStatusAborted || validDone {
 		r := response(previous.Status, task, "task execution is already "+previous.Status+": "+previous.Reason, "no action required", "run-status")
 		r.Execution, r.Receipt = &execution, &previous
 		return r, 0
+	}
+	if isFinishClaim(previous) {
+		return refuseClaimed(task, "run-abort", previous)
 	}
 	owner, err := s.owner(ctx)
 	if err != nil || !sameOwner(execution.Owner, owner) {
@@ -66,8 +76,11 @@ func (s *Service) Abort(ctx context.Context, task, reason string) (resp TaskResp
 		appendIdentityDiagnostic(&res, err)
 		return res, 1
 	}
+	if executionPurpose(execution) != TaskExecutionPurposeDelivery && strings.TrimSpace(reason) == "" {
+		return response(TaskExecutionStatusBlocked, task, "experiment and review executions require a non-empty abort reason", "run gz-git run abort "+task+" --reason R"), 1
+	}
 	receipt := TaskReceipt{
-		Task: task, Operation: "abort", Status: TaskExecutionStatusAborted,
+		Task: task, Purpose: string(executionPurpose(execution)), Operation: "abort", Status: TaskExecutionStatusAborted,
 		Owner: execution.Owner, Branch: execution.Branch, Worktree: execution.Worktree,
 		Reason: abortReason(reason), CreatedAt: s.now().UTC(),
 	}
@@ -119,5 +132,18 @@ func terminalAbortReceipt(receipt TaskReceipt) bool {
 	}
 	return receipt.Operation == "discard" && receipt.PerformedBy != nil && receipt.PerformedBy.Valid() &&
 		receipt.PerformedBy.Host == receipt.Owner.Host && receipt.WorktreeRemoved &&
-		receipt.LocalBranchRemoved && receipt.RemoteBranchRemoved
+		receipt.LocalBranchRemoved && discardRemoteEvidenceComplete(receipt)
+}
+
+// Legacy discard receipts require remote absence; explicit local-only receipts
+// close local reclamation without claiming that a remote ref was removed.
+func discardRemoteEvidenceComplete(receipt TaskReceipt) bool {
+	switch receipt.DiscardScope {
+	case "":
+		return receipt.RemoteBranchRemoved && (receipt.RemoteBranchStatus == "" || receipt.RemoteBranchStatus == "absent")
+	case "local-only":
+		return !receipt.RemoteBranchRemoved && receipt.RemoteBranchStatus == "unchecked"
+	default:
+		return false
+	}
 }

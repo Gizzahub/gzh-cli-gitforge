@@ -8,15 +8,24 @@ package runtask
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
-// Start creates the owner-bound task worktree through Worktrunk and records
-// the ACTIVE execution, returning an existing live execution instead of
-// starting twice and replacing a closed record in place.
-func (s *Service) Start(ctx context.Context, task string, kind TaskExecutionType) TaskResponse {
+// StartWithPurpose creates the owner-bound task worktree through Worktrunk
+// and records the ACTIVE execution. An unfinished execution for the same task
+// is never handed back implicitly: owner identity is only actor/host/kind, so
+// two concurrent sessions of one agent are indistinguishable and the second
+// would silently adopt the first one's worktree. resume is the explicit
+// statement that the caller owns the existing execution and wants it
+// returned; it cannot change the recorded type or purpose. A missing purpose
+// is accepted only as legacy delivery; an explicit invalid value is rejected
+// before any runtime mutation.
+//
+//nolint:gocyclo // guard ladder with one BLOCKED answer per branch; extraction would scatter the pinned preflight order
+func (s *Service) StartWithPurpose(ctx context.Context, task string, kind TaskExecutionType, purpose TaskExecutionPurpose, resume bool) TaskResponse {
 	task = normalize(task)
-	if task == "" || !kind.Valid() {
-		return response(TaskExecutionStatusBlocked, task, "task and a valid --type are required", "use feat|fix|refactor|docs|test|chore|perf")
+	if task == "" || !kind.Valid() || (purpose != "" && !purpose.Valid()) {
+		return response(TaskExecutionStatusBlocked, task, "task, a valid --type, and purpose delivery|experiment|review are required", "use feat|fix|refactor|docs|test|chore|perf with --purpose delivery|experiment|review")
 	}
 	owner, err := s.resolveOwner(ctx)
 	if err != nil {
@@ -65,17 +74,34 @@ func (s *Service) Start(ctx context.Context, task string, kind TaskExecutionType
 	// Any owner may restart a closed task: a terminal execution holds no
 	// worktree, branch, or lock, so there is nothing for ownership to guard,
 	// and refusing would strand the ID whenever the closer's device is gone.
-	replace, refused := startExistingExecution(task, owner, executions, receipts, identityWarnings)
+	replace, resumed, refused := startExistingExecution(task, kind, purpose, resume, owner, executions, receipts)
+	if resumed != nil {
+		resumed.Warnings = identityWarnings
+		return *resumed
+	}
 	if refused != nil {
 		return *refused
+	}
+	if purpose == "" {
+		purpose = TaskExecutionPurposeDelivery
 	}
 	source, err := s.sourceBranch(ctx)
 	if err != nil {
 		return response(TaskExecutionStatusBlocked, task, err.Error(), "declare branch.integrationBranch in .gz-git.yaml")
 	}
-	branch := fmt.Sprintf("dev/%s/%s/%s/%s", owner.Actor, owner.Host, kind, task)
+	// The base is origin's tip of the source, resolved to a commit. A local
+	// source branch that is not checked out anywhere is never advanced by
+	// finish, which integrates into origin/<source>, so basing on it started
+	// every later run behind the tip and sent it straight into the freshness
+	// gate. A commit, not the remote-tracking name, so no Git or Worktrunk
+	// configuration can make origin/<source> the task branch's upstream.
+	base, err := s.sourceTip(ctx, source)
+	if err != nil {
+		return response(TaskExecutionStatusBlocked, task, err.Error(), "fetch origin "+source+" in the primary checkout and retry")
+	}
+	branch := fmt.Sprintf("%s/%s/%s/%s/%s", purpose.BranchPrefix(), owner.Actor, owner.Host, kind, task)
 	worktree := expectedWorktreePath(worktreeRoot, branch)
-	result, err := s.runner.Run(ctx, CommandRequest{Command: "wt", Args: []string{"--config-set", worktreePathOverride(worktree), "switch", "--create", "--base", source, "--no-cd", "--format=json", branch}, WorkDir: s.root})
+	result, err := s.runner.Run(ctx, CommandRequest{Command: "wt", Args: []string{"--config-set", worktreePathOverride(worktree), "switch", "--create", "--base", base, "--no-cd", "--format=json", branch}, WorkDir: s.root})
 	if err != nil {
 		return response(TaskExecutionStatusBlocked, task, err.Error(), "run gz-git run doctor")
 	}
@@ -111,7 +137,7 @@ func (s *Service) Start(ctx context.Context, task string, kind TaskExecutionType
 			"remove the unexpected worktree manually and inspect Worktrunk configuration")
 	}
 	now := s.now().UTC()
-	execution := TaskExecution{Task: task, Type: kind, Source: source, Owner: owner, Branch: branch, Worktree: worktree, StartedAt: now, UpdatedAt: now}
+	execution := TaskExecution{Task: task, Type: kind, Purpose: string(purpose), Source: source, Owner: owner, Branch: branch, Worktree: worktree, StartedAt: now, UpdatedAt: now}
 	// The record is replaced before the start receipt is appended, on
 	// purpose. If the append fails, the new record sits under the old
 	// terminal receipt and derives DONE/ABORTED until run-start is re-run,
@@ -124,7 +150,7 @@ func (s *Service) Start(ctx context.Context, task string, kind TaskExecutionType
 	} else {
 		executions = append(executions, execution)
 	}
-	startReceipt := TaskReceipt{Task: task, Operation: "start", Status: TaskExecutionStatusActive, Owner: owner, Branch: branch, Worktree: worktree, Reason: "worktree created and inventory verified", CreatedAt: now, Diagnostics: []CommandDiagnostics{diagnostic(result), diagnostic(inventory.Diagnostic)}}
+	startReceipt := TaskReceipt{Task: task, Purpose: string(purpose), Operation: "start", Status: TaskExecutionStatusActive, Owner: owner, Branch: branch, Worktree: worktree, Reason: "worktree created and inventory verified", CreatedAt: now, Diagnostics: []CommandDiagnostics{diagnostic(result), diagnostic(inventory.Diagnostic)}}
 	if err := store.save(executions); err != nil {
 		startReceipt.Status, startReceipt.Reason, startReceipt.CreatedAt = TaskExecutionStatusBlocked, "worktree was created but execution metadata persistence failed: "+err.Error(), s.now().UTC()
 		if receiptErr := store.appendReceipt(startReceipt); receiptErr != nil {
@@ -139,23 +165,38 @@ func (s *Service) Start(ctx context.Context, task string, kind TaskExecutionType
 		r.Execution, r.Receipt, r.Diagnostics = &execution, &startReceipt, startReceipt.Diagnostics
 		return r
 	}
-	r := response(TaskExecutionStatusActive, task, "task execution started", "work in the task worktree; use run-status to evaluate finish readiness", "run-status")
+	r := response(TaskExecutionStatusActive, task, "task execution started", "work in the task worktree; use run-status to evaluate finish readiness; run-finish runs from the primary checkout, after the repository lint passes and the branch is current with the source tip", "run-status")
 	r.Execution, r.Diagnostics = &execution, []CommandDiagnostics{diagnostic(result), diagnostic(inventory.Diagnostic)}
 	r.Warnings = identityWarnings
 	return r
 }
 
 // startExistingExecution answers how a recorded execution for task meets a
-// new start: the index to replace when the record is closed, or a non-nil
-// response when the record refuses the start or returns the live execution.
-// No record holding the task yields -1 with a nil response.
-func startExistingExecution(task string, owner TaskOwner, executions []TaskExecution, receipts map[string]TaskReceipt, identityWarnings []string) (int, *TaskResponse) {
-	replace := -1
+// new start: the index to replace when the record is closed, a non-nil
+// resumed response when --resume returns the caller's own matching
+// execution, or a non-nil refused response when the record refuses the
+// start. No record holding the task yields -1 with nil responses. An
+// unfinished execution is never handed back implicitly: owner identity is
+// only actor/host/kind, so two concurrent sessions of one agent are
+// indistinguishable and the second would silently adopt the first one's
+// worktree.
+func startExistingExecution(task string, kind TaskExecutionType, purpose TaskExecutionPurpose, resume bool, owner TaskOwner, executions []TaskExecution, receipts map[string]TaskReceipt) (replace int, resumed, refused *TaskResponse) {
+	replace = -1
 	for i := range executions {
 		if executions[i].Task != task {
 			continue
 		}
+		if err := validateExecutionPurpose(executions[i]); err != nil {
+			r := response(TaskExecutionStatusBlocked, task, err.Error(), "inspect execution metadata; gz-git will not resume a purpose/branch mismatch")
+			r.Execution = &executions[i]
+			return -1, nil, &r
+		}
 		previous := receipts[task]
+		if !receiptPurposeValid(previous) || (previous.Task != "" && !purposeMatchesReceipt(executions[i], previous)) {
+			r := response(TaskExecutionStatusBlocked, task, "receipt purpose does not match the execution", "inspect task runtime receipt evidence")
+			r.Execution, r.Receipt = &executions[i], &previous
+			return -1, nil, &r
+		}
 		validDone := previous.Status == TaskExecutionStatusDone && validateDoneReceipt(task, &executions[i], &previous) == nil
 		if previous.Status == TaskExecutionStatusAborted || validDone {
 			replace = i
@@ -164,16 +205,30 @@ func startExistingExecution(task string, owner TaskOwner, executions []TaskExecu
 		if previous.Status == TaskExecutionStatusDone {
 			r := response(TaskExecutionStatusBlocked, task, "finish receipt does not prove this execution completed", "inspect task runtime receipt evidence", "run-status", "run-abort")
 			r.Execution, r.Receipt = &executions[i], &previous
-			return -1, &r
+			return -1, nil, &r
 		}
-		if sameOwner(executions[i].Owner, owner) {
-			r := response(TaskExecutionStatusActive, task, "existing execution returned", "run gz-git run status "+task+" to evaluate finish readiness", "run-status")
+		if !sameOwner(executions[i].Owner, owner) {
+			r := response(TaskExecutionStatusBlocked, task, "task is owned by "+executions[i].Owner.String(), "ask the owner to finish the task")
+			return -1, nil, &r
+		}
+		if !resume {
+			existing := executions[i]
+			reason := fmt.Sprintf("task already has an unfinished execution (branch %s, worktree %s, started %s, owner %s); it may belong to another session of the same owner",
+				existing.Branch, existing.Worktree, existing.StartedAt.UTC().Format(time.RFC3339), existing.Owner.String())
+			r := response(TaskExecutionStatusBlocked, task, reason,
+				"if this execution is yours, run gz-git run start "+task+" --type "+string(kind)+" --purpose "+string(executionPurpose(existing))+" --resume; otherwise inspect it with run-status or end it with run-abort",
+				"run-status", "run-abort")
 			r.Execution = &executions[i]
-			r.Warnings = identityWarnings
-			return -1, &r
+			return -1, nil, &r
 		}
-		r := response(TaskExecutionStatusBlocked, task, "task is owned by "+executions[i].Owner.String(), "ask the owner to finish the task")
-		return -1, &r
+		if executions[i].Type != kind || (purpose != "" && executionPurpose(executions[i]) != purpose) {
+			r := response(TaskExecutionStatusBlocked, task, "--resume cannot change the recorded execution type or purpose", "resume with --type "+string(executions[i].Type)+" --purpose "+string(executionPurpose(executions[i])))
+			r.Execution = &executions[i]
+			return -1, nil, &r
+		}
+		r := response(TaskExecutionStatusActive, task, "existing execution returned", "run gz-git run status "+task+" to evaluate finish readiness", "run-status")
+		r.Execution = &executions[i]
+		return -1, &r, nil
 	}
-	return replace, nil
+	return replace, nil, nil
 }

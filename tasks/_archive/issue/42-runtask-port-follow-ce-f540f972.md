@@ -83,6 +83,29 @@ ISSUE-93(아카이브)의 후속: parity 골든 `doctor-active.json`과
 lock is free")가 남아 있다. 락 제거는 v0.13.0부터 배포됐으므로, 포트를 고친 뒤
 설치된 ce와 gz-git로 골든을 다시 녹화할 때 함께 갱신한다.
 
+## Resolution
+
+2026-10-24, 이 카드를 아카이브하는 커밋과 `689cc042`로 해결했다.
+
+- 참조: 사용자 결정에 따라 설치된 CE `fd175fd2`(0.10.24, clean build)를
+  채택하고 골든 12개를 다시 녹화했다(`689cc042`). 퇴역한 lock-wait help
+  문구도 이때 함께 빠졌다(ISSUE-93 후속).
+- 범위: 사용자 결정에 따라 전체 parity 포트로 진행했다. 원격 추적 ref 기준
+  start/finish, FINISHING 클레임과 그 생존 판정, 잠금 해제 후 provider
+  실행과 제한 대기 재획득, 공유 exit code 분류(`pkg/integrate.RunExitCode`),
+  `--purpose`/`--resume`, `--claim-dead`, `--local-only`, 실행 목적 게이트,
+  오프라인 관찰을 이식했다.
+- 이식하지 않은 항목(bound native completion, sibling lease, provider
+  프로세스 그룹 격리)은 `docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md`에
+  선언했다.
+- 검증(최종 트리, `-tags=parity -count=1 -v`): 포트 모드
+  (`PARITY_TARGET=gz-git`)와 참조 모드 모두 exit 0이다. `TestCEParity` 시나리오에는
+  skip도 fail도 없다. 포트 모드의 유일한 skip은 참조 모드 전용 메타 테스트
+  `TestParityReferenceUsesCheckoutProvider`다.
+- 리뷰 후속은 [ISSUE-112](../../issue/112-runtask-parity-port-followups.md)가
+  맡는다. 원격 추적 ref가 없을 때의 거부 시나리오를 추가할지도 그 카드에서
+  정한다.
+
 ## 완료 판정
 
 - `PARITY_TARGET=gz-git go test ./tests/parity/... -run TestCEParity -count=1`이

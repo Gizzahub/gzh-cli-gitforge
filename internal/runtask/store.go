@@ -6,6 +6,7 @@ package runtask
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,10 @@ import (
 )
 
 type stateStore struct{ dir string }
+
+// errMutationLockExists is the refusal of a lock another live, or unprovably
+// dead, process holds. lockWait retries only this refusal.
+var errMutationLockExists = errors.New("task runtime mutation lock exists")
 
 func newStateStore(commonDir string) stateStore {
 	return stateStore{dir: filepath.Join(commonDir, RuntimeStateDir, "task-runtime", "v1")}
@@ -132,7 +137,7 @@ func (s stateStore) lock() (func(), error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644) // #nosec G302,G304 -- O_EXCL lock under the resolved state dir, not user input
 	if err != nil {
 		if os.IsExist(err) {
-			return nil, fmt.Errorf("task runtime mutation lock exists: %s", path)
+			return nil, fmt.Errorf("%w: %s", errMutationLockExists, path)
 		}
 		return nil, err
 	}
@@ -153,6 +158,23 @@ func (s stateStore) lock() (func(), error) {
 	}
 	syncDir(s.dir)
 	return func() { _ = os.Remove(path) }, nil
+}
+
+// lockWait takes the mutation lock, polling while another process holds it,
+// until wait elapses or ctx ends. Every other lock error returns at once.
+func (s stateStore) lockWait(ctx context.Context, wait, poll time.Duration) (func(), error) {
+	deadline := time.Now().Add(wait)
+	for {
+		unlock, err := s.lock()
+		if err == nil || !errors.Is(err, errMutationLockExists) || !time.Now().Before(deadline) {
+			return unlock, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("%w; stopped waiting: %w", err, ctx.Err())
+		case <-time.After(poll):
+		}
+	}
 }
 func (s stateStore) lockPath() string { return filepath.Join(s.dir, "mutation.lock") }
 
@@ -188,15 +210,21 @@ func (s stateStore) lockInfo(now time.Time) (TaskLockInfo, error) {
 		}
 	}
 	if info.PID > 0 {
-		process, findErr := os.FindProcess(info.PID)
-		running := findErr == nil
-		if running {
-			signalErr := process.Signal(syscall.Signal(0))
-			running = signalErr == nil || errors.Is(signalErr, syscall.EPERM)
-		}
+		running := pidRunning(info.PID)
 		info.PIDRunning = &running
 	}
 	return info, nil
+}
+
+// pidRunning is a variable so tests can make a recorded pid dead or alive
+// without depending on which pids the machine happens to have free.
+var pidRunning = func(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	signalErr := process.Signal(syscall.Signal(0))
+	return signalErr == nil || errors.Is(signalErr, syscall.EPERM)
 }
 
 func syncFile(path string) error {

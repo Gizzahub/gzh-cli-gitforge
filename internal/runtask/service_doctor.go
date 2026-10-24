@@ -62,10 +62,16 @@ func (s *Service) Doctor(ctx context.Context) TaskResponse {
 		res.Lock = &lock
 		return res
 	}
-	if _, err := store.latestReceipts(); err != nil {
+	receipts, err := store.latestReceipts()
+	if err != nil {
 		res.Status, res.Reason, res.NextAction = TaskExecutionStatusBlocked, "read task receipts: "+err.Error(), "inspect task runtime receipt evidence"
 		return res
 	}
+	// A FINISHING claim on any task outlives the run-finish that wrote it
+	// until that process records an outcome, so doctor names each standing
+	// claim: it is the one standing state a user cannot see from a worktree
+	// listing, and the deadlock it signals is otherwise silent.
+	res.Warnings = append(res.Warnings, standingClaimWarnings(receipts)...)
 	version, err := s.command(ctx, s.root, "wt", "--version")
 	if err != nil {
 		// A version command that never started cannot report anything, so the

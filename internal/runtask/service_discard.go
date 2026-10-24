@@ -15,11 +15,24 @@ import (
 	"time"
 )
 
-// Discard removes the exact clean worktree recorded for an unintegrated task.
-// It deliberately uses Worktrunk, and writes an intent receipt before asking
-// Worktrunk to mutate anything, so an interrupted reclaim remains auditable
-// and can be retried from the recorded identity.
+// DiscardOptions declares whether remote absence is part of reclamation.
+type DiscardOptions struct {
+	LocalOnly bool
+}
+
+// Discard removes the exact clean worktree recorded for an unintegrated task
+// after proving remote absence.
 func (s *Service) Discard(ctx context.Context, task, reason, takeOverFrom string) (resp TaskResponse, code int) {
+	return s.DiscardWithOptions(ctx, task, reason, takeOverFrom, DiscardOptions{})
+}
+
+// DiscardWithOptions removes the exact clean worktree recorded for an
+// unintegrated task. It deliberately uses Worktrunk, and writes an intent
+// receipt before asking Worktrunk to mutate anything, so an interrupted
+// reclaim remains auditable and can be retried from the recorded identity.
+// LocalOnly reclaims the local resources only: no network is used, remote
+// refs stay unchecked and unchanged.
+func (s *Service) DiscardWithOptions(ctx context.Context, task, reason, takeOverFrom string, options DiscardOptions) (resp TaskResponse, code int) {
 	task, reason = normalize(task), strings.TrimSpace(reason)
 	if task == "" || reason == "" {
 		return response(TaskExecutionStatusBlocked, task, "task and non-empty discard reason are required", "gz-git run discard <task> --reason R"), 1
@@ -45,7 +58,13 @@ func (s *Service) Discard(ctx context.Context, task, reason, takeOverFrom string
 	if !found {
 		return response(TaskExecutionStatusUnknown, task, "task execution was not found", "gz-git run list", "run-list"), 1
 	}
-	if resp, code, gated := discardReceiptGate(task, execution, receipts); gated {
+	if err := validateExecutionPurpose(execution); err != nil {
+		return response(TaskExecutionStatusBlocked, task, err.Error(), "inspect execution metadata; gz-git will not act on a purpose/branch mismatch"), 1
+	}
+	if !receiptPurposeMatchesOrAbsent(execution, receipts[task]) {
+		return response(TaskExecutionStatusBlocked, task, "receipt purpose does not match the execution", "inspect task runtime receipt evidence"), 1
+	}
+	if resp, code, gated := discardReceiptGate(task, execution, receipts, options.LocalOnly); gated {
 		return resp, code
 	}
 	current, err := s.owner(ctx)
@@ -62,17 +81,17 @@ func (s *Service) Discard(ctx context.Context, task, reason, takeOverFrom string
 	if err != nil {
 		return response(TaskExecutionStatusBlocked, task, err.Error(), "repair task runtime configuration"), 1
 	}
-	if cfg.IntegrationNetworkPolicy == IntegrationNetworkPolicyNoFetch {
-		return response(TaskExecutionStatusBlocked, task, "run-discard requires integration-network-policy allow because no-fetch cannot prove remote branch absence", "set integration-network-policy to allow, then retry run-discard"), 1
+	if cfg.IntegrationNetworkPolicy == IntegrationNetworkPolicyNoFetch && !options.LocalOnly {
+		return response(TaskExecutionStatusBlocked, task, "run-discard requires integration-network-policy allow because no-fetch cannot prove remote branch absence", "use --local-only to reclaim local resources without checking or changing remote refs"), 1
 	}
 	worktree, blocked := s.resolveDiscardWorktree(cfg, executions, receipts, execution)
 	if blocked != nil {
 		return *blocked, 1
 	}
-	if resp, code, done := s.discardExistingWorktree(ctx, store, execution, task, reason, performedBy, cfg, worktree, receipts); done {
+	if resp, code, done := s.discardExistingWorktree(ctx, store, execution, task, reason, performedBy, options.LocalOnly, worktree, receipts); done {
 		return resp, code
 	}
-	inventory, err := s.worktrunkList(ctx)
+	inventory, err := s.discardInventory(ctx, execution, options.LocalOnly)
 	if err != nil {
 		r := response(TaskExecutionStatusBlocked, task, err.Error(), "run gz-git run doctor")
 		r.Diagnostics = []CommandDiagnostics{diagnostic(inventory.Diagnostic)}
@@ -81,37 +100,51 @@ func (s *Service) Discard(ctx context.Context, task, reason, takeOverFrom string
 	if actual, ok := inventory.Paths[execution.Branch]; !ok || actual != execution.Worktree {
 		return response(TaskExecutionStatusBlocked, task, "Worktrunk inventory does not exactly match execution branch and path", "inspect Worktrunk and runtime metadata"), 1
 	}
-	diagnostics, err := s.discardPreconditions(ctx, execution, worktree, cfg)
+	diagnostics, err := s.discardPreconditions(ctx, execution, worktree, options.LocalOnly)
 	if err != nil {
 		r := response(TaskExecutionStatusBlocked, task, err.Error(), "resolve the Git precondition and retry")
 		r.Diagnostics = diagnostics
 		return r, 1
 	}
-	intent := discardReceipt(execution, TaskExecutionStatusBlocked, reason, performedBy, diagnostics, "discard intent recorded before Worktrunk removal", s.now().UTC())
+	intent := discardReceipt(execution, TaskExecutionStatusBlocked, reason, performedBy, diagnostics, "discard intent recorded before Worktrunk removal", s.now().UTC(), options.LocalOnly)
 	if err := store.appendReceipt(intent); err != nil {
 		return response(TaskExecutionStatusBlocked, task, "persist discard intent receipt failed: "+err.Error(), "repair task runtime storage and retry"), 1
 	}
-	removed, runErr := s.command(ctx, s.root, "wt", "remove", "--no-hooks", "--foreground", "--format=json", "-y", "-D", execution.Worktree)
+	removed, runErr := s.discardWorktrunkCommand(ctx, execution, options.LocalOnly, "remove", "--no-hooks", "--foreground", "--format=json", "-y", "-D", execution.Worktree)
 	diagnostics = append(diagnostics, diagnostic(removed))
 	if runErr != nil || removed.ExitCode != 0 {
-		return s.discardRemovalFailure(store, execution, task, performedBy, diagnostics, runErr), 1
+		return s.discardRemovalFailure(store, execution, task, performedBy, diagnostics, runErr, options.LocalOnly), 1
 	}
-	return s.finishDiscard(ctx, store, execution, task, reason, "discard completed", "discard completed but receipt persistence failed: ", "repair task runtime storage and retry gz-git run discard; it will re-verify removal", performedBy, cfg, diagnostics)
+	return s.finishDiscard(ctx, store, execution, task, reason, "discard completed", "discard completed but receipt persistence failed: ", "repair task runtime storage and retry gz-git run discard; it will re-verify removal", performedBy, options.LocalOnly, diagnostics)
 }
 
-// discardReceiptGate refuses a discard a receipt already answers: an
-// idempotent re-discard of a proven discard exits 0, while a DONE receipt or
-// a recorded cleanup failure makes removal either unnecessary or destructive.
-func discardReceiptGate(task string, execution TaskExecution, receipts map[string]TaskReceipt) (TaskResponse, int, bool) {
-	if previous := receipts[task]; terminalAbortReceipt(previous) && previous.Operation == "discard" && discardIdentityMatches(execution, previous) {
+// discardReceiptGate refuses a discard a receipt already answers, in order:
+// an intent whose recorded scope is invalid, a retry that changes the
+// recorded scope, an idempotent re-discard (exit 0), a DONE receipt, a
+// standing FINISHING claim, and a recorded cleanup failure.
+func discardReceiptGate(task string, execution TaskExecution, receipts map[string]TaskReceipt, localOnly bool) (TaskResponse, int, bool) {
+	previous := receipts[task]
+	if isDiscardIntent(execution, previous) && !validDiscardIntentScope(previous) {
+		return response(TaskExecutionStatusBlocked, task, "discard intent scope or remote evidence is invalid", "inspect the recorded discard intent; gz-git will not infer its scope"), 1, true
+	}
+	if discardIdentityMatches(execution, previous) &&
+		(isDiscardIntent(execution, previous) || (previous.Operation == "discard" && terminalAbortReceipt(previous))) &&
+		localOnly != (previous.DiscardScope == "local-only") {
+		return response(TaskExecutionStatusBlocked, task, "discard scope differs from the recorded intent or completion", "retry with the original discard scope; local-only requires --local-only"), 1, true
+	}
+	if terminalAbortReceipt(previous) && previous.Operation == "discard" && discardIdentityMatches(execution, previous) {
 		r := response(TaskExecutionStatusAborted, task, "task execution is already discarded: "+previous.Reason, "no action required", "run-status")
 		r.Execution, r.Receipt = &execution, &previous
 		return r, 0, true
 	}
-	if previous := receipts[task]; previous.Status == TaskExecutionStatusDone {
+	if previous.Status == TaskExecutionStatusDone {
 		return response(TaskExecutionStatusBlocked, task, "run-discard refuses an execution with a DONE receipt", "inspect task runtime receipt evidence"), 1, true
 	}
-	if previous := receipts[task]; isPartialCleanupReceipt(execution, previous) {
+	if isFinishClaim(previous) {
+		r, code := refuseClaimed(task, "run-discard", previous)
+		return r, code, true
+	}
+	if isPartialCleanupReceipt(execution, previous) {
 		return response(TaskExecutionStatusBlocked, task, "run-discard refuses an execution with recorded integration cleanup failure", "use gz-git run recover to preserve the integrated outcome"), 1, true
 	}
 	return TaskResponse{}, 0, false
@@ -163,13 +196,13 @@ func (s *Service) resolveDiscardWorktree(cfg TaskRuntimeConfig, executions []Tas
 // failure refuses, and a gone path without an intent receipt is unavailable
 // to this verb. done=false means the worktree is present and fresh removal
 // proceeds.
-func (s *Service) discardExistingWorktree(ctx context.Context, store stateStore, execution TaskExecution, task, reason string, performedBy *TaskOwner, cfg TaskRuntimeConfig, worktree string, receipts map[string]TaskReceipt) (resp TaskResponse, code int, done bool) {
+func (s *Service) discardExistingWorktree(ctx context.Context, store stateStore, execution TaskExecution, task, reason string, performedBy *TaskOwner, localOnly bool, worktree string, receipts map[string]TaskReceipt) (resp TaskResponse, code int, done bool) {
 	_, worktreeErr := os.Stat(worktree)
 	if worktreeErr != nil && !os.IsNotExist(worktreeErr) {
 		return response(TaskExecutionStatusBlocked, task, "inspect recorded worktree: "+worktreeErr.Error(), "inspect the recorded worktree before retrying"), 1, true
 	}
 	if os.IsNotExist(worktreeErr) && isDiscardIntent(execution, receipts[task]) {
-		resp, code = s.finishDiscard(ctx, store, execution, task, reason, "discard completion recovered from prior intent", "discard cleanup is proven but receipt persistence failed: ", "repair task runtime storage and retry", performedBy, cfg, nil)
+		resp, code = s.finishDiscard(ctx, store, execution, task, reason, "discard completion recovered from prior intent", "discard cleanup is proven but receipt persistence failed: ", "repair task runtime storage and retry", performedBy, localOnly, nil)
 		return resp, code, true
 	}
 	if worktreeErr != nil {
@@ -183,13 +216,20 @@ func (s *Service) discardExistingWorktree(ctx context.Context, store stateStore,
 // intent receipt said why) and the fresh removal path; completion names the
 // proven outcome, and persistFailed and persistNext keep the two callers'
 // storage-failure sentences distinct for whoever reads the receipt log later.
-func (s *Service) finishDiscard(ctx context.Context, store stateStore, execution TaskExecution, task, reason, completion, persistFailed, persistNext string, performedBy *TaskOwner, cfg TaskRuntimeConfig, diagnostics []CommandDiagnostics) (resp TaskResponse, code int) {
-	verified, verifyErr := s.discardRemovalEvidence(ctx, execution, diagnostics, cfg)
+func (s *Service) finishDiscard(ctx context.Context, store stateStore, execution TaskExecution, task, reason, completion, persistFailed, persistNext string, performedBy *TaskOwner, localOnly bool, diagnostics []CommandDiagnostics) (resp TaskResponse, code int) {
+	verified, verifyErr := s.discardRemovalEvidence(ctx, execution, diagnostics, localOnly)
 	if verifyErr != nil {
-		return s.discardVerifyFailure(store, execution, task, performedBy, verified, verifyErr)
+		return s.discardVerifyFailure(store, execution, task, performedBy, verified, verifyErr, localOnly)
 	}
-	final := discardReceipt(execution, TaskExecutionStatusAborted, reason, performedBy, verified, completion, s.now().UTC())
-	final.WorktreeRemoved, final.LocalBranchRemoved, final.RemoteBranchRemoved = true, true, true
+	final := discardReceipt(execution, TaskExecutionStatusAborted, reason, performedBy, verified, completion, s.now().UTC(), localOnly)
+	final.WorktreeRemoved, final.LocalBranchRemoved = true, true
+	final.RemoteBranchRemoved = !localOnly
+	// The default scope's provider dropped the remote branch; the receipt
+	// names the verified absence so downstream readers do not have to re-probe
+	// origin. A local-only discard claims nothing about the remote.
+	if !localOnly {
+		final.RemoteBranchStatus = "absent"
+	}
 	if err := store.appendReceipt(final); err != nil {
 		r := response(TaskExecutionStatusBlocked, task, persistFailed+err.Error(), persistNext)
 		r.Execution, r.Receipt, r.Diagnostics = &execution, &final, verified
@@ -202,8 +242,8 @@ func (s *Service) finishDiscard(ctx context.Context, store stateStore, execution
 
 // discardVerifyFailure records a blocked receipt for removal evidence that
 // did not prove out, and answers with it.
-func (s *Service) discardVerifyFailure(store stateStore, execution TaskExecution, task string, performedBy *TaskOwner, verified []CommandDiagnostics, verifyErr error) (resp TaskResponse, code int) {
-	blocked := discardReceipt(execution, TaskExecutionStatusBlocked, verifyErr.Error(), performedBy, verified, "discard removal is incomplete or unproven", s.now().UTC())
+func (s *Service) discardVerifyFailure(store stateStore, execution TaskExecution, task string, performedBy *TaskOwner, verified []CommandDiagnostics, verifyErr error, localOnly bool) (resp TaskResponse, code int) {
+	blocked := discardReceipt(execution, TaskExecutionStatusBlocked, verifyErr.Error(), performedBy, verified, "discard removal is incomplete or unproven", s.now().UTC(), localOnly)
 	if err := store.appendReceipt(blocked); err != nil {
 		verifyErr = fmt.Errorf("%w; persist failure evidence failed: %w", verifyErr, err)
 	}
@@ -213,13 +253,15 @@ func (s *Service) discardVerifyFailure(store stateStore, execution TaskExecution
 }
 
 // discardRemovalFailure records the blocked receipt that keeps the intent
-// alive after Worktrunk did not complete, and answers with it.
-func (s *Service) discardRemovalFailure(store stateStore, execution TaskExecution, task string, performedBy *TaskOwner, diagnostics []CommandDiagnostics, runErr error) TaskResponse {
+// alive after Worktrunk did not complete, and answers with it. The receipt
+// carries the caller's scope: it becomes the latest receipt, so dropping the
+// scope here would make the recorded intent invalid for the retry it invites.
+func (s *Service) discardRemovalFailure(store stateStore, execution TaskExecution, task string, performedBy *TaskOwner, diagnostics []CommandDiagnostics, runErr error, localOnly bool) TaskResponse {
 	removeReason := "Worktrunk removal did not complete"
 	if runErr != nil {
 		removeReason += ": " + runErr.Error()
 	}
-	blocked := discardReceipt(execution, TaskExecutionStatusBlocked, removeReason, performedBy, diagnostics, "discard intent retained after Worktrunk removal failure", s.now().UTC())
+	blocked := discardReceipt(execution, TaskExecutionStatusBlocked, removeReason, performedBy, diagnostics, "discard intent retained after Worktrunk removal failure", s.now().UTC(), localOnly)
 	if err := store.appendReceipt(blocked); err != nil {
 		removeReason += "; persist failure evidence failed: " + err.Error()
 	}
@@ -259,18 +301,24 @@ func conflictingDiscardExecution(executions []TaskExecution, receipts map[string
 	return ""
 }
 
-func (s *Service) discardPreconditions(ctx context.Context, execution TaskExecution, worktree string, cfg TaskRuntimeConfig) ([]CommandDiagnostics, error) {
+func (s *Service) discardPreconditions(ctx context.Context, execution TaskExecution, worktree string, localOnly bool) ([]CommandDiagnostics, error) {
 	checks := []struct {
 		args   []string
 		reason string
-	}{{[]string{"status", "--porcelain", "--untracked-files=all"}, "task worktree is dirty"}, {[]string{"branch", "--show-current"}, "recorded branch does not match the worktree branch"}, {discardRemoteProbe(execution.Branch, cfg), "task branch still exists on origin"}}
+	}{{[]string{"status", "--porcelain", "--untracked-files=all"}, "task worktree is dirty"}, {[]string{"branch", "--show-current"}, "recorded branch does not match the worktree branch"}}
+	if !localOnly {
+		checks = append(checks, struct {
+			args   []string
+			reason string
+		}{discardRemoteProbe(execution.Branch), "task branch still exists on origin or could not be verified"})
+	}
 	diagnostics := make([]CommandDiagnostics, 0, len(checks))
 	for i, check := range checks {
 		dir := worktree
-		if i == 2 {
+		if len(check.args) > 0 && check.args[0] == "ls-remote" {
 			dir = s.root
 		}
-		result, err := s.command(ctx, dir, "git", check.args...)
+		result, err := s.discardGitCommand(ctx, dir, localOnly, check.args...)
 		diagnostics = append(diagnostics, diagnostic(result))
 		if err != nil {
 			return diagnostics, fmt.Errorf("%s: %w", check.reason, err)
@@ -285,7 +333,7 @@ func (s *Service) discardPreconditions(ctx context.Context, execution TaskExecut
 				return diagnostics, errors.New(check.reason)
 			}
 		case 2:
-			if result.ExitCode != discardRemoteAbsentExit(cfg) {
+			if result.ExitCode != 2 {
 				return diagnostics, errors.New(check.reason)
 			}
 		}
@@ -293,25 +341,26 @@ func (s *Service) discardPreconditions(ctx context.Context, execution TaskExecut
 	return diagnostics, nil
 }
 
-func (s *Service) discardRemovalEvidence(ctx context.Context, execution TaskExecution, diagnostics []CommandDiagnostics, cfg TaskRuntimeConfig) ([]CommandDiagnostics, error) {
+func (s *Service) discardRemovalEvidence(ctx context.Context, execution TaskExecution, diagnostics []CommandDiagnostics, localOnly bool) ([]CommandDiagnostics, error) {
 	if _, err := os.Stat(execution.Worktree); err == nil || !os.IsNotExist(err) {
 		if err != nil {
 			return diagnostics, fmt.Errorf("inspect removed worktree: %w", err)
 		}
 		return diagnostics, fmt.Errorf("recorded worktree still exists after Worktrunk removal")
 	}
-	checks := [][]string{{"show-ref", "--verify", "--quiet", "refs/heads/" + execution.Branch}, discardRemoteProbe(execution.Branch, cfg)}
+	checks := [][]string{{"show-ref", "--verify", "--quiet", "refs/heads/" + execution.Branch}}
+	if !localOnly {
+		checks = append(checks, discardRemoteProbe(execution.Branch))
+	}
 	for index, args := range checks {
-		result, err := s.command(ctx, s.root, "git", args...)
+		result, err := s.discardGitCommand(ctx, s.root, localOnly, args...)
 		diagnostics = append(diagnostics, diagnostic(result))
 		if err != nil {
 			return diagnostics, fmt.Errorf("verify discarded refs: %w", err)
 		}
 		wanted := 1
 		if args[0] != "show-ref" {
-			wanted = discardRemoteAbsentExit(cfg)
-		} else if strings.Contains(args[len(args)-1], "refs/remotes/") {
-			wanted = discardRemoteAbsentExit(cfg)
+			wanted = 2
 		}
 		if result.ExitCode != wanted {
 			name := "remote branch"
@@ -321,7 +370,7 @@ func (s *Service) discardRemovalEvidence(ctx context.Context, execution TaskExec
 			return diagnostics, fmt.Errorf("discarded %s still exists or could not be verified", name)
 		}
 	}
-	inventory, err := s.worktrunkList(ctx)
+	inventory, err := s.discardInventory(ctx, execution, localOnly)
 	diagnostics = append(diagnostics, diagnostic(inventory.Diagnostic))
 	if err != nil {
 		return diagnostics, fmt.Errorf("verify Worktrunk removal: %w", err)
@@ -332,26 +381,28 @@ func (s *Service) discardRemovalEvidence(ctx context.Context, execution TaskExec
 	return diagnostics, nil
 }
 
-func discardRemoteProbe(branch string, cfg TaskRuntimeConfig) []string {
-	if cfg.IntegrationNetworkPolicy == IntegrationNetworkPolicyNoFetch {
-		return []string{"show-ref", "--verify", "--quiet", "refs/remotes/origin/" + branch}
-	}
+// discardRemoteProbe is the absence check for a discard that verifies remote
+// state. `git ls-remote --exit-code` exits 2 when the branch is absent; a
+// local-only discard runs no remote probe at all, which is why the no-fetch
+// config-branch in the old probe is gone.
+func discardRemoteProbe(branch string) []string {
 	return []string{"ls-remote", "--exit-code", "--heads", "origin", branch}
 }
 
-func discardRemoteAbsentExit(cfg TaskRuntimeConfig) int {
-	if cfg.IntegrationNetworkPolicy == IntegrationNetworkPolicyNoFetch {
-		return 1
-	}
-	return 2
-}
-
-func discardReceipt(execution TaskExecution, status, reason string, performedBy *TaskOwner, diagnostics []CommandDiagnostics, prefix string, createdAt time.Time) TaskReceipt {
-	return TaskReceipt{
-		Task: execution.Task, Operation: "discard", Status: status, Owner: execution.Owner, PerformedBy: performedBy,
+// discardReceipt names the discard evidence. A local-only receipt records the
+// scope and the explicit "unchecked" remote answer, so no reader can mistake
+// a local reclamation for a verified remote removal.
+func discardReceipt(execution TaskExecution, status, reason string, performedBy *TaskOwner, diagnostics []CommandDiagnostics, prefix string, createdAt time.Time, localOnly bool) TaskReceipt {
+	receipt := TaskReceipt{
+		Task: execution.Task, Purpose: string(executionPurpose(execution)), Operation: "discard", Status: status, Owner: execution.Owner, PerformedBy: performedBy,
 		Branch: execution.Branch, Worktree: execution.Worktree, Reason: prefix + ": " + reason, CreatedAt: createdAt, Diagnostics: diagnostics,
 		ToolVersion: toolVersion(), ToolRevision: toolRevision(),
 	}
+	if localOnly {
+		receipt.DiscardScope, receipt.RemoteBranchStatus = "local-only", "unchecked"
+		receipt.Reason += "; local resources only; remote branch unchecked and unchanged"
+	}
+	return receipt
 }
 
 func discardIdentityMatches(execution TaskExecution, receipt TaskReceipt) bool {

@@ -161,17 +161,17 @@ the `task` namespace becomes the `run` command group, and the hyphenated
 documents (`allowedActions`) keep the CE-hyphenated spelling — they name
 capabilities, not CLI words.
 
-| CE verb               | gz-git verb            | Flags (identical semantics)              | Notes                                                                       |
-| --------------------- | ---------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
-| `ce task run-doctor`  | `gz-git run doctor`    | `--json`                                 |                                                                             |
-| `ce task run-start`   | `gz-git run start`     | `--type`, `--json`                       |                                                                             |
-| `ce task run-status`  | `gz-git run status`    | `--json`                                 |                                                                             |
-| `ce task run-list`    | `gz-git run list`      | `--json`                                 |                                                                             |
-| `ce task run-finish`  | `gz-git run finish`    | `--json`                                 | native no-arg reports readiness; explicit task performs completion          |
-| `ce task run-recover` | `gz-git run recover`   | `--json`                                 |                                                                             |
-| `ce task run-abort`   | `gz-git run abort`     | `--reason`, `--json`                     |                                                                             |
-| `ce task run-discard` | `gz-git run discard`   | `--reason`, `--take-over-from`, `--json` |                                                                             |
-| —                     | `gz-git run import-ce` | `--dry-run`, `--json`                    | new: ADR-0055 one-shot carryover of in-flight CE records; no CE counterpart |
+| CE verb               | gz-git verb            | Flags (identical semantics)                              | Notes                                                                       |
+| --------------------- | ---------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `ce task run-doctor`  | `gz-git run doctor`    | `--json`                                                 |                                                                             |
+| `ce task run-start`   | `gz-git run start`     | `--type`, `--purpose`, `--resume`, `--json`              |                                                                             |
+| `ce task run-status`  | `gz-git run status`    | `--json`                                                 |                                                                             |
+| `ce task run-list`    | `gz-git run list`      | `--json`                                                 |                                                                             |
+| `ce task run-finish`  | `gz-git run finish`    | `--json`                                                 | native no-arg reports readiness; explicit task performs completion          |
+| `ce task run-recover` | `gz-git run recover`   | `--claim-dead`, `--json`                                 |                                                                             |
+| `ce task run-abort`   | `gz-git run abort`     | `--reason`, `--json`                                     |                                                                             |
+| `ce task run-discard` | `gz-git run discard`   | `--reason`, `--take-over-from`, `--local-only`, `--json` |                                                                             |
+| —                     | `gz-git run import-ce` | `--dry-run`, `--json`                                    | new: ADR-0055 one-shot carryover of in-flight CE records; no CE counterpart |
 
 Structural differences, all declared port divergences rather than behavior
 changes:
@@ -192,6 +192,11 @@ changes:
   probed for a path, and provider version/capability discovery is local.
 - **CE state**: never read at lifecycle time. The only reader of
   `<git common dir>/ce/task-runtime/v1/` is `run import-ce`.
+- **Not ported**: bound native completion (the port never writes that
+  receipt; the recover refusal keeps CE's wording), sibling leases at
+  `run start`/`--resume` (use `gz-git integrate provision siblings acquire`), and CE's
+  provider process-group isolation (git/gate children of the in-process
+  finish stay interruptible from the terminal).
 
 The fixture harness (`tests/parity/portmode_test.go`) maps
 `["task", "run-<verb>"]` to `["run", "<verb>"]` at execution time and
@@ -506,7 +511,7 @@ Idempotent re-discard of a closed execution: exit 0
 
 ### run-recover
 
-Closes a proven exit-3 partial cleanup or a bound native completion without
+Closes a proven exit-3 partial cleanup or an interrupted run-finish without
 removing anything. For the partial-cleanup path, the
 latest receipt must match `operation: finish, status: BLOCKED`, reason
 `integration succeeded but task recovery cleanup failed`, with heads, push

@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+//nolint:gocognit // single guard ladder mirroring the receipt-state table; extraction would hide the machine without lowering the case count
 func (s *Service) deriveState(ctx context.Context, execution TaskExecution, receipt TaskReceipt, inventory worktrunkInventory, locked bool) DerivedTaskState {
 	state := DerivedTaskState{
 		Execution: execution, Status: TaskExecutionStatusActive,
@@ -40,6 +41,11 @@ func (s *Service) deriveState(ctx context.Context, execution TaskExecution, rece
 		state.NextAction = "run gz-git run recover " + execution.Task
 		return state
 	}
+	// A claim is a fact about this execution alone, so it answers before the
+	// repository-wide lock does.
+	if isFinishClaim(receipt) {
+		return claimedState(state, receipt)
+	}
 	if locked {
 		return block("repository task runtime mutation is in progress or stale", "inspect the mutation lock with run-doctor")
 	}
@@ -66,8 +72,20 @@ func (s *Service) deriveState(ctx context.Context, execution TaskExecution, rece
 	}{
 		{[]string{"branch", "--show-current"}, "branch identity"},
 		{[]string{"status", "--porcelain", "--untracked-files=all"}, "clean worktree"},
-		{[]string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"}, "upstream"},
-		{[]string{"rev-list", "--left-right", "--count", "@{u}...HEAD"}, "upstream parity"},
+	}
+	// Only a delivery execution ends in run-finish, so only its status owes
+	// origin an answer: experiment and review close without integrating, and
+	// an unpushed task branch is a valid resting place for them.
+	if executionPurpose(execution) == TaskExecutionPurposeDelivery {
+		probes = append(probes,
+			struct {
+				args []string
+				name string
+			}{[]string{"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"}, "upstream"},
+			struct {
+				args []string
+				name string
+			}{[]string{"rev-list", "--left-right", "--count", "@{u}...HEAD"}, "upstream parity"})
 	}
 	for index, probe := range probes {
 		result, err := s.command(ctx, execution.Worktree, "git", probe.args...)
@@ -103,6 +121,11 @@ func (s *Service) deriveState(ctx context.Context, execution TaskExecution, rece
 			}
 		}
 	}
+	if executionPurpose(execution) != TaskExecutionPurposeDelivery {
+		state.AllowedActions = []string{"run-status", "run-abort", "run-discard"}
+		state.Reason, state.NextAction = "non-delivery execution is ready for abort or discard", "record the outcome with run-abort or reclaim it with run-discard"
+		return state
+	}
 	state.FinishReady = true
 	state.AllowedActions = []string{"run-status", "run-finish", "run-abort", "run-discard"}
 	state.Reason, state.NextAction = "task execution is ready to finish", "run gz-git run finish "+execution.Task
@@ -118,6 +141,10 @@ func terminalReceiptStatus(status string) bool {
 }
 
 func stateResponse(state DerivedTaskState) TaskResponse {
+	// The effective purpose is what every reader of the response document
+	// judges the execution by, so a legacy record without the field answers
+	// as the delivery execution it is.
+	state.Execution.Purpose = string(executionPurpose(state.Execution))
 	r := response(state.Status, state.Execution.Task, state.Reason, state.NextAction, state.AllowedActions...)
 	r.Execution, r.Diagnostics, r.FinishReady = &state.Execution, state.Diagnostics, state.FinishReady
 	return r

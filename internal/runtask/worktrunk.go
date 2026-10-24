@@ -19,10 +19,10 @@ type worktrunkInventory struct {
 	// Paths. A silent skip is indistinguishable from a healthy repository
 	// with fewer worktrees than expected, so callers that care need a number
 	// to compare against rather than an absence -- but one number would not
-	// do, because the two losses are not the same size. See the worktrunkList
-	// doc comment: a branchless item was never anyone's key, while an item
-	// with a branch and no path was. Every caller reports them differently,
-	// so they are counted differently here.
+	// do, because the two losses are not the same size. See the
+	// decodeWorktrunkInventory doc comment: a branchless item was never
+	// anyone's key, while an item with a branch and no path was. Every
+	// caller reports them differently, so they are counted differently here.
 	SkippedNoBranch int
 	SkippedNoPath   int
 	Diagnostic      CommandResult
@@ -34,6 +34,13 @@ func worktreePathOverride(path string) string {
 
 // worktrunkList reads the Worktrunk schema 2 inventory and resolves it into
 // a branch-to-path map.
+func (s *Service) worktrunkList(ctx context.Context) (worktrunkInventory, error) {
+	return decodeWorktrunkInventory(s.command(ctx, s.root, "wt", "--config-set", "list.json-schema = 2", "list", "--format=json"))
+}
+
+// decodeWorktrunkInventory parses the `wt list --format=json` answer carried
+// by result. It is the shared decode half of worktrunkList, so a local-only
+// discard reading its offline inventory validates the envelope identically.
 //
 // A malformed envelope -- wrong schema version, or no items array at all --
 // is refused outright: there is no per-item data to salvage, so the only
@@ -58,8 +65,7 @@ func worktreePathOverride(path string) string {
 // that will be reported missing, and service_start.go distinguishes a branch
 // absent from the inventory from one listed at an unexpected path. A single
 // total cannot support either distinction.
-func (s *Service) worktrunkList(ctx context.Context) (worktrunkInventory, error) {
-	result, err := s.command(ctx, s.root, "wt", "--config-set", "list.json-schema = 2", "list", "--format=json")
+func decodeWorktrunkInventory(result CommandResult, err error) (worktrunkInventory, error) {
 	if err != nil {
 		return worktrunkInventory{}, err
 	}
