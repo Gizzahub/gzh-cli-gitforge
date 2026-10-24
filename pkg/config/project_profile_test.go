@@ -23,6 +23,9 @@ func setupProfileHome(t *testing.T, files map[string]string) string {
 		t.Fatal(err)
 	}
 	t.Setenv("HOME", home)
+	// Linux reads XDG_CONFIG_HOME before HOME, and CI runners set it; without
+	// this the profiles and active profile other tests leave behind leak in.
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 
 	for rel, content := range files {
 		path := filepath.Join(home, rel)

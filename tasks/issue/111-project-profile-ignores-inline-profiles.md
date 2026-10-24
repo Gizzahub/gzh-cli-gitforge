@@ -62,3 +62,6 @@ Resolved on 2026-10-24 by `fix(config): resolve a project's profile from inline 
 - Verified against the operator's `~/mydevbox`: the built binary runs `fetch --dry-run` and `config show` reports
   `profile: polypia`.
 - Docs: `docs/.claude-context/config-guide.md`, Project Config Example.
+- Follow-up `test(config): isolate XDG_CONFIG_HOME in the project profile tests`: master CI run 40043592396 failed two
+  of the new tests on Linux, where `XDG_CONFIG_HOME` (set on CI runners) takes precedence over `HOME`, so another test's
+  active profile `work` leaked in. They passed on macOS, which ignores it. Reproduced and verified in `golang:1.27.3`.
