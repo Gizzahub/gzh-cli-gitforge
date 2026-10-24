@@ -197,6 +197,31 @@ func TestIntegrateRunLandsWithTheNewArguments(t *testing.T) {
 	}
 }
 
+// A source that does not contain the pinned target is refused before the
+// lease push: the lease alone would let it rewrite the target's history.
+// Readiness freshness refuses it today; the ancestor guard in integrate.Run
+// must keep this outcome when TASK-349 step 4 removes readiness.
+func TestIntegrateRunNonFastForwardSourceIsRefusedWithoutPushing(t *testing.T) {
+	fx, target := integrateRunNewArgsFixture(t)
+	source := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	writeFile(t, fx.Clone, "target-only.txt", "landed elsewhere\n")
+	runGit(t, fx.Clone, "add", ".")
+	runGit(t, fx.Clone, "commit", "-m", "target moves past the task base")
+	runGit(t, fx.Clone, "push", fx.Remote, "HEAD:refs/heads/"+target)
+	runGit(t, fx.Worktree, "fetch", fx.Remote)
+	before := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/"+target)
+
+	_, err := runIntegrateRunJSON(t, fx.Worktree, []string{"feature/worktree"},
+		"--source", source, "--target", target+"@"+before,
+		"--record", "run-53@g1", "--owner", "claude/mbp/agent")
+	if got := cliutil.ExitCodeForError(err); got != 1 {
+		t.Fatalf("exit code = %d, want 1 (not ready); err=%v", got, err)
+	}
+	if got := gitOutputForIntegrateRun(t, fx.Origin, "rev-parse", "refs/heads/"+target); got != before {
+		t.Fatalf("non-fast-forward source moved the target: %s -> %s", before, got)
+	}
+}
+
 func TestIntegrateRunPinnedTargetThatMovedExitsFourWithoutPushing(t *testing.T) {
 	fx, target := integrateRunNewArgsFixture(t)
 	source := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
