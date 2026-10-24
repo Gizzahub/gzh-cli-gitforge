@@ -38,6 +38,15 @@ lines 146–154.
   the readiness cause only.
 - Actual: the refusal adds an unbound pre-mutation recording error.
 
+## Resolution
+
+Resolved on 2026-10-24 in the commit that archives this card. `run` records
+a readiness-rejected outcome only when `opts.preMutation` exists, which is
+exactly when an execution context was given, so a no-context refusal carries
+only the readiness cause. `recordPreMutationOutcome` is unchanged and still
+returns `errPreMutationOutcomeUnbound` for a capture whose candidate never
+bound. Tests cover the no-context not-ready run and both unbound cases.
+
 ## Scope
 
 - Skip the recording when no capture exists, and keep the error for a
@@ -49,5 +58,5 @@ lines 146–154.
 First written as ISSUE-77 on the unlanded branch
 `dev/claude/mst/feat/refresh-under-target-lock` (commit e12081b8). That run
 was ABORTED on 2026-10-21 and is not to be landed (see
-[ISSUE-93](../_archive/issue/093-integrate-target-lock-removal.md)), and ISSUE-77 is now another
+[ISSUE-93](093-integrate-target-lock-removal.md)), and ISSUE-77 is now another
 card on master, so the finding is re-registered here.

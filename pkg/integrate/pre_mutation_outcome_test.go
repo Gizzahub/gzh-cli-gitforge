@@ -66,6 +66,44 @@ func TestRunRecordsBoundOutcomeWhenReadinessRejects(t *testing.T) {
 	}
 }
 
+// TestRunWithoutExecutionContextSkipsOutcomeRecording keeps a legacy no-context
+// refusal free of an unbound pre-mutation suffix (ISSUE-108): nothing was
+// captured, so nothing is recorded and only the readiness cause remains.
+func TestRunWithoutExecutionContextSkipsOutcomeRecording(t *testing.T) {
+	t.Parallel()
+	fx := readyTaskFixture(t)
+	writeRepoFile(t, fx.Worktree, "uncommitted.txt", "dirty\n")
+	report, err := Run(context.Background(), gitcmd.NewExecutor(), RunOptions{CheckOptions: CheckOptions{
+		RepoPath: fx.Worktree, Branch: "dev/actor/feat/task",
+	}})
+	if err == nil || !strings.Contains(err.Error(), "not ready") {
+		t.Fatalf("Run() error = %v, want not ready", err)
+	}
+	if strings.Contains(err.Error(), "pre-mutation outcome is not bound") {
+		t.Fatalf("no-context refusal must not carry the unbound suffix: %v", err)
+	}
+	if report == nil || report.PreMutationOutcome != nil {
+		t.Fatalf("Run() report = %#v, want no pre-mutation outcome without a capture", report)
+	}
+}
+
+// TestUnboundCaptureCannotRecordOutcome keeps the unbound error for a capture
+// that exists but does not match the current execution: its candidate never
+// bound, so Run must refuse to record rather than skip silently.
+func TestUnboundCaptureCannotRecordOutcome(t *testing.T) {
+	t.Parallel()
+	fx := readyTaskFixture(t)
+	execution := outcomeExecution(t, fx.Worktree, "unbound-capture")
+	capture := &preMutationCapture{execution: *execution}
+	outcome, err := recordPreMutationOutcome(context.Background(), capture, preMutationPhaseReadinessRejected)
+	if outcome != nil || !errors.Is(err, errPreMutationOutcomeUnbound) {
+		t.Fatalf("record with nil candidate = %#v, %v; want errPreMutationOutcomeUnbound", outcome, err)
+	}
+	if outcome, err := recordPreMutationOutcome(context.Background(), nil, preMutationPhaseReadinessRejected); outcome != nil || !errors.Is(err, errPreMutationOutcomeUnbound) {
+		t.Fatalf("record with nil capture = %#v, %v; want errPreMutationOutcomeUnbound", outcome, err)
+	}
+}
+
 func TestMalformedContextAndExistingReceiptCannotProduceSafeOutcome(t *testing.T) {
 	t.Parallel()
 	fx := readyTaskFixture(t)

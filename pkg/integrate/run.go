@@ -143,7 +143,11 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 		return &RunReport{Check: check}, err
 	}
 	report, err := runChecked(ctx, exec, opts, check)
-	if err != nil && check != nil && !check.Ready && !canceledByCaller(ctx) {
+	// A run without an execution context has no capture and records nothing:
+	// skipping it here keeps the readiness refusal free of an unbound
+	// recording error (ISSUE-108). A capture that exists but does not match
+	// the current execution still reports errPreMutationOutcomeUnbound below.
+	if err != nil && check != nil && !check.Ready && !canceledByCaller(ctx) && opts.preMutation != nil {
 		outcome, recordErr := recordCurrentPreMutationOutcome(ctx, opts.preMutation, preMutationPhaseReadinessRejected)
 		if recordErr != nil {
 			return report, fmt.Errorf("%w; record pre-mutation outcome: %w", err, recordErr)
