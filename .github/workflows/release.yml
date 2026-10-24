@@ -123,7 +123,7 @@ jobs:
       uses: goreleaser/goreleaser-action@v7
       with:
         distribution: goreleaser
-        version: v2.18.2
+        version: v2.19.0
         args: release --clean ${{ steps.notes.outputs.args }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

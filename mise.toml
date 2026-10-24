@@ -10,3 +10,8 @@ go = "1.27.3"
 # directory onto PATH, but anything earlier on PATH still wins. `make
 # install-golangci-lint` is what reconciles a stale GOPATH/bin copy.
 golangci-lint = "2.15.0"
+
+# Kept in step with the goreleaser-action version in release.yml and
+# snapshot.yml and with `make install-goreleaser`. Without a pin the mise shim
+# has no version to run, so `make release-check` (part of verify-release) fails.
+goreleaser = "2.19.0"
