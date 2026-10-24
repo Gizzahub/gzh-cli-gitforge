@@ -19,16 +19,15 @@ func TestIntegrateRunContextFlagsAreAllOrNothing(t *testing.T) {
 	restore := setIntegrateRunContextGlobals(t)
 	defer restore()
 
-	integrateRunExecutionID = "run-42"
-	_, supplied, err := executionContextFromFlags()
+	_, supplied, err := executionContextFromArgs(integrateRunArgs{ExecutionID: "run-42"})
 	if err == nil {
-		t.Fatal("executionContextFromFlags() error = nil, want partial context rejection")
+		t.Fatal("executionContextFromArgs() error = nil, want partial context rejection")
 	}
 	if supplied {
-		t.Fatal("executionContextFromFlags() supplied = true, want false for rejected context")
+		t.Fatal("executionContextFromArgs() supplied = true, want false for rejected context")
 	}
 	if !strings.Contains(err.Error(), "supplied together or not at all") {
-		t.Fatalf("executionContextFromFlags() error = %v, want all-or-nothing message", err)
+		t.Fatalf("executionContextFromArgs() error = %v, want all-or-nothing message", err)
 	}
 }
 

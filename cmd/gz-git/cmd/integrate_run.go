@@ -28,6 +28,9 @@ var (
 	integrateRunOwnerActor       string
 	integrateRunOwnerHost        string
 	integrateRunOwnerKind        string
+	integrateRunSource           string
+	integrateRunRecord           string
+	integrateRunOwner            string
 	integrateRunJSON             bool
 )
 
@@ -40,8 +43,13 @@ var integrateRunCmd = &cobra.Command{
   # Required when no integration branch can be resolved
   gz-git integrate run --target origin/main --direct-to-default
 
-  # Durable evidence for an external task runtime (TASK-302): all context
-  # flags together, --expect-source included, or none of them
+  # Durable evidence for an external task runtime (ADR-0161 arguments):
+  # the pinned pair, the record and the owner together, or none of them
+  gz-git integrate run dev/claude/mbp/feat/x --source <full-sha> \
+    --target master@<full-sha> --record run-42@g7 \
+    --owner claude/mbp/agent --json
+
+  # The same run with the legacy flags, accepted for one release
   gz-git integrate run --execution-id run-42 --generation g7 \
     --owner-actor claude --owner-host mbp --owner-kind agent \
     --expect-source <full-sha> --json
@@ -50,6 +58,14 @@ Reclaim only runs for names matching the repo-root taskPattern.
 No declaration means reclaim nothing. Remote branch delete uses
 --force-with-lease against the commit that just landed.
 Run a bare integrate from a task-branch worktree, not from the target checkout.
+
+ADR-0161 arguments map onto the legacy flags: --source is --expect-source,
+--target <ref>@<sha> is --target <ref> plus --expect-target <sha> (only a full
+SHA after the last '@' pins it; a hex suffix of 7 or more characters that is
+not a full SHA is refused as truncated; anything else stays a plain ref),
+--record <id>@<generation> is --execution-id plus --generation, and
+--owner <actor>/<host>/<kind> is the three --owner-* flags. A new argument and the legacy flag it replaces are mutually exclusive.
+The legacy flags are removed in a later minor release.
 
 Execution context (--execution-id, --generation, --owner-actor, --owner-host,
 --owner-kind, plus --expect-source) records a durable receipt under the Git
@@ -92,7 +108,7 @@ Exit Codes:
   1  not ready, or the integrate itself failed
   2  usage or execution error
   3  integrated, but reclaim did not finish
-  4  --expect-source/--expect-target: the approved commit pair changed; nothing was pushed`),
+  4  --source/--expect-source or the pinned target: the approved commit pair changed; nothing was pushed`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateRun,
 }
@@ -111,35 +127,38 @@ func init() {
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerActor, "owner-actor", "", "logical actor executing the run (e.g. claude, celee)")
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerHost, "owner-host", "", "logical device name (GIT_WORK_HOST / ce.workHost); never a hostname")
 	integrateRunCmd.Flags().StringVar(&integrateRunOwnerKind, "owner-kind", "", "owner kind: agent or human")
+	integrateRunCmd.Flags().StringVar(&integrateRunSource, "source", "", "ADR-0161 form of --expect-source: the full commit SHA to land")
+	integrateRunCmd.Flags().StringVar(&integrateRunRecord, "record", "", "ADR-0161 form of --execution-id and --generation: <id>@<generation>")
+	integrateRunCmd.Flags().StringVar(&integrateRunOwner, "owner", "", "ADR-0161 form of the --owner-* flags: <actor>/<host>/<kind>")
 	integrateRunCmd.Flags().BoolVar(&integrateRunJSON, "json", false, "print the machine JSON protocol document instead of the human report")
 }
 
-// executionContextFromFlags enforces the all-or-nothing rule: any context
-// flag means every context flag, --expect-source included. A partial context
-// is rejected before any check or mutation. The absent case is a zero value
-// with supplied=false, never a nil pointer dressed as success.
-func executionContextFromFlags() (execution integrate.ExecutionContext, supplied bool, err error) {
-	supplied = integrateRunExecutionID != "" || integrateRunGeneration != "" ||
-		integrateRunOwnerActor != "" || integrateRunOwnerHost != "" || integrateRunOwnerKind != ""
+// executionContextFromArgs enforces the all-or-nothing rule: any context
+// field means every context field, the expected source included. A partial
+// context is rejected before any check or mutation. The absent case is a
+// zero value with supplied=false, never a nil pointer dressed as success.
+func executionContextFromArgs(a integrateRunArgs) (execution integrate.ExecutionContext, supplied bool, err error) {
+	supplied = a.ExecutionID != "" || a.Generation != "" ||
+		a.OwnerActor != "" || a.OwnerHost != "" || a.OwnerKind != ""
 	if !supplied {
 		return integrate.ExecutionContext{}, false, nil
 	}
-	if integrateRunExecutionID == "" || integrateRunGeneration == "" || integrateRunOwnerActor == "" ||
-		integrateRunOwnerHost == "" || integrateRunOwnerKind == "" || integrateRunExpectSource == "" {
-		return integrate.ExecutionContext{}, false, fmt.Errorf("--execution-id, --generation, --owner-actor, --owner-host, --owner-kind and --expect-source are supplied together or not at all")
+	if a.ExecutionID == "" || a.Generation == "" || a.OwnerActor == "" ||
+		a.OwnerHost == "" || a.OwnerKind == "" || a.ExpectSource == "" {
+		return integrate.ExecutionContext{}, false, fmt.Errorf("--record, --owner and --source (or --execution-id, --generation, --owner-actor, --owner-host, --owner-kind and --expect-source) are supplied together or not at all")
 	}
 	execution = integrate.ExecutionContext{
-		ExecutionID:  integrateRunExecutionID,
-		Generation:   integrateRunGeneration,
-		Owner:        integrate.OwnerIdentity{Actor: integrateRunOwnerActor, Host: integrateRunOwnerHost, Kind: integrateRunOwnerKind},
-		ExpectSource: integrateRunExpectSource,
+		ExecutionID:  a.ExecutionID,
+		Generation:   a.Generation,
+		Owner:        integrate.OwnerIdentity{Actor: a.OwnerActor, Host: a.OwnerHost, Kind: a.OwnerKind},
+		ExpectSource: a.ExpectSource,
 	}
 	return execution, true, nil
 }
 
 func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	printIntegrateProvenance(cmd)
-	expectTarget, err := expectedTargetFromFlag(cmd, integrateRunExpectTarget)
+	runArgs, err := integrateRunArgsFromFlags(cmd)
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}
@@ -155,7 +174,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 	if len(args) == 1 {
 		branch = args[0]
 	}
-	execution, executionSupplied, err := executionContextFromFlags()
+	execution, executionSupplied, err := executionContextFromArgs(runArgs)
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}
@@ -168,13 +187,13 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 		CheckOptions: integrate.CheckOptions{
 			RepoPath:         dir,
 			Branch:           branch,
-			Target:           integrateRunTarget,
+			Target:           runArgs.Target,
 			DirectToDefault:  integrateRunDirectToDefault,
 			Release:          integrateRunRelease,
 			ControllerConfig: integrateRunControllerConfig,
 			NoFetch:          integrateRunNoFetch,
-			ExpectSource:     integrateRunExpectSource,
-			ExpectTarget:     expectTarget,
+			ExpectSource:     runArgs.ExpectSource,
+			ExpectTarget:     runArgs.ExpectTarget,
 		},
 		Execution: executionContext,
 	})

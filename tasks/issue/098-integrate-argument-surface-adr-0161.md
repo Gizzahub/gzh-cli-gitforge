@@ -45,3 +45,19 @@ the judgment removal without that surface, so nothing tracks it yet.
 - CE run-finish changes its provider call in the same cycle as the gz-git
   release, as ADR-0163 decision 3 requires. That CE change is ce-agent-kit
   work, not this repository's.
+
+## Progress — 2026-10-25 (gzh-cli-devbox TASK-349 step 1)
+
+`integrate run` now accepts the new arguments next to the old ones; the
+subcommand set is unchanged. ADR-0161 names `--record <id>` but does not say
+where the receipt's generation goes, and the receipt compares the
+(execution-id, generation) pair as its immutable identity. The user chose
+`--record <id>@<generation>` (2026-10-25), so the receipt schema and its
+fencing stay as they are. The other mappings: `--source` is `--expect-source`,
+`--target <ref>@<sha>` is `--target <ref>` plus `--expect-target <sha>` (only a
+full SHA after the last `@` pins it; a hex suffix of 7 or more characters that
+is not a full SHA is refused as truncated, so a legacy target ref ending in
+such a suffix now needs renaming), and `--owner <actor>/<host>/<kind>` is the
+three `--owner-*` flags. A new argument and its legacy flag together are
+refused. `integrate receipt` and `integrate cleanup` still take
+`--execution-id`/`--generation` only.
