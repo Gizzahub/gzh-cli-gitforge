@@ -70,6 +70,54 @@ after ISSUE-97 (`tmp/bin/gz-git` in the DevBox) refuses every command there:
 The homebrew 0.12.0 binary predates ISSUE-97 and still loads it. The operator
 removes the key on that device; gz-git does not edit user config.
 
+## Additional gap: brikspec and gitrump-client on mst (2026-10-25)
+
+After the Homebrew upgrade to 0.14.0 on mst,
+`cd ~/mydevbox && gz-git push --refspec HEAD:master -d3 --dry-run --format json`
+exited 2. Two child repositories reported `status: error` with the
+`error` field
+`read workspace access config <repo>/.gz-git.yaml: branch.readiness was removed: ...`
+(verified):
+
+- `~/mydevbox/brikspec-devbox/brikspec`: `branch.readiness` at
+  `.gz-git.yaml:10-12`, landed in `147e7d7` (2026-09-13). It is still on
+  `origin/master` (`eb3b33cc`).
+- `~/mydevbox/scripton-gitrump-devbox/gitrump-client`: `branch.readiness` at
+  `.gz-git.yaml:23-25`, landed in `83e9672` (2026-09-15). It is still on
+  `origin/master` (`4b2e8bde`).
+
+Neither path appears in ISSUE-89's impact table or in its 2026-10-22 re-scan.
+This is the same gap as singlepageweb: the scan did not cover nested child
+repositories of these DevBoxes. Both keys predate 0.12.0, so 0.12.0 through
+0.13.x refuse the same files (verified from source: the `branch.readiness`
+entry in `pkg/config/removed_keys.go` and the `ReadConfigFile` call in
+`pkg/config/workspace_access.go` are present from v0.12.0, and their diff
+between v0.13.1 and v0.14.0 is empty). It is not a 0.14.0 regression.
+
+Each owner fixes its own repository. Both fixes are pushed on
+`dev/claude/mst/fix/remove-readiness-key` (brikspec `bb84744`, gitrump-client
+`b30e27c`) and are not yet integrated. This card does not change them.
+
+Enumeration used on mst: every `~/mydevbox/*/.gz-git.yaml` and
+`~/mydevbox/*/*/.gz-git.yaml`, 121 files. Each was grepped for every removed
+key at the start of a line:
+`^\s*(makeTimeout|makeOutcomeReport|prepareProfile|readiness|prepareHighLoad|resourceHighLoad|lockWait|readinessApproval):`.
+
+- There were three hits: the two above, and
+  `gizzahub-devbox/gizzahub-web-svelte/.gz-git.yaml:26`.
+- The gizzahub hit is a top-level `readiness:`, not `branch.readiness`.
+  - In v0.11.1, `Readiness` was a field of `BranchConfig` (`pkg/config/types.go:222,247`), so the top-level key was never a gz-git key.
+  - 0.14.0 loads it without error: `gz-git config show` exits 0, and the dry-run reports `would-push`.
+  - It is outside this card. Its owner should know that the runner it declares was never read.
+- The scan did not cover depth 3 or more under `~/mydevbox`, `~/mywork`,
+  the mbp checkouts, or the global config.
+
+UX note (my own judgment, not a confirmed defect): the bulk push summary shows
+only the generic `Failed to resolve repository push access`
+(`pkg/repository/bulk.go:2237`), and the removed-key reason appears only in the
+`error` field. In a long JSON report, the removed-key cause is easy to miss. A
+summary that names the removed key would point owners at the fix directly.
+
 ## Notes
 
 - Removed keys come from `pkg/config/removed_keys.go` (`prepareProfile` at
