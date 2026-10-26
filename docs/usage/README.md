@@ -17,12 +17,13 @@ gz-git은 bulk-first Git CLI로, 여러 repository를 병렬로 관리합니다.
 
 ### 개발 작업
 
-| 명령어    | 설명                | 문서                                     |
-| --------- | ------------------- | ---------------------------------------- |
-| `commit`  | 여러 repo 일괄 커밋 | [commit-command.md](commit-command.md)   |
-| `switch`  | 브랜치 전환         | [switch-command.md](switch-command.md)   |
-| `diff`    | 변경사항 확인       | [diff-command.md](diff-command.md)       |
-| `cleanup` | 브랜치 정리         | [cleanup-command.md](cleanup-command.md) |
+| 명령어          | 설명                                  | 문서                                       |
+| --------------- | ------------------------------------- | ------------------------------------------ |
+| `commit`        | 여러 repo 일괄 커밋                   | [commit-command.md](commit-command.md)     |
+| `switch`        | 브랜치 전환                           | [switch-command.md](switch-command.md)     |
+| `diff`          | 변경사항 확인                         | [diff-command.md](diff-command.md)         |
+| `cleanup`       | 브랜치 정리                           | [cleanup-command.md](cleanup-command.md)   |
+| `worktree sync` | 워크트리 upstream·부모 변경 일괄 반영 | [worktree-command.md](worktree-command.md) |
 
 ### 고급 기능
 

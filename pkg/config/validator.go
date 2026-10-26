@@ -9,6 +9,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/branch"
 )
 
 var (
@@ -111,6 +113,9 @@ func (v *Validator) ValidateProfile(p *Profile) error {
 			return fmt.Errorf("invalid sync config: %w", err)
 		}
 	}
+	if err := validateBranchWorktreeSync(p.Branch); err != nil {
+		return fmt.Errorf("invalid worktree sync config: %w", err)
+	}
 	if p.Branch != nil {
 		if p.Branch.SiblingProvision != nil {
 			return fmt.Errorf("branch.siblingProvision is allowed only in a repository-root project config")
@@ -149,6 +154,9 @@ func (v *Validator) ValidateGlobalConfig(g *GlobalConfig) error {
 	if g.ActiveProfile != "" && !validProfileName.MatchString(g.ActiveProfile) {
 		return fmt.Errorf("invalid active profile name '%s': must contain only alphanumeric, dash, or underscore", g.ActiveProfile)
 	}
+	if err := validateBranchWorktreeSync(g.Branch); err != nil {
+		return fmt.Errorf("invalid worktree sync config: %w", err)
+	}
 
 	return nil
 }
@@ -174,6 +182,9 @@ func (v *Validator) ValidateProjectConfig(p *ProjectConfig) error {
 		if err := ValidateSiblingProvision(*p.Branch.SiblingProvision); err != nil {
 			return fmt.Errorf("invalid sibling provision config: %w", err)
 		}
+	}
+	if err := validateBranchWorktreeSync(p.Branch); err != nil {
+		return fmt.Errorf("invalid worktree sync config: %w", err)
 	}
 
 	return nil
@@ -429,6 +440,9 @@ func (v *Validator) ValidateConfig(c *Config) error {
 			return fmt.Errorf("sync config validation failed: %w", err)
 		}
 	}
+	if err := validateBranchWorktreeSync(c.Branch); err != nil {
+		return fmt.Errorf("branch config validation failed: %w", err)
+	}
 
 	// Validate root-level hooks
 	if c.Hooks != nil {
@@ -510,6 +524,9 @@ func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 			return fmt.Errorf("sync config validation failed: %w", err)
 		}
 	}
+	if err := validateBranchWorktreeSync(ws.Branch); err != nil {
+		return fmt.Errorf("branch config validation failed: %w", err)
+	}
 
 	// Validate parallel count if specified
 	if ws.Parallel < 0 {
@@ -553,6 +570,13 @@ func (v *Validator) ValidateWorkspace(ws *Workspace, name string) error {
 	}
 
 	return nil
+}
+
+func validateBranchWorktreeSync(branchConfig *BranchConfig) error {
+	if branchConfig == nil {
+		return nil
+	}
+	return branch.ValidateWorktreeSyncConfig(branchConfig.WorktreeSync)
 }
 
 // ValidateForgeSource validates a forge source configuration.

@@ -175,6 +175,7 @@ var commandEffects = map[string][]string{
 	"worktree list":   nil,
 	"worktree add":    {mutatesFilesystem, mutatesRefs, mutatesConfig},
 	"worktree remove": {mutatesFilesystem},
+	"worktree sync":   {mutatesWorktree, mutatesRefs, mutatesTrackingRefs},
 
 	"workspace validate":        nil,
 	"workspace status":          {mutatesTrackingRefs, mutatesFilesystem},

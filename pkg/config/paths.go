@@ -216,6 +216,19 @@ func findConfigUpward(startDir string, names []string) (dir, path string, err er
 // FindProjectConfig walks up from the current working directory to $HOME and
 // returns the path to the nearest .gz-git config file, or "" if none exists.
 func FindProjectConfig() (string, error) {
+	return FindProjectConfigAt("")
+}
+
+// FindProjectConfigAt walks up from directory to $HOME and returns the nearest
+// .gz-git config file. An empty directory uses the current working directory.
+func FindProjectConfigAt(directory string) (string, error) {
+	if directory != "" {
+		_, path, err := findConfigUpward(directory, projectConfigNames())
+		if err != nil {
+			return "", err
+		}
+		return path, nil
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current directory: %w", err)

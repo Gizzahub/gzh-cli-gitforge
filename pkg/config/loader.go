@@ -40,8 +40,17 @@ func NewLoader() (*ConfigLoader, error) {
 	}, nil
 }
 
-// Load loads all configuration layers.
+// Load loads all configuration layers using the current working directory as
+// the project-config discovery anchor.
 func (l *ConfigLoader) Load() error {
+	return l.LoadAt("")
+}
+
+// LoadAt loads all configuration layers, finding the project config upward
+// from directory. An empty directory uses the current working directory.
+// It does not change the process working directory, so callers can resolve a
+// linked worktree independently of the invoking CLI process.
+func (l *ConfigLoader) LoadAt(directory string) error {
 	// Load global config
 	globalConfig, err := l.manager.LoadGlobalConfig()
 	if err != nil {
@@ -64,7 +73,7 @@ func (l *ConfigLoader) Load() error {
 	}
 
 	// Load project config (may be nil if not found)
-	projectConfig, projectConfigPath, err := l.manager.loadProjectConfigWithPath()
+	projectConfig, projectConfigPath, err := l.manager.loadProjectConfigWithPathAt(directory)
 	if err != nil {
 		return fmt.Errorf("failed to load project config: %w", err)
 	}
@@ -150,6 +159,12 @@ func (l *ConfigLoader) applyGlobalConfig(cfg *EffectiveConfig) {
 	}
 
 	l.applyIdentity(cfg, l.globalConfig.Identity, string(SourceGlobal))
+	// Global branch defaults historically did not participate in effective
+	// configuration. Keep that boundary and admit only the new worktree-sync
+	// policy, which is intentionally configured at every precedence layer.
+	if l.globalConfig.Branch != nil && l.globalConfig.Branch.WorktreeSync != nil {
+		cfg.Branch.WorktreeSync = l.globalConfig.Branch.WorktreeSync
+	}
 
 	if l.globalConfig.Defaults == nil {
 		return
@@ -366,6 +381,9 @@ func (l *ConfigLoader) applyBranchConfig(dst, src *BranchConfig) {
 	}
 	if len(src.ProtectedBranches) > 0 {
 		dst.ProtectedBranches = src.ProtectedBranches
+	}
+	if src.WorktreeSync != nil {
+		dst.WorktreeSync = src.WorktreeSync
 	}
 	l.applyBranchNaming(dst, src.Naming)
 }

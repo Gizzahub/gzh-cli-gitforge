@@ -344,6 +344,9 @@ func mergeBranchConfig(target, override *BranchConfig) {
 	if len(override.ProtectedBranches) > 0 {
 		target.ProtectedBranches = override.ProtectedBranches
 	}
+	if override.WorktreeSync != nil {
+		target.WorktreeSync = override.WorktreeSync
+	}
 }
 
 // mergeFetchConfig merges override into target (override takes precedence).
@@ -461,6 +464,9 @@ func mergeParentBranchConfig(child, parent *BranchConfig) {
 	}
 	if len(child.ProtectedBranches) == 0 && len(parent.ProtectedBranches) > 0 {
 		child.ProtectedBranches = parent.ProtectedBranches
+	}
+	if child.WorktreeSync == nil && parent.WorktreeSync != nil {
+		child.WorktreeSync = parent.WorktreeSync
 	}
 }
 

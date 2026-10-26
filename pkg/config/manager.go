@@ -354,16 +354,15 @@ func (m *Manager) LoadGlobalConfig() (*GlobalConfig, error) {
 
 // LoadProjectConfig loads project-specific configuration.
 func (m *Manager) LoadProjectConfig() (*ProjectConfig, error) {
-	config, _, err := m.loadProjectConfigWithPath()
+	config, _, err := m.loadProjectConfigWithPathAt("")
 	return config, err
 }
 
-// loadProjectConfigWithPath loads the project config and returns the file it
-// came from, so a caller can resolve the profile it names (LoadProjectProfile).
-// The path is "" when no project config exists.
-func (m *Manager) loadProjectConfigWithPath() (*ProjectConfig, string, error) {
+// loadProjectConfigWithPathAt loads the nearest project config from directory.
+// An empty directory preserves current-working-directory lookup.
+func (m *Manager) loadProjectConfigWithPathAt(directory string) (*ProjectConfig, string, error) {
 	// Find project config file
-	configPath, err := FindProjectConfig()
+	configPath, err := FindProjectConfigAt(directory)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to find project config: %w", err)
 	}

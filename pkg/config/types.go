@@ -225,6 +225,10 @@ type BranchConfig struct {
 	DefaultBranch     BranchList `yaml:"defaultBranch,omitempty"`     // main, develop, master (string or list)
 	ProtectedBranches []string   `yaml:"protectedBranches,omitempty"` // Branches to protect
 
+	// WorktreeSync is a complete policy: a more-specific config replaces an
+	// inherited policy instead of combining unrelated branch hierarchies.
+	WorktreeSync *branch.WorktreeSyncConfig `yaml:"worktreeSync,omitempty"`
+
 	// IntegrationBranch is the ordered list of integration-branch names.
 	// Consumers must read it from the repo-root file (LoadRepoRootTaskPattern),
 	// not from the 5-layer merger.
@@ -492,6 +496,9 @@ type GlobalConfig struct {
 
 	// Defaults apply to all profiles unless overridden
 	Defaults map[string]any `yaml:"defaults,omitempty"`
+
+	// Branch holds global branch-command defaults.
+	Branch *BranchConfig `yaml:"branch,omitempty"`
 
 	// Identity names this machine and, if one is driving, the agent on it.
 	// It lives here rather than in a project's .gz-git.yaml because that file

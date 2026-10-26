@@ -96,6 +96,13 @@ ______________________________________________________________________
 
 ## Project Config Example (.gz-git.yaml)
 
+`branch.worktreeSync` configures upstream FF-only updates and explicit local
+parent propagation for `worktree sync`. It replaces the entire inherited policy;
+`{}` clears inherited parent rules. Rules use `match`, `parent`, and `strategy`
+(`ff-only` or leaf-only `rebase`). Configuration is resolved from the primary
+worktree, including when invoked from a linked worktree. See
+[worktree sync](../usage/worktree-command.md) for matching, filtering and recovery.
+
 ```yaml
 profile: work  # Use work profile for this project
 
