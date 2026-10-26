@@ -162,6 +162,44 @@ default are shared; the card stays open for the rest.
   workspaces fails the broken-child subtest.
 - Docs: `docs/.claude-context/config-guide.md` "Type inference".
 
-Still open: one base-directory resolver (three remain), canonical cycle
-semantics, the duplicated YAML schema in `pkg/reposynccli`, the
-`forge status` gate question, and the `config_loader.go` split.
+2026-10-26 (cycle semantics): one shared cycle rule.
+
+- Decisions (user): one detector in `pkg/config` with file identity and the
+  depth cap; a cycle or over-deep nesting is a config error in both
+  commands. Sync's ancestor walk (`reachesEnclosingConfigDir`) stays in the
+  sync planner: it guards writes over a config directory, not recursion.
+- `pkg/config/config_chain.go`: `ConfigChain.Enter` (config directories of
+  the nesting path, compared with `SameDir`, cap `MaxConfigDepth`),
+  `ErrConfigCycle`, `ErrConfigDepth`, `IsConfigTreeError`. `SameDir` moved
+  from `pkg/reposynccli`. `loadConfigRecursiveWithVisited` replaces its
+  string-keyed chain with it, so a symlink back to an ancestor reports a
+  cycle instead of the depth error; `visited` still guards parent configs.
+  The status loader carries the chain through `ctx` and returns the error
+  instead of skipping the workspace, also from a deeper nested config;
+  `workspace sync` returns it instead of its load warning.
+- Kept: a parent-config cycle (`parent:` chain, guarded by `visited`) is not
+  `ErrConfigCycle`; it stays a load warning in sync as in status. The other
+  `LoadConfigRecursive` callers (the child-config planners,
+  `config hierarchy`, `scan-depth`, `scan-exclude`, the manager) still
+  warn on these errors; the top-level sync load and the status loader catch
+  a cycle first.
+- Accepted asymmetry (review finding), from the existing classification
+  split: the sync loader enters only explicit `type: config` workspaces,
+  `recursive` or not, while status enters every config workspace with
+  `sync.recursive`, inferred ones included. So an untyped recursive
+  workspace at `path: .` fails status but is skipped by the sync planner's
+  self-sync guard, and an explicit non-recursive `type: config` cycle fails
+  only sync.
+- Tests: `TestConfigChainEnter`,
+  `TestLoadConfigRecursive_ConfigWorkspaceSymlinkCycle`,
+  `TestLoadConfigRecursive_ConfigWorkspaceDepth`, the parent-cycle check in
+  `TestLoadConfigRecursive_SelfReference`; in
+  `pkg/reposynccli` `TestLoadConfigWorkspaceCycles` (now errors) and
+  `TestLoadConfigWorkspaceDepth`; in `pkg/workspacecli`
+  `TestWorkspaceSyncRefusesConfigWorkspaceCycle`. Mutation evidence,
+  reverted: the old sync abort condition fails the sync cycle test.
+- Docs: `docs/.claude-context/config-guide.md` "Config workspace cycles".
+
+Still open: one base-directory resolver (three remain), the duplicated YAML
+schema in `pkg/reposynccli`, the `forge status` gate question, and the
+`config_loader.go` split.

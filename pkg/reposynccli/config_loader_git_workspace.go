@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/safefs"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -28,7 +29,7 @@ import (
 // dropping it. A path that cannot be read is returned as an error for the
 // caller to report.
 func loadGitWorkspace(name string, ws *workspaceEntry, wsPath, configDir string) ([]reposync.RepoSpec, error) {
-	if ws.URL == "" || sameDir(wsPath, configDir) {
+	if ws.URL == "" || config.SameDir(wsPath, configDir) {
 		return scanGitRepos(wsPath)
 	}
 	one := []reposync.RepoSpec{{Name: name, TargetPath: wsPath, CloneURL: ws.URL}}
@@ -45,20 +46,6 @@ func loadGitWorkspace(name string, ws *workspaceEntry, wsPath, configDir string)
 		return nil, err
 	}
 	return scanGitRepos(wsPath)
-}
-
-// sameDir reports whether a and b name the same existing directory, however
-// each is spelled: relative, with a trailing slash, or through a symlink.
-func sameDir(a, b string) bool {
-	ai, err := os.Stat(a)
-	if err != nil {
-		return false
-	}
-	bi, err := os.Stat(b)
-	if err != nil {
-		return false
-	}
-	return os.SameFile(ai, bi)
 }
 
 // scanGitRepos scans a directory for git repositories (depth 1).

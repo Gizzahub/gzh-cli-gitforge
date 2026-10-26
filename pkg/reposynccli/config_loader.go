@@ -10,7 +10,6 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -448,17 +447,18 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 	}, nil
 }
 
-// configChainKey carries the chain of enclosing config directories through
-// ctx while nested config workspaces load, so this loader can detect config
-// workspace reference cycles without changing exported signatures (ISSUE-102).
+// configChainKey carries the config directories of the current nesting path,
+// including the directory of the config being loaded, so this loader and
+// sync share one cycle rule (ISSUE-104).
 type configChainKey struct{}
 
-// configChain returns the config directories enclosing the current nested
-// load, empty at the top level.
-func configChain(ctx context.Context) []string {
-	chain, ok := ctx.Value(configChainKey{}).([]string)
+// configChain returns the config directories of the current nesting path.
+// The stored chain includes the directory of the config being loaded; at
+// the top level that is configDir.
+func configChain(ctx context.Context, configDir string) config.ConfigChain {
+	chain, ok := ctx.Value(configChainKey{}).(config.ConfigChain)
 	if !ok {
-		return nil
+		return config.ConfigChain{configDir}
 	}
 	return chain
 }
@@ -607,24 +607,14 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 			}
 
 		case config.WorkspaceTypeConfig:
-			// A config workspace pointing back at an enclosing config
-			// directory would reload the same file forever (ISSUE-102).
-			// The chain follows one nesting path, so siblings sharing a
-			// nested config are not a cycle. sameDir also catches a symlink
-			// back to an ancestor, as sync's self-sync guard does.
-			chain := configChain(ctx)
-			isAncestor := func(dir string) bool { return sameDir(wsPath, dir) }
-			if isAncestor(configDir) || slices.ContainsFunc(chain, isAncestor) {
-				cycleErr := fmt.Errorf("config workspace cycle at %s", wsPath)
-				fmt.Fprintf(os.Stderr, "Warning: workspace '%s' skipped: %v\n", name, cycleErr)
-				continue
+			// A cycle or over-deep nesting refuses the whole tree, as sync
+			// does (ISSUE-104); siblings get independent chains.
+			next, err := configChain(ctx, configDir).Enter(wsPath)
+			if err != nil {
+				return ConfigData{}, fmt.Errorf("workspace '%s': %w", name, err)
 			}
-			// The full slice expression copies before appending, so later
-			// siblings still see the parent chain.
-			chainCtx := context.WithValue(ctx, configChainKey{}, append(chain[:len(chain):len(chain)], configDir))
-			repos, err = l.loadConfigWorkspace(chainCtx, wsPath)
-			if errors.Is(err, config.ErrWorkspaceTypeConflict) {
-				// Sync's recursive load refuses the whole tree (ISSUE-104).
+			repos, err = l.loadConfigWorkspace(context.WithValue(ctx, configChainKey{}, next), wsPath)
+			if config.IsConfigTreeError(err) {
 				return ConfigData{}, err
 			}
 			if err != nil {

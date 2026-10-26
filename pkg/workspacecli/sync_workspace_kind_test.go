@@ -67,6 +67,20 @@ func TestWorkspaceSyncRefusesConfigWorkspaceWithSource(t *testing.T) {
 	})
 }
 
+// TestWorkspaceSyncRefusesConfigWorkspaceCycle pins the shared cycle rule:
+// a config workspace leading back to an enclosing config fails sync, as it
+// fails status, instead of dropping the tree behind a load warning.
+func TestWorkspaceSyncRefusesConfigWorkspaceCycle(t *testing.T) {
+	root := t.TempDir()
+	writeSyncKindConfig(t, root, "workspaces:\n  a:\n    type: config\n    path: a\n")
+	writeSyncKindConfig(t, filepath.Join(root, "a"), "workspaces:\n  back:\n    type: config\n    path: ..\n")
+
+	out, err := runWorkspaceSyncDryRun(t, root)
+	if !errors.Is(err, config.ErrConfigCycle) {
+		t.Fatalf("sync error = %v, want ErrConfigCycle\n%s", err, out)
+	}
+}
+
 // TestWorkspaceSyncInferredConfigWorkspace pins ISSUE-104's reproduction on
 // the sync side: an untyped, url-less recursive workspace plans its child's
 // repositories, and a broken child config still fails sync instead of

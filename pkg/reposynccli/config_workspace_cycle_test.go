@@ -5,10 +5,14 @@ package reposynccli
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // writeGzGitConfig writes a .gz-git.yaml document into dir.
@@ -50,11 +54,6 @@ func loadWarnings(t *testing.T, configPath string) string {
 	return string(out)
 }
 
-// cycleWarnings counts the config workspace cycle warnings in stderr output.
-func cycleWarnings(stderr string) int {
-	return strings.Count(stderr, "config workspace cycle")
-}
-
 // TestLoadPathlessConfigWorkspaceResolvesToWorkspaceName pins ISSUE-102: a
 // `type: config` workspace without a path defaults to the workspace name
 // (compact config convention, matching `workspace sync`), so it loads the
@@ -92,7 +91,7 @@ func TestLoadPathlessConfigWorkspaceWithoutDirectoryDoesNotRecurse(t *testing.T)
 }
 
 // TestLoadConfigWorkspaceCycles covers config workspaces that point back at
-// an enclosing config directory: each must be skipped once as a cycle.
+// an enclosing config directory: each is a config error (ISSUE-104).
 func TestLoadConfigWorkspaceCycles(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -134,9 +133,9 @@ func TestLoadConfigWorkspaceCycles(t *testing.T) {
 			root := t.TempDir()
 			tt.setup(t, root)
 
-			stderr := loadWarnings(t, filepath.Join(root, ".gz-git.yaml"))
-			if n := cycleWarnings(stderr); n != 1 {
-				t.Errorf("cycle warnings = %d, want 1; stderr:\n%s", n, stderr)
+			_, err := (FileSpecLoader{}).Load(context.Background(), filepath.Join(root, ".gz-git.yaml"))
+			if !errors.Is(err, config.ErrConfigCycle) {
+				t.Fatalf("Load err = %v, want ErrConfigCycle", err)
 			}
 		})
 	}
@@ -145,8 +144,8 @@ func TestLoadConfigWorkspaceCycles(t *testing.T) {
 // TestLoadSiblingConfigWorkspacesSharingNestedConfig pins the false-positive
 // guard: two sibling config workspaces may both delegate to the same nested
 // config; only a directory already on the current nesting path is a cycle.
-// The repo dedupes to one entry either way, so the guard is the absence of a
-// cycle warning.
+// The repo dedupes to one entry either way, so the guard is that Load
+// succeeds.
 func TestLoadSiblingConfigWorkspacesSharingNestedConfig(t *testing.T) {
 	root := t.TempDir()
 	one := filepath.Join(root, "one")
@@ -160,10 +159,6 @@ func TestLoadSiblingConfigWorkspacesSharingNestedConfig(t *testing.T) {
 	writeGzGitConfig(t, two, "workspaces:\n  s:\n    type: config\n    sync:\n      recursive: true\n    path: ../shared\n")
 	writeGzGitConfig(t, shared, "repositories:\n  - name: lib\n    url: https://example.invalid/lib.git\n")
 
-	if stderr := loadWarnings(t, filepath.Join(root, ".gz-git.yaml")); cycleWarnings(stderr) != 0 {
-		t.Errorf("unexpected cycle warning; stderr:\n%s", stderr)
-	}
-
 	data, err := (FileSpecLoader{}).Load(context.Background(), filepath.Join(root, ".gz-git.yaml"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -174,4 +169,45 @@ func TestLoadSiblingConfigWorkspacesSharingNestedConfig(t *testing.T) {
 	if got, want := data.Plan.Input.Repos[0].TargetPath, filepath.Join(shared, "lib"); got != want {
 		t.Errorf("lib: TargetPath = %q, want %q", got, want)
 	}
+}
+
+// writeNestedConfigDirs writes dirs nested type:config workspaces under root
+// (d0). Each directory dN points at dN+1 with sync.recursive. The last
+// directory gets leafBody as its config.
+func writeNestedConfigDirs(t *testing.T, root string, dirs int, leafBody string) {
+	t.Helper()
+	cur := root
+	for i := 1; i < dirs; i++ {
+		childName := fmt.Sprintf("d%d", i)
+		child := filepath.Join(cur, childName)
+		mkdirAll(t, child)
+		writeGzGitConfig(t, cur, "workspaces:\n  "+childName+":\n    type: config\n    path: "+childName+"\n    sync:\n      recursive: true\n")
+		cur = child
+	}
+	writeGzGitConfig(t, cur, leafBody)
+}
+
+func TestLoadConfigWorkspaceDepth(t *testing.T) {
+	t.Run("12 nested config dirs exceed depth", func(t *testing.T) {
+		root := t.TempDir()
+		writeNestedConfigDirs(t, root, 12, "workspaces:\n  leaf:\n    type: git\n    url: https://example.invalid/leaf.git\n")
+
+		_, err := (FileSpecLoader{}).Load(context.Background(), filepath.Join(root, ".gz-git.yaml"))
+		if !errors.Is(err, config.ErrConfigDepth) {
+			t.Fatalf("Load err = %v, want ErrConfigDepth", err)
+		}
+	})
+
+	t.Run("11 levels total load without a depth error", func(t *testing.T) {
+		root := t.TempDir()
+		writeNestedConfigDirs(t, root, 11, "repositories:\n  - name: lib\n    url: https://example.invalid/lib.git\n")
+
+		data, err := (FileSpecLoader{}).Load(context.Background(), filepath.Join(root, ".gz-git.yaml"))
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if len(data.Plan.Input.Repos) != 1 {
+			t.Fatalf("repos = %+v, want 1", data.Plan.Input.Repos)
+		}
+	})
 }

@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -906,6 +907,10 @@ profile: test
 	if !strings.Contains(err.Error(), "circular") {
 		t.Errorf("Expected circular reference error, got: %v", err)
 	}
+	// A parent cycle stays a load warning in sync, as in status.
+	if IsConfigTreeError(err) {
+		t.Errorf("parent cycle must not be a config tree error: %v", err)
+	}
 }
 
 func TestLoadConfigRecursive_ParentNotFound(t *testing.T) {
@@ -1316,6 +1321,9 @@ func TestLoadConfigRecursive_ConfigWorkspaceCycle(t *testing.T) {
 			if !strings.Contains(err.Error(), "circular config reference detected") {
 				t.Fatalf("expected circular config reference error, got: %v", err)
 			}
+			if tt.name == "config workspace at its own directory" && !errors.Is(err, ErrConfigCycle) {
+				t.Fatalf("err = %v, want ErrConfigCycle", err)
+			}
 		})
 	}
 }
@@ -1327,5 +1335,43 @@ func TestLoadConfigRecursive_SharedNestedConfigIsNotACycle(t *testing.T) {
 
 	if _, err := LoadConfigRecursive(root, ".gz-git.yaml"); err != nil {
 		t.Fatalf("siblings sharing a nested config whose parent is the root must load: %v", err)
+	}
+}
+
+func TestLoadConfigRecursive_ConfigWorkspaceSymlinkCycle(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Symlink(root, filepath.Join(root, "link")); err != nil {
+		t.Skipf("symlink: %v", err)
+	}
+	writeWorkspaceConfig(t, root, "workspaces:\n  link:\n    type: config\n    path: link\n")
+
+	_, err := LoadConfigRecursive(root, ".gz-git.yaml")
+	if !errors.Is(err, ErrConfigCycle) {
+		t.Fatalf("err = %v, want ErrConfigCycle", err)
+	}
+}
+
+// TestLoadConfigRecursive_ConfigWorkspaceDepth pins the shared nesting bound
+// on the sync loader: the root plus MaxConfigDepth nested config workspaces
+// load, one more is ErrConfigDepth.
+func TestLoadConfigRecursive_ConfigWorkspaceDepth(t *testing.T) {
+	nest := func(t *testing.T, levels int) string {
+		t.Helper()
+		root := t.TempDir()
+		dir := root
+		for i := 1; i < levels; i++ {
+			writeWorkspaceConfig(t, dir, "workspaces:\n  next:\n    type: config\n    path: next\n")
+			dir = filepath.Join(dir, "next")
+		}
+		writeWorkspaceConfig(t, dir, "profile: leaf\n")
+		return root
+	}
+
+	if _, err := LoadConfigRecursive(nest(t, MaxConfigDepth+1), ".gz-git.yaml"); err != nil {
+		t.Fatalf("%d levels must load: %v", MaxConfigDepth+1, err)
+	}
+	_, err := LoadConfigRecursive(nest(t, MaxConfigDepth+2), ".gz-git.yaml")
+	if !errors.Is(err, ErrConfigDepth) {
+		t.Fatalf("%d levels: err = %v, want ErrConfigDepth", MaxConfigDepth+2, err)
 	}
 }

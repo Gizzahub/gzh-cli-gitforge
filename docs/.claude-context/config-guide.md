@@ -234,6 +234,15 @@ A `config` workspace takes part in sync and status only with
 `sync.recursive: true`. Sync plans no workspace of an unknown type, and status
 skips it with a warning; `gz-git config hierarchy --validate` reports it.
 
+#### Config workspace cycles
+
+Sync and status share one cycle rule, `config.ConfigChain`. A `config`
+workspace whose directory is already on the current nesting path, compared
+by file identity so a symlink or another spelling of an ancestor counts, is
+a cycle (`ErrConfigCycle`). Nesting beyond `MaxConfigDepth` (10) levels below
+the root is `ErrConfigDepth`. Both refuse the whole config in `workspace sync` and in `workspace status`, like a type conflict. Sibling workspaces
+get independent chains, so they may share one nested config.
+
 ### Discovery Modes
 
 ```bash

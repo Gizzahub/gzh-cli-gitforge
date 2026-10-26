@@ -39,20 +39,25 @@ const (
 //	// Load workspace config
 //	config, err := LoadConfigRecursive("/home/user/mydevbox", ".gz-git.yaml")
 func LoadConfigRecursive(path, configFile string) (*Config, error) {
-	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), make(map[string]bool), true, 0)
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve config path %s: %w", path, err)
+	}
+	return loadConfigRecursiveWithVisited(path, configFile, make(map[string]bool), ConfigChain{absPath}, true, 0)
 }
 
 // loadConfigRecursiveWithVisited loads config with circular reference detection.
 //
-// visited holds the configs read for this level and its parent chain. chain
-// holds the configs of the enclosing config workspaces, so a config workspace
-// that points back at an ancestor is reported instead of recursing forever.
-// A nested config may still name an ancestor as its parent, because parents
-// are loaded without their workspaces.
+// visited holds the configs read for this level and its parent chain, keyed by
+// file path. chain holds the config directories of the current nesting path, so
+// a config workspace that points back at an ancestor is reported instead of
+// recursing forever. A nested config may still name an ancestor as its parent,
+// because parents are loaded without their workspaces.
 //
 //nolint:gocognit,gocyclo // complex by design: handles recursive config loading with cycle detection, path resolution, and workspace traversal
-func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[string]bool, loadWorkspaces bool, depth int) (*Config, error) {
-	// Check depth limit
+func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]bool, chain ConfigChain, loadWorkspaces bool, depth int) (*Config, error) {
+	// depth also counts parent-config hops; config workspace nesting is
+	// capped by chain.Enter, so this bound stays a plain error.
 	if depth > MaxConfigDepth {
 		return nil, fmt.Errorf("config recursion depth exceeded (max %d): possible circular or excessively nested config", MaxConfigDepth)
 	}
@@ -64,9 +69,11 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 		return nil, fmt.Errorf("failed to resolve config path %s: %w", configPath, err)
 	}
 
-	// Check for circular reference
-	if visited[absConfigPath] || chain[absConfigPath] {
-		return nil, fmt.Errorf("circular config reference detected: %s", absConfigPath)
+	// A parent-config cycle is not ErrConfigCycle: that sentinel is the
+	// config workspace rule sync and status share, and status only warns on
+	// a broken parent chain.
+	if visited[absConfigPath] {
+		return nil, fmt.Errorf("circular parent config reference detected: %s", absConfigPath)
 	}
 	visited[absConfigPath] = true
 
@@ -128,17 +135,6 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 		return &config, nil
 	}
 
-	// Each nested config workspace sees this config as an ancestor. Copy the
-	// chain per load so sibling workspaces may share a nested config.
-	nestedChain := func() map[string]bool {
-		next := make(map[string]bool, len(chain)+1)
-		for p := range chain {
-			next[p] = true
-		}
-		next[absConfigPath] = true
-		return next
-	}
-
 	for name, ws := range config.Workspaces {
 		if ws == nil {
 			continue
@@ -170,7 +166,11 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 		case WorkspaceTypeConfig:
 			// Workspace has a nested config file - recurse!
 			nestedConfigFile := ".gz-git.yaml"
-			nestedConfig, err := loadConfigRecursiveWithVisited(wsPath, nestedConfigFile, make(map[string]bool), nestedChain(), true, depth+1)
+			next, err := chain.Enter(wsPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load workspace '%s' config: %w", name, err)
+			}
+			nestedConfig, err := loadConfigRecursiveWithVisited(wsPath, nestedConfigFile, make(map[string]bool), next, true, depth+1)
 			if err != nil {
 				// Config file not found is OK (use workspace settings only)
 				// But other errors (permission denied, disk I/O) should be reported
@@ -214,7 +214,12 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited, chain map[
 			}
 			if nestedWs.Type.Resolve(nestedWs.Source != nil) == WorkspaceTypeConfig {
 				nestedConfigFile := ".gz-git.yaml"
-				_, err := loadConfigRecursiveWithVisited(nestedPath, nestedConfigFile, make(map[string]bool), nestedChain(), true, depth+1)
+				next, err := chain.Enter(nestedPath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to load nested workspace '%s/%s' config: %w",
+						name, nestedName, err)
+				}
+				_, err = loadConfigRecursiveWithVisited(nestedPath, nestedConfigFile, make(map[string]bool), next, true, depth+1)
 				if err != nil {
 					// Config not found is OK, but report other errors
 					if errors.Is(err, os.ErrNotExist) {

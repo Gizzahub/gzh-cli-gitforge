@@ -171,9 +171,10 @@ Config File Structure (Reference):
 
 			recursiveCfg, recursiveErr := config.LoadConfigRecursive(configDir, configFile)
 			if recursiveErr != nil {
-				// A source with a non-forge type is a config error, not a
-				// warning: status refuses it too (ISSUE-104).
-				if errors.Is(recursiveErr, config.ErrWorkspaceTypeConflict) {
+				// A source with a non-forge type, a config workspace cycle
+				// and over-deep nesting are config errors, not warnings:
+				// status refuses them too (ISSUE-104).
+				if config.IsConfigTreeError(recursiveErr) {
 					if planSpinnerProgram != nil {
 						planSpinnerProgram.Send(planDoneMsg{})
 						planSpinnerProgram.Wait()
