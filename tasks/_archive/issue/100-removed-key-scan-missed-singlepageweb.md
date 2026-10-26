@@ -13,7 +13,7 @@ created: 2026-10-22
 
 ## Summary
 
-[ISSUE-89](../_archive/issue/089-release-0-12-blocked-by-removed-keys.md) was
+[ISSUE-89](089-release-0-12-blocked-by-removed-keys.md) was
 closed in `86f02984` (2026-10-22 09:59 KST) after a re-scan reported that "the
 50 primary checkouts and the global config declare none of the removed keys".
 That re-scan, and the 2026-10-21 impact table before it, did not include
@@ -117,6 +117,27 @@ only the generic `Failed to resolve repository push access`
 (`pkg/repository/bulk.go:2237`), and the removed-key reason appears only in the
 `error` field. In a long JSON report, the removed-key cause is easy to miss. A
 summary that names the removed key would point owners at the fix directly.
+
+## Resolution
+
+Closed 2026-10-26 by user decision. Both devices have now been scanned with a
+recorded method, and every gap found is recorded here as ISSUE-89's
+missing evidence:
+
+- mbp (2026-10-24, run by the operator): 120 `.gz-git.yaml` files and the
+  global config, 0 removed-key matches. singlepageweb-devbox is not on mbp.
+- mst (2026-10-25): 121 files at depth 1–2 under `~/mydevbox` (method in the
+  section above). The two `branch.readiness` hits are recorded above. The
+  gizzahub top-level `readiness:` is not a gz-git key.
+- Owners fix their own repositories: singlepageweb in its ISSUE-096 and
+  TASK-283, brikspec and gitrump-client on
+  `dev/claude/mst/fix/remove-readiness-key`, and the mst global config by its
+  operator. gz-git changes none of them.
+
+Not covered, and left as accepted: depth 3 or more, and `~/mywork`. A miss
+there shows up as a load error that names the file and key, as it did for
+singlepageweb, brikspec and gitrump-client. The bulk push summary wording is
+an unconfirmed UX note, not a defect, and was not pursued.
 
 ## Notes
 

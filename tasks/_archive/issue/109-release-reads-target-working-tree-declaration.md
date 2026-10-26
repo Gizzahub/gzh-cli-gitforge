@@ -19,7 +19,7 @@ reads the working tree, which is the default branch's `.gz-git.yaml`.
 
 After [ISSUE-89](089-release-0-12-blocked-by-removed-keys.md)
 and [ISSUE-90](090-removed-key-guard-skips-other-loaders.md), a removed key
-refuses that load with exit 2. [ISSUE-100](../../issue/100-removed-key-scan-missed-singlepageweb.md)
+refuses that load with exit 2. [ISSUE-100](100-removed-key-scan-missed-singlepageweb.md)
 then found `branch.prepareProfile` still declared in singlepageweb-devbox's
 child repositories. The repositories deleted it on `develop`, for example
 singlepageweb-calculator `0ee4886d16bb1076194d0ed188eef375609cc70b`.
