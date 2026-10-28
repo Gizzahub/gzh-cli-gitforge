@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gizzahub/gzh-cli-gitforge/internal/gitcmd"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
@@ -445,12 +446,60 @@ func resolveSiblingSource(ctx context.Context, source string, dep config.Sibling
 	return g, oid, nil
 }
 
+// legacyCEMetricsDir is the exact directory component legacy CE runtimes used
+// for session metric records.
+const legacyCEMetricsDir = ".ce-metrics"
+
+// isLegacyCEMetricsSessionRecord reports whether name is a legacy CE metric
+// session record: a flat session-<YYYYMMDD>-<HHMMSS>.json file directly inside
+// an exact .ce-metrics directory component, at the repository root or beneath
+// ordinary directories. Deeper nesting, near-match directory names, and
+// invalid timestamps stay rejected.
+func isLegacyCEMetricsSessionRecord(name string) bool {
+	parts := strings.Split(name, "/")
+	for index, part := range parts {
+		if part != legacyCEMetricsDir {
+			continue
+		}
+		relative := parts[index+1:]
+		return len(relative) == 1 && isLegacyCEMetricsSessionFilename(relative[0])
+	}
+	return false
+}
+
+// isLegacyCEMetricsSessionFilename validates the flat legacy record filename
+// with a real calendar date and wall-clock time.
+func isLegacyCEMetricsSessionFilename(name string) bool {
+	const prefix = "session-"
+	const suffix = ".json"
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+		return false
+	}
+	stamp := strings.TrimSuffix(strings.TrimPrefix(name, prefix), suffix)
+	datePart, timePart, ok := strings.Cut(stamp, "-")
+	if !ok || len(datePart) != 8 || len(timePart) != 6 {
+		return false
+	}
+	if _, err := time.Parse("20060102", datePart); err != nil {
+		return false
+	}
+	if _, err := time.Parse("150405", timePart); err != nil {
+		return false
+	}
+	return true
+}
+
 // The archive contains only committed objects. Admit the observed local agent
 // metadata omitted from that archive, without allowing user excludes to hide
-// source changes or widening the independent flow-snapshot policy.
+// source changes or widening the independent flow-snapshot policy. Legacy
+// .ce-metrics session records join this operation's admitted set only; the
+// shared CE log runtime policy stays unchanged.
 func siblingSourceStatusClean(status string) bool {
 	return statusCleanExceptUntracked(status, func(name string) bool {
 		if isCELogRuntimeArtifactPath(name) || name == ".ce/task-runtime.yaml" {
+			return true
+		}
+		if isLegacyCEMetricsSessionRecord(name) {
 			return true
 		}
 		const prefix = ".agent-mesh/checkpoints/"
