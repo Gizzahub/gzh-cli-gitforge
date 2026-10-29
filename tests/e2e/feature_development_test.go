@@ -296,8 +296,26 @@ func Search(query string, items []string) []string {
 	})
 
 	t.Run("blame to see line origins", func(t *testing.T) {
+		// Git may add a boundary marker to its abbreviation. Verify the raw
+		// tokens are actually shorter than the renderer's eight-byte column.
+		repo.Git("config", "--local", "core.abbrev", "6")
+		raw := repo.Git("blame", "-e", "--date=iso", "search.go")
+		var shortHashes []string
+		for _, line := range strings.Split(raw, "\n") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 && len(fields[0]) < 8 {
+				shortHashes = append(shortHashes, fields[0])
+			}
+		}
+		if len(shortHashes) == 0 {
+			t.Fatal("blame fixture did not produce a hash shorter than eight bytes")
+		}
+
 		// Blame the file
 		output := repo.RunGzhGit("history", "blame", "search.go")
+		for _, hash := range shortHashes {
+			AssertContains(t, output, hash+" (")
+		}
 
 		// Should show attribution with current year
 		currentYear := time.Now().Format("2006-")

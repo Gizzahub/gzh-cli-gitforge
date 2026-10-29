@@ -156,7 +156,7 @@ func runHistoryBlame(cmd *cobra.Command, args []string) error {
 	for _, line := range blameInfo.Lines {
 		fmt.Printf(
 			"%s (%s %s) %s\n",
-			line.Hash[:8],
+			blameDisplayHash(line.Hash),
 			line.Author,
 			line.Date.Format("2006-01-02"),
 			line.Content,
@@ -164,4 +164,15 @@ func runHistoryBlame(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// blameDisplayHash limits one blame object id to this command's column.
+// The parser keeps Git's hash text, including a core.abbrev shorter than 8.
+// Values already at or under that width stay intact; only longer ones are cut.
+func blameDisplayHash(hash string) string {
+	const width = 8
+	if len(hash) <= width {
+		return hash
+	}
+	return hash[:width]
 }
