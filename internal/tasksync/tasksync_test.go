@@ -21,6 +21,33 @@ type fixture struct {
 	taskHead  string
 }
 
+type testLease struct {
+	records []ApplyRecord
+	fail    string
+}
+
+func (lease *testLease) Check(context.Context) error { return nil }
+func (lease *testLease) Record(_ context.Context, record ApplyRecord) error {
+	lease.records = append(lease.records, record)
+	if record.Step == lease.fail {
+		return errors.New("record failed")
+	}
+	return nil
+}
+func (lease *testLease) Close() error { return nil }
+
+type testFence struct{ lease *testLease }
+
+func (fence testFence) Acquire(context.Context, ApplyPlan) (ApplyLease, error) {
+	return fence.lease, nil
+}
+
+type deniedFence struct{}
+
+func (deniedFence) Acquire(context.Context, ApplyPlan) (ApplyLease, error) {
+	return nil, errors.New("denied")
+}
+
 func newFixture(t *testing.T, conflict bool) fixture {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -97,6 +124,67 @@ func TestPrepareCleanRetainsCandidateWithoutChangingOriginal(t *testing.T) {
 	}
 	if cmd := exec.CommandContext(context.Background(), "git", "-C", f.canonical, "rev-parse", "--verify", refPrefix+result.Prepared.Handle); cmd.Run() == nil { //nolint:gosec // fixed fixture argv
 		t.Fatal("released candidate ref remains")
+	}
+}
+
+func TestApplyLocalMovesPinnedBranchWithCheckpoint(t *testing.T) {
+	f := newFixture(t, false)
+	prepared := PrepareClean(context.Background(), f.request())
+	if prepared.Prepared == nil {
+		t.Fatalf("prepare = %+v", prepared)
+	}
+	plan := ApplyPlan{PlanID: "apply-1", GenerationDigest: "generation", AuthorityDigest: "authority", ProviderBindingDigest: "provider", CanonicalWorktree: f.canonical, TaskWorktree: f.task, CommonDir: f.common, TaskBranch: "task/demo", SourceRef: "main", ExpectedTaskHEAD: f.taskHead, ExpectedSourceOID: f.source, AllowedPaths: []string{"generated/source.txt", "shared.txt"}}
+	lease := &testLease{}
+	plan.ProviderBindingDigest = BindingDigest(plan, prepared.Prepared.Descriptor())
+	result := ApplyLocal(context.Background(), ApplyRequest{Plan: plan, Candidate: prepared.Prepared.Descriptor(), Fence: testFence{lease: lease}})
+	if result.Outcome != OutcomeApplied || !result.Applied || result.ActualHEAD != prepared.Prepared.CandidateOID {
+		t.Fatalf("apply = %+v", result)
+	}
+	if got := gitOutput(t, f.task, "symbolic-ref", "HEAD"); got != "refs/heads/task/demo" {
+		t.Fatalf("head = %s", got)
+	}
+	if got := gitOutput(t, f.canonical, "rev-parse", result.CheckpointRef); got != f.taskHead {
+		t.Fatalf("checkpoint = %s", got)
+	}
+	if len(lease.records) != 8 {
+		t.Fatalf("records = %d", len(lease.records))
+	}
+}
+
+func TestApplyLocalFenceDenialDoesNotMoveTask(t *testing.T) {
+	f := newFixture(t, false)
+	p := PrepareClean(context.Background(), f.request()).Prepared
+	plan := ApplyPlan{PlanID: "p", GenerationDigest: "g", AuthorityDigest: "a", ProviderBindingDigest: "b", CanonicalWorktree: f.canonical, TaskWorktree: f.task, CommonDir: f.common, TaskBranch: "task/demo", SourceRef: "main", ExpectedTaskHEAD: f.taskHead, ExpectedSourceOID: f.source}
+	for _, fence := range []ApplyFenceProvider{nil, deniedFence{}} {
+		got := ApplyLocal(context.Background(), ApplyRequest{Plan: plan, Candidate: p.Descriptor(), Fence: fence})
+		if got.Outcome != OutcomeRefused || gitOutput(t, f.task, "rev-parse", "HEAD") != f.taskHead {
+			t.Fatalf("denial=%+v", got)
+		}
+	}
+}
+
+func TestApplyLocalRecordFailure(t *testing.T) {
+	stages := []string{"checkpoint-intent", "checkpoint-created", "checkout-intent", "checked-out", "branch-intent", "branch-updated", "attach-intent", "attached"}
+	for index, stage := range stages {
+		t.Run(stage, func(t *testing.T) {
+			f := newFixture(t, false)
+			prepared := PrepareClean(context.Background(), f.request()).Prepared
+			plan := ApplyPlan{PlanID: "p", GenerationDigest: "g", AuthorityDigest: "a", ProviderBindingDigest: "b", CanonicalWorktree: f.canonical, TaskWorktree: f.task, CommonDir: f.common, TaskBranch: "task/demo", SourceRef: "main", ExpectedTaskHEAD: f.taskHead, ExpectedSourceOID: f.source, AllowedPaths: []string{"generated/source.txt", "shared.txt"}}
+			lease := &testLease{fail: stage}
+			plan.ProviderBindingDigest = BindingDigest(plan, prepared.Descriptor())
+			got := ApplyLocal(context.Background(), ApplyRequest{Plan: plan, Candidate: prepared.Descriptor(), Fence: testFence{lease: lease}})
+			if got.Outcome == OutcomeApplied || len(lease.records) != index+1 {
+				t.Fatalf("result=%+v records=%d", got, len(lease.records))
+			}
+			if index < 3 && gitOutput(t, f.task, "rev-parse", "HEAD") != f.taskHead {
+				t.Fatal("pre-checkout failure moved task")
+			}
+			if index > 0 {
+				if head := gitOutput(t, f.canonical, "rev-parse", got.CheckpointRef); head != f.taskHead {
+					t.Fatalf("checkpoint=%s", head)
+				}
+			}
+		})
 	}
 }
 

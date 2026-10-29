@@ -59,6 +59,15 @@ func safeObjectFanout(commonDir string) error {
 	return nil
 }
 
+func safeCheckpointSurface(commonDir, handle string) error {
+	for _, path := range []string{"refs", "refs/gz-git", "refs/gz-git/tasksync-checkpoints", "logs", "logs/refs", "logs/refs/gz-git", "logs/refs/gz-git/tasksync-checkpoints", "refs/gz-git/tasksync-checkpoints/" + handle, "logs/refs/gz-git/tasksync-checkpoints/" + handle} {
+		if err := safeExistingPath(commonDir, path, !strings.HasSuffix(path, "/"+handle)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func safeExistingPath(base, relative string, requireDirectory bool) error {
 	components := strings.Split(filepath.Clean(relative), string(filepath.Separator))
 	current := base

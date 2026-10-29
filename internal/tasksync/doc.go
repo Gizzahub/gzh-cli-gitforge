@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 /*
-Package tasksync prepares a local-only rebased task candidate.
+Package tasksync prepares and explicitly applies a local-only rebased task candidate.
 
 # Task sync의 clean candidate 준비
 
 이 내부 API는 소유 writer가 고정한 입력으로 재배치 candidate를 준비하는 단계다.
-운영 CLI에 연결하지 않으며 task 원본 worktree·branch를 갱신하거나 원격에 게시하지 않는다.
+운영 CLI에는 연결하지 않는다. PrepareClean은 원본을 보존하며, 별도 ApplyLocal만
+명시적으로 주입한 소유권 lease 아래 task 원본 worktree·branch를 갱신한다. 원격 게시는 없다.
 prepared candidate와 실제 task 동기화 완료를 구분한다.
 
 기존 bulk worktree sync는 여러 worktree의 관계와 순서를 조정한다. 이 API는 한 task의
@@ -33,7 +34,12 @@ prepared candidate와 실제 task 동기화 완료를 구분한다.
 외부 helper를 실행할 수 있는 설정과 지원하지 않는 history는 거부한다. 실행할 Git은
 기존 도구 경로에서 해석해 절대 실행 파일로 고정하며 시스템 Git으로 대체하지 않는다.
 
-원본 반영은 writer의 소유권 fence·authority·generation CAS와 연결할 별도 단계다.
+ApplyLocal은 plan/candidate 해시를 대조하고 writer가 발급한 하나의 lease를 적용 전체에
+유지한다. 원래 HEAD를 별도 checkpoint ref에 보존한 뒤 detached checkout, branch CAS,
+HEAD 부착을 수행하며 각 변경 전후 owner Record/Check를 요구한다. 중간 실패는 uncertain으로
+반환하고 checkpoint·원래 HEAD·관측한 실제 HEAD를 보존한다. 되돌리거나 자동 정리하지 않는다.
+lease 종료 실패도 성공으로 처리하지 않는다. Record는 호출자의 durable journal 책임이며,
+lease는 기존 caller와 진행 중 작업까지 배제한 실제 권한·generation CAS에 연결해야 한다.
 해당 연결과 구버전 caller의 우회 거절을 검증하기 전에는 운영 진입점을 활성화하지 않는다.
 충돌 continue/cancel·사용자 편집의 durable 보존·원격 lease 게시도 후속 범위다.
 

@@ -36,6 +36,8 @@ const (
 	OutcomeConflict Outcome = "conflict"
 	// OutcomeUncertain describes an operation whose effect cannot be known safely.
 	OutcomeUncertain Outcome = "uncertain"
+	// OutcomeApplied describes a candidate applied to the pinned task branch.
+	OutcomeApplied Outcome = "applied"
 )
 
 // Request pins every Git identity this local primitive may inspect.
