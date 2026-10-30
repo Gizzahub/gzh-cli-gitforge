@@ -6,9 +6,14 @@ push는 다시 실행하지 않는다. 호출자는 최신 실행 세대와 복�
 확인해야 하며, TaskManager가 그 lifecycle CAS와 durable 실행 기록을 소유한다.
 
 ```sh
-gz-git integrate receipt --execution-id run-42 --generation g7 --json
-gz-git integrate cleanup --execution-id run-42 --generation g7 --json
+gz-git integrate receipt --record run-42@g7 --json
+gz-git integrate cleanup --record run-42@g7 --json
 ```
+
+`--record <id>@<generation>`는 `--execution-id`와 `--generation`을 합친
+ADR-0161 형식이다. 둘 중 한 형식만 준다. 섞거나 세대가 빠지면 receipt를 읽기
+전에 종료 코드 2로 거부한다. 기존 `--execution-id`/`--generation`은 deprecated이며
+한 릴리스 동안 유지한다.
 
 두 명령은 해당 저장소에서 실행한다. 실제 runtime이 발급한 실행 ID와 세대를
 사용한다. 예시의 이름을 다른 실행에 재사용하지 않는다.

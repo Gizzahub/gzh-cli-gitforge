@@ -19,6 +19,7 @@ import (
 var (
 	integrateReceiptExecutionID string
 	integrateReceiptGeneration  string
+	integrateReceiptRecord      string
 	integrateReceiptJSON        bool
 )
 
@@ -26,7 +27,11 @@ var integrateReceiptCmd = &cobra.Command{
 	Use:   "receipt",
 	Short: "Read the durable integrate receipt for one execution",
 	Long: cliutil.QuickStartHelp(`  # What does the durable evidence say about this run?
-  gz-git integrate receipt --execution-id run-42 --generation g7
+  gz-git integrate receipt --record run-42@g7
+
+--record <id>@<generation> is --execution-id plus --generation; supply it or
+the legacy pair, not both. The legacy flags are deprecated and stay for one
+release.
 
 Reads the receipt recorded under the repository's Git common dir
 (gz-integrate/v1/receipts). The query is read-only: it never creates
@@ -50,14 +55,17 @@ Exit Codes:
 
 func init() {
 	integrateCmd.AddCommand(integrateReceiptCmd)
-	integrateReceiptCmd.Flags().StringVar(&integrateReceiptExecutionID, "execution-id", "", "execution id of the run to read (required)")
-	integrateReceiptCmd.Flags().StringVar(&integrateReceiptGeneration, "generation", "", "exact runtime generation to verify against the receipt (required)")
+	integrateReceiptCmd.Flags().StringVar(&integrateReceiptExecutionID, "execution-id", "", "deprecated, use --record: execution id of the run to read")
+	integrateReceiptCmd.Flags().StringVar(&integrateReceiptGeneration, "generation", "", "deprecated, use --record: exact runtime generation to verify against the receipt")
+	integrateReceiptCmd.Flags().StringVar(&integrateReceiptRecord, "record", "", "ADR-0161 form of --execution-id and --generation: <id>@<generation> (required unless the legacy pair is given)")
 	integrateReceiptCmd.Flags().BoolVar(&integrateReceiptJSON, "json", false, "print the receipt document as JSON (default prints a human summary)")
-	_ = integrateReceiptCmd.MarkFlagRequired("execution-id")
-	_ = integrateReceiptCmd.MarkFlagRequired("generation")
 }
 
 func runIntegrateReceipt(cmd *cobra.Command, args []string) error {
+	executionID, generation, err := executionRecordFromFlags(cmd, integrateReceiptRecord, integrateReceiptExecutionID, integrateReceiptGeneration)
+	if err != nil {
+		return cliutil.NewExitError(2, err)
+	}
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
 	if err != nil {
@@ -65,8 +73,8 @@ func runIntegrateReceipt(cmd *cobra.Command, args []string) error {
 	}
 	receipt, err := integrate.QueryReceipt(ctx, gitcmd.NewExecutor(), integrate.ReceiptOptions{
 		RepoPath:    dir,
-		ExecutionID: integrateReceiptExecutionID,
-		Generation:  integrateReceiptGeneration,
+		ExecutionID: executionID,
+		Generation:  generation,
 	})
 	if !quiet {
 		out := cmd.OutOrStdout()

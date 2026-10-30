@@ -66,12 +66,9 @@ func integrateRunArgsFromFlags(cmd *cobra.Command) (integrateRunArgs, error) {
 	}
 
 	if changed("record") {
-		if changed("execution-id") || changed("generation") {
-			return integrateRunArgs{}, fmt.Errorf("--record and --execution-id/--generation are mutually exclusive")
-		}
-		id, generation, ok := cutLast(integrateRunRecord, "@")
-		if !ok || id == "" || generation == "" {
-			return integrateRunArgs{}, fmt.Errorf("--record must be <id>@<generation>, got %q", integrateRunRecord)
+		id, generation, err := recordFromFlag(cmd, integrateRunRecord)
+		if err != nil {
+			return integrateRunArgs{}, err
 		}
 		args.ExecutionID, args.Generation = id, generation
 	}
@@ -87,6 +84,37 @@ func integrateRunArgsFromFlags(cmd *cobra.Command) (integrateRunArgs, error) {
 		args.OwnerActor, args.OwnerHost, args.OwnerKind = parts[0], parts[1], parts[2]
 	}
 	return args, nil
+}
+
+// recordFromFlag parses a supplied --record <id>@<generation> and refuses it
+// next to the legacy --execution-id/--generation flags it replaces. The
+// generation is whatever follows the last '@', so an id may itself contain
+// one. integrate run, cleanup and receipt share it.
+func recordFromFlag(cmd *cobra.Command, record string) (id, generation string, err error) {
+	if cmd.Flags().Changed("execution-id") || cmd.Flags().Changed("generation") {
+		return "", "", fmt.Errorf("--record and --execution-id/--generation are mutually exclusive")
+	}
+	id, generation, ok := cutLast(record, "@")
+	if !ok || id == "" || generation == "" {
+		return "", "", fmt.Errorf("--record must be <id>@<generation>, got %q", record)
+	}
+	return id, generation, nil
+}
+
+// executionRecordFromFlags resolves the record for the commands that address
+// one existing execution (cleanup, receipt): exactly one of --record or the
+// legacy --execution-id plus --generation pair, and the legacy pair complete.
+func executionRecordFromFlags(cmd *cobra.Command, record, executionID, generation string) (id, gen string, err error) {
+	if cmd.Flags().Changed("record") {
+		return recordFromFlag(cmd, record)
+	}
+	if executionID == "" && generation == "" {
+		return "", "", fmt.Errorf("--record <id>@<generation> (or --execution-id with --generation) is required")
+	}
+	if executionID == "" || generation == "" {
+		return "", "", fmt.Errorf("--execution-id and --generation are supplied together and must not be empty")
+	}
+	return executionID, generation, nil
 }
 
 // splitPinnedTarget reads --target as <ref>@<sha> only when the text after

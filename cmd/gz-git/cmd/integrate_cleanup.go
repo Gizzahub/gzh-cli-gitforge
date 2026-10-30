@@ -18,6 +18,7 @@ import (
 var (
 	integrateCleanupExecutionID string
 	integrateCleanupGeneration  string
+	integrateCleanupRecord      string
 	integrateCleanupJSON        bool
 )
 
@@ -25,7 +26,11 @@ var integrateCleanupCmd = &cobra.Command{
 	Use:   "cleanup",
 	Short: "Cleanup-only retry for an evidenced integrate run",
 	Long: cliutil.QuickStartHelp(`  # Finish the reclaim half of a run that crashed after its push
-  gz-git integrate cleanup --execution-id run-42 --generation g7
+  gz-git integrate cleanup --record run-42@g7
+
+--record <id>@<generation> is --execution-id plus --generation; supply it or
+the legacy pair, not both. The legacy flags are deprecated and stay for one
+release.
 
 Reclaims the task worktree, local branch, and remote task branch recorded
 in the durable receipt, without re-integrating: cleanup never runs checks,
@@ -63,15 +68,18 @@ Exit Codes:
 
 func init() {
 	integrateCmd.AddCommand(integrateCleanupCmd)
-	integrateCleanupCmd.Flags().StringVar(&integrateCleanupExecutionID, "execution-id", "", "execution id of the run to finish reclaiming (required)")
-	integrateCleanupCmd.Flags().StringVar(&integrateCleanupGeneration, "generation", "", "exact runtime generation of that execution (required)")
+	integrateCleanupCmd.Flags().StringVar(&integrateCleanupExecutionID, "execution-id", "", "deprecated, use --record: execution id of the run to finish reclaiming")
+	integrateCleanupCmd.Flags().StringVar(&integrateCleanupGeneration, "generation", "", "deprecated, use --record: exact runtime generation of that execution")
+	integrateCleanupCmd.Flags().StringVar(&integrateCleanupRecord, "record", "", "ADR-0161 form of --execution-id and --generation: <id>@<generation> (required unless the legacy pair is given)")
 	integrateCleanupCmd.Flags().BoolVar(&integrateCleanupJSON, "json", false, "print the machine JSON protocol document instead of the human report")
-	_ = integrateCleanupCmd.MarkFlagRequired("execution-id")
-	_ = integrateCleanupCmd.MarkFlagRequired("generation")
 }
 
 func runIntegrateCleanup(cmd *cobra.Command, args []string) error {
 	printIntegrateProvenance(cmd)
+	executionID, generation, err := executionRecordFromFlags(cmd, integrateCleanupRecord, integrateCleanupExecutionID, integrateCleanupGeneration)
+	if err != nil {
+		return cliutil.NewExitError(2, err)
+	}
 	ctx := cmdContext(cmd)
 	dir, err := os.Getwd()
 	if err != nil {
@@ -79,8 +87,8 @@ func runIntegrateCleanup(cmd *cobra.Command, args []string) error {
 	}
 	report, err := integrate.CleanupRetry(ctx, gitcmd.NewExecutor(), integrate.CleanupOptions{
 		RepoPath:    dir,
-		ExecutionID: integrateCleanupExecutionID,
-		Generation:  integrateCleanupGeneration,
+		ExecutionID: executionID,
+		Generation:  generation,
 	})
 	exit := integrate.CleanupExitCode(err)
 	if !quiet {

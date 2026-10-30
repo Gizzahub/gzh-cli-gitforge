@@ -61,3 +61,15 @@ such a suffix now needs renaming), and `--owner <actor>/<host>/<kind>` is the
 three `--owner-*` flags. A new argument and its legacy flag together are
 refused. `integrate receipt` and `integrate cleanup` still take
 `--execution-id`/`--generation` only.
+
+## Progress — 2026-10-31 (gzh-cli-devbox TASK-349 step 3)
+
+The cleanup and receipt subcommands now accept `--record <id>@<generation>`
+next to `--execution-id`/`--generation`, through the same `--record` parsing
+as the run subcommand (`recordFromFlag`: split at the last `@`, both parts
+non-empty). Exactly one form is required: `--record` together with either
+legacy flag is refused as mutually exclusive, and a missing or half-supplied
+legacy pair is refused, all with exit 2 before any receipt is read. The legacy
+flags stay for one release and are marked deprecated in their help text (no
+cobra `MarkDeprecated`, so stderr is unchanged). Nothing is removed; check,
+reconcile, provision and legacy-cleanup are untouched.
