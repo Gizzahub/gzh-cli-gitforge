@@ -1,12 +1,5 @@
 version: "0.1.44"
 
-# Tool versions, build-Go checks and installation paths remain Make/mise-owned.
-# Only targets that install into ignored bin/tools belong to this local profile.
-provision:
-  tools:
-    - step: Prepare project-local quality tools
-      run: make install-gofumpt install-goimports install-mdformat install-golangci-lint install-security-tools install-vuln-tools
-
 interaction:
   quality-check:
     description: Run the existing canonical quality gate
@@ -20,6 +13,13 @@ interaction:
     description: Verify existing quality workflow delegation
     runner: local
     command: make quality-check-validate
+
+# Tool versions, build-Go checks and installation paths remain Make/mise-owned.
+# Only targets that install into ignored bin/tools belong to this local profile.
+provision:
+  tools:
+    - step: Prepare project-local quality tools
+      run: make install-gofumpt install-goimports install-mdformat install-golangci-lint install-security-tools install-vuln-tools
 
 ci:
   profiles:
