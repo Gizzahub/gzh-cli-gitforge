@@ -43,6 +43,42 @@ lease는 기존 caller와 진행 중 작업까지 배제한 실제 권한·gener
 해당 연결과 구버전 caller의 우회 거절을 검증하기 전에는 운영 진입점을 활성화하지 않는다.
 충돌 continue/cancel·사용자 편집의 durable 보존·원격 lease 게시도 후속 범위다.
 
+## 실행 파일 연동 (co-process)
+
+RunCoprocess는 숨김 명령 `gz-git task-sync-apply`의 본체다. capability는 정확히
+`task-sync-apply-v1`이다. stdin·stdout은 줄 단위 JSON이고 메시지는 schema, type, plan_id,
+step, sequence를 가진다. 수신은 strict decoder로 미지 필드·후속 자료·1 MiB 초과 줄을
+거절한다. `begin`은 한 프로세스에 한 번이며, 제공자 요청의 sequence는 1부터 증가한다.
+`ack`/`deny`는 그 요청의 plan_id·step·sequence를 그대로 되돌려야 한다. step은 기록된 마지막
+단계이고 첫 기록 전에는 빈 문자열이다.
+
+`deny`, stdin EOF, 응답 timeout, 복호화·대조 실패, 쓰기 실패는 lease 상실이다. 상실은 되돌릴
+수 없고 이후 lease 호출은 입출력 없이 실패하므로 추가 Git 변경이 없다. checkpoint는 보존하고
+결과는 uncertain이며, Acquire 단계의 실패만 변경 전이므로 refused다. 재실행 경로는 없다.
+`begin` 실패는 종료 2(Git·lease 호출 없음), `result` 전달 실패는 종료 3이다. 그 외 판정은
+종료 코드가 아니라 `result`로만 전달한다. 임의 sequence를 앞당긴 응답도 상실로 처리한다.
+
+## CE 진행 단계와 증거
+
+ApplyRecord.Step은 CE `syncStages`와 같은 문자열·같은 순서로 대응한다. 변환표를 두지 않는다.
+
+| 순서 | Step | 직전 또는 직후의 Git 변경 |
+|---|---|---|
+| 0 | checkpoint-intent | checkpoint ref 생성 전 |
+| 1 | checkpoint-created | checkpoint ref 생성 후 |
+| 2 | checkout-intent | detached checkout 전 |
+| 3 | checked-out | detached checkout 후 |
+| 4 | branch-intent | task branch CAS 전 |
+| 5 | branch-updated | task branch CAS 후 |
+| 6 | attach-intent | HEAD 부착 전 |
+| 7 | attached | HEAD 부착 후 |
+
+ActualHEAD는 모든 기록에서 ApplyLocal이 Git으로 관측한 HEAD다. CE의 observeProgress가 이를
+자체 관측과 대조한다. EvidenceDigest의 산출 주체는 제공자다. 입력을 직접 보는 쪽이 제공자이고
+CE는 형식만 검증한 뒤 영수증에 보존한다. 값은 도메인 태그를 붙인 고정 구조체 JSON의 SHA-256이며,
+record는 binding digest·plan·step·checkpoint·candidate·원래/실제 HEAD를, result는 여기에
+source·outcome·reason·applied를 더해 결속한다. 위변조 방지 서명이 아니라 대조용 지문이다.
+
 ## 수용 조건
 
 clean replay 결과와 source의 관계, 원본 branch/worktree 불변, 입력 drift·dirty·foreign

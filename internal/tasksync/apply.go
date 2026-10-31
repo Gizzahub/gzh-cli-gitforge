@@ -106,6 +106,7 @@ func ApplyLocal(ctx context.Context, request ApplyRequest) (result ApplyResult) 
 	if err := verifyApplyPaths(ctx, exec, request.Plan, candidate.CandidateOID); err != nil {
 		return applyRefused(err.Error())
 	}
+	lease = headObservingLease{ApplyLease: lease, exec: exec, worktree: request.Plan.TaskWorktree}
 	handle, err := randomHandle()
 	if err != nil {
 		return applyUncertain("checkpoint handle unavailable")
