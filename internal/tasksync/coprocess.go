@@ -117,8 +117,9 @@ func (s *coprocessSession) receive(ctx context.Context) (coprocessMessage, error
 	}
 }
 
-// send gives up after the timeout. The abandoned writer can only finish a line
-// nobody follows, because every path out of a failed send stops further sends.
+// send gives up after the timeout. The abandoned writer may still finish its
+// line, so a failed send must end all sending: exchange marks the lease lost,
+// which also keeps Git untouched, and a failed result ends the process.
 func (s *coprocessSession) send(ctx context.Context, message coprocessMessage) error {
 	raw, err := json.Marshal(message)
 	if err != nil {

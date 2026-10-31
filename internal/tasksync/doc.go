@@ -56,7 +56,7 @@ step, sequence를 가진다. 수신은 strict decoder로 미지 필드·후속 �
 수 없고 이후 lease 호출은 입출력 없이 실패하므로 추가 Git 변경이 없다. checkpoint는 보존하고
 결과는 uncertain이며, Acquire 단계의 실패만 변경 전이므로 refused다. 재실행 경로는 없다.
 `begin` 실패는 종료 2(Git·lease 호출 없음), `result` 전달 실패는 종료 3이다. 그 외 판정은
-종료 코드가 아니라 `result`로만 전달한다. 임의 sequence를 앞당긴 응답도 상실로 처리한다.
+종료 코드가 아니라 `result`로만 전달한다. 요청과 다른 sequence의 응답은 앞당긴 값을 포함해 모두 상실로 처리한다.
 
 ## CE 진행 단계와 증거
 
@@ -76,8 +76,8 @@ ApplyRecord.Step은 CE `syncStages`와 같은 문자열·같은 순서로 대응
 ActualHEAD는 모든 기록에서 ApplyLocal이 Git으로 관측한 HEAD다. CE의 observeProgress가 이를
 자체 관측과 대조한다. EvidenceDigest의 산출 주체는 제공자다. 입력을 직접 보는 쪽이 제공자이고
 CE는 형식만 검증한 뒤 영수증에 보존한다. 값은 도메인 태그를 붙인 고정 구조체 JSON의 SHA-256이며,
-record는 binding digest·plan·step·checkpoint·candidate·원래/실제 HEAD를, result는 여기에
-source·outcome·reason·applied를 더해 결속한다. 위변조 방지 서명이 아니라 대조용 지문이다.
+record는 binding digest와 ApplyRecord 전체를, result는 binding digest·plan_id·outcome·applied·
+reason·checkpoint·원래/실제/source HEAD를 결속한다. result는 step과 candidate를 결속하지 않는다. 위변조 방지 서명이 아니라 대조용 지문이다.
 
 ## 수용 조건
 
