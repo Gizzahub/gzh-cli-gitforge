@@ -32,7 +32,15 @@ push lets one land, and every other run refuses at once, naming the
 target, the commit it checked, the current commit, and the rebase to do.
 Two commands never reclaim one task's worktree and branches at once: the
 second refuses immediately and names the holding process.`),
+	// NoArgs is checked only after Cobra's runnable gate, so a bare parent
+	// would swallow any argument as help and exit 0. RunE makes the parent
+	// runnable without changing the bare invocation: it prints the same help
+	// the non-runnable path printed, and NoArgs turns an unknown or retired
+	// subcommand name into an explicit unknown-command error (exit 1).
 	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 func init() {

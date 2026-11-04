@@ -139,6 +139,7 @@ var commandEffects = map[string][]string{
 	// auto-follow cannot create local tags. Tracking refs are their whole
 	// footprint. run also fast-forwards a checked-out target and reclaims the task worktree and
 	// branch.
+	"integrate":                            nil,
 	"integrate queue":                      {mutatesTrackingRefs},
 	"integrate provision siblings acquire": {mutatesFilesystem},
 	"integrate provision siblings inspect": nil,

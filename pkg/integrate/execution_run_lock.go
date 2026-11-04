@@ -21,10 +21,23 @@ func evidenceExecutionRunLockPath(common, executionID string) string {
 // other invocations of the same execution identity, so no second invocation
 // can advance to intent or push while the first holds it. A second invocation
 // never waits: it refuses at once with ErrResourceBusy, naming the holder.
+//
+// The common directory is canonicalized exactly as the receipt paths
+// canonicalize it, so the lock file derives from the same spelling the
+// receipts use and an unusable common fails fast. The exclusion itself
+// rests on flock over the lock file's open file description — symlinked
+// spellings already contend on one inode — so what canonicalization closes
+// is the derivation gap: a relative common would otherwise join to a
+// working-directory-dependent lock path (rev-parse is asked for absolute,
+// so no production caller passes one).
 func acquireExecutionRunLock(common, executionID string) (*resourceLock, error) {
-	dir := filepath.Dir(evidenceReceiptPath(common, executionID))
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(evidenceReceiptPath(canonical, executionID))
 	if err := os.MkdirAll(dir, 0o700); err != nil { // #nosec G301 -- Git common directory is repository-owned
 		return nil, fmt.Errorf("create integration run lock directory: %w", err)
 	}
-	return tryAcquireResourceLock(evidenceExecutionRunLockPath(common, executionID), "integration run "+executionID)
+	return tryAcquireResourceLock(evidenceExecutionRunLockPath(canonical, executionID), "integration run "+executionID)
 }
