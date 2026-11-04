@@ -143,13 +143,9 @@ var commandEffects = map[string][]string{
 	"integrate provision siblings acquire": {mutatesFilesystem},
 	"integrate provision siblings inspect": nil,
 	"integrate provision siblings release": {mutatesFilesystem},
-	"integrate check":                      {mutatesTrackingRefs, mutatesFilesystem},
 	"integrate run":                        {mutatesWorktree, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesFilesystem, mutatesConfig},
 	"integrate cleanup":                    {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
-	"integrate legacy-cleanup plan":        {mutatesFilesystem},
-	"integrate legacy-cleanup apply":       {mutatesFilesystem, mutatesRefs, mutatesTrackingRefs, mutatesRemote, mutatesConfig},
 	"integrate receipt":                    nil,
-	"integrate reconcile":                  {mutatesFilesystem},
 
 	"pr create": {mutatesForge},
 

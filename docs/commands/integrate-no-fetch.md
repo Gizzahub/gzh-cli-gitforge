@@ -1,7 +1,7 @@
 # Integrate without fetching
 
-`gz-git integrate check --no-fetch` and `gz-git integrate run --no-fetch`
-resolve the target from the local remote-tracking refs and never fetch.
+`gz-git integrate run --no-fetch` resolves the target from the local
+remote-tracking refs and never fetches.
 Use it when the network is unavailable or the local snapshot is already
 current — for example, right after a fetch, or inside an offline finish
 sequence where the tracking refs are known good.
@@ -13,7 +13,6 @@ branch, and reclaim pushes a leased delete of the remote task branch.
 Both of those pushes require connectivity even with the flag set.
 
 ```sh
-gz-git integrate check --no-fetch
 gz-git integrate run --no-fetch
 ```
 
@@ -23,7 +22,7 @@ No-fetch trusts nothing it cannot see locally, so every gap fails instead
 of guessing:
 
 - The declared integration branch must have a local tracking ref
-  (`<remote>/<branch>`). When it is absent, check fails rather than
+  (`<remote>/<branch>`). When it is absent, the run fails rather than
   falling back to a possibly stale local branch of the same name.
   Fetch once without the flag to create the ref.
 - `run` revalidates the checked target SHA against the same local ref and

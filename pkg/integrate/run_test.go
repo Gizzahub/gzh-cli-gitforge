@@ -79,6 +79,18 @@ func TestRun_RefusesHeuristicTargetBeforeGateOrPush(t *testing.T) {
 	}
 }
 
+// outcomeExecution builds one execution context pinned to the fixture HEAD,
+// for tests that exercise the run path with a supplied context.
+func outcomeExecution(t *testing.T, fxDir, id string) *ExecutionContext {
+	t.Helper()
+	return &ExecutionContext{
+		ExecutionID:  id,
+		Generation:   "g1",
+		Owner:        OwnerIdentity{Actor: "codex", Host: "testhost", Kind: "agent"},
+		ExpectSource: gitOutput(t, fxDir, "rev-parse", "HEAD"),
+	}
+}
+
 func TestRun_HeuristicTargetAllowsExplicitConfirmation(t *testing.T) {
 	t.Parallel()
 	fx := runFixture(t, "")

@@ -121,19 +121,9 @@ func TestProgramLaunchersDeclareArbitrary(t *testing.T) {
 // runner, or preparation step. Declaring arbitrary here would tell a
 // policy consumer that integrating executes the repository.
 func TestIntegrateEngineLaunchesNoRepositoryProgram(t *testing.T) {
-	for _, key := range []string{"integrate check", "integrate run", "run finish"} {
+	for _, key := range []string{"integrate run", "integrate cleanup", "run finish"} {
 		if slices.Contains(commandEffects[key], mutatesArbitrary) {
 			t.Errorf("%q declares %q, but the integrate engine launches no repository program: %v", key, mutatesArbitrary, commandEffects[key])
-		}
-	}
-}
-
-// integrate run starts with the same check, so it can change whatever
-// integrate check can, including the failure diagnostics check keeps.
-func TestIntegrateRunCoversIntegrateCheck(t *testing.T) {
-	for _, target := range commandEffects["integrate check"] {
-		if !slices.Contains(commandEffects["integrate run"], target) {
-			t.Errorf("integrate run performs integrate check but does not declare %q", target)
 		}
 	}
 }

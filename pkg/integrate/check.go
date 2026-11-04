@@ -51,9 +51,6 @@ type CheckOptions struct {
 	// intentionally separate from ExpectSource: an immutable request names a
 	// source/target pair and must never silently adopt a newer target tip.
 	ExpectTarget string
-	// preMutation is internal Run-only state. Check never writes it durably;
-	// Run records it only after a classified refusal before push.
-	preMutation *preMutationCapture
 	// requireConfirmedTarget is Run-only; standalone Check keeps heuristic WARNs.
 	requireConfirmedTarget bool
 }
@@ -119,9 +116,6 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 
 	preflight, err := preflightTargetRef(ctx, g, exec, opts, controller)
 	if err != nil {
-		return nil, err
-	}
-	if err := opts.preMutation.capture(ctx, g, preflight); err != nil {
 		return nil, err
 	}
 	plan, err := resolveTarget(ctx, g, exec, opts)
@@ -375,7 +369,7 @@ func FormatCheck(r *CheckReport) string {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "integrate check: %s  (target=%s", r.Plan.Branch, r.Plan.Target)
+	fmt.Fprintf(&b, "integrate run: %s  (target=%s", r.Plan.Branch, r.Plan.Target)
 	if r.Plan.DefaultRef != "" {
 		fmt.Fprintf(&b, ", default=%s", r.Plan.DefaultRef)
 	}

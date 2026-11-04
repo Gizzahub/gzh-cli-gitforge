@@ -6,12 +6,14 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
 const integrateDeclareHint = "integrate: declare the device with GIT_WORK_HOST=<name> or git config --global ce.workHost <name> (lowercase letters, digits, single hyphens)\n"
@@ -41,10 +43,10 @@ func isolateIntegrateDevice(t *testing.T, envHost, globalHost string) {
 	t.Cleanup(func() { appVersion = orig })
 }
 
-// TestIntegrateCheckPrintsProvenanceFirst covers the declared, undeclared,
-// and invalid device: the provenance line is the first stderr line, and only
-// an unusable device adds the declaration hint.
-func TestIntegrateCheckPrintsProvenanceFirst(t *testing.T) {
+// TestIntegrateRunPrintsProvenanceFirst covers the declared, undeclared, and
+// invalid device: the provenance line is the first stderr line, and only an
+// unusable device adds the declaration hint.
+func TestIntegrateRunPrintsProvenanceFirst(t *testing.T) {
 	for _, tc := range []struct {
 		name, envHost, globalHost, want string
 	}{
@@ -55,16 +57,16 @@ func TestIntegrateCheckPrintsProvenanceFirst(t *testing.T) {
 		{"invalid uppercase", "", "MBP", "integrate: run device=invalid gz-git=0.10.6\n" + integrateInvalidHint},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			restore := setIntegrateCheckGlobals(t)
+			restore := setIntegrateRunGlobals(t)
 			defer restore()
 			isolateIntegrateDevice(t, tc.envHost, tc.globalHost)
 			t.Chdir(t.TempDir())
 			var stdout, stderr bytes.Buffer
-			integrateCheckCmd.SetOut(&stdout)
-			integrateCheckCmd.SetErr(&stderr)
-			t.Cleanup(func() { integrateCheckCmd.SetOut(nil); integrateCheckCmd.SetErr(nil) })
+			integrateRunCmd.SetOut(&stdout)
+			integrateRunCmd.SetErr(&stderr)
+			t.Cleanup(func() { integrateRunCmd.SetOut(nil); integrateRunCmd.SetErr(nil) })
 
-			err := runIntegrateCheck(integrateCheckCmd, nil)
+			err := runIntegrateRun(integrateRunCmd, nil)
 			if got := cliutil.ExitCodeForError(err); got != 2 {
 				t.Fatalf("not-a-repo exit = %d, want 2; err=%v", got, err)
 			}
@@ -114,10 +116,10 @@ func TestIntegrateRunJSONKeepsProvenanceOffStdout(t *testing.T) {
 func TestIntegrateCleanupPrintsProvenance(t *testing.T) {
 	isolateIntegrateDevice(t, "", "")
 	t.Chdir(t.TempDir())
-	origID, origGen, origJSON := integrateCleanupExecutionID, integrateCleanupGeneration, integrateCleanupJSON
-	integrateCleanupExecutionID, integrateCleanupGeneration, integrateCleanupJSON = "run-1", "g1", true
+	origRecord, origJSON := integrateCleanupRecord, integrateCleanupJSON
+	integrateCleanupRecord, integrateCleanupJSON = "run-1@g1", true
 	t.Cleanup(func() {
-		integrateCleanupExecutionID, integrateCleanupGeneration, integrateCleanupJSON = origID, origGen, origJSON
+		integrateCleanupRecord, integrateCleanupJSON = origRecord, origJSON
 	})
 	var stdout, stderr bytes.Buffer
 	integrateCleanupCmd.SetOut(&stdout)
@@ -133,29 +135,70 @@ func TestIntegrateCleanupPrintsProvenance(t *testing.T) {
 	}
 }
 
-// TestIntegrateRunOwnerHostFlagUsesDeviceGrammar keeps --owner-host on the
-// device catalog grammar: an uppercase or punctuated name is refused before
-// any check, while actor and ids stay opaque.
-func TestIntegrateRunOwnerHostFlagUsesDeviceGrammar(t *testing.T) {
+// TestIntegrateCleanupRefusesMalformedRecordWithoutProvenance keeps the
+// argument refusal ahead of the provenance line (TASK-113): a malformed
+// --record exits 2 and the refusal is the first output, before any receipt
+// read or device notice.
+func TestIntegrateCleanupRefusesMalformedRecordWithoutProvenance(t *testing.T) {
+	isolateIntegrateDevice(t, "mst", "")
+	t.Chdir(t.TempDir())
+	origRecord, origJSON := integrateCleanupRecord, integrateCleanupJSON
+	integrateCleanupRecord, integrateCleanupJSON = "run-1", true
+	t.Cleanup(func() {
+		integrateCleanupRecord, integrateCleanupJSON = origRecord, origJSON
+	})
+	var stdout, stderr bytes.Buffer
+	integrateCleanupCmd.SetOut(&stdout)
+	integrateCleanupCmd.SetErr(&stderr)
+	t.Cleanup(func() { integrateCleanupCmd.SetOut(nil); integrateCleanupCmd.SetErr(nil) })
+
+	err := runIntegrateCleanup(integrateCleanupCmd, nil)
+	var exitErr *cliutil.ExitError
+	if !errors.As(err, &exitErr) || exitErr.Code != 2 {
+		t.Fatalf("malformed record: error = %v, want exit 2", err)
+	}
+	if !strings.Contains(err.Error(), "--record must be <id>@<generation>") {
+		t.Fatalf("malformed record error = %v, want the record refusal", err)
+	}
+	if strings.Contains(stderr.String(), "integrate: run device=") {
+		t.Fatalf("provenance printed before the argument refusal: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "integrate: ") {
+		t.Fatalf("refusal leaked to stdout: %q", stdout.String())
+	}
+}
+
+// TestIntegrateRunOwnerFlagUsesDeviceGrammar keeps the host part of --owner
+// on the device catalog grammar: an uppercase or punctuated name is refused
+// before any check, while actor and ids stay opaque.
+func TestIntegrateRunOwnerFlagUsesDeviceGrammar(t *testing.T) {
 	restore := setIntegrateRunGlobals(t)
 	defer restore()
-	restoreContext := setIntegrateRunContextGlobals(t)
-	defer restoreContext()
 	isolateIntegrateDevice(t, "mbp", "")
 	t.Chdir(t.TempDir())
 	integrateRunCmd.SetOut(&bytes.Buffer{})
 	integrateRunCmd.SetErr(&bytes.Buffer{})
 	t.Cleanup(func() { integrateRunCmd.SetOut(nil); integrateRunCmd.SetErr(nil) })
 	quiet = true
-	integrateRunExecutionID, integrateRunGeneration = "Run_42", "G.7"
-	integrateRunOwnerActor, integrateRunOwnerKind = "Claude_Agent", "agent"
-	integrateRunExpectSource = strings.Repeat("a", 40)
 
-	for _, host := range []string{"MBP", "m;x", "a--b"} {
-		integrateRunOwnerHost = host
+	for _, owner := range []string{"claude/MBP/agent", "claude/m;x/agent", "claude/a--b/agent"} {
+		resetIntegrateRunFlags(t)
+		if err := integrateRunCmd.ParseFlags([]string{
+			"--record", "Run_42@G.7",
+			"--owner", owner,
+			"--source", strings.Repeat("a", 40),
+		}); err != nil {
+			t.Fatalf("ParseFlags(--owner %s) = %v", owner, err)
+		}
 		err := runIntegrateRun(integrateRunCmd, nil)
-		if got := cliutil.ExitCodeForError(err); got != 2 || err == nil || !strings.Contains(err.Error(), "owner-host") {
-			t.Fatalf("--owner-host %q: exit = %d err = %v, want exit 2 naming owner-host", host, got, err)
+		// The host part must fail the device grammar: the refusal is exit 2,
+		// names the execution-context invalidity, and names the refused host.
+		host := strings.Split(owner, "/")[1]
+		if got := cliutil.ExitCodeForError(err); got != 2 || err == nil ||
+			!errors.Is(err, integrate.ErrInvalidExecutionContext) ||
+			!strings.Contains(err.Error(), "is not a device name") ||
+			!strings.Contains(err.Error(), host) {
+			t.Fatalf("--owner %q: exit = %d err = %v, want exit 2 device-grammar refusal naming %s", owner, got, err, host)
 		}
 	}
 }

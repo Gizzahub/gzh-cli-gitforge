@@ -19,9 +19,6 @@ func TestCapabilityCommandReportsSupportedCapability(t *testing.T) {
 		integrateQueueBaseMissingV1Capability,
 		contextReferenceObserveV1Capability,
 		integrateRunContextV1Capability,
-		integrateReconcilePreMutationV1Capability,
-		integrateLegacyCleanupStandaloneV1Capability,
-		integrateLegacyCleanupCEV1Capability,
 		taskSyncApplyV1Capability,
 	} {
 		t.Run(capability, func(t *testing.T) {

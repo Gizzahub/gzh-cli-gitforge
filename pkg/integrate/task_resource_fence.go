@@ -19,11 +19,11 @@ import (
 const taskFenceDirName = "gz-git-integrate-targets"
 
 // acquireTaskResourceFence keeps two gz-git mutations of one task branch —
-// run reclaim, cleanup retry, legacy cleanup — from deleting the same
+// run reclaim, cleanup retry — from deleting the same
 // worktree and branches at once, even when callers select different target
 // refs or execution IDs. It never waits: a held fence refuses with
 // ErrResourceBusy naming the holder. It is cooperative exclusion, never
-// authorization to adopt a legacy resource, and it does not order
+// authorization to adopt another invocation's resource, and it does not order
 // integrations of one target; the exact-lease push does that.
 func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPath, branch string) (*resourceLock, error) {
 	if strings.TrimSpace(repoPath) == "" {

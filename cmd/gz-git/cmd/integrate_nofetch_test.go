@@ -11,40 +11,31 @@ import (
 )
 
 // The no-fetch finish contract is declared through the --no-fetch flag on
-// both integrate check and integrate run. CE's real capability detector
-// (declaresFlag) does not call Lookup on the live *pflag.FlagSet — it parses
-// the rendered --help output, first confirming the Usage: section names
-// "gz-git integrate <operation>" and only then trusting the Flags: section
-// for a line whose first field is the literal "--no-fetch" token. A flag
-// registered with Hidden: true still passes Lookup() != nil but never
-// appears in that rendered section, so this test reproduces the render-based
-// check CE actually performs, not just registration. See TASK-221, TASK-228
-// (the Usage: precondition folds in TASK-221's F3 finding).
-func TestIntegrateNoFetchFlagDeclaredOnCheckAndRun(t *testing.T) {
-	for _, tc := range []struct {
-		path      []string
-		operation string
-	}{
-		{[]string{"integrate", "check"}, "check"},
-		{[]string{"integrate", "run"}, "run"},
-	} {
-		cmd := findCommand(t, rootCmd, tc.path...)
+// integrate run. CE's real capability detector (declaresFlag) does not call
+// Lookup on the live *pflag.FlagSet — it parses the rendered --help output,
+// first confirming the Usage: section names "gz-git integrate <operation>"
+// and only then trusting the Flags: section for a line whose first field is
+// the literal "--no-fetch" token. A flag registered with Hidden: true still
+// passes Lookup() != nil but never appears in that rendered section, so this
+// test reproduces the render-based check CE actually performs, not just
+// registration. See TASK-221, TASK-228 (the Usage: precondition folds in
+// TASK-221's F3 finding).
+func TestIntegrateNoFetchFlagDeclaredOnRun(t *testing.T) {
+	cmd := findCommand(t, rootCmd, "integrate", "run")
 
-		if cmd.Flags().Lookup("no-fetch") == nil {
-			t.Errorf("%s: no-fetch flag not registered", cmd.CommandPath())
-			continue
-		}
+	if cmd.Flags().Lookup("no-fetch") == nil {
+		t.Fatalf("%s: no-fetch flag not registered", cmd.CommandPath())
+	}
 
-		var buf bytes.Buffer
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		if err := cmd.Help(); err != nil {
-			t.Fatalf("%s: Help() error = %v", cmd.CommandPath(), err)
-		}
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	if err := cmd.Help(); err != nil {
+		t.Fatalf("%s: Help() error = %v", cmd.CommandPath(), err)
+	}
 
-		if !helpFlagsSectionDeclares(buf.String(), tc.operation, "--no-fetch") {
-			t.Errorf("%s: rendered --help does not declare --no-fetch under a Usage: gz-git integrate %s Flags: section (a Hidden flag would fail this the same way)", cmd.CommandPath(), tc.operation)
-		}
+	if !helpFlagsSectionDeclares(buf.String(), "run", "--no-fetch") {
+		t.Errorf("%s: rendered --help does not declare --no-fetch under a Usage: gz-git integrate run Flags: section (a Hidden flag would fail this the same way)", cmd.CommandPath())
 	}
 }
 
@@ -55,7 +46,7 @@ func TestIntegrateNoFetchFlagDeclaredOnCheckAndRun(t *testing.T) {
 // silently regressing to the gap TASK-221's F3 finding identified.
 func TestHelpFlagsSectionDeclaresRejectsWithoutUsagePrecondition(t *testing.T) {
 	const flagsOnly = "Flags:\n  --no-fetch   skip fetching before finishing\n"
-	const usageWrongOperation = "Usage:\n  gz-git integrate check [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
+	const usageWrongOperation = "Usage:\n  gz-git integrate cleanup [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
 	const usageNotIndented = "Usage:\ngz-git integrate run [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
 	const usageWrongBinary = "Usage:\n  gz integrate run [flags]\n\nFlags:\n  --no-fetch   skip fetching before finishing\n"
 	const usageThenFlagsMissing = "Usage:\n  gz-git integrate run [flags]\n\nFlags:\n  --other-flag   unrelated\n"

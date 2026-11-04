@@ -331,7 +331,7 @@ requiring it rather than fall back. gz-git runs no repository code, so the
 verification a readiness runner performed belongs to the task runtime (CE
 `ce task gate` and the repository's own checks), which must pass before
 gz-git is called. See
-[`integrate check` passes without running tests or lint](#integrate-check-passes-without-running-tests-or-lint).
+[`integrate run` passes without running tests or lint](#integrate-run-passes-without-running-tests-or-lint).
 
 ## Controller-backed `integrate queue` is unavailable
 
@@ -347,7 +347,7 @@ missing or older binary must fail closed rather than falling back to repository
 configuration: controller mode binds the selected remote, declared integration
 branch, and optional task-pattern filter explicitly.
 
-## `integrate check` passes without running tests or lint
+## `integrate run` passes without running tests or lint
 
 gz-git does not build, execute, or lint repository code itself. The gate
 mode is always `none`, and the report shows
@@ -400,7 +400,7 @@ with the canonical quality gate and isolates it from any parent workspace.
 
 ## A gate fix does not take effect until `make install`
 
-`integrate check` and `integrate run` are executed by the `gz-git` on your
+`integrate run` is executed by the `gz-git` on your
 PATH, not by the source tree you are standing in. A fix to the gate itself is
 therefore invisible to the gate until it is installed:
 

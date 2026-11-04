@@ -17,10 +17,8 @@ import (
 )
 
 var (
-	integrateReceiptExecutionID string
-	integrateReceiptGeneration  string
-	integrateReceiptRecord      string
-	integrateReceiptJSON        bool
+	integrateReceiptRecord string
+	integrateReceiptJSON   bool
 )
 
 var integrateReceiptCmd = &cobra.Command{
@@ -28,10 +26,6 @@ var integrateReceiptCmd = &cobra.Command{
 	Short: "Read the durable integrate receipt for one execution",
 	Long: cliutil.QuickStartHelp(`  # What does the durable evidence say about this run?
   gz-git integrate receipt --record run-42@g7
-
---record <id>@<generation> is --execution-id plus --generation; supply it or
-the legacy pair, not both. The legacy flags are deprecated and stay for one
-release.
 
 Reads the receipt recorded under the repository's Git common dir
 (gz-integrate/v1/receipts). The query is read-only: it never creates
@@ -48,21 +42,19 @@ revision, claim{pid,process_host,started_at}, provenance, updated_at.
 
 Exit Codes:
   0  receipt found (and generation matches when given)
-  2  no receipt for that execution-id, generation mismatch, or error`),
+  2  no receipt for that execution id, generation mismatch, or error`),
 	Args: cobra.NoArgs,
 	RunE: runIntegrateReceipt,
 }
 
 func init() {
 	integrateCmd.AddCommand(integrateReceiptCmd)
-	integrateReceiptCmd.Flags().StringVar(&integrateReceiptExecutionID, "execution-id", "", "deprecated, use --record: execution id of the run to read")
-	integrateReceiptCmd.Flags().StringVar(&integrateReceiptGeneration, "generation", "", "deprecated, use --record: exact runtime generation to verify against the receipt")
-	integrateReceiptCmd.Flags().StringVar(&integrateReceiptRecord, "record", "", "ADR-0161 form of --execution-id and --generation: <id>@<generation> (required unless the legacy pair is given)")
+	integrateReceiptCmd.Flags().StringVar(&integrateReceiptRecord, "record", "", "durable-evidence record of the run to read: <id>@<generation> (required)")
 	integrateReceiptCmd.Flags().BoolVar(&integrateReceiptJSON, "json", false, "print the receipt document as JSON (default prints a human summary)")
 }
 
 func runIntegrateReceipt(cmd *cobra.Command, args []string) error {
-	executionID, generation, err := executionRecordFromFlags(cmd, integrateReceiptRecord, integrateReceiptExecutionID, integrateReceiptGeneration)
+	executionID, generation, err := executionRecordFromFlags(integrateReceiptRecord)
 	if err != nil {
 		return cliutil.NewExitError(2, err)
 	}

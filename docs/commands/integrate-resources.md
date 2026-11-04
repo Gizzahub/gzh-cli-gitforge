@@ -1,6 +1,6 @@
 # Integration resource scope
 
-`gz-git integrate check` and `gz-git integrate run` coordinate only git
+`gz-git integrate run` coordinates only git
 mutations. gz-git runs no repository code, so there is no machine-capacity
 slot: the host measurement slot, its FIFO admission, `HOST_SLOTS_HELD`, and
 `branch.resourceHighLoad` / `branch.prepareHighLoad` are removed (see
@@ -24,7 +24,8 @@ A run that starts after the other landed reports it earlier, as a failed
 `freshness` row (`1 commits behind origin/develop — git rebase origin/develop`)
 or a failed revalidation:
 `target branch changed during readiness: origin/develop is 4f1c…, readiness checked 9a0e…; rebase onto origin/develop and re-run check`.
-With `--expect-target` both refusals are a target mismatch (exit 4). The
+With a pinned `--target <ref>@<sha>` both refusals are a target mismatch
+(exit 4). The
 revalidation says `target origin/develop is 4f1c…, expected 9a0e…`; only the
 lease refusal adds `; rebase onto origin/develop and re-run check`.
 
@@ -33,8 +34,8 @@ lease refusal adds `; rebase onto origin/develop and re-run check`.
 Only gz-git's own on-disk state is fenced, and a held fence is refused
 immediately, never awaited:
 
-- **Task fence.** `integrate run` reclaim, `integrate cleanup`, and legacy
-  cleanup of the same task branch delete the same worktree and branches, so
+- **Task fence.** `integrate run` reclaim and `integrate cleanup` of the same
+  task branch delete the same worktree and branches, so
   only one runs at a time, even across target refs and execution IDs.
 - **Execution run lock.** Only one invocation per execution ID runs at a
   time.

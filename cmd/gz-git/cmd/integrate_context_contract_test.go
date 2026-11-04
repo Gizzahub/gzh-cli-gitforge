@@ -16,9 +16,6 @@ import (
 )
 
 func TestIntegrateRunContextFlagsAreAllOrNothing(t *testing.T) {
-	restore := setIntegrateRunContextGlobals(t)
-	defer restore()
-
 	_, supplied, err := executionContextFromArgs(integrateRunArgs{ExecutionID: "run-42"})
 	if err == nil {
 		t.Fatal("executionContextFromArgs() error = nil, want partial context rejection")
@@ -32,7 +29,10 @@ func TestIntegrateRunContextFlagsAreAllOrNothing(t *testing.T) {
 }
 
 func TestIntegrateRunContextSourceMismatchPrintsProtocolAndExitFour(t *testing.T) {
-	restore := setIntegrateRunContextGlobals(t)
+	restore := setIntegrateRunContextGlobals(t,
+		"--record", "run-42@generation-7",
+		"--owner", "codex/mbp/agent",
+		"--source", strings.Repeat("0", 40))
 	defer restore()
 
 	fx := testutil.TempWorktreeWithBareOrigin(t)
@@ -43,12 +43,6 @@ func TestIntegrateRunContextSourceMismatchPrintsProtocolAndExitFour(t *testing.T
 	runGit(t, fx.Worktree, "commit", "-m", "declare integration")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 
-	integrateRunExecutionID = "run-42"
-	integrateRunGeneration = "generation-7"
-	integrateRunOwnerActor = "codex"
-	integrateRunOwnerHost = "mbp"
-	integrateRunOwnerKind = "agent"
-	integrateRunExpectSource = strings.Repeat("0", 40)
 	integrateRunJSON = true
 	quiet = false
 	var stdout bytes.Buffer
@@ -87,13 +81,17 @@ func TestIntegrateRunContextTargetMismatchPrintsProtocolAndExitFour(t *testing.T
 	runGit(t, fx.Worktree, "commit", "-m", "declare integration")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
 
-	integrateRunExecutionID = "run-43"
-	integrateRunGeneration = "generation-7"
-	integrateRunOwnerActor = "codex"
-	integrateRunOwnerHost = "mbp"
-	integrateRunOwnerKind = "agent"
-	integrateRunExpectSource = gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
-	integrateRunExpectTarget = strings.Repeat("0", 40)
+	// The source approval must be a real commit for the check to reach the
+	// target comparison, so pin the fixture HEAD and mismatch the target only.
+	source := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	if err := integrateRunCmd.ParseFlags([]string{
+		"--record", "run-43@generation-7",
+		"--owner", "codex/mbp/agent",
+		"--source", source,
+		"--target", target + "@" + strings.Repeat("0", 40),
+	}); err != nil {
+		t.Fatalf("ParseFlags: %v", err)
+	}
 	integrateRunJSON = true
 	quiet = false
 	var stdout bytes.Buffer
@@ -118,8 +116,6 @@ func TestIntegrateRunContextTargetMismatchPrintsProtocolAndExitFour(t *testing.T
 }
 
 func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) {
-	restore := setIntegrateRunContextGlobals(t)
-	defer restore()
 	fx := testutil.TempWorktreeWithBareOrigin(t)
 	target := gitOutputForIntegrateRun(t, fx.Clone, "branch", "--show-current")
 	writeFile(t, fx.Clone, ".gz-git.yaml", "branch:\n  integrationBranch: "+target+"\n  taskPattern: feature/*\n")
@@ -134,10 +130,13 @@ func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) 
 	// A git check refuses: the worktree carries an uncommitted change.
 	writeFile(t, fx.Worktree, "uncommitted.txt", "dirty\n")
 	before := gitOutputForIntegrateRun(t, fx.Clone, "rev-parse", target)
+	source := gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
+	restore := setIntegrateRunContextGlobals(t,
+		"--record", "diagnostic-run@generation-1",
+		"--owner", "codex/mst/agent",
+		"--source", source)
+	defer restore()
 	integrateRunJSON, quiet = true, false
-	integrateRunExecutionID, integrateRunGeneration = "diagnostic-run", "generation-1"
-	integrateRunOwnerActor, integrateRunOwnerHost, integrateRunOwnerKind = "codex", "mst", "agent"
-	integrateRunExpectSource = gitOutputForIntegrateRun(t, fx.Worktree, "rev-parse", "HEAD")
 	var stdout, stderr bytes.Buffer
 	integrateRunCmd.SetOut(&stdout)
 	integrateRunCmd.SetErr(&stderr)
@@ -151,8 +150,8 @@ func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) 
 	if err := json.Unmarshal(stdout.Bytes(), &protocol); err != nil {
 		t.Fatalf("protocol stream contains non-JSON diagnostics: %s: %v", stdout.String(), err)
 	}
-	if protocol.SourcePushed || protocol.Integrated || protocol.PreMutationOutcome == nil {
-		t.Fatalf("refusal lost its negative binding: %+v", protocol)
+	if protocol.SourcePushed || protocol.Integrated || protocol.ExitCode != 1 {
+		t.Fatalf("refusal lost its not-ready shape: %+v", protocol)
 	}
 	if !strings.Contains(stderr.String(), "FAIL  working-tree") || !strings.Contains(stderr.String(), "NOT READY") {
 		t.Fatalf("failed check cause missing from stderr: %s", stderr.String())
@@ -162,35 +161,23 @@ func TestIntegrateRunJSONKeepsFailureDiagnosticsOffProtocolStream(t *testing.T) 
 	}
 }
 
-func setIntegrateRunContextGlobals(t *testing.T) func() {
+// setIntegrateRunContextGlobals resets the run globals and parses the given
+// flags onto the shared run command, so the handlers see the same Changed
+// state a real invocation produces. The returned func restores the globals
+// and the flag set.
+func setIntegrateRunContextGlobals(t *testing.T, flags ...string) func() {
 	t.Helper()
-	origExecutionID := integrateRunExecutionID
-	origGeneration := integrateRunGeneration
-	origOwnerActor := integrateRunOwnerActor
-	origOwnerHost := integrateRunOwnerHost
-	origOwnerKind := integrateRunOwnerKind
-	origExpectSource := integrateRunExpectSource
-	origExpectTarget := integrateRunExpectTarget
-	origJSON := integrateRunJSON
-	origQuiet := quiet
-	integrateRunExecutionID = ""
-	integrateRunGeneration = ""
-	integrateRunOwnerActor = ""
-	integrateRunOwnerHost = ""
-	integrateRunOwnerKind = ""
-	integrateRunExpectSource = ""
-	integrateRunExpectTarget = ""
+	origJSON, origQuiet := integrateRunJSON, quiet
 	integrateRunJSON = false
 	quiet = false
+	if len(flags) > 0 {
+		if err := integrateRunCmd.ParseFlags(flags); err != nil {
+			t.Fatalf("ParseFlags(%v) = %v", flags, err)
+		}
+	}
 	return func() {
-		integrateRunExecutionID = origExecutionID
-		integrateRunGeneration = origGeneration
-		integrateRunOwnerActor = origOwnerActor
-		integrateRunOwnerHost = origOwnerHost
-		integrateRunOwnerKind = origOwnerKind
-		integrateRunExpectSource = origExpectSource
-		integrateRunExpectTarget = origExpectTarget
 		integrateRunJSON = origJSON
 		quiet = origQuiet
+		resetIntegrateRunFlags(t)
 	}
 }

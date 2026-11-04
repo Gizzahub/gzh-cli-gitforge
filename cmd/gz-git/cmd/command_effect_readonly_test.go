@@ -53,7 +53,7 @@ var readOnlyRuns = map[string][]string{
 	"history file":                         {"history", "file", "README.md"},
 	"history stats":                        {"history", "stats"},
 	"integrate provision siblings inspect": {"integrate", "provision", "siblings", "inspect", "--json"},
-	"integrate receipt":                    {"integrate", "receipt", "--execution-id", "readonly-probe", "--generation", "g1", "--json"},
+	"integrate receipt":                    {"integrate", "receipt", "--record", "readonly-probe@g1", "--json"},
 	"info":                                 {"info", "."},
 	"stash list":                           {"stash", "list", "."},
 	"tag list":                             {"tag", "list", "."},

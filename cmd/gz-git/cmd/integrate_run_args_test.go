@@ -52,22 +52,25 @@ func parseIntegrateRunArgs(t *testing.T, flags ...string) (integrateRunArgs, err
 	return integrateRunArgsFromFlags(integrateRunCmd)
 }
 
-func TestIntegrateRunNewArgsMapOntoLegacyFields(t *testing.T) {
-	newForm, err := parseIntegrateRunArgs(t,
+func TestIntegrateRunArgsMapOntoEngineFields(t *testing.T) {
+	got, err := parseIntegrateRunArgs(t,
 		"--source", fullSHA1, "--target", "master@"+fullSHA256,
 		"--record", "run-42@g7", "--owner", "claude/mbp/agent")
 	if err != nil {
-		t.Fatalf("new arguments: %v", err)
+		t.Fatalf("arguments: %v", err)
 	}
-	legacy, err := parseIntegrateRunArgs(t,
-		"--expect-source", fullSHA1, "--target", "master", "--expect-target", fullSHA256,
-		"--execution-id", "run-42", "--generation", "g7",
-		"--owner-actor", "claude", "--owner-host", "mbp", "--owner-kind", "agent")
-	if err != nil {
-		t.Fatalf("legacy arguments: %v", err)
+	want := integrateRunArgs{
+		Target:       "master",
+		ExpectSource: fullSHA1,
+		ExpectTarget: fullSHA256,
+		ExecutionID:  "run-42",
+		Generation:   "g7",
+		OwnerActor:   "claude",
+		OwnerHost:    "mbp",
+		OwnerKind:    "agent",
 	}
-	if newForm != legacy {
-		t.Fatalf("new arguments = %+v, want the legacy resolution %+v", newForm, legacy)
+	if got != want {
+		t.Fatalf("arguments = %+v, want the engine fields %+v", got, want)
 	}
 }
 
@@ -114,22 +117,6 @@ func TestIntegrateRunNewArgsRefuseMalformedValues(t *testing.T) {
 	for name, flags := range cases {
 		if _, err := parseIntegrateRunArgs(t, flags...); err == nil {
 			t.Errorf("%s (%q): error = nil, want refusal", name, flags)
-		}
-	}
-}
-
-func TestIntegrateRunNewArgsAndTheirLegacyFlagsAreMutuallyExclusive(t *testing.T) {
-	cases := map[string][]string{
-		"source":  {"--source", fullSHA1, "--expect-source", fullSHA1},
-		"target":  {"--target", "master@" + fullSHA1, "--expect-target", fullSHA1},
-		"record":  {"--record", "run-42@g7", "--generation", "g7"},
-		"owner":   {"--owner", "claude/mbp/agent", "--owner-kind", "agent"},
-		"record2": {"--record", "run-42@g7", "--execution-id", "run-42"},
-	}
-	for name, flags := range cases {
-		_, err := parseIntegrateRunArgs(t, flags...)
-		if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
-			t.Errorf("%s (%q): error = %v, want mutual exclusion", name, flags, err)
 		}
 	}
 }

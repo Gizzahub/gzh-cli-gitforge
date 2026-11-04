@@ -11,23 +11,20 @@ import (
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/integrate"
 )
 
-// integrateCmd groups queue, check, and integration commands.
+// integrateCmd groups queue, receipt, cleanup, and integration commands.
 var integrateCmd = &cobra.Command{
 	Use:   "integrate",
 	Short: "Inspect and apply task-branch integration",
 	Long: cliutil.QuickStartHelp(`  # What is waiting to land?
   gz-git integrate queue
 
-  # Is this branch ready?
-  gz-git integrate check
-
   # Fast-forward the target and reclaim the task branch
   gz-git integrate run
 
 integrate answers a different question than branch list. queue lists
-unfinished task branches, check is the readiness gate, and run
-fast-forwards then reclaims. gz-git builds, runs, and lints no
-repository code: git checks alone decide readiness.
+unfinished task branches, and run fast-forwards then reclaims.
+gz-git builds, runs, and lints no repository code: git checks alone
+decide readiness.
 
 gz-git never makes one integration wait for another: it detects and
 reports. Concurrent runs on one target are not ordered; the exact-lease

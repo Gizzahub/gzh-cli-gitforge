@@ -20,19 +20,17 @@ explicit devbox-only policy path that binds branch and reclaim policy from a
 controller file.
 
 [Integrate without fetching](integrate-no-fetch.md) documents the fail-closed
-`--no-fetch` finish step on `integrate check` and `integrate run`.
+`--no-fetch` finish step on `integrate run`.
 
 [Release promotion](integrate-release.md) explains how `--release` judges a
 remote-tracking integration ref as the source.
 
-[Pin the approved source and target commits](integrate-expect-source.md) documents
-`--expect-source`, `--expect-target`, and their dedicated exit code 4.
+[Pinning the approved source and target](integrate-expect-source.md) documents
+`--source` and the pinned `--target <ref>@<sha>` form with their dedicated
+exit code 4.
 
 [통합 영수증과 cleanup-only 복구](integrate-cleanup-retry.md)는 v2 영수증,
 v1 조회 전용 호환성과 잔여 자원 보존·완료 판정을 설명한다.
-
-[Legacy 작업 자원의 정리 계획](integrate-legacy-cleanup.md)은 별도 승인하는
-prospective plan과 standalone apply의 지원 범위를 설명한다.
 
 [Reclaiming declared workspace clones](integrate-reclaim-workspace-clones.md)
 explains when `integrate run` may delete clones that `gz-git sync` left in

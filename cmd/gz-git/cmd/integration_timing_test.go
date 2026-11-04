@@ -24,18 +24,9 @@ func TestIntegrationJSONSeparatesWaitAndValidation(t *testing.T) {
 	setJSONOutput := func(t *testing.T) func() {
 		t.Helper()
 		origJSON, origQuiet := integrateRunJSON, quiet
-		origExec, origGen := integrateRunExecutionID, integrateRunGeneration
-		origActor, origHost, origKind := integrateRunOwnerActor, integrateRunOwnerHost, integrateRunOwnerKind
-		origExpect := integrateRunExpectSource
 		integrateRunJSON, quiet = true, false
-		integrateRunExecutionID, integrateRunGeneration = "", ""
-		integrateRunOwnerActor, integrateRunOwnerHost, integrateRunOwnerKind = "", "", ""
-		integrateRunExpectSource = ""
 		return func() {
 			integrateRunJSON, quiet = origJSON, origQuiet
-			integrateRunExecutionID, integrateRunGeneration = origExec, origGen
-			integrateRunOwnerActor, integrateRunOwnerHost, integrateRunOwnerKind = origActor, origHost, origKind
-			integrateRunExpectSource = origExpect
 		}
 	}
 

@@ -40,17 +40,13 @@ type RunProtocol struct {
 	// gz-git no longer waits for a host slot or runs a readiness runner,
 	// plan, or preparation profile. IntegrationDurationMS is revalidation
 	// through the target push. All render even when zero.
-	ResourceWaitDurationMS int `json:"resource_wait_duration_ms"`
-	ValidationDurationMS   int `json:"validation_duration_ms"`
-	PlanDurationMS         int `json:"plan_duration_ms"`
-	PreparationDurationMS  int `json:"preparation_duration_ms"`
-	IntegrationDurationMS  int `json:"integration_duration_ms"`
-	// PreMutationOutcome is a separately durable, context-bound refusal that
-	// this invocation recorded before it reached the target push. Its absence
-	// is never evidence that a push did not happen.
-	PreMutationOutcome *PreMutationOutcome `json:"pre_mutation_outcome,omitempty"`
-	ExitCode           int                 `json:"exit_code"`
-	Error              string              `json:"error,omitempty"`
+	ResourceWaitDurationMS int    `json:"resource_wait_duration_ms"`
+	ValidationDurationMS   int    `json:"validation_duration_ms"`
+	PlanDurationMS         int    `json:"plan_duration_ms"`
+	PreparationDurationMS  int    `json:"preparation_duration_ms"`
+	IntegrationDurationMS  int    `json:"integration_duration_ms"`
+	ExitCode               int    `json:"exit_code"`
+	Error                  string `json:"error,omitempty"`
 }
 
 // BuildRunProtocol renders a run result. A nil report with an error is still
@@ -92,16 +88,6 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 			if p.TaskRefEmpty() {
 				p.TargetRef = report.Receipt.TargetRef
 			}
-		}
-		if report.PreMutationOutcome != nil {
-			outcome := *report.PreMutationOutcome
-			p.PreMutationOutcome = &outcome
-			p.ExecutionID = outcome.ExecutionID
-			p.Generation = outcome.Generation
-			owner := outcome.Owner
-			p.Owner = &owner
-			p.TaskSHA = outcome.TaskSHA
-			p.TargetRef = outcome.TargetRef
 		}
 	}
 	if err != nil {

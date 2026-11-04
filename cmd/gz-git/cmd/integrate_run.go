@@ -21,13 +21,6 @@ var (
 	integrateRunRelease          bool
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
-	integrateRunExpectSource     string
-	integrateRunExpectTarget     string
-	integrateRunExecutionID      string
-	integrateRunGeneration       string
-	integrateRunOwnerActor       string
-	integrateRunOwnerHost        string
-	integrateRunOwnerKind        string
 	integrateRunSource           string
 	integrateRunRecord           string
 	integrateRunOwner            string
@@ -49,34 +42,25 @@ var integrateRunCmd = &cobra.Command{
     --target master@<full-sha> --record run-42@g7 \
     --owner claude/mbp/agent --json
 
-  # The same run with the legacy flags, accepted for one release
-  gz-git integrate run --execution-id run-42 --generation g7 \
-    --owner-actor claude --owner-host mbp --owner-kind agent \
-    --expect-source <full-sha> --json
-
 Reclaim only runs for names matching the repo-root taskPattern.
 No declaration means reclaim nothing. Remote branch delete uses
 --force-with-lease against the commit that just landed.
 Run a bare integrate from a task-branch worktree, not from the target checkout.
 
-ADR-0161 arguments map onto the legacy flags: --source is --expect-source,
---target <ref>@<sha> is --target <ref> plus --expect-target <sha> (only a full
-SHA after the last '@' pins it; a hex suffix of 7 or more characters that is
-not a full SHA is refused as truncated; anything else stays a plain ref),
---record <id>@<generation> is --execution-id plus --generation, and
---owner <actor>/<host>/<kind> is the three --owner-* flags. A new argument and the legacy flag it replaces are mutually exclusive.
-The legacy flags are removed in a later minor release.
+The pinned target --target <ref>@<sha> accepts only a full SHA after the last
+'@'; a hex suffix of 7 or more characters that is not a full SHA is refused as
+truncated, and anything else stays a plain ref.
 
-Execution context (--execution-id, --generation, --owner-actor, --owner-host,
---owner-kind, plus --expect-source) records a durable receipt under the Git
-common dir (gz-integrate/v1, receipt schema_version 2) before the push: intent, then pushed, then the
-reclaim results. The identity is immutable — reusing an execution-id with a
-different generation/owner/repo/task/target, push endpoint or protections
-fails before pushing. Legacy v1 receipts are read-only. With
---json, run prints the machine protocol document (schema_version 1,
-snake_case: execution_id, generation, owner{actor,host,kind}, task_sha,
-target_ref, source_pushed, receipt_phase, worktree_removed,
-local_branch_removed, remote_branch_removed, reclaim_*, exit_code, error).
+Execution context (--record, --owner, plus --source) records a durable
+receipt under the Git common dir (gz-integrate/v1, receipt schema_version 2)
+before the push: intent, then pushed, then the reclaim results. The identity
+is immutable — reusing a record id with a different generation/owner/repo/
+task/target, push endpoint or protections fails before pushing. Legacy v1
+receipts are read-only. With --json, run prints the machine protocol document
+(schema_version 1, snake_case: execution_id, generation,
+owner{actor,host,kind}, task_sha, target_ref, source_pushed, receipt_phase,
+worktree_removed, local_branch_removed, remote_branch_removed, reclaim_*,
+exit_code, error).
 resource_wait_duration_ms, validation_duration_ms, plan_duration_ms and
 preparation_duration_ms stay in the document as explicit zeros: gz-git runs
 no repository code, so nothing is admitted, validated or prepared.
@@ -88,18 +72,11 @@ unavailable. Verify actual Git/remote/filesystem state when reconciling a run.
 Readiness refusal details are printed on stderr while JSON stdout remains
 one protocol document.
 
-When a complete execution context is refused before the target push because
-readiness was rejected, pre_mutation_outcome
-may carry a separately durable pre-mutation-outcome/v1 binding. Its absence
-does not prove that no push occurred, and a receipt of any phase prevents a
-negative outcome from being reused for that execution.
-
 SIGINT or SIGTERM before the intent boundary (the receipt, or the push
-without an execution context) stops the run, records no pre-mutation
-outcome, and exits 2 with "interrupted before the target push". Past that
-boundary a signal is ignored and the push, local fast-forward and reclaim
-finish; only the first signal is handled, so a second one terminates gz-git
-at once.
+without an execution context) stops the run and exits 2 with "interrupted
+before the target push". Past that boundary a signal is ignored and the push,
+local fast-forward and reclaim finish; only the first signal is handled, so a
+second one terminates gz-git at once.
 
 Engine: gz-git-integrate (Go)
 
@@ -108,7 +85,7 @@ Exit Codes:
   1  not ready, or the integrate itself failed
   2  usage or execution error
   3  integrated, but reclaim did not finish
-  4  --source/--expect-source or the pinned target: the approved commit pair changed; nothing was pushed`),
+  4  --source or the pinned target: the approved commit pair changed; nothing was pushed`),
 	Args: cobra.MaximumNArgs(1),
 	RunE: runIntegrateRun,
 }
@@ -120,16 +97,9 @@ func init() {
 	integrateRunCmd.Flags().BoolVar(&integrateRunRelease, "release", false, "promote the integration branch onto the default branch")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
-	integrateRunCmd.Flags().StringVar(&integrateRunExpectSource, "expect-source", "", "fail with exit 4, before any push, unless the source is this full commit SHA")
-	integrateRunCmd.Flags().StringVar(&integrateRunExpectTarget, "expect-target", "", "fail with exit 4, before any push, unless the target is this full commit SHA")
-	integrateRunCmd.Flags().StringVar(&integrateRunExecutionID, "execution-id", "", "durable-evidence execution id; supply together with --generation, --owner-actor, --owner-host, --owner-kind and --expect-source, or not at all")
-	integrateRunCmd.Flags().StringVar(&integrateRunGeneration, "generation", "", "exact runtime generation of this execution; opaque, compared exactly by receipt and cleanup")
-	integrateRunCmd.Flags().StringVar(&integrateRunOwnerActor, "owner-actor", "", "logical actor executing the run (e.g. claude, celee)")
-	integrateRunCmd.Flags().StringVar(&integrateRunOwnerHost, "owner-host", "", "logical device name (GIT_WORK_HOST / ce.workHost); never a hostname")
-	integrateRunCmd.Flags().StringVar(&integrateRunOwnerKind, "owner-kind", "", "owner kind: agent or human")
-	integrateRunCmd.Flags().StringVar(&integrateRunSource, "source", "", "ADR-0161 form of --expect-source: the full commit SHA to land")
-	integrateRunCmd.Flags().StringVar(&integrateRunRecord, "record", "", "ADR-0161 form of --execution-id and --generation: <id>@<generation>")
-	integrateRunCmd.Flags().StringVar(&integrateRunOwner, "owner", "", "ADR-0161 form of the --owner-* flags: <actor>/<host>/<kind>")
+	integrateRunCmd.Flags().StringVar(&integrateRunSource, "source", "", "full commit SHA of the source to land; supplied together with --record and --owner, or not at all")
+	integrateRunCmd.Flags().StringVar(&integrateRunRecord, "record", "", "durable-evidence record: <id>@<generation>")
+	integrateRunCmd.Flags().StringVar(&integrateRunOwner, "owner", "", "execution owner: <actor>/<host>/<kind>")
 	integrateRunCmd.Flags().BoolVar(&integrateRunJSON, "json", false, "print the machine JSON protocol document instead of the human report")
 }
 
@@ -145,7 +115,7 @@ func executionContextFromArgs(a integrateRunArgs) (execution integrate.Execution
 	}
 	if a.ExecutionID == "" || a.Generation == "" || a.OwnerActor == "" ||
 		a.OwnerHost == "" || a.OwnerKind == "" || a.ExpectSource == "" {
-		return integrate.ExecutionContext{}, false, fmt.Errorf("--record, --owner and --source (or --execution-id, --generation, --owner-actor, --owner-host, --owner-kind and --expect-source) are supplied together or not at all")
+		return integrate.ExecutionContext{}, false, fmt.Errorf("--record, --owner and --source are supplied together or not at all")
 	}
 	execution = integrate.ExecutionContext{
 		ExecutionID:  a.ExecutionID,

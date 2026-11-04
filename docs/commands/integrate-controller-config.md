@@ -1,10 +1,9 @@
 # Controller-config integration
 
-`integrate check`, `integrate run`, and `integrate queue` normally use only
+`integrate run` and `integrate queue` normally use only
 the repository-root declaration. A devbox/controller config is opt-in:
 
 ```sh
-gz-git integrate check --controller-config /path/to/devbox/.gz-git.yaml
 gz-git integrate run --controller-config /path/to/devbox/.gz-git.yaml
 gz-git integrate queue --controller-config /path/to/devbox/.gz-git.yaml
 ```

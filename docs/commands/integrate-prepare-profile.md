@@ -1,7 +1,7 @@
 # Removed gate declarations
 
 gz-git does not build, execute, or lint repository code. The gate mode of
-`gz-git integrate check` and `run` is always `none`: the git checks alone
+`gz-git integrate run` is always `none`: the git checks alone
 decide readiness. Two gates that ran repository code are removed without a
 fallback:
 

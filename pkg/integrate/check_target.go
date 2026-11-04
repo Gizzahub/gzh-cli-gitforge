@@ -25,13 +25,13 @@ var ErrSourceMismatch = errors.New("source is not the expected commit")
 // target tip. It is safe for callers to retry only after revalidation.
 var ErrTargetMismatch = errors.New("target is not the expected commit")
 
-// ErrInvalidExpectSource reports an --expect-source value that is not a full
+// ErrInvalidExpectSource reports a --source value that is not a full
 // object ID.
-var ErrInvalidExpectSource = errors.New("--expect-source must be a full 40- or 64-digit hex commit")
+var ErrInvalidExpectSource = errors.New("--source must be a full 40- or 64-digit hex commit")
 
-// ErrInvalidExpectTarget reports an --expect-target value that is not a full
-// object ID.
-var ErrInvalidExpectTarget = errors.New("--expect-target must be a full 40- or 64-digit hex commit")
+// ErrInvalidExpectTarget reports a pinned --target <ref>@<sha> whose pin is
+// not a full object ID.
+var ErrInvalidExpectTarget = errors.New("--target <ref>@<sha> pin must be a full 40- or 64-digit hex commit")
 
 // NormalizeExpectSource accepts a full SHA-1 or SHA-256 object ID and returns
 // it lowercased, the spelling git rev-parse prints. Abbreviations are

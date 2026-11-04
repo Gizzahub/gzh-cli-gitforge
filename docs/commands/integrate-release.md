@@ -1,6 +1,6 @@
 # Release promotion from the remote integration ref
 
-`gz-git integrate check|run <remote>/<integration> --target <remote>/<default> --release`
+`gz-git integrate run <remote>/<integration> --target <remote>/<default> --release`
 promotes the integration branch onto the default branch. A caller such as
 CE `ce task run-release` runs it from the repository's primary checkout,
 which stays on the default branch, and names the remote-tracking ref
@@ -39,7 +39,7 @@ not from the primary checkout's working tree, and splits it by role.
 - **Source commit: everything else.** Task patterns, reclaim and provenance
   come from the declaration committed at the release source commit. That is
   the commit the source ref resolves to after the fetch, held to
-  `--expect-source` when that flag is given. The release fast-forwards the
+  `--source` when that flag is given. The release fast-forwards the
   default branch to that commit, so the default branch carries this
   declaration afterwards. It passes every declaration check: a removed key
   or a literal protected task pattern at the source commit still refuses the

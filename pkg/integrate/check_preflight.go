@@ -12,9 +12,9 @@ import (
 )
 
 // preflightTargetRef determines the destination using only local Git reads,
-// before any fetch. Check binds the post-fetch plan to it, and Run's
-// pre-mutation outcome names it. The returned identity is a full destination
-// ref, independent of local remote-tracking spellings.
+// before any fetch. Check binds the post-fetch plan to it. The returned
+// identity is a full destination ref, independent of local remote-tracking
+// spellings.
 type targetPreflight struct {
 	branch, remote, targetRef string
 }
