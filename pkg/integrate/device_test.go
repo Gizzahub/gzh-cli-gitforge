@@ -49,12 +49,6 @@ func TestHostFieldsUseCatalogGrammar(t *testing.T) {
 	if err := ctx.Validate(); !errors.Is(err, ErrInvalidExecutionContext) || !strings.Contains(err.Error(), "owner-host") {
 		t.Fatalf("ExecutionContext.Validate with host m;x = %v, want owner-host rejection", err)
 	}
-	if err := validateOwner(OwnerIdentity{Actor: "Claude_Agent", Host: "mst", Kind: "human"}); err != nil {
-		t.Fatalf("validateOwner with a catalog host: %v", err)
-	}
-	if err := validateOwner(OwnerIdentity{Actor: "codex", Host: "MST", Kind: "agent"}); err == nil || !strings.Contains(err.Error(), "owner host") {
-		t.Fatalf("validateOwner with host MST = %v, want owner host rejection", err)
-	}
 }
 
 func TestDeviceIdentityLabel(t *testing.T) {

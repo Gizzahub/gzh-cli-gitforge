@@ -25,9 +25,27 @@ var (
 )
 
 var (
-	integrateProvisionCmd         = &cobra.Command{Use: "provision", Short: "Provision declared local sibling dependencies"}
-	integrateProvisionSiblingsCmd = &cobra.Command{Use: "siblings", Args: cobra.NoArgs}
-	integrateProvisionAcquireCmd  = &cobra.Command{
+	// integrateProvisionCmd and integrateProvisionSiblingsCmd are group
+	// parents. Runnable help keeps NoArgs effective: a bare parent still
+	// prints help, and an unknown or retired subcommand is refused with an
+	// explicit unknown-command error (exit 1) instead of being swallowed as
+	// help.
+	integrateProvisionCmd = &cobra.Command{
+		Use:   "provision",
+		Short: "Provision declared local sibling dependencies",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	integrateProvisionSiblingsCmd = &cobra.Command{
+		Use:  "siblings",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	integrateProvisionAcquireCmd = &cobra.Command{
 		Use:   "acquire [--source name=/absolute/primary-checkout] --json",
 		Short: "Archive declared siblings into this task worktree",
 		Args:  cobra.NoArgs,

@@ -45,22 +45,6 @@ func validateHostName(value, name string) error {
 	return nil
 }
 
-// validateOwner checks an execution context's owner identity: the actor and
-// kind stay opaque-token/plain vocabulary while the host must be a declared
-// device name.
-func validateOwner(owner OwnerIdentity) error {
-	if err := validateOpaqueToken(owner.Actor, "owner actor"); err != nil {
-		return err
-	}
-	if err := validateHostName(owner.Host, "owner host"); err != nil {
-		return err
-	}
-	if owner.Kind != "agent" && owner.Kind != "human" {
-		return fmt.Errorf("owner kind must be agent or human")
-	}
-	return nil
-}
-
 // Device labels for a run whose device is not a usable declared name.
 const (
 	DeviceUndeclared = "undeclared"

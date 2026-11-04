@@ -31,6 +31,13 @@ Precedence for runtime token resolution:
 
 On headless Linux without Secret Service, set/get/delete warn and fall back
 gracefully so CI and doctor keep working.`),
+	Args: cobra.NoArgs,
+	// Runnable help keeps NoArgs effective: a bare parent still prints this
+	// help, and an unknown or retired subcommand is refused with an explicit
+	// unknown-command error (exit 1) instead of being swallowed as help.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 var tokenShowFull bool

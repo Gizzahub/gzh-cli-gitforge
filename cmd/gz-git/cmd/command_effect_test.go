@@ -69,6 +69,35 @@ func TestEffectDeclarationsUseKnownTargets(t *testing.T) {
 	}
 }
 
+// TestCommandEffectGroupParentContract pins the leaf/has_subcommands side of
+// the effect table: every group parent is declared (it is a runnable
+// help-only command, so it reads read-only), while an unknown subcommand
+// under a parent matches no key at all — lookup is exact-key only, never a
+// prefix or nearest-ancestor match — so it reads undeclared and a consumer
+// fails closed instead of inheriting the parent's or a sibling's effect.
+func TestCommandEffectGroupParentContract(t *testing.T) {
+	found := map[string]bool{}
+	walkAll(fullCommandTree(), func(c *cobra.Command) {
+		if c.HasParent() && c.HasSubCommands() && c.IsAvailableCommand() && c.Runnable() && c.Name() != "completion" {
+			key := commandKey(c)
+			found[key] = true
+			if _, _, ok := declaredEffect(c); !ok {
+				t.Errorf("group parent %q is runnable but has no effect declaration", c.CommandPath())
+			}
+			if effect, _, _ := declaredEffect(c); effect != effectReadOnly {
+				t.Errorf("group parent %q declares %q; printing help changes nothing, so it must be read-only", c.CommandPath(), effect)
+			}
+			probe := key + " " + unknownSubcommandProbe
+			if _, ok := commandEffects[probe]; ok {
+				t.Errorf("effect table contains probe key %q; lookup must be exact-key only", probe)
+			}
+		}
+	})
+	if len(found) < len(expectedGroupParents) {
+		t.Fatalf("walk found %d runnable group parents (%v); expected at least the %d pinned parents", len(found), found, len(expectedGroupParents))
+	}
+}
+
 // These commands write git config on some path (a found done-review gap):
 // push and handoff end push with --set-upstream, switch and worktree add
 // check out a remote-only branch as a tracking branch, sync and workspace

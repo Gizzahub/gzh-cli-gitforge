@@ -53,6 +53,14 @@ Use this command to interact directly with Forge APIs. For local config-based op
   gz-git forge status --path ~/repos
 
 See 'gz-git workspace' for managing synced repositories via config file.`),
+		// Runnable help keeps NoArgs effective: a bare parent still prints this
+		// help, and an unknown or retired subcommand is refused with an
+		// explicit unknown-command error (exit 1) instead of being swallowed
+		// as help.
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
 	}
 
 	// Define Groups

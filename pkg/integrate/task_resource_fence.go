@@ -49,7 +49,17 @@ func acquireTaskResourceFence(ctx context.Context, exec *gitcmd.Executor, repoPa
 		}
 		return nil, fmt.Errorf("resolve task resource fence directory: %w", err)
 	}
-	dir := filepath.Join(common, taskFenceDirName)
+	// The common directory is canonicalized exactly as the receipt paths and
+	// the run lock canonicalize it, so the fence derives from the same
+	// spelling they use and an unusable common fails fast. The exclusion
+	// itself is flock over the lock file's open file description — symlinked
+	// spellings already contend on one inode — so what canonicalization
+	// closes is the derivation gap, not the exclusion.
+	canonical, err := canonicalCommonDir(common)
+	if err != nil {
+		return nil, fmt.Errorf("canonicalize task resource fence directory: %w", err)
+	}
+	dir := filepath.Join(canonical, taskFenceDirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- Git common directory is repository-owned
 		return nil, fmt.Errorf("create task resource fence directory: %w", err)
 	}

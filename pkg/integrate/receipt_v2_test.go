@@ -111,6 +111,38 @@ func TestReceiptLookupBindsExecutionAndCanonicalCommonDirectory(t *testing.T) {
 	}
 }
 
+// TestCanonicalCommonDirResolvesSymlinkedSpellings unit-pins the
+// canonicalizer every path derived below the Git common directory goes
+// through — the run lock, the task resource fence, receipts, and run
+// evidence: a symlinked spelling resolves to the physical path, the one
+// spelling those derivations share, and an unusable input fails fast
+// instead of deriving from "". The derived-path callers cannot pin this
+// through git itself: git canonicalizes every spelling it reports (the cwd
+// and the gitdir pointer file alike, watched by the fence test's sentinel),
+// so this unit pin is where the string-level derivation is discriminating.
+func TestCanonicalCommonDirResolvesSymlinkedSpellings(t *testing.T) {
+	t.Parallel()
+	common := t.TempDir()
+	alias := filepath.Join(t.TempDir(), "common-link")
+	if err := os.Symlink(common, alias); err != nil {
+		t.Fatal(err)
+	}
+	physical, err := filepath.EvalSymlinks(common)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := canonicalCommonDir(alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != physical {
+		t.Fatalf("canonicalCommonDir(%q) = %q, want the physical spelling %q", alias, got, physical)
+	}
+	if _, err := canonicalCommonDir(""); err == nil {
+		t.Fatal(`canonicalCommonDir("") succeeded; an unusable common dir must fail fast`)
+	}
+}
+
 func TestReceiptIdentityIncludesEndpointAndProvenance(t *testing.T) {
 	t.Parallel()
 	base := seedCASReceipt("identity-binding", "refs/heads/develop")

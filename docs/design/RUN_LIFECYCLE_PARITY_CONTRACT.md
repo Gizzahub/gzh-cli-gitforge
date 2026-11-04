@@ -1,5 +1,7 @@
 # CE `task run-*` Lifecycle Parity Contract
 
+> **Superseded by the v0.15.0 final surface (2026-11-04 `89e43b2c`; ADR-0161 final surface, ADR-0205 decision 5, TASK-114/116).** The `tests/parity/` fixtures and the CE references here and in [RUN_LIFECYCLE_PARITY_ADOPTIONS.md](RUN_LIFECYCLE_PARITY_ADOPTIONS.md) are superseded history: v0.15.0 removed the pre-mutation subcommands (`check`, `reconcile`, `legacy-cleanup`) and the legacy owner/generation flags, so they no longer describe the shipped run surface.
+
 Reference for porting the CE run lifecycle into gz-git, per ce-agent-kit
 [ADR-0055](https://github.com/Gizzahub/ce-agent-kit/blob/master/decisions/adr/0055-task-manager-owns-tasks-gz-git-owns-lifecycle.md)
 ("task-manager owns tasks, gz-git owns the repository lifecycle, no compatibility

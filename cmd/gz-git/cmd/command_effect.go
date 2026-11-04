@@ -69,6 +69,14 @@ var knownMutationTargets = map[string]bool{
 // commandEffects declares every runnable command, keyed by its path below
 // the root ("" is the root itself). TestEveryRunnableCommandDeclaresEffect
 // fails when a runnable command is missing here or an entry names no command.
+// Lookup is exact-key only: declaredEffect never matches a prefix, a
+// substring, or a nearest ancestor. A group parent is a runnable help-only
+// command, so it declares read-only like any other printer — but an unknown
+// or retired subcommand never resolves to the parent's leaf effects either:
+// the parent's NoArgs refuses (exit 1) before RunE, and a probe key like
+// "branch tyop" matches no key here, so it reads undeclared and consumers
+// fail closed on it. The exact-key rule is what keeps that refusal from
+// ever being shadowed by an unrelated leaf entry.
 var commandEffects = map[string][]string{
 	"":                      nil,
 	"help":                  nil,
@@ -81,6 +89,28 @@ var commandEffects = map[string][]string{
 	"completion fish":       nil,
 	"completion powershell": nil,
 	"completion zsh":        nil,
+
+	// Group parents print help only, so each declares read-only; the
+	// exact-key rule above keeps an unknown subcommand off this table.
+	"branch":                       nil,
+	"cleanup":                      nil,
+	"config":                       nil,
+	"config profile":               nil,
+	"config token":                 nil,
+	"conflict":                     nil,
+	"forge":                        nil,
+	"forge bootstrap":              nil,
+	"forge config":                 nil,
+	"handoff":                      nil,
+	"history":                      nil,
+	"integrate provision":          nil,
+	"integrate provision siblings": nil,
+	"pr":                           nil,
+	"run":                          nil,
+	"stash":                        nil,
+	"tag":                          nil,
+	"worktree":                     nil,
+	"workspace":                    nil,
 
 	"branch list": nil,
 	"branch name": nil,

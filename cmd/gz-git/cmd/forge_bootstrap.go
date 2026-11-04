@@ -76,7 +76,19 @@ var forgeBootstrapApplyCmd = &cobra.Command{Use: "apply", Args: cobra.NoArgs, Ru
 	}
 	return json.NewEncoder(cmd.OutOrStdout()).Encode(rec)
 }}
-var forgeBootstrapCmd = &cobra.Command{Use: "bootstrap", Short: "Bootstrap an independent repository from a pinned template"}
+
+// forgeBootstrapCmd is a group parent (plan, apply). Runnable help keeps
+// NoArgs effective: a bare parent still prints help, and an unknown or
+// retired subcommand is refused with an explicit unknown-command error
+// (exit 1) instead of being swallowed as help.
+var forgeBootstrapCmd = &cobra.Command{
+	Use:   "bootstrap",
+	Short: "Bootstrap an independent repository from a pinned template",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return cmd.Help()
+	},
+}
 
 func init() {
 	forgeBootstrapCmd.AddCommand(forgeBootstrapPlanCmd, forgeBootstrapApplyCmd)

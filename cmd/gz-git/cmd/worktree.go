@@ -47,6 +47,12 @@ var worktreeCmd = &cobra.Command{
   gz-git worktree remove ../my-repo-feature`),
 	Example: ``,
 	Args:    cobra.NoArgs,
+	// Runnable help keeps NoArgs effective: a bare parent still prints this
+	// help, and an unknown or retired subcommand is refused with an explicit
+	// unknown-command error (exit 1) instead of being swallowed as help.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 // worktreeListCmd lists git worktrees for one or many repositories.

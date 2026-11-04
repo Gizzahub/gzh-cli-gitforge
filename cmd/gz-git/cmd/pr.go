@@ -17,6 +17,13 @@ var prCmd = &cobra.Command{
 
   # Dry-run a workspace
   gz-git pr create -n ~/work`),
+	Args: cobra.NoArgs,
+	// Runnable help keeps NoArgs effective: a bare parent still prints this
+	// help, and an unknown or retired subcommand is refused with an explicit
+	// unknown-command error (exit 1) instead of being swallowed as help.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 func init() {
