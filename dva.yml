@@ -23,6 +23,15 @@ provision:
 
 ci:
   profiles:
+    dev:
+      description: Build, vet, and test affected packages for edit feedback; widened inputs require full verification.
+      timeout: 5m
+      max_parallel: 1
+      tool_jobs: 2
+      steps:
+        - name: affected-dev
+          run: 'VERIFY_BASE="${DVA_BASE:?DVA_BASE must name the configured source ref}" make verify-dev'
+          timeout: 5m
     commit:
       description: Run the 8-minute impact-aware commit profile within DVA's 10-minute hard ceiling.
       timeout: 10m

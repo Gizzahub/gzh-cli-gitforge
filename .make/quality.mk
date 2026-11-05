@@ -327,7 +327,7 @@ pre-commit-update: ## update pre-commit hooks to latest versions
 # ==============================================================================
 
 .PHONY: quality quality-strict quality-fix quality-build quality-workspace-check quality-check-validate lint-all
-.PHONY: verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test release-notes-test release-ci-check release-ci-check-test
+.PHONY: verify-dev verify-dev-affected verify-affected verify-commit verify-commit-affected verify-full verify-release verify-release-steps verification-selector-test release-notes-test release-ci-check release-ci-check-test
 .NOTPARALLEL: quality-check verify-commit-affected
 
 # The base is a declared remote-tracking integration ref, not a guessed local
@@ -385,6 +385,21 @@ quality-strict: quality-check ## compatibility alias for the canonical quality g
 # test dependencies. Shared/unknown inputs deliberately widen to verify-full;
 # they never report a zero-test pass. The timeout command is configurable for
 # hosts that call GNU coreutils `gtimeout` instead of `timeout`.
+verify-dev: ## build, vet and test affected packages (5m); unknown inputs require verify-full
+	@set -eu; \
+		command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }; \
+		if "$(VERIFY_TIMEOUT)" --kill-after="$(VERIFY_TIMEOUT_KILL_AFTER)" "$(VERIFY_NARROW_TIMEOUT)" scripts/verification-profile.sh run --base "$(VERIFY_BASE)" -- $(MAKE) --no-print-directory verify-dev-affected; then :; \
+		else rc=$$?; [ "$$rc" -eq 3 ] || exit "$$rc"; echo "dev profile widened; run 'make verify-full' before integration" >&2; exit 3; fi
+
+# Reuse the selected closure for static checks and tests. Do not install tools
+# or format source as a side effect of the edit loop.
+verify-dev-affected:
+	@set -eu; \
+		[ -n "$(VERIFY_SELECTED_PACKAGES)" ] || { echo "VERIFY_SELECTED_PACKAGES is required" >&2; exit 2; }; \
+		GOWORK=off go build -o /dev/null ./cmd/gz-git; \
+		GOWORK=off go vet $(VERIFY_SELECTED_PACKAGES); \
+		$(MAKE) --no-print-directory test-affected VERIFY_GO_GOMAXPROCS="$${GOMAXPROCS:-1}" VERIFY_GO_PACKAGE_WORKERS="$${DVA_CI_JOBS:-1}"
+
 verify-affected: ## run affected Go tests (5m); a widened result requires verify-full
 	@set -eu; \
 		command -v "$(VERIFY_TIMEOUT)" >/dev/null 2>&1 || { echo "verification timeout command not found: $(VERIFY_TIMEOUT)" >&2; exit 2; }; \
