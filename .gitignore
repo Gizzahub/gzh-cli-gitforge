@@ -95,10 +95,7 @@ task-root.yaml
 # ??
 .claude/
 .ce-metrics/
-# `.ce/`는 CE 런타임 상태와 머신 로컬 task-runtime 선언(절대 경로
-# worktree-roots)을 담으므로 추적하지 않는다(929d0d92). 선언을 다시
-# 추적하려면 경로 없는 schema 5 선언과 전역 기본값의 패밀리 매핑이
-# 먼저 필요하다(ISSUE-81).
+# Retired machine-local workflow state.
 .ce/
 
 # DVA runtime state; authored module declarations remain trackable.
