@@ -5,11 +5,8 @@
 // moves from ce-agent-kit into gz-git: run identity, owner, lock, and receipt
 // state live here, and task-manager consumes them through the JSON surface.
 //
-// The behavioral reference is the parity fixture suite in tests/parity/ —
-// golden files there are machine-captured from the autonomous CE binary
-// (master f927ae5d). When this implementation and the fixtures disagree, the
-// fixtures win; docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md describes the
-// same surface at the source level.
+// 현재 구현과 저장소의 네이티브 테스트가 동작 기준이다. CE를 실행하는
+// 이전 parity fixture는 2026-11-06 제품 개발 흐름 결정에 따라 제거했다.
 package runtask
 
 import (

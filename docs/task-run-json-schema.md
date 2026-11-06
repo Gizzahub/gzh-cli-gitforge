@@ -3,10 +3,10 @@
 Consumer contract for task-manager (and any other caller) driving the
 gz-git run lifecycle. Every verb answers `--json` with **one response
 document on stdout**; refusals additionally print `Error: <reason>` on
-stderr next to their non-zero exit. The design-level reference is
-[docs/design/RUN_LIFECYCLE_PARITY_CONTRACT.md](design/RUN_LIFECYCLE_PARITY_CONTRACT.md);
-when this document and the fixture suite (`tests/parity/`) disagree, the
-fixtures win.
+stderr next to their non-zero exit. Current behavior is verified by the native
+tests in `internal/runtask/` and `cmd/gz-git/`. The
+[earlier CE parity design](design/RUN_LIFECYCLE_PARITY_CONTRACT.md) is historical;
+its CE-executing fixtures were retired on 2026-11-06.
 
 ______________________________________________________________________
 
@@ -184,8 +184,8 @@ first so the caller can see what was (not) imported and why.
 ## 8. `tool_version` and `tool_revision`
 
 Receipt build stamps of **the tool that wrote the receipt** — not of the
-record format. They are the two snake_case fields in the envelope (a CE
-layout parity artifact the fixtures pin); every other key is camelCase.
+record format. They are preserved legacy snake_case fields in the envelope;
+every other key is camelCase.
 task-manager must treat them as opaque strings for audit trails, never as
 a format version: `schemaVersion` (§3) is the contract version.
 
@@ -197,6 +197,5 @@ a format version: `schemaVersion` (§3) is the contract version.
   new tokens appear only with a schema review.
 - `reason` and `nextAction` are prose: match on tokens and exit codes,
   never on their text.
-- The fixture goldens (`tests/parity/testdata/golden/`) are the executable
-  form of this schema; `PARITY_TARGET=gz-git go test -tags=parity ./tests/parity/...`
-  asserts the shipped binary against them.
+- Native run-lifecycle tests verify the implementation. Retired CE goldens
+  are available in Git history and are not a development dependency.
