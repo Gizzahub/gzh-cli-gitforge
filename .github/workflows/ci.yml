@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop, 'dev/**']
   pull_request:
     branches: [ master, main, develop ]
 
@@ -115,6 +116,7 @@ jobs:
 
     - name: Verify binary (Windows)
       if: matrix.os == 'windows-latest'
+      shell: pwsh
       run: |
         .\gz-git.exe --version
         .\gz-git.exe --help
