@@ -47,8 +47,9 @@ type coprocessMessage struct {
 }
 
 type coprocessBegin struct {
-	Plan      coprocessPlan      `json:"plan"`
-	Candidate coprocessCandidate `json:"candidate"`
+	ResponseTimeoutMS int                `json:"response_timeout_ms"`
+	Plan              coprocessPlan      `json:"plan"`
+	Candidate         coprocessCandidate `json:"candidate"`
 }
 
 type coprocessPlan struct {
@@ -99,6 +100,9 @@ type CoprocessResult struct {
 // decodeCoprocessInbound accepts exactly one complete CE-to-provider message.
 func decodeCoprocessInbound(line []byte) (coprocessMessage, error) {
 	var message coprocessMessage
+	if err := checkInboundJSON(line); err != nil {
+		return coprocessMessage{}, errors.New("coprocess message is not valid")
+	}
 	decoder := json.NewDecoder(bytes.NewReader(line))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&message); err != nil {
@@ -115,7 +119,7 @@ func decodeCoprocessInbound(line []byte) (coprocessMessage, error) {
 	}
 	switch message.Type {
 	case coprocessBeginType:
-		if message.Begin == nil || message.Begin.Plan.PlanID != message.PlanID || message.Sequence != 0 || message.Step != "" {
+		if message.Begin == nil || message.Begin.ResponseTimeoutMS <= 0 || message.Begin.Plan.PlanID != message.PlanID || message.Sequence != 0 || message.Step != "" {
 			return coprocessMessage{}, errors.New("coprocess begin is incomplete")
 		}
 	case coprocessAckType, coprocessDenyType:

@@ -82,6 +82,7 @@ var commandEffects = map[string][]string{
 	"help":                  nil,
 	"gen-docs":              {mutatesFilesystem},
 	"task-sync-apply":       {mutatesWorktree, mutatesRefs},
+	"task-sync-prepare":     {mutatesWorktree, mutatesRefs},
 	"version":               nil,
 	"capability":            nil,
 	"schema":                nil,

@@ -66,6 +66,11 @@ func runCoprocess(ctx context.Context, in io.Reader, out io.Writer, timeout time
 	if begin.Type != coprocessBeginType {
 		return fmt.Errorf("%w: first message is not begin", ErrCoprocessBegin)
 	}
+	const maxResponseTimeoutMS = uint64(1<<63-1) / uint64(time.Millisecond)
+	if begin.Begin.ResponseTimeoutMS <= 0 || uint64(begin.Begin.ResponseTimeoutMS) > maxResponseTimeoutMS {
+		return fmt.Errorf("%w: response timeout is invalid", ErrCoprocessBegin)
+	}
+	session.timeout = time.Duration(begin.Begin.ResponseTimeoutMS) * time.Millisecond
 	request := begin.Begin.request(session)
 	session.plan = request.Plan
 	outcome := apply(ctx, request)

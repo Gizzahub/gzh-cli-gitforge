@@ -37,7 +37,7 @@ func deny(m coprocessMessage) string {
 }
 
 func wireBegin(request ApplyRequest) string {
-	begin := coprocessBegin{Plan: coprocessPlan(request.Plan), Candidate: coprocessCandidate(request.Candidate)}
+	begin := coprocessBegin{ResponseTimeoutMS: 5000, Plan: coprocessPlan(request.Plan), Candidate: coprocessCandidate(request.Candidate)}
 	raw, _ := json.Marshal(coprocessMessage{Schema: CoprocessSchema, Type: coprocessBeginType, PlanID: request.Plan.PlanID, Begin: &begin})
 	return string(raw)
 }
@@ -178,6 +178,9 @@ func TestCoprocessLeaseLossStopsMutationAndKeepsCheckpoint(t *testing.T) {
 		{"record store failure", recordOf("checkout-intent"), func(m coprocessMessage) (string, bool) { return deny(m), true }},
 		{"stdin EOF", checkAfter("checkpoint-created"), func(coprocessMessage) (string, bool) { return "", false }},
 		{"decode failure", checkAfter("checkpoint-created"), func(m coprocessMessage) (string, bool) { return garbage(m), true }},
+		{"duplicate response field", checkAfter("checkpoint-created"), func(m coprocessMessage) (string, bool) {
+			return strings.Replace(ack(m), `"schema":1`, `"schema":1,"schema":1`, 1), true
+		}},
 		{"wrong sequence", checkAfter("checkpoint-created"), func(m coprocessMessage) (string, bool) {
 			m.Sequence++
 			return ack(m), true
@@ -251,6 +254,8 @@ func TestCoprocessResponseTimeoutIsLeaseLoss(t *testing.T) {
 	stdinR, stdinW := io.Pipe()
 	defer stdinW.Close()
 	stdoutR, stdoutW := io.Pipe()
+	defer stdoutR.Close()
+	defer stdoutW.Close()
 	go func() { _, _ = io.Copy(io.Discard, stdoutR) }()
 	calls := 0
 	apply := func(ctx context.Context, request ApplyRequest) ApplyResult {
@@ -263,18 +268,23 @@ func TestCoprocessResponseTimeoutIsLeaseLoss(t *testing.T) {
 	}
 	finished := make(chan error, 1)
 	go func() {
-		finished <- runCoprocess(context.Background(), stdinR, stdoutW, 50*time.Millisecond, apply)
+		finished <- runCoprocess(context.Background(), stdinR, stdoutW, 5*time.Second, apply)
 	}()
-	if _, err := io.WriteString(stdinW, `{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"plan":{"plan_id":"p"},"candidate":{}}}`+"\n"); err != nil {
+	if _, err := io.WriteString(stdinW, `{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"response_timeout_ms":50,"plan":{"plan_id":"p"},"candidate":{}}}`+"\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-finished; err != nil || calls != 1 {
-		t.Fatalf("err=%v calls=%d", err, calls)
+	select {
+	case err := <-finished:
+		if err != nil || calls != 1 {
+			t.Fatalf("err=%v calls=%d", err, calls)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the begin timeout was not applied to the owner response")
 	}
 }
 
 func TestCoprocessResultLossIsReported(t *testing.T) {
-	in := strings.NewReader(`{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"plan":{"plan_id":"p"},"candidate":{}}}` + "\n")
+	in := strings.NewReader(`{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"response_timeout_ms":1000,"plan":{"plan_id":"p"},"candidate":{}}}` + "\n")
 	calls := 0
 	apply := func(context.Context, ApplyRequest) ApplyResult {
 		calls++
@@ -291,17 +301,26 @@ type failingWriter struct{}
 func (failingWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 func TestCoprocessRejectsInvalidBeginWithoutApplying(t *testing.T) {
-	valid := `{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"plan":{"plan_id":"p"},"candidate":{}}}`
+	valid := `{"schema":1,"type":"begin","plan_id":"p","step":"","sequence":0,"begin":{"response_timeout_ms":1000,"plan":{"plan_id":"p"},"candidate":{}}}`
 	for name, input := range map[string]string{
-		"empty stdin":    "",
-		"not json":       "nope\n",
-		"unknown field":  strings.Replace(valid, `"step"`, `"future":1,"step"`, 1) + "\n",
-		"unknown nested": strings.Replace(valid, `"candidate":{}`, `"candidate":{"future":1}`, 1) + "\n",
-		"wrong schema":   strings.Replace(valid, `"schema":1`, `"schema":2`, 1) + "\n",
-		"trailing":       strings.TrimSuffix(valid, "\n") + " {}\n",
-		"plan mismatch":  strings.Replace(valid, `"plan":{"plan_id":"p"}`, `"plan":{"plan_id":"q"}`, 1) + "\n",
-		"ack first":      `{"schema":1,"type":"ack","plan_id":"p","step":"","sequence":0}` + "\n",
-		"oversized":      `{"pad":"` + strings.Repeat("x", coprocessMaxLine) + "\"}\n",
+		"deeply nested":             strings.Replace(valid, `"candidate":{}`, `"candidate":{"future":`+strings.Repeat("[", 2048)+"0"+strings.Repeat("]", 2048)+`}`, 1) + "\n",
+		"duplicate top-level field": strings.Replace(valid, `"schema":1`, `"schema":1,"schema":1`, 1) + "\n",
+		"duplicate nested field":    strings.Replace(valid, `"plan_id":"p"}`, `"plan_id":"p","plan_id":"p"}`, 1) + "\n",
+		"escaped duplicate field":   strings.Replace(valid, `"schema":1`, `"schema":1,"s\u0063hema":1`, 1) + "\n",
+		"case-folded field":         strings.Replace(valid, `"schema":1`, `"schema":1,"SCHEMA":1`, 1) + "\n",
+		"empty stdin":               "",
+		"not json":                  "nope\n",
+		"unknown field":             strings.Replace(valid, `"step"`, `"future":1,"step"`, 1) + "\n",
+		"unknown nested":            strings.Replace(valid, `"candidate":{}`, `"candidate":{"future":1}`, 1) + "\n",
+		"missing timeout":           strings.Replace(valid, `"response_timeout_ms":1000,`, "", 1) + "\n",
+		"zero timeout":              strings.Replace(valid, `"response_timeout_ms":1000`, `"response_timeout_ms":0`, 1) + "\n",
+		"negative timeout":          strings.Replace(valid, `"response_timeout_ms":1000`, `"response_timeout_ms":-1`, 1) + "\n",
+		"overflow timeout":          strings.Replace(valid, `"response_timeout_ms":1000`, `"response_timeout_ms":18446744073712`, 1) + "\n",
+		"wrong schema":              strings.Replace(valid, `"schema":1`, `"schema":2`, 1) + "\n",
+		"trailing":                  strings.TrimSuffix(valid, "\n") + " {}\n",
+		"plan mismatch":             strings.Replace(valid, `"plan":{"plan_id":"p"}`, `"plan":{"plan_id":"q"}`, 1) + "\n",
+		"ack first":                 `{"schema":1,"type":"ack","plan_id":"p","step":"","sequence":0}` + "\n",
+		"oversized":                 `{"pad":"` + strings.Repeat("x", coprocessMaxLine) + "\"}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			apply := func(context.Context, ApplyRequest) ApplyResult {

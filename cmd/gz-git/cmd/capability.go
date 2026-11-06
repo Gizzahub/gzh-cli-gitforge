@@ -15,6 +15,7 @@ const (
 	contextReferenceObserveV1Capability   = "context-reference-observe-v1"
 	integrateRunContextV1Capability       = "integrate-run-context-v1"
 	taskSyncApplyV1Capability             = "task-sync-apply-v1"
+	taskSyncPrepareV1Capability           = "task-sync-prepare-v1"
 )
 
 func newCapabilityCommand() *cobra.Command {
@@ -36,6 +37,9 @@ func newCapabilityCommand() *cobra.Command {
 
 func supportsCapability(name string) bool {
 	switch name {
+	case taskSyncPrepareV1Capability:
+		// The prepare wire is provisional and must not be advertised.
+		return false
 	case integrateQueueControllerV1Capability, integrateQueueBaseMissingV1Capability, contextReferenceObserveV1Capability, integrateRunContextV1Capability, taskSyncApplyV1Capability:
 		return true
 	default:
