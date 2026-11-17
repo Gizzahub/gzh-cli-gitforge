@@ -367,8 +367,8 @@ install-docs-tools: ## install documentation tools
 # official compatibility commit 7b1b5cebe007d62fb58eacb90fc571112939ec30, whose
 # module retains a Go 1.26.0 floor and whose x/tools v0.51.0 supports that format.
 # This is an untagged upstream commit, not a stable release or local fork.
-# The installed build/scan toolchain is Go 1.27.3. The runtime contract verifies
-# the active compiler, the Go 1.26.9/1.27.3 build-and-scan fixture matrix, and
+# The installed build/scan toolchain is Go 1.27.4. The runtime contract verifies
+# the active compiler, the Go 1.26.9/1.27.4 build-and-scan fixture matrix, and
 # the explicit full-scan comparison against the historical baseline in
 # scripts/test-gosec-toolchain-contract.sh.
 GOSEC_MODULE := github.com/securego/gosec/v2
