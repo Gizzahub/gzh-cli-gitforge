@@ -92,5 +92,9 @@ Examples:
 	validateCmd.GroupID = diagGroup.ID
 	root.AddCommand(validateCmd)
 
+	listCmd := f.newListCmd()
+	listCmd.GroupID = diagGroup.ID
+	root.AddCommand(listCmd)
+
 	return root
 }

@@ -4,14 +4,15 @@
 
 ## 서브커맨드
 
-| 커맨드            | 설명                        |
-| ----------------- | --------------------------- |
-| `init`            | 디렉토리 스캔 → config 생성 |
-| `sync`            | Config 기반 clone/update    |
-| `status`          | Workspace health check      |
-| `add`             | Config에 repo 추가          |
-| `validate`        | Config 파일 검증            |
-| `generate-config` | Forge API → config 생성     |
+| 커맨드            | 설명                           |
+| ----------------- | ------------------------------ |
+| `init`            | 디렉토리 스캔 → config 생성    |
+| `sync`            | Config 기반 clone/update       |
+| `status`          | Workspace health check         |
+| `add`             | Config에 repo 추가             |
+| `validate`        | Config 파일 검증               |
+| `list`            | Config가 선언한 workspace 목록 |
+| `generate-config` | Forge API → config 생성        |
 
 ## init
 
@@ -286,6 +287,48 @@ gz-git workspace add https://github.com/user/repo.git --branch develop
 # 특정 config에 추가
 gz-git workspace add https://github.com/user/repo.git -c myworkspace.yaml
 ```
+
+## list
+
+Config 파일이 선언한 최상위 `workspaces:` 항목을 이름순으로 보여준다. 그 파일 하나만 읽는다.
+parent·하위 config, checkout, remote는 건드리지 않으므로 결과는 디스크 상태가 아니라 선언이다.
+Effect 선언은 `read-only`다.
+
+```bash
+# 기본 (.gz-git.yaml 자동 탐지)
+gz-git workspace list
+
+# 특정 파일, JSON 출력
+gz-git workspace list -c myworkspace.yaml --format json
+```
+
+각 항목의 필드:
+
+- `name`: `workspaces:` map의 key
+- `type`: 실효 type (`git`, `forge`, `config`). sync와 같은 규칙으로 분류하며, 알 수 없는
+  type은 거부한다.
+- `path`: 절대 경로. `path`가 없으면 이름을 쓰고, config 디렉토리 기준으로 해석한다.
+- `url`: 항목이 선언한 URL (type과 상관없이, 선언했을 때만)
+- `defaultBranch`: 항목이 선언한 `branch: master` 축약형 또는 `branch.defaultBranch`.
+  선언하지 않았으면 비어 있다(표에서는 `-`). sync가 config나 parent에서 물려받아 쓰는
+  branch는 표시하지 않는다.
+- `access`: `read-write`(생략 시 기본값) 또는 `read-only`
+
+JSON은 `{"config": ..., "workspaces": [...]}` 한 문서다. `config`는 `-c`를 상대 경로로 줘도
+절대 경로로 보고한다. workspace가 없으면 빈 배열이다.
+
+선언을 그대로 보여주므로 sync가 건너뛰는 항목도 목록에 나온다. 예를 들어 URL이 없는 git
+항목, `sync.recursive`가 없는 config 항목, config 디렉토리 자신을 가리키는 항목, parent
+config를 찾지 못한 파일의 항목이 그렇다.
+
+kind는 `workspace validate`와 같은 기준으로 본다. 비어 있거나 `workspace`, `workspaces`,
+`repositories`, `repository`가 아니면(예: clone config의 `kind: groups`) `workspaces:` key가
+있어도 거부한다. 이 kind들 안에서는 `workspaces:` key가 있으면 sync처럼 `repositories:`
+목록과 함께 있어도 나열한다. key가 없을 때는 다음을 거부한다. 빈 목록이 "선언 없음"으로
+오해되기 때문이다.
+
+- `kind: repositories`(또는 `repository`) 설정
+- 비어 있지 않은 `repositories:` 목록만 가진 설정
 
 ## validate
 

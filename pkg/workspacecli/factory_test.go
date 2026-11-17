@@ -26,6 +26,7 @@ func TestCommandFactory_NewRootCmd(t *testing.T) {
 		"status":   false,
 		"add":      false,
 		"validate": false,
+		"list":     false,
 	}
 
 	for _, sub := range cmd.Commands() {

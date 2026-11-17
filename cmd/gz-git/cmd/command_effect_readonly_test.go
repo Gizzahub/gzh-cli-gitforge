@@ -83,6 +83,7 @@ var readOnlyRuns = map[string][]string{
 	"tag list":                             {"tag", "list", "."},
 	"tag status":                           {"tag", "status", "."},
 	"workspace validate":                   {"workspace", "validate"},
+	"workspace list":                       {"workspace", "list", "--format", "json"},
 	"worktree list":                        {"worktree", "list", "."},
 }
 
