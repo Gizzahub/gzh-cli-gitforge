@@ -101,3 +101,6 @@ task-root.yaml
 # DVA runtime state; authored module declarations remain trackable.
 .sb/dva/*
 !.sb/dva/*.yml
+
+# Task cards live in the gzh-cli-devbox board (user decision 2026-11-18).
+/tasks/

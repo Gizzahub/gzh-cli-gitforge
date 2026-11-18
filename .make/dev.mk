@@ -95,8 +95,8 @@ deps-graph: ## show module dependency graph
 # No changelog target on purpose. Release notes come from .goreleaser.yaml
 # (changelog.use: github) on each tag, and CHANGELOG.md only points to them and
 # to the hand-written history in docs/changelog/. A local generator would
-# produce a second source. See tasks/issue/065-changelog-authorship-contract.md
-# and tasks/issue/24-make-changelog-overwrites-handwritten-log.md
+# produce a second source. See issue 065 and 24 under
+# gzh-cli-devbox docs/80-reference/82-gitforge-task-records/_archive/issue/
 
 docs-serve: ## serve documentation locally (requires mkdocs)
 	@command -v mkdocs >/dev/null 2>&1 || { echo -e "$(RED)mkdocs not found. Install with: pip install mkdocs mkdocs-material$(RESET)"; exit 1; }

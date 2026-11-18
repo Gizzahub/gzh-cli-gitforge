@@ -145,6 +145,6 @@ no `--target`), and its pushed-source probe counts
 `origin/<integration>..<integration>`. The sandbox therefore fetches its
 origin once, as a real clone would. Schema, statuses and allowed actions were
 unchanged, verified by golden diff. The gz-git port does not follow either
-change yet; that is a port decision tracked in
-`tasks/issue/42-runtask-port-follow-ce-f540f972.md`, not a known-divergent
+change yet; that is a port decision recorded in gzh-cli-devbox
+`docs/80-reference/82-gitforge-task-records/_archive/issue/42-runtask-port-follow-ce-f540f972.md`, not a known-divergent
 scenario.

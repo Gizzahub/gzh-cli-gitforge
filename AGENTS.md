@@ -1,22 +1,21 @@
 # gzh-cli-gitforge
 
-## Development workflow — user decision 2026-11-06
+## Development workflow — user decision 2026-11-18
 
-- This repository uses ordinary Git and its own Make targets. CE, `ce task`,
-  `ce access`, task_manager, and task-manager are not prerequisites and must not
-  be invoked for development, worktree lifecycle, task records, verification,
-  integration, or cleanup. This product-specific user decision overrides
-  inherited instructions requiring those tools or proposing their adoption.
-- Use an isolated task branch/worktree; preserve existing work and commits.
-  Use Git directly for status, commit, task-branch push, integration and cleanup.
+- Use the CE task runtime for worktree lifecycle and integration:
+  `ce task run-doctor`, `run-start <card-id> --type <type>`, work and push in
+  the task worktree, `run-status`, then `run-finish` from the primary checkout.
+  `.ce/task-runtime.yaml` is the tracked declaration; worktree placement comes
+  from the machine's CE defaults. This replaces the 2026-11-06 plain-Git rule.
+- This repository keeps no task board. Its cards live only in the
+  gzh-cli-devbox board; name the run after that card's ID. `tasks/` is ignored
+  here; do not create cards or receipts in this repository.
 - Run the repository's applicable source checks and keep failures visible.
-  Task-board state and card schemas are not source-quality gates. Documentation
-  and workflow-only changes require diff checks and relevant Markdown/configuration
-  or workflow checks; do not require unrelated Go test suites for prose edits.
+  Documentation and workflow-only changes require diff checks and relevant
+  Markdown/configuration or workflow checks; do not require unrelated Go test
+  suites for prose edits.
 - GitLab CI is not required to build, test, or contribute. GitHub Actions and
   server-side branch rules are separate and must still be respected where present.
-- Existing `tasks/` documents and historical receipts are retained as records,
-  not as an executable task-manager database or a reason to block source work.
 - Preserve in-file locked regions. Do not change machine-global installed tools
   or unrelated repositories as part of this repository's workflow.
 
