@@ -234,7 +234,8 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 			fail "full $label: make security-code hit the export-data/type-error signature (see $tmp/$label.make.log)"
 		fi
 		validate_scan "full $label: gosec -fmt=json ./..." "$JSON_RC_" "$tmp/$label.json" "$tmp/$label.stderr"
-		make_issues="$(sed -n 's/.*Issues : \([0-9][0-9]*\).*/\1/p' "$tmp/$label.make.log" | tail -1)"
+		# gosec 가 요약 숫자를 ANSI 색상 코드로 감싸므로(Issues : ESC[1;31m1ESC[0m) 먼저 제거한다.
+		make_issues="$(LC_ALL=C sed -e "s/$(printf '\033')\[[0-9;]*m//g" -n -e 's/.*Issues : \([0-9][0-9]*\).*/\1/p' "$tmp/$label.make.log" | tail -1)"
 		[ -n "$make_issues" ] || fail "full $label: make output has no gosec Issues summary (see $tmp/$label.make.log)"
 		json_issues="$(jq -r '.Issues | length' "$tmp/$label.json")"
 		[ "$make_issues" -eq "$json_issues" ] || fail "full $label: make reported $make_issues issues but JSON reported $json_issues"
