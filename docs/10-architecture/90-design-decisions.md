@@ -312,8 +312,8 @@ a CE process fault cannot become a provider finding.
 
 **Implementation gates**:
 
-- The DevBox owns separate implementation and Sigdock pilot cards; this repository's
-  `tasks/` remains an issue-pointer log.
+- The DevBox owns separate implementation and Sigdock pilot cards; this repository
+  keeps no task board (user decision 2026-11-18).
 - The implementation card cites the released CE follow-up satisfying item 8 and allocates
   the final gz-git capability ID and JSON schema. This decision reserves no unimplemented
   CLI command name.

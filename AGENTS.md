@@ -5,8 +5,10 @@
 - Use the CE task runtime for worktree lifecycle and integration:
   `ce task run-doctor`, `run-start <card-id> --type <type>`, work and push in
   the task worktree, `run-status`, then `run-finish` from the primary checkout.
-  `.ce/task-runtime.yaml` is the tracked declaration; worktree placement comes
-  from the machine's CE defaults. This replaces the 2026-11-06 plain-Git rule.
+  This replaces the 2026-11-06 plain-Git rule. The tracked schema 5
+  `.ce/task-runtime.yaml` is pending: until the runs that depend on it end,
+  CE reads the primary checkout's untracked schema 2 declaration and its
+  `worktree-roots`, and `.ce/` stays ignored here (gzh-cli-devbox board).
 - This repository keeps no task board. Its cards live only in the
   gzh-cli-devbox board; name the run after that card's ID. `tasks/` is ignored
   here; do not create cards or receipts in this repository.
