@@ -9,14 +9,10 @@
 #       scanner/runtime/export-data 오류, finding 외 원인의 exit 1, JSON 누락은
 #       거절한다. 고정 컴파일러가 없으면 건너뛰지 않고 실패한다. 두 모드 모두
 #       추적 파일을 변경하지 않는다. full 모드의 비밀 없는 실행 영수증은 항상
-#       stdout 으로 출력하고, --write-receipt 를 함께 줄 때만
-#       tasks/issue/40-gosec-go127-export-data.md 의 기존 마커 안에 기록한다.
-#       이때 source 는 스캔 시점 HEAD(영수증 이전 커밋)로 한 번만 적으므로
-#       영수증을 커밋해도 참으로 남는다.
-#       library issue 40 / 중앙 보드 TASK-270 참조.
+#       stdout 으로만 출력한다(하위 저장소는 카드·receipt 파일을 만들지 않는다).
+#       devbox 기록: gitforge issue 40 / 중앙 보드 TASK-270, ISSUE-381.
 # 사용법: bash scripts/test-gosec-toolchain-contract.sh
-#         [--full-security-no-regression] [--write-receipt]
-#         (--write-receipt 는 --full-security-no-regression 과만 유효)
+#         [--full-security-no-regression]
 
 set -euo pipefail
 
@@ -26,9 +22,6 @@ cd "$repo"
 GO_FLOOR_VER="1.26.9"
 GO_NEXT_VER="1.27.4"
 BASELINE_PIN="v2.22.10"
-ISSUE_CARD="tasks/issue/40-gosec-go127-export-data.md"
-RECEIPT_START="<!-- TASK-270 receipt:start -->"
-RECEIPT_END="<!-- TASK-270 receipt:end -->"
 
 fail() {
 	echo "FAIL: $*" >&2
@@ -162,23 +155,16 @@ validate_scan() { # $1: cell 이름  $2: exit  $3: json 파일  $4: stderr 파�
 }
 
 mode="default"
-write_receipt=0
 for arg in "$@"; do
 	case "$arg" in
 	--full-security-no-regression)
 		mode="--full-security-no-regression"
 		;;
-	--write-receipt)
-		write_receipt=1
-		;;
 	*)
-		fail "unknown argument '$arg' (expected: [--full-security-no-regression] [--write-receipt])"
+		fail "unknown argument '$arg' (expected: [--full-security-no-regression])"
 		;;
 	esac
 done
-if [ "$write_receipt" -eq 1 ] && [ "$mode" != "--full-security-no-regression" ]; then
-	fail "--write-receipt is only valid together with --full-security-no-regression (the default mode produces no receipt)"
-fi
 
 if [ "$mode" = "default" ]; then
 	# --- 기본 모드: bin/tools 핀 일치 + 양쪽 컴파일러 재빌드 identity + 최소 스캔 4셀 ---
@@ -232,7 +218,7 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 	if [ -z "$(git -C "$repo" status --porcelain=v1 --untracked-files=all)" ]; then
 		source_state="clean"
 	else
-		source_state="dirty at scan time (pre-receipt source state)"
+		source_state="dirty at scan time"
 	fi
 
 	scan_with() { # $1: label  $2: gosec 바이너리; MAKE_RC_/JSON_RC_ 전역 설정
@@ -279,17 +265,14 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 		verdict="FAIL — new findings vs $BASELINE_PIN"
 	fi
 
-	# 실행 영수증: 비밀 없는 항목만 담는다. 영수증은 항상 stdout 에 출력하고
-	# --write-receipt 를 줄 때만 issue 카드의 기존 마커 안에 기록한다 — verify
-	# 재실행(리뷰·통합 후)이 추적 파일을 변경하면 안 되기 때문이다.
-	# source SHA 는 스캔 시점 HEAD(영수증 이전 커밋)로 한 번만 적는다. 영수증
-	# 커밋 자신의 SHA 를 적으면 커밋 직후 거짓이 되어 매 실행이 다시 쓴다.
+	# 실행 영수증: 비밀 없는 항목만 담아 stdout 에만 출력한다. verify 재실행
+	# (리뷰·통합 후)이 추적 파일을 변경하면 안 되므로 어떤 파일에도 쓰지 않는다.
+	# source SHA 는 스캔 시점 HEAD 다.
 	h1_of() { go version -m "$1" | awk -v m="$gosec_module" '$1 == "mod" && $2 == m {print $4; exit}'; }
 	{
 		printf 'mode: --full-security-no-regression (scripts/test-gosec-toolchain-contract.sh)\n'
 		printf 'source: %s (%s) — %s\n' "$src_sha" "$src_branch" "$source_state"
-		printf 'source note: git HEAD when the scan ran; this receipt was recorded after\n'
-		printf '  that scan, so the commit carrying this receipt cannot make the SHA false\n'
+		printf 'source note: git HEAD when the scan ran\n'
 		printf 'scan compiler: go%s at %s\n' "$GO_FLOOR_VER" "$GO_FLOOR_ROOT"
 		printf 'baseline pin: %s (%s)\n' "$BASELINE_PIN" "$(h1_of "$b_base")"
 		printf 'current pin: %s (%s)\n' "$pin" "$(h1_of "$b_curr")"
@@ -298,32 +281,12 @@ if [ "$mode" = "--full-security-no-regression" ]; then
 		printf 'findings (rule_id/file/line/code): baseline=%s current=%s new=%s resolved-by-current=%s\n' \
 			"$base_count" "$curr_count" "$new_count" "$resolved_count"
 		printf 'verdict: %s\n' "$verdict"
-		printf 'receipt: printed to stdout on every run; recorded into the issue card only with --write-receipt\n'
+		printf 'receipt: printed to stdout only; no file is written\n'
 		printf 'private builds/scans ran in an isolated mktemp dir, removed on exit in all outcomes\n'
 	} >"$tmp/receipt-body"
 
-	info "receipt (stdout; add --write-receipt to record it into $ISSUE_CARD):"
+	info "receipt (stdout):"
 	cat "$tmp/receipt-body"
-	if [ "$write_receipt" -eq 1 ]; then
-		[ -f "$ISSUE_CARD" ] || fail "issue card not found at $ISSUE_CARD (receipt cannot be recorded)"
-		awk -v body="$tmp/receipt-body" -v start="$RECEIPT_START" -v end="$RECEIPT_END" '
-			index($0, start) == 1 {
-				print; while ((getline line < body) > 0) print line; close(body)
-				infed = 1; seen = 1; next
-			}
-			index($0, end) == 1 { infed = 0; print; next }
-			!infed { print }
-			END {
-				if (!seen) {
-					print ""; print start
-					while ((getline line < body) > 0) print line; close(body)
-					print end
-				}
-			}
-		' "$ISSUE_CARD" >"$tmp/issue.new" || fail "failed to rewrite receipt in $ISSUE_CARD"
-		mv "$tmp/issue.new" "$ISSUE_CARD"
-		info "receipt written into $ISSUE_CARD (between TASK-270 receipt markers)"
-	fi
 
 	if [ "$new_count" -gt 0 ]; then
 		echo "FAIL: new findings introduced by $pin vs $BASELINE_PIN:" >&2
