@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/reposync"
 )
 
@@ -95,7 +96,7 @@ func TestGitWorkspaceMissingPath(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "no git repositories found in workspaces") {
 		t.Fatalf("Load without url = %v, want the empty-plan error", err)
 	}
-	if _, err := loadGitWorkspace("engine", &workspaceEntry{}, missing, configDir); err == nil {
+	if _, err := loadGitWorkspace("engine", &config.Workspace{}, missing, configDir); err == nil {
 		t.Fatal("loadGitWorkspace without url on a missing path = nil error, want it reported")
 	}
 }
@@ -111,7 +112,7 @@ func TestGitWorkspaceUnreadablePathIsReported(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
 
-	ws := &workspaceEntry{URL: "git@example.com:team/engine.git"}
+	ws := &config.Workspace{URL: "git@example.com:team/engine.git"}
 	repos, err := loadGitWorkspace("engine", ws, filepath.Join(locked, "engine"), t.TempDir())
 	if err == nil || !errors.Is(err, fs.ErrPermission) {
 		t.Fatalf("loadGitWorkspace = %+v, %v; want a permission error", repos, err)

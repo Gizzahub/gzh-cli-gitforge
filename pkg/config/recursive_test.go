@@ -250,13 +250,13 @@ func TestResolvePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolvePath(tt.parentPath, tt.childPath)
+			got, err := ResolvePath(tt.parentPath, tt.childPath)
 			if err != nil {
-				t.Fatalf("resolvePath failed: %v", err)
+				t.Fatalf("ResolvePath failed: %v", err)
 			}
 
 			if got != tt.want {
-				t.Errorf("resolvePath() = %v, want %v", got, tt.want)
+				t.Errorf("ResolvePath() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -267,14 +267,14 @@ func TestResolvePath(t *testing.T) {
 		home := t.TempDir()
 		t.Setenv("HOME", home)
 
-		got, err := resolvePath("/home/user/workspace", "~/mydevbox")
+		got, err := ResolvePath("/home/user/workspace", "~/mydevbox")
 		if err != nil {
-			t.Fatalf("resolvePath failed: %v", err)
+			t.Fatalf("ResolvePath failed: %v", err)
 		}
 
 		expected := filepath.Join(home, "mydevbox")
 		if got != expected {
-			t.Errorf("resolvePath() = %v, want %v", got, expected)
+			t.Errorf("ResolvePath() = %v, want %v", got, expected)
 		}
 	})
 }

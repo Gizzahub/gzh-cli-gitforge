@@ -102,7 +102,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 
 	// 2. Load parent config if specified
 	if config.Parent != "" {
-		parentPath, err := resolvePath(path, config.Parent)
+		parentPath, err := ResolvePath(path, config.Parent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve parent path '%s' in %s: %w", config.Parent, absConfigPath, err)
 		}
@@ -149,7 +149,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 		effectivePath := WorkspacePathOrName(ws.Path, name)
 
 		// Resolve workspace path (handle ~, relative paths)
-		wsPath, err := resolvePath(path, effectivePath)
+		wsPath, err := ResolvePath(path, effectivePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve workspace '%s' path '%s' in %s: %w", name, effectivePath, configPath, err)
 		}
@@ -203,7 +203,7 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 				continue
 			}
 
-			nestedPath, err := resolvePath(wsPath, nestedWs.Path)
+			nestedPath, err := ResolvePath(wsPath, nestedWs.Path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve nested workspace '%s/%s' path '%s': %w",
 					name, nestedName, nestedWs.Path, err)
@@ -233,31 +233,6 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 	}
 
 	return &config, nil
-}
-
-// resolvePath resolves a path relative to a parent directory.
-// Handles:
-//   - Home-relative paths: ~/foo/bar → /home/user/foo/bar
-//   - Absolute paths: /foo/bar → /foo/bar
-//   - Relative paths: ./foo → /parent/path/foo
-//   - Relative paths: foo → /parent/path/foo
-func resolvePath(parentPath, childPath string) (string, error) {
-	// Handle home-relative paths
-	if strings.HasPrefix(childPath, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("failed to get home directory: %w", err)
-		}
-		return filepath.Join(home, childPath[2:]), nil
-	}
-
-	// Handle absolute paths
-	if filepath.IsAbs(childPath) {
-		return childPath, nil
-	}
-
-	// Handle relative paths
-	return filepath.Join(parentPath, childPath), nil
 }
 
 // mergeWorkspaceOverrides applies workspace overrides to loaded Config.

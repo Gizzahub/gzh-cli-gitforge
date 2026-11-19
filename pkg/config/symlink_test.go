@@ -253,14 +253,14 @@ func TestResolveSymlinkPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// resolvePath(parentPath, childPath) - baseDir is parent, path is child
-			result, err := resolvePath(tt.baseDir, tt.path)
+			// ResolvePath(parentPath, childPath) - baseDir is parent, path is child
+			result, err := ResolvePath(tt.baseDir, tt.path)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("resolvePath() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ResolvePath() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.validate(result) {
-				t.Errorf("resolvePath() = %v, validation failed", result)
+				t.Errorf("ResolvePath() = %v, validation failed", result)
 			}
 		})
 	}

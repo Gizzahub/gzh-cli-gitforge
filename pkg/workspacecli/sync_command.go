@@ -1805,32 +1805,16 @@ func deduplicateActions(actions []reposync.Action) []reposync.Action {
 	return result
 }
 
-// resolveWorkspacePath resolves a workspace path that may be:
-// - Absolute: /path/to/workspace
-// - Home-relative: ~/path/to/workspace
-// - Relative: ./path/to/workspace or path/to/workspace
-//
-// Relative paths are resolved from baseDir.
+// resolveWorkspacePath resolves a workspace path against baseDir with the
+// rule shared by every loader (config.ResolvePath, ISSUE-391). When the home
+// directory of a "~/" path cannot be determined the path stays relative to
+// baseDir, as it always did here, since callers have no error to return.
 func resolveWorkspacePath(path, baseDir string) string {
-	if path == "" {
-		return baseDir
+	resolved, err := config.ResolvePath(baseDir, path)
+	if err != nil {
+		return filepath.Join(baseDir, path)
 	}
-
-	// Handle home-relative paths
-	if len(path) > 1 && path[0] == '~' && path[1] == '/' {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			return filepath.Join(home, path[2:])
-		}
-	}
-
-	// Handle absolute paths
-	if filepath.IsAbs(path) {
-		return path
-	}
-
-	// Handle relative paths
-	return filepath.Join(baseDir, path)
+	return resolved
 }
 
 // executeSelfSync syncs the config directory itself if selfSync is enabled.

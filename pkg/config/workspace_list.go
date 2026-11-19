@@ -84,7 +84,7 @@ func ListDeclaredWorkspaces(configPath string) ([]DeclaredWorkspace, error) {
 		if !ws.Access.IsValid() {
 			return nil, fmt.Errorf("workspace %q in %s has invalid access %q", name, absPath, ws.Access)
 		}
-		path, err := resolvePath(filepath.Dir(absPath), WorkspacePathOrName(ws.Path, name))
+		path, err := ResolvePath(filepath.Dir(absPath), WorkspacePathOrName(ws.Path, name))
 		if err != nil {
 			return nil, fmt.Errorf("workspace %q in %s: %w", name, absPath, err)
 		}

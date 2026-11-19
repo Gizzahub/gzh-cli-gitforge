@@ -33,7 +33,7 @@ func CreateConfigSymlink(srcPath, targetDir, parentConfigDir string) error {
 	}
 
 	// Resolve source path (parentConfigDir is the base, srcPath is the relative/absolute path)
-	resolvedSrc, err := resolvePath(parentConfigDir, srcPath)
+	resolvedSrc, err := ResolvePath(parentConfigDir, srcPath)
 	if err != nil {
 		return fmt.Errorf("resolve source path: %w", err)
 	}
@@ -86,7 +86,7 @@ func CreateConfigSymlinkForce(srcPath, targetDir, parentConfigDir string) error 
 	}
 
 	// Resolve source path (parentConfigDir is the base, srcPath is the relative/absolute path)
-	resolvedSrc, err := resolvePath(parentConfigDir, srcPath)
+	resolvedSrc, err := ResolvePath(parentConfigDir, srcPath)
 	if err != nil {
 		return fmt.Errorf("resolve source path: %w", err)
 	}

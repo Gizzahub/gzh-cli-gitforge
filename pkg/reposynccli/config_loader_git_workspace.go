@@ -28,7 +28,7 @@ import (
 // would clone it there; status then reports it as unreachable instead of
 // dropping it. A path that cannot be read is returned as an error for the
 // caller to report.
-func loadGitWorkspace(name string, ws *workspaceEntry, wsPath, configDir string) ([]reposync.RepoSpec, error) {
+func loadGitWorkspace(name string, ws *config.Workspace, wsPath, configDir string) ([]reposync.RepoSpec, error) {
 	if ws.URL == "" || config.SameDir(wsPath, configDir) {
 		return scanGitRepos(wsPath)
 	}

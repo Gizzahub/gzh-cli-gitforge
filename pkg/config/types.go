@@ -113,6 +113,7 @@ type Profile struct {
 	Parallel         int    `yaml:"parallel,omitempty"`         // Parallel job count
 	IncludeSubgroups bool   `yaml:"includeSubgroups,omitempty"` // GitLab subgroups
 	SubgroupMode     string `yaml:"subgroupMode,omitempty"`     // flat, nested
+	FlatSeparator    string `yaml:"flatSeparator,omitempty"`    // flat-mode joiner (default: "-")
 
 	// Identity names the machine and agent recorded on automated commits.
 	Identity *identity.Identity `yaml:"identity,omitempty"`
@@ -886,6 +887,10 @@ type ForgeSource struct {
 
 	// SubgroupMode controls directory structure: "flat" or "nested"
 	SubgroupMode string `yaml:"subgroupMode,omitempty"`
+
+	// FlatSeparator joins the path segments of a subgroup in "flat" mode
+	// (default: "-")
+	FlatSeparator string `yaml:"flatSeparator,omitempty"`
 }
 
 // Metadata holds optional information about a config level.
