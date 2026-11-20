@@ -449,10 +449,11 @@ func loadParentProfiles(configPath string, visited map[string]bool) (map[string]
 	profiles := make(map[string]*config.Profile)
 	if cfg.Parent != "" {
 		// The parent rule shared with the config loader (config.ResolvePath).
-		parentPath, err := config.ResolvePath(filepath.Dir(absPath), cfg.Parent)
+		parentDir, parentFile, err := config.ResolveParentConfigFile(filepath.Dir(absPath), cfg.Parent)
 		if err != nil {
 			return nil, fmt.Errorf("resolve parent path %q in %s: %w", cfg.Parent, absPath, err)
 		}
+		parentPath := filepath.Join(parentDir, parentFile)
 		parentProfiles, err := loadParentProfiles(parentPath, visited)
 		if err != nil {
 			// Log warning but continue - parent might not exist
@@ -477,10 +478,11 @@ func mergeProfilesIntoConfig(cfg *workspacesConfig, configPath string) error {
 	}
 
 	// The parent rule shared with the config loader (config.ResolvePath).
-	parentPath, err := config.ResolvePath(filepath.Dir(configPath), cfg.Parent)
+	parentDir, parentFile, err := config.ResolveParentConfigFile(filepath.Dir(configPath), cfg.Parent)
 	if err != nil {
 		return fmt.Errorf("resolve parent path %q: %w", cfg.Parent, err)
 	}
+	parentPath := filepath.Join(parentDir, parentFile)
 
 	visited := make(map[string]bool)
 	// Mark current config as visited

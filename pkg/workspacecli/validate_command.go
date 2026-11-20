@@ -635,11 +635,7 @@ func validateWorkspaceEntry(name string, entry any, result *ValidationResult) {
 			fmt.Sprintf("workspaces.%s: consider adding 'path' or 'url' field", name))
 	}
 
-	// Workspace paths are not expanded: "$VAR" stays literal in sync and status.
-	if path, ok := wsMap["path"].(string); ok && strings.Contains(path, "$") {
-		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("workspaces.%s: path %q contains '$', which is not expanded (environment variables are not supported in workspace paths)", name, path))
-	}
+	warnDollarPath("workspaces."+name, wsMap, result)
 
 	// Check type field
 	if wsType, ok := wsMap["type"].(string); ok {
@@ -648,6 +644,25 @@ func validateWorkspaceEntry(name string, entry any, result *ValidationResult) {
 		if !isValid {
 			result.Warnings = append(result.Warnings,
 				fmt.Sprintf("workspaces.%s: unknown type '%s', expected git, config, or forge", name, wsType))
+		}
+	}
+}
+
+// warnDollarPath warns when a workspace path contains "$" (not expanded:
+// "$VAR" stays literal in sync and status), then checks inline nested
+// workspaces the same way.
+func warnDollarPath(label string, wsMap map[string]any, result *ValidationResult) {
+	if path, ok := wsMap["path"].(string); ok && strings.Contains(path, "$") {
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("%s: path %q contains '$', which is not expanded (environment variables are not supported in workspace paths)", label, path))
+	}
+	nested, ok := wsMap["workspaces"].(map[string]any)
+	if !ok {
+		return
+	}
+	for name, entry := range nested {
+		if nestedMap, ok := entry.(map[string]any); ok {
+			warnDollarPath(label+".workspaces."+name, nestedMap, result)
 		}
 	}
 }

@@ -34,3 +34,22 @@ func ResolvePath(baseDir, path string) (string, error) {
 	}
 	return filepath.Join(baseDir, path), nil
 }
+
+// ResolveParentConfigFile resolves a config's `parent:` value to the parent
+// config file, the one rule shared by `workspace sync` and the status loaders
+// (ISSUE-391). The path resolves with ResolvePath; when it names a directory
+// (a trailing separator, or an existing directory) the file is
+// DefaultConfigFileName inside it.
+func ResolveParentConfigFile(baseDir, parent string) (dir, file string, err error) {
+	resolved, err := ResolvePath(baseDir, parent)
+	if err != nil {
+		return "", "", err
+	}
+	if strings.HasSuffix(parent, "/") || strings.HasSuffix(parent, string(filepath.Separator)) {
+		return resolved, DefaultConfigFileName, nil
+	}
+	if info, statErr := os.Stat(resolved); statErr == nil && info.IsDir() {
+		return resolved, DefaultConfigFileName, nil
+	}
+	return filepath.Dir(resolved), filepath.Base(resolved), nil
+}

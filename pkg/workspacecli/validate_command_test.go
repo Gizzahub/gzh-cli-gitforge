@@ -850,3 +850,25 @@ func TestValidateWorkspacePathDollarWarns(t *testing.T) {
 		t.Errorf("warnings = %v, want one for workspaces.dollar and none for workspaces.plain", result.Warnings)
 	}
 }
+
+func TestValidateNestedWorkspacePathDollarWarns(t *testing.T) {
+	dir := t.TempDir()
+	body := "kind: workspace\nworkspaces:\n  outer:\n    type: config\n    path: ./outer\n    workspaces:\n      inner:\n        type: git\n        url: https://example.invalid/a.git\n        path: '${HOME}/x'\n        workspaces:\n          deep:\n            type: git\n            url: https://example.invalid/b.git\n            path: '$DEEP'\n"
+	configPath := filepath.Join(dir, "w.yaml")
+	if err := os.WriteFile(configPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := validateConfigFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsValid() {
+		t.Fatalf("errors: %v", result.Errors)
+	}
+	joined := strings.Join(result.Warnings, "\n")
+	for _, want := range []string{"workspaces.outer.workspaces.inner:", "workspaces.outer.workspaces.inner.workspaces.deep:"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("warnings missing %q: %v", want, result.Warnings)
+		}
+	}
+}

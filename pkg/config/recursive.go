@@ -102,17 +102,9 @@ func loadConfigRecursiveWithVisited(path, configFile string, visited map[string]
 
 	// 2. Load parent config if specified
 	if config.Parent != "" {
-		parentPath, err := ResolvePath(path, config.Parent)
+		parentDir, parentFile, err := ResolveParentConfigFile(path, config.Parent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve parent path '%s' in %s: %w", config.Parent, absConfigPath, err)
-		}
-
-		// Determine parent config file and directory
-		parentDir, parentFile := filepath.Split(parentPath)
-		if parentFile == "" {
-			// Parent is a directory, use default config file
-			parentDir = parentPath
-			parentFile = ".gz-git.yaml"
 		}
 
 		// Load parent config recursively (with same visited map for cycle detection)
