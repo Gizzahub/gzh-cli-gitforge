@@ -6,6 +6,7 @@ package reposynccli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
@@ -92,10 +93,52 @@ func TestStatusParentPathHomeUnavailable(t *testing.T) {
 
 	cfg := &workspacesConfig{}
 	cfg.Parent = "~/up.yaml"
-	if err := mergeProfilesIntoConfig(cfg, cfgPath); err == nil {
-		t.Error("status: want error for ~/ parent without a home directory")
+	// A missing file errors too, so the home-directory failure must be named.
+	if err := mergeProfilesIntoConfig(cfg, cfgPath); err == nil || !strings.Contains(err.Error(), "home directory") {
+		t.Errorf("status: want a home directory error for ~/ parent, got %v", err)
 	}
-	if _, err := config.LoadConfigRecursive(dir, ".gz-git.yaml"); err == nil {
-		t.Error("sync: want error for ~/ parent without a home directory")
+	if _, err := config.LoadConfigRecursive(dir, ".gz-git.yaml"); err == nil || !strings.Contains(err.Error(), "home directory") {
+		t.Errorf("sync: want a home directory error for ~/ parent, got %v", err)
+	}
+}
+
+// TestStatusNestedParentPathRule pins the rule for a parent that itself names
+// a parent (loadParentProfiles recursion), against sync.
+func TestStatusNestedParentPathRule(t *testing.T) {
+	cases := []struct {
+		name        string
+		grandparent string // YAML scalar in the parent config
+		grandFile   string // path relative to the parent's directory
+	}{
+		{"tilde user grandparent is relative", "'~x/gp.yaml'", filepath.Join("~x", "gp.yaml")},
+		{"directory grandparent reads .gz-git.yaml", "./gp", filepath.Join("gp", ".gz-git.yaml")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			upDir := filepath.Join(dir, "up")
+			writeFileAt(t, filepath.Join(upDir, tc.grandFile), "profiles:\n  fromgrand:\n    name: fromgrand\n    provider: github\n")
+			writeFileAt(t, filepath.Join(upDir, "p.yaml"), "parent: "+tc.grandparent+"\n"+parentProfileYAML)
+			cfgPath := filepath.Join(dir, ".gz-git.yaml")
+			writeFileAt(t, cfgPath, "parent: ./up/p.yaml\nworkspaces: {}\n")
+
+			cfg := &workspacesConfig{}
+			cfg.Parent = "./up/p.yaml"
+			if err := mergeProfilesIntoConfig(cfg, cfgPath); err != nil {
+				t.Fatalf("status mergeProfilesIntoConfig: %v", err)
+			}
+			if cfg.Profiles["fromparent"] == nil || cfg.Profiles["fromgrand"] == nil {
+				t.Errorf("status profiles = %v, want fromparent and fromgrand", cfg.Profiles)
+			}
+
+			syncCfg, err := config.LoadConfigRecursive(dir, ".gz-git.yaml")
+			if err != nil {
+				t.Fatalf("sync LoadConfigRecursive: %v", err)
+			}
+			gp := syncCfg.ParentConfig
+			if gp == nil || gp.ParentConfig == nil || gp.ParentConfig.Profiles["fromgrand"] == nil {
+				t.Errorf("sync did not read the grandparent profile; parent = %+v", gp)
+			}
+		})
 	}
 }
