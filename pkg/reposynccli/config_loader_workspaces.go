@@ -159,7 +159,9 @@ func (l FileSpecLoader) loadWorkspacesConfig(ctx context.Context, raw []byte, co
 		if err != nil {
 			return ConfigData{}, fmt.Errorf("workspace '%s' in %s: %w", name, configPath, err)
 		}
-		wsPath = cleanPath(wsPath)
+		// No environment expansion: sync leaves "$VAR" literal, so status
+		// only cleans the resolved path (ISSUE-391).
+		wsPath = filepath.Clean(wsPath)
 		roots = append(roots, wsPath)
 
 		// Determine workspace strategy
@@ -422,7 +424,7 @@ func expandEnvVar(s string) string {
 // Returns merged profiles map where child profiles override parent profiles.
 // Uses visited set to prevent circular references.
 func loadParentProfiles(configPath string, visited map[string]bool) (map[string]*config.Profile, error) {
-	absPath, err := filepath.Abs(cleanPath(configPath))
+	absPath, err := filepath.Abs(filepath.Clean(configPath))
 	if err != nil {
 		return nil, fmt.Errorf("resolve config path: %w", err)
 	}
@@ -446,10 +448,10 @@ func loadParentProfiles(configPath string, visited map[string]bool) (map[string]
 	// Start with parent's profiles (recursively load if parent has its own parent)
 	profiles := make(map[string]*config.Profile)
 	if cfg.Parent != "" {
-		parentPath := cfg.Parent
-		// Resolve relative path based on current config's directory
-		if !filepath.IsAbs(parentPath) && !strings.HasPrefix(parentPath, "~") {
-			parentPath = filepath.Join(filepath.Dir(absPath), parentPath)
+		// The parent rule shared with the config loader (config.ResolvePath).
+		parentPath, err := config.ResolvePath(filepath.Dir(absPath), cfg.Parent)
+		if err != nil {
+			return nil, fmt.Errorf("resolve parent path %q in %s: %w", cfg.Parent, absPath, err)
 		}
 		parentProfiles, err := loadParentProfiles(parentPath, visited)
 		if err != nil {
@@ -474,12 +476,10 @@ func mergeProfilesIntoConfig(cfg *workspacesConfig, configPath string) error {
 		return nil // No parent to merge
 	}
 
-	parentPath := cfg.Parent
-	configDir := filepath.Dir(configPath)
-
-	// Resolve relative path
-	if !filepath.IsAbs(parentPath) && !strings.HasPrefix(parentPath, "~") {
-		parentPath = filepath.Join(configDir, parentPath)
+	// The parent rule shared with the config loader (config.ResolvePath).
+	parentPath, err := config.ResolvePath(filepath.Dir(configPath), cfg.Parent)
+	if err != nil {
+		return fmt.Errorf("resolve parent path %q: %w", cfg.Parent, err)
 	}
 
 	visited := make(map[string]bool)

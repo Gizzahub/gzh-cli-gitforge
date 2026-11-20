@@ -80,6 +80,55 @@ func TestSyncAndStatusResolveNestedWorkspaceBaseDir(t *testing.T) {
 	}
 }
 
+// TestSyncAndStatusAgreeOnWorkspacePathForms pins that sync and status resolve
+// the same workspace path to the same directory for the forms where status
+// used to differ: "$VAR" (status expanded it), a bare "~" and "~x" (status
+// treated them as home paths) (ISSUE-391).
+func TestSyncAndStatusAgreeOnWorkspacePathForms(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("GZ_PARITY_VAR", "expanded")
+
+	// Subtest names stay free of "$": a temp dir named after one would be
+	// expanded in the config path by the status loader.
+	for name, yamlPath := range map[string]string{
+		"home":        "~/x",
+		"bare-tilde":  "'~'",
+		"tilde-user":  "'~x'",
+		"env-var":     "'$GZ_PARITY_VAR/x'",
+		"braced-var":  "'${GZ_PARITY_VAR}'",
+		"plain-local": "./plain",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "workspaces:\n  w:\n    type: git\n    url: https://example.invalid/team/w.git\n    path: " + yamlPath + "\n"
+			if err := os.WriteFile(filepath.Join(dir, ".gz-git.yaml"), []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg, err := config.LoadConfigRecursive(dir, ".gz-git.yaml")
+			if err != nil {
+				t.Fatalf("LoadConfigRecursive: %v", err)
+			}
+			syncPath := cfg.Workspaces["w"].Path
+
+			data, err := reposynccli.FileSpecLoader{}.Load(context.Background(), filepath.Join(dir, ".gz-git.yaml"))
+			if err != nil {
+				t.Fatalf("FileSpecLoader.Load: %v", err)
+			}
+			var statusPath string
+			for _, repo := range data.Plan.Input.Repos {
+				if repo.Name == "w" {
+					statusPath = repo.TargetPath
+				}
+			}
+			if statusPath != filepath.Clean(syncPath) {
+				t.Errorf("status = %q, sync = %q", statusPath, syncPath)
+			}
+		})
+	}
+}
+
 // TestResolveWorkspacePathUsesSharedRule keeps the workspacecli adapter on
 // config.ResolvePath.
 func TestResolveWorkspacePathUsesSharedRule(t *testing.T) {

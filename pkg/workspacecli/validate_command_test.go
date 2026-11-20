@@ -821,3 +821,32 @@ func TestValidationResult(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateWorkspacePathDollarWarns(t *testing.T) {
+	dir := t.TempDir()
+	body := "kind: workspace\nworkspaces:\n  dollar:\n    type: git\n    url: https://example.invalid/a.git\n    path: '$HOME/work'\n  plain:\n    type: git\n    url: https://example.invalid/b.git\n    path: ./work\n"
+	configPath := filepath.Join(dir, "w.yaml")
+	if err := os.WriteFile(configPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := validateConfigFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsValid() {
+		t.Fatalf("a '$' path must be a warning, not an error: %v", result.Errors)
+	}
+	var dollar, plain int
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "workspaces.dollar") && strings.Contains(w, "'$'") {
+			dollar++
+		}
+		if strings.Contains(w, "workspaces.plain") {
+			plain++
+		}
+	}
+	if dollar != 1 || plain != 0 {
+		t.Errorf("warnings = %v, want one for workspaces.dollar and none for workspaces.plain", result.Warnings)
+	}
+}

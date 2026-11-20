@@ -635,6 +635,12 @@ func validateWorkspaceEntry(name string, entry any, result *ValidationResult) {
 			fmt.Sprintf("workspaces.%s: consider adding 'path' or 'url' field", name))
 	}
 
+	// Workspace paths are not expanded: "$VAR" stays literal in sync and status.
+	if path, ok := wsMap["path"].(string); ok && strings.Contains(path, "$") {
+		result.Warnings = append(result.Warnings,
+			fmt.Sprintf("workspaces.%s: path %q contains '$', which is not expanded (environment variables are not supported in workspace paths)", name, path))
+	}
+
 	// Check type field
 	if wsType, ok := wsMap["type"].(string); ok {
 		validTypes := []string{"git", "config", "forge"}
