@@ -6,6 +6,9 @@
 #   go-test-shards.sh run <shards> <merged-profile> <package> [go test 인자...]
 #   go-test-shards.sh partition <shards> <list-file>   # 샤드별 -run 정규식을 한 줄씩 출력
 #   go-test-shards.sh merge <out> <in>...              # cover 프로파일 병합
+# 검증 범위: 분할은 목록 이름을 서로소로 덮는지(정규식 왕복) 확인하고, -v 가 있으면 실제 실행된
+#       최상위 --- PASS/FAIL/SKIP 줄이 목록과 정확히 한 번씩 일치하는지까지 확인한다.
+# INT/TERM: 기록한 샤드 PID 의 프로세스 그룹을 종료하고 130/143 으로 끝낸다.
 # 샤드 인자: 목록 인자는 go test 에 그대로 전달한다(-short, -timeout, -parallel 등). -coverprofile 은 스크립트가 붙인다.
 
 set -u
@@ -67,14 +70,30 @@ run() {
 
 	local tmp
 	tmp=$(mktemp -d "${TMPDIR:-/tmp}/gz-git-shards.XXXXXX") || die "mktemp failed"
-	trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+	trap 'rm -rf "$tmp"' EXIT
+	# INT/TERM: 기록한 샤드 PID 의 프로세스 그룹만 종료한다(이름·패턴 검색 없음). set -m 으로
+	# 샤드마다 자기 그룹을 가지므로 go test 와 테스트 바이너리 자식이 함께 죽는다.
+	pids=""
+	abort() {
+		local p
+		trap - INT TERM
+		for p in $pids; do kill -TERM -- "-$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; done
+		for p in $pids; do wait "$p" 2>/dev/null || true; done
+		echo "go-test-shards: interrupted; shards terminated" >&2
+		exit "$1"
+	}
+	trap 'abort 130' INT
+	trap 'abort 143' TERM
+	trap 'abort 129' HUP
+	set -m
 
-	go test -list . "$pkg" >"$tmp/list.raw" 2>"$tmp/list.err" || {
+	# 샤드 실행과 같은 인자(-tags 등)로 목록을 뽑아 목록과 실행이 어긋나지 않게 한다.
+	go test -list . "$@" "$pkg" >"$tmp/list.raw" 2>"$tmp/list.err" || {
 		cat "$tmp/list.raw" "$tmp/list.err" >&2
 		die "go test -list failed for $pkg"
 	}
 	# -list 출력의 마지막 "ok ..." 줄과 "no tests" 안내를 제외한 식별자만 남긴다.
-	grep -E '^(Test|Example|Benchmark|Fuzz)[A-Za-z0-9_]*$' "$tmp/list.raw" | sort -u >"$tmp/list"
+	grep -E '^(Test|Example|Fuzz)[A-Za-z0-9_]*$' "$tmp/list.raw" | sort -u >"$tmp/list"
 	local total
 	total=$(wc -l <"$tmp/list" | tr -d ' ')
 	[ "$total" -gt 0 ] || die "go test -list yielded no tests for $pkg"
@@ -86,7 +105,7 @@ run() {
 	[ "$(wc -l <"$tmp/union" | tr -d ' ')" -eq "$total" ] || die "shard union count mismatch"
 
 	echo "go-test-shards: $total tests of $pkg in $(wc -l <"$tmp/regexes" | tr -d ' ') shards"
-	local i=0 re pids=""
+	local i=0 re
 	while IFS= read -r re; do
 		i=$((i + 1))
 		go test "$@" -coverprofile="$tmp/cover.$i" -run "$re" "$pkg" >"$tmp/out.$i" 2>&1 &
@@ -111,6 +130,20 @@ run() {
 		cat "$tmp/out.$idx"
 	done
 	[ "$failed" -eq 0 ] || die "one or more shards failed"
+
+	# 실행 검증: -v 출력의 최상위 "--- PASS/FAIL/SKIP: Name"(들여쓰기 없는 줄, 서브테스트 제외)이
+	# 목록과 정확히 같고 각 이름이 한 번씩만 나왔는지 본다. -v 가 없으면 이 줄이 없으므로 건너뛴다.
+	local verbose=0 a
+	for a in "$@"; do case "$a" in -v | -test.v | -v=true) verbose=1 ;; esac; done
+	if [ "$verbose" -eq 1 ]; then
+		cat "$tmp"/out.* | sed -n -E 's/^--- (PASS|FAIL|SKIP): ([A-Za-z0-9_]+).*/\2/p' | sort >"$tmp/ran"
+		if ! cmp -s "$tmp/list" "$tmp/ran"; then
+			diff "$tmp/list" "$tmp/ran" | head -20 >&2
+			die "tests that ran differ from the listed tests (missing or run more than once)"
+		fi
+	else
+		echo "go-test-shards: no -v; skipping ran-vs-listed check" >&2
+	fi
 
 	local profiles="" j=0
 	while [ "$j" -lt "$i" ]; do

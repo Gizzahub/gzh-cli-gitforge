@@ -45,16 +45,27 @@ check "merge mixed modes fails" 1 "$([ -e "$tmpdir/mx" ] && echo 0 || echo 1)"
 mkdir "$tmpdir/bin"
 cat >"$tmpdir/bin/go" <<'FAKE'
 #!/bin/bash
+echo "$*" >>"${FAKE_ARGS_LOG:-/dev/null}"
 if [ "$1" = test ] && [ "$2" = -list ]; then
 	[ -z "${FAKE_LIST_FAIL:-}" ] || { echo boom >&2; exit 1; }
 	[ -z "${FAKE_LIST_EMPTY:-}" ] || { echo "ok  pkg 0.1s"; exit 0; }
 	printf 'TestA\nTestB\nTestC\nok  \tpkg\t0.1s\n'; exit 0
 fi
-prof=""; run=""
-for a in "$@"; do case "$a" in -coverprofile=*) prof=${a#-coverprofile=} ;; esac; done
+prof=""; run=""; verbose=0
+for a in "$@"; do case "$a" in -coverprofile=*) prof=${a#-coverprofile=} ;; -v) verbose=1 ;; esac; done
+if [ -n "${FAKE_HANG:-}" ]; then echo $$ >>"$FAKE_HANG"; sleep 300 & echo $! >>"$FAKE_HANG"; wait; exit 0; fi
 while [ "$#" -gt 0 ]; do [ "$1" = -run ] && run=$2; shift; done
 printf 'mode: set\nf.go:1.1,2.2 1 1\n' >"$prof"
 echo "ran $run"
+if [ "$verbose" -eq 1 ]; then
+	names=${run#^(}; names=${names%)\$}
+	for n in ${names//|/ }; do
+		[ "$n" = "${FAKE_DROP:-}" ] && continue
+		echo "--- PASS: $n (0.00s)"
+		echo "    --- PASS: $n/sub (0.00s)"
+		[ "$n" = "${FAKE_DUP:-}" ] && echo "--- PASS: $n (0.00s)"
+	done
+fi
 case "$run" in *"${FAKE_FAIL:-NOPE_NEVER}"*) echo "--- FAIL"; exit 1 ;; esac
 FAKE
 chmod +x "$tmpdir/bin/go"
@@ -69,6 +80,29 @@ out=$(FAKE_FAIL=TestB PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/fail.cov" 
 check "shard failure fails" 1 "$rc"
 case "$out" in *"--- FAIL"*) check "failure output visible" 1 1 ;; *) check "failure output visible" 1 0 ;; esac
 check "no profile on failure" 1 "$([ -e "$tmpdir/fail.cov" ] && echo 0 || echo 1)"
+
+# -v 가 있으면 실제 실행 목록을 대조한다: 정상 / 누락 / 중복.
+PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/v.cov" ./pkg/x -v >/dev/null 2>&1
+check "ran-vs-listed ok with -v" 0 "$?"
+FAKE_DROP=TestB PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/d.cov" ./pkg/x -v >/dev/null 2>&1
+check "missing test detected" 1 "$?"
+FAKE_DUP=TestA PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/d2.cov" ./pkg/x -v >/dev/null 2>&1
+check "duplicate run detected" 1 "$?"
+
+# -list 에도 -tags 같은 전달 인자가 간다.
+FAKE_ARGS_LOG="$tmpdir/args" PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/t.cov" ./pkg/x -tags=foo >/dev/null 2>&1
+check "list gets forwarded flags" 1 "$(grep -c '^test -list \. -tags=foo ./pkg/x$' "$tmpdir/args")"
+
+# TERM: 샤드의 프로세스 그룹(기록한 PID)이 모두 사라지고 130/143 계열로 끝난다.
+FAKE_HANG="$tmpdir/hang" PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/h.cov" ./pkg/x >/dev/null 2>&1 &
+tpid=$!
+for _ in $(seq 1 50); do [ -f "$tmpdir/hang" ] && [ "$(wc -l <"$tmpdir/hang")" -ge 4 ] && break; sleep 0.1; done
+kill -TERM "$tpid"; wait "$tpid"; rc=$?
+check "TERM exits 143" 143 "$rc"
+check "shard processes were recorded" 1 "$([ "$(wc -l <"$tmpdir/hang")" -ge 4 ] && echo 1 || echo 0)"
+alive=0
+for p in $(cat "$tmpdir/hang"); do kill -0 "$p" 2>/dev/null && alive=$((alive + 1)); done
+check "no shard process survives TERM" 0 "$alive"
 
 FAKE_LIST_FAIL=1 PATH="$tmpdir/bin:$PATH" "$tool" run 2 "$tmpdir/x.cov" ./pkg/x >/dev/null 2>&1
 check "list failure fails" 1 "$?"

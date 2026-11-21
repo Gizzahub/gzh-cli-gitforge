@@ -60,8 +60,10 @@ test-unit: ## run only unit tests (exclude integration and e2e)
 # pkg/integrate holds the longest serial tests (about 410s of a 524s unit step
 # on 2026-11, the critical path). With VERIFY_GO_INTEGRATE_SHARDS > 0 it leaves
 # the main `go test` call and runs as that many concurrent `go test` processes,
-# each a disjoint -run partition of its top-level tests (scripts/go-test-shards.sh
-# checks that the shards cover the `go test -list` output exactly once). Shard
+# each a disjoint -run partition of its top-level tests. scripts/go-test-shards.sh
+# checks the partition covers the `go test -list` names, and (with -v, as here)
+# that the top-level --- PASS/FAIL/SKIP lines of the shards match that list with
+# each name exactly once. Shard
 # processes keep -parallel=1 and have private TestMain state. Coverage stays in
 # the default `set` mode, so per-shard profiles merge by OR into the one profile
 # that `go tool cover -func` and QUALITY_COVERAGE_OUT consumers read. The shards
@@ -75,12 +77,12 @@ test-unit-quality: ## run unit tests without leaving a coverage artifact in the 
 	@set -eu; \
 	export GOWORK=off; \
 	quality_tmp=$$(mktemp -d "$${TMPDIR:-/tmp}/gzh-cli-quality-tests.XXXXXX"); \
-	trap 'rm -rf "$$quality_tmp"' EXIT HUP INT TERM; \
+	shard_pid=""; \
+	trap 'if [ -n "$$shard_pid" ]; then kill -TERM "$$shard_pid" 2>/dev/null || true; wait "$$shard_pid" 2>/dev/null || true; fi; rm -rf "$$quality_tmp"' EXIT HUP INT TERM; \
 	coverage_out="$${QUALITY_COVERAGE_OUT:-$$quality_tmp/coverage-unit.out}"; \
 	shards="$(VERIFY_GO_INTEGRATE_SHARDS)"; \
 	if [ "$$shards" -gt 0 ]; then exclude="$(INTEGRATE_PKG)"; main_out="$$quality_tmp/main.out"; else exclude='^$$'; main_out="$$coverage_out"; fi; \
 	echo -e "$(CYAN)Running unit tests with coverage...$(RESET)"; \
-	shard_pid=""; \
 	if [ "$$shards" -gt 0 ]; then \
 		GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" /bin/bash scripts/go-test-shards.sh run "$$shards" "$$quality_tmp/shards.out" "$(INTEGRATE_PKG)" \
 			-short --cover -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v >"$$quality_tmp/shards.log" 2>&1 & \
@@ -91,7 +93,7 @@ test-unit-quality: ## run unit tests without leaving a coverage artifact in the 
 		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)' | grep -v -x -E "$$exclude") || main_rc=$$?; \
 	shard_rc=0; \
 	if [ -n "$$shard_pid" ]; then \
-		wait "$$shard_pid" || shard_rc=$$?; \
+		wait "$$shard_pid" || shard_rc=$$?; shard_pid=""; \
 		echo "=== pkg/integrate shards ==="; cat "$$quality_tmp/shards.log"; \
 	fi; \
 	[ "$$main_rc" -eq 0 ] || { echo "unit tests failed (exit $$main_rc)" >&2; exit "$$main_rc"; }; \
