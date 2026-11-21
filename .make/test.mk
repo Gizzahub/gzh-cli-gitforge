@@ -37,7 +37,7 @@ $(GIT_ISOLATED_TEST_TARGETS): export GIT_CONFIG_NOSYSTEM := 1
 # Testing Targets
 # ==============================================================================
 
-.PHONY: test test-unit test-unit-quality test-affected coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
+.PHONY: go-test-shards-test test test-unit test-unit-quality test-affected coverage-critical-check test-integration-quality test-integration test-integration-only test-e2e test-e2e-only test-all
 .PHONY: cover cover-html cover-report bench test-coverage test-docker
 
 test: clean build ## run all tests with coverage (requires binary for integration tests)
@@ -57,17 +57,51 @@ test-unit: ## run only unit tests (exclude integration and e2e)
 # checkout. Keep the coverage profile in a private temporary directory; CI can
 # opt into a runner-temporary output by setting QUALITY_COVERAGE_OUT for Codecov
 # upload.
+# pkg/integrate holds the longest serial tests (about 410s of a 524s unit step
+# on 2026-11, the critical path). With VERIFY_GO_INTEGRATE_SHARDS > 0 it leaves
+# the main `go test` call and runs as that many concurrent `go test` processes,
+# each a disjoint -run partition of its top-level tests (scripts/go-test-shards.sh
+# checks that the shards cover the `go test -list` output exactly once). Shard
+# processes keep -parallel=1 and have private TestMain state. Coverage stays in
+# the default `set` mode, so per-shard profiles merge by OR into the one profile
+# that `go tool cover -func` and QUALITY_COVERAGE_OUT consumers read. The shards
+# run concurrently with the main call, not after it: the main call alone is
+# shorter than pkg/integrate, so overlapping hides it entirely. 0 restores the
+# single-invocation behavior.
+VERIFY_GO_INTEGRATE_SHARDS ?= 4
+INTEGRATE_PKG := github.com/gizzahub/gzh-cli-gitforge/pkg/integrate
+
 test-unit-quality: ## run unit tests without leaving a coverage artifact in the checkout
 	@set -eu; \
 	export GOWORK=off; \
 	quality_tmp=$$(mktemp -d "$${TMPDIR:-/tmp}/gzh-cli-quality-tests.XXXXXX"); \
 	trap 'rm -rf "$$quality_tmp"' EXIT HUP INT TERM; \
 	coverage_out="$${QUALITY_COVERAGE_OUT:-$$quality_tmp/coverage-unit.out}"; \
+	shards="$(VERIFY_GO_INTEGRATE_SHARDS)"; \
+	if [ "$$shards" -gt 0 ]; then exclude="$(INTEGRATE_PKG)"; main_out="$$quality_tmp/main.out"; else exclude='^$$'; main_out="$$coverage_out"; fi; \
 	echo -e "$(CYAN)Running unit tests with coverage...$(RESET)"; \
-	GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short --cover -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v -coverprofile="$$coverage_out" \
-		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)'); \
+	shard_pid=""; \
+	if [ "$$shards" -gt 0 ]; then \
+		GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" /bin/bash scripts/go-test-shards.sh run "$$shards" "$$quality_tmp/shards.out" "$(INTEGRATE_PKG)" \
+			-short --cover -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v >"$$quality_tmp/shards.log" 2>&1 & \
+		shard_pid=$$!; \
+	fi; \
+	main_rc=0; \
+	GOWORK=off GOMAXPROCS="$(VERIFY_GO_GOMAXPROCS)" go test -short --cover -timeout="$(VERIFY_GO_FULL_PACKAGE_TIMEOUT)" -p="$(VERIFY_GO_PACKAGE_WORKERS)" -parallel="$(VERIFY_GO_TEST_PARALLEL)" -v -coverprofile="$$main_out" \
+		$$(GOWORK=off go list ./... | grep -v -E '(tests/integration|tests/e2e)' | grep -v -x -E "$$exclude") || main_rc=$$?; \
+	shard_rc=0; \
+	if [ -n "$$shard_pid" ]; then \
+		wait "$$shard_pid" || shard_rc=$$?; \
+		echo "=== pkg/integrate shards ==="; cat "$$quality_tmp/shards.log"; \
+	fi; \
+	[ "$$main_rc" -eq 0 ] || { echo "unit tests failed (exit $$main_rc)" >&2; exit "$$main_rc"; }; \
+	[ "$$shard_rc" -eq 0 ] || { echo "pkg/integrate shards failed (exit $$shard_rc)" >&2; exit "$$shard_rc"; }; \
+	if [ "$$shards" -gt 0 ]; then /bin/bash scripts/go-test-shards.sh merge "$$coverage_out" "$$main_out" "$$quality_tmp/shards.out"; fi; \
 	go tool cover -func="$$coverage_out" | sort -rnk3; \
 	echo -e "$(GREEN)✅ Unit tests completed$(RESET)"
+
+go-test-shards-test: ## verify the test sharding helper (partition, merge, failure propagation)
+	@/bin/bash scripts/test-go-test-shards.sh
 
 # VERIFY_SELECTED_PACKAGES is only supplied by verification-profile.sh. This
 # guard makes a selector failure visible instead of letting `go test` succeed
