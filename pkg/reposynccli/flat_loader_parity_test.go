@@ -79,7 +79,9 @@ func loadFlatParity(t *testing.T, loader FileSpecLoader, path string) ConfigData
 // be folded into the flat path.
 func TestReposyncFlatLoaderCompatibility(t *testing.T) {
 	t.Run("explicit common fields", func(t *testing.T) {
-		result := loadFlatParity(t, FileSpecLoader{}, writeFlatParityConfig(t, "flat.yaml", flatLoaderParityFixture))
+		cfgPath := writeFlatParityConfig(t, "flat.yaml", flatLoaderParityFixture)
+		cfgDir := filepath.Dir(cfgPath)
+		result := loadFlatParity(t, FileSpecLoader{}, cfgPath)
 
 		repos := result.Plan.Input.Repos
 		if len(repos) != 2 {
@@ -96,9 +98,9 @@ func TestReposyncFlatLoaderCompatibility(t *testing.T) {
 		if len(alpha.AdditionalRemotes) != 1 || alpha.AdditionalRemotes["upstream"] != "https://gitlab.com/upstream/alpha.git" {
 			t.Errorf("alpha AdditionalRemotes = %v", alpha.AdditionalRemotes)
 		}
-		// Unlike the workspace loader, paths are cleaned.
-		if alpha.TargetPath != "repos/alpha" {
-			t.Errorf("alpha TargetPath = %q, want cleaned repos/alpha", alpha.TargetPath)
+		// Paths are cleaned and join the config directory (ISSUE-391).
+		if want := filepath.Join(cfgDir, "repos", "alpha"); alpha.TargetPath != want {
+			t.Errorf("alpha TargetPath = %q, want %q", alpha.TargetPath, want)
 		}
 		if alpha.Branch != "feature-x" {
 			t.Errorf("alpha Branch = %q, want feature-x", alpha.Branch)
@@ -120,8 +122,8 @@ func TestReposyncFlatLoaderCompatibility(t *testing.T) {
 		}
 
 		beta := repos[1]
-		if beta.Name != "beta" || beta.TargetPath != "beta" {
-			t.Errorf("beta name/path = %q/%q, want beta/beta", beta.Name, beta.TargetPath)
+		if beta.Name != "beta" || beta.TargetPath != filepath.Join(cfgDir, "beta") {
+			t.Errorf("beta name/path = %q/%q, want beta/%s", beta.Name, beta.TargetPath, filepath.Join(cfgDir, "beta"))
 		}
 		// Unlike the workspace loader, no top-level branch fallback and the
 		// default strategy is materialized onto every spec.

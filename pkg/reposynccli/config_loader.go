@@ -113,14 +113,18 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 
 	// Load and merge parent config if specified
 	if cfg.Parent != "" {
-		parentPath := resolveParentPath(cfg.Parent, configPath)
-		parentCfg, err := l.loadParentConfig(parentPath)
+		parentPath, err := resolveParentFile(cfg.Parent, configPath)
+		if err == nil {
+			var parentCfg fileConfig
+			parentCfg, err = l.loadParentConfig(parentPath)
+			if err == nil {
+				// Merge: child overrides parent
+				cfg = mergeFileConfigs(parentCfg, cfg)
+			}
+		}
 		if err != nil {
 			// Log warning but continue - parent might not exist yet
-			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config %s: %v\n", parentPath, err)
-		} else {
-			// Merge: child overrides parent
-			cfg = mergeFileConfigs(parentCfg, cfg)
+			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config %s: %v\n", cfg.Parent, err)
 		}
 	}
 
@@ -155,6 +159,12 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		parsedStrategy = defaultStrategy
 	}
 
+	baseDir := filepath.Dir(configPath)
+	roots, err := resolveRoots(baseDir, cfg.Roots)
+	if err != nil {
+		return ConfigData{}, err
+	}
+
 	plan := reposync.PlanRequest{
 		Input: reposync.PlanInput{
 			Repos: make([]reposync.RepoSpec, 0, len(cfg.Repositories)),
@@ -162,7 +172,7 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		Options: reposync.PlanOptions{
 			DefaultStrategy: parsedStrategy,
 			CleanupOrphans:  cfg.CleanupOrphans != nil && *cfg.CleanupOrphans,
-			Roots:           cleanRoots(cfg.Roots),
+			Roots:           roots,
 		},
 	}
 
@@ -200,7 +210,10 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 			}
 		}
 
-		targetPath = cleanPath(targetPath)
+		targetPath, err = resolveConfigPath(baseDir, targetPath)
+		if err != nil {
+			return ConfigData{}, fmt.Errorf("repository %s: %w", repoName, err)
+		}
 		if _, exists := seenTargets[targetPath]; exists {
 			return ConfigData{}, fmt.Errorf("duplicate path detected: %s", targetPath)
 		}
@@ -346,7 +359,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 		defaultRetries = 1
 	}
 
-	root := cleanPath(filepath.Dir(path))
+	root := filepath.Clean(filepath.Dir(path))
 
 	plan := reposync.PlanRequest{
 		Input: reposync.PlanInput{
@@ -365,7 +378,7 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 			return ConfigData{}, errors.New("gzh.yaml repository entry is missing required fields (name/clone_url)")
 		}
 
-		targetPath := cleanPath(filepath.Join(root, repo.Name))
+		targetPath := filepath.Join(root, repo.Name)
 		if _, exists := seenTargets[targetPath]; exists {
 			return ConfigData{}, fmt.Errorf("duplicate path detected: %s", targetPath)
 		}
@@ -391,6 +404,9 @@ func (l FileSpecLoader) loadGzhYaml(raw []byte, path string) (ConfigData, error)
 	}, nil
 }
 
+// cleanPath normalizes the CLI-typed config path (shell-style: environment
+// variables and ~ are expanded). It is not used for paths declared inside a
+// config; those follow resolveConfigPath.
 func cleanPath(path string) string {
 	if path == "" {
 		return path
@@ -406,15 +422,31 @@ func cleanPath(path string) string {
 	return filepath.Clean(expanded)
 }
 
-func cleanRoots(roots []string) []string {
+// resolveConfigPath resolves a path declared inside a flat config with the one
+// rule shared with the workspaces format (config.ResolvePath, ISSUE-391): only
+// "~/" expands, "$VAR" and a bare "~" stay literal, and a relative path joins
+// the config's directory.
+func resolveConfigPath(baseDir, path string) (string, error) {
+	resolved, err := config.ResolvePath(baseDir, path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(resolved), nil
+}
+
+func resolveRoots(baseDir string, roots []string) ([]string, error) {
 	out := make([]string, 0, len(roots))
 	for _, root := range roots {
 		if root == "" {
 			continue
 		}
-		out = append(out, cleanPath(root))
+		resolved, err := resolveConfigPath(baseDir, root)
+		if err != nil {
+			return nil, fmt.Errorf("root %q: %w", root, err)
+		}
+		out = append(out, resolved)
 	}
-	return out
+	return out, nil
 }
 
 // detectConfigFile searches upward from the given directory to $HOME for a
@@ -424,33 +456,18 @@ func detectConfigFile(dir string) (string, error) {
 	return config.DetectConfigFile(dir)
 }
 
-// resolveParentPath resolves a parent config path relative to the current config.
-// Supports: absolute paths, ~/relative paths, and relative paths.
-func resolveParentPath(parentRef, configPath string) string {
+// resolveParentFile resolves a `parent:` value declared in the config at
+// configPath to the parent config file, with the rule shared with the
+// workspaces format (config.ResolveParentConfigFile, ISSUE-391).
+func resolveParentFile(parentRef, configPath string) (string, error) {
 	if parentRef == "" {
-		return ""
+		return "", nil
 	}
-
-	// Expand environment variables
-	parentRef = os.ExpandEnv(parentRef)
-
-	// Handle ~ (home directory)
-	if parentRef == "~" || strings.HasPrefix(parentRef, "~/") || strings.HasPrefix(parentRef, "~\\") {
-		if home, err := os.UserHomeDir(); err == nil {
-			rest := strings.TrimPrefix(parentRef[1:], "/")
-			rest = strings.TrimPrefix(rest, "\\")
-			parentRef = filepath.Join(home, rest)
-		}
+	dir, file, err := config.ResolveParentConfigFile(filepath.Dir(configPath), parentRef)
+	if err != nil {
+		return "", err
 	}
-
-	// If absolute, use as-is
-	if filepath.IsAbs(parentRef) {
-		return filepath.Clean(parentRef)
-	}
-
-	// Relative path: resolve relative to config file's directory
-	configDir := filepath.Dir(configPath)
-	return filepath.Clean(filepath.Join(configDir, parentRef))
+	return filepath.Join(dir, file), nil
 }
 
 // loadParentConfig loads a parent config file and returns its parsed fileConfig.
@@ -467,14 +484,18 @@ func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) 
 
 	// Recursively load parent's parent if specified
 	if cfg.Parent != "" {
-		grandparentPath := resolveParentPath(cfg.Parent, parentPath)
-		grandparentCfg, err := l.loadParentConfig(grandparentPath)
+		grandparentPath, err := resolveParentFile(cfg.Parent, parentPath)
+		if err == nil {
+			var grandparentCfg fileConfig
+			grandparentCfg, err = l.loadParentConfig(grandparentPath)
+			if err == nil {
+				// Merge grandparent into parent (parent overrides grandparent)
+				cfg = mergeFileConfigs(grandparentCfg, cfg)
+			}
+		}
 		if err != nil {
 			// Log warning but continue
-			fmt.Fprintf(os.Stderr, "Warning: failed to load grandparent config %s: %v\n", grandparentPath, err)
-		} else {
-			// Merge grandparent into parent (parent overrides grandparent)
-			cfg = mergeFileConfigs(grandparentCfg, cfg)
+			fmt.Fprintf(os.Stderr, "Warning: failed to load grandparent config %s: %v\n", cfg.Parent, err)
 		}
 	}
 

@@ -340,6 +340,17 @@ URL에 지정한다. 계층형 설정의 키를 flat 설정에 옮겨도 적용�
 reposync의 parent 병합에서 child의 `parallel: 0`은 parent의 parallel 값을 유지한다.
 반면 child의 명시적인 `maxRetries: 0`은 parent 값을 0으로 덮어쓴다.
 
+#### Flat 설정의 경로 규칙
+
+flat 설정의 `parent:`, repository `path`, `roots`는 계층형 설정과 같은 규칙
+(`config.ResolvePath`, `config.ResolveParentConfigFile`)을 따른다. `~/`만 홈
+디렉터리로 확장하고, `$VAR`/`${VAR}`와 단독 `~`, `~user`는 확장하지 않고 문자 그대로의
+상대 경로로 취급한다. 상대 경로는 설정 파일이 있는 디렉터리 기준이며(이전에는 현재
+작업 디렉터리 기준), `parent:`가 디렉터리를 가리키면 그 안의 `.gz-git.yaml`을 읽는다.
+parent에서 상속한 repository/roots의 상대 경로도 자식 설정 파일의 디렉터리 기준이다.
+환경 변수나 단독 `~`에 의존하던 flat 설정은 `~/...` 또는 절대 경로로 바꾼다.
+CLI에서 입력한 설정 파일 경로(`-c`)는 셸 방식 확장을 그대로 유지한다.
+
 ### Hierarchical Format (`workspaces` map)
 
 ```yaml

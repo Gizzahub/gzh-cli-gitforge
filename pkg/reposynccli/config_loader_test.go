@@ -155,9 +155,10 @@ repositories:
 			}
 
 			for i, wantPath := range tt.wantPaths {
-				if result.Plan.Input.Repos[i].TargetPath != wantPath {
+				// Relative paths resolve against the config directory (ISSUE-391).
+				if want := filepath.Join(tmpDir, wantPath); result.Plan.Input.Repos[i].TargetPath != want {
 					t.Errorf("repo[%d].TargetPath = %q, want %q",
-						i, result.Plan.Input.Repos[i].TargetPath, wantPath)
+						i, result.Plan.Input.Repos[i].TargetPath, want)
 				}
 			}
 		})
