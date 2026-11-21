@@ -342,12 +342,15 @@ reposync의 parent 병합에서 child의 `parallel: 0`은 parent의 parallel 값
 
 #### Flat 설정의 경로 규칙
 
-flat 설정의 `parent:`, repository `path`, `roots`는 계층형 설정과 같은 규칙
+flat 설정의 `parent:`, repository `path`, `roots`는 계층형 설정과 같은 경로 확장 규칙
 (`config.ResolvePath`, `config.ResolveParentConfigFile`)을 따른다. `~/`만 홈
 디렉터리로 확장하고, `$VAR`/`${VAR}`와 단독 `~`, `~user`는 확장하지 않고 문자 그대로의
 상대 경로로 취급한다. 상대 경로는 설정 파일이 있는 디렉터리 기준이며(이전에는 현재
 작업 디렉터리 기준), `parent:`가 디렉터리를 가리키면 그 안의 `.gz-git.yaml`을 읽는다.
-parent에서 상속한 repository/roots의 상대 경로도 자식 설정 파일의 디렉터리 기준이다.
+parent에서 상속한 repository/roots의 상대 경로는 자식 설정 파일의 디렉터리 기준이다.
+이는 flat 형식 전용 규칙이다. 계층형 로더는 경로를 상속하지 않고,
+`pkg/config/symlink.go`는 상속된 경로를 parent의 디렉터리 기준으로 해석하므로
+"계층형과 같은 규칙"이 아니다.
 환경 변수나 단독 `~`에 의존하던 flat 설정은 `~/...` 또는 절대 경로로 바꾼다.
 CLI에서 입력한 설정 파일 경로(`-c`)는 셸 방식 확장을 그대로 유지한다.
 

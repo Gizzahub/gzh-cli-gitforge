@@ -124,7 +124,7 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		}
 		if err != nil {
 			// Log warning but continue - parent might not exist yet
-			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config %s: %v\n", cfg.Parent, err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to load parent config %s: %v\n", describeParentRef(cfg.Parent, parentPath), err)
 		}
 	}
 
@@ -425,7 +425,10 @@ func cleanPath(path string) string {
 // resolveConfigPath resolves a path declared inside a flat config with the one
 // rule shared with the workspaces format (config.ResolvePath, ISSUE-391): only
 // "~/" expands, "$VAR" and a bare "~" stay literal, and a relative path joins
-// the config's directory.
+// the config's directory. Repository and root paths inherited from a parent
+// config are resolved against the child config's directory, a flat-format rule:
+// the workspaces loader does not inherit paths, and config.ResolvePath callers
+// such as pkg/config/symlink.go resolve inherited paths against the parent's.
 func resolveConfigPath(baseDir, path string) (string, error) {
 	resolved, err := config.ResolvePath(baseDir, path)
 	if err != nil {
@@ -456,6 +459,15 @@ func detectConfigFile(dir string) (string, error) {
 	return config.DetectConfigFile(dir)
 }
 
+// describeParentRef names a parent reference for a warning: the declared value,
+// plus the resolved file when resolution got that far.
+func describeParentRef(ref, resolved string) string {
+	if resolved == "" {
+		return ref
+	}
+	return fmt.Sprintf("%s (resolved to %s)", ref, resolved)
+}
+
 // resolveParentFile resolves a `parent:` value declared in the config at
 // configPath to the parent config file, with the rule shared with the
 // workspaces format (config.ResolveParentConfigFile, ISSUE-391).
@@ -484,7 +496,8 @@ func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) 
 
 	// Recursively load parent's parent if specified
 	if cfg.Parent != "" {
-		grandparentPath, err := resolveParentFile(cfg.Parent, parentPath)
+		grandRef := cfg.Parent
+		grandparentPath, err := resolveParentFile(grandRef, parentPath)
 		if err == nil {
 			var grandparentCfg fileConfig
 			grandparentCfg, err = l.loadParentConfig(grandparentPath)
@@ -495,7 +508,7 @@ func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) 
 		}
 		if err != nil {
 			// Log warning but continue
-			fmt.Fprintf(os.Stderr, "Warning: failed to load grandparent config %s: %v\n", cfg.Parent, err)
+			fmt.Fprintf(os.Stderr, "Warning: failed to load grandparent config %s: %v\n", describeParentRef(grandRef, grandparentPath), err)
 		}
 	}
 

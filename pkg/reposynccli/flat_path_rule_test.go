@@ -5,8 +5,10 @@ package reposynccli
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
@@ -95,6 +97,91 @@ func TestFlatParentPathParity(t *testing.T) {
 			}
 			if len(data.Plan.Input.Repos) != 1 || data.Plan.Input.Repos[0].Name != "fromparent" {
 				t.Errorf("repos = %+v, want the parent's fromparent repo", data.Plan.Input.Repos)
+			}
+		})
+	}
+}
+
+// TestFlatInheritedPathsJoinChildDir pins the flat-specific rule that a
+// relative repo path and root inherited from a parent join the child config's
+// directory (not the parent's). It differs from pkg/config/symlink.go, which
+// resolves inherited paths against the parent's directory.
+func TestFlatInheritedPathsJoinChildDir(t *testing.T) {
+	dir := t.TempDir()
+	writeFileAt(t, filepath.Join(dir, "up", "p.yaml"),
+		"cleanupOrphans: true\nroots:\n  - rel-root\nrepositories:\n  - url: https://github.com/o/r.git\n    path: rel/repo\n")
+	cfgPath := filepath.Join(dir, ".gz-git.yaml")
+	writeFileAt(t, cfgPath, "parent: ./up/p.yaml\n")
+
+	data, err := (FileSpecLoader{}).Load(context.Background(), cfgPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got, want := data.Plan.Input.Repos[0].TargetPath, filepath.Join(dir, "rel", "repo"); got != want {
+		t.Errorf("inherited repo path = %q, want %q (child dir)", got, want)
+	}
+	if want := filepath.Join(dir, "rel-root"); !slices.Contains(data.Plan.Options.Roots, want) {
+		t.Errorf("roots = %v, want %q (child dir)", data.Plan.Options.Roots, want)
+	}
+}
+
+// TestFlatGrandparentPathRule pins grandparent resolution: a parent's own
+// `parent:` resolves against the parent's directory with the shared rule.
+func TestFlatGrandparentPathRule(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("GZ_GP_VAR", "expanded")
+
+	cases := []struct {
+		name        string
+		grandparent string // YAML scalar in the parent config
+		file        func(upDir string) string
+	}{
+		{"relative to parent dir", "./gp/g.yaml", func(u string) string { return filepath.Join(u, "gp", "g.yaml") }},
+		{"directory reads .gz-git.yaml", "./gp/", func(u string) string { return filepath.Join(u, "gp", ".gz-git.yaml") }},
+		{"env var stays literal", "'$GZ_GP_VAR/g.yaml'", func(u string) string { return filepath.Join(u, "$GZ_GP_VAR", "g.yaml") }},
+		{"home file", "~/g.yaml", func(string) string { return filepath.Join(home, "g.yaml") }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			upDir := filepath.Join(dir, "up")
+			writeFileAt(t, tc.file(upDir), "repositories:\n  - url: https://github.com/o/fromgrand.git\n")
+			writeFileAt(t, filepath.Join(upDir, "p.yaml"), "parent: "+tc.grandparent+"\nstrategy: pull\n")
+			cfgPath := filepath.Join(dir, ".gz-git.yaml")
+			writeFileAt(t, cfgPath, "parent: ./up/p.yaml\n")
+
+			data, err := (FileSpecLoader{}).Load(context.Background(), cfgPath)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if len(data.Plan.Input.Repos) != 1 || data.Plan.Input.Repos[0].Name != "fromgrand" {
+				t.Errorf("repos = %+v, want the grandparent's fromgrand repo", data.Plan.Input.Repos)
+			}
+		})
+	}
+}
+
+// TestFlatHomeUnavailable pins that a "~/" repo path or root fails the load
+// when no home directory can be determined.
+func TestFlatHomeUnavailable(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	if _, err := os.UserHomeDir(); err == nil {
+		t.Skip("home directory still resolvable on this platform")
+	}
+
+	for name, body := range map[string]string{
+		"repo path": "repositories:\n  - url: https://github.com/o/r.git\n    path: ~/x\n",
+		"root":      "cleanupOrphans: true\nroots:\n  - ~/x\nrepositories:\n  - url: https://github.com/o/r.git\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfgPath := filepath.Join(t.TempDir(), ".gz-git.yaml")
+			writeFileAt(t, cfgPath, body)
+			_, err := (FileSpecLoader{}).Load(context.Background(), cfgPath)
+			if err == nil || !strings.Contains(err.Error(), "home directory") {
+				t.Errorf("want a home directory error, got %v", err)
 			}
 		})
 	}
