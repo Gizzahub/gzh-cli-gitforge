@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -116,7 +117,7 @@ func (l FileSpecLoader) loadData(ctx context.Context, raw []byte, configPath str
 		parentPath, err := resolveParentFile(cfg.Parent, configPath)
 		if err == nil {
 			var parentCfg fileConfig
-			parentCfg, err = l.loadParentConfig(parentPath)
+			parentCfg, err = l.loadParentConfig(parentPath, []string{canonicalConfigPath(configPath)})
 			if err == nil {
 				// Merge: child overrides parent
 				cfg = mergeFileConfigs(parentCfg, cfg)
@@ -482,8 +483,34 @@ func resolveParentFile(parentRef, configPath string) (string, error) {
 	return filepath.Join(dir, file), nil
 }
 
+// canonicalConfigPath returns the absolute, symlink-resolved form of a config
+// path, the key parent-chain cycle detection compares. It falls back to the
+// cleaned absolute path when the file cannot be resolved.
+func canonicalConfigPath(p string) string {
+	abs, err := filepath.Abs(filepath.Clean(p))
+	if err != nil {
+		return filepath.Clean(p)
+	}
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		return resolved
+	}
+	return abs
+}
+
 // loadParentConfig loads a parent config file and returns its parsed fileConfig.
-func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) {
+// chain holds the canonical paths of the configs already on the current parent
+// path (the child first); a parent that repeats one of them is a cycle, and a
+// chain deeper than config.MaxConfigDepth is refused, as in the workspaces loader.
+func (l FileSpecLoader) loadParentConfig(parentPath string, chain []string) (fileConfig, error) {
+	canon := canonicalConfigPath(parentPath)
+	if slices.Contains(chain, canon) {
+		return fileConfig{}, fmt.Errorf("circular parent config reference detected: %s", strings.Join(append(append([]string{}, chain...), canon), " -> "))
+	}
+	if len(chain) > config.MaxConfigDepth {
+		return fileConfig{}, fmt.Errorf("parent config recursion depth exceeded (max %d): %s", config.MaxConfigDepth, strings.Join(append(append([]string{}, chain...), canon), " -> "))
+	}
+	chain = append(append([]string{}, chain...), canon)
+
 	raw, err := config.ReadConfigFile(parentPath)
 	if err != nil {
 		return fileConfig{}, fmt.Errorf("read parent config %s: %w", parentPath, err)
@@ -500,7 +527,7 @@ func (l FileSpecLoader) loadParentConfig(parentPath string) (fileConfig, error) 
 		grandparentPath, err := resolveParentFile(grandRef, parentPath)
 		if err == nil {
 			var grandparentCfg fileConfig
-			grandparentCfg, err = l.loadParentConfig(grandparentPath)
+			grandparentCfg, err = l.loadParentConfig(grandparentPath, chain)
 			if err == nil {
 				// Merge grandparent into parent (parent overrides grandparent)
 				cfg = mergeFileConfigs(grandparentCfg, cfg)
