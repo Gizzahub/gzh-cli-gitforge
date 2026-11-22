@@ -88,6 +88,10 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Build options
+	repoSelection, err := resolveBulkSelection(directory, &diffFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkDiffOptions{
 		Directory:         directory,
 		Parallel:          diffFlags.Parallel,
@@ -100,6 +104,7 @@ func runDiff(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: diffFlags.IncludeSubmodules,
 		IncludePattern:    diffFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, diffFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Scanning", diffFlags.Format, quiet),
 	}

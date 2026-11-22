@@ -68,6 +68,10 @@ func runBranchList(cmd *cobra.Command, args []string) error {
 func runBulkBranchList(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &branchListFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkBranchListOptions{
 		Directory:      directory,
 		Parallel:       branchListFlags.Parallel,
@@ -75,6 +79,7 @@ func runBulkBranchList(ctx context.Context, directory string) error {
 		All:            branchListAll,
 		IncludePattern: branchListFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, branchListFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 

@@ -37,6 +37,7 @@ func (c *client) BulkSwitch(ctx context.Context, opts BulkSwitchOptions) (*BulkS
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

@@ -6,7 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -73,8 +73,9 @@ func init() {
 	handoffCmd.AddCommand(handoffEndCmd)
 
 	addBulkFlagsWithOpts(handoffEndCmd, &handoffEndFlags, BulkFlagOptions{
-		SkipFetch: true,
-		SkipWatch: true,
+		SkipSelect: true,
+		SkipFetch:  true,
+		SkipWatch:  true,
 	})
 	handoffEndCmd.Flags().StringVarP(&handoffEndMessage, "message", "m", defaultCheckpointMessage,
 		"commit message for the checkpoint")
@@ -295,14 +296,17 @@ func checkpointRepositories(ctx context.Context, directory string, repos []hando
 	client := repository.NewClient()
 	// The plan was built from a scan of this same directory, so restricting the
 	// bulk operations to those exact paths reproduces the selection.
-	pattern := repoPathPattern(handoff.Paths(repos))
+	selection, err := repoPathSelection(directory, handoff.Paths(repos))
+	if err != nil {
+		return err
+	}
 
 	commitResult, err := client.BulkCommit(ctx, repository.BulkCommitOptions{
 		Directory:         directory,
 		Parallel:          handoffEndFlags.Parallel,
 		MaxDepth:          handoffEndFlags.Depth,
 		IncludeSubmodules: handoffEndFlags.IncludeSubmodules,
-		IncludePattern:    pattern,
+		Selection:         selection,
 		Message:           report.Message,
 		Yes:               true,
 		Verbose:           verbose,
@@ -332,7 +336,7 @@ func checkpointRepositories(ctx context.Context, directory string, repos []hando
 		Parallel:          handoffEndFlags.Parallel,
 		MaxDepth:          handoffEndFlags.Depth,
 		IncludeSubmodules: handoffEndFlags.IncludeSubmodules,
-		IncludePattern:    pattern,
+		Selection:         selection,
 		// A checkpoint on a brand new branch is the common case, and without
 		// this the push has no target to fail against.
 		SetUpstream: true,
@@ -364,14 +368,29 @@ func checkpointRepositories(ctx context.Context, directory string, repos []hando
 	return nil
 }
 
-// repoPathPattern builds an anchored regex matching exactly the given paths, so
-// a bulk operation touches those repositories and no others.
-func repoPathPattern(paths []string) string {
-	quoted := make([]string, 0, len(paths))
-	for _, path := range paths {
-		quoted = append(quoted, regexp.QuoteMeta(path))
+// repoPathSelection builds a listed selection of exactly the given absolute
+// repository paths, so a bulk operation touches those repositories and no
+// others. The paths come from a scan of directory, so each is under it; a
+// listed selection also refuses to run when one of them has disappeared
+// since the plan was made, instead of silently skipping it.
+func repoPathSelection(directory string, paths []string) (repository.RepoSelection, error) {
+	root, err := filepath.Abs(directory)
+	if err != nil {
+		return repository.RepoSelection{}, fmt.Errorf("failed to resolve %s: %w", directory, err)
 	}
-	return "^(?:" + strings.Join(quoted, "|") + ")$"
+	selection := repository.RepoSelection{Listed: true}
+	for _, path := range paths {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return repository.RepoSelection{}, fmt.Errorf("repository %s is not under %s: %w", path, root, err)
+		}
+		normalized, err := repository.NormalizeSelectionPath(rel)
+		if err != nil {
+			return repository.RepoSelection{}, fmt.Errorf("repository %s is not under %s: %w", path, root, err)
+		}
+		selection.Paths = append(selection.Paths, normalized)
+	}
+	return selection, nil
 }
 
 func printHandoffEnd(report *handoffEndReport, verdictSource *handoff.Assessment) {

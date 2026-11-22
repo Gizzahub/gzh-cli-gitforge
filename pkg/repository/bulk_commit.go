@@ -39,6 +39,10 @@ type BulkCommitOptions struct {
 	// ExcludePattern is a regex pattern to exclude repositories
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// IncludeSubmodules includes git submodules in the scan
 	IncludeSubmodules bool
 
@@ -163,6 +167,7 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

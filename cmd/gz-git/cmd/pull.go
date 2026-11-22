@@ -126,6 +126,10 @@ func runPull(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Build options
+	repoSelection, err := resolveBulkSelection(directory, &pullFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkPullOptions{
 		Directory:         directory,
 		Parallel:          pullFlags.Parallel,
@@ -139,6 +143,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: pullFlags.IncludeSubmodules,
 		IncludePattern:    pullFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, pullFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Pulling", pullFlags.Format, quiet),
 	}

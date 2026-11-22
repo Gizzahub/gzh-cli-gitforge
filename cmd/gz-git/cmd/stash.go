@@ -141,6 +141,10 @@ func runStashSave(cmd *cobra.Command, args []string) error {
 func runBulkStashSave(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &stashSaveBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkStashOptions{
 		Directory:        directory,
 		Parallel:         stashSaveBulkFlags.Parallel,
@@ -151,6 +155,7 @@ func runBulkStashSave(ctx context.Context, directory string) error {
 		IncludeUntracked: stashIncludeUntrack,
 		IncludePattern:   stashSaveBulkFlags.Include,
 		ExcludePattern:   resolveScanExclude(directory, stashSaveBulkFlags.Exclude),
+		Selection:        repoSelection,
 		Logger:           repository.NewNoopLogger(),
 	}
 
@@ -184,6 +189,10 @@ func runStashList(cmd *cobra.Command, args []string) error {
 func runBulkStashList(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &stashListBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkStashOptions{
 		Directory:      directory,
 		Parallel:       stashListBulkFlags.Parallel,
@@ -191,6 +200,7 @@ func runBulkStashList(ctx context.Context, directory string) error {
 		Operation:      "list",
 		IncludePattern: stashListBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, stashListBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 
@@ -224,6 +234,10 @@ func runStashPop(cmd *cobra.Command, args []string) error {
 func runBulkStashPop(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &stashPopBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkStashOptions{
 		Directory:      directory,
 		Parallel:       stashPopBulkFlags.Parallel,
@@ -232,6 +246,7 @@ func runBulkStashPop(ctx context.Context, directory string) error {
 		Operation:      "pop",
 		IncludePattern: stashPopBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, stashPopBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 
@@ -265,6 +280,10 @@ func runStashApply(cmd *cobra.Command, args []string) error {
 func runBulkStashApply(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &stashApplyBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkStashOptions{
 		Directory:      directory,
 		Parallel:       stashApplyBulkFlags.Parallel,
@@ -273,6 +292,7 @@ func runBulkStashApply(ctx context.Context, directory string) error {
 		Operation:      "apply",
 		IncludePattern: stashApplyBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, stashApplyBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 

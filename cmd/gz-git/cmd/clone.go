@@ -63,6 +63,7 @@ func init() {
 	// Suppress non-functional bulk flags; --submodules/--single-branch below
 	// cover clone's own recurse/branch scoping.
 	addBulkFlagsWithOpts(cloneCmd, &cloneFlags, BulkFlagOptions{
+		SkipSelect:    true,
 		SkipScanDepth: true,
 		SkipRecursive: true,
 		SkipInclude:   true,

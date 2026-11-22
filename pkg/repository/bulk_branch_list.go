@@ -41,6 +41,10 @@ type BulkBranchListOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -140,6 +144,7 @@ func (c *client) BulkBranchList(ctx context.Context, opts BulkBranchListOptions)
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

@@ -103,6 +103,10 @@ func commandContext(cmd *cobra.Command) context.Context {
 func assessHandoff(ctx context.Context, directory string, flags BulkCommandFlags) (*handoff.Assessment, error) {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &flags)
+	if err != nil {
+		return nil, err
+	}
 	result, err := client.BulkStatus(ctx, repository.BulkStatusOptions{
 		Directory:         directory,
 		Parallel:          flags.Parallel,
@@ -110,6 +114,7 @@ func assessHandoff(ctx context.Context, directory string, flags BulkCommandFlags
 		IncludeSubmodules: flags.IncludeSubmodules,
 		IncludePattern:    flags.Include,
 		ExcludePattern:    resolveScanExclude(directory, flags.Exclude),
+		Selection:         repoSelection,
 		Verbose:           verbose,
 		Logger:            createBulkLogger(verbose),
 	})

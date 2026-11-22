@@ -204,6 +204,10 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		return commitRunConfig{}, err
 	}
 
+	repoSelection, err := resolveBulkSelection(directory, &commitFlags)
+	if err != nil {
+		return commitRunConfig{}, err
+	}
 	opts := repository.BulkCommitOptions{
 		Directory:         directory,
 		Parallel:          commitFlags.Parallel,
@@ -216,6 +220,7 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		AllowConflicted:   commitAllowConflicted,
 		IncludePattern:    commitFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, commitFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            createBulkLogger(verbose),
 		ProgressCallback:  createProgressCallback("Analyzing", commitFlags.Format, quiet),
 	}

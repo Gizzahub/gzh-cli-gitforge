@@ -44,6 +44,10 @@ type BulkStashOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// OnlyDirty only processes repositories with uncommitted changes (for save)
 	OnlyDirty bool
 
@@ -135,6 +139,7 @@ func (c *client) BulkStash(ctx context.Context, opts BulkStashOptions) (*BulkSta
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

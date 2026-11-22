@@ -89,6 +89,10 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Build options
+	repoSelection, err := resolveBulkSelection(directory, &switchFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkSwitchOptions{
 		Directory:         directory,
 		Branch:            branch,
@@ -101,6 +105,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: switchFlags.IncludeSubmodules,
 		IncludePattern:    switchFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, switchFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Switching", switchFlags.Format, quiet),
 	}

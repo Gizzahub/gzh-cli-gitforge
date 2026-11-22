@@ -280,6 +280,10 @@ func runSingleRepoCleanupBranch(ctx context.Context, excludePatterns []string) e
 func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns []string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &cleanupBranchBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkCleanupOptions{
 		Directory:           directory,
 		Parallel:            cleanupBranchBulkFlags.Parallel,
@@ -304,6 +308,7 @@ func runBulkCleanupBranch(ctx context.Context, directory string, excludePatterns
 		IncludeSubmodules: cleanupBranchBulkFlags.IncludeSubmodules,
 		IncludePattern:    cleanupBranchBulkFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, cleanupBranchBulkFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            repository.NewNoopLogger(),
 	}
 

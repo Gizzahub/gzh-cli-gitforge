@@ -100,6 +100,10 @@ type BulkFetchOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -228,6 +232,10 @@ type BulkPullOptions struct {
 
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
+
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
 
 	// Logger for operation feedback
 	Logger Logger
@@ -381,6 +389,10 @@ type BulkPushOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -486,6 +498,10 @@ type BulkStatusOptions struct {
 
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
+
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
 
 	// Logger for operation feedback
 	Logger Logger
@@ -636,6 +652,10 @@ type BulkUpdateOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -767,6 +787,10 @@ type BulkSwitchOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -846,6 +870,7 @@ func (c *client) BulkUpdate(ctx context.Context, opts BulkUpdateOptions) (*BulkU
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -1066,7 +1091,10 @@ func shouldIgnoreDirectory(name string) bool {
 }
 
 // filterRepositories filters repositories based on include/exclude patterns.
-func filterRepositories(repos []string, includePattern, excludePattern string, logger Logger) ([]string, error) {
+// Patterns match the repository path relative to root (slash separated, "."
+// for root itself), so an anchored pattern such as ^api$ selects the "api"
+// repository regardless of where the scan directory lives.
+func filterRepositories(root string, repos []string, includePattern, excludePattern string, logger Logger) ([]string, error) {
 	if includePattern == "" && excludePattern == "" {
 		return repos, nil
 	}
@@ -1090,14 +1118,16 @@ func filterRepositories(repos []string, includePattern, excludePattern string, l
 
 	var filtered []string
 	for _, repo := range repos {
+		rel := relativeRepoPath(root, repo)
+
 		// Check exclude first
-		if excludeRegex != nil && excludeRegex.MatchString(repo) {
+		if excludeRegex != nil && excludeRegex.MatchString(rel) {
 			logger.Debug("excluded repository", "path", repo)
 			continue
 		}
 
 		// Check include
-		if includeRegex != nil && !includeRegex.MatchString(repo) {
+		if includeRegex != nil && !includeRegex.MatchString(rel) {
 			logger.Debug("not included repository", "path", repo)
 			continue
 		}
@@ -1359,6 +1389,7 @@ func (c *client) BulkFetch(ctx context.Context, opts BulkFetchOptions) (*BulkFet
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -1611,6 +1642,7 @@ func (c *client) BulkPull(ctx context.Context, opts BulkPullOptions) (*BulkPullR
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -2142,6 +2174,7 @@ func (c *client) BulkPush(ctx context.Context, opts BulkPushOptions) (*BulkPushR
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -2709,6 +2742,7 @@ func (c *client) BulkStatus(ctx context.Context, opts BulkStatusOptions) (*BulkS
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -2930,7 +2964,11 @@ type bulkOperationCommon struct {
 	IncludeSubmodules bool
 	IncludePattern    string
 	ExcludePattern    string
-	Logger            Logger
+
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+	Logger    Logger
 }
 
 // initializeBulkOperation initializes common bulk operation settings
@@ -2942,6 +2980,7 @@ func initializeBulkOperation(
 	includeSubmodules bool,
 	includePattern string,
 	excludePattern string,
+	selection RepoSelection,
 	logger Logger,
 ) (*bulkOperationCommon, error) {
 	// Set directory default
@@ -2981,6 +3020,7 @@ func initializeBulkOperation(
 		IncludeSubmodules: includeSubmodules,
 		IncludePattern:    includePattern,
 		ExcludePattern:    excludePattern,
+		Selection:         selection,
 		Logger:            logger,
 	}, nil
 }
@@ -3001,6 +3041,10 @@ type ScanOptions struct {
 
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
+
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
 
 	// Logger for operation feedback
 	Logger Logger
@@ -3028,6 +3072,7 @@ func (c *client) ScanRepositories(ctx context.Context, opts ScanOptions) (*ScanR
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
@@ -3051,10 +3096,20 @@ func (c *client) scanAndFilterRepositories(
 	ctx context.Context,
 	common *bulkOperationCommon,
 ) (paths []string, totalScanned int, err error) {
-	common.Logger.Info("scanning for repositories", "directory", common.Directory, "maxDepth", common.MaxDepth)
+	// A listed selection must reach its deepest entry even when the caller
+	// kept the default depth; otherwise a declared nested repository would be
+	// reported as missing.
+	scanDepth := common.MaxDepth
+	if common.Selection.Listed {
+		if need := common.Selection.requiredDepth(); need > scanDepth {
+			scanDepth = need
+		}
+	}
+
+	common.Logger.Info("scanning for repositories", "directory", common.Directory, "maxDepth", scanDepth)
 
 	// Scan for repositories
-	repos, err := c.scanRepositoriesWithConfig(ctx, common.Directory, common.MaxDepth, common.Logger, walkDirectoryConfig{
+	repos, err := c.scanRepositoriesWithConfig(ctx, common.Directory, scanDepth, common.Logger, walkDirectoryConfig{
 		includeSubmodules: common.IncludeSubmodules,
 	})
 	if err != nil {
@@ -3064,10 +3119,18 @@ func (c *client) scanAndFilterRepositories(
 	common.Logger.Info("scan complete", "found", len(repos))
 	totalScanned = len(repos)
 
+	selected, err := applySelection(common.Directory, repos, common.Selection)
+	if err != nil {
+		return nil, totalScanned, err
+	}
+
 	// Filter repositories
-	filteredRepos, err := filterRepositories(repos, common.IncludePattern, common.ExcludePattern, common.Logger)
+	filteredRepos, err := filterRepositories(common.Directory, selected, common.IncludePattern, common.ExcludePattern, common.Logger)
 	if err != nil {
 		return nil, totalScanned, fmt.Errorf("failed to filter repositories: %w", err)
+	}
+	if err := checkSelectionFiltered(common.Directory, selected, filteredRepos, common.Selection); err != nil {
+		return nil, totalScanned, err
 	}
 
 	if len(filteredRepos) < len(repos) {

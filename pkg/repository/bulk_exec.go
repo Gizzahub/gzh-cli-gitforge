@@ -32,8 +32,12 @@ type BulkExecOptions struct {
 	IncludeSubmodules bool
 	IncludePattern    string
 	ExcludePattern    string
-	Logger            Logger
-	ProgressCallback  func(current, total int, repo string)
+
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection        RepoSelection
+	Logger           Logger
+	ProgressCallback func(current, total int, repo string)
 
 	// Command is argv[0]; Args are remaining argv elements. Never passed through a shell.
 	Command string
@@ -94,6 +98,7 @@ func (c *client) BulkExec(ctx context.Context, opts BulkExecOptions) (*BulkExecR
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

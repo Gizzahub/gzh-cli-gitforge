@@ -60,6 +60,12 @@ type BulkCommandFlags struct {
 	Watch             bool
 	Interval          time.Duration
 	SkipFetch         bool
+
+	// Select, Repos and ReposFrom choose the repositories a listed run
+	// covers; see resolveBulkSelection.
+	Select    string
+	Repos     []string
+	ReposFrom string
 }
 
 // BulkFlagOptions allows customizing which bulk flags are registered.
@@ -72,6 +78,9 @@ type BulkFlagOptions struct {
 	SkipScanDepth bool
 	SkipInclude   bool
 	SkipExclude   bool
+	// SkipSelect omits --select/--repo/--repos-from, for commands that build
+	// their own repository list (clone, handoff start/end).
+	SkipSelect bool
 }
 
 // addBulkFlagsWithOpts registers common bulk operation flags to a command, skipping those specified in opts.
@@ -88,6 +97,9 @@ func addBulkFlagsWithOpts(cmd *cobra.Command, flags *BulkCommandFlags, opts Bulk
 	}
 	if !opts.SkipExclude {
 		cmd.Flags().StringVar(&flags.Exclude, "exclude", "", "regex pattern to exclude repositories")
+	}
+	if !opts.SkipSelect {
+		addRepoSelectionFlags(cmd, flags)
 	}
 
 	if !opts.SkipFormat {

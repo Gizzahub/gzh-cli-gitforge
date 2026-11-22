@@ -199,6 +199,10 @@ func runSingleTagCreate(ctx context.Context, tagName string) error {
 func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &tagCreateBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
 		Parallel:       tagCreateBulkFlags.Parallel,
@@ -210,6 +214,7 @@ func runBulkTagCreate(ctx context.Context, directory, tagName string) error {
 		Force:          tagForce,
 		IncludePattern: tagCreateBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, tagCreateBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 
@@ -284,6 +289,10 @@ func runTagList(cmd *cobra.Command, args []string) error {
 func runBulkTagList(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &tagListBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
 		Parallel:       tagListBulkFlags.Parallel,
@@ -291,6 +300,7 @@ func runBulkTagList(ctx context.Context, directory string) error {
 		Operation:      "list",
 		IncludePattern: tagListBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, tagListBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 
@@ -358,6 +368,10 @@ func runSingleTagPush(ctx context.Context, name string) error {
 func runBulkTagPush(ctx context.Context, directory string) error {
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &tagPushBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
 		Parallel:       tagPushBulkFlags.Parallel,
@@ -367,6 +381,7 @@ func runBulkTagPush(ctx context.Context, directory string) error {
 		PushAll:        tagPushAll,
 		IncludePattern: tagPushBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, tagPushBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 
@@ -397,6 +412,10 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 
 	client := repository.NewClient()
 
+	repoSelection, err := resolveBulkSelection(directory, &tagStatusBulkFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkTagOptions{
 		Directory:      directory,
 		Parallel:       tagStatusBulkFlags.Parallel,
@@ -404,6 +423,7 @@ func runTagStatus(cmd *cobra.Command, args []string) error {
 		Operation:      "status",
 		IncludePattern: tagStatusBulkFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, tagStatusBulkFlags.Exclude),
+		Selection:      repoSelection,
 		Logger:         repository.NewNoopLogger(),
 	}
 

@@ -83,6 +83,7 @@ func runPullPush(ctx context.Context, client repository.Client, effective *confi
 		IncludeSubmodules: pullOpts.IncludeSubmodules,
 		IncludePattern:    pullOpts.IncludePattern,
 		ExcludePattern:    pullOpts.ExcludePattern,
+		Selection:         pullOpts.Selection,
 		Logger:            pullOpts.Logger,
 		ProgressCallback:  createProgressCallback("Pushing", pullFlags.Format, quiet),
 	})

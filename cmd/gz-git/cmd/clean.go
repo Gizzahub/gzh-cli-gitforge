@@ -124,6 +124,10 @@ func runClean(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Build options
+	repoSelection, err := resolveBulkSelection(directory, &cleanFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkCleanOptions{
 		Directory:         directory,
 		Parallel:          cleanFlags.Parallel,
@@ -136,6 +140,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: cleanFlags.IncludeSubmodules,
 		IncludePattern:    cleanFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, cleanFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Cleaning", cleanFlags.Format, quiet),
 	}

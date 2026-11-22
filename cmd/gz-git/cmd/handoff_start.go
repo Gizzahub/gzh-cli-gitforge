@@ -55,8 +55,9 @@ func init() {
 	handoffCmd.AddCommand(handoffStartCmd)
 
 	addBulkFlagsWithOpts(handoffStartCmd, &handoffStartFlags, BulkFlagOptions{
-		SkipFetch: true,
-		SkipWatch: true,
+		SkipSelect: true,
+		SkipFetch:  true,
+		SkipWatch:  true,
 	})
 }
 
@@ -224,12 +225,16 @@ func updateRepositories(ctx context.Context, directory string, plan handoff.Star
 	// nothing extra and gives the shared-branch check refs to read.
 	all := append(handoff.Paths(plan.Update), handoff.Paths(plan.Skipped)...)
 	if len(all) > 0 {
+		fetchSelection, err := repoPathSelection(directory, all)
+		if err != nil {
+			return err
+		}
 		if _, err := client.BulkFetch(ctx, repository.BulkFetchOptions{
 			Directory:         directory,
 			Parallel:          handoffStartFlags.Parallel,
 			MaxDepth:          handoffStartFlags.Depth,
 			IncludeSubmodules: handoffStartFlags.IncludeSubmodules,
-			IncludePattern:    repoPathPattern(all),
+			Selection:         fetchSelection,
 			Prune:             true,
 			Verbose:           verbose,
 			Logger:            createBulkLogger(verbose),
@@ -246,12 +251,16 @@ func updateRepositories(ctx context.Context, directory string, plan handoff.Star
 		return nil
 	}
 
+	pullSelection, err := repoPathSelection(directory, handoff.Paths(plan.Update))
+	if err != nil {
+		return err
+	}
 	result, err := client.BulkPull(ctx, repository.BulkPullOptions{
 		Directory:         directory,
 		Parallel:          handoffStartFlags.Parallel,
 		MaxDepth:          handoffStartFlags.Depth,
 		IncludeSubmodules: handoffStartFlags.IncludeSubmodules,
-		IncludePattern:    repoPathPattern(handoff.Paths(plan.Update)),
+		Selection:         pullSelection,
 		// Rebase keeps a work branch linear across machines; a merge here would
 		// record that the branch was touched in two places, which is noise.
 		Strategy: "rebase",

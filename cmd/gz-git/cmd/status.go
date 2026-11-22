@@ -128,12 +128,17 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 func runDiagnosticStatus(ctx context.Context, client repository.Client, directory string, logger repository.Logger) (*reposync.HealthReport, error) {
 	// Scan for repositories (lightweight, no GetInfo/GetStatus)
+	repoSelection, err := resolveBulkSelection(directory, &statusFlags)
+	if err != nil {
+		return nil, err
+	}
 	scanResult, err := client.ScanRepositories(ctx, repository.ScanOptions{
 		Directory:         directory,
 		MaxDepth:          statusFlags.Depth,
 		IncludeSubmodules: statusFlags.IncludeSubmodules,
 		IncludePattern:    statusFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, statusFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 	})
 	if err != nil {

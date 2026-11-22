@@ -123,6 +123,10 @@ func runInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	// Setup bulk scan options
+	repoSelection, err := resolveBulkSelection(directory, &infoFlags)
+	if err != nil {
+		return err
+	}
 	bulkOpts := repository.BulkStatusOptions{
 		Directory:         directory,
 		Parallel:          infoFlags.Parallel,
@@ -131,6 +135,7 @@ func runInfo(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: infoFlags.IncludeSubmodules,
 		IncludePattern:    infoFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, infoFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 	}
 

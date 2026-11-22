@@ -150,11 +150,16 @@ func runBulkWorktreeList(ctx context.Context, directory string) error {
 		printScanningMessage(directory, worktreeListFlags.Depth, worktreeListFlags.Parallel, false)
 	}
 
+	repoSelection, err := resolveBulkSelection(directory, &worktreeListFlags)
+	if err != nil {
+		return err
+	}
 	scanResult, err := client.ScanRepositories(ctx, repository.ScanOptions{
 		Directory:      directory,
 		MaxDepth:       worktreeListFlags.Depth,
 		IncludePattern: worktreeListFlags.Include,
 		ExcludePattern: resolveScanExclude(directory, worktreeListFlags.Exclude),
+		Selection:      repoSelection,
 	})
 	if err != nil {
 		return fmt.Errorf("scan failed: %w", err)

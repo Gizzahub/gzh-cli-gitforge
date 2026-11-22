@@ -105,6 +105,10 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	logger := createBulkLogger(verbose)
 
 	// Build options
+	repoSelection, err := resolveBulkSelection(directory, &fetchFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkFetchOptions{
 		Directory:         directory,
 		Parallel:          fetchFlags.Parallel,
@@ -117,6 +121,7 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: fetchFlags.IncludeSubmodules,
 		IncludePattern:    fetchFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, fetchFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Fetching", fetchFlags.Format, quiet),
 	}

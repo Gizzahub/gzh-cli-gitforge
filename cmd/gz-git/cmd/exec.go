@@ -98,6 +98,10 @@ func runExec(cmd *cobra.Command, args []string) error {
 	client := repository.NewClient()
 	logger := createBulkLogger(verbose)
 
+	repoSelection, err := resolveBulkSelection(directory, &execFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkExecOptions{
 		Directory:         directory,
 		Parallel:          execFlags.Parallel,
@@ -106,6 +110,7 @@ func runExec(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: execFlags.IncludeSubmodules,
 		IncludePattern:    execFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, execFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		Command:           cmdArgs[0],
 		Args:              cmdArgs[1:],

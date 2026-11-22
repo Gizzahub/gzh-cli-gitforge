@@ -96,12 +96,17 @@ func runPRCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	client := repository.NewClient()
+	repoSelection, err := resolveBulkSelection(directory, &prCreateFlags)
+	if err != nil {
+		return err
+	}
 	scan, err := client.ScanRepositories(ctx, repository.ScanOptions{
 		Directory:         directory,
 		MaxDepth:          prCreateFlags.Depth,
 		IncludeSubmodules: prCreateFlags.IncludeSubmodules,
 		IncludePattern:    prCreateFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, prCreateFlags.Exclude),
+		Selection:         repoSelection,
 	})
 	if err != nil {
 		return cliutil.NewExitError(cliutil.ExitToolError, err)

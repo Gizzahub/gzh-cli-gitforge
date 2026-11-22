@@ -53,6 +53,10 @@ type BulkTagOptions struct {
 	// ExcludePattern is a regex pattern for repositories to exclude
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// Logger for operation feedback
 	Logger Logger
 
@@ -150,6 +154,7 @@ func (c *client) BulkTag(ctx context.Context, opts BulkTagOptions) (*BulkTagResu
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {

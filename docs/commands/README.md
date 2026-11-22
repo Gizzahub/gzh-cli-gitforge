@@ -66,11 +66,48 @@ Most day-to-day commands are **bulk commands**: they scan a directory for Git re
 | `--parallel`   | `-j`  | Number of parallel operations                      | `10`      |
 | `--dry-run`    | `-n`  | Preview without executing                          | `false`   |
 | `--recursive`  | `-r`  | Recursively include nested repos and submodules    | `false`   |
-| `--include`    |       | Include repositories matching regex                |           |
-| `--exclude`    |       | Exclude repositories matching regex                |           |
+| `--include`    |       | Include repositories whose relative path matches   |           |
+| `--exclude`    |       | Exclude repositories whose relative path matches   |           |
+| `--select`     |       | `all` (every scanned repo) or `listed`             | `all`     |
+| `--repo`       |       | With `--select listed`: one repo (repeatable)      |           |
+| `--repos-from` |       | With `--select listed`: path list file (`-` stdin) |           |
 | `--format`     | `-f`  | Output format: `default`, `compact`, `json`, `llm` | `default` |
 | `--watch`      |       | Run continuously at intervals                      | `false`   |
 | `--interval`   |       | Interval when watching                             | `5m`      |
+
+`--include` and `--exclude` (and `defaults.scan.exclude`) match the repository
+path relative to the scan directory, slash separated, with `.` for the scan
+directory itself. `^api$` selects exactly the `api` repository; before 0.16.0
+the patterns matched the absolute path, so a parent directory name could match
+every repository.
+
+### Repository Selection
+
+Every bulk command except `clone` and `handoff start/end` takes the same
+selection flags, so `pull`, `fetch`, `status`, `diff` and `commit` can be pointed
+at the same set of repositories.
+
+- `--select all` (default): every repository the scan finds.
+- `--select listed`: only declared repositories. The universe is the
+  `workspaces` of the nearest `.gz-git.yaml`: a git workspace is one
+  repository, a forge or config workspace selects every repository under its
+  path, and `selfSync.enabled` declares the config directory itself (`.`).
+  `--repo` / `--repos-from` narrow that universe; an entry that is not declared
+  is an error, not an implicit addition. Without workspaces in the config, the
+  `--repo` / `--repos-from` entries alone are the list.
+
+A listed run is all-or-nothing: an undeclared entry, a declared repository that
+is not on disk, an exact repository that `--include`/`--exclude` drops, or a
+workspace directory they empty stops the run with exit code 1 before any
+repository is touched. Inside a forge or config workspace the filters (including
+`defaults.scan.exclude`) still narrow the repositories under it. A config that
+declares workspaces, but none under the scan directory, is refused too.
+
+```bash
+gz-git pull --select listed                       # every declared workspace
+gz-git commit --select listed --repo api -m 'api:fix: retry'
+printf 'api\nweb\n' | gz-git status --select listed --repos-from -
+```
 
 ### Output Formats
 

@@ -110,6 +110,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	client := repository.NewClient()
 	logger := createBulkLogger(verbose)
 
+	repoSelection, err := resolveBulkSelection(directory, &updateFlags)
+	if err != nil {
+		return err
+	}
 	opts := repository.BulkUpdateOptions{
 		Directory:         directory,
 		Parallel:          updateFlags.Parallel,
@@ -120,6 +124,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		IncludeSubmodules: updateFlags.IncludeSubmodules,
 		IncludePattern:    updateFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, updateFlags.Exclude),
+		Selection:         repoSelection,
 		Logger:            logger,
 		ProgressCallback:  createProgressCallback("Updating", updateFlags.Format, quiet),
 		SyncBase:          updateSyncBase,

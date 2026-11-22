@@ -41,6 +41,10 @@ type BulkDiffOptions struct {
 	// ExcludePattern is a regex pattern to exclude repositories
 	ExcludePattern string
 
+	// Selection restricts the operation to listed repositories; the zero
+	// value selects every scanned repository.
+	Selection RepoSelection
+
 	// IncludeSubmodules includes git submodules in the scan
 	IncludeSubmodules bool
 
@@ -185,6 +189,7 @@ func (c *client) BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffR
 		opts.IncludeSubmodules,
 		opts.IncludePattern,
 		opts.ExcludePattern,
+		opts.Selection,
 		opts.Logger,
 	)
 	if err != nil {
