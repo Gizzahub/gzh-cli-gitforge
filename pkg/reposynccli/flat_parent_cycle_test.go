@@ -11,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 func flatCfg(parent, repoName string) string {
@@ -107,5 +110,63 @@ func TestFlatParentDeepChain(t *testing.T) {
 	}
 	if got := len(data.Plan.Input.Repos); got != 1 {
 		t.Fatalf("repositories = %d, want 1 inherited from the end of the chain", got)
+	}
+}
+
+// TestFlatParentDepthCap pins the depth cap: a chain of exactly
+// config.MaxConfigDepth parent hops resolves, one more hop is refused with the
+// depth warning. The load runs under a timeout so a regression fails fast.
+func TestFlatParentDepthCap(t *testing.T) {
+	cases := []struct {
+		name      string
+		hops      int
+		wantDepth bool
+	}{
+		{"at cap", config.MaxConfigDepth, false},
+		{"over cap", config.MaxConfigDepth + 1, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			// c0 is the root; c<MaxConfigDepth> always declares the repository,
+			// and the over-cap chain continues one hop past it.
+			for i := 0; i <= tc.hops; i++ {
+				body := ""
+				if i < tc.hops {
+					body = fmt.Sprintf("parent: ./c%d.yaml\n", i+1)
+				}
+				if i == config.MaxConfigDepth {
+					body += flatCfg("", "deep")
+				}
+				writeFileAt(t, filepath.Join(dir, fmt.Sprintf("c%d.yaml", i)), body)
+			}
+			type result struct {
+				data ConfigData
+				err  error
+			}
+			done := make(chan result, 1)
+			var stderr string
+			go func() {
+				var r result
+				stderr = captureStderr(t, func() {
+					r.data, r.err = FileSpecLoader{}.Load(context.Background(), filepath.Join(dir, "c0.yaml"))
+				})
+				done <- r
+			}()
+			select {
+			case r := <-done:
+				if r.err != nil {
+					t.Fatalf("Load err = %v", r.err)
+				}
+				if got := len(r.data.Plan.Input.Repos); got != 1 {
+					t.Fatalf("repositories = %d, want 1", got)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("Load did not return within 10s: depth cap regressed")
+			}
+			if got := strings.Contains(stderr, "depth exceeded"); got != tc.wantDepth {
+				t.Fatalf("depth warning = %v, want %v; stderr: %q", got, tc.wantDepth, stderr)
+			}
+		})
 	}
 }
