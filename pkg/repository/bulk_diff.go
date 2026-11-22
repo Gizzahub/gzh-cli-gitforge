@@ -6,7 +6,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -134,6 +133,11 @@ type RepositoryDiffResult struct {
 	// untracked reader is recorded here.
 	OmittedFiles []OmittedFile
 
+	// NestedRepos lists untracked directories that hold another repository
+	// (not a submodule). They are left out of the diff, as commit leaves them
+	// out of the commit.
+	NestedRepos []string
+
 	// Truncated indicates if the diff was truncated due to size limits
 	Truncated bool
 
@@ -256,17 +260,11 @@ func (c *client) BulkDiff(ctx context.Context, opts BulkDiffOptions) (*BulkDiffR
 func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string, opts BulkDiffOptions) RepositoryDiffResult {
 	startTime := time.Now()
 
-	relPath, err := filepath.Rel(rootDir, repoPath)
-	if err != nil {
-		relPath = repoPath
-	}
-	if relPath == "." {
-		relPath = filepath.Base(rootDir)
-	}
-
 	result := RepositoryDiffResult{
-		Path:           repoPath,
-		RelativePath:   relPath,
+		Path: repoPath,
+		// Slash separated, "." for the scan directory: the same path commit
+		// reports and accepts as a message key.
+		RelativePath:   relativeRepoPath(rootDir, repoPath),
 		Status:         "clean",
 		ChangedFiles:   []ChangedFile{},
 		UntrackedFiles: []string{},
@@ -295,6 +293,8 @@ func (c *client) getRepositoryDiff(ctx context.Context, rootDir, repoPath string
 		result.Duration = time.Since(startTime)
 		return result
 	}
+
+	result.NestedRepos = changes.NestedRepos
 
 	for _, entry := range changes.Entries {
 		if entry.Untracked {

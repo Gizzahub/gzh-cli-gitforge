@@ -208,6 +208,18 @@ gz-git diff --include-untracked --context 5 ~/projects
 gz-git diff --no-content --format compact ~/projects
 ```
 
+Each repository is named by its path relative to the scan directory, slash
+separated, with `.` for the scan directory itself; `commit` uses the same
+names, so a diff result's `path` is a valid commit message key. In JSON output
+`truncated` is always present: `true` means the diff is incomplete because of
+the size limit, either `diff_content` was cut or an untracked file was left out
+(see `omitted_files`). The `llm` format drops false values, so there an absent
+`TRUNCATED` means false. A nested repository that is not a submodule is left
+out of the diff, as `commit` leaves it out, and is named in every format
+(`nested_repos` in JSON and llm, a "left out nested repository" line or list
+in text), even when the repository holding it is otherwise clean; a run whose
+only finding is such a repository is not reported as all clean.
+
 ## Commit (Bulk)
 
 ### commit

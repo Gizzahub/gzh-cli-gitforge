@@ -31,12 +31,14 @@
           "old_path": "original.txt"
         }
       ],
+      "truncated": false,
       "duration_ms": 200
     },
     {
       "path": "repoB",
       "branch": "develop",
       "status": "clean",
+      "truncated": false,
       "duration_ms": 100
     }
   ]

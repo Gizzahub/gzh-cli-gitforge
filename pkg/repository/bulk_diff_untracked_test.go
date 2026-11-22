@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -343,4 +344,62 @@ func hasOmission(omitted []OmittedFile, path, reason string) bool {
 		}
 	}
 	return false
+}
+
+// Diff and commit name repositories the same way: slash separated relative to
+// the scan directory, and "." for the scan directory itself.
+func TestDiffRelativePathMatchesCommit(t *testing.T) {
+	parent := t.TempDir()
+	repo := newRepoIn(t, parent, "svc")
+	writeIn(t, repo, "new.txt", "n\n")
+
+	if got := diffOne(t, repo, BulkDiffOptions{MaxDiffSize: 1 << 20}).RelativePath; got != "." {
+		t.Errorf("scan directory RelativePath = %q, want \".\"", got)
+	}
+	if got := diffOne(t, parent, BulkDiffOptions{MaxDiffSize: 1 << 20}).RelativePath; got != "svc" {
+		t.Errorf("child RelativePath = %q, want \"svc\"", got)
+	}
+	if got := commitPreviewOne(t, repo).RelativePath; got != "." {
+		t.Errorf("commit RelativePath = %q, want \".\"", got)
+	}
+}
+
+// A nested path is slash separated from the scan directory, and the scan
+// directory may be given relative: both are the shape commit keys take.
+func TestDiffRelativePathNested(t *testing.T) {
+	parent := t.TempDir()
+	repo := newRepoIn(t, parent, "group/svc")
+	writeIn(t, repo, "new.txt", "n\n")
+	t.Chdir(parent)
+
+	if got := diffOne(t, ".", BulkDiffOptions{MaxDiffSize: 1 << 20, MaxDepth: 2}).RelativePath; got != "group/svc" {
+		t.Errorf("nested RelativePath = %q, want \"group/svc\"", got)
+	}
+}
+
+// A repository whose only change is an untracked nested repository is clean
+// for diff, but names that repository so the work it holds is not hidden.
+func TestDiffReportsNestedRepos(t *testing.T) {
+	outer := newRepoIn(t, t.TempDir(), "outer")
+	inner := newRepoIn(t, outer, "inner")
+	writeIn(t, inner, "x.txt", "x\n")
+
+	result, err := NewClient().BulkDiff(context.Background(), BulkDiffOptions{
+		Directory: outer, Parallel: 1, MaxDepth: 1, MaxDiffSize: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("BulkDiff: %v", err)
+	}
+	var got RepositoryDiffResult
+	for _, repo := range result.Repositories {
+		if repo.RelativePath == "." {
+			got = repo
+		}
+	}
+	if got.Status != "clean" {
+		t.Errorf("status = %q, want clean", got.Status)
+	}
+	if !slices.Equal(got.NestedRepos, []string{"inner"}) {
+		t.Errorf("NestedRepos = %v, want [inner]", got.NestedRepos)
+	}
 }

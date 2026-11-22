@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -178,6 +179,12 @@ func displayDiffResults(result *repository.BulkDiffResult) {
 
 		for _, repo := range result.Repositories {
 			if repo.Status == "clean" {
+				// A clean repository is listed only when it holds a nested
+				// repository the user still has to commit on its own.
+				if len(repo.NestedRepos) > 0 {
+					fmt.Printf("  %s %-40s (%s)  clean\n", getDiffStatusIcon(repo.Status), repo.RelativePath, repo.Branch)
+					printNestedRepos(repo, "      ")
+				}
 				continue
 			}
 			icon := getDiffStatusIcon(repo.Status)
@@ -188,11 +195,10 @@ func displayDiffResults(result *repository.BulkDiffResult) {
 			if note := omittedNote(repo); note != "" {
 				fmt.Printf("      %s (--verbose for reasons)\n", note)
 			}
+			printNestedRepos(repo, "      ")
 		}
 
-		if result.TotalWithChanges == 0 {
-			fmt.Println("✓ All repositories are clean")
-		}
+		printAllCleanLine(result)
 	}
 }
 
@@ -207,16 +213,14 @@ func displayDiffResultsDefault(result *repository.BulkDiffResult) {
 
 	// Show each repository's diff
 	for _, repo := range result.Repositories {
-		if repo.Status == "clean" && !verbose {
+		if repo.Status == "clean" && !verbose && len(repo.NestedRepos) == 0 {
 			continue
 		}
 
 		displayDiffRepositoryResult(repo)
 	}
 
-	if result.TotalWithChanges == 0 {
-		fmt.Println("✓ All repositories are clean")
-	}
+	printAllCleanLine(result)
 }
 
 func displayDiffResultsCompact(result *repository.BulkDiffResult) {
@@ -227,7 +231,9 @@ func displayDiffResultsCompact(result *repository.BulkDiffResult) {
 	fmt.Println()
 
 	if result.TotalWithChanges == 0 {
-		fmt.Println("✓ All repositories are clean")
+		printAllCleanLine(result)
+		printNestedReposList(result)
+
 		return
 	}
 
@@ -251,9 +257,9 @@ func displayDiffResultsCompact(result *repository.BulkDiffResult) {
 		}
 
 		icon := getDiffStatusIcon(repo.Status)
-		path := repo.RelativePath
-		if len(path) > 38 {
-			path = "..." + path[len(path)-35:]
+		repoPath := repo.RelativePath
+		if len(repoPath) > 38 {
+			repoPath = "..." + repoPath[len(repoPath)-35:]
 		}
 
 		changes := fmt.Sprintf("+%d/-%d", repo.Additions, repo.Deletions)
@@ -270,14 +276,63 @@ func displayDiffResultsCompact(result *repository.BulkDiffResult) {
 
 		if showUntracked {
 			fmt.Printf("%s %-38s %-12s %-8d %-10d %-8s %s\n",
-				icon, path, repo.Branch, repo.FilesChanged, repo.UntrackedFilesChanged, changes, summary)
+				icon, repoPath, repo.Branch, repo.FilesChanged, repo.UntrackedFilesChanged, changes, summary)
 
 			continue
 		}
 
 		fmt.Printf("%s %-38s %-12s %-8d %-8s %s\n",
-			icon, path, repo.Branch, repo.FilesChanged, changes, summary)
+			icon, repoPath, repo.Branch, repo.FilesChanged, changes, summary)
 	}
+
+	printNestedReposList(result)
+}
+
+// printAllCleanLine closes a run with no diff. It does not call the run clean
+// when a nested repository was left out: that one still has work to commit.
+func printAllCleanLine(result *repository.BulkDiffResult) {
+	if result.TotalWithChanges > 0 {
+		return
+	}
+	if n := countNestedRepos(result); n > 0 {
+		fmt.Printf("✓ Nothing to diff; %d nested %s left out (diff each on its own)\n",
+			n, pluralWord(n, "repository", "repositories"))
+
+		return
+	}
+	fmt.Println("✓ All repositories are clean")
+}
+
+// printNestedReposList lists every left-out nested repository by its path
+// from the scan directory, for the compact table that has no room per row.
+func printNestedReposList(result *repository.BulkDiffResult) {
+	if countNestedRepos(result) == 0 {
+		return
+	}
+	fmt.Println()
+	fmt.Println("Left out nested repositories:")
+	for _, repo := range result.Repositories {
+		for _, dir := range repo.NestedRepos {
+			fmt.Printf("  %s/\n", path.Join(repo.RelativePath, dir))
+		}
+	}
+}
+
+func countNestedRepos(result *repository.BulkDiffResult) int {
+	n := 0
+	for _, repo := range result.Repositories {
+		n += len(repo.NestedRepos)
+	}
+
+	return n
+}
+
+func pluralWord(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+
+	return many
 }
 
 // anyUntracked reports whether any repository in the result has untracked
@@ -327,6 +382,15 @@ func omittedNote(repo repository.RepositoryDiffResult) string {
 	return fmt.Sprintf("⚠ %d untracked %s omitted from the diff body", n, noun)
 }
 
+// printNestedRepos names the nested repositories diff left out, the same ones
+// commit leaves out, so a repository listed as clean does not hide work that
+// needs a commit of its own.
+func printNestedRepos(repo repository.RepositoryDiffResult, indent string) {
+	for _, dir := range repo.NestedRepos {
+		fmt.Printf("%sleft out nested repository: %s/ (diff it on its own)\n", indent, dir)
+	}
+}
+
 func displayDiffRepositoryResult(repo repository.RepositoryDiffResult) {
 	icon := getDiffStatusIcon(repo.Status)
 
@@ -340,6 +404,7 @@ func displayDiffRepositoryResult(repo repository.RepositoryDiffResult) {
 
 	if repo.Status == "clean" {
 		fmt.Println("  No changes")
+		printNestedRepos(repo, "  ")
 		return
 	}
 
@@ -368,6 +433,8 @@ func displayDiffRepositoryResult(repo repository.RepositoryDiffResult) {
 			fmt.Printf("    ? %s\n", file)
 		}
 	}
+
+	printNestedRepos(repo, "  ")
 
 	// Files whose content could not be included. Printed unconditionally: a
 	// diff that silently dropped files is worse than one that says so. This is
@@ -455,9 +522,12 @@ type DiffRepositoryJSONOutput struct {
 	ChangedFiles          []ChangedFileJSONOutput `json:"changed_files,omitempty"`
 	UntrackedFiles        []string                `json:"untracked_files,omitempty"`
 	OmittedFiles          []OmittedFileJSONOutput `json:"omitted_files,omitempty"`
-	Truncated             bool                    `json:"truncated,omitempty"`
-	DurationMs            int64                   `json:"duration_ms,omitempty"`
-	Error                 string                  `json:"error,omitempty"`
+	NestedRepos           []string                `json:"nested_repos,omitempty"`
+	// Truncated is always present: a consumer must be able to tell a complete
+	// diff_content from a cut one without treating an absent key as false.
+	Truncated  bool   `json:"truncated"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Error      string `json:"error,omitempty"`
 }
 
 // OmittedFileJSONOutput reports an untracked file whose content was not
@@ -499,6 +569,7 @@ func displayDiffResultsStructured(result *repository.BulkDiffResult, format stri
 			Deletions:             repo.Deletions,
 			DiffSummary:           repo.DiffSummary,
 			UntrackedFiles:        repo.UntrackedFiles,
+			NestedRepos:           repo.NestedRepos,
 			Truncated:             repo.Truncated,
 			DurationMs:            repo.Duration.Milliseconds(),
 		}

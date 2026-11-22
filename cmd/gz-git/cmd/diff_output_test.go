@@ -249,13 +249,17 @@ func TestDiffJSONFormatExposesIndividualPaths(t *testing.T) {
 }
 
 // TestDiffJSONFormatOmitsEmptyKeys pins the back-compatibility promise from
-// task 01: the new keys are omitempty, so a repository with nothing untracked
-// serializes exactly as it did before they existed.
+// task 01: the untracked keys are omitempty, so a repository with nothing
+// untracked carries none of them. truncated is the one exception: it is always
+// present, so a consumer can tell a complete diff from a cut one.
 func TestDiffJSONFormatOmitsEmptyKeys(t *testing.T) {
 	withDiffDisplay(t, "json", false, false)
 
 	out := captureStdout(t, func() { displayDiffResults(diffResultTrackedOnly()) })
 
+	if got := strings.Count(out, `"truncated": false`); got != 2 {
+		t.Errorf("truncated:false appears %d times, want once per repository (2):\n%s", got, out)
+	}
 	if strings.Contains(out, "untracked_files_changed") {
 		t.Errorf("untracked_files_changed present with a zero value:\n%s", out)
 	}
@@ -313,4 +317,71 @@ func TestDiffVerboseNoContentKeepsSummary(t *testing.T) {
 	}
 
 	assertGolden(t, "diff_verbose_no_content", out)
+}
+
+// truncated:true must survive serialization, not only be set in the package.
+func TestDiffJSONFormatSerializesTruncated(t *testing.T) {
+	withDiffDisplay(t, "json", false, true)
+
+	result := diffResultTrackedOnly()
+	result.Repositories[0].Truncated = true
+	out := captureStdout(t, func() { displayDiffResults(result) })
+
+	if got := strings.Count(out, `"truncated": true`); got != 1 {
+		t.Errorf("truncated:true appears %d times, want 1:\n%s", got, out)
+	}
+}
+
+// A nested repository diff leaves out is named in every format, whether the
+// repository holding it has other changes or not, and a run whose only finding
+// is a nested repository is never announced as all clean.
+func TestDiffShowsNestedRepos(t *testing.T) {
+	withChanges := func() *repository.BulkDiffResult {
+		result := diffResultTrackedOnly()
+		result.Repositories[0].NestedRepos = []string{"tools/gen"}
+		result.Repositories[1].NestedRepos = []string{"vendor/lib"}
+
+		return result
+	}
+	nestedOnly := func() *repository.BulkDiffResult {
+		result := diffResultTrackedOnly()
+		result.Repositories = result.Repositories[1:]
+		result.Repositories[0].NestedRepos = []string{"vendor/lib"}
+		result.TotalWithChanges, result.TotalClean = 0, 1
+
+		return result
+	}
+
+	cases := []struct {
+		name    string
+		format  string
+		verbose bool
+		result  func() *repository.BulkDiffResult
+		want    []string
+	}{
+		{"default", "default", false, withChanges, []string{"repoB", "nested repository: tools/gen/", "nested repository: vendor/lib/"}},
+		{"default nested only", "default", false, nestedOnly, []string{"repoB", "nested repository: vendor/lib/", "1 nested repository left out"}},
+		{"verbose", "default", true, withChanges, []string{"nested repository: tools/gen/", "nested repository: vendor/lib/"}},
+		{"verbose nested only", "default", true, nestedOnly, []string{"nested repository: vendor/lib/", "1 nested repository left out"}},
+		{"compact", "compact", false, withChanges, []string{"repoA/tools/gen/", "repoB/vendor/lib/"}},
+		{"compact nested only", "compact", false, nestedOnly, []string{"repoB/vendor/lib/", "1 nested repository left out"}},
+		{"json", "json", false, withChanges, []string{`"nested_repos": [`, `"tools/gen"`, `"vendor/lib"`}},
+		{"llm", "llm", false, withChanges, []string{"tools/gen", "vendor/lib"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withDiffDisplay(t, tc.format, tc.verbose, false)
+			out := captureStdout(t, func() { displayDiffResults(tc.result()) })
+
+			for _, want := range tc.want {
+				if !strings.Contains(out, want) {
+					t.Errorf("output is missing %q:\n%s", want, out)
+				}
+			}
+			if strings.Contains(out, "All repositories are clean") {
+				t.Errorf("output calls a run with a nested repository all clean:\n%s", out)
+			}
+		})
+	}
 }
