@@ -232,7 +232,38 @@ gz-git commit -m "frontend:feat: add login" -m "backend:fix: handle null" --yes 
 
 # Load per-repo messages via pipe (JSON or YAML)
 cat /tmp/messages.json | gz-git commit --yes -d 2 ~/projects
+
+# Load per-repo messages from a file ("-" reads stdin)
+gz-git commit --file messages.yaml --yes -d 2 ~/projects
+
+# Commit only what is already staged
+gz-git commit --stage staged --file messages.json --yes
 ```
+
+| Flag                           | Description                                                                                                                                                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--stage all\|tracked\|staged` | What each commit records: `all` (default) stages every change like `git add -A`, `tracked` stages tracked files only like `git add -u`, `staged` commits the index as it is. The preview counts the same scope. |
+| `--file <path\|->`             | Read the per-repo message map (JSON or YAML) from a file or stdin. An empty or null map is an error.                                                                                                            |
+| `--auto-message`               | With a message map, generate a message for each dirty repository the map leaves out instead of refusing.                                                                                                        |
+
+**Message maps.** At most one of `--file`, `--json` and `--yaml` may be given;
+piped stdin is read only when none of them is. `-m repo:message` entries are
+laid over the map. A key is the repository path relative to the scan directory
+(`group/api`), its last segment (`api`), or its absolute path; the scan
+directory itself is `.` (its directory name is still accepted). Results show
+the same relative path, so a key can be copied from a preview.
+
+A message map is a statement of what each commit records, so it must cover the
+run: a key that matches no repository with changes, or a dirty repository with
+no message, stops the run before anything is committed. Pass `--auto-message`
+to fill the gaps with generated messages. `--all` and `--edit` give every
+repository a message and are not subject to the coverage check.
+
+**Nested repositories.** An untracked directory that holds another git
+repository (and is not a submodule) is never staged: `git add -A` would record
+it as a bare gitlink that no clone can check out. The result lists it under
+`nested_repos` (JSON) or as `left out nested repository` (text); commit it as a
+repository of its own.
 
 ## Branch & Conflict
 

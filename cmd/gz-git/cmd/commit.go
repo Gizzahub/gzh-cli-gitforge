@@ -5,18 +5,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/cliutil"
 	"github.com/gizzahub/gzh-cli-gitforge/pkg/repository"
@@ -32,13 +25,18 @@ var (
 	commitYAML     string // --yaml: inline YAML messages
 
 	commitAllowConflicted bool // --allow-conflicted: commit repos with unmerged paths
+
+	commitStage       string // --stage: all|tracked|staged
+	commitFile        string // --file: JSON/YAML message map from a file or "-"
+	commitAutoMessage bool   // --auto-message: generate messages missing from the map
 )
 
 // commitCmd represents the commit command.
 var commitCmd = &cobra.Command{
 	Use:   "commit [directory]",
 	Short: "Commit changes across multiple repositories",
-	Long: cliutil.QuickStartHelp(`  # Commit with per-repository messages (most common usage)
+	Long: cliutil.QuickStartHelp(`  # Commit with per-repository messages (most common usage). Every dirty
+  # repository needs a message; add --auto-message to generate the rest.
   gz-git commit -m "repo1:feat: add feature" -m "repo2:fix: bug fix"
 
   # Commit with same message for all repositories
@@ -49,6 +47,12 @@ var commitCmd = &cobra.Command{
 
   # Commit using piped JSON or YAML (Best for workflow integration)
   cat messages.yaml | gz-git commit --yes
+
+  # Read the message map from a file ("." is the scan directory itself)
+  gz-git commit --file messages.yaml --yes
+
+  # Commit only what is already staged, in the listed repositories
+  gz-git commit --select listed --stage staged --file messages.json --yes
 
   # Interactive mode: edit messages in editor before committing
   gz-git commit -e
@@ -76,6 +80,9 @@ func init() {
 	commitCmd.Flags().StringVar(&commitJSON, "json", "", `inline JSON with per-repo messages (e.g., '{"repo":"message"}')`)
 	commitCmd.Flags().StringVar(&commitYAML, "yaml", "", `inline YAML with per-repo messages`)
 	commitCmd.Flags().BoolVar(&commitAllowConflicted, "allow-conflicted", false, "commit repositories that still have unmerged paths (writes conflict markers into history)")
+	commitCmd.Flags().StringVar(&commitStage, "stage", string(repository.StageAll), "what each commit records: all (git add -A), tracked (git add -u) or staged (the index as it is)")
+	commitCmd.Flags().StringVar(&commitFile, "file", "", `read the per-repo message map (JSON or YAML) from a file, or "-" for stdin`)
+	commitCmd.Flags().BoolVar(&commitAutoMessage, "auto-message", false, "with a message map, generate a message for repositories the map leaves out instead of refusing")
 }
 
 func runCommit(cmd *cobra.Command, args []string) error {
@@ -105,7 +112,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		if previewErr != nil {
 			return fmt.Errorf("bulk commit failed: %w", previewErr)
 		}
-		if err := validateCommitMessageKeys(config.keyRoot, config.customMessages, preview); err != nil {
+		if err := checkCommitMessages(config, preview); err != nil {
 			return err
 		}
 	}
@@ -116,7 +123,7 @@ func runCommit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("bulk commit failed: %w", err)
 	}
 	if config.customMessages != nil && config.options.DryRun {
-		if err := validateCommitMessageKeys(config.keyRoot, config.customMessages, result); err != nil {
+		if err := checkCommitMessages(config, result); err != nil {
 			return err
 		}
 	}
@@ -181,6 +188,9 @@ type commitRunConfig struct {
 	options        repository.BulkCommitOptions
 	customMessages map[string]string
 	previewOnly    bool
+	// requireCoverage refuses a message map that leaves out a repository
+	// about to be committed.
+	requireCoverage bool
 }
 
 func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error) {
@@ -199,9 +209,17 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		return commitRunConfig{}, fmt.Errorf("--edit cannot be combined with --dry-run: --edit commits the edited messages; run without --edit to preview")
 	}
 
+	stage, err := repository.ParseCommitStage(commitStage)
+	if err != nil {
+		return commitRunConfig{}, fmt.Errorf("--stage: %w", err)
+	}
+
 	customMessages, err := loadCommitMessages()
 	if err != nil {
 		return commitRunConfig{}, err
+	}
+	if commitAutoMessage && customMessages == nil {
+		return commitRunConfig{}, fmt.Errorf("--auto-message fills gaps in a message map; give one with --file, --json, --yaml, -m or stdin")
 	}
 
 	repoSelection, err := resolveBulkSelection(directory, &commitFlags)
@@ -218,6 +236,7 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		Verbose:           verbose,
 		IncludeSubmodules: commitFlags.IncludeSubmodules,
 		AllowConflicted:   commitAllowConflicted,
+		Stage:             stage,
 		IncludePattern:    commitFlags.Include,
 		ExcludePattern:    resolveScanExclude(directory, commitFlags.Exclude),
 		Selection:         repoSelection,
@@ -247,349 +266,23 @@ func prepareCommitRun(cmd *cobra.Command, args []string) (commitRunConfig, error
 		options:        opts,
 		customMessages: customMessages,
 		previewOnly:    previewOnly,
+		// --all gives every repository a message, and -e shows each generated
+		// message to the operator before committing; neither leaves a gap.
+		requireCoverage: !commitAutoMessage && commitAll == "" && !commitEdit,
 	}, nil
 }
 
-func loadCommitMessages() (map[string]string, error) {
-	var messages map[string]string
-	stat, err := os.Stdin.Stat()
-	if err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
-		pipedData, readErr := io.ReadAll(os.Stdin)
-		if readErr != nil {
-			return nil, fmt.Errorf("failed to read piped data: %w", readErr)
-		}
-		if len(pipedData) > 0 {
-			messages, err = parseJSONOrYAMLMessages(string(pipedData))
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse piped data: %w", err)
-			}
-		}
+// checkCommitMessages verifies an explicit message map against a dry-run
+// result: every key must address a repository with changes and, unless
+// coverage is waived, every repository about to be committed needs a message.
+func checkCommitMessages(config commitRunConfig, preview *repository.BulkCommitResult) error {
+	if err := validateCommitMessageKeys(config.keyRoot, config.customMessages, preview); err != nil {
+		return err
 	}
-
-	switch {
-	case messages != nil:
-	case commitJSON != "":
-		messages, err = parseJSONMessages(commitJSON)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse --json: %w", err)
-		}
-	case commitYAML != "":
-		messages, err = parseYAMLMessages(commitYAML)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse --yaml: %w", err)
-		}
-	}
-
-	if len(commitMessages) > 0 {
-		if messages == nil {
-			messages = make(map[string]string)
-		}
-		for _, raw := range commitMessages {
-			repo, message, parseErr := parseRepoMessage(raw)
-			if parseErr != nil {
-				return nil, fmt.Errorf("invalid --message format: %w", parseErr)
-			}
-			messages[repo] = message
-		}
-	}
-	return messages, nil
-}
-
-// commitMessageKeys returns the keys that address repoPath, in lookup order:
-// the path relative to directory, its basename, and the absolute path.
-func commitMessageKeys(directory, repoPath string) []string {
-	relPath, err := filepath.Rel(directory, repoPath)
-	if err != nil {
-		relPath = filepath.Base(repoPath)
-	}
-	if relPath == "." {
-		relPath = filepath.Base(directory)
-	}
-	return []string{relPath, filepath.Base(relPath), repoPath}
-}
-
-// lookupCommitMessageKey returns the first key of messages that addresses
-// repoPath.
-func lookupCommitMessageKey(directory, repoPath string, messages map[string]string) (string, bool) {
-	for _, key := range commitMessageKeys(directory, repoPath) {
-		if _, ok := messages[key]; ok {
-			return key, true
-		}
-	}
-	return "", false
-}
-
-func customCommitMessageGenerator(directory string, messages map[string]string) func(context.Context, string, []string) (string, error) {
-	return func(_ context.Context, repoPath string, _ []string) (string, error) {
-		if key, ok := lookupCommitMessageKey(directory, repoPath, messages); ok {
-			return messages[key], nil
-		}
-		return "", nil
-	}
-}
-
-// validateCommitMessageKeys rejects message keys that match none of the
-// repositories with changes in a dry-run result, naming every unmatched key and
-// the valid ones. Without it an unmatched key silently commits the auto
-// message. Keys match exactly as in lookupCommitMessageKey. A key for a
-// conflicted repository, or one whose analysis failed, counts as matched so
-// the run reports that refusal or error itself.
-func validateCommitMessageKeys(directory string, messages map[string]string, preview *repository.BulkCommitResult) error {
-	matched := make(map[string]bool, len(messages))
-	valid := make([]string, 0, len(preview.Repositories))
-	for _, repo := range preview.Repositories {
-		if repo.Status == "clean" {
-			continue
-		}
-		valid = append(valid, repo.RelativePath)
-		for _, key := range commitMessageKeys(directory, repo.Path) {
-			if _, ok := messages[key]; ok {
-				matched[key] = true
-			}
-		}
-	}
-	var unmatched []string
-	for key := range messages {
-		if !matched[key] {
-			unmatched = append(unmatched, key)
-		}
-	}
-	if len(unmatched) == 0 {
+	if !config.requireCoverage {
 		return nil
 	}
-	sort.Strings(unmatched)
-	sort.Strings(valid)
-	return fmt.Errorf("commit message key(s) match no repository with changes: %s (valid keys: %s); nothing was committed",
-		strings.Join(unmatched, ", "), strings.Join(valid, ", "))
-}
-
-func commitEditorResult(ctx context.Context, client repository.Client, result *repository.BulkCommitResult, opts repository.BulkCommitOptions) (*repository.BulkCommitResult, bool, error) {
-	if !commitEdit || result.TotalDirty == 0 {
-		return result, false, nil
-	}
-	// --all is the message BulkCommit would use for every repository, so the
-	// editor starts from it; the commit below then takes the edited messages
-	// instead of reapplying it.
-	if opts.Message != "" {
-		for i := range result.Repositories {
-			result.Repositories[i].Message = opts.Message
-		}
-		opts.Message = ""
-	}
-	editedMessages, err := editMessagesInEditor(result)
-	if err != nil {
-		return nil, false, fmt.Errorf("editor failed: %w", err)
-	}
-	if editedMessages == nil {
-		fmt.Println("Canceled (empty file).")
-		return result, true, nil
-	}
-	applyCustomMessages(result, editedMessages)
-	opts.DryRun = false
-	opts.Yes = true
-	opts.MessageGenerator = commitResultMessageGenerator(result)
-	result, err = client.BulkCommit(ctx, opts)
-	if err != nil {
-		return nil, false, fmt.Errorf("bulk commit failed: %w", err)
-	}
-	return result, false, nil
-}
-
-func commitResultMessageGenerator(result *repository.BulkCommitResult) func(context.Context, string, []string) (string, error) {
-	return func(_ context.Context, repoPath string, _ []string) (string, error) {
-		for _, repo := range result.Repositories {
-			if repo.Path == repoPath {
-				if repo.Message != "" {
-					return repo.Message, nil
-				}
-				return repo.SuggestedMessage, nil
-			}
-		}
-		return "", nil
-	}
-}
-
-// parseRepoMessage parses "repo:message" format.
-func parseRepoMessage(input string) (repo, message string, err error) {
-	before, after, ok := strings.Cut(input, ":")
-	if !ok {
-		return "", "", fmt.Errorf("expected format 'repo:message', got %q", input)
-	}
-	repo = strings.TrimSpace(before)
-	message = strings.TrimSpace(after)
-	if repo == "" || message == "" {
-		return "", "", fmt.Errorf("repo and message cannot be empty in %q", input)
-	}
-	return repo, message, nil
-}
-
-// parseJSONMessages parses inline JSON string to message map.
-func parseJSONMessages(jsonStr string) (map[string]string, error) {
-	var messages map[string]string
-	if err := json.Unmarshal([]byte(jsonStr), &messages); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-	return messages, nil
-}
-
-// parseYAMLMessages parses inline YAML string to message map.
-func parseYAMLMessages(yamlStr string) (map[string]string, error) {
-	var messages map[string]string
-	if err := yaml.Unmarshal([]byte(yamlStr), &messages); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %w", err)
-	}
-	return messages, nil
-}
-
-// parseJSONOrYAMLMessages tries parsing JSON first, then YAML.
-func parseJSONOrYAMLMessages(data string) (map[string]string, error) {
-	var messages map[string]string
-	if err := json.Unmarshal([]byte(data), &messages); err == nil {
-		return messages, nil
-	}
-	if err := yaml.Unmarshal([]byte(data), &messages); err == nil {
-		return messages, nil
-	}
-	return nil, fmt.Errorf("data is not valid payload (expected JSON or YAML)")
-}
-
-// applyCustomMessages applies custom messages to repository results.
-func applyCustomMessages(result *repository.BulkCommitResult, messages map[string]string) {
-	for i := range result.Repositories {
-		repo := &result.Repositories[i]
-		// Try to match by relative path or full path
-		if msg, ok := messages[repo.RelativePath]; ok {
-			repo.Message = msg
-		} else if msg, ok := messages[filepath.Base(repo.RelativePath)]; ok {
-			repo.Message = msg
-		} else if msg, ok := messages[repo.Path]; ok {
-			repo.Message = msg
-		}
-	}
-}
-
-// editMessagesInEditor opens an editor for bulk message editing.
-// Returns nil if the user canceled (empty file).
-func editMessagesInEditor(result *repository.BulkCommitResult) (messages map[string]string, err error) { //nolint:gocyclo // editor parsing has independent validation branches.
-	// Create temp file
-	tmpFile, err := os.CreateTemp("", "gz-git-commit-*.txt")
-	if err != nil {
-		return nil, fmt.Errorf("cannot create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() {
-		if removeErr := os.Remove(tmpPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			err = errors.Join(err, fmt.Errorf("remove temporary commit message file: %w", removeErr))
-		}
-	}()
-
-	// Write template
-	var content strings.Builder
-	content.WriteString("# Bulk Commit Messages\n")
-	content.WriteString("# Edit messages below. Lines starting with # are ignored.\n")
-	content.WriteString("# Format: repository: commit message\n")
-	content.WriteString("# Save and close to proceed. Delete all lines to cancel.\n")
-	content.WriteString("#\n")
-
-	for _, repo := range result.Repositories {
-		if repo.Status != "dirty" && repo.Status != "would-commit" {
-			continue
-		}
-		msg := repo.SuggestedMessage
-		if repo.Message != "" {
-			msg = repo.Message
-		}
-		fmt.Fprintf(&content, "%s: %s\n", repo.RelativePath, msg)
-	}
-
-	if _, err := tmpFile.WriteString(content.String()); err != nil {
-		closeErr := tmpFile.Close()
-		if closeErr != nil {
-			return nil, errors.Join(fmt.Errorf("cannot write temp file: %w", err), fmt.Errorf("close temp file: %w", closeErr))
-		}
-		return nil, fmt.Errorf("cannot write temp file: %w", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close temp file: %w", err)
-	}
-
-	// Get editor from environment
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = os.Getenv("VISUAL")
-	}
-	if editor == "" {
-		// Try common editors in order of preference
-		for _, candidate := range []string{"vim", "vi", "nano", "notepad"} {
-			if _, err := exec.LookPath(candidate); err == nil {
-				editor = candidate
-				break
-			}
-		}
-	}
-	if editor == "" {
-		return nil, fmt.Errorf("no editor found: set EDITOR or VISUAL environment variable, or install vim/nano")
-	}
-
-	// Verify editor exists (in case $EDITOR is set but invalid)
-	editorPath, err := exec.LookPath(editor)
-	if err != nil {
-		return nil, fmt.Errorf("editor '%s' not found: %w (set EDITOR or VISUAL to a valid editor)", editor, err)
-	}
-
-	// Open editor
-	cmd := exec.CommandContext(context.Background(), editorPath, tmpPath) // #nosec G204,G702 -- editorPath is resolved with LookPath and invoked as argv, never through a shell.
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		// Check for specific error types
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return nil, fmt.Errorf("editor exited with code %d: consider using --json instead", exitErr.ExitCode())
-		}
-		return nil, fmt.Errorf("failed to run editor '%s': %w", editor, err)
-	}
-
-	// Read edited content
-	editedData, err := os.ReadFile(tmpPath) // #nosec G304 -- tmpPath is created by this command for the editor.
-	if err != nil {
-		return nil, fmt.Errorf("cannot read edited file: %w", err)
-	}
-
-	// Parse edited content
-	messages = make(map[string]string)
-	lines := strings.Split(string(editedData), "\n")
-	hasContent := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		// Skip comments and empty lines
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Parse "repo: message" format
-		before, after, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-
-		repo := strings.TrimSpace(before)
-		msg := strings.TrimSpace(after)
-
-		if repo != "" && msg != "" {
-			messages[repo] = msg
-			hasContent = true
-		}
-	}
-
-	if !hasContent {
-		return nil, nil //nolint:nilnil // cancellation is represented by an empty result and no error.
-	}
-
-	return messages, nil
+	return validateCommitMessageCoverage(config.keyRoot, config.customMessages, preview)
 }
 
 func displayCommitResults(result *repository.BulkCommitResult) {
@@ -700,6 +393,10 @@ func displayCommitRepositoryResult(repo repository.RepositoryCommitResult) {
 	}
 	fmt.Println(line)
 
+	for _, dir := range repo.NestedRepos {
+		fmt.Printf("    left out nested repository: %s/ (commit it on its own)\n", dir)
+	}
+
 	// Conflicted repositories always list their unmerged paths, regardless of
 	// --verbose: this is a refusal the user has to act on, and burying it was
 	// exactly how the silent conflict-commit went unnoticed.
@@ -765,6 +462,7 @@ type CommitRepositoryJSONOutput struct {
 	Deletions             int      `json:"deletions,omitempty"`
 	ChangedFiles          []string `json:"changed_files,omitempty"`
 	ConflictedFiles       []string `json:"conflicted_files,omitempty"`
+	NestedRepos           []string `json:"nested_repos,omitempty"`
 	DurationMs            int64    `json:"duration_ms,omitempty"`
 	Error                 string   `json:"error,omitempty"`
 }
@@ -798,6 +496,7 @@ func displayCommitResultsStructured(result *repository.BulkCommitResult, format 
 			Deletions:             repo.Deletions,
 			ChangedFiles:          repo.ChangedFiles,
 			ConflictedFiles:       repo.ConflictedFiles,
+			NestedRepos:           repo.NestedRepos,
 			DurationMs:            repo.Duration.Milliseconds(),
 		}
 		if repo.Error != nil {

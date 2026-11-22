@@ -39,6 +39,11 @@ const (
 	// (`git diff`). This was diff's previous, undeclared behavior, which is why
 	// a fully staged repository reported files but an empty diff body.
 	ScopeWorktreeOnly ChangeScope = "worktree"
+
+	// ScopeTracked compares HEAD against the working tree for paths git
+	// already tracks, leaving untracked files out. It is the scope
+	// `git add -u && git commit` records.
+	ScopeTracked ChangeScope = "tracked"
 )
 
 // ChangeEntry is one path in a change set.
@@ -89,6 +94,13 @@ type ChangeSet struct {
 	// is nothing to commit even though the repository looks dirty.
 	DiffFileCount int
 
+	// NestedRepos are untracked directories holding another git repository
+	// that is not a submodule, relative to the repository root and without a
+	// trailing slash. They are never part of Entries: `git add -A` would
+	// record each as a bare gitlink with no .gitmodules entry, which no clone
+	// can check out. Each one is a repository of its own to commit.
+	NestedRepos []string
+
 	Scope ChangeScope
 }
 
@@ -137,6 +149,14 @@ func (c *client) collectChangeSet(ctx context.Context, repoPath string, scope Ch
 		// counting it as staged would let it slip past a staged-only filter.
 		entry.Staged = !entry.Untracked && !entry.Conflicted && code[0] != ' '
 
+		// Under -uall git still collapses an embedded repository to `dir/`,
+		// and since it never reports empty directories, a trailing slash on an
+		// untracked record means exactly that.
+		if entry.Untracked && strings.HasSuffix(entry.Path, "/") {
+			cs.NestedRepos = append(cs.NestedRepos, strings.TrimSuffix(entry.Path, "/"))
+			continue
+		}
+
 		if !entry.matchesScope(scope, code) {
 			continue
 		}
@@ -171,6 +191,8 @@ func (e ChangeEntry) matchesScope(scope ChangeScope, code string) bool {
 		// Y == ' ' means the worktree agrees with the index. Untracked entries
 		// carry "??", so they are included here by construction.
 		return code[1] != ' '
+	case ScopeTracked:
+		return !e.Untracked
 	case ScopeHead:
 		return true
 	default:
@@ -185,7 +207,7 @@ func scopeDiffArgs(scope ChangeScope) []string {
 		return []string{"--cached"}
 	case ScopeWorktreeOnly:
 		return nil
-	case ScopeHead:
+	case ScopeHead, ScopeTracked:
 		return []string{"HEAD"}
 	default:
 		return []string{"HEAD"}
@@ -204,7 +226,7 @@ func (c *client) runScopedDiff(ctx context.Context, repoPath string, scope Chang
 	if err == nil {
 		return stdout, nil
 	}
-	if scope != ScopeHead {
+	if scope != ScopeHead && scope != ScopeTracked {
 		return "", err
 	}
 

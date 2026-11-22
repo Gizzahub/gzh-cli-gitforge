@@ -182,3 +182,31 @@ func TestBulkCommitDryRunReportsConflict(t *testing.T) {
 		t.Errorf("summary reports %d would-commit, want 0", result.Summary["would-commit"])
 	}
 }
+
+// Under --stage staged an unmerged path is not a staged change, so the change
+// set leaves it out. The conflict must still be reported, both when it is the
+// only thing in the index and when other staged changes sit beside it.
+func TestBulkCommitStagedReportsConflict(t *testing.T) {
+	for _, withStaged := range []bool{false, true} {
+		tmpDir := t.TempDir()
+		repo := filepath.Join(tmpDir, "conflicted")
+		createConflictedRepo(t, repo)
+		if withStaged {
+			writeIn(t, repo, "extra.txt", "e\n")
+			gitIn(t, repo, "add", "extra.txt")
+		}
+
+		result := bulkCommitAll(t, BulkCommitOptions{Directory: tmpDir, Stage: StageStaged, Message: "x"})
+		if len(result.Repositories) != 1 {
+			t.Fatalf("withStaged=%v: got %d repositories, want 1", withStaged, len(result.Repositories))
+		}
+		got := result.Repositories[0]
+		if got.Status != "conflicted" || len(got.ConflictedFiles) != 1 || got.ConflictedFiles[0] != "conflict.txt" {
+			t.Errorf("withStaged=%v: Status=%q ConflictedFiles=%q, want conflicted [conflict.txt]",
+				withStaged, got.Status, got.ConflictedFiles)
+		}
+		if result.TotalCommitted != 0 {
+			t.Errorf("withStaged=%v: committed %d, want 0", withStaged, result.TotalCommitted)
+		}
+	}
+}

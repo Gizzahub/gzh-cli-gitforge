@@ -51,6 +51,9 @@ type BulkCommitOptions struct {
 	// them writes conflict markers into history irreversibly.
 	AllowConflicted bool
 
+	// Stage selects what each commit records. The zero value is StageAll.
+	Stage CommitStage
+
 	// Verbose enables detailed logging
 	Verbose bool
 
@@ -63,6 +66,46 @@ type BulkCommitOptions struct {
 	// MessageGenerator generates commit messages for repositories
 	// If nil, a simple default message is generated
 	MessageGenerator func(ctx context.Context, repoPath string, files []string) (string, error)
+}
+
+// CommitStage selects which changes a bulk commit stages before committing.
+type CommitStage string
+
+const (
+	// StageAll stages every change, untracked files included (`git add -A`).
+	StageAll CommitStage = "all"
+
+	// StageTracked stages changes to tracked files only (`git add -u`).
+	StageTracked CommitStage = "tracked"
+
+	// StageStaged stages nothing and commits the index as it is.
+	StageStaged CommitStage = "staged"
+)
+
+// ParseCommitStage validates a --stage value. The empty string is StageAll.
+func ParseCommitStage(value string) (CommitStage, error) {
+	switch CommitStage(value) {
+	case "", StageAll:
+		return StageAll, nil
+	case StageTracked, StageStaged:
+		return CommitStage(value), nil
+	default:
+		return "", fmt.Errorf("invalid stage %q: must be one of all, tracked, staged", value)
+	}
+}
+
+// scope is the change-set scope a commit with this stage records.
+func (s CommitStage) scope() ChangeScope {
+	switch s {
+	case StageTracked:
+		return ScopeTracked
+	case StageStaged:
+		return ScopeStagedOnly
+	case StageAll:
+		return ScopeHead
+	default:
+		return ScopeHead
+	}
 }
 
 // BulkCommitResult contains the results of a bulk commit operation.
@@ -142,6 +185,10 @@ type RepositoryCommitResult struct {
 	// ConflictedFiles is the list of unmerged files. Non-empty means the
 	// repository was not committed (unless AllowConflicted was set).
 	ConflictedFiles []string
+
+	// NestedRepos are embedded repositories (not submodules) inside this one
+	// that the commit leaves out; see ChangeSet.NestedRepos.
+	NestedRepos []string
 
 	// Error if the operation failed
 	Error error
@@ -289,7 +336,7 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 			}
 
 			// Execute commit
-			hash, err := c.executeCommit(ctx, path, message)
+			hash, err := c.executeCommit(ctx, path, message, opts.Stage, res.NestedRepos)
 			if err != nil {
 				mu.Lock()
 				res.Status = "error"
@@ -320,13 +367,9 @@ func (c *client) BulkCommit(ctx context.Context, opts BulkCommitOptions) (*BulkC
 func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPath string, opts BulkCommitOptions) RepositoryCommitResult {
 	startTime := time.Now()
 
-	relPath, err := filepath.Rel(rootDir, repoPath)
-	if err != nil {
-		relPath = repoPath
-	}
-	if relPath == "." {
-		relPath = filepath.Base(rootDir)
-	}
+	// The scan directory itself is ".", the same form --repo and the message
+	// map use, so the path a result shows is a key that addresses it.
+	relPath := relativeRepoPath(rootDir, repoPath)
 
 	result := RepositoryCommitResult{
 		Path:         repoPath,
@@ -341,18 +384,23 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 		result.Branch = strings.TrimSpace(branchResult.Stdout)
 	}
 
-	// Collect the change set at HEAD scope — the exact set `git add -A` stages
-	// and the following commit records. Sharing collectChangeSet with BulkDiff is
-	// what makes `diff` and `commit --dry-run` agree; previously each parsed
-	// porcelain independently and reported different file counts for the same
-	// repository.
-	changes, err := c.collectChangeSet(ctx, repoPath, ScopeHead)
+	// Collect the change set at the scope the stage mode records: HEAD scope
+	// for `git add -A`, tracked files for `git add -u`, the index for staged.
+	// Sharing collectChangeSet with BulkDiff is what makes `diff` and
+	// `commit --dry-run` agree; previously each parsed porcelain independently
+	// and reported different file counts for the same repository.
+	stage := opts.Stage
+	if stage == "" {
+		stage = StageAll
+	}
+	changes, err := c.collectChangeSet(ctx, repoPath, stage.scope())
 	if err != nil {
 		result.Status = "error"
 		result.Error = err
 		result.Duration = time.Since(startTime)
 		return result
 	}
+	result.NestedRepos = changes.NestedRepos
 
 	var porcelainConflicts []string
 	for _, entry := range changes.Entries {
@@ -360,6 +408,17 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 		if entry.Conflicted {
 			porcelainConflicts = append(porcelainConflicts, entry.Path)
 		}
+	}
+	// The staged scope leaves unmerged paths out (they have index stages, not
+	// a staged change), yet `git commit` refuses while any exist. Ask the
+	// index directly so the run reports the refusal instead of predicting a
+	// commit that will fail, or calling a repository clean when the conflict
+	// is all its index holds.
+	if stage == StageStaged {
+		conflicts := c.collectConflictedPaths(ctx, repoPath)
+		result.ChangedFiles = append(result.ChangedFiles, conflicts...)
+		porcelainConflicts = append(porcelainConflicts, conflicts...)
+		changes.ConflictCount += len(conflicts)
 	}
 
 	result.FilesChanged = len(result.ChangedFiles)
@@ -442,12 +501,41 @@ func (c *client) analyzeRepositoryForCommit(ctx context.Context, rootDir, repoPa
 	return result
 }
 
-// executeCommit executes git add and commit.
-func (c *client) executeCommit(ctx context.Context, repoPath, message string) (string, error) {
-	// Stage all changes
-	_, err := c.executor.Run(ctx, repoPath, "add", "-A")
-	if err != nil {
-		return "", fmt.Errorf("failed to stage changes: %w", err)
+// commitStageArgs returns the `git add` arguments for a stage mode, or nil
+// when nothing is staged. Embedded repositories are excluded by literal
+// pathspec so `git add -A` cannot record them as gitlinks.
+func commitStageArgs(stage CommitStage, nested []string) []string {
+	switch stage {
+	case StageStaged:
+		return nil
+	case StageTracked:
+		// -u never adds an untracked path, embedded repositories included.
+		return []string{"add", "-u"}
+	case StageAll:
+		return addAllArgs(nested)
+	default:
+		return addAllArgs(nested)
+	}
+}
+
+func addAllArgs(nested []string) []string {
+	if len(nested) == 0 {
+		return []string{"add", "-A"}
+	}
+	args := make([]string, 0, len(nested)+4)
+	args = append(args, "add", "-A", "--", ".")
+	for _, dir := range nested {
+		args = append(args, ":(exclude,literal)"+dir+"/")
+	}
+	return args
+}
+
+// executeCommit stages the changes the stage mode selects and commits them.
+func (c *client) executeCommit(ctx context.Context, repoPath, message string, stage CommitStage, nested []string) (string, error) {
+	if args := commitStageArgs(stage, nested); args != nil {
+		if _, err := c.runGit(ctx, repoPath, args...); err != nil {
+			return "", fmt.Errorf("failed to stage changes: %w", err)
+		}
 	}
 
 	// Create commit

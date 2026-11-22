@@ -20,9 +20,9 @@ var configDecodeMarker = regexp.MustCompile(`yaml\.(Unmarshal|NewDecoder)\(|Pars
 // unguardedConfigReaders lists the files that read a file and decode YAML but
 // do not load a gz-git configuration, with the reason each is exempt.
 var unguardedConfigReaders = map[string]string{
-	"cmd/gz-git/cmd/commit.go":    "decodes per-repository commit messages, not a configuration",
-	"internal/config/config.go":   "loads the forge.yaml client configuration, which has no branch or integration section",
-	"internal/runtask/service.go": "also reads .gz-git-task.yaml, whose own schema has no branch or integration section; its .gz-git.yaml read is guarded",
+	"cmd/gz-git/cmd/commit_messages.go": "decodes per-repository commit messages, not a configuration",
+	"internal/config/config.go":         "loads the forge.yaml client configuration, which has no branch or integration section",
+	"internal/runtask/service.go":       "also reads .gz-git-task.yaml, whose own schema has no branch or integration section; its .gz-git.yaml read is guarded",
 }
 
 // TestEveryConfigLoaderUsesTheRemovedKeyGuard enumerates the module's

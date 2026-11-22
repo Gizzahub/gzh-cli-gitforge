@@ -19,12 +19,18 @@ func setCommitTestGlobals(t *testing.T) {
 	t.Helper()
 	origFlags, origQuiet, origVerbose := commitFlags, quiet, verbose
 	origJSON, origYes, origEdit := commitJSON, commitYes, commitEdit
+	origYAML, origAll, origMessages := commitYAML, commitAll, commitMessages
+	origStage, origFile, origAuto := commitStage, commitFile, commitAutoMessage
 	commitFlags = BulkCommandFlags{Depth: 1, Parallel: 2, Format: "default"}
 	quiet, verbose = true, false
 	commitJSON, commitYes, commitEdit = "", true, false
+	commitYAML, commitAll, commitMessages = "", "", nil
+	commitStage, commitFile, commitAutoMessage = "all", "", false
 	t.Cleanup(func() {
 		commitFlags, quiet, verbose = origFlags, origQuiet, origVerbose
 		commitJSON, commitYes, commitEdit = origJSON, origYes, origEdit
+		commitYAML, commitAll, commitMessages = origYAML, origAll, origMessages
+		commitStage, commitFile, commitAutoMessage = origStage, origFile, origAuto
 	})
 }
 
