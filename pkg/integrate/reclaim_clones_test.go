@@ -54,17 +54,23 @@ func runCloneReclaim(t *testing.T, fx *testutil.WorktreeOrigin) *RunReport {
 	return report
 }
 
-func TestRun_ReclaimRemovesDeclaredCleanRepositoryClone(t *testing.T) {
-	t.Parallel()
+// repositoryCloneFixture is a task worktree whose ignored codes/ checkout
+// matches a flat repositories declaration. A tracked codes/.envrc keeps Git
+// from collapsing the ignored directory, so status lists codes/sbkube/ itself.
+// That is the entry reclaim decides to remove.
+func repositoryCloneFixture(t *testing.T) (fx *testutil.WorktreeOrigin, clone string) {
+	t.Helper()
 	upstream := testutil.TempGitRepoWithCommit(t)
-	fx := testutil.TempWorktreeWithBareOrigin(t)
+	fx = testutil.TempWorktreeWithBareOrigin(t)
 	runGit(t, fx.Clone, "branch", "develop")
 	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
 	runGit(t, fx.Worktree, "checkout", "-B", cloneTaskBranch, "develop")
 	writeFile(t, fx.Worktree, "task.txt", "task\n")
-	// codes/* (not codes/) is how a flat repositories checkout is ignored
-	// while each clone stays visible to `git status --ignored`.
-	writeFile(t, fx.Worktree, ".gitignore", "codes/*\n")
+	writeFile(t, fx.Worktree, ".gitignore", "codes/*\n!codes/.envrc\n")
+	if err := os.MkdirAll(filepath.Join(fx.Worktree, "codes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, fx.Worktree, "codes/.envrc", "export CODES_BOUNDARY=1\n")
 	body := strings.ReplaceAll(`version: 1
 kind: repositories
 branch:
@@ -80,20 +86,50 @@ repositories:
 	runGit(t, fx.Worktree, "add", ".")
 	runGit(t, fx.Worktree, "commit", "-m", "task work")
 	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
-	clone := filepath.Join(fx.Worktree, "codes", "sbkube")
-	if err := os.MkdirAll(filepath.Dir(clone), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	clone = filepath.Join(fx.Worktree, "codes", "sbkube")
 	runGit(t, fx.Worktree, "clone", upstream, clone)
+	status := runGitInTest(t, fx.Worktree, "status", "--porcelain", "--ignored", "-z")
+	if !strings.Contains(status, "!! codes/sbkube/") {
+		t.Fatalf("status must list the clone itself, got %q", status)
+	}
+	return fx, clone
+}
+
+func TestRun_ReclaimRemovesDeclaredCleanRepositoryClone(t *testing.T) {
+	t.Parallel()
+	fx, clone := repositoryCloneFixture(t)
 	report := runCloneReclaim(t, fx)
 	if report.Reclaim.Incomplete() {
 		t.Fatalf("reclaim incomplete: %+v", report.Reclaim)
+	}
+	if !strings.Contains(strings.Join(report.Reclaim.Done, "\n"), "workspace-clone(codes/sbkube)") {
+		t.Fatalf("reclaim must remove the declared clone before the worktree: %+v", report.Reclaim)
 	}
 	if _, err := os.Stat(fx.Worktree); err == nil {
 		t.Fatal("worktree should be removed")
 	}
 	if _, err := os.Stat(clone); err == nil {
 		t.Fatal("declared repository clone should be removed with the worktree")
+	}
+}
+
+func TestRun_ReclaimKeepsDirtyRepositoryClone(t *testing.T) {
+	t.Parallel()
+	fx, clone := repositoryCloneFixture(t)
+	writeFile(t, clone, "scratch.txt", "x\n")
+	report := runCloneReclaim(t, fx)
+	if !report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim must be incomplete: %+v", report.Reclaim)
+	}
+	failed := strings.Join(report.Reclaim.Failed, "\n")
+	if !strings.Contains(failed, "codes/sbkube/") || !strings.Contains(failed, "uncommitted or untracked changes") {
+		t.Fatalf("failure must name the dirty clone, got %q", failed)
+	}
+	if _, err := os.Stat(clone); err != nil {
+		t.Fatalf("refused clone must be left untouched: %v", err)
+	}
+	if _, err := os.Stat(fx.Worktree); err != nil {
+		t.Fatalf("worktree must remain: %v", err)
 	}
 }
 
