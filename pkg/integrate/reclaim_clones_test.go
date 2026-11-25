@@ -54,6 +54,49 @@ func runCloneReclaim(t *testing.T, fx *testutil.WorktreeOrigin) *RunReport {
 	return report
 }
 
+func TestRun_ReclaimRemovesDeclaredCleanRepositoryClone(t *testing.T) {
+	t.Parallel()
+	upstream := testutil.TempGitRepoWithCommit(t)
+	fx := testutil.TempWorktreeWithBareOrigin(t)
+	runGit(t, fx.Clone, "branch", "develop")
+	runGit(t, fx.Clone, "push", "-u", fx.Remote, "develop")
+	runGit(t, fx.Worktree, "checkout", "-B", cloneTaskBranch, "develop")
+	writeFile(t, fx.Worktree, "task.txt", "task\n")
+	// codes/* (not codes/) is how a flat repositories checkout is ignored
+	// while each clone stays visible to `git status --ignored`.
+	writeFile(t, fx.Worktree, ".gitignore", "codes/*\n")
+	body := strings.ReplaceAll(`version: 1
+kind: repositories
+branch:
+  integrationBranch: develop
+  taskPattern:
+    - dev/*
+repositories:
+  - name: sbkube
+    url: %URL%
+    path: ./codes/sbkube
+`, "%URL%", upstream)
+	writeRepoFile(t, fx.Worktree, ".gz-git.yaml", body)
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "task work")
+	runGit(t, fx.Worktree, "push", "-u", fx.Remote, "HEAD")
+	clone := filepath.Join(fx.Worktree, "codes", "sbkube")
+	if err := os.MkdirAll(filepath.Dir(clone), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, fx.Worktree, "clone", upstream, clone)
+	report := runCloneReclaim(t, fx)
+	if report.Reclaim.Incomplete() {
+		t.Fatalf("reclaim incomplete: %+v", report.Reclaim)
+	}
+	if _, err := os.Stat(fx.Worktree); err == nil {
+		t.Fatal("worktree should be removed")
+	}
+	if _, err := os.Stat(clone); err == nil {
+		t.Fatal("declared repository clone should be removed with the worktree")
+	}
+}
+
 func TestRun_ReclaimRemovesDeclaredCleanWorkspaceClone(t *testing.T) {
 	t.Parallel()
 	fx, clone := cloneReclaimFixture(t, declaredWsA)

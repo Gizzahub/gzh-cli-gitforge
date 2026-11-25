@@ -6,6 +6,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -56,5 +57,81 @@ func TestDeclaredWorkspaceClonesMissingConfig(t *testing.T) {
 	got, err := DeclaredWorkspaceClones(t.TempDir())
 	if err != nil || len(got) != 0 {
 		t.Fatalf("got %v, %v", got, err)
+	}
+}
+
+func TestDeclaredWorkspaceClonesFlatRepositories(t *testing.T) {
+	dir := t.TempDir()
+	body := `version: 1
+kind: repositories
+strategy: pull
+branch:
+  taskPattern:
+    - dev/*/*/*
+  integrationBranch: master
+  defaultBranch: master
+repositories:
+  - name: sbkube
+    url: git@github.com:org/sbkube.git
+    path: ./codes/sbkube
+    branch: master
+  - name: by-name
+    url: ssh://host/by-name.git
+  - name: paused
+    url: ssh://host/paused.git
+    path: paused
+    enabled: false
+  - name: outside
+    url: ssh://host/outside.git
+    path: ../outside
+  - url: ssh://host/nameless.git
+`
+	if err := os.WriteFile(filepath.Join(dir, ".gz-git.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := DeclaredWorkspaceClones(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"codes/sbkube": "git@github.com:org/sbkube.git",
+		"by-name":      "ssh://host/by-name.git",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestDeclaredWorkspaceClonesRejectsSharedPath(t *testing.T) {
+	dir := t.TempDir()
+	body := `repositories:
+  - name: a
+    url: ssh://host/a.git
+    path: deps/a
+  - name: b
+    url: ssh://host/b.git
+    path: ./deps/a
+`
+	if err := os.WriteFile(filepath.Join(dir, ".gz-git.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DeclaredWorkspaceClones(dir); err == nil || !strings.Contains(err.Error(), "share path deps/a") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestDeclaredWorkspaceClonesRejectsRepositoryWithoutURL(t *testing.T) {
+	dir := t.TempDir()
+	body := "repositories:\n  - name: a\n    path: a\n"
+	if err := os.WriteFile(filepath.Join(dir, ".gz-git.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DeclaredWorkspaceClones(dir); err == nil || !strings.Contains(err.Error(), "missing URL") {
+		t.Fatalf("got %v", err)
 	}
 }
