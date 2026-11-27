@@ -76,7 +76,52 @@ needs an explicit `--target <default branch>`. Without one, `check` and
 --release requires an explicit --target <default branch>
 ```
 
-Integration into the integration branch keeps reading the working tree.
+## Integration that is not a release
+
+An integration without `--release` reads its declaration from the working
+tree it runs in, with one exception: `branch.integrationBranch`. The value
+committed on the default branch (the remote `HEAD` branch after the fetch)
+decides where a task branch may land. This is the commit a release reads too,
+since a release target is the default branch.
+
+The task branch's own value never gates (ISSUE-409). A task branch is the
+change being judged and may itself edit `integrationBranch`:
+
+- A branch that declares the default branch would otherwise land there
+  without a release.
+- A branch that first names a separate integration branch would otherwise
+  have no route. Its own value makes the default branch a release target,
+  and the release refuses because the default branch does not name that
+  branch yet.
+
+So the change that names a new integration branch lands on the default branch
+as an ordinary integration, while the default branch still declares itself.
+From then on only a release changes the default branch.
+
+The authority is the default branch, not the target. An integration branch
+whose commit still carries an older value takes the merge that updates it.
+
+The working tree's `integrationBranch` still picks the target when `--target`
+is omitted, and it gates when the default branch offers nothing to gate on:
+
+- The default branch has no root declaration, or declares no integration
+  branch. This is a repository adopting the declaration.
+- The default branch's root declaration is a symbolic link or does not
+  parse. A release refuses that state, so an ordinary integration is the only
+  repair; the check passes with a warning that names the problem.
+
+`--controller-config` and a caller-supplied integration branch are not
+repository declarations, and the default branch's value does not replace
+them. When the default branch's value gates, the check output and any target
+refusal name it:
+
+```text
+  INFO  declaration — working tree declares integrationBranch develop; integrationBranch main from .gz-git.yaml at origin/main commit 9aab0def1234 gates the integration
+```
+
+```text
+promoting onto the default branch requires --release (integrationBranch develop from .gz-git.yaml at origin/main commit 9aab0def1234 gates this integration)
+```
 
 Release never reclaims: the integration ref matches neither the reclaim
 guard's task patterns nor the integration/default names it protects.

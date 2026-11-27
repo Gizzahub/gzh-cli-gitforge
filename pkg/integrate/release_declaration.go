@@ -35,8 +35,12 @@ import (
 // approved. A release therefore needs an explicit --target, since deriving
 // the default target would need the declaration first. Run's reclaim and
 // evidence provenance reuse the source declaration Check read when they ask
-// for the same commit. Integration into the integration branch keeps reading
-// the working tree.
+// for the same commit.
+//
+// An integration that is not a release splits the same way, with the working
+// tree in the source role: the default branch's committed integrationBranch
+// decides where a task branch may land, and the working tree supplies
+// everything else (gate_declaration.go).
 
 // ErrReleaseNeedsTarget reports a release without an explicit target. The
 // release declarations are read at the fetched commits, so there is no
@@ -64,13 +68,31 @@ func loadPlanDeclaration(ctx context.Context, g gitRepo, root string, release bo
 // release target commit, leniently (config.CommittedIntegrationBranch). It
 // returns the declaring root file, or "" when the commit has none.
 func loadTargetIntegrationBranch(ctx context.Context, g gitRepo, targetSHA string) (config.BranchList, string, error) {
-	files, err := committedDeclarationFiles(ctx, g, targetSHA)
-	if err != nil {
-		return nil, "", fmt.Errorf("release target declaration: %w", err)
-	}
-	integration, source, err := config.CommittedIntegrationBranch(targetSHA, files)
+	integration, source, err := committedIntegrationBranch(ctx, g, targetSHA)
 	if err != nil {
 		return nil, source, fmt.Errorf("release target declaration: %w", err)
+	}
+	return integration, source, nil
+}
+
+// declarationContentError marks a committed declaration that was read but
+// cannot be used: a root symbolic link or a file that does not decode. A git
+// failure while reading is not one.
+type declarationContentError struct{ err error }
+
+func (e declarationContentError) Error() string { return e.err.Error() }
+func (e declarationContentError) Unwrap() error { return e.err }
+
+// committedIntegrationBranch reads the integration branch declared at commit
+// and the root file declaring it.
+func committedIntegrationBranch(ctx context.Context, g gitRepo, commit string) (config.BranchList, string, error) {
+	files, err := committedDeclarationFiles(ctx, g, commit)
+	if err != nil {
+		return nil, "", err
+	}
+	integration, source, err := config.CommittedIntegrationBranch(commit, files)
+	if err != nil {
+		return nil, source, declarationContentError{err}
 	}
 	return integration, source, nil
 }
@@ -134,7 +156,7 @@ func committedDeclarationFiles(ctx context.Context, g gitRepo, commit string) ([
 		case "100644", "100755":
 		case "120000":
 			if !strings.Contains(rel, "/") {
-				return nil, fmt.Errorf("%s at commit %s is a symbolic link; commit the declaration as a regular file", rel, config.ShortCommit(commit))
+				return nil, declarationContentError{fmt.Errorf("%s at commit %s is a symbolic link; commit the declaration as a regular file", rel, config.ShortCommit(commit))}
 			}
 			continue
 		default:

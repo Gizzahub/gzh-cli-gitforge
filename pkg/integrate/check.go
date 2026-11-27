@@ -53,6 +53,10 @@ type CheckOptions struct {
 	ExpectTarget string
 	// requireConfirmedTarget is Run-only; standalone Check keeps heuristic WARNs.
 	requireConfirmedTarget bool
+	// gateOnDefaultBranchDeclaration is set by Check for an integration that
+	// takes its integration branch from the repository declaration: the value
+	// committed on the default branch then gates it (gate_declaration.go).
+	gateOnDefaultBranchDeclaration bool
 }
 
 // CheckItem is one readiness row.
@@ -76,7 +80,9 @@ type CheckReport struct {
 	// Declaration is the repository-root declaration the check applied. A
 	// release reads it from the release source commit (Declaration.Commit),
 	// though its integrationBranch does not gate the release (see
-	// release_declaration.go); any other check reads the working tree.
+	// release_declaration.go); any other check reads the working tree, and
+	// its integrationBranch does not gate either when the default branch
+	// commits one (gate_declaration.go).
 	Declaration config.TaskPatternDecl
 }
 
@@ -100,6 +106,8 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 	}
 	// A release reads its declaration after the fetch, at the source commit
 	// (resolveTarget); only an integration reads the working tree up front.
+	// Its integrationBranch picks the default target; the value committed on
+	// the default branch then gates the integration.
 	var decl config.TaskPatternDecl
 	if opts.Release {
 		if strings.TrimSpace(opts.Target) == "" {
@@ -112,6 +120,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 		if len(opts.IntegrationConfig) == 0 {
 			opts.IntegrationConfig = decl.IntegrationBranch
 		}
+		opts.gateOnDefaultBranchDeclaration = repositoryTarget
 	}
 
 	preflight, err := preflightTargetRef(ctx, g, exec, opts, controller)
@@ -138,6 +147,7 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 		}
 	}
 	addIntegrationTargetWarning(plan, add)
+	addGateDeclarationWarning(plan, add)
 
 	freshness := checkFreshness(ctx, g, plan)
 	add(freshness)
@@ -385,6 +395,9 @@ func FormatCheck(r *CheckReport) string {
 			declarationSourceLabel(r.Declaration), config.ShortCommit(r.Declaration.Commit),
 			formatDeclaredBranches(r.Declaration.IntegrationBranch), formatDeclaredBranches(r.Plan.targetIntegration),
 			targetDeclarationLabel(r.Plan.targetDeclarationSource), config.ShortCommit(r.Plan.TargetSHA))
+	} else if gate := gateDeclarationLabel(r.Plan); gate != "" {
+		fmt.Fprintf(&b, "  INFO  declaration — working tree declares integrationBranch %s; %s gates the integration\n",
+			formatDeclaredBranches(r.Declaration.IntegrationBranch), gate)
 	}
 	if r.GateMode != "" {
 		fmt.Fprintf(&b, "  INFO  readiness provenance — mode=%s source=%s target=%s\n", r.GateMode, r.Plan.BranchSHA, r.Plan.TargetSHA)

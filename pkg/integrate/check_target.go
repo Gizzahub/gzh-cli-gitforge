@@ -101,6 +101,16 @@ type TargetPlan struct {
 	// them once after the fetch and gates on them. Empty for any other plan.
 	targetIntegration       config.BranchList
 	targetDeclarationSource string
+	// gateIntegration is the integrationBranch committed on the default
+	// branch at gateCommit, and gateDeclarationSource the root file declaring
+	// it. They gate an integration that follows the repository declaration
+	// (gate_declaration.go) and are empty when the working tree's value
+	// gates. gateDeclarationProblem says why a declaration found there could
+	// not be used.
+	gateIntegration        config.BranchList
+	gateDeclarationSource  string
+	gateCommit             string
+	gateDeclarationProblem string
 }
 
 // releasesRemoteRef reports a release whose source is the remote-tracking
@@ -180,8 +190,16 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	if err := gitcmd.SanitizeBranchName(target); err != nil {
 		return plan, fmt.Errorf("invalid --target: %w", err)
 	}
+	// The default branch's committed integrationBranch gates the integration,
+	// not the branch being judged (gate_declaration.go). The working tree's
+	// value above only picked the default target.
+	if opts.gateOnDefaultBranchDeclaration {
+		if err := applyDefaultBranchDeclaration(ctx, g, exec, &plan); err != nil {
+			return plan, err
+		}
+	}
 	if err := validateTarget(plan, target, opts); err != nil {
-		return plan, err
+		return plan, gateError(plan, err)
 	}
 	if implicitSource && plan.Branch == targetBranchName(target, plan.Remote) {
 		return plan, fmt.Errorf("%w: %s; run branch-integrate from a task-branch worktree", ErrImplicitSourceIsTarget, plan.Branch)

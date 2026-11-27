@@ -23,7 +23,8 @@ controller file.
 `--no-fetch` finish step on `integrate run`.
 
 [Release promotion](integrate-release.md) explains how `--release` judges a
-remote-tracking integration ref as the source.
+remote-tracking integration ref as the source, and which committed
+`branch.integrationBranch` gates a release and an ordinary integration.
 
 [Pinning the approved source and target](integrate-expect-source.md) documents
 `--source` and the pinned `--target <ref>@<sha>` form with their dedicated
