@@ -31,7 +31,7 @@ func TestLoadRepoRootTaskPattern_ThisRepoDeclaration(t *testing.T) {
 		t.Fatalf("no taskPattern declaration: facts %v", decl.Facts)
 	}
 
-	wantIntegration := []string{"master"}
+	wantIntegration := []string{"develop"}
 	if got := []string(decl.IntegrationBranch); !reflect.DeepEqual(got, wantIntegration) {
 		t.Fatalf("integrationBranch = %v, want %v", got, wantIntegration)
 	}
