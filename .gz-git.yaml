@@ -8,7 +8,7 @@
 # readiness: run `make check` yourself before integrating.
 branch:
   integrationBranch:
-    - master
+    - develop
   taskPattern:
     - dev/*/*/*/*
     - feat/*
