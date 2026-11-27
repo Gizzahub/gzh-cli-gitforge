@@ -25,6 +25,13 @@ const declHotfix = "branch:\n  integrationBranch: develop\n  taskPattern: dev/*\
 func hotfixFixture(t *testing.T) *testutil.WorktreeOrigin {
 	t.Helper()
 	fx := gateFixture(t, declareOnMain(t, declHotfix), declHotfix)
+	advanceDevelop(t, fx)
+	return fx
+}
+
+// advanceDevelop pushes one unreleased commit to the remote develop.
+func advanceDevelop(t *testing.T, fx *testutil.WorktreeOrigin) {
+	t.Helper()
 	runGit(t, fx.Clone, "checkout", "-q", "-b", "advance-develop")
 	writeRepoFile(t, fx.Clone, "unreleased.txt", "next release\n")
 	runGit(t, fx.Clone, "add", ".")
@@ -32,7 +39,6 @@ func hotfixFixture(t *testing.T) *testutil.WorktreeOrigin {
 	runGit(t, fx.Clone, "push", fx.Remote, "HEAD:refs/heads/develop")
 	runGit(t, fx.Clone, "checkout", "-q", "main")
 	runGit(t, fx.Clone, "branch", "-q", "-D", "advance-develop")
-	return fx
 }
 
 func originHead(t *testing.T, fx *testutil.WorktreeOrigin, branch string) string {
@@ -256,11 +262,53 @@ func TestCheck_HotfixRefusesUnresolvedIntegrationCandidate(t *testing.T) {
 	t.Parallel()
 	const declList = "branch:\n  integrationBranch: [develop, next]\n  taskPattern: dev/*\n"
 	fx := gateFixture(t, declareOnMain(t, declList), declList)
+	// A later candidate that is absent from the remote does not refuse.
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), hotfixOptions(t, fx))
+	if err != nil || !report.Ready {
+		t.Fatalf("control: an absent later candidate must stay READY: err=%v report=%+v", err, report)
+	}
 	head := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
 	runGit(t, fx.Clone, "branch", "next", head)
 	opts := hotfixOptions(t, fx)
 	opts.Branch = "next"
 	checkHotfixRefused(t, opts, "source next is not a task branch")
+}
+
+// The resolver stops at the first candidate that exists, but unreleased work on
+// any later one must not reach the default branch either.
+func TestCheck_HotfixRefusesLaterCandidateHistory(t *testing.T) {
+	t.Parallel()
+	const declList = "branch:\n  integrationBranch: [staging, develop]\n  taskPattern: dev/*\n"
+	fx := gateFixture(t, declareOnMain(t, declList), declList)
+	runGit(t, fx.Clone, "push", "-q", fx.Remote, originHead(t, fx, "main")+":refs/heads/staging")
+	advanceDevelop(t, fx)
+
+	runGit(t, fx.Worktree, "fetch", "-q", fx.Remote)
+	runGit(t, fx.Worktree, "checkout", "-q", "-B", gateTaskBranch, originHead(t, fx, "develop"))
+	writeRepoFile(t, fx.Worktree, "task.txt", "fix\n")
+	runGit(t, fx.Worktree, "add", ".")
+	runGit(t, fx.Worktree, "commit", "-m", "fix cut from develop")
+	runGit(t, fx.Worktree, "push", "-q", "--force", "-u", fx.Remote, gateTaskBranch)
+	checkHotfixRefused(t, hotfixOptions(t, fx), "refs/remotes/origin/develop")
+}
+
+// A gate that cannot be read is a refusal like any unmet condition.
+func TestCheck_HotfixRefusesUnreadableGate(t *testing.T) {
+	t.Parallel()
+	fx := hotfixFixture(t)
+	opts := hotfixOptions(t, fx)
+	runGit(t, fx.Clone, "symbolic-ref", "refs/remotes/"+fx.Remote+"/HEAD", "refs/remotes/"+fx.Remote+"/gone")
+	_, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+	assertHotfixRefusal(t, err, "resolves to no commit")
+	if got := RunExitCode(nil, err); got != RunExitToolError {
+		t.Fatalf("exit = %d, want %d", got, RunExitToolError)
+	}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := asHotfixRefusal(canceled, true, context.Canceled); errors.Is(got, ErrHotfixRefused) {
+		t.Fatalf("a canceled context must keep its own class, got %v", got)
+	}
 }
 
 func TestCheck_HotfixRefusesIntegrationHistory(t *testing.T) {

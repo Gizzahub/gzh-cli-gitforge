@@ -198,7 +198,7 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	// value above only picked the default target.
 	if opts.gateOnDefaultBranchDeclaration {
 		if err := applyDefaultBranchDeclaration(ctx, g, exec, &plan); err != nil {
-			return plan, err
+			return plan, asHotfixRefusal(ctx, opts.Hotfix, err)
 		}
 	}
 	if err := validateTarget(plan, target, opts); err != nil {

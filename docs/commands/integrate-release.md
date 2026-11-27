@@ -168,7 +168,10 @@ then be at the pinned commit.
 
 It is opt-in. A call without `--hotfix` is judged as described above, and a
 task branch cannot reach the default branch that way. A hotfix lands only when
-every condition holds; any violation pushes nothing and exits 1:
+every condition holds. Any violation pushes nothing. A refusal from the engine,
+including a condition it cannot establish, exits 1. Arguments the command
+rejects first, such as a shortened pin or `--record` without `--source`,
+exit 2.
 
 1. The call does not combine `--hotfix` with `--release`,
    `--direct-to-default`, `--controller-config` or `--no-fetch`.
@@ -181,10 +184,11 @@ every condition holds; any violation pushes nothing and exits 1:
    does not exist.
 1. The target is the default branch, and the source is a local branch that is
    neither the default branch nor a declared integration branch.
-1. No commit between the target and the source is reachable from the remote
-   integration branch. Only the exact ref `refs/remotes/<remote>/<integration>`
-   is read, and a missing ref refuses even where a local branch has the same
-   name. No patch ids are compared, so a cherry-picked fix is accepted.
+1. No commit between the target and the source is reachable from a remote
+   integration branch. Every declared candidate that exists as the exact ref
+   `refs/remotes/<remote>/<candidate>` is read. The integration branch in use
+   must exist there: its missing ref refuses even where a local branch has the
+   same name. No patch ids are compared, so a cherry-picked fix is accepted.
 1. The source commits the same `branch.integrationBranch` as the target commit.
 
 The exit code stays 4 when `--source` or the pinned target no longer matches.

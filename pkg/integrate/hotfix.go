@@ -23,8 +23,8 @@ import (
 //     --no-fetch.
 //   - The gate is the declaration committed on the default branch, read at the
 //     very commit the task lands on. The working tree never gates a hotfix.
-//   - The source is a task branch that carries none of the integration
-//     branch's history and does not change the declared integration branch.
+//   - The source is a task branch that carries no unreleased history of a
+//     declared integration branch and does not change that declaration.
 //
 // Bringing the hotfix back into the integration branch is the caller's job.
 
@@ -72,10 +72,20 @@ func requireHotfixRun(opts RunOptions) error {
 	return validateHotfixOptions(opts.CheckOptions)
 }
 
+// asHotfixRefusal classifies an error that stopped a hotfix from being judged
+// as a refusal: a condition that cannot be established does not hold. An error
+// under a canceled or expired context keeps its own class.
+func asHotfixRefusal(ctx context.Context, hotfix bool, err error) error {
+	if err == nil || !hotfix || ctx.Err() != nil || errors.Is(err, ErrHotfixRefused) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", ErrHotfixRefused, err)
+}
+
 // requireLandingRules holds the pinned plan to the rules of its landing kind.
 func requireLandingRules(ctx context.Context, g gitRepo, plan TargetPlan) error {
 	if plan.Hotfix {
-		return requireHotfixLanding(ctx, g, plan)
+		return asHotfixRefusal(ctx, true, requireHotfixLanding(ctx, g, plan))
 	}
 	return requireRemoteReleaseRef(ctx, g, plan)
 }
@@ -89,13 +99,36 @@ func requireHotfixLanding(ctx context.Context, g gitRepo, plan TargetPlan) error
 	if err := requireHotfixGate(plan, defaultName); err != nil {
 		return err
 	}
-	if err := requireHotfixSource(ctx, g, plan, defaultName); err != nil {
+	candidates, err := hotfixIntegrationNames(ctx, g, plan)
+	if err != nil {
 		return err
 	}
-	if err := requireHotfixHistory(ctx, g, plan); err != nil {
+	if err := requireHotfixSource(ctx, g, plan, defaultName, candidates); err != nil {
+		return err
+	}
+	if err := requireHotfixHistory(ctx, g, plan, candidates); err != nil {
 		return err
 	}
 	return requireHotfixDeclaration(ctx, g, plan)
+}
+
+// hotfixIntegrationNames lists the branches the gating declaration offers as
+// integration candidates, the resolved one first. Every candidate counts, not
+// only the one that resolved. Names are normalized against all remotes, as the
+// resolver does.
+func hotfixIntegrationNames(ctx context.Context, g gitRepo, plan TargetPlan) ([]string, error) {
+	remotes, err := g.remotes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := []string{plan.Integration.Name}
+	for _, raw := range plan.gateIntegration {
+		name := config.NormalizeIntegrationBranchName(raw, remotes)
+		if name != "" && !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	return names, nil
 }
 
 // remoteDefaultBranch names the branch <remote>/HEAD points at. It reads the
@@ -140,7 +173,7 @@ func requireHotfixGate(plan TargetPlan, defaultName string) error {
 }
 
 // requireHotfixSource requires a local task branch as the source.
-func requireHotfixSource(ctx context.Context, g gitRepo, plan TargetPlan, defaultName string) error {
+func requireHotfixSource(ctx context.Context, g gitRepo, plan TargetPlan, defaultName string, candidates []string) error {
 	full, err := g.output(ctx, "rev-parse", "--symbolic-full-name", plan.Branch)
 	if err != nil {
 		return fmt.Errorf("hotfix source ref: %w", err)
@@ -149,42 +182,56 @@ func requireHotfixSource(ctx context.Context, g gitRepo, plan TargetPlan, defaul
 	if !local {
 		return hotfixRefusal("source %s is not a local task branch", plan.Branch)
 	}
-	// Every declared candidate counts, not only the one that resolved.
-	declared := slices.ContainsFunc(plan.gateIntegration, func(raw string) bool {
-		return config.NormalizeIntegrationBranchName(raw, []string{plan.Remote}) == name
-	})
-	if name == defaultName || name == plan.Integration.Name || declared {
+	if name == defaultName || slices.Contains(candidates, name) {
 		return hotfixRefusal("source %s is not a task branch; the default and integration branches cannot be a hotfix source", name)
 	}
 	return nil
 }
 
+// remoteIntegrationRefs reads the candidates' remote-tracking refs and returns
+// each existing one with the revision that excludes it. The resolved branch,
+// candidates[0], must exist; a later candidate of a list is optional.
+func remoteIntegrationRefs(ctx context.Context, g gitRepo, remote string, candidates []string) (refs, excluded []string, err error) {
+	for i, name := range candidates {
+		// show-ref matches the exact name only. rev-parse would fall back to
+		// a local branch spelled like the missing remote-tracking ref.
+		ref := "refs/remotes/" + remote + "/" + name
+		res, err := g.run(ctx, "show-ref", "--verify", "--hash", ref)
+		if err != nil {
+			return nil, nil, err
+		}
+		if res.ExitCode != 0 {
+			if i == 0 {
+				return nil, nil, hotfixRefusal("remote integration ref %s is missing", ref)
+			}
+			continue
+		}
+		refs = append(refs, ref)
+		excluded = append(excluded, "^"+strings.TrimSpace(res.Stdout))
+	}
+	return refs, excluded, nil
+}
+
 // requireHotfixHistory refuses a source carrying any commit between the target
-// and the source that the remote integration branch also reaches: landing it
+// and the source that a remote integration branch also reaches: landing it
 // would release unreleased integration work. A cherry-pick is a new commit and
 // passes.
-func requireHotfixHistory(ctx context.Context, g gitRepo, plan TargetPlan) error {
-	// show-ref matches the exact name only. rev-parse would fall back to a
-	// local branch spelled like the missing remote-tracking ref.
-	ref := "refs/remotes/" + plan.Remote + "/" + plan.Integration.Name
-	res, err := g.run(ctx, "show-ref", "--verify", "--hash", ref)
+func requireHotfixHistory(ctx context.Context, g gitRepo, plan TargetPlan, candidates []string) error {
+	refs, excluded, err := remoteIntegrationRefs(ctx, g, plan.Remote, candidates)
 	if err != nil {
 		return err
 	}
-	if res.ExitCode != 0 {
-		return hotfixRefusal("remote integration ref %s is missing", ref)
-	}
-	integration := strings.TrimSpace(res.Stdout)
-	all, err := g.output(ctx, "rev-list", "--count", plan.BranchSHA, "^"+plan.TargetSHA)
+	beyond := []string{"rev-list", "--count", plan.BranchSHA, "^" + plan.TargetSHA}
+	all, err := g.output(ctx, beyond...)
 	if err != nil {
 		return err
 	}
-	own, err := g.output(ctx, "rev-list", "--count", plan.BranchSHA, "^"+plan.TargetSHA, "^"+integration)
+	own, err := g.output(ctx, append(beyond, excluded...)...)
 	if err != nil {
 		return err
 	}
 	if all != own {
-		return hotfixRefusal("source %s carries history from %s (%s commits beyond the target, only %s of them its own); cut the hotfix from the default branch and cherry-pick", plan.Branch, ref, all, own)
+		return hotfixRefusal("source %s carries history from %s (%s commits beyond the target, only %s of them its own); cut the hotfix from the default branch and cherry-pick", plan.Branch, strings.Join(refs, " or "), all, own)
 	}
 	return nil
 }

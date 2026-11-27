@@ -48,8 +48,9 @@ repository keeps a separate integration branch. It requires --source, --record,
 --owner and a pinned --target <default branch>@<sha>, and refuses --release,
 --direct-to-default, --controller-config and --no-fetch. The default branch
 must commit the declaration that gates it, at the pinned commit. The source
-must be a local task branch that carries no commit of the remote integration
-branch (cherry-pick instead) and leaves integrationBranch unchanged. Any
+must be a local task branch that carries no unreleased commit of a declared
+integration branch on the remote (cherry-pick instead) and leaves
+integrationBranch unchanged. Any
 violation pushes nothing. Bringing the hotfix back into the integration branch
 is a separate step that this command does not perform. With --json the
 document carries landing: "hotfix".
