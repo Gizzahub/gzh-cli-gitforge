@@ -37,7 +37,9 @@ import (
 // integration branch, or carries a declaration that cannot be used. The first
 // three are a repository adopting the declaration. The last must not refuse,
 // because an integration is then the only way to repair the declaration; the
-// check reports it as a warning instead.
+// check reports it as a warning instead. A default branch that is known but
+// resolves to no commit is refused: that is stale local ref state, and
+// falling back would hand the gate to the branch being judged.
 
 // applyDefaultBranchDeclaration replaces the plan's integration branch with
 // the one committed on the default branch, when that commit declares one.
@@ -57,7 +59,7 @@ func applyDefaultBranchDeclaration(ctx context.Context, g gitRepo, exec *gitcmd.
 	if !ok {
 		// A default branch that is known but has no commit to read must not
 		// hand the gate to the branch being judged.
-		return fmt.Errorf("default branch declaration: %s names %s, which resolves to no commit", head, plan.DefaultRef)
+		return fmt.Errorf("default branch declaration: %s names %s, which resolves to no commit; run 'git remote set-head %s --auto'", head, plan.DefaultRef, plan.Remote)
 	}
 	integration, source, err := committedIntegrationBranch(ctx, g, commit)
 	var unusable declarationContentError

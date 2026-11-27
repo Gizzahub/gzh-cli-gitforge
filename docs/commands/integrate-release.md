@@ -125,6 +125,14 @@ is omitted, and it gates when the default branch offers nothing to gate on:
   parse. A release refuses that state, so an ordinary integration is the only
   repair; the check passes with a warning that names the problem.
 
+A `<remote>/HEAD` that names a branch with no commit is not a fallback. The
+remote deleted or renamed its default branch and the local ref is stale, so
+the integration is refused until the ref is repaired:
+
+```text
+default branch declaration: refs/remotes/origin/HEAD names origin/main, which resolves to no commit; run 'git remote set-head origin --auto'
+```
+
 `--controller-config` and a caller-supplied integration branch are not
 repository declarations, and the default branch's value does not replace
 them. When the default branch's value gates, the check output and any target
