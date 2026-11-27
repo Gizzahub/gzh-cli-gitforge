@@ -131,6 +131,23 @@ func TestCheck_TaskBranchCannotDeclareItsWayOntoDefaultBranch(t *testing.T) {
 	}
 }
 
+// A local branch spelled like the remote-tracking default branch must not
+// hide the default branch's declaration. Git then shortens <remote>/HEAD to
+// "remotes/origin/main", so the gate cannot be read by short name.
+func TestCheck_LocalBranchNamedLikeDefaultRefDoesNotSkipGate(t *testing.T) {
+	t.Parallel()
+	fx := gateFixture(t, declareOnMain(t, declDevelopOnly), declMainOnly)
+	runGit(t, fx.Worktree, "branch", fx.Remote+"/main", "refs/remotes/"+fx.Remote+"/main")
+	report, err := Check(context.Background(), gitcmd.NewExecutor(), gateOptions(fx, "main"))
+	if err == nil {
+		t.Fatalf("the shadowing branch let a self-declared task branch through:\n%s", FormatCheck(report))
+	}
+	if want := "integrationBranch develop from .gz-git.yaml at "; !strings.Contains(err.Error(), want) ||
+		!strings.Contains(err.Error(), "gates this integration") {
+		t.Fatalf("error %q does not name the default branch declaration as the gate", err)
+	}
+}
+
 // The default branch is the authority, not the target: an integration branch
 // that still carries an older declaration takes the merge that updates it.
 func TestCheck_StaleIntegrationBranchDeclarationDoesNotGate(t *testing.T) {

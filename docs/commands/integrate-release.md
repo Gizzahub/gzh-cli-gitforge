@@ -117,8 +117,8 @@ whose commit still carries an older value takes the merge that updates it.
 The working tree's `integrationBranch` still picks the target when `--target`
 is omitted, and it gates when the default branch offers nothing to gate on:
 
-- The default branch is unknown: the repository has no remote, or
-  `--no-fetch` finds no local `<remote>/HEAD`.
+- The default branch is unknown: `--no-fetch` finds no local
+  `<remote>/HEAD`.
 - The default branch has no root declaration, or declares no integration
   branch. This is a repository adopting the declaration.
 - The default branch's root declaration is a symbolic link or does not

@@ -45,15 +45,19 @@ func applyDefaultBranchDeclaration(ctx context.Context, g gitRepo, exec *gitcmd.
 	if plan.DefaultRef == "" {
 		return nil
 	}
-	// DefaultRef is a remote-tracking short name (planFetchDefault). The full
-	// ref keeps a local branch spelled "origin/main" from shadowing it and
-	// supplying the gate.
-	commit, ok, err := g.revParse(ctx, "refs/remotes/"+plan.DefaultRef)
+	// DefaultRef is the short form of <remote>/HEAD, and git spells it
+	// "remotes/origin/main" when a local branch is named "origin/main". The
+	// commit is therefore read through the full symbolic ref, which no local
+	// branch can shadow.
+	head := "refs/remotes/" + plan.Remote + "/HEAD"
+	commit, ok, err := g.revParse(ctx, head)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return nil
+		// A default branch that is known but has no commit to read must not
+		// hand the gate to the branch being judged.
+		return fmt.Errorf("default branch declaration: %s names %s, which resolves to no commit", head, plan.DefaultRef)
 	}
 	integration, source, err := committedIntegrationBranch(ctx, g, commit)
 	var unusable declarationContentError
