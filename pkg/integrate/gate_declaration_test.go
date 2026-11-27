@@ -206,11 +206,15 @@ func TestCheck_UnusableDefaultBranchDeclarationWarnsAndFallsBack(t *testing.T) {
 		problem    string
 	}{
 		"unparsable": {
-			func(t *testing.T) func(string) { return declareOnMain(t, "branch: [unclosed\n") },
+			func(t *testing.T) func(string) {
+				t.Helper()
+				return declareOnMain(t, "branch: [unclosed\n")
+			},
 			".gz-git.yaml",
 		},
 		"symbolic link": {
 			func(t *testing.T) func(string) {
+				t.Helper()
 				return func(dir string) {
 					writeRepoFile(t, dir, "real-decl.yaml", declDevelopOnly)
 					if err := os.Symlink("real-decl.yaml", filepath.Join(dir, ".gz-git.yaml")); err != nil {
