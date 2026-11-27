@@ -159,8 +159,12 @@ separate integration branch:
 
 ```text
 gz-git integrate run dev/claude/mbp/fix/x --hotfix --source <full-sha> \
-  --target master@<full-sha> --record run-42@g7 --owner claude/mbp/agent --json
+  --target origin/master@<full-sha> --record run-42@g7 \
+  --owner claude/mbp/agent --json
 ```
+
+A bare target such as `master@<full-sha>` reads the local branch, which must
+then be at the pinned commit.
 
 It is opt-in. A call without `--hotfix` is judged as described above, and a
 task branch cannot reach the default branch that way. A hotfix lands only when
@@ -168,20 +172,20 @@ every condition holds; any violation pushes nothing and exits 1:
 
 1. The call does not combine `--hotfix` with `--release`,
    `--direct-to-default`, `--controller-config` or `--no-fetch`.
-2. `--source`, `--record`, `--owner` and a pinned `--target <ref>@<sha>` are
+1. `--source`, `--record`, `--owner` and a pinned `--target <ref>@<sha>` are
    all present.
-3. The gate is the declaration committed on the default branch, read at the
+1. The gate is the declaration committed on the default branch, read at the
    same commit the task lands on. There is no working-tree fallback and no
    caller-supplied integration branch: a missing or unreadable declaration
    refuses, and so does an integration branch that is the default branch or
    does not exist.
-4. The target is the default branch, and the source is a local branch that is
-   neither the default nor the integration branch.
-5. No commit between the target and the source is reachable from the remote
+1. The target is the default branch, and the source is a local branch that is
+   neither the default branch nor a declared integration branch.
+1. No commit between the target and the source is reachable from the remote
    integration branch. Only the exact ref `refs/remotes/<remote>/<integration>`
    is read, and a missing ref refuses even where a local branch has the same
    name. No patch ids are compared, so a cherry-picked fix is accepted.
-6. The source commits the same `branch.integrationBranch` as the target commit.
+1. The source commits the same `branch.integrationBranch` as the target commit.
 
 The exit code stays 4 when `--source` or the pinned target no longer matches.
 With `--json` the run document carries `"landing": "hotfix"`; other landings

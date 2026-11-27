@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/gizzahub/gzh-cli-gitforge/pkg/config"
 )
 
 // A hotfix is the one landing that changes the default branch without a
@@ -147,7 +149,11 @@ func requireHotfixSource(ctx context.Context, g gitRepo, plan TargetPlan, defaul
 	if !local {
 		return hotfixRefusal("source %s is not a local task branch", plan.Branch)
 	}
-	if name == defaultName || name == plan.Integration.Name {
+	// Every declared candidate counts, not only the one that resolved.
+	declared := slices.ContainsFunc(plan.gateIntegration, func(raw string) bool {
+		return config.NormalizeIntegrationBranchName(raw, []string{plan.Remote}) == name
+	})
+	if name == defaultName || name == plan.Integration.Name || declared {
 		return hotfixRefusal("source %s is not a task branch; the default and integration branches cannot be a hotfix source", name)
 	}
 	return nil

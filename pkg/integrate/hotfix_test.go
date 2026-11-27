@@ -229,10 +229,38 @@ func TestCheck_HotfixRequiresDefaultTargetAndTaskSource(t *testing.T) {
 		checkHotfixRefused(t, opts, want)
 	}
 
-	report, err := Check(context.Background(), gitcmd.NewExecutor(), hotfixOptions(t, fx))
-	if err != nil || !report.Ready {
-		t.Fatalf("control: the task branch onto main must be READY: err=%v report=%+v", err, report)
+	// A bare target name reads the local branch, so it must be at the pin.
+	for _, target := range []string{fx.Remote + "/main", "main"} {
+		opts := hotfixOptions(t, fx)
+		opts.Target = target
+		report, err := Check(context.Background(), gitcmd.NewExecutor(), opts)
+		if err != nil || !report.Ready {
+			t.Fatalf("control: the task branch onto %s must be READY: err=%v report=%+v", target, err, report)
+		}
 	}
+	behind := hotfixOptions(t, fx)
+	behind.Target = "main"
+	runGit(t, fx.Clone, "checkout", "-q", "--detach")
+	runGit(t, fx.Clone, "branch", "-q", "-f", "main", develop)
+	if _, err := Check(context.Background(), gitcmd.NewExecutor(), behind); !errors.Is(err, ErrTargetMismatch) || errors.Is(err, ErrHotfixRefused) {
+		t.Fatalf("a bare target off its pin: error = %v, want only ErrTargetMismatch", err)
+	}
+	staleSource := hotfixOptions(t, fx)
+	staleSource.ExpectSource = develop
+	if _, err := Check(context.Background(), gitcmd.NewExecutor(), staleSource); !errors.Is(err, ErrSourceMismatch) || errors.Is(err, ErrHotfixRefused) {
+		t.Fatalf("a moved source: error = %v, want only ErrSourceMismatch", err)
+	}
+}
+
+func TestCheck_HotfixRefusesUnresolvedIntegrationCandidate(t *testing.T) {
+	t.Parallel()
+	const declList = "branch:\n  integrationBranch: [develop, next]\n  taskPattern: dev/*\n"
+	fx := gateFixture(t, declareOnMain(t, declList), declList)
+	head := gitOutput(t, fx.Worktree, "rev-parse", "HEAD")
+	runGit(t, fx.Clone, "branch", "next", head)
+	opts := hotfixOptions(t, fx)
+	opts.Branch = "next"
+	checkHotfixRefused(t, opts, "source next is not a task branch")
 }
 
 func TestCheck_HotfixRefusesIntegrationHistory(t *testing.T) {
