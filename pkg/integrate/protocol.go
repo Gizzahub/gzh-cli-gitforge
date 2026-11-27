@@ -18,9 +18,11 @@ import (
 
 // RunProtocol is the integrate run --json document.
 type RunProtocol struct {
-	SchemaVersion       int              `json:"schema_version"`
-	Command             string           `json:"command"`
-	Integrated          bool             `json:"integrated"`
+	SchemaVersion int    `json:"schema_version"`
+	Command       string `json:"command"`
+	Integrated    bool   `json:"integrated"`
+	// Landing is "hotfix" for a --hotfix landing and omitted for any other.
+	Landing             string           `json:"landing,omitempty"`
 	ExecutionID         string           `json:"execution_id"`
 	Generation          string           `json:"generation"`
 	Owner               *OwnerIdentity   `json:"owner,omitempty"`
@@ -67,6 +69,9 @@ func BuildRunProtocol(report *RunReport, err error, exitCode int) *RunProtocol {
 		p.IntegrationDurationMS = int(report.IntegrationDuration.Milliseconds())
 		if report.Check != nil {
 			p.TargetRef = "refs/heads/" + targetBranchName(report.Check.Plan.Target, report.Check.Plan.Remote)
+			if report.Check.Plan.Hotfix {
+				p.Landing = "hotfix"
+			}
 		}
 		if report.Receipt == nil && report.Integrated {
 			// Legacy runs have no durable receipt identity, but still record

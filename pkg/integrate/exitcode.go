@@ -40,6 +40,9 @@ func RunExitCode(report *RunReport, err error) int {
 		return RunExitSourceMismatch
 	case errors.Is(err, ErrInterrupted):
 		return RunExitInterrupted
+	// A hotfix refusal is "not ready" whatever its text says.
+	case errors.Is(err, ErrHotfixRefused):
+		return RunExitToolError
 	case errors.Is(err, ErrImplicitSourceIsTarget) || strings.Contains(err.Error(), "not ready") || strings.Contains(err.Error(), "--target") || strings.Contains(err.Error(), "integration branch"):
 		return RunExitToolError
 	default:

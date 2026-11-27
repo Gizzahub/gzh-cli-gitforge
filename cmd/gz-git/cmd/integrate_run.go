@@ -19,6 +19,7 @@ var (
 	integrateRunTarget           string
 	integrateRunDirectToDefault  bool
 	integrateRunRelease          bool
+	integrateRunHotfix           bool
 	integrateRunControllerConfig string
 	integrateRunNoFetch          bool
 	integrateRunSource           string
@@ -41,6 +42,17 @@ var integrateRunCmd = &cobra.Command{
   gz-git integrate run dev/claude/mbp/feat/x --source <full-sha> \
     --target master@<full-sha> --record run-42@g7 \
     --owner claude/mbp/agent --json
+
+--hotfix lands a task branch on the default branch without a release while the
+repository keeps a separate integration branch. It requires --source, --record,
+--owner and a pinned --target <default branch>@<sha>, and refuses --release,
+--direct-to-default, --controller-config and --no-fetch. The default branch
+must commit the declaration that gates it, at the pinned commit. The source
+must be a local task branch that carries no commit of the remote integration
+branch (cherry-pick instead) and leaves integrationBranch unchanged. Any
+violation pushes nothing. Bringing the hotfix back into the integration branch
+is a separate step that this command does not perform. With --json the
+document carries landing: "hotfix".
 
 Reclaim only runs for names matching the repo-root taskPattern.
 No declaration means reclaim nothing. Remote branch delete uses
@@ -95,6 +107,7 @@ func init() {
 	integrateRunCmd.Flags().StringVar(&integrateRunTarget, "target", "", "integration target (required when none can be resolved)")
 	integrateRunCmd.Flags().BoolVar(&integrateRunDirectToDefault, "direct-to-default", false, "allow targeting the default branch when no integration branch exists")
 	integrateRunCmd.Flags().BoolVar(&integrateRunRelease, "release", false, "promote the integration branch onto the default branch")
+	integrateRunCmd.Flags().BoolVar(&integrateRunHotfix, "hotfix", false, "land a task branch on the default branch without a release; requires --source, --record, --owner and a pinned --target")
 	integrateRunCmd.Flags().StringVar(&integrateRunControllerConfig, "controller-config", "", "explicit devbox/controller config; never searched automatically")
 	integrateRunCmd.Flags().BoolVar(&integrateRunNoFetch, "no-fetch", false, "integrate from local tracking refs without fetching; remote delete failures fail closed")
 	integrateRunCmd.Flags().StringVar(&integrateRunSource, "source", "", "full commit SHA of the source to land; supplied together with --record and --owner, or not at all")
@@ -160,6 +173,7 @@ func runIntegrateRun(cmd *cobra.Command, args []string) error {
 			Target:           runArgs.Target,
 			DirectToDefault:  integrateRunDirectToDefault,
 			Release:          integrateRunRelease,
+			Hotfix:           integrateRunHotfix,
 			ControllerConfig: integrateRunControllerConfig,
 			NoFetch:          integrateRunNoFetch,
 			ExpectSource:     runArgs.ExpectSource,

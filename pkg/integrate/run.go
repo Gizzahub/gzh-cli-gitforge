@@ -85,6 +85,9 @@ func run(ctx context.Context, exec *gitcmd.Executor, opts RunOptions) (*RunRepor
 	if opts.Execution != nil {
 		opts.ExpectSource = opts.Execution.ExpectSource
 	}
+	if err := requireHotfixRun(opts); err != nil {
+		return nil, err
+	}
 	if err := rejectUnconfirmedHeuristicTarget(ctx, exec, opts.CheckOptions); err != nil {
 		return nil, err
 	}

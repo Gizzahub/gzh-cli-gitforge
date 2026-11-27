@@ -29,11 +29,14 @@ const gateModeNone = "none"
 
 // CheckOptions configures a read-only readiness check.
 type CheckOptions struct {
-	RepoPath          string
-	Branch            string
-	Target            string
-	DirectToDefault   bool
-	Release           bool
+	RepoPath        string
+	Branch          string
+	Target          string
+	DirectToDefault bool
+	Release         bool
+	// Hotfix lands a task branch on the default branch without a release, under
+	// the conditions in hotfix.go.
+	Hotfix            bool
 	IntegrationConfig []string
 	// ControllerConfig is an explicit devbox/controller file. It is never
 	// discovered from ancestors and never inherits repository readiness.
@@ -92,6 +95,9 @@ func Check(ctx context.Context, exec *gitcmd.Executor, opts CheckOptions) (repor
 		return nil, fmt.Errorf("git executor is nil")
 	}
 	if err := normalizeExpectedApprovals(&opts); err != nil {
+		return nil, err
+	}
+	if err := validateHotfixOptions(opts); err != nil {
 		return nil, err
 	}
 	g, root, err := openCheckRepo(ctx, exec, opts.RepoPath)

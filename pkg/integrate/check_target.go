@@ -93,6 +93,9 @@ type TargetPlan struct {
 	Integration Resolution
 	HeadSHA     string
 	Release     bool
+	// Hotfix reports a landing on the default branch without a release
+	// (hotfix.go).
+	Hotfix bool
 	// sourceDeclaration is the declaration committed at BranchSHA; a release
 	// reads it once after the fetch. Empty for any other plan.
 	sourceDeclaration config.TaskPatternDecl
@@ -217,7 +220,8 @@ func resolveTarget(ctx context.Context, g gitRepo, exec *gitcmd.Executor, opts C
 	plan.Target = target
 	plan.TargetSHA = tsha
 	plan.Release = opts.Release
-	if err := requireRemoteReleaseRef(ctx, g, plan); err != nil {
+	plan.Hotfix = opts.Hotfix
+	if err := requireLandingRules(ctx, g, plan); err != nil {
 		return plan, err
 	}
 	return plan, rejectHeuristicRunPlan(plan, opts)
@@ -398,6 +402,11 @@ func detectRemote(ctx context.Context, g gitRepo, branch string) (string, error)
 }
 
 func validateTarget(plan TargetPlan, target string, opts CheckOptions) error {
+	if opts.Hotfix {
+		// None of the rules below apply: requireHotfixLanding judges the
+		// target once its commit is pinned.
+		return nil
+	}
 	if opts.DirectToDefault && opts.Release {
 		return fmt.Errorf("--direct-to-default and --release cannot be combined")
 	}
