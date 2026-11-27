@@ -80,9 +80,10 @@ needs an explicit `--target <default branch>`. Without one, `check` and
 
 An integration without `--release` reads its declaration from the working
 tree it runs in, with one exception: `branch.integrationBranch`. The value
-committed on the default branch (the remote `HEAD` branch after the fetch)
-decides where a task branch may land. This is the commit a release reads too,
-since a release target is the default branch.
+committed on the default branch decides where a task branch may land. The
+default branch is the remote `HEAD` branch, read from its remote-tracking ref
+after the fetch; `--no-fetch` reads that ref as it stands. This is the commit
+a release reads too, since a release target is the default branch.
 
 The task branch's own value never gates (ISSUE-409). A task branch is the
 change being judged and may itself edit `integrationBranch`:
@@ -98,12 +99,26 @@ So the change that names a new integration branch lands on the default branch
 as an ordinary integration, while the default branch still declares itself.
 From then on only a release changes the default branch.
 
+Until that change lands, the default branch's value refuses every other
+target, the new integration branch included, even where that branch already
+declares itself:
+
+```text
+target must be the integration branch (origin/main) or the default branch (origin/main) (integrationBranch main from .gz-git.yaml at origin/main commit 9aab0def1234 gates this integration)
+```
+
+Land the declaration change with an explicit `--target <default branch>`.
+Without `--target` the working tree's value picks the new integration branch,
+which the default branch does not accept yet.
+
 The authority is the default branch, not the target. An integration branch
 whose commit still carries an older value takes the merge that updates it.
 
 The working tree's `integrationBranch` still picks the target when `--target`
 is omitted, and it gates when the default branch offers nothing to gate on:
 
+- The default branch is unknown: the repository has no remote, or
+  `--no-fetch` finds no local `<remote>/HEAD`.
 - The default branch has no root declaration, or declares no integration
   branch. This is a repository adopting the declaration.
 - The default branch's root declaration is a symbolic link or does not

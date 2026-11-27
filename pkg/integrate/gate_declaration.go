@@ -45,7 +45,10 @@ func applyDefaultBranchDeclaration(ctx context.Context, g gitRepo, exec *gitcmd.
 	if plan.DefaultRef == "" {
 		return nil
 	}
-	commit, ok, err := g.revParse(ctx, plan.DefaultRef)
+	// DefaultRef is a remote-tracking short name (planFetchDefault). The full
+	// ref keeps a local branch spelled "origin/main" from shadowing it and
+	// supplying the gate.
+	commit, ok, err := g.revParse(ctx, "refs/remotes/"+plan.DefaultRef)
 	if err != nil {
 		return err
 	}
